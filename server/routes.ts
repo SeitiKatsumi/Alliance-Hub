@@ -7,8 +7,8 @@ const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN;
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
 export async function registerRoutes(

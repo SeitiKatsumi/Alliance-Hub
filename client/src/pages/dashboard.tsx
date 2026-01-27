@@ -169,6 +169,45 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      <Card data-testid="card-andamento-bias">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-brand-gold" />
+            Andamento das BIAS
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {(bias.length > 0 ? bias.slice(0, 4) : [
+              { id: "1", nome_bia: "BIA Infraestrutura Inteligente" },
+              { id: "2", nome_bia: "BIA Tecnologia Verde" },
+              { id: "3", nome_bia: "BIA Transformação Digital" },
+            ]).map((bia: any, index: number) => {
+              const progressLevels = [26, 53, 77, 15];
+              const progress = progressLevels[index % progressLevels.length];
+              return (
+                <div key={bia.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium truncate max-w-xs">{bia.nome_bia}</p>
+                    <span className="text-xs text-muted-foreground">{progress}%</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all ${
+                        progress >= 70 ? "bg-brand-gold" : 
+                        progress >= 40 ? "bg-brand-navy" : 
+                        "bg-brand-gray"
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AIAssistant />
         

@@ -232,6 +232,46 @@ export async function registerRoutes(
     }
   });
 
+  // Update an item in a Directus collection
+  app.patch("/api/directus/:collection/:id", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection, id } = req.params;
+      const updates = req.body;
+
+      const response = await fetch(`${DIRECTUS_URL}/items/${collection}/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ 
+          success: false, 
+          error: `Directus returned ${response.status}: ${errorText}` 
+        });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, item: data.data });
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to update item" 
+      });
+    }
+  });
+
   // Generic route to get items from any Directus collection
   app.get("/api/directus/:collection", async (req, res) => {
     try {

@@ -9,6 +9,8 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import BiasPage from "@/pages/bias";
 import OportunidadesPage from "@/pages/oportunidades";
+import AuraPage from "@/pages/aura";
+import AdminPage from "@/pages/admin";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/bias" component={BiasPage} />
       <Route path="/oportunidades" component={OportunidadesPage} />
+      <Route path="/aura" component={AuraPage} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Briefcase, Target } from "lucide-react";
+import { LayoutDashboard, Briefcase, Target, Sparkles, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +29,16 @@ const menuItems = [
     title: "Oportunidades",
     url: "/oportunidades",
     icon: Target,
+  },
+  {
+    title: "AURA Built",
+    url: "/aura",
+    icon: Sparkles,
+  },
+  {
+    title: "Administração",
+    url: "/admin",
+    icon: Settings,
   },
 ];
 

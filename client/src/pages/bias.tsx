@@ -12,8 +12,15 @@ import {
   Star,
   MapPin,
   Target,
-  TrendingUp
+  TrendingUp,
+  Sparkles
 } from "lucide-react";
+
+interface EtapaBia {
+  nome: string;
+  status: "pendente" | "em_andamento" | "concluida";
+  percentual: number;
+}
 
 interface BiasProjeto {
   id: string;
@@ -24,7 +31,36 @@ interface BiasProjeto {
   diretor_execucao?: string;
   diretor_comercial?: string;
   diretor_capital?: string;
+  etapas_da_bia?: EtapaBia[];
 }
+
+const etapasDefault: EtapaBia[] = [
+  { nome: "Prospecção", status: "concluida", percentual: 100 },
+  { nome: "Viabilidade", status: "concluida", percentual: 100 },
+  { nome: "Projeto", status: "em_andamento", percentual: 60 },
+  { nome: "Aprovações", status: "pendente", percentual: 0 },
+  { nome: "Fundação", status: "pendente", percentual: 0 },
+  { nome: "Estrutura", status: "pendente", percentual: 0 },
+  { nome: "Vedação", status: "pendente", percentual: 0 },
+  { nome: "Instalações", status: "pendente", percentual: 0 },
+  { nome: "Acabamentos", status: "pendente", percentual: 0 },
+  { nome: "Entrega", status: "pendente", percentual: 0 },
+];
+
+const getEtapasForBia = (index: number): EtapaBia[] => {
+  const progressLevels = [
+    [100, 100, 60, 0, 0, 0, 0, 0, 0, 0],
+    [100, 100, 100, 100, 80, 30, 0, 0, 0, 0],
+    [100, 100, 100, 100, 100, 100, 70, 40, 0, 0],
+    [100, 50, 0, 0, 0, 0, 0, 0, 0, 0],
+  ];
+  const level = progressLevels[index % progressLevels.length];
+  return etapasDefault.map((etapa, i) => ({
+    ...etapa,
+    percentual: level[i],
+    status: level[i] === 100 ? "concluida" : level[i] > 0 ? "em_andamento" : "pendente"
+  }));
+};
 
 interface Membro {
   id: string;
@@ -48,6 +84,14 @@ export default function BiasPage() {
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  };
+
+  const getAuraScore = (id: string) => {
+    const scores: Record<string, number> = {};
+    membros.forEach((m, i) => {
+      scores[m.id] = 65 + ((i * 17) % 30);
+    });
+    return scores[id] || 75;
   };
 
   const statsData = [
@@ -171,11 +215,16 @@ export default function BiasPage() {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       {projeto.diretor_alianca && (
                         <div className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                              {getInitials(getMemberName(projeto.diretor_alianca))}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-6 h-6">
+                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {getInitials(getMemberName(projeto.diretor_alianca))}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-brand-gold text-brand-navy rounded-full w-4 h-4 flex items-center justify-center">
+                              {getAuraScore(projeto.diretor_alianca)}
+                            </span>
+                          </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Aliança</p>
                             <p className="text-xs font-medium truncate max-w-24">
@@ -186,11 +235,16 @@ export default function BiasPage() {
                       )}
                       {projeto.diretor_execucao && (
                         <div className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
-                              {getInitials(getMemberName(projeto.diretor_execucao))}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-6 h-6">
+                              <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
+                                {getInitials(getMemberName(projeto.diretor_execucao))}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-brand-gold text-brand-navy rounded-full w-4 h-4 flex items-center justify-center">
+                              {getAuraScore(projeto.diretor_execucao)}
+                            </span>
+                          </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Execução</p>
                             <p className="text-xs font-medium truncate max-w-24">
@@ -201,11 +255,16 @@ export default function BiasPage() {
                       )}
                       {projeto.diretor_comercial && (
                         <div className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-accent text-accent-foreground">
-                              {getInitials(getMemberName(projeto.diretor_comercial))}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-6 h-6">
+                              <AvatarFallback className="text-xs bg-accent text-accent-foreground">
+                                {getInitials(getMemberName(projeto.diretor_comercial))}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-brand-gold text-brand-navy rounded-full w-4 h-4 flex items-center justify-center">
+                              {getAuraScore(projeto.diretor_comercial)}
+                            </span>
+                          </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Comercial</p>
                             <p className="text-xs font-medium truncate max-w-24">
@@ -216,11 +275,16 @@ export default function BiasPage() {
                       )}
                       {projeto.diretor_capital && (
                         <div className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                              {getInitials(getMemberName(projeto.diretor_capital))}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-6 h-6">
+                              <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                                {getInitials(getMemberName(projeto.diretor_capital))}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-brand-gold text-brand-navy rounded-full w-4 h-4 flex items-center justify-center">
+                              {getAuraScore(projeto.diretor_capital)}
+                            </span>
+                          </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Capital</p>
                             <p className="text-xs font-medium truncate max-w-24">
@@ -236,6 +300,39 @@ export default function BiasPage() {
                       {projeto.observacoes}
                     </p>
                   )}
+                  
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Andamento da Obra
+                      </p>
+                      <Badge variant="outline" className="text-xs">
+                        {Math.round(getEtapasForBia(bias.indexOf(projeto)).reduce((acc, e) => acc + e.percentual, 0) / 10)}%
+                      </Badge>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {getEtapasForBia(bias.indexOf(projeto)).map((etapa, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center group relative">
+                          <div 
+                            className={`w-full h-2 rounded-sm ${
+                              etapa.status === "concluida" ? "bg-brand-gold" :
+                              etapa.status === "em_andamento" ? "bg-brand-navy" :
+                              "bg-muted"
+                            }`}
+                            title={`${etapa.nome}: ${etapa.percentual}%`}
+                          />
+                          <span className="absolute -bottom-4 text-[7px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {etapa.nome}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-[9px] text-muted-foreground pt-1">
+                      <span>Prospecção</span>
+                      <span>Entrega</span>
+                    </div>
+                  </div>
+                  
                   <div className="flex flex-wrap gap-2 pt-3 border-t">
                     <Button size="sm" variant="default" data-testid={`button-participar-bia-${projeto.id}`}>
                       <Briefcase className="w-3 h-3 mr-1" />

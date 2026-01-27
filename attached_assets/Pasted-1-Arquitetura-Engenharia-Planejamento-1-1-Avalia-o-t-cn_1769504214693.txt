@@ -1,0 +1,187 @@
+1. Arquitetura, Engenharia & Planejamento
+1.1. Avaliação técnica de terrenos
+1.2. Consultoria para produto imobiliário
+1.3. Drenagem urbana
+1.4. Engenharia elétrica
+1.5. Engenharia estrutural
+1.6. Engenharia hidráulica
+1.7. Projetos viários
+1.8. Projetos de terraplenagem e movimentação de terra
+1.9. Projetos de fundações
+1.10. Estudos de viabilidade técnica e econômica
+1.11. Modelagem e compatibilização BIM
+1.12. Planejamento de acessibilidade e inclusão
+1.13. Planejamento urbano e loteamentos
+1.14. Projetos de arquitetura
+1.15. Projetos de paisagismo
+1.16. Sustentabilidade e certificações técnicas (LEED, EDGE)
+1.17. Topografia e georreferenciamento
+1.18. Arquitetura de interiores
+1.19. Patrimônio histórico e restauro
+1.20. Prevenção e combate a incêndio (PPCI)
+1.21. Acústica e conforto ambiental
+1.22. Climatização passiva e eficiência térmica
+1.23. Estudos de impacto ambiental e urbano
+1.24. Regularização e aprovação de projetos em órgãos públicos
+1.25. Consultoria em patologia das construções
+
+2. Construção & Execução de Obras
+2.1. Construção de edifícios residenciais e comerciais
+2.2. Construção de obras industriais
+2.3. Obras de infraestrutura e urbanização
+2.4. Retrofit, reforma e requalificação técnica
+2.5. Fundações, estruturas, alvenarias e coberturas
+2.6. Construção modular e seriada
+2.7. Gerenciamento de obra (prazos, escopo, custo)
+2.8. Segurança de obra (NRs)
+2.9. Preparação de canteiro e controle de insumos
+2.10. Construção de estruturas temporárias (stands, eventos)
+2.11. Obras em zonas especiais (ambientais, patrimoniais)
+2.12. Execução de pavimentação asfáltica
+2.13. Execução de pavimentação intertravada
+2.14. Estruturas metálicas e serralheria
+2.15. Construção de telhados e carpintaria
+2.16. Impermeabilização
+2.17. Concretagem e controle tecnológico
+2.18. Estruturas pré-moldadas e pré-fabricadas
+2.19. Alvenaria estrutural
+2.20. Demolição técnica e descarte controlado
+2.21. Montagem industrial pesada
+2.22. Obras de contenção e estabilidade de taludes
+2.23. Execução de barragens e canais
+2.24. Construções em ambientes especiais (offshore, subterrâneas, hospitalares)
+
+3. Sistemas Técnicos & Instalações Prediais
+3.1. Instalações elétricas
+3.2. Instalações hidráulicas
+3.3. Sistemas de climatização e HVAC
+3.4. Energia solar (fotovoltaica, térmica)
+3.5. Cabeamento estruturado e redes
+3.6. Automação predial (iluminação, controle de acesso, sensores)
+3.7. Sistemas de prevenção e combate a incêndio (SPCI, sprinklers, detectores)
+3.8. Instalação de elevadores e sistemas verticais
+3.9. Sistemas de segurança (CFTV, alarmes)
+3.10. Sistemas de reaproveitamento e eficiência
+3.11. Fossas e biodigestores
+3.12. Sistemas de iluminação de emergência e sinalização
+3.13. Automação residencial inteligente (smart homes)
+3.14. Sistemas de ventilação mecânica e exaustão
+3.15. Sistemas de pressurização de escadas
+3.16. Instalações de gás (GLP, GN)
+3.17. Sistemas de geração de energia (geradores, nobreaks)
+3.18. Carregadores para veículos elétricos (eletropostos)
+3.19. Integração de sistemas prediais em plataforma única (BMS – Building Management System)
+
+4. Acabamentos, Revestimentos & Soluções de Interiores
+4.1. Revestimentos e acabamentos
+4.2. Pedras, mármores e granitos
+4.3. Madeira e derivados
+4.4. Gesso, forros, drywall e divisórias técnicas
+4.5. Pintura e textura decorativa
+4.6. Marcenaria e móveis planejados
+4.7. Serralheria fina
+4.8. Iluminação técnica e decorativa
+4.9. Esquadrias de alto desempenho
+4.10. Soluções acústicas e térmicas
+4.11. Ambientação e design de interiores
+4.12. Soluções personalizadas para espaços corporativos
+4.13. Execução final de ambientes sensíveis (hospitais, hotéis)
+4.14. Fachadas ventiladas e tecnológicas
+4.15. Revestimentos ecológicos (bambu, materiais reciclados)
+4.16. Revestimentos térmicos e acústicos (painéis isolantes)
+4.17. Revestimentos monolíticos
+4.18. Telhas e coberturas
+4.19. Calhas e rufos
+4.20. Pisos vinílicos e laminados
+4.21. Carpetes técnicos e decorativos
+4.22. Coberturas tensionadas e especiais
+4.23. Vidros especiais (temperados, laminados, insulados)
+4.24. Portas técnicas (corta-fogo, acústicas, hospitalares)
+4.25. Painéis arquitetônicos decorativos
+4.26. Mobiliário urbano e corporativo integrado
+4.27. Soluções de branding e ambientação de marca
+
+5. Legalização, Regulação & Viabilidade
+5.1. Advocacia imobiliária, urbanística e contratual
+5.2. Consultoria em zoneamento e uso do solo
+5.3. Auditoria técnica e de conformidade legal
+5.4. Defesa técnica em processos administrativos e judiciais
+5.5. Due diligence técnica e documental
+5.6. Mediação e arbitragem de conflitos contratuais
+5.7. Apoio jurídico para parcerias público-privadas (PPPs)
+5.8. Estruturação de garantias e compliance regulatório
+5.9. Consultoria Contábil Especializada
+5.10. Licenciamento ambiental, urbanístico e patrimonial
+5.11. Regularização fundiária
+5.12. Pareceres e laudos técnicos
+5.13. Perícia e avaliação de imóveis
+5.14. Estruturação jurídica de SPEs e permutas
+5.15. Emissão de AVCB e aprovação junto a bombeiros
+5.16. Consultoria normativa
+5.17. Assessoria para registro de incorporação imobiliária
+6. Facilities, Manutenção & Sustentabilidade Operacional
+6.1. Facilities management (corporativo, condominial, institucional)
+6.2. Manutenção preventiva e corretiva
+6.3. Operação de sistemas técnicos (geradores, bombas, elevadores)
+6.4. Monitoramento remoto e telemetria
+6.5. Implementação de planos de manutenção
+6.6. Gestão de sustentabilidade (ESG, resíduos, energia)
+6.7. Atendimento técnico pós-obra
+6.8. Certificação de performance técnica
+6.9. Operação e manutenção predial integrada
+6.10. Planejamento operacional para empreendimentos
+6.11. Gestão de contratos e fornecedores de manutenção
+6.12. Serviços de limpeza e conservação técnica de ativos
+6.13. Monitoramento de desempenho energético
+6.14. Gestão de resíduos sólidos e reciclagem
+6.15. Inspeção predial periódica
+6.16. Modernização de sistemas prediais antigos
+6.17. Consultoria em segurança patrimonial e predial
+6.18. Relatórios de performance operacional para investidores
+
+7. Suprimentos, Logística & Fornecimento Estratégico
+7.1. Comércio de materiais de construção diversos
+7.2. Indústria de estruturas metálicas
+7.3. Indústria de pré-moldados
+7.4. Fornecimento de concreto
+7.5. Fornecimento de cimento e argamassa
+7.6. Fornecimento de aço
+7.7. Fornecimento de madeira
+7.8. Fornecimento de areia e brita
+7.9. Fornecimento de material hidráulico
+7.10. Fornecimento de material elétrico
+7.11. Logística de abastecimento para obras
+7.12. Locação de equipamentos técnicos
+7.13. Suprimentos especializados (EPI, ferramentas)
+7.14. Cadeia integrada BIM-Logística
+7.15. Armazenagem e transporte técnico
+7.16. Fornecimento just-in-time
+7.17. Comercialização técnica de sistemas prontos
+7.18. Transporte e logística de peças de grande porte (heavy lift)
+7.19. Fornecimento de insumos sustentáveis (verde e reciclado)
+7.20. Gestão de estoque em obra (just-in-place)
+7.21. Centros de distribuição regionais integrados
+7.22. Logística reversa de materiais de construção
+7.23. Transporte especializado para obras urbanas sensíveis
+
+8. Desenvolvimento Imobiliário, Investimento & Negócios
+8.1. Incorporação imobiliária
+8.2. Modelagem de negócios e parcerias patrimoniais
+8.3. Estruturação de SPEs, permutas e CPPs
+8.4. Captação e negociação de terrenos
+8.5. Análise de viabilidade financeira e técnica
+8.6. Comercialização estratégica com foco patrimonial
+8.7. Investimentos estruturados em ativos reais
+8.8. Desenvolvimento de produto imobiliário
+8.9. Gestão de portfólio de empreendimentos
+8.10. Relacionamento com fundos, family offices e investidores institucionais
+8.11. Estruturação de consórcios e joint ventures
+8.12. Gestão de ativos imobiliários (asset management)
+8.13. Operação de fundos imobiliários (FIIs)
+8.14. Estudos de mercado e inteligência imobiliária
+8.15. Estruturação de operações de built-to-suit
+8.16. Captação de recursos via mercado de capitais
+8.17. Consultoria em internacionalização de investimentos
+8.18. Modelagem de concessões e PPPs imobiliárias
+8.19. Comercialização de consórcios e cartas contempladas
+8.20. Instituições financeiras e financiamento imobiliário

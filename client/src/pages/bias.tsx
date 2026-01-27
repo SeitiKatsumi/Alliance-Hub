@@ -312,24 +312,24 @@ export default function BiasPage() {
                     </div>
                     <div className="flex gap-0.5">
                       {getEtapasForBia(bias.indexOf(projeto)).map((etapa, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center group relative">
+                        <div key={i} className="flex-1 flex flex-col items-center">
                           <div 
                             className={`w-full h-2 rounded-sm ${
                               etapa.status === "concluida" ? "bg-brand-gold" :
-                              etapa.status === "em_andamento" ? "bg-brand-navy" :
+                              etapa.status === "em_andamento" ? "bg-brand-gold/50" :
                               "bg-muted"
                             }`}
                             title={`${etapa.nome}: ${etapa.percentual}%`}
                           />
-                          <span className="absolute -bottom-4 text-[7px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                            {etapa.nome}
-                          </span>
                         </div>
                       ))}
                     </div>
-                    <div className="flex justify-between text-[9px] text-muted-foreground pt-1">
-                      <span>Prospecção</span>
-                      <span>Entrega</span>
+                    <div className="flex justify-between text-[8px] text-muted-foreground pt-1">
+                      {getEtapasForBia(bias.indexOf(projeto)).map((etapa, i) => (
+                        <span key={i} className="flex-1 text-center truncate px-0.5">
+                          {etapa.nome.slice(0, 4)}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   

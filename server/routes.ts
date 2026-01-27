@@ -226,5 +226,77 @@ export async function registerRoutes(
     }
   });
 
+  // Generic route to get items from any Directus collection
+  app.get("/api/directus/:collection", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection } = req.params;
+      const response = await fetch(`${DIRECTUS_URL}/items/${collection}?limit=-1`, {
+        headers: {
+          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ 
+          success: false, 
+          error: `Directus returned ${response.status}: ${errorText}` 
+        });
+      }
+
+      const data = await response.json();
+      res.json(data.data);
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to fetch items" 
+      });
+    }
+  });
+
+  // Get single item from Directus collection
+  app.get("/api/directus/:collection/:id", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection, id } = req.params;
+      const response = await fetch(`${DIRECTUS_URL}/items/${collection}/${id}`, {
+        headers: {
+          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ 
+          success: false, 
+          error: `Directus returned ${response.status}: ${errorText}` 
+        });
+      }
+
+      const data = await response.json();
+      res.json(data.data);
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to fetch item" 
+      });
+    }
+  });
+
   return httpServer;
 }

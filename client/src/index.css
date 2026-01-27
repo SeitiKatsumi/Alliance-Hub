@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* LIGHT MODE - Built Alliances Brand */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -14,40 +14,46 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
+  /* Built Alliances Brand Colors */
+  --built-navy: 208 100% 10%;
+  --built-gold: 38 48% 67%;
+  --built-gray: 204 11% 47%;
+  --built-gray-light: 0 2% 71%;
+
   --background: 210 20% 98%;
-  --foreground: 222 47% 11%;
-  --border: 214 20% 90%;
+  --foreground: 208 100% 10%;
+  --border: 38 30% 85%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 20% 92%;
-  --sidebar: 210 25% 96%;
-  --sidebar-foreground: 222 47% 11%;
-  --sidebar-border: 214 20% 90%;
-  --sidebar-primary: 217 91% 60%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 214 20% 92%;
-  --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-ring: 217 91% 60%;
+  --card-foreground: 208 100% 10%;
+  --card-border: 38 30% 80%;
+  --sidebar: 208 100% 10%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 208 80% 15%;
+  --sidebar-primary: 38 48% 67%;
+  --sidebar-primary-foreground: 208 100% 10%;
+  --sidebar-accent: 208 80% 15%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 38 48% 67%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 20% 90%;
-  --primary: 217 91% 60%;
+  --popover-foreground: 208 100% 10%;
+  --popover-border: 38 30% 85%;
+  --primary: 208 100% 10%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 214 20% 94%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 214 20% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 214 20% 92%;
-  --accent-foreground: 222 47% 11%;
+  --secondary: 38 48% 67%;
+  --secondary-foreground: 208 100% 10%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 204 11% 47%;
+  --accent: 38 48% 67%;
+  --accent-foreground: 208 100% 10%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 20% 85%;
-  --ring: 217 91% 60%;
-  --chart-1: 217 91% 60%;
-  --chart-2: 173 58% 39%;
-  --chart-3: 43 96% 56%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 0 84% 60%;
+  --input: 38 30% 90%;
+  --ring: 38 48% 67%;
+  --chart-1: 208 100% 10%;
+  --chart-2: 38 48% 67%;
+  --chart-3: 204 11% 47%;
+  --chart-4: 38 60% 55%;
+  --chart-5: 208 60% 25%;
 
   --font-sans: 'Inter', sans-serif;
   --font-serif: Georgia, serif;

@@ -23,10 +23,10 @@ export function AuraScore({ score, size = "md", showLabel = true }: AuraScorePro
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return "#D7BB7D";
-    if (score >= 60) return "#001D34";
-    if (score >= 40) return "#6A7984";
-    return "#B8B4B4";
+    if (score >= 80) return "hsl(var(--secondary))";
+    if (score >= 60) return "hsl(var(--primary))";
+    if (score >= 40) return "hsl(var(--muted-foreground))";
+    return "hsl(var(--border))";
   };
 
   return (

@@ -118,7 +118,7 @@ export default function OportunidadesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Target className="w-6 h-6 text-secondary" />
@@ -176,23 +176,7 @@ export default function OportunidadesPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Funil de Conversão</h2>
-        <div className="flex gap-2">
-          <Button variant="default" data-testid="button-participar-opa">
-            <Target className="w-4 h-4 mr-2" />
-            Participar da OPA
-          </Button>
-          <Button variant="outline" data-testid="button-convidar-opa">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Convidar Membro
-          </Button>
-          <Button variant="secondary" data-testid="button-avaliar-opa">
-            <Star className="w-4 h-4 mr-2" />
-            Avaliar OPA
-          </Button>
-        </div>
-      </div>
+      <h2 className="text-lg font-semibold text-foreground">Oportunidades de Participação</h2>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -224,7 +208,7 @@ export default function OportunidadesPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Badge 
                     variant="outline" 
                     style={{ borderColor: getEtapaColor(opa.etapa), color: getEtapaColor(opa.etapa) }}
@@ -250,11 +234,25 @@ export default function OportunidadesPage() {
                 </div>
 
                 {opa.proxima_acao && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <ArrowRight className="w-3 h-3" />
                     <span className="truncate">{opa.proxima_acao}</span>
                   </div>
                 )}
+                <div className="flex flex-wrap gap-2 pt-3 border-t">
+                  <Button size="sm" variant="default" data-testid={`button-participar-opa-${opa.id}`}>
+                    <Target className="w-3 h-3 mr-1" />
+                    Participar
+                  </Button>
+                  <Button size="sm" variant="outline" data-testid={`button-convidar-opa-${opa.id}`}>
+                    <UserPlus className="w-3 h-3 mr-1" />
+                    Convidar
+                  </Button>
+                  <Button size="sm" variant="secondary" data-testid={`button-avaliar-opa-${opa.id}`}>
+                    <Star className="w-3 h-3 mr-1" />
+                    Avaliar
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -269,11 +267,11 @@ export default function OportunidadesPage() {
         {tiposOportunidades.map((tipo) => (
           <Card 
             key={tipo.id} 
-            className="hover-elevate cursor-pointer border-l-4 border-l-secondary"
+            className="hover-elevate cursor-pointer"
             data-testid={`card-tipo-${tipo.id}`}
           >
             <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <CardTitle className="text-base">{tipo.nome_oportunidade}</CardTitle>
                 {getTipoBadge(tipo.tipo)}
               </div>

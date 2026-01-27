@@ -72,7 +72,7 @@ export default function BiasPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Briefcase className="w-6 h-6 text-secondary" />
@@ -125,23 +125,7 @@ export default function BiasPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Todos os Projetos BIAS</h2>
-        <div className="flex gap-2">
-          <Button variant="default" data-testid="button-participar-bia">
-            <Briefcase className="w-4 h-4 mr-2" />
-            Participar da BIA
-          </Button>
-          <Button variant="outline" data-testid="button-convidar-bia">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Convidar Membro
-          </Button>
-          <Button variant="secondary" data-testid="button-avaliar-bia">
-            <Star className="w-4 h-4 mr-2" />
-            Avaliar BIA
-          </Button>
-        </div>
-      </div>
+      <h2 className="text-lg font-semibold text-foreground">Todas as Alianças (BIAS)</h2>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,11 +144,11 @@ export default function BiasPage() {
           {bias.map((projeto) => (
             <Card 
               key={projeto.id} 
-              className="hover-elevate cursor-pointer border-l-4 border-l-secondary"
+              className="hover-elevate cursor-pointer"
               data-testid={`card-bia-${projeto.id}`}
             >
               <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg">{projeto.nome_bia}</CardTitle>
                     <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
@@ -251,6 +235,20 @@ export default function BiasPage() {
                       {projeto.observacoes}
                     </p>
                   )}
+                  <div className="flex flex-wrap gap-2 pt-3 border-t">
+                    <Button size="sm" variant="default" data-testid={`button-participar-bia-${projeto.id}`}>
+                      <Briefcase className="w-3 h-3 mr-1" />
+                      Participar
+                    </Button>
+                    <Button size="sm" variant="outline" data-testid={`button-convidar-bia-${projeto.id}`}>
+                      <UserPlus className="w-3 h-3 mr-1" />
+                      Convidar
+                    </Button>
+                    <Button size="sm" variant="secondary" data-testid={`button-avaliar-bia-${projeto.id}`}>
+                      <Star className="w-3 h-3 mr-1" />
+                      Avaliar
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

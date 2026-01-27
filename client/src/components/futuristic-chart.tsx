@@ -14,9 +14,18 @@ interface FuturisticChartProps {
 }
 
 export function FuturisticChart({ data, type, title, height = 200 }: FuturisticChartProps) {
-  const maxValue = useMemo(() => Math.max(...data.map(d => d.value)), [data]);
+  const maxValue = useMemo(() => {
+    if (data.length === 0) return 1;
+    const max = Math.max(...data.map(d => d.value));
+    return max > 0 ? max : 1;
+  }, [data]);
   
-  const colors = ["#001D34", "#D7BB7D", "#6A7984", "#B8B4B4", "#1a3a4f"];
+  const total = useMemo(() => {
+    const sum = data.reduce((acc, d) => acc + d.value, 0);
+    return sum > 0 ? sum : 1;
+  }, [data]);
+  
+  const colors = ["hsl(208, 100%, 10%)", "hsl(38, 48%, 67%)", "hsl(204, 11%, 47%)", "hsl(0, 2%, 71%)", "hsl(208, 60%, 25%)"];
 
   if (type === "bar") {
     return (
@@ -56,7 +65,6 @@ export function FuturisticChart({ data, type, title, height = 200 }: FuturisticC
   }
 
   if (type === "radial") {
-    const total = data.reduce((sum, d) => sum + d.value, 0);
     let cumulativeAngle = 0;
 
     return (

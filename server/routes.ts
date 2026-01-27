@@ -325,7 +325,7 @@ export async function registerRoutes(
         fetch(`${DIRECTUS_URL}/items/cadastro_geral?limit=100`, {
           headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
         }),
-        fetch(`${DIRECTUS_URL}/items/BIAS?limit=100`, {
+        fetch(`${DIRECTUS_URL}/items/bias_projetos?limit=100`, {
           headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
         }),
         fetch(`${DIRECTUS_URL}/items/funil_de_conversao?limit=100`, {
@@ -410,7 +410,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(500).json({ success: false, error: "Directus token not configured" });
       }
 
-      const biasRes = await fetch(`${DIRECTUS_URL}/items/BIAS/${id}`, {
+      const biasRes = await fetch(`${DIRECTUS_URL}/items/bias_projetos/${id}`, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
       });
 

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AuraScore } from "@/components/aura-score";
 import { FuturisticChart } from "@/components/futuristic-chart";
 import { AIAssistant } from "@/components/ai-assistant";
-import { Users, Target, Briefcase, TrendingUp, Star, History, UserCheck } from "lucide-react";
+import { Users, Target, Briefcase, TrendingUp, Star } from "lucide-react";
 
 interface CadastroGeral {
   id: string;
@@ -78,25 +78,14 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-              Score Aura
+              Meu Score Aura
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             <AuraScore score={auraScore} size="lg" />
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Button size="sm" variant="default" data-testid="button-avaliar-membro">
-                <UserCheck className="w-4 h-4 mr-1" />
-                Avaliar Membro
-              </Button>
-              <Button size="sm" variant="outline" data-testid="button-analisar-aura">
-                <TrendingUp className="w-4 h-4 mr-1" />
-                Analisar Aura
-              </Button>
-              <Button size="sm" variant="outline" data-testid="button-historico">
-                <History className="w-4 h-4 mr-1" />
-                Ver Histórico
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              Seu score de engajamento no ecossistema
+            </p>
           </CardContent>
         </Card>
 

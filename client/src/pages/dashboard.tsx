@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AuraScore } from "@/components/aura-score";
 import { FuturisticChart } from "@/components/futuristic-chart";
+import { AIAssistant } from "@/components/ai-assistant";
 import { Users, Target, Briefcase, TrendingUp, Star, History, UserCheck } from "lucide-react";
 
 interface CadastroGeral {
@@ -168,14 +169,18 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card data-testid="card-atividade">
-        <CardHeader>
-          <CardTitle>Atividade Semanal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FuturisticChart data={activityData} type="bar" height={180} />
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AIAssistant />
+        
+        <Card data-testid="card-atividade">
+          <CardHeader>
+            <CardTitle>Atividade Semanal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FuturisticChart data={activityData} type="bar" height={180} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

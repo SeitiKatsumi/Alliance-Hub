@@ -43,3 +43,6 @@ waitForPort = 5000
 
 [userenv.shared]
 DIRECTUS_URL = "https://app.builtalliances.com"
+
+[agent]
+integrations = ["javascript_openai_ai_integrations:2.0.0"]

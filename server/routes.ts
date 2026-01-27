@@ -368,7 +368,7 @@ SUAS CAPACIDADES:
 5. Fornecer insights sobre performance e métricas
 6. Ajudar na tomada de decisões estratégicas
 
-Responda sempre em português brasileiro, de forma clara e objetiva. Use emojis moderadamente para tornar as respostas mais visuais.`;
+Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -397,6 +397,132 @@ Responda sempre em português brasileiro, de forma clara e objetiva. Use emojis 
         success: false, 
         error: error.message || "Failed to process request" 
       });
+    }
+  });
+
+  // Analyze specific BIA
+  app.post("/api/analyze/bia/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { question } = req.body;
+
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ success: false, error: "Directus token not configured" });
+      }
+
+      const biasRes = await fetch(`${DIRECTUS_URL}/items/BIAS/${id}`, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
+      });
+
+      if (!biasRes.ok) {
+        return res.status(404).json({ success: false, error: "BIA not found" });
+      }
+
+      const biasData = (await biasRes.json()).data;
+
+      const systemPrompt = `Você é um analista especializado em projetos BIA (Business Intelligence Analysis) da Built Alliances.
+
+PROJETO BIA EM ANÁLISE:
+- Nome: ${biasData.nome || biasData.titulo || 'N/A'}
+- Status: ${biasData.status || 'N/A'}
+- Descrição: ${biasData.descricao || 'N/A'}
+- Membros Participantes: ${JSON.stringify(biasData.membros_participantes) || 'N/A'}
+- Data de Criação: ${biasData.date_created || 'N/A'}
+- Dados Completos: ${JSON.stringify(biasData)}
+
+SUAS CAPACIDADES:
+1. Analisar pontos fortes e fracos do projeto
+2. Sugerir melhorias e próximos passos
+3. Identificar riscos e oportunidades
+4. Recomendar membros que poderiam contribuir
+5. Avaliar viabilidade e potencial de sucesso
+
+Responda em português brasileiro, de forma clara e objetiva.`;
+
+      const userMessage = question || "Faça uma análise completa deste projeto BIA, incluindo pontos fortes, fracos, riscos e recomendações.";
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7
+      });
+
+      res.json({ 
+        success: true, 
+        message: response.choices[0]?.message?.content || "Não foi possível analisar.",
+        bia: biasData
+      });
+    } catch (error: any) {
+      console.error("BIA Analysis error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Analyze specific Oportunidade
+  app.post("/api/analyze/oportunidade/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { question } = req.body;
+
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ success: false, error: "Directus token not configured" });
+      }
+
+      const opRes = await fetch(`${DIRECTUS_URL}/items/funil_de_conversao/${id}`, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
+      });
+
+      if (!opRes.ok) {
+        return res.status(404).json({ success: false, error: "Oportunidade not found" });
+      }
+
+      const opData = (await opRes.json()).data;
+
+      const systemPrompt = `Você é um analista especializado em oportunidades de negócio da Built Alliances.
+
+OPORTUNIDADE EM ANÁLISE:
+- Título: ${opData.titulo || opData.nome || 'N/A'}
+- Status: ${opData.status || 'N/A'}
+- Valor: R$ ${opData.valor || 0}
+- Cliente: ${opData.cliente || 'N/A'}
+- Descrição: ${opData.descricao || 'N/A'}
+- Probabilidade: ${opData.probabilidade || 'N/A'}%
+- Data de Criação: ${opData.date_created || 'N/A'}
+- Dados Completos: ${JSON.stringify(opData)}
+
+SUAS CAPACIDADES:
+1. Avaliar probabilidade de fechamento
+2. Sugerir estratégias de abordagem
+3. Identificar riscos e objeções potenciais
+4. Recomendar próximos passos
+5. Analisar fit com membros da rede
+
+Responda em português brasileiro, de forma clara e objetiva.`;
+
+      const userMessage = question || "Faça uma análise completa desta oportunidade, incluindo probabilidade de conversão, riscos e estratégias recomendadas.";
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7
+      });
+
+      res.json({ 
+        success: true, 
+        message: response.choices[0]?.message?.content || "Não foi possível analisar.",
+        oportunidade: opData
+      });
+    } catch (error: any) {
+      console.error("Oportunidade Analysis error:", error);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 

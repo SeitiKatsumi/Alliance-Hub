@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FuturisticChart } from "@/components/futuristic-chart";
+import { AIAnalyzer } from "@/components/ai-analyzer";
 import { 
   Target, 
   UserPlus, 
@@ -252,6 +253,11 @@ export default function OportunidadesPage() {
                     <Star className="w-3 h-3 mr-1" />
                     Avaliar
                   </Button>
+                  <AIAnalyzer 
+                    type="oportunidade" 
+                    id={opa.id} 
+                    title={opa.titulo}
+                  />
                 </div>
               </CardContent>
             </Card>

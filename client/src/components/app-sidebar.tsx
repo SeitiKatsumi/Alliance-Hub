@@ -12,7 +12,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import builtLogo from "@assets/logo.png";
+import builtLogo from "@assets/BUILT_Filosofia_selo_1769510016026.png";
 
 const menuItems = [
   {

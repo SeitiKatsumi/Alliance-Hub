@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FuturisticChart } from "@/components/futuristic-chart";
+import { AIAnalyzer } from "@/components/ai-analyzer";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Briefcase, 
@@ -248,6 +249,11 @@ export default function BiasPage() {
                       <Star className="w-3 h-3 mr-1" />
                       Avaliar
                     </Button>
+                    <AIAnalyzer 
+                      type="bia" 
+                      id={projeto.id} 
+                      title={projeto.nome_bia}
+                    />
                   </div>
                 </div>
               </CardContent>

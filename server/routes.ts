@@ -86,6 +86,107 @@ export async function registerRoutes(
     }
   });
 
+  // Create a field in a collection
+  app.post("/api/directus/collections/:collection/fields", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection } = req.params;
+      const fieldData = req.body;
+
+      const response = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(fieldData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({ 
+          success: false, 
+          error: errorData.errors?.[0]?.message || `Directus returned ${response.status}` 
+        });
+      }
+
+      const data = await response.json();
+      res.json({ 
+        success: true, 
+        field: data.data 
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to create field" 
+      });
+    }
+  });
+
+  // Create multiple fields in a collection (batch)
+  app.post("/api/directus/collections/:collection/fields/batch", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection } = req.params;
+      const { fields } = req.body;
+
+      const results = [];
+      const errors = [];
+
+      for (const fieldData of fields) {
+        try {
+          const response = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(fieldData)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            errors.push({
+              field: fieldData.field,
+              error: errorData.errors?.[0]?.message || `Status ${response.status}`
+            });
+          } else {
+            const data = await response.json();
+            results.push(data.data);
+          }
+        } catch (err: any) {
+          errors.push({
+            field: fieldData.field,
+            error: err.message
+          });
+        }
+      }
+
+      res.json({ 
+        success: errors.length === 0, 
+        created: results,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to create fields" 
+      });
+    }
+  });
+
   // Get fields for a specific collection
   app.get("/api/directus/collections/:collection/fields", async (req, res) => {
     try {

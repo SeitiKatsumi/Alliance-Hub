@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Briefcase, Target, Sparkles, Settings, Users } from "lucide-react";
+import { Target, Briefcase, Users, Sparkles, LayoutDashboard, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,19 +16,14 @@ import builtLogo from "@assets/BUILT_Filosofia_selo_1769510016026.png";
 
 const menuItems = [
   {
-    title: "Meu Painel",
+    title: "Oportunidades",
     url: "/",
-    icon: LayoutDashboard,
+    icon: Target,
   },
   {
-    title: "BIAS - Projetos",
+    title: "BIAS - Alianças",
     url: "/bias",
     icon: Briefcase,
-  },
-  {
-    title: "Oportunidades",
-    url: "/oportunidades",
-    icon: Target,
   },
   {
     title: "Membros",
@@ -39,6 +34,11 @@ const menuItems = [
     title: "AURA Built",
     url: "/aura",
     icon: Sparkles,
+  },
+  {
+    title: "Meu Painel",
+    url: "/painel",
+    icon: LayoutDashboard,
   },
   {
     title: "Administração",
@@ -73,7 +73,7 @@ export function AppSidebar() {
                   <SidebarMenuButton 
                     asChild
                     isActive={location === item.url}
-                    data-testid={`nav-${item.url.replace("/", "") || "home"}`}
+                    data-testid={`nav-${item.url.replace("/", "") || "oportunidades"}`}
                   >
                     <Link href={item.url}>
                       <item.icon className="w-4 h-4" />

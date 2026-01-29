@@ -6,21 +6,21 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
-import Dashboard from "@/pages/dashboard";
-import BiasPage from "@/pages/bias";
 import OportunidadesPage from "@/pages/oportunidades";
-import AuraPage from "@/pages/aura";
-import AdminPage from "@/pages/admin";
+import BiasPage from "@/pages/bias";
 import MembrosPage from "@/pages/membros";
+import AuraPage from "@/pages/aura";
+import PainelPage from "@/pages/painel";
+import AdminPage from "@/pages/admin";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={OportunidadesPage} />
       <Route path="/bias" component={BiasPage} />
-      <Route path="/oportunidades" component={OportunidadesPage} />
       <Route path="/membros" component={MembrosPage} />
       <Route path="/aura" component={AuraPage} />
+      <Route path="/painel" component={PainelPage} />
       <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>

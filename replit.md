@@ -59,3 +59,28 @@ Preferred communication style: Simple, everyday language.
 - TanStack React Query for data fetching
 - Radix UI primitives for accessible components
 - Tailwind CSS for styling
+
+## Recent Changes (January 2026)
+
+### Navigation Structure
+The application navigation was reorganized with the following order:
+1. **Oportunidades** (/) - Main entry point, showcasing opportunities to attract new members
+2. **BIAS - Alianças** (/bias) - Alliance projects with architectural visualization
+3. **Membros** (/membros) - Member directory
+4. **AURA Built** (/aura) - AURA scoring system
+5. **Meu Painel** (/painel) - Personal dashboard
+6. **Administração** (/admin) - Admin settings
+
+### Data Collections (Directus)
+- **tipos_oportunidades**: Main collection for alliance opportunities (10 created)
+  - Types: OPA-TEC (Técnico), OPA-OBR (Obras), OPA-LID (Comercial), OPA-CAP (Capital)
+  - Each opportunity is linked to a BIA project
+  - Fields: nome_oportunidade, tipo, bia, valor_origem_opa, nucleo_alianca, objetivo_alianca, descricao
+- **bias_projetos**: BIA alliance projects (2 active)
+  - Full directory structure: Autor → Aliado → Dir. Aliança → Dir. Obra → Dir. Comercial → Dir. Capital
+- **cadastro_geral**: Members database (16 members)
+
+### Architecture
+- 4 Alliance Nuclei: Técnico, Obras, Comercial, Capital
+- Each nucleus contains cells (células) for specific functions
+- Opportunities serve as the "chamariz" (attraction point) for new members to join BIAs

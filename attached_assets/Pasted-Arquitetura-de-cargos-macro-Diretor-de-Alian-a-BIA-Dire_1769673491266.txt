@@ -1,0 +1,265 @@
+Arquitetura de cargos (macro)
+
+Diretor de Aliança (BIA)
+
+Diretor de Núcleo Técnico (CPP Técnica)
+
+Diretor de Núcleo de Obras (CPP de Obra)
+
+Diretor de Núcleo Comercial (CPP Comercial)
+
+Diretor Núcleo de Capital (CPP de Capital)
+
+Dentro de cada Núcleo, você pode organizar por Células (grupos de especialidade) com profissionais independentes validados.
+
+1) Núcleo de Alianças Técnicas (CPP Técnica)
+1.1 Célula de Projeto (Projetar/Validar)
+
+Profissões (base + variações):
+
+Arquiteto (arquiteto líder, arquiteto de interiores, arquiteto paisagista, arquiteto corporativo)
+
+Engenheiro (civil, estrutural, elétrico, mecânico, hidráulico/sanitário, automação, telecom, incêndio)
+
+Projetista (CAD/BIM, detalhista, compatibilizador, modelador BIM, coordenador de projetos)
+
+Designer (produto, interiores, comunicação visual aplicada ao espaço)
+
+Urbanista / planejador urbano
+
+Consultor de normas (ABNT, acessibilidade, incêndio, desempenho)
+
+Topógrafo / georreferenciamento
+
+Especialista em acústica / luminotécnica / eficiência energética
+
+Especialista em sustentabilidade (LEED/AQUA/EDGE)
+
+1.2 Célula Jurídica (Jurídico/Compliance)
+
+Profissões (base + variações):
+
+Advogado imobiliário
+
+Advogado societário
+
+Advogado contratual
+
+Advogado tributário (apoio a estruturação)
+
+Especialista LGPD e privacidade
+
+Compliance officer / analista de compliance
+
+Especialista em regularização (cartórios, registros, licenças)
+
+Especialista em due diligence (imobiliária e societária)
+
+Mediador/arbitragem (gestão de conflitos)
+
+1.3 Célula de Inteligência (Mercado/Viabilidade/Produto)
+
+Profissões (base + variações):
+
+Analista de inteligência de mercado
+
+Pesquisador de mercado / consumer insights
+
+Especialista em viabilidade econômico-financeira (produto/empreendimento)
+
+Analista de dados / BI (dashboards, KPIs)
+
+Especialista em precificação / revenue
+
+Planejamento estratégico
+
+Product manager (produto imobiliário / serviços)
+
+Growth / performance marketing (quando ligado ao produto)
+
+Especialista em concorrência e posicionamento
+
+1.4 Célula de Governança (Qualidade/Segurança/Auditoria/ESG)
+
+Profissões (base + variações):
+
+Gestor de qualidade (ISO, procedimentos, checklists)
+
+Segurança do trabalho (técnico/engenheiro, SST)
+
+Auditor (interno/externo)
+
+Especialista ambiental (licenciamento, impacto, resíduos)
+
+ESG manager / consultor ESG
+
+Especialista em rastreabilidade (materiais, processos, cadeia)
+
+Gestão de riscos (risk officer)
+
+Cibersegurança (quando envolver sistemas/IoT/controle)
+
+2) Núcleo de Alianças de Obras (CPP de Obra)
+2.1 Célula de Execução (Executar)
+
+Profissões (base + variações):
+
+Engenheiro de obra / residente
+
+Mestre de obras
+
+Supervisor / encarregado
+
+Técnico de edificações
+
+Coordenador de campo / planejamento de obra (curto prazo)
+
+Segurança do trabalho (aplicado ao canteiro)
+
+Técnico de qualidade em obra
+
+2.2 Célula de Empresas Executoras (Construtoras/Empreiteiras/Instalação)
+
+Profissões/empresas (variações):
+
+Construtora (residencial, comercial, industrial)
+
+Empreiteira de obra civil (alvenaria, estrutura, acabamento)
+
+Instaladoras (elétrica, hidráulica, ar-condicionado, combate a incêndio, automação, CFTV, energia solar)
+
+Montagem metálica / estruturas
+
+Impermeabilização / fachadas
+
+Paisagismo e urbanização externa
+
+Empresas de comissionamento (entrega técnica)
+
+2.3 Célula de Fornecimento (Materiais/Equipamentos/Logística)
+
+Profissões (base + variações):
+
+Comprador técnico / suprimentos
+
+Sourcing / desenvolvimento de fornecedores
+
+Almoxarife / controle de estoque
+
+Logística (transportes, roteirização, last mile)
+
+Especialista em contratos de fornecimento
+
+Fornecedores: materiais (construção, elétricos, hidráulicos, acabamentos), equipamentos (máquinas, ferramentas, elevadores, HVAC), locação de equipamentos
+
+QA de recebimento (inspeção de materiais)
+
+3) Núcleo de Alianças Comerciais (CPP Comercial)
+3.1 Célula de Captação (Clientes e Investidores)
+
+Profissões (base + variações):
+
+Executivo de contas (B2B/B2C)
+
+Hunter / SDR / BDR
+
+Consultor comercial
+
+Parcerias estratégicas (channel manager)
+
+Relações com investidores (IR) / captação
+
+3.2 Célula de Vendas / Locação / Marketing
+
+Profissões (base + variações):
+
+Consultor de vendas (imóveis, serviços, contratos)
+
+Corretor/gestor de locação (quando aplicável)
+
+Gestor de marketing / tráfego / performance
+
+Conteúdo e branding (quando ligado à geração de demanda)
+
+Especialista em propostas e negociações
+
+Pricing comercial (tabelas, condições, pacotes)
+
+3.3 Célula de Pós-Obra / Operação (Administradores pós-obra)
+
+Profissões (base + variações):
+
+Administrador de condomínio / property manager
+
+Gestor de ativos (asset manager)
+
+Coordenador de operações
+
+Gestor de manutenção (preventiva/corretiva)
+
+Facilities manager
+
+3.4 Célula de Relacionamento com Cliente (Pós-venda/SAC/Garantias/Suporte)
+
+Profissões (base + variações):
+
+Customer success (CS)
+
+SAC / ouvidoria
+
+Gestor de garantias
+
+Suporte técnico (nível 1/2, especialista)
+
+Analista de NPS / qualidade do atendimento
+
+Coordenador de contratos ativos (renovações, aditivos)
+
+4) Núcleo de Alianças Financeiras e de Capital (CPP de Capital)
+4.1 Célula de Gestão Financeira (Gestão econômica/financeira)
+
+Profissões (base + variações):
+
+CFO/gestor financeiro
+
+Controller
+
+Tesouraria (fluxo de caixa, conciliação)
+
+Planejamento financeiro (FP&A)
+
+Analista de crédito e risco
+
+Compliance financeiro
+
+4.2 Célula Contábil e Tributária (Contabilidade da BIA)
+
+Profissões (base + variações):
+
+Contador / escritório contábil
+
+Analista fiscal/tributário
+
+Especialista em planejamento tributário
+
+BPO financeiro/contábil
+
+Auditoria contábil
+
+4.3 Célula de Captação e Estruturação (Aporte/Alavancagem)
+
+Profissões (base + variações):
+
+Investidor anjo / aporte direto
+
+Gestor de fundos / venture / private equity (conforme tese)
+
+Family office
+
+Bancos / crédito estruturado
+
+Fintechs (antecipação, crédito, recebíveis)
+
+Especialista em securitização / dívida / debêntures (quando fizer sentido)
+
+Estruturador financeiro (modelos, garantias, cotas específicas)

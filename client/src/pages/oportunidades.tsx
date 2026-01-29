@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AIAnalyzer } from "@/components/ai-analyzer";
 import { FuturisticOverview } from "@/components/futuristic-overview";
+import { AIInsightsBlock } from "@/components/ai-insights-block";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -342,6 +343,13 @@ export default function OportunidadesPage() {
           bias: bias.length,
         }}
         type="oportunidades"
+      />
+
+      <AIInsightsBlock 
+        type="oportunidades" 
+        data={oportunidades} 
+        biasData={bias}
+        membrosCount={0}
       />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

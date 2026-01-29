@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AIAnalyzer } from "@/components/ai-analyzer";
 import { FuturisticOverview } from "@/components/futuristic-overview";
+import { AIInsightsBlock } from "@/components/ai-insights-block";
 import { 
   Briefcase, 
   Users, 
@@ -177,6 +178,12 @@ export default function BiasPage() {
           bias: membros.length,
         }}
         type="bias"
+      />
+
+      <AIInsightsBlock 
+        type="bias" 
+        data={bias} 
+        membrosCount={membros.length}
       />
 
       <Card className="border-brand-navy/20">

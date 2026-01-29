@@ -566,5 +566,38 @@ Responda em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // AI Insights Analysis endpoint
+  app.post("/api/ai/analyze", async (req, res) => {
+    try {
+      const { prompt, type } = req.body;
+      
+      const systemPrompt = type === "oportunidades" 
+        ? `Você é um consultor especialista em construção civil e investimentos imobiliários da Built Alliances. 
+           Analise as oportunidades de aliança (OPAs) e forneça insights estratégicos em português brasileiro.
+           Seja conciso, objetivo e use linguagem profissional. Máximo 3 parágrafos.
+           Foque em: ROI potencial, riscos, recomendações para diferentes perfis de investidor.`
+        : `Você é um consultor especialista da Built Alliances em BIAs (Built Intelligence Alliances).
+           Analise os projetos de aliança e forneça insights sobre potencial, estrutura de governança e oportunidades.
+           Seja conciso, objetivo e use linguagem profissional. Máximo 3 parágrafos.
+           Foque em: modelo de negócio, distribuição de funções, potencial de retorno.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      });
+
+      const analysis = response.choices[0]?.message?.content || "Análise não disponível.";
+      res.json({ success: true, analysis });
+    } catch (error: any) {
+      console.error("AI Analysis error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   return httpServer;
 }

@@ -28,7 +28,7 @@ interface BiasProjeto {
   objetivo_alianca: string;
   observacoes: string;
   diretor_alianca?: string;
-  diretor_execucao?: string;
+  diretor_obra?: string;
   diretor_comercial?: string;
   diretor_capital?: string;
   etapas_da_bia?: EtapaBia[];
@@ -233,22 +233,22 @@ export default function BiasPage() {
                           </div>
                         </div>
                       )}
-                      {projeto.diretor_execucao && (
+                      {projeto.diretor_obra && (
                         <div className="flex items-center gap-2">
                           <div className="relative">
                             <Avatar className="w-6 h-6">
                               <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
-                                {getInitials(getMemberName(projeto.diretor_execucao))}
+                                {getInitials(getMemberName(projeto.diretor_obra))}
                               </AvatarFallback>
                             </Avatar>
                             <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-brand-gold text-brand-navy rounded-full w-4 h-4 flex items-center justify-center">
-                              {getAuraScore(projeto.diretor_execucao)}
+                              {getAuraScore(projeto.diretor_obra)}
                             </span>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Execução</p>
+                            <p className="text-xs text-muted-foreground">Obra</p>
                             <p className="text-xs font-medium truncate max-w-24">
-                              {getMemberName(projeto.diretor_execucao).split(" ")[0]}
+                              {getMemberName(projeto.diretor_obra).split(" ")[0]}
                             </p>
                           </div>
                         </div>

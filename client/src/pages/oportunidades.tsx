@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AIAnalyzer } from "@/components/ai-analyzer";
+import { FuturisticOverview } from "@/components/futuristic-overview";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -332,6 +333,16 @@ export default function OportunidadesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <FuturisticOverview
+        data={{
+          total: oportunidades.length,
+          totalValor: totalValor,
+          nucleos: nucleoCounts,
+          bias: bias.length,
+        }}
+        type="oportunidades"
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="border-2 border-brand-gold/30" data-testid="stat-total">

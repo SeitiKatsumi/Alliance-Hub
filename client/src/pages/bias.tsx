@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AIAnalyzer } from "@/components/ai-analyzer";
+import { FuturisticOverview } from "@/components/futuristic-overview";
 import { 
   Briefcase, 
   Users, 
@@ -161,6 +162,21 @@ export default function BiasPage() {
           {bias.length} Alianças Ativas
         </Badge>
       </div>
+
+      <FuturisticOverview
+        data={{
+          total: bias.length,
+          totalValor: oportunidades.reduce((acc, o) => acc + (o.valor_origem_opa || 0), 0),
+          nucleos: {
+            tecnico: oportunidades.filter(o => o.nucleo_alianca?.toLowerCase().includes("tecnico")).length,
+            obras: oportunidades.filter(o => o.nucleo_alianca?.toLowerCase().includes("obra")).length,
+            comercial: oportunidades.filter(o => o.nucleo_alianca?.toLowerCase().includes("comercial")).length,
+            capital: oportunidades.filter(o => o.nucleo_alianca?.toLowerCase().includes("capital")).length,
+          },
+          bias: membros.length,
+        }}
+        type="bias"
+      />
 
       <Card className="border-brand-navy/20">
         <CardContent className="p-4">

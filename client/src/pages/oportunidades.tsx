@@ -111,10 +111,10 @@ export default function OportunidadesPage() {
 
   const getTipoInfo = (tipo: string) => {
     const tipos: Record<string, { label: string; color: string; icon: any; bg: string }> = {
-      "OPA-TEC": { label: "Técnico", color: "text-blue-600", icon: Building2, bg: "bg-blue-500/10 border-blue-200" },
-      "OPA-OBR": { label: "Obras", color: "text-green-600", icon: Briefcase, bg: "bg-green-500/10 border-green-200" },
-      "OPA-LID": { label: "Comercial", color: "text-purple-600", icon: Users, bg: "bg-purple-500/10 border-purple-200" },
-      "OPA-CAP": { label: "Capital", color: "text-orange-600", icon: Wallet, bg: "bg-orange-500/10 border-orange-200" },
+      "OPA-TEC": { label: "Técnico", color: "text-blue-600", icon: Building2, bg: "bg-blue-600 text-white" },
+      "OPA-OBR": { label: "Obras", color: "text-green-600", icon: Briefcase, bg: "bg-green-600 text-white" },
+      "OPA-LID": { label: "Comercial", color: "text-purple-600", icon: Users, bg: "bg-purple-600 text-white" },
+      "OPA-CAP": { label: "Capital", color: "text-orange-600", icon: Wallet, bg: "bg-orange-600 text-white" },
     };
     return tipos[tipo] || tipos["OPA-TEC"];
   };

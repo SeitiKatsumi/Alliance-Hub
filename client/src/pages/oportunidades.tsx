@@ -162,7 +162,7 @@ export default function OportunidadesPage() {
     capital: oportunidades.filter(o => getNucleoFromString(o.nucleo_alianca) === "capital").length,
   };
 
-  const totalValor = oportunidades.reduce((acc, o) => acc + (o.valor_origem_opa || 0), 0);
+  const totalValor = oportunidades.reduce((acc, o) => acc + (parseFloat(String(o.valor_origem_opa)) || 0), 0);
 
   const nucleoOptions = [
     { value: "Nucleo Tecnico - Celula de Projeto", label: "Técnico - Projeto" },

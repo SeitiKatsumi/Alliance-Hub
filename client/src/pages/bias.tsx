@@ -59,6 +59,7 @@ interface TipoOportunidade {
   bia?: string;
   tipo: string;
   nucleo_alianca?: string;
+  valor_origem_opa?: string | number;
 }
 
 const etapasDefault: EtapaBia[] = [
@@ -166,7 +167,7 @@ export default function BiasPage() {
       <FuturisticOverview
         data={{
           total: bias.length,
-          totalValor: oportunidades.reduce((acc, o) => acc + (o.valor_origem_opa || 0), 0),
+          totalValor: oportunidades.reduce((acc, o) => acc + (parseFloat(String(o.valor_origem_opa)) || 0), 0),
           nucleos: {
             tecnico: oportunidades.filter(o => o.nucleo_alianca?.toLowerCase().includes("tecnico")).length,
             obras: oportunidades.filter(o => o.nucleo_alianca?.toLowerCase().includes("obra")).length,

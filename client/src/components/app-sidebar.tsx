@@ -26,7 +26,7 @@ const menuItems = [
     icon: Briefcase,
   },
   {
-    title: "BIAS - Calculadora",
+    title: "Calculadora DM",
     url: "/bias-calculadora",
     icon: Calculator,
   },

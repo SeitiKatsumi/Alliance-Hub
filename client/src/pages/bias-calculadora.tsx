@@ -192,7 +192,7 @@ export default function BiasCalculadoraPage() {
             <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
               <Calculator className="w-6 h-6" />
             </div>
-            BIAS - Calculadora
+            Calculadora DM
           </h1>
           <p className="text-muted-foreground mt-1">Gestão financeira das alianças</p>
         </div>

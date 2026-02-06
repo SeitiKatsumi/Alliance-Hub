@@ -157,7 +157,7 @@ function InvestmentDivisionPanel({ projeto }: { projeto: BiasProjeto }) {
       <div className="relative rounded-lg border border-dashed border-white/20 bg-white/5 p-4 text-center" data-testid="panel-investimento-vazio">
         <PieChart className="w-8 h-8 text-white/20 mx-auto mb-2" />
         <p className="text-sm text-white/40">Gestão financeira não configurada</p>
-        <p className="text-xs text-white/25 mt-1">Use a Calculadora BIAS para definir a divisão</p>
+        <p className="text-xs text-white/25 mt-1">Use a Calculadora DM para definir a divisão</p>
       </div>
     );
   }

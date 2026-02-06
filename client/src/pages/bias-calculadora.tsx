@@ -115,13 +115,13 @@ export default function BiasCalculadoraPage() {
 
   const divisorMultiplicador = percAutor + percAliado + percBuilt + percTecnico + percObras + percComercial + percCapital;
   const custoOrigemBia = valorOrigem + (valorOrigem * divisorMultiplicador / 100);
-  const cppAutor = custoOrigemBia * percAutor / 100;
-  const cppAliado = custoOrigemBia * percAliado / 100;
-  const cppBuilt = custoOrigemBia * percBuilt / 100;
-  const cppTecnico = custoOrigemBia * percTecnico / 100;
-  const cppObras = custoOrigemBia * percObras / 100;
-  const cppComercial = custoOrigemBia * percComercial / 100;
-  const cppCapital = custoOrigemBia * percCapital / 100;
+  const cppAutor = valorOrigem * percAutor / 100;
+  const cppAliado = valorOrigem * percAliado / 100;
+  const cppBuilt = valorOrigem * percBuilt / 100;
+  const cppTecnico = valorOrigem * percTecnico / 100;
+  const cppObras = valorOrigem * percObras / 100;
+  const cppComercial = valorOrigem * percComercial / 100;
+  const cppCapital = valorOrigem * percCapital / 100;
   const custoFinalPrevisto = cppAutor + cppAliado + cppBuilt + cppTecnico + cppObras + cppComercial + cppCapital;
   const resultadoLiquido = valorRealizadoVenda - custoFinalPrevisto - comissaoCorretor - irPrevisto;
   const lucroPrevisto = valorRealizadoVenda > 0 ? ((resultadoLiquido / valorRealizadoVenda) * 100) : 0;

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Target, Briefcase, Users, Sparkles, LayoutDashboard, Settings } from "lucide-react";
+import { Target, Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +24,11 @@ const menuItems = [
     title: "BIAS - Alianças",
     url: "/bias",
     icon: Briefcase,
+  },
+  {
+    title: "BIAS - Calculadora",
+    url: "/bias-calculadora",
+    icon: Calculator,
   },
   {
     title: "Membros",

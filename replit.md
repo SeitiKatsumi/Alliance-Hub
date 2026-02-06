@@ -67,9 +67,10 @@ The application navigation was reorganized with the following order:
 1. **Oportunidades** (/) - Main entry point, showcasing opportunities to attract new members
 2. **BIAS - Alianças** (/bias) - Alliance projects with architectural visualization
 3. **Membros** (/membros) - Member directory
-4. **AURA Built** (/aura) - AURA scoring system
-5. **Meu Painel** (/painel) - Personal dashboard
-6. **Administração** (/admin) - Admin settings
+4. **BIAS - Calculadora** (/bias-calculadora) - Financial calculator for BIA projects
+5. **AURA Built** (/aura) - AURA scoring system
+6. **Meu Painel** (/painel) - Personal dashboard
+7. **Administração** (/admin) - Admin settings
 
 ### Data Collections (Directus)
 - **tipos_oportunidades**: Main collection for alliance opportunities (10 created)
@@ -78,6 +79,7 @@ The application navigation was reorganized with the following order:
   - Fields: nome_oportunidade, tipo, bia, valor_origem_opa, nucleo_alianca, objetivo_alianca, descricao
 - **bias_projetos**: BIA alliance projects (2 active)
   - Full directory structure: Autor → Aliado → Dir. Aliança → Dir. Obra → Dir. Comercial → Dir. Capital
+  - Gestão Financeira group: valor_origem, divisor_multiplicador, perc_autor_opa, cpp_autor_opa, perc_aliado_built, cpp_aliado_built, perc_built, cpp_built, perc_dir_tecnico, cpp_dir_tecnico, perc_dir_obras, cpp_dir_obras, perc_dir_comercial, cpp_dir_comercial, perc_dir_capital, cpp_dir_capital, custo_origem_bia, custo_final_previsto, valor_realizado_venda, comissao_prevista_corretor, ir_previsto, resultado_liquido, lucro_previsto
 - **cadastro_geral**: Members database (16 members)
 
 ### Architecture

@@ -12,12 +12,14 @@ import MembrosPage from "@/pages/membros";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
 import AdminPage from "@/pages/admin";
+import BiasCalculadoraPage from "@/pages/bias-calculadora";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={OportunidadesPage} />
       <Route path="/bias" component={BiasPage} />
+      <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
       <Route path="/membros" component={MembrosPage} />
       <Route path="/aura" component={AuraPage} />
       <Route path="/painel" component={PainelPage} />

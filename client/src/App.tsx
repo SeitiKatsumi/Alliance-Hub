@@ -13,6 +13,7 @@ import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
 import AdminPage from "@/pages/admin";
 import BiasCalculadoraPage from "@/pages/bias-calculadora";
+import FluxoCaixaPage from "@/pages/fluxo-caixa";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/" component={OportunidadesPage} />
       <Route path="/bias" component={BiasPage} />
       <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
+      <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
       <Route path="/membros" component={MembrosPage} />
       <Route path="/aura" component={AuraPage} />
       <Route path="/painel" component={PainelPage} />

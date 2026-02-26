@@ -20,7 +20,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express 5
-- **API Pattern**: RESTful endpoints proxying to Directus CMS
+- **API Pattern**: RESTful endpoints proxying to Directus CMS (GET, POST, PATCH, DELETE)
 - **Database ORM**: Drizzle ORM with PostgreSQL (schema defined but Directus handles primary data)
 - **Session Storage**: In-memory storage for development, connect-pg-simple available for production
 
@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### Third-Party Services
-- **Directus CMS**: Primary backend at `https://app.builtalliances.com` - manages all business data including members (cadastro_geral), BIAS projects, opportunities, and sales funnel
+- **Directus CMS**: Primary backend at `https://app.builtalliances.com` - manages all business data including members (cadastro_geral), BIAS projects, opportunities, cash flow, and sales funnel
 
 ### Database
 - **PostgreSQL**: Required for Drizzle ORM schema (users table defined). Connection via `DATABASE_URL` environment variable
@@ -60,17 +60,18 @@ Preferred communication style: Simple, everyday language.
 - Radix UI primitives for accessible components
 - Tailwind CSS for styling
 
-## Recent Changes (January 2026)
+## Recent Changes (February 2026)
 
 ### Navigation Structure
 The application navigation was reorganized with the following order:
 1. **Oportunidades** (/) - Main entry point, showcasing opportunities to attract new members
 2. **BIAS - Alianças** (/bias) - Alliance projects with architectural visualization
-3. **Membros** (/membros) - Member directory
-4. **BIAS - Calculadora** (/bias-calculadora) - Financial calculator for BIA projects
-5. **AURA Built** (/aura) - AURA scoring system
-6. **Meu Painel** (/painel) - Personal dashboard
-7. **Administração** (/admin) - Admin settings
+3. **Calculadora DM** (/bias-calculadora) - Financial calculator (Divisor Multiplicador) for BIA projects
+4. **Fluxo de Caixa** (/fluxo-caixa) - Cash flow management per BIA (entries/exits tracking)
+5. **Membros** (/membros) - Member directory
+6. **AURA Built** (/aura) - AURA scoring system
+7. **Meu Painel** (/painel) - Personal dashboard
+8. **Administração** (/admin) - Admin settings
 
 ### Data Collections (Directus)
 - **tipos_oportunidades**: Main collection for alliance opportunities (10 created)
@@ -80,9 +81,23 @@ The application navigation was reorganized with the following order:
 - **bias_projetos**: BIA alliance projects (2 active)
   - Full directory structure: Autor → Aliado → Dir. Aliança → Dir. Obra → Dir. Comercial → Dir. Capital
   - Gestão Financeira group: valor_origem, divisor_multiplicador, perc_autor_opa, cpp_autor_opa, perc_aliado_built, cpp_aliado_built, perc_built, cpp_built, perc_dir_tecnico, cpp_dir_tecnico, perc_dir_obras, cpp_dir_obras, perc_dir_comercial, cpp_dir_comercial, perc_dir_capital, cpp_dir_capital, custo_origem_bia, custo_final_previsto, valor_realizado_venda, comissao_prevista_corretor, ir_previsto, resultado_liquido, lucro_previsto
-- **cadastro_geral**: Members database (16 members)
+  - CPPs are calculated on valor_origem (not custo_origem_bia)
+- **fluxo_caixa**: Cash flow transactions per BIA
+  - Fields: id (uuid), bia (FK → bias_projetos), tipo (entrada/saida), valor (decimal), data (date), descricao (string), categoria (string), membro_responsavel (FK → cadastro_geral)
+  - Entries (entradas) = aportes/investments, require membro_responsavel
+  - Exits (saidas) = costs of the project
+  - Calculated totals: Total de Aportes (sum of entradas), Custo da Obra (sum of saidas), Saldo (entradas - saidas)
+- **cadastro_geral**: Members database (16+ members)
+  - Key field: `nome` (member name)
 
 ### Architecture
 - 4 Alliance Nuclei: Técnico, Obras, Comercial, Capital
 - Each nucleus contains cells (células) for specific functions
 - Opportunities serve as the "chamariz" (attraction point) for new members to join BIAs
+- Calculadora DM manages the Divisor Multiplicador percentages and CPPs per role
+- Fluxo de Caixa tracks all financial transactions (entries and exits) per BIA project
+
+### Technical Notes
+- Field `diretor_execucao` (not `diretor_obra`) is used in bias_projetos
+- Divisor calculation includes fallback: `divisor = toNum(projeto.divisor_multiplicador) || anyPerc || 1`
+- Generic Directus proxy routes support GET, POST, PATCH, DELETE for any collection

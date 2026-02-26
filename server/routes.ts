@@ -344,6 +344,83 @@ export async function registerRoutes(
     }
   });
 
+  // Create an item in a Directus collection
+  app.post("/api/directus/:collection", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection } = req.params;
+      const itemData = req.body;
+
+      const response = await fetch(`${DIRECTUS_URL}/items/${collection}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(itemData)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ 
+          success: false, 
+          error: `Directus returned ${response.status}: ${errorText}` 
+        });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, item: data.data });
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to create item" 
+      });
+    }
+  });
+
+  // Delete an item from a Directus collection
+  app.delete("/api/directus/:collection/:id", async (req, res) => {
+    try {
+      if (!DIRECTUS_TOKEN) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "DIRECTUS_TOKEN not configured" 
+        });
+      }
+
+      const { collection, id } = req.params;
+
+      const response = await fetch(`${DIRECTUS_URL}/items/${collection}/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ 
+          success: false, 
+          error: `Directus returned ${response.status}: ${errorText}` 
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to delete item" 
+      });
+    }
+  });
+
   // AI Assistant endpoint
   app.post("/api/assistant", async (req, res) => {
     try {

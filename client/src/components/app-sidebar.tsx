@@ -12,7 +12,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import builtLogo from "@assets/Logo_Built_2_Horizontal_1772135828810.png";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1772135999372.png";
 
 const menuItems = [
   {

@@ -438,7 +438,7 @@ export default function FluxoCaixaPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Users className="w-5 h-5 text-brand-gold" />
-                  Participação nos Aportes
+                  Mapa de Alocação Patrimonial
                 </CardTitle>
               </CardHeader>
               <CardContent>

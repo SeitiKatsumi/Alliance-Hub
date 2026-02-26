@@ -127,7 +127,7 @@ const getEtapasForBia = (index: number): EtapaBia[] => {
   }));
 };
 
-function InvestmentDivisionPanel({ projeto }: { projeto: BiasProjeto }) {
+function InvestmentDivisionPanel({ projeto, fluxoTotais }: { projeto: BiasProjeto; fluxoTotais?: { entradas: number; saidas: number } }) {
   const valorOrigem = toNum(projeto.valor_origem);
   const anyPerc = toNum(projeto.perc_autor_opa) + toNum(projeto.perc_aliado_built) + toNum(projeto.perc_built) + toNum(projeto.perc_dir_tecnico) + toNum(projeto.perc_dir_obras) + toNum(projeto.perc_dir_comercial) + toNum(projeto.perc_dir_capital);
   const hasFinancials = valorOrigem > 0 || anyPerc > 0;
@@ -268,6 +268,43 @@ function InvestmentDivisionPanel({ projeto }: { projeto: BiasProjeto }) {
             </div>
           </>
         )}
+
+        {fluxoTotais && (fluxoTotais.entradas > 0 || fluxoTotais.saidas > 0) && (
+          <>
+            <Separator className="bg-white/10" />
+            <div className="pt-3">
+              <h5 className="text-[10px] text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Wallet className="w-3 h-3 text-brand-gold" />
+                Fluxo de Caixa
+              </h5>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-2.5 rounded-md bg-white/5 border border-green-500/20" data-testid="fluxo-total-aportes">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingUp className="w-3 h-3 text-green-400" />
+                    <span className="text-[10px] text-white/50 uppercase tracking-wider">Total Aportes</span>
+                  </div>
+                  <p className="text-sm font-bold text-green-400">{formatBRL(fluxoTotais.entradas)}</p>
+                </div>
+                <div className="p-2.5 rounded-md bg-white/5 border border-red-500/20" data-testid="fluxo-custo-obra">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Building2 className="w-3 h-3 text-red-400" />
+                    <span className="text-[10px] text-white/50 uppercase tracking-wider">Custo da Obra</span>
+                  </div>
+                  <p className="text-sm font-bold text-red-400">{formatBRL(fluxoTotais.saidas)}</p>
+                </div>
+                <div className="p-2.5 rounded-md border" style={{ borderColor: (fluxoTotais.entradas - fluxoTotais.saidas) >= 0 ? "rgba(212,187,125,0.3)" : "rgba(239,68,68,0.3)", background: (fluxoTotais.entradas - fluxoTotais.saidas) >= 0 ? "rgba(212,187,125,0.1)" : "rgba(239,68,68,0.1)" }} data-testid="fluxo-saldo">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Wallet className="w-3 h-3" style={{ color: (fluxoTotais.entradas - fluxoTotais.saidas) >= 0 ? "#D7BB7D" : "#EF4444" }} />
+                    <span className="text-[10px] text-white/50 uppercase tracking-wider">Saldo</span>
+                  </div>
+                  <p className={`text-sm font-bold ${(fluxoTotais.entradas - fluxoTotais.saidas) >= 0 ? "text-brand-gold" : "text-red-400"}`}>
+                    {formatBRL(fluxoTotais.entradas - fluxoTotais.saidas)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -287,6 +324,23 @@ export default function BiasPage() {
   const { data: oportunidades = [] } = useQuery<TipoOportunidade[]>({
     queryKey: ["/api/directus/tipos_oportunidades"],
   });
+
+  const { data: fluxoCaixa = [] } = useQuery<{ id: string; bia: string; tipo: string; valor: string | number }[]>({
+    queryKey: ["/api/directus/fluxo_caixa"],
+  });
+
+  const fluxoTotaisPorBia = useMemo(() => {
+    const map: Record<string, { entradas: number; saidas: number }> = {};
+    fluxoCaixa.forEach((item) => {
+      const biaId = typeof item.bia === "object" && item.bia !== null ? (item.bia as any).id : item.bia;
+      if (!biaId) return;
+      if (!map[biaId]) map[biaId] = { entradas: 0, saidas: 0 };
+      const val = parseFloat(String(item.valor)) || 0;
+      if (item.tipo === "entrada") map[biaId].entradas += val;
+      else if (item.tipo === "saida") map[biaId].saidas += val;
+    });
+    return map;
+  }, [fluxoCaixa]);
 
   const getMemberName = (id: string | undefined) => {
     if (!id) return "Não definido";
@@ -518,7 +572,7 @@ export default function BiasPage() {
                       </div>
                     </div>
 
-                    <InvestmentDivisionPanel projeto={projeto} />
+                    <InvestmentDivisionPanel projeto={projeto} fluxoTotais={fluxoTotaisPorBia[projeto.id]} />
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {Object.entries(nucleoConfig).map(([key, config]) => {

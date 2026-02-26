@@ -12,7 +12,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import builtLogo from "@assets/BUILT_Filosofia_selo_1769510016026.png";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_1772135828810.png";
 
 const menuItems = [
   {
@@ -67,7 +67,7 @@ export function AppSidebar() {
           <img 
             src={builtLogo} 
             alt="Built Alliances" 
-            className="h-14 w-auto"
+            className="h-12 w-auto max-w-[180px]"
           />
         </div>
       </SidebarHeader>

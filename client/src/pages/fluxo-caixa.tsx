@@ -24,7 +24,8 @@ import {
   FileText,
   Tag,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Users
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -114,6 +115,28 @@ export default function FluxoCaixaPage() {
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
   }, [fluxoItems]);
+
+  const aportesPorMembro = useMemo(() => {
+    const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.membro_responsavel);
+    const map: Record<string, number> = {};
+    entradas.forEach((i) => {
+      const mid = typeof i.membro_responsavel === "object" && i.membro_responsavel !== null
+        ? (i.membro_responsavel as any).id
+        : i.membro_responsavel;
+      if (mid) {
+        map[mid] = (map[mid] || 0) + (parseFloat(String(i.valor)) || 0);
+      }
+    });
+    const totalAportes = totals.entradas;
+    return Object.entries(map)
+      .map(([membroId, valor]) => ({
+        membroId,
+        nome: "",
+        valor,
+        percentual: totalAportes > 0 ? (valor / totalAportes) * 100 : 0,
+      }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [fluxoItems, totals.entradas]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -409,6 +432,44 @@ export default function FluxoCaixaPage() {
               </CardContent>
             </Card>
           </div>
+
+          {aportesPorMembro.length > 0 && (
+            <Card data-testid="panel-participacao-aportes">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="w-5 h-5 text-brand-gold" />
+                  Participação nos Aportes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {aportesPorMembro.map((item, idx) => (
+                    <div key={item.membroId} className="space-y-1" data-testid={`aporte-membro-${item.membroId}`}>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2 font-medium">
+                          <User className="w-3.5 h-3.5 text-muted-foreground" />
+                          {membroMap[item.membroId] || "Membro desconhecido"}
+                        </span>
+                        <span className="flex items-center gap-3">
+                          <span className="text-muted-foreground">{formatBRL(item.valor)}</span>
+                          <Badge variant="outline" className="border-brand-gold/50 text-brand-gold bg-brand-gold/10 min-w-[60px] justify-center" data-testid={`text-perc-membro-${item.membroId}`}>
+                            {item.percentual.toFixed(1)}%
+                          </Badge>
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full bg-gradient-to-r from-brand-gold to-brand-gold/70 transition-all duration-500"
+                          style={{ width: `${item.percentual}%` }}
+                          data-testid={`bar-membro-${item.membroId}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card data-testid="panel-lancamentos">
             <CardHeader>

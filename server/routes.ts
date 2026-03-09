@@ -3,490 +3,385 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS } from "@shared/schema";
 import OpenAI from "openai";
-
-const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
-const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN;
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
+import crypto from "crypto";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const uploadStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = crypto.randomBytes(8).toString("hex");
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${uniqueSuffix}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage: uploadStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".doc", ".docx", ".xls", ".xlsx"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Tipo de arquivo não permitido: ${ext}`));
+    }
+  },
+});
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Validate Directus connection
-  app.get("/api/directus/validate", async (req, res) => {
-    try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
 
-      const response = await fetch(`${DIRECTUS_URL}/server/info`, {
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
+  app.use("/uploads", express.static(uploadsDir));
+
+  app.post("/api/upload", (req, res) => {
+    upload.array("files", 10)(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "Arquivo excede o limite de 10MB" });
+          if (err.code === "LIMIT_FILE_COUNT") return res.status(400).json({ error: "Máximo de 10 arquivos por vez" });
+          return res.status(400).json({ error: err.message });
         }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
+        return res.status(400).json({ error: err.message });
       }
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado" });
+      }
+      const urls = files.map((f) => `/uploads/${f.filename}`);
+      res.json({ success: true, urls });
+    });
+  });
 
-      const data = await response.json();
-      res.json({ 
-        success: true, 
-        message: "Connected to Directus successfully",
-        serverInfo: data.data
-      });
+  // ========== MEMBROS ==========
+  app.get("/api/membros", async (req, res) => {
+    try {
+      const items = await storage.getAllMembros();
+      res.json(items);
     } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to connect to Directus" 
-      });
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // Get all collections from Directus
-  app.get("/api/directus/collections", async (req, res) => {
+  app.get("/api/membros/:id", async (req, res) => {
     try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const response = await fetch(`${DIRECTUS_URL}/collections`, {
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json({ 
-        success: true, 
-        collections: data.data 
-      });
+      const item = await storage.getMembro(req.params.id);
+      if (!item) return res.status(404).json({ error: "Membro não encontrado" });
+      res.json(item);
     } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to fetch collections" 
-      });
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // Create a field in a collection
-  app.post("/api/directus/collections/:collection/fields", async (req, res) => {
+  app.post("/api/membros", async (req, res) => {
     try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection } = req.params;
-      const fieldData = req.body;
-
-      const response = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(fieldData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        return res.status(response.status).json({ 
-          success: false, 
-          error: errorData.errors?.[0]?.message || `Directus returned ${response.status}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json({ 
-        success: true, 
-        field: data.data 
-      });
+      const item = await storage.createMembro(req.body);
+      res.json(item);
     } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to create field" 
-      });
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // Create multiple fields in a collection (batch)
-  app.post("/api/directus/collections/:collection/fields/batch", async (req, res) => {
+  app.patch("/api/membros/:id", async (req, res) => {
     try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection } = req.params;
-      const { fields } = req.body;
-
-      const results = [];
-      const errors = [];
-
-      for (const fieldData of fields) {
-        try {
-          const response = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(fieldData)
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            errors.push({
-              field: fieldData.field,
-              error: errorData.errors?.[0]?.message || `Status ${response.status}`
-            });
-          } else {
-            const data = await response.json();
-            results.push(data.data);
-          }
-        } catch (err: any) {
-          errors.push({
-            field: fieldData.field,
-            error: err.message
-          });
-        }
-      }
-
-      res.json({ 
-        success: errors.length === 0, 
-        created: results,
-        errors: errors.length > 0 ? errors : undefined
-      });
+      const item = await storage.updateMembro(req.params.id, req.body);
+      if (!item) return res.status(404).json({ error: "Membro não encontrado" });
+      res.json(item);
     } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to create fields" 
-      });
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // Get fields for a specific collection
-  app.get("/api/directus/collections/:collection/fields", async (req, res) => {
+  app.delete("/api/membros/:id", async (req, res) => {
     try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection } = req.params;
-      const response = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json({ 
-        success: true, 
-        fields: data.data 
-      });
-    } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to fetch fields" 
-      });
-    }
-  });
-
-  // Update an item in a Directus collection
-  app.patch("/api/directus/:collection/:id", async (req, res) => {
-    try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection, id } = req.params;
-      const updates = req.body;
-
-      const response = await fetch(`${DIRECTUS_URL}/items/${collection}/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json({ success: true, item: data.data });
-    } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to update item" 
-      });
-    }
-  });
-
-  // Generic route to get items from any Directus collection
-  app.get("/api/directus/:collection", async (req, res) => {
-    try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection } = req.params;
-      const queryString = new URLSearchParams(req.query as Record<string, string>);
-      if (!queryString.has("limit")) queryString.set("limit", "-1");
-      const response = await fetch(`${DIRECTUS_URL}/items/${collection}?${queryString.toString()}`, {
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json(data.data);
-    } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to fetch items" 
-      });
-    }
-  });
-
-  // Get single item from Directus collection
-  app.get("/api/directus/:collection/:id", async (req, res) => {
-    try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection, id } = req.params;
-      const response = await fetch(`${DIRECTUS_URL}/items/${collection}/${id}`, {
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json(data.data);
-    } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to fetch item" 
-      });
-    }
-  });
-
-  // Create an item in a Directus collection
-  app.post("/api/directus/:collection", async (req, res) => {
-    try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection } = req.params;
-      const itemData = req.body;
-
-      const response = await fetch(`${DIRECTUS_URL}/items/${collection}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(itemData)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
-      const data = await response.json();
-      res.json({ success: true, item: data.data });
-    } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to create item" 
-      });
-    }
-  });
-
-  // Delete an item from a Directus collection
-  app.delete("/api/directus/:collection/:id", async (req, res) => {
-    try {
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "DIRECTUS_TOKEN not configured" 
-        });
-      }
-
-      const { collection, id } = req.params;
-
-      const response = await fetch(`${DIRECTUS_URL}/items/${collection}/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Directus returned ${response.status}: ${errorText}` 
-        });
-      }
-
+      const ok = await storage.deleteMembro(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Membro não encontrado" });
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to delete item" 
-      });
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // AI Assistant endpoint
+  // ========== BIAS PROJETOS ==========
+  app.get("/api/bias", async (req, res) => {
+    try {
+      const items = await storage.getAllBias();
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:id", async (req, res) => {
+    try {
+      const item = await storage.getBia(req.params.id);
+      if (!item) return res.status(404).json({ error: "BIA não encontrada" });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias", async (req, res) => {
+    try {
+      const item = await storage.createBia(req.body);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bias/:id", async (req, res) => {
+    try {
+      const item = await storage.updateBia(req.params.id, req.body);
+      if (!item) return res.status(404).json({ error: "BIA não encontrada" });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/bias/:id", async (req, res) => {
+    try {
+      const ok = await storage.deleteBia(req.params.id);
+      if (!ok) return res.status(404).json({ error: "BIA não encontrada" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== FLUXO DE CAIXA ==========
+  app.get("/api/fluxo-caixa", async (req, res) => {
+    try {
+      const items = await storage.getAllFluxoCaixa();
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/fluxo-caixa", async (req, res) => {
+    try {
+      const body = req.body;
+      const data = {
+        bia_id: body.bia || body.bia_id || null,
+        tipo: body.tipo,
+        valor: String(body.valor),
+        data: body.data || null,
+        descricao: body.descricao || null,
+        membro_responsavel_id: body.membro_responsavel || body.membro_responsavel_id || null,
+        categoria_id: body.categoria_id || (body.Categoria && body.Categoria[0] ? String(body.Categoria[0]) : null),
+        tipo_cpp_id: body.tipo_cpp_id || (body.tipo_de_cpp && body.tipo_de_cpp[0] ? String(body.tipo_de_cpp[0]) : null),
+        favorecido_id: body.favorecido_id || (body.Favorecido && body.Favorecido[0] ? String(body.Favorecido[0]) : null),
+        anexos: body.anexos || [],
+      };
+      const item = await storage.createFluxoCaixa(data);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/fluxo-caixa/:id", async (req, res) => {
+    try {
+      const body = req.body;
+      const data: Record<string, any> = {};
+      if (body.tipo !== undefined) data.tipo = body.tipo;
+      if (body.valor !== undefined) data.valor = String(body.valor);
+      if (body.data !== undefined) data.data = body.data;
+      if (body.descricao !== undefined) data.descricao = body.descricao;
+      if (body.membro_responsavel !== undefined || body.membro_responsavel_id !== undefined) {
+        data.membro_responsavel_id = body.membro_responsavel || body.membro_responsavel_id || null;
+      }
+      if (body.categoria_id !== undefined) data.categoria_id = body.categoria_id;
+      if (body.Categoria !== undefined) data.categoria_id = body.Categoria[0] ? String(body.Categoria[0]) : null;
+      if (body.tipo_cpp_id !== undefined) data.tipo_cpp_id = body.tipo_cpp_id;
+      if (body.tipo_de_cpp !== undefined) data.tipo_cpp_id = body.tipo_de_cpp[0] ? String(body.tipo_de_cpp[0]) : null;
+      if (body.favorecido_id !== undefined) data.favorecido_id = body.favorecido_id;
+      if (body.Favorecido !== undefined) data.favorecido_id = body.Favorecido[0] ? String(body.Favorecido[0]) : null;
+      if (body.anexos !== undefined) data.anexos = body.anexos;
+
+      const item = await storage.updateFluxoCaixa(req.params.id, data);
+      if (!item) return res.status(404).json({ error: "Lançamento não encontrado" });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/fluxo-caixa/:id", async (req, res) => {
+    try {
+      const ok = await storage.deleteFluxoCaixa(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Lançamento não encontrado" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== TIPOS CPP ==========
+  app.get("/api/tipos-cpp", async (req, res) => {
+    try {
+      const items = await storage.getAllTiposCpp();
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/tipos-cpp", async (req, res) => {
+    try {
+      const item = await storage.createTipoCpp(req.body);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== CATEGORIAS ==========
+  app.get("/api/categorias", async (req, res) => {
+    try {
+      const items = await storage.getAllCategorias();
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/categorias", async (req, res) => {
+    try {
+      const item = await storage.createCategoria(req.body);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== OPORTUNIDADES ==========
+  app.get("/api/oportunidades", async (req, res) => {
+    try {
+      const items = await storage.getAllOportunidades();
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oportunidades", async (req, res) => {
+    try {
+      const body = { ...req.body };
+      if (body.bia && !body.bia_id) { body.bia_id = body.bia; delete body.bia; }
+      const item = await storage.createOportunidade(body);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/oportunidades/:id", async (req, res) => {
+    try {
+      const body = { ...req.body };
+      if (body.bia && !body.bia_id) { body.bia_id = body.bia; delete body.bia; }
+      const item = await storage.updateOportunidade(req.params.id, body);
+      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== AI ANALYZE (per-item) ==========
+  app.post("/api/analyze/bia/:id", async (req, res) => {
+    try {
+      const bia = await storage.getBia(req.params.id);
+      if (!bia) return res.status(404).json({ success: false, error: "BIA not found" });
+      const { question } = req.body;
+
+      const systemPrompt = `Você é um analista especializado em projetos BIA da Built Alliances.
+PROJETO BIA EM ANÁLISE:
+- Nome: ${bia.nome_bia}
+- Objetivo: ${bia.objetivo_alianca || 'N/A'}
+- Localização: ${bia.localizacao || 'N/A'}
+- Dados: ${JSON.stringify(bia)}
+Responda em português brasileiro, de forma clara e objetiva.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question || "Faça uma análise completa deste projeto BIA." }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7
+      });
+
+      res.json({ success: true, message: response.choices[0]?.message?.content || "Não foi possível analisar.", bia });
+    } catch (error: any) {
+      console.error("BIA Analysis error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.post("/api/analyze/oportunidade/:id", async (req, res) => {
+    try {
+      const { question } = req.body;
+      const systemPrompt = `Você é um analista especializado em oportunidades de negócio da Built Alliances. Responda em português brasileiro.`;
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question || "Faça uma análise desta oportunidade." }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7
+      });
+      res.json({ success: true, message: response.choices[0]?.message?.content || "Não foi possível analisar." });
+    } catch (error: any) {
+      console.error("Oportunidade Analysis error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // ========== AI ASSISTANT ==========
   app.post("/api/assistant", async (req, res) => {
     try {
-      const { message, context } = req.body;
-      
-      if (!message) {
-        return res.status(400).json({ error: "Message is required" });
-      }
+      const { message } = req.body;
+      if (!message) return res.status(400).json({ error: "Message is required" });
 
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ 
-          success: false, 
-          error: "Directus token not configured" 
-        });
-      }
-
-      // Fetch current data from Directus for context
-      const [membrosRes, biasRes, oportunidadesRes] = await Promise.all([
-        fetch(`${DIRECTUS_URL}/items/cadastro_geral?limit=100`, {
-          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
-        }),
-        fetch(`${DIRECTUS_URL}/items/bias_projetos?limit=100`, {
-          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
-        }),
-        fetch(`${DIRECTUS_URL}/items/funil_de_conversao?limit=100`, {
-          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
-        })
+      const [allMembros, allBias, allOportunidades] = await Promise.all([
+        storage.getAllMembros(),
+        storage.getAllBias(),
+        storage.getAllOportunidades(),
       ]);
 
-      if (!membrosRes.ok && !biasRes.ok && !oportunidadesRes.ok) {
-        return res.status(502).json({ 
-          success: false, 
-          error: "Unable to fetch data from Directus" 
-        });
-      }
-
-      const membrosData = membrosRes.ok ? (await membrosRes.json()).data : [];
-      const biasData = biasRes.ok ? (await biasRes.json()).data : [];
-      const oportunidadesData = oportunidadesRes.ok ? (await oportunidadesRes.json()).data : [];
-
-      const systemPrompt = `Você é o assistente inteligente da Built Alliances, uma plataforma de gestão de membros, projetos BIA (Business Intelligence Analysis) e oportunidades de negócio.
+      const systemPrompt = `Você é o assistente inteligente da Built Alliances, uma plataforma de gestão de membros, projetos BIA e oportunidades de negócio.
 
 DADOS ATUAIS DO SISTEMA:
-- Total de Membros: ${membrosData.length}
-- Total de BIAS (Projetos): ${biasData.length}
-- Total de Oportunidades: ${oportunidadesData.length}
+- Total de Membros: ${allMembros.length}
+- Total de BIAS (Projetos): ${allBias.length}
+- Total de Oportunidades: ${allOportunidades.length}
 
 MEMBROS CADASTRADOS:
-${membrosData.slice(0, 20).map((m: any) => `- ${m.nome_completo || 'N/A'} | Empresa: ${m.empresa || 'N/A'} | Especialidades: ${m.especialidades || 'N/A'}`).join('\n')}
+${allMembros.slice(0, 20).map((m) => `- ${m.nome} | Empresa: ${m.empresa || 'N/A'} | Cargo: ${m.cargo || 'N/A'}`).join('\n')}
 
 PROJETOS BIA ATIVOS:
-${biasData.slice(0, 15).map((b: any) => `- ${b.nome || b.titulo || 'Projeto'} | Status: ${b.status || 'N/A'} | Membros: ${b.membros_participantes?.length || 0}`).join('\n')}
-
-OPORTUNIDADES NO FUNIL:
-${oportunidadesData.slice(0, 15).map((o: any) => `- ${o.titulo || o.nome || 'Oportunidade'} | Valor: R$ ${o.valor || 0} | Status: ${o.status || 'N/A'}`).join('\n')}
-
-SUAS CAPACIDADES:
-1. Analisar dados de membros, BIAS e oportunidades
-2. Sugerir conexões estratégicas entre membros
-3. Identificar oportunidades de negócio
-4. Recomendar BIAS baseado em especialidades
-5. Fornecer insights sobre performance e métricas
-6. Ajudar na tomada de decisões estratégicas
+${allBias.slice(0, 15).map((b) => `- ${b.nome_bia} | Local: ${b.localizacao || 'N/A'}`).join('\n')}
 
 Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
@@ -500,166 +395,24 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         temperature: 0.7
       });
 
-      const assistantMessage = response.choices[0]?.message?.content || "Desculpe, não consegui processar sua solicitação.";
-
-      res.json({ 
-        success: true, 
-        message: assistantMessage,
-        stats: {
-          membros: membrosData.length,
-          bias: biasData.length,
-          oportunidades: oportunidadesData.length
-        }
+      res.json({
+        success: true,
+        message: response.choices[0]?.message?.content || "Desculpe, não consegui processar sua solicitação.",
+        stats: { membros: allMembros.length, bias: allBias.length, oportunidades: allOportunidades.length }
       });
     } catch (error: any) {
       console.error("AI Assistant error:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: error.message || "Failed to process request" 
-      });
-    }
-  });
-
-  // Analyze specific BIA
-  app.post("/api/analyze/bia/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { question } = req.body;
-
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ success: false, error: "Directus token not configured" });
-      }
-
-      const biasRes = await fetch(`${DIRECTUS_URL}/items/bias_projetos/${id}`, {
-        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
-      });
-
-      if (!biasRes.ok) {
-        return res.status(404).json({ success: false, error: "BIA not found" });
-      }
-
-      const biasData = (await biasRes.json()).data;
-
-      const systemPrompt = `Você é um analista especializado em projetos BIA (Business Intelligence Analysis) da Built Alliances.
-
-PROJETO BIA EM ANÁLISE:
-- Nome: ${biasData.nome || biasData.titulo || 'N/A'}
-- Status: ${biasData.status || 'N/A'}
-- Descrição: ${biasData.descricao || 'N/A'}
-- Membros Participantes: ${JSON.stringify(biasData.membros_participantes) || 'N/A'}
-- Data de Criação: ${biasData.date_created || 'N/A'}
-- Dados Completos: ${JSON.stringify(biasData)}
-
-SUAS CAPACIDADES:
-1. Analisar pontos fortes e fracos do projeto
-2. Sugerir melhorias e próximos passos
-3. Identificar riscos e oportunidades
-4. Recomendar membros que poderiam contribuir
-5. Avaliar viabilidade e potencial de sucesso
-
-Responda em português brasileiro, de forma clara e objetiva.`;
-
-      const userMessage = question || "Faça uma análise completa deste projeto BIA, incluindo pontos fortes, fracos, riscos e recomendações.";
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage }
-        ],
-        max_tokens: 1500,
-        temperature: 0.7
-      });
-
-      res.json({ 
-        success: true, 
-        message: response.choices[0]?.message?.content || "Não foi possível analisar.",
-        bia: biasData
-      });
-    } catch (error: any) {
-      console.error("BIA Analysis error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  // Analyze specific Oportunidade
-  app.post("/api/analyze/oportunidade/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { question } = req.body;
-
-      if (!DIRECTUS_TOKEN) {
-        return res.status(500).json({ success: false, error: "Directus token not configured" });
-      }
-
-      const opRes = await fetch(`${DIRECTUS_URL}/items/funil_de_conversao/${id}`, {
-        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` }
-      });
-
-      if (!opRes.ok) {
-        return res.status(404).json({ success: false, error: "Oportunidade not found" });
-      }
-
-      const opData = (await opRes.json()).data;
-
-      const systemPrompt = `Você é um analista especializado em oportunidades de negócio da Built Alliances.
-
-OPORTUNIDADE EM ANÁLISE:
-- Título: ${opData.titulo || opData.nome || 'N/A'}
-- Status: ${opData.status || 'N/A'}
-- Valor: R$ ${opData.valor || 0}
-- Cliente: ${opData.cliente || 'N/A'}
-- Descrição: ${opData.descricao || 'N/A'}
-- Probabilidade: ${opData.probabilidade || 'N/A'}%
-- Data de Criação: ${opData.date_created || 'N/A'}
-- Dados Completos: ${JSON.stringify(opData)}
-
-SUAS CAPACIDADES:
-1. Avaliar probabilidade de fechamento
-2. Sugerir estratégias de abordagem
-3. Identificar riscos e objeções potenciais
-4. Recomendar próximos passos
-5. Analisar fit com membros da rede
-
-Responda em português brasileiro, de forma clara e objetiva.`;
-
-      const userMessage = question || "Faça uma análise completa desta oportunidade, incluindo probabilidade de conversão, riscos e estratégias recomendadas.";
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage }
-        ],
-        max_tokens: 1500,
-        temperature: 0.7
-      });
-
-      res.json({ 
-        success: true, 
-        message: response.choices[0]?.message?.content || "Não foi possível analisar.",
-        oportunidade: opData
-      });
-    } catch (error: any) {
-      console.error("Oportunidade Analysis error:", error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-
-  // AI Insights Analysis endpoint
   app.post("/api/ai/analyze", async (req, res) => {
     try {
       const { prompt, type } = req.body;
-      
-      const systemPrompt = type === "oportunidades" 
-        ? `Você é um consultor especialista em construção civil e investimentos imobiliários da Built Alliances. 
-           Analise as oportunidades de aliança (OPAs) e forneça insights estratégicos em português brasileiro.
-           Seja conciso, objetivo e use linguagem profissional. Máximo 3 parágrafos.
-           Foque em: ROI potencial, riscos, recomendações para diferentes perfis de investidor.`
-        : `Você é um consultor especialista da Built Alliances em BIAs (Built Intelligence Alliances).
-           Analise os projetos de aliança e forneça insights sobre potencial, estrutura de governança e oportunidades.
-           Seja conciso, objetivo e use linguagem profissional. Máximo 3 parágrafos.
-           Foque em: modelo de negócio, distribuição de funções, potencial de retorno.`;
+
+      const systemPrompt = type === "oportunidades"
+        ? `Você é um consultor especialista em construção civil e investimentos imobiliários da Built Alliances. Analise as oportunidades de aliança (OPAs) e forneça insights estratégicos em português brasileiro. Seja conciso. Máximo 3 parágrafos.`
+        : `Você é um consultor especialista da Built Alliances em BIAs. Analise os projetos de aliança e forneça insights. Seja conciso. Máximo 3 parágrafos.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -671,8 +424,7 @@ Responda em português brasileiro, de forma clara e objetiva.`;
         temperature: 0.7,
       });
 
-      const analysis = response.choices[0]?.message?.content || "Análise não disponível.";
-      res.json({ success: true, analysis });
+      res.json({ success: true, analysis: response.choices[0]?.message?.content || "Análise não disponível." });
     } catch (error: any) {
       console.error("AI Analysis error:", error);
       res.status(500).json({ success: false, error: error.message });
@@ -680,11 +432,10 @@ Responda em português brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== USER MANAGEMENT ==========
-
   app.get("/api/users", async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
-      const safeUsers = users.map(({ password, ...u }) => u);
+      const allUsers = await storage.getAllUsers();
+      const safeUsers = allUsers.map(({ password, ...u }) => u);
       res.json(safeUsers);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -695,8 +446,8 @@ Responda em português brasileiro, de forma clara e objetiva.`;
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
-      const { password, ...safeUser } = user;
-      res.json(safeUser);
+      const { password, ...safe } = user;
+      res.json(safe);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -704,57 +455,46 @@ Responda em português brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/users", async (req, res) => {
     try {
-      const parsed = createUserSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.errors[0]?.message || "Dados inválidos" });
-      }
-      const existing = await storage.getUserByUsername(parsed.data.username);
-      if (existing) {
-        return res.status(409).json({ error: "Nome de usuário já existe" });
-      }
-      const perms = parsed.data.role === "admin"
-        ? ADMIN_PERMISSIONS
-        : (parsed.data.permissions || DEFAULT_PERMISSIONS);
+      const parsed = createUserSchema.parse(req.body);
+      const existing = await storage.getUserByUsername(parsed.username);
+      if (existing) return res.status(409).json({ error: "Username já existe" });
+
       const user = await storage.createUser({
-        username: parsed.data.username,
-        password: parsed.data.password,
-        nome: parsed.data.nome,
-        email: parsed.data.email || null,
-        membro_directus_id: parsed.data.membro_directus_id || null,
-        role: parsed.data.role,
-        permissions: perms as any,
-        ativo: parsed.data.ativo,
+        ...parsed,
+        email: parsed.email || null,
+        membro_directus_id: parsed.membro_directus_id || null,
+        permissions: (parsed.permissions as any) || (parsed.role === "admin" ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS),
       });
-      const { password, ...safeUser } = user;
-      res.status(201).json(safeUser);
+      const { password, ...safe } = user;
+      res.json(safe);
     } catch (error: any) {
+      if (error.name === "ZodError") return res.status(400).json({ error: error.errors });
       res.status(500).json({ error: error.message });
     }
   });
 
   app.patch("/api/users/:id", async (req, res) => {
     try {
-      const parsed = updateUserSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.errors[0]?.message || "Dados inválidos" });
-      }
-      const updateData: Record<string, any> = { ...parsed.data };
-      if (!updateData.password) delete updateData.password;
-      if (updateData.email === "") updateData.email = null;
-      if (updateData.membro_directus_id === "") updateData.membro_directus_id = null;
+      const parsed = updateUserSchema.parse(req.body);
+      const updateData: any = { ...parsed };
+      if (parsed.email === "") updateData.email = null;
+      if (parsed.membro_directus_id === "") updateData.membro_directus_id = null;
+      if (parsed.password === "") delete updateData.password;
+
       const user = await storage.updateUser(req.params.id, updateData);
       if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
-      const { password, ...safeUser } = user;
-      res.json(safeUser);
+      const { password, ...safe } = user;
+      res.json(safe);
     } catch (error: any) {
+      if (error.name === "ZodError") return res.status(400).json({ error: error.errors });
       res.status(500).json({ error: error.message });
     }
   });
 
   app.delete("/api/users/:id", async (req, res) => {
     try {
-      const deleted = await storage.deleteUser(req.params.id);
-      if (!deleted) return res.status(404).json({ error: "Usuário não encontrado" });
+      const ok = await storage.deleteUser(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Usuário não encontrado" });
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

@@ -27,7 +27,17 @@ import {
   Users,
   Pencil,
   UserCheck,
-  Layers
+  Layers,
+  Paperclip,
+  Upload,
+  X,
+  Eye,
+  Download,
+  File,
+  Image,
+  Filter,
+  Search,
+  RotateCcw
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -51,6 +61,13 @@ interface TipoCPP {
   tipo_de_cpp_fluxo_caixa?: string | null;
 }
 
+interface CategoriaItem {
+  id: number;
+  Nome_da_categoria: string;
+  Descricao_das_categorias?: string;
+  Categoria_fluxo?: string | null;
+}
+
 interface FluxoCaixaItem {
   id: string;
   bia: string | { id: string };
@@ -59,9 +76,10 @@ interface FluxoCaixaItem {
   data: string;
   descricao: string;
   membro_responsavel: string | { id: string; nome?: string } | null;
-  categoria: string;
+  Categoria: (CategoriaItem | number)[];
   tipo_de_cpp: (TipoCPP | number)[];
   Favorecido: (Membro | string)[];
+  anexos: string[];
 }
 
 function formatBRL(value: number): string {
@@ -99,6 +117,38 @@ function getFavName(fav: Membro | string, membroMap: Record<string, string>): st
   return membroMap[fav] || "Membro";
 }
 
+function getCatName(cat: CategoriaItem | number, catMap: Record<number, string>): string {
+  if (typeof cat === "object" && cat !== null) return cat.Nome_da_categoria || "Categoria";
+  return catMap[cat] || "Categoria";
+}
+
+function parseBRLToNumber(formatted: string): number {
+  if (!formatted) return 0;
+  const cleaned = formatted.replace(/\./g, "").replace(",", ".");
+  return parseFloat(cleaned) || 0;
+}
+
+function formatInputBRL(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const cents = parseInt(digits, 10);
+  const reais = cents / 100;
+  return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getFileIcon(url: string) {
+  const ext = url.split(".").pop()?.toLowerCase() || "";
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return Image;
+  return File;
+}
+
+function getFileName(url: string) {
+  const parts = url.split("/");
+  const full = parts[parts.length - 1];
+  if (full.length > 25) return full.substring(0, 10) + "..." + full.substring(full.length - 10);
+  return full;
+}
+
 function LancamentoFormFields({
   formTipo, setFormTipo,
   formValor, setFormValor,
@@ -108,9 +158,11 @@ function LancamentoFormFields({
   formMembro, setFormMembro,
   formFavorecido, setFormFavorecido,
   formTipoCpp, setFormTipoCpp,
-  membros, tiposCpp,
-  categoriasEntrada, categoriasSaida,
+  membros, tiposCpp, categorias,
   prefix,
+  pendingFiles, setPendingFiles,
+  existingAnexos, setExistingAnexos,
+  uploading,
 }: {
   formTipo: "entrada" | "saida";
   setFormTipo: (v: "entrada" | "saida") => void;
@@ -130,10 +182,36 @@ function LancamentoFormFields({
   setFormTipoCpp: (v: string) => void;
   membros: Membro[];
   tiposCpp: TipoCPP[];
-  categoriasEntrada: string[];
-  categoriasSaida: string[];
+  categorias: CategoriaItem[];
   prefix: string;
+  pendingFiles: globalThis.File[];
+  setPendingFiles: (files: globalThis.File[]) => void;
+  existingAnexos: string[];
+  setExistingAnexos: (urls: string[]) => void;
+  uploading: boolean;
 }) {
+  function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value;
+    const formatted = formatInputBRL(raw);
+    setFormValor(formatted);
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files;
+    if (!selected) return;
+    const newFiles = Array.from(selected);
+    setPendingFiles([...pendingFiles, ...newFiles]);
+    e.target.value = "";
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles(pendingFiles.filter((_, i) => i !== index));
+  }
+
+  function removeExistingAnexo(index: number) {
+    setExistingAnexos(existingAnexos.filter((_, i) => i !== index));
+  }
+
   return (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
@@ -162,11 +240,10 @@ function LancamentoFormFields({
       <div className="space-y-2">
         <Label>Valor (R$)</Label>
         <Input
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
+          inputMode="numeric"
           value={formValor}
-          onChange={(e) => setFormValor(e.target.value)}
+          onChange={handleValorChange}
           placeholder="0,00"
           data-testid={`${prefix}-input-valor`}
         />
@@ -199,8 +276,9 @@ function LancamentoFormFields({
             <SelectValue placeholder="Selecione..." />
           </SelectTrigger>
           <SelectContent>
-            {(formTipo === "entrada" ? categoriasEntrada : categoriasSaida).map((cat) => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            <SelectItem value="__none__">Nenhuma</SelectItem>
+            {categorias.map((cat) => (
+              <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -252,6 +330,64 @@ function LancamentoFormFields({
           </SelectContent>
         </Select>
       </div>
+
+      <div className="space-y-2">
+        <Label className="flex items-center gap-2">
+          <Paperclip className="w-4 h-4" />
+          Comprovantes / Anexos
+        </Label>
+
+        {existingAnexos.length > 0 && (
+          <div className="space-y-1">
+            {existingAnexos.map((url, i) => {
+              const IconComp = getFileIcon(url);
+              return (
+                <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 text-sm">
+                  <IconComp className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="truncate text-brand-gold hover:underline flex-1" data-testid={`link-anexo-existing-${i}`}>
+                    {getFileName(url)}
+                  </a>
+                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeExistingAnexo(i)} data-testid={`button-remove-existing-anexo-${i}`}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {pendingFiles.length > 0 && (
+          <div className="space-y-1">
+            {pendingFiles.map((file, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-sm">
+                <Upload className="w-4 h-4 text-blue-500 shrink-0" />
+                <span className="truncate flex-1">{file.name}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removePendingFile(i)} data-testid={`button-remove-pending-file-${i}`}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 px-4 py-2 rounded-md border border-dashed border-muted-foreground/30 cursor-pointer hover:bg-muted/50 transition-colors text-sm text-muted-foreground w-full justify-center" data-testid={`${prefix}-button-upload`}>
+            <Upload className="w-4 h-4" />
+            {uploading ? "Enviando..." : "Selecionar arquivos"}
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={uploading}
+              data-testid={`${prefix}-input-file`}
+            />
+          </label>
+        </div>
+        <p className="text-xs text-muted-foreground">PDF, imagens, Word ou Excel. Máx. 10MB por arquivo.</p>
+      </div>
     </div>
   );
 }
@@ -271,29 +407,38 @@ export default function FluxoCaixaPage() {
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("");
   const [formTipoCpp, setFormTipoCpp] = useState<string>("");
+  const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
+  const [existingAnexos, setExistingAnexos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const [filterTipo, setFilterTipo] = useState<string>("todos");
+  const [filterCategoria, setFilterCategoria] = useState<string>("todos");
+  const [filterMembro, setFilterMembro] = useState<string>("todos");
+  const [filterFavorecido, setFilterFavorecido] = useState<string>("todos");
+  const [filterTipoCpp, setFilterTipoCpp] = useState<string>("todos");
+  const [filterDescricao, setFilterDescricao] = useState<string>("");
 
   const { data: bias = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
-    queryKey: ["/api/directus/bias_projetos"],
+    queryKey: ["/api/bias"],
   });
 
   const { data: membros = [] } = useQuery<Membro[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const { data: tiposCpp = [] } = useQuery<TipoCPP[]>({
-    queryKey: ["/api/directus/Tipos_CPP"],
+    queryKey: ["/api/tipos-cpp"],
+  });
+
+  const { data: categorias = [] } = useQuery<CategoriaItem[]>({
+    queryKey: ["/api/categorias"],
   });
 
   const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
-    queryKey: ["/api/directus/fluxo_caixa", "nested"],
-    queryFn: async () => {
-      const res = await fetch("/api/directus/fluxo_caixa?fields=*,tipo_de_cpp.*,Favorecido.*", { credentials: "include" });
-      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
-      return res.json();
-    },
+    queryKey: ["/api/fluxo-caixa"],
   });
 
-  const fluxoItems = useMemo(() => {
+  const fluxoItemsAll = useMemo(() => {
     if (!selectedBiaId) return [];
     return allFluxo
       .filter((item) => {
@@ -302,6 +447,33 @@ export default function FluxoCaixaPage() {
       })
       .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
   }, [allFluxo, selectedBiaId]);
+
+  const fluxoItems = useMemo(() => {
+    return fluxoItemsAll.filter((item) => {
+      if (filterTipo !== "todos" && item.tipo !== filterTipo) return false;
+      if (filterDescricao && !(item.descricao || "").toLowerCase().includes(filterDescricao.toLowerCase())) return false;
+      if (filterCategoria !== "todos") {
+        const catArr = item.Categoria || [];
+        const hasCat = catArr.some((c) => String(getRelId(c as any)) === filterCategoria);
+        if (!hasCat) return false;
+      }
+      if (filterMembro !== "todos") {
+        const mid = getRelId(item.membro_responsavel as any);
+        if (mid !== filterMembro) return false;
+      }
+      if (filterFavorecido !== "todos") {
+        const favArr = item.Favorecido || [];
+        const hasFav = favArr.some((f) => String(getRelId(f as any)) === filterFavorecido);
+        if (!hasFav) return false;
+      }
+      if (filterTipoCpp !== "todos") {
+        const cppArr = item.tipo_de_cpp || [];
+        const hasCpp = cppArr.some((c) => String(getRelId(c as any)) === filterTipoCpp);
+        if (!hasCpp) return false;
+      }
+      return true;
+    });
+  }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao]);
 
   const totals = useMemo(() => {
     const entradas = fluxoItems
@@ -332,16 +504,34 @@ export default function FluxoCaixaPage() {
       .sort((a, b) => b.valor - a.valor);
   }, [fluxoItems]);
 
-  function buildPayload() {
+  async function uploadFiles(files: globalThis.File[]): Promise<string[]> {
+    if (files.length === 0) return [];
+    const formDataObj = new FormData();
+    files.forEach((f) => formDataObj.append("files", f));
+    const response = await fetch("/api/upload", { method: "POST", body: formDataObj });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: "Erro no upload" }));
+      throw new Error(err.error || "Erro ao enviar arquivos");
+    }
+    const result = await response.json();
+    return result.urls;
+  }
+
+  function buildPayload(anexos: string[]) {
     const payload: Record<string, unknown> = {
       bia: selectedBiaId,
       tipo: formTipo,
-      valor: parseFloat(formValor) || 0,
+      valor: parseBRLToNumber(formValor),
       data: formData,
       descricao: formDescricao,
-      categoria: formCategoria,
       membro_responsavel: formMembro || null,
+      anexos,
     };
+    if (formCategoria && formCategoria !== "__none__") {
+      payload.Categoria = [parseInt(formCategoria)];
+    } else {
+      payload.Categoria = [];
+    }
     if (formFavorecido && formFavorecido !== "__none__") {
       payload.Favorecido = [formFavorecido];
     } else {
@@ -357,10 +547,17 @@ export default function FluxoCaixaPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/directus/fluxo_caixa", buildPayload());
+      setUploading(true);
+      try {
+        const uploadedUrls = await uploadFiles(pendingFiles);
+        const allAnexos = [...existingAnexos, ...uploadedUrls];
+        await apiRequest("POST", "/api/fluxo-caixa", buildPayload(allAnexos));
+      } finally {
+        setUploading(false);
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/directus/fluxo_caixa"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       toast({ title: "Lançamento criado com sucesso" });
       resetForm();
       setDialogOpen(false);
@@ -372,12 +569,19 @@ export default function FluxoCaixaPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const payload = buildPayload();
-      delete payload.bia;
-      await apiRequest("PATCH", `/api/directus/fluxo_caixa/${id}`, payload);
+      setUploading(true);
+      try {
+        const uploadedUrls = await uploadFiles(pendingFiles);
+        const allAnexos = [...existingAnexos, ...uploadedUrls];
+        const payload = buildPayload(allAnexos);
+        delete payload.bia;
+        await apiRequest("PATCH", `/api/fluxo-caixa/${id}`, payload);
+      } finally {
+        setUploading(false);
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/directus/fluxo_caixa"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       toast({ title: "Lançamento atualizado com sucesso" });
       resetForm();
       setEditDialogOpen(false);
@@ -390,10 +594,10 @@ export default function FluxoCaixaPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/directus/fluxo_caixa/${id}`);
+      await apiRequest("DELETE", `/api/fluxo-caixa/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/directus/fluxo_caixa"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       toast({ title: "Lançamento excluído" });
     },
     onError: (error: Error) => {
@@ -410,15 +614,22 @@ export default function FluxoCaixaPage() {
     setFormMembro("");
     setFormFavorecido("");
     setFormTipoCpp("");
+    setPendingFiles([]);
+    setExistingAnexos([]);
   }
 
   function openEditDialog(item: FluxoCaixaItem) {
     setEditingItemId(item.id);
     setFormTipo(item.tipo);
-    setFormValor(String(parseFloat(String(item.valor)) || 0));
+    const numVal = parseFloat(String(item.valor)) || 0;
+    setFormValor(numVal > 0 ? numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
     setFormData(item.data || new Date().toISOString().split("T")[0]);
     setFormDescricao(item.descricao || "");
-    setFormCategoria(item.categoria || "");
+
+    const catArr = item.Categoria || [];
+    const firstCat = catArr.length > 0 ? getRelId(catArr[0] as any) : null;
+    setFormCategoria(firstCat || "");
+
     setFormMembro(getRelId(item.membro_responsavel as any) || "");
 
     const favArr = item.Favorecido || [];
@@ -429,11 +640,14 @@ export default function FluxoCaixaPage() {
     const firstCpp = cppArr.length > 0 ? getRelId(cppArr[0] as any) : null;
     setFormTipoCpp(firstCpp || "");
 
+    setPendingFiles([]);
+    setExistingAnexos(item.anexos || []);
+
     setEditDialogOpen(true);
   }
 
   function handleSubmit() {
-    if (!formValor || parseFloat(formValor) <= 0) {
+    if (!formValor || parseBRLToNumber(formValor) <= 0) {
       toast({ title: "Informe um valor válido", variant: "destructive" });
       return;
     }
@@ -450,7 +664,7 @@ export default function FluxoCaixaPage() {
 
   function handleEditSubmit() {
     if (!editingItemId) return;
-    if (!formValor || parseFloat(formValor) <= 0) {
+    if (!formValor || parseBRLToNumber(formValor) <= 0) {
       toast({ title: "Informe um valor válido", variant: "destructive" });
       return;
     }
@@ -477,6 +691,12 @@ export default function FluxoCaixaPage() {
     return map;
   }, [tiposCpp]);
 
+  const catMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    categorias.forEach((c) => { map[c.id] = c.Nome_da_categoria; });
+    return map;
+  }, [categorias]);
+
   const selectedBia = bias.find((b) => b.id === selectedBiaId);
 
   if (loadingBias) {
@@ -492,9 +712,6 @@ export default function FluxoCaixaPage() {
       </div>
     );
   }
-
-  const categoriasEntrada = ["Aporte Inicial", "Aporte Adicional", "Investimento", "Financiamento", "Outro"];
-  const categoriasSaida = ["Material", "Mão de Obra", "Equipamento", "Serviço Terceirizado", "Administrativo", "Impostos", "Outro"];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -546,8 +763,11 @@ export default function FluxoCaixaPage() {
                   formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
                   formTipoCpp={formTipoCpp} setFormTipoCpp={setFormTipoCpp}
                   membros={membros} tiposCpp={tiposCpp}
-                  categoriasEntrada={categoriasEntrada} categoriasSaida={categoriasSaida}
+                  categorias={categorias}
                   prefix="create"
+                  pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
+                  existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
+                  uploading={uploading}
                 />
                 <DialogFooter>
                   <DialogClose asChild>
@@ -555,15 +775,15 @@ export default function FluxoCaixaPage() {
                   </DialogClose>
                   <Button
                     onClick={handleSubmit}
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || uploading}
                     data-testid="button-salvar-lancamento"
                   >
-                    {createMutation.isPending ? (
+                    {createMutation.isPending || uploading ? (
                       <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
                       <Plus className="w-4 h-4 mr-2" />
                     )}
-                    Salvar
+                    {uploading ? "Enviando..." : "Salvar"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -663,10 +883,136 @@ export default function FluxoCaixaPage() {
 
           <Card data-testid="panel-lancamentos">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="w-5 h-5 text-brand-gold" />
-                Lançamentos — {selectedBia?.nome_bia}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="w-5 h-5 text-brand-gold" />
+                  Lançamentos — {selectedBia?.nome_bia}
+                </CardTitle>
+                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterDescricao) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFilterTipo("todos");
+                      setFilterCategoria("todos");
+                      setFilterMembro("todos");
+                      setFilterFavorecido("todos");
+                      setFilterTipoCpp("todos");
+                      setFilterDescricao("");
+                    }}
+                    className="text-muted-foreground hover:text-foreground gap-1"
+                    data-testid="button-limpar-filtros"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Limpar filtros
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-3" data-testid="panel-filtros">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Filter className="w-3 h-3" /> Tipo
+                  </Label>
+                  <Select value={filterTipo} onValueChange={setFilterTipo}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="filter-tipo">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="entrada">Entrada</SelectItem>
+                      <SelectItem value="saida">Saída</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Tag className="w-3 h-3" /> Categoria
+                  </Label>
+                  <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="filter-categoria">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas</SelectItem>
+                      {categorias.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <User className="w-3 h-3" /> Responsável
+                  </Label>
+                  <Select value={filterMembro} onValueChange={setFilterMembro}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="filter-membro">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {membros.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <UserCheck className="w-3 h-3" /> Favorecido
+                  </Label>
+                  <Select value={filterFavorecido} onValueChange={setFilterFavorecido}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="filter-favorecido">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {membros.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Layers className="w-3 h-3" /> Tipo CPP
+                  </Label>
+                  <Select value={filterTipoCpp} onValueChange={setFilterTipoCpp}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="filter-tipo-cpp">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {tiposCpp.map((cpp) => (
+                        <SelectItem key={cpp.id} value={String(cpp.id)}>{cpp.Nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Search className="w-3 h-3" /> Descrição
+                  </Label>
+                  <Input
+                    value={filterDescricao}
+                    onChange={(e) => setFilterDescricao(e.target.value)}
+                    placeholder="Buscar..."
+                    className="h-8 text-xs"
+                    data-testid="filter-descricao"
+                  />
+                </div>
+              </div>
+
+              {fluxoItems.length !== fluxoItemsAll.length && (
+                <p className="text-xs text-muted-foreground mt-2" data-testid="text-filter-count">
+                  Mostrando {fluxoItems.length} de {fluxoItemsAll.length} lançamentos
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               {loadingFluxo ? (
@@ -694,6 +1040,7 @@ export default function FluxoCaixaPage() {
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Favorecido</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo CPP</th>
                         <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Anexos</th>
                         <th className="py-3 px-2 w-20"></th>
                       </tr>
                     </thead>
@@ -721,10 +1068,10 @@ export default function FluxoCaixaPage() {
                           </td>
                           <td className="py-3 px-2" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           <td className="py-3 px-2">
-                            {item.categoria ? (
+                            {item.Categoria && item.Categoria.length > 0 ? (
                               <Badge variant="secondary" className="gap-1">
                                 <Tag className="w-3 h-3" />
-                                {item.categoria}
+                                {item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}
                               </Badge>
                             ) : "-"}
                           </td>
@@ -754,6 +1101,23 @@ export default function FluxoCaixaPage() {
                           </td>
                           <td className={`py-3 px-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
                             {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
+                          </td>
+                          <td className="py-3 px-2" data-testid={`text-anexos-${item.id}`}>
+                            {item.anexos && item.anexos.length > 0 ? (
+                              <div className="flex items-center gap-1">
+                                {item.anexos.map((url, ai) => {
+                                  const IconComp = getFileIcon(url);
+                                  return (
+                                    <a key={ai} href={url} target="_blank" rel="noopener noreferrer" title={getFileName(url)} data-testid={`link-anexo-${item.id}-${ai}`}>
+                                      <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-brand-gold/20 transition-colors">
+                                        <IconComp className="w-3 h-3" />
+                                      </Badge>
+                                    </a>
+                                  );
+                                })}
+                                <span className="text-xs text-muted-foreground ml-1">{item.anexos.length}</span>
+                              </div>
+                            ) : "-"}
                           </td>
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-1">
@@ -805,8 +1169,11 @@ export default function FluxoCaixaPage() {
                 formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
                 formTipoCpp={formTipoCpp} setFormTipoCpp={setFormTipoCpp}
                 membros={membros} tiposCpp={tiposCpp}
-                categoriasEntrada={categoriasEntrada} categoriasSaida={categoriasSaida}
+                categorias={categorias}
                 prefix="edit"
+                pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
+                existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
+                uploading={uploading}
               />
               <DialogFooter>
                 <Button variant="outline" onClick={() => { setEditDialogOpen(false); setEditingItemId(null); }} data-testid="button-cancelar-edit">
@@ -814,15 +1181,15 @@ export default function FluxoCaixaPage() {
                 </Button>
                 <Button
                   onClick={handleEditSubmit}
-                  disabled={updateMutation.isPending}
+                  disabled={updateMutation.isPending || uploading}
                   data-testid="button-salvar-edit"
                 >
-                  {updateMutation.isPending ? (
+                  {updateMutation.isPending || uploading ? (
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <Pencil className="w-4 h-4 mr-2" />
                   )}
-                  Salvar Alterações
+                  {uploading ? "Enviando..." : "Salvar Alterações"}
                 </Button>
               </DialogFooter>
             </DialogContent>

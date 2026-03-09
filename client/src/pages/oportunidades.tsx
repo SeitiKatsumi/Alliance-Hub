@@ -72,26 +72,26 @@ export default function OportunidadesPage() {
   const { toast } = useToast();
 
   const { data: oportunidades = [], isLoading } = useQuery<TipoOportunidade[]>({
-    queryKey: ["/api/directus/tipos_oportunidades"],
+    queryKey: ["/api/oportunidades"],
   });
 
   const { data: bias = [] } = useQuery<BiasProjeto[]>({
-    queryKey: ["/api/directus/bias_projetos"],
+    queryKey: ["/api/bias"],
   });
 
   const { data: membros = [] } = useQuery<Membro[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof newOportunidade) => {
-      return apiRequest("POST", "/api/directus/tipos_oportunidades", {
+      return apiRequest("POST", "/api/oportunidades", {
         ...data,
         valor_origem_opa: data.valor_origem_opa ? parseFloat(data.valor_origem_opa) : null
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/directus/tipos_oportunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
       setIsCreateOpen(false);
       setNewOportunidade({
         nome_oportunidade: "",

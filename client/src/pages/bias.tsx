@@ -314,19 +314,19 @@ export default function BiasPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: bias = [], isLoading } = useQuery<BiasProjeto[]>({
-    queryKey: ["/api/directus/bias_projetos"],
+    queryKey: ["/api/bias"],
   });
 
   const { data: membros = [] } = useQuery<Membro[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const { data: oportunidades = [] } = useQuery<TipoOportunidade[]>({
-    queryKey: ["/api/directus/tipos_oportunidades"],
+    queryKey: ["/api/oportunidades"],
   });
 
   const { data: fluxoCaixa = [] } = useQuery<{ id: string; bia: string; tipo: string; valor: string | number }[]>({
-    queryKey: ["/api/directus/fluxo_caixa"],
+    queryKey: ["/api/fluxo-caixa"],
   });
 
   const fluxoTotaisPorBia = useMemo(() => {

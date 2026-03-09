@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -88,3 +88,141 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+export const membros = pgTable("membros", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome: text("nome").notNull(),
+  email: text("email"),
+  telefone: text("telefone"),
+  whatsapp: text("whatsapp"),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  empresa: text("empresa"),
+  cargo: text("cargo"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertMembroSchema = createInsertSchema(membros).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertMembro = z.infer<typeof insertMembroSchema>;
+export type Membro = typeof membros.$inferSelect;
+
+export const biasProjetos = pgTable("bias_projetos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome_bia: text("nome_bia").notNull(),
+  objetivo_alianca: text("objetivo_alianca"),
+  observacoes: text("observacoes"),
+  localizacao: text("localizacao"),
+  autor_bia: text("autor_bia"),
+  aliado_built: text("aliado_built"),
+  diretor_alianca: text("diretor_alianca"),
+  diretor_execucao: text("diretor_execucao"),
+  diretor_comercial: text("diretor_comercial"),
+  diretor_capital: text("diretor_capital"),
+  valor_origem: numeric("valor_origem"),
+  divisor_multiplicador: numeric("divisor_multiplicador"),
+  perc_autor_opa: numeric("perc_autor_opa"),
+  cpp_autor_opa: numeric("cpp_autor_opa"),
+  perc_aliado_built: numeric("perc_aliado_built"),
+  cpp_aliado_built: numeric("cpp_aliado_built"),
+  perc_built: numeric("perc_built"),
+  cpp_built: numeric("cpp_built"),
+  perc_dir_tecnico: numeric("perc_dir_tecnico"),
+  cpp_dir_tecnico: numeric("cpp_dir_tecnico"),
+  perc_dir_obras: numeric("perc_dir_obras"),
+  cpp_dir_obras: numeric("cpp_dir_obras"),
+  perc_dir_comercial: numeric("perc_dir_comercial"),
+  cpp_dir_comercial: numeric("cpp_dir_comercial"),
+  perc_dir_capital: numeric("perc_dir_capital"),
+  cpp_dir_capital: numeric("cpp_dir_capital"),
+  custo_origem_bia: numeric("custo_origem_bia"),
+  custo_final_previsto: numeric("custo_final_previsto"),
+  valor_realizado_venda: numeric("valor_realizado_venda"),
+  comissao_prevista_corretor: numeric("comissao_prevista_corretor"),
+  ir_previsto: numeric("ir_previsto"),
+  resultado_liquido: numeric("resultado_liquido"),
+  lucro_previsto: numeric("lucro_previsto"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertBiasProjetoSchema = createInsertSchema(biasProjetos).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertBiasProjeto = z.infer<typeof insertBiasProjetoSchema>;
+export type BiasProjeto = typeof biasProjetos.$inferSelect;
+
+export const tiposCpp = pgTable("tipos_cpp", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  descricao: text("descricao"),
+});
+
+export const insertTipoCppSchema = createInsertSchema(tiposCpp).omit({
+  id: true,
+});
+
+export type InsertTipoCpp = z.infer<typeof insertTipoCppSchema>;
+export type TipoCpp = typeof tiposCpp.$inferSelect;
+
+export const categorias = pgTable("categorias", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  descricao: text("descricao"),
+});
+
+export const insertCategoriaSchema = createInsertSchema(categorias).omit({
+  id: true,
+});
+
+export type InsertCategoria = z.infer<typeof insertCategoriaSchema>;
+export type Categoria = typeof categorias.$inferSelect;
+
+export const fluxoCaixa = pgTable("fluxo_caixa", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id"),
+  tipo: text("tipo").notNull(),
+  valor: numeric("valor").notNull(),
+  data: date("data"),
+  descricao: text("descricao"),
+  membro_responsavel_id: text("membro_responsavel_id"),
+  categoria_id: text("categoria_id"),
+  tipo_cpp_id: text("tipo_cpp_id"),
+  favorecido_id: text("favorecido_id"),
+  anexos: text("anexos").array(),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertFluxoCaixaSchema = createInsertSchema(fluxoCaixa).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertFluxoCaixa = z.infer<typeof insertFluxoCaixaSchema>;
+export type FluxoCaixa = typeof fluxoCaixa.$inferSelect;
+
+export const oportunidades = pgTable("oportunidades", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome_oportunidade: text("nome_oportunidade").notNull(),
+  tipo: text("tipo"),
+  bia_id: text("bia_id"),
+  valor_origem_opa: numeric("valor_origem_opa"),
+  objetivo_alianca: text("objetivo_alianca"),
+  nucleo_alianca: text("nucleo_alianca"),
+  pais: text("pais").default("Brasil"),
+  descricao: text("descricao"),
+  perfil_aliado: text("perfil_aliado"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertOportunidadeSchema = createInsertSchema(oportunidades).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertOportunidade = z.infer<typeof insertOportunidadeSchema>;
+export type Oportunidade = typeof oportunidades.$inferSelect;

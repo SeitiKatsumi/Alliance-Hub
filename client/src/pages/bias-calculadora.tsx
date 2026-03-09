@@ -75,7 +75,7 @@ export default function BiasCalculadoraPage() {
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
-    queryKey: ["/api/directus/bias_projetos"],
+    queryKey: ["/api/bias"],
   });
 
   const bias = useMemo(() => biasRaw || [], [biasRaw]);
@@ -150,10 +150,10 @@ export default function BiasCalculadoraPage() {
         comissao_prevista_corretor: comissaoCorretor.toFixed(2),
         ir_previsto: irPrevisto.toFixed(2),
       };
-      await apiRequest("PATCH", `/api/directus/bias_projetos/${selectedBiaId}`, payload);
+      await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/directus/bias_projetos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       toast({ title: "Salvo com sucesso", description: "Os cálculos foram salvos no Directus." });
     },
     onError: (error: any) => {

@@ -24,15 +24,15 @@ interface Membro {
 
 export default function AuraPage() {
   const { data: membros = [] } = useQuery<Membro[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const { data: bias = [] } = useQuery<any[]>({
-    queryKey: ["/api/directus/bias_projetos"],
+    queryKey: ["/api/bias"],
   });
 
   const { data: oportunidades = [] } = useQuery<any[]>({
-    queryKey: ["/api/directus/funil_de_conversao"],
+    queryKey: ["/api/oportunidades"],
   });
 
   const getAuraScore = (index: number) => 65 + ((index * 17) % 30);

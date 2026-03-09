@@ -25,12 +25,12 @@ interface Membro {
   cidade?: string;
   estado?: string;
   empresa?: string;
-  responsavel_cargo?: string;
+  cargo?: string;
 }
 
 export default function MembrosPage() {
   const { data: membros = [], isLoading } = useQuery<Membro[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const getInitials = (name: string) => {
@@ -81,9 +81,9 @@ export default function MembrosPage() {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <CardTitle className="text-lg truncate">{membro.nome}</CardTitle>
-                  {membro.responsavel_cargo && (
+                  {membro.cargo && (
                     <p className="text-sm text-muted-foreground truncate">
-                      {membro.responsavel_cargo}
+                      {membro.cargo}
                     </p>
                   )}
                 </div>

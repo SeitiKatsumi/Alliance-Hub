@@ -14,20 +14,20 @@ interface CadastroGeral {
   whatsapp: string;
   cidade: string;
   estado: string;
-  responsavel_cargo: string;
+  cargo: string;
 }
 
 export default function PainelPage() {
   const { data: membros = [] } = useQuery<CadastroGeral[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const { data: bias = [] } = useQuery<any[]>({
-    queryKey: ["/api/directus/bias_projetos"],
+    queryKey: ["/api/bias"],
   });
 
   const { data: oportunidades = [] } = useQuery<any[]>({
-    queryKey: ["/api/directus/tipos_oportunidades"],
+    queryKey: ["/api/oportunidades"],
   });
 
   const currentUser = membros[0];

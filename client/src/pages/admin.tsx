@@ -120,7 +120,7 @@ export default function AdminPage() {
   const [formPermissions, setFormPermissions] = useState<Record<string, string>>({ ...DEFAULT_PERMISSIONS });
 
   const { data: membros = [], isLoading: loadingMembros } = useQuery<Membro[]>({
-    queryKey: ["/api/directus/cadastro_geral"],
+    queryKey: ["/api/membros"],
   });
 
   const { data: appUsers = [], isLoading: loadingUsers } = useQuery<AppUser[]>({
@@ -172,10 +172,10 @@ export default function AdminPage() {
 
   const updateMemberMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Partial<Membro> }) => {
-      return apiRequest("PATCH", `/api/directus/cadastro_geral/${data.id}`, data.updates);
+      return apiRequest("PATCH", `/api/membros/${data.id}`, data.updates);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/directus/cadastro_geral"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       toast({ title: "Cadastro atualizado com sucesso" });
       setEditingId(null);
       setEditForm({});

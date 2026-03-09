@@ -20,25 +20,30 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express 5
-- **API Pattern**: RESTful endpoints proxying to Directus CMS (GET, POST, PATCH, DELETE)
-- **Database ORM**: Drizzle ORM with PostgreSQL (schema defined but Directus handles primary data)
-- **Session Storage**: In-memory storage for development, connect-pg-simple available for production
+- **API Pattern**: RESTful endpoints proxying to Directus CMS + local PostgreSQL user management
+- **Database ORM**: Drizzle ORM with PostgreSQL (node-postgres driver)
+- **Database Connection**: `server/db.ts` using `drizzle-orm/node-postgres` with pg Pool
+- **Storage Layer**: `server/storage.ts` with `DatabaseStorage` class (PostgreSQL-backed)
 
 ### Data Flow
-- Frontend makes API calls to `/api/directus/*` endpoints
-- Express server proxies requests to external Directus instance at `app.builtalliances.com`
-- Authentication via `DIRECTUS_TOKEN` environment variable
+- Frontend makes API calls to `/api/directus/*` endpoints (proxied to Directus)
+- Frontend makes API calls to `/api/users` endpoints (local PostgreSQL)
+- Express server proxies Directus requests to external instance at `app.builtalliances.com`
+- Authentication via `DIRECTUS_TOKEN` environment variable for Directus
+- User management stored locally in PostgreSQL with hashed passwords (scrypt)
 - React Query handles caching and refetching strategies
 
 ### Key Design Decisions
 
-1. **Directus as Backend CMS**: Rather than building custom CRUD endpoints, the application leverages Directus for content management, reducing backend complexity while maintaining flexibility.
+1. **Hybrid Data Architecture**: Directus CMS for business data (members, BIAs, opportunities), PostgreSQL for user/auth management with granular permissions.
 
 2. **Proxy Architecture**: API requests go through Express to avoid CORS issues and keep authentication tokens server-side.
 
 3. **Component Library**: shadcn/ui provides accessible, customizable components that can be modified in-place rather than depending on external package updates.
 
 4. **Shared Schema**: TypeScript types and Zod schemas in `/shared` directory ensure type safety across frontend and backend.
+
+5. **Granular Permissions**: Each user has per-module permissions (none/view/edit) for all 8 platform modules.
 
 ## External Dependencies
 
@@ -96,6 +101,18 @@ The application navigation was reorganized with the following order:
 - Opportunities serve as the "chamariz" (attraction point) for new members to join BIAs
 - Calculadora DM manages the Divisor Multiplicador percentages and CPPs per role
 - Fluxo de Caixa tracks all financial transactions (entries and exits) per BIA project
+
+### User Management (March 2026)
+- Users managed in local PostgreSQL (not Directus)
+- Schema: `shared/schema.ts` defines `users` table with id, username, password (hashed), nome, email, membro_directus_id, role, permissions (jsonb), ativo, created_at
+- Roles: admin, manager, user
+- Per-module permissions: 8 modules × 3 levels (none/view/edit)
+- Modules: oportunidades, bias, calculadora, fluxo_caixa, membros, aura, painel, admin
+- Admin page (`/admin`) has Tabs: "Usuários" (CRUD users with permissions) and "Membros" (edit Directus members)
+- Users can be linked to a Directus member via `membro_directus_id`
+- Passwords hashed with scrypt (server/storage.ts)
+- API: GET/POST `/api/users`, GET/PATCH/DELETE `/api/users/:id`
+- `apiRequest` signature: `(method, url, data?)` — NOT fetch-style
 
 ### Technical Notes
 - Field `diretor_execucao` (not `diretor_obra`) is used in bias_projetos

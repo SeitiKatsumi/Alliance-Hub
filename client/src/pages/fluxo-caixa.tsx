@@ -127,16 +127,15 @@ export default function FluxoCaixaPage() {
         map[mid] = (map[mid] || 0) + (parseFloat(String(i.valor)) || 0);
       }
     });
-    const totalAportes = totals.entradas;
+    const totalAportesComMembro = Object.values(map).reduce((s, v) => s + v, 0);
     return Object.entries(map)
       .map(([membroId, valor]) => ({
         membroId,
-        nome: "",
         valor,
-        percentual: totalAportes > 0 ? (valor / totalAportes) * 100 : 0,
+        percentual: totalAportesComMembro > 0 ? (valor / totalAportesComMembro) * 100 : 0,
       }))
       .sort((a, b) => b.valor - a.valor);
-  }, [fluxoItems, totals.entradas]);
+  }, [fluxoItems]);
 
   const createMutation = useMutation({
     mutationFn: async () => {

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS } from "@shared/schema";
 import OpenAI from "openai";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
@@ -673,6 +674,88 @@ Responda em português brasileiro, de forma clara e objetiva.`;
     } catch (error: any) {
       console.error("AI Analysis error:", error);
       res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // ========== USER MANAGEMENT ==========
+
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const safeUsers = users.map(({ password, ...u }) => u);
+      res.json(safeUsers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/users", async (req, res) => {
+    try {
+      const parsed = createUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message || "Dados inválidos" });
+      }
+      const existing = await storage.getUserByUsername(parsed.data.username);
+      if (existing) {
+        return res.status(409).json({ error: "Nome de usuário já existe" });
+      }
+      const perms = parsed.data.role === "admin"
+        ? ADMIN_PERMISSIONS
+        : (parsed.data.permissions || DEFAULT_PERMISSIONS);
+      const user = await storage.createUser({
+        username: parsed.data.username,
+        password: parsed.data.password,
+        nome: parsed.data.nome,
+        email: parsed.data.email || null,
+        membro_directus_id: parsed.data.membro_directus_id || null,
+        role: parsed.data.role,
+        permissions: perms as any,
+        ativo: parsed.data.ativo,
+      });
+      const { password, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const parsed = updateUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message || "Dados inválidos" });
+      }
+      const updateData: Record<string, any> = { ...parsed.data };
+      if (!updateData.password) delete updateData.password;
+      if (updateData.email === "") updateData.email = null;
+      if (updateData.membro_directus_id === "") updateData.membro_directus_id = null;
+      const user = await storage.updateUser(req.params.id, updateData);
+      if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteUser(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Usuário não encontrado" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

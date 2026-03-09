@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a business management platform for Built Alliances, a construction and engineering industry network. The application provides a dashboard for managing members, BIAS projects (alliance initiatives), and business opportunities. All data is stored in local PostgreSQL (no external CMS dependency). Interface in Portuguese (pt-BR) with navy/gold branding.
+This is a business management platform for Built Alliances, a construction and engineering industry network. The application provides a dashboard for managing members, BIAS projects (alliance initiatives), and business opportunities. Data is read in real-time from Directus CMS (https://app.builtalliances.com) for collections: cadastro_geral (membros), bias_projetos, fluxo_caixa, Categorias, Tipos_CPP, tipos_oportunidades (oportunidades). Local PostgreSQL stores users/auth data. Interface in Portuguese (pt-BR) with navy/gold branding.
 
 ## User Preferences
 
@@ -20,20 +20,22 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express 5
-- **API Pattern**: RESTful endpoints backed by local PostgreSQL
-- **Database ORM**: Drizzle ORM with PostgreSQL (node-postgres driver)
+- **API Pattern**: RESTful endpoints — GET routes fetch from Directus API in real-time, POST/PATCH/DELETE write to local PostgreSQL
+- **Directus Integration**: `directusFetch(collection)` and `directusFetchOne(collection, id)` helpers in `server/routes.ts` fetch from `https://app.builtalliances.com` using `DIRECTUS_TOKEN`
+- **Database ORM**: Drizzle ORM with PostgreSQL (node-postgres driver) for local data (users)
 - **Database Connection**: `server/db.ts` using `drizzle-orm/node-postgres` with pg Pool
-- **Storage Layer**: `server/storage.ts` with `DatabaseStorage` class (PostgreSQL-backed)
+- **Storage Layer**: `server/storage.ts` with `DatabaseStorage` class (PostgreSQL-backed, primarily for users)
 
 ### Data Flow
 - Frontend makes API calls to `/api/*` endpoints
-- Express server handles all CRUD via Drizzle ORM + PostgreSQL
-- User management with hashed passwords (scrypt)
+- GET endpoints fetch live data from Directus CMS (always up-to-date)
+- POST/PATCH/DELETE write to local PostgreSQL via Drizzle ORM
+- User management with hashed passwords (scrypt) in local PostgreSQL
 - React Query handles caching and refetching strategies
 
 ### Key Design Decisions
 
-1. **Local PostgreSQL**: All data (members, BIAs, opportunities, cash flow, users) stored in local PostgreSQL via Drizzle ORM.
+1. **Directus as Source of Truth**: All business data (membros, BIAs, fluxo_caixa, categorias, tipos_cpp, oportunidades) is read from Directus in real-time. Changes made in Directus appear immediately in the app.
 
 2. **Component Library**: shadcn/ui provides accessible, customizable components.
 
@@ -104,6 +106,8 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 
 ## Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string
+- `DIRECTUS_TOKEN`: Bearer token for Directus CMS API access
+- `DIRECTUS_URL`: Directus base URL (defaults to https://app.builtalliances.com)
 
 ## Technical Notes
 - `apiRequest` signature: `(method, url, data?)` — NOT fetch-style

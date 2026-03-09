@@ -14,6 +14,30 @@ const openai = new OpenAI({
   baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
+const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
+
+async function directusFetch(collection: string, params: string = "") {
+  const url = `${DIRECTUS_URL}/items/${collection}?limit=-1&fields=*${params ? "&" + params : ""}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`Directus error: ${res.status}`);
+  const json = await res.json();
+  return json.data || [];
+}
+
+async function directusFetchOne(collection: string, id: string) {
+  const url = `${DIRECTUS_URL}/items/${collection}/${id}?fields=*`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+  });
+  if (res.status === 404 || res.status === 403) return null;
+  if (!res.ok) throw new Error(`Directus error: ${res.status}`);
+  const json = await res.json();
+  return json.data || null;
+}
+
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -68,11 +92,27 @@ export async function registerRoutes(
     });
   });
 
-  // ========== MEMBROS ==========
+  // ========== MEMBROS (from Directus: cadastro_geral) ==========
   app.get("/api/membros", async (req, res) => {
     try {
-      const items = await storage.getAllMembros();
-      res.json(items);
+      const items = await directusFetch("cadastro_geral");
+      const mapped = items.map((m: any) => ({
+        id: m.id,
+        nome: m.nome,
+        email: m.email,
+        telefone: m.telefone,
+        whatsapp: m.whatsapp,
+        cidade: m.cidade,
+        estado: m.estado,
+        empresa: m.empresa,
+        cargo: m.cargo || m.responsavel_cargo,
+        perfil_aliado: m.perfil_aliado,
+        nucleo_alianca: m.nucleo_alianca,
+        tipo_pessoa: m.tipo_pessoa,
+        tipo_de_cadastro: m.tipo_de_cadastro,
+        ativo: m.ativo,
+      }));
+      res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -80,9 +120,24 @@ export async function registerRoutes(
 
   app.get("/api/membros/:id", async (req, res) => {
     try {
-      const item = await storage.getMembro(req.params.id);
-      if (!item) return res.status(404).json({ error: "Membro não encontrado" });
-      res.json(item);
+      const m = await directusFetchOne("cadastro_geral", req.params.id);
+      if (!m) return res.status(404).json({ error: "Membro não encontrado" });
+      res.json({
+        id: m.id,
+        nome: m.nome,
+        email: m.email,
+        telefone: m.telefone,
+        whatsapp: m.whatsapp,
+        cidade: m.cidade,
+        estado: m.estado,
+        empresa: m.empresa,
+        cargo: m.cargo || m.responsavel_cargo,
+        perfil_aliado: m.perfil_aliado,
+        nucleo_alianca: m.nucleo_alianca,
+        tipo_pessoa: m.tipo_pessoa,
+        tipo_de_cadastro: m.tipo_de_cadastro,
+        ativo: m.ativo,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -117,10 +172,10 @@ export async function registerRoutes(
     }
   });
 
-  // ========== BIAS PROJETOS ==========
+  // ========== BIAS PROJETOS (from Directus) ==========
   app.get("/api/bias", async (req, res) => {
     try {
-      const items = await storage.getAllBias();
+      const items = await directusFetch("bias_projetos");
       res.json(items);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -129,7 +184,7 @@ export async function registerRoutes(
 
   app.get("/api/bias/:id", async (req, res) => {
     try {
-      const item = await storage.getBia(req.params.id);
+      const item = await directusFetchOne("bias_projetos", req.params.id);
       if (!item) return res.status(404).json({ error: "BIA não encontrada" });
       res.json(item);
     } catch (error: any) {
@@ -166,11 +221,24 @@ export async function registerRoutes(
     }
   });
 
-  // ========== FLUXO DE CAIXA ==========
+  // ========== FLUXO DE CAIXA (from Directus) ==========
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
-      const items = await storage.getAllFluxoCaixa();
-      res.json(items);
+      const items = await directusFetch("fluxo_caixa");
+      const mapped = items.map((f: any) => ({
+        id: f.id,
+        bia: f.bia,
+        tipo: f.tipo,
+        valor: f.valor,
+        data: f.data,
+        descricao: f.descricao,
+        membro_responsavel: f.membro_responsavel,
+        Categoria: f.Categoria || [],
+        tipo_de_cpp: f.tipo_de_cpp || [],
+        Favorecido: f.Favorecido || [],
+        anexos: f.Anexos || f.anexos || [],
+      }));
+      res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -235,11 +303,12 @@ export async function registerRoutes(
     }
   });
 
-  // ========== TIPOS CPP ==========
+  // ========== TIPOS CPP (from Directus) ==========
   app.get("/api/tipos-cpp", async (req, res) => {
     try {
-      const items = await storage.getAllTiposCpp();
-      res.json(items);
+      const items = await directusFetch("Tipos_CPP");
+      const mapped = items.map((c: any) => ({ id: c.id, Nome: c.Nome, Descricao: c.Descricao }));
+      res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -254,11 +323,12 @@ export async function registerRoutes(
     }
   });
 
-  // ========== CATEGORIAS ==========
+  // ========== CATEGORIAS (from Directus) ==========
   app.get("/api/categorias", async (req, res) => {
     try {
-      const items = await storage.getAllCategorias();
-      res.json(items);
+      const items = await directusFetch("Categorias");
+      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias }));
+      res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -273,11 +343,24 @@ export async function registerRoutes(
     }
   });
 
-  // ========== OPORTUNIDADES ==========
+  // ========== OPORTUNIDADES (from Directus: tipos_oportunidades) ==========
   app.get("/api/oportunidades", async (req, res) => {
     try {
-      const items = await storage.getAllOportunidades();
-      res.json(items);
+      const items = await directusFetch("tipos_oportunidades");
+      const mapped = items.map((o: any) => ({
+        id: o.id,
+        nome_oportunidade: o.nome_oportunidade,
+        tipo: o.tipo,
+        bia: o.bia,
+        bia_id: o.bia,
+        valor_origem_opa: o.valor_origem_opa,
+        objetivo_alianca: o.objetivo_alianca,
+        nucleo_alianca: o.nucleo_alianca,
+        pais: o.pais,
+        descricao: o.descricao,
+        perfil_aliado: o.perfil_aliado,
+      }));
+      res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -309,7 +392,7 @@ export async function registerRoutes(
   // ========== AI ANALYZE (per-item) ==========
   app.post("/api/analyze/bia/:id", async (req, res) => {
     try {
-      const bia = await storage.getBia(req.params.id);
+      const bia = await directusFetchOne("bias_projetos", req.params.id);
       if (!bia) return res.status(404).json({ success: false, error: "BIA not found" });
       const { question } = req.body;
 
@@ -365,9 +448,9 @@ Responda em português brasileiro, de forma clara e objetiva.`;
       if (!message) return res.status(400).json({ error: "Message is required" });
 
       const [allMembros, allBias, allOportunidades] = await Promise.all([
-        storage.getAllMembros(),
-        storage.getAllBias(),
-        storage.getAllOportunidades(),
+        directusFetch("cadastro_geral"),
+        directusFetch("bias_projetos"),
+        directusFetch("tipos_oportunidades"),
       ]);
 
       const systemPrompt = `Você é o assistente inteligente da Built Alliances, uma plataforma de gestão de membros, projetos BIA e oportunidades de negócio.

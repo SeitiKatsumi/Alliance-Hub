@@ -18,14 +18,16 @@ import {
   ArrowDownCircle,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Calendar,
   User,
   FileText,
   Tag,
   RefreshCw,
   BarChart3,
-  Users
+  Users,
+  Pencil,
+  UserCheck,
+  Layers
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -42,15 +44,24 @@ interface Membro {
   sobrenome?: string;
 }
 
+interface TipoCPP {
+  id: number;
+  Nome: string;
+  Descricao?: string;
+  tipo_de_cpp_fluxo_caixa?: string | null;
+}
+
 interface FluxoCaixaItem {
   id: string;
-  bia: string;
+  bia: string | { id: string };
   tipo: "entrada" | "saida";
   valor: number | string;
   data: string;
   descricao: string;
-  membro_responsavel: string | null;
+  membro_responsavel: string | { id: string; nome?: string } | null;
   categoria: string;
+  tipo_de_cpp: (TipoCPP | number)[];
+  Favorecido: (Membro | string)[];
 }
 
 function formatBRL(value: number): string {
@@ -72,10 +83,185 @@ function getMembroNome(membro: Membro): string {
   return [membro.primeiro_nome, membro.sobrenome].filter(Boolean).join(" ") || "Sem nome";
 }
 
+function getRelId(val: string | { id: string | number } | number | null): string | null {
+  if (!val) return null;
+  if (typeof val === "object" && val !== null) return String((val as any).id);
+  return String(val);
+}
+
+function getCppName(cpp: TipoCPP | number, cppMap: Record<number, string>): string {
+  if (typeof cpp === "object" && cpp !== null) return cpp.Nome || "CPP";
+  return cppMap[cpp] || "CPP";
+}
+
+function getFavName(fav: Membro | string, membroMap: Record<string, string>): string {
+  if (typeof fav === "object" && fav !== null) return getMembroNome(fav as Membro);
+  return membroMap[fav] || "Membro";
+}
+
+function LancamentoFormFields({
+  formTipo, setFormTipo,
+  formValor, setFormValor,
+  formData, setFormData,
+  formDescricao, setFormDescricao,
+  formCategoria, setFormCategoria,
+  formMembro, setFormMembro,
+  formFavorecido, setFormFavorecido,
+  formTipoCpp, setFormTipoCpp,
+  membros, tiposCpp,
+  categoriasEntrada, categoriasSaida,
+  prefix,
+}: {
+  formTipo: "entrada" | "saida";
+  setFormTipo: (v: "entrada" | "saida") => void;
+  formValor: string;
+  setFormValor: (v: string) => void;
+  formData: string;
+  setFormData: (v: string) => void;
+  formDescricao: string;
+  setFormDescricao: (v: string) => void;
+  formCategoria: string;
+  setFormCategoria: (v: string) => void;
+  formMembro: string;
+  setFormMembro: (v: string) => void;
+  formFavorecido: string;
+  setFormFavorecido: (v: string) => void;
+  formTipoCpp: string;
+  setFormTipoCpp: (v: string) => void;
+  membros: Membro[];
+  tiposCpp: TipoCPP[];
+  categoriasEntrada: string[];
+  categoriasSaida: string[];
+  prefix: string;
+}) {
+  return (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Tipo</Label>
+        <Select value={formTipo} onValueChange={(v) => setFormTipo(v as "entrada" | "saida")}>
+          <SelectTrigger data-testid={`${prefix}-select-tipo`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="entrada">
+              <span className="flex items-center gap-2">
+                <ArrowUpCircle className="w-4 h-4 text-green-500" />
+                Entrada (Aporte)
+              </span>
+            </SelectItem>
+            <SelectItem value="saida">
+              <span className="flex items-center gap-2">
+                <ArrowDownCircle className="w-4 h-4 text-red-500" />
+                Saída (Custo)
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Valor (R$)</Label>
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          value={formValor}
+          onChange={(e) => setFormValor(e.target.value)}
+          placeholder="0,00"
+          data-testid={`${prefix}-input-valor`}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Data</Label>
+        <Input
+          type="date"
+          value={formData}
+          onChange={(e) => setFormData(e.target.value)}
+          data-testid={`${prefix}-input-data`}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Descrição</Label>
+        <Input
+          value={formDescricao}
+          onChange={(e) => setFormDescricao(e.target.value)}
+          placeholder="Descrição do lançamento"
+          data-testid={`${prefix}-input-descricao`}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Categoria</Label>
+        <Select value={formCategoria} onValueChange={setFormCategoria}>
+          <SelectTrigger data-testid={`${prefix}-select-categoria`}>
+            <SelectValue placeholder="Selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {(formTipo === "entrada" ? categoriasEntrada : categoriasSaida).map((cat) => (
+              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1">
+          Membro Responsável
+          {formTipo === "entrada" && <span className="text-red-500 text-xs">*obrigatório</span>}
+        </Label>
+        <Select value={formMembro} onValueChange={setFormMembro}>
+          <SelectTrigger data-testid={`${prefix}-select-membro`}>
+            <SelectValue placeholder="Selecione um membro..." />
+          </SelectTrigger>
+          <SelectContent>
+            {membros.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Favorecido</Label>
+        <Select value={formFavorecido} onValueChange={setFormFavorecido}>
+          <SelectTrigger data-testid={`${prefix}-select-favorecido`}>
+            <SelectValue placeholder="Selecione o favorecido..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Nenhum</SelectItem>
+            {membros.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tipo de CPP</Label>
+        <Select value={formTipoCpp} onValueChange={setFormTipoCpp}>
+          <SelectTrigger data-testid={`${prefix}-select-tipo-cpp`}>
+            <SelectValue placeholder="Selecione o tipo de CPP..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Nenhum</SelectItem>
+            {tiposCpp.map((cpp) => (
+              <SelectItem key={cpp.id} value={String(cpp.id)}>{cpp.Nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 export default function FluxoCaixaPage() {
   const { toast } = useToast();
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
   const [formValor, setFormValor] = useState<string>("");
@@ -83,6 +269,8 @@ export default function FluxoCaixaPage() {
   const [formDescricao, setFormDescricao] = useState<string>("");
   const [formCategoria, setFormCategoria] = useState<string>("");
   const [formMembro, setFormMembro] = useState<string>("");
+  const [formFavorecido, setFormFavorecido] = useState<string>("");
+  const [formTipoCpp, setFormTipoCpp] = useState<string>("");
 
   const { data: bias = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/directus/bias_projetos"],
@@ -92,8 +280,17 @@ export default function FluxoCaixaPage() {
     queryKey: ["/api/directus/cadastro_geral"],
   });
 
+  const { data: tiposCpp = [] } = useQuery<TipoCPP[]>({
+    queryKey: ["/api/directus/Tipos_CPP"],
+  });
+
   const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
-    queryKey: ["/api/directus/fluxo_caixa"],
+    queryKey: ["/api/directus/fluxo_caixa", "nested"],
+    queryFn: async () => {
+      const res = await fetch("/api/directus/fluxo_caixa?fields=*,tipo_de_cpp.*,Favorecido.*", { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
   });
 
   const fluxoItems = useMemo(() => {
@@ -120,9 +317,7 @@ export default function FluxoCaixaPage() {
     const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.membro_responsavel);
     const map: Record<string, number> = {};
     entradas.forEach((i) => {
-      const mid = typeof i.membro_responsavel === "object" && i.membro_responsavel !== null
-        ? (i.membro_responsavel as any).id
-        : i.membro_responsavel;
+      const mid = getRelId(i.membro_responsavel as any);
       if (mid) {
         map[mid] = (map[mid] || 0) + (parseFloat(String(i.valor)) || 0);
       }
@@ -137,18 +332,32 @@ export default function FluxoCaixaPage() {
       .sort((a, b) => b.valor - a.valor);
   }, [fluxoItems]);
 
+  function buildPayload() {
+    const payload: Record<string, unknown> = {
+      bia: selectedBiaId,
+      tipo: formTipo,
+      valor: parseFloat(formValor) || 0,
+      data: formData,
+      descricao: formDescricao,
+      categoria: formCategoria,
+      membro_responsavel: formMembro || null,
+    };
+    if (formFavorecido && formFavorecido !== "__none__") {
+      payload.Favorecido = [formFavorecido];
+    } else {
+      payload.Favorecido = [];
+    }
+    if (formTipoCpp && formTipoCpp !== "__none__") {
+      payload.tipo_de_cpp = [parseInt(formTipoCpp)];
+    } else {
+      payload.tipo_de_cpp = [];
+    }
+    return payload;
+  }
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload: Record<string, unknown> = {
-        bia: selectedBiaId,
-        tipo: formTipo,
-        valor: parseFloat(formValor) || 0,
-        data: formData,
-        descricao: formDescricao,
-        categoria: formCategoria,
-        membro_responsavel: formMembro || null,
-      };
-      await apiRequest("POST", "/api/directus/fluxo_caixa", payload);
+      await apiRequest("POST", "/api/directus/fluxo_caixa", buildPayload());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/directus/fluxo_caixa"] });
@@ -158,6 +367,24 @@ export default function FluxoCaixaPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao criar lançamento", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const payload = buildPayload();
+      delete payload.bia;
+      await apiRequest("PATCH", `/api/directus/fluxo_caixa/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/directus/fluxo_caixa"] });
+      toast({ title: "Lançamento atualizado com sucesso" });
+      resetForm();
+      setEditDialogOpen(false);
+      setEditingItemId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao atualizar lançamento", description: error.message, variant: "destructive" });
     },
   });
 
@@ -181,6 +408,28 @@ export default function FluxoCaixaPage() {
     setFormDescricao("");
     setFormCategoria("");
     setFormMembro("");
+    setFormFavorecido("");
+    setFormTipoCpp("");
+  }
+
+  function openEditDialog(item: FluxoCaixaItem) {
+    setEditingItemId(item.id);
+    setFormTipo(item.tipo);
+    setFormValor(String(parseFloat(String(item.valor)) || 0));
+    setFormData(item.data || new Date().toISOString().split("T")[0]);
+    setFormDescricao(item.descricao || "");
+    setFormCategoria(item.categoria || "");
+    setFormMembro(getRelId(item.membro_responsavel as any) || "");
+
+    const favArr = item.Favorecido || [];
+    const firstFav = favArr.length > 0 ? getRelId(favArr[0] as any) : null;
+    setFormFavorecido(firstFav || "");
+
+    const cppArr = item.tipo_de_cpp || [];
+    const firstCpp = cppArr.length > 0 ? getRelId(cppArr[0] as any) : null;
+    setFormTipoCpp(firstCpp || "");
+
+    setEditDialogOpen(true);
   }
 
   function handleSubmit() {
@@ -199,17 +448,34 @@ export default function FluxoCaixaPage() {
     createMutation.mutate();
   }
 
+  function handleEditSubmit() {
+    if (!editingItemId) return;
+    if (!formValor || parseFloat(formValor) <= 0) {
+      toast({ title: "Informe um valor válido", variant: "destructive" });
+      return;
+    }
+    if (!formDescricao.trim()) {
+      toast({ title: "Informe uma descrição", variant: "destructive" });
+      return;
+    }
+    if (formTipo === "entrada" && !formMembro) {
+      toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
+      return;
+    }
+    updateMutation.mutate(editingItemId);
+  }
+
   const membroMap = useMemo(() => {
     const map: Record<string, string> = {};
     membros.forEach((m) => { map[m.id] = getMembroNome(m); });
     return map;
   }, [membros]);
 
-  function getMembroId(membro: string | object | null): string | null {
-    if (!membro) return null;
-    if (typeof membro === "object") return (membro as any).id || null;
-    return membro;
-  }
+  const cppMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    tiposCpp.forEach((c) => { map[c.id] = c.Nome; });
+    return map;
+  }, [tiposCpp]);
 
   const selectedBia = bias.find((b) => b.id === selectedBiaId);
 
@@ -263,101 +529,26 @@ export default function FluxoCaixaPage() {
                   Novo Lançamento
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Wallet className="w-5 h-5 text-brand-gold" />
                     Novo Lançamento
                   </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Tipo</Label>
-                    <Select value={formTipo} onValueChange={(v) => setFormTipo(v as "entrada" | "saida")}>
-                      <SelectTrigger data-testid="select-tipo">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entrada">
-                          <span className="flex items-center gap-2">
-                            <ArrowUpCircle className="w-4 h-4 text-green-500" />
-                            Entrada (Aporte)
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="saida">
-                          <span className="flex items-center gap-2">
-                            <ArrowDownCircle className="w-4 h-4 text-red-500" />
-                            Saída (Custo)
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Valor (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formValor}
-                      onChange={(e) => setFormValor(e.target.value)}
-                      placeholder="0,00"
-                      data-testid="input-valor"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Data</Label>
-                    <Input
-                      type="date"
-                      value={formData}
-                      onChange={(e) => setFormData(e.target.value)}
-                      data-testid="input-data"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Descrição</Label>
-                    <Input
-                      value={formDescricao}
-                      onChange={(e) => setFormDescricao(e.target.value)}
-                      placeholder="Descrição do lançamento"
-                      data-testid="input-descricao"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select value={formCategoria} onValueChange={setFormCategoria}>
-                      <SelectTrigger data-testid="select-categoria">
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(formTipo === "entrada" ? categoriasEntrada : categoriasSaida).map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-1">
-                      Membro Responsável
-                      {formTipo === "entrada" && <span className="text-red-500 text-xs">*obrigatório</span>}
-                    </Label>
-                    <Select value={formMembro} onValueChange={setFormMembro}>
-                      <SelectTrigger data-testid="select-membro">
-                        <SelectValue placeholder="Selecione um membro..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {membros.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                <LancamentoFormFields
+                  formTipo={formTipo} setFormTipo={setFormTipo}
+                  formValor={formValor} setFormValor={setFormValor}
+                  formData={formData} setFormData={setFormData}
+                  formDescricao={formDescricao} setFormDescricao={setFormDescricao}
+                  formCategoria={formCategoria} setFormCategoria={setFormCategoria}
+                  formMembro={formMembro} setFormMembro={setFormMembro}
+                  formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
+                  formTipoCpp={formTipoCpp} setFormTipoCpp={setFormTipoCpp}
+                  membros={membros} tiposCpp={tiposCpp}
+                  categoriasEntrada={categoriasEntrada} categoriasSaida={categoriasSaida}
+                  prefix="create"
+                />
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button variant="outline" data-testid="button-cancelar">Cancelar</Button>
@@ -442,7 +633,7 @@ export default function FluxoCaixaPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {aportesPorMembro.map((item, idx) => (
+                  {aportesPorMembro.map((item) => (
                     <div key={item.membroId} className="space-y-1" data-testid={`aporte-membro-${item.membroId}`}>
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 font-medium">
@@ -500,8 +691,10 @@ export default function FluxoCaixaPage() {
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Categoria</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Responsável</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Favorecido</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo CPP</th>
                         <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
-                        <th className="py-3 px-2 w-12"></th>
+                        <th className="py-3 px-2 w-20"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -526,7 +719,7 @@ export default function FluxoCaixaPage() {
                               {formatDate(item.data)}
                             </span>
                           </td>
-                          <td className="py-3 px-2">{item.descricao || "-"}</td>
+                          <td className="py-3 px-2" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           <td className="py-3 px-2">
                             {item.categoria ? (
                               <Badge variant="secondary" className="gap-1">
@@ -539,24 +732,51 @@ export default function FluxoCaixaPage() {
                             {item.membro_responsavel ? (
                               <span className="flex items-center gap-1 text-muted-foreground">
                                 <User className="w-3 h-3" />
-                                {membroMap[getMembroId(item.membro_responsavel) || ""] || "—"}
+                                {membroMap[getRelId(item.membro_responsavel as any) || ""] || "—"}
                               </span>
+                            ) : "-"}
+                          </td>
+                          <td className="py-3 px-2" data-testid={`text-favorecido-${item.id}`}>
+                            {item.Favorecido && item.Favorecido.length > 0 ? (
+                              <span className="flex items-center gap-1 text-muted-foreground">
+                                <UserCheck className="w-3 h-3" />
+                                {item.Favorecido.map((f) => getFavName(f, membroMap)).join(", ")}
+                              </span>
+                            ) : "-"}
+                          </td>
+                          <td className="py-3 px-2" data-testid={`text-tipo-cpp-${item.id}`}>
+                            {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ? (
+                              <Badge variant="secondary" className="gap-1">
+                                <Layers className="w-3 h-3" />
+                                {item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}
+                              </Badge>
                             ) : "-"}
                           </td>
                           <td className={`py-3 px-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
                             {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
                           <td className="py-3 px-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-red-500"
-                              onClick={() => deleteMutation.mutate(item.id)}
-                              disabled={deleteMutation.isPending}
-                              data-testid={`button-delete-${item.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
+                                onClick={() => openEditDialog(item)}
+                                data-testid={`button-edit-${item.id}`}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                                onClick={() => deleteMutation.mutate(item.id)}
+                                disabled={deleteMutation.isPending}
+                                data-testid={`button-delete-${item.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -566,6 +786,47 @@ export default function FluxoCaixaPage() {
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) { setEditingItemId(null); } setEditDialogOpen(open); }}>
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Pencil className="w-5 h-5 text-brand-gold" />
+                  Editar Lançamento
+                </DialogTitle>
+              </DialogHeader>
+              <LancamentoFormFields
+                formTipo={formTipo} setFormTipo={setFormTipo}
+                formValor={formValor} setFormValor={setFormValor}
+                formData={formData} setFormData={setFormData}
+                formDescricao={formDescricao} setFormDescricao={setFormDescricao}
+                formCategoria={formCategoria} setFormCategoria={setFormCategoria}
+                formMembro={formMembro} setFormMembro={setFormMembro}
+                formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
+                formTipoCpp={formTipoCpp} setFormTipoCpp={setFormTipoCpp}
+                membros={membros} tiposCpp={tiposCpp}
+                categoriasEntrada={categoriasEntrada} categoriasSaida={categoriasSaida}
+                prefix="edit"
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setEditDialogOpen(false); setEditingItemId(null); }} data-testid="button-cancelar-edit">
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleEditSubmit}
+                  disabled={updateMutation.isPending}
+                  data-testid="button-salvar-edit"
+                >
+                  {updateMutation.isPending ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Pencil className="w-4 h-4 mr-2" />
+                  )}
+                  Salvar Alterações
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

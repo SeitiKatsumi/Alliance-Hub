@@ -89,9 +89,13 @@ The application navigation was reorganized with the following order:
   - CPPs are calculated on valor_origem (not custo_origem_bia)
 - **fluxo_caixa**: Cash flow transactions per BIA
   - Fields: id (uuid), bia (FK → bias_projetos), tipo (entrada/saida), valor (decimal), data (date), descricao (string), categoria (string), membro_responsavel (FK → cadastro_geral)
+  - O2M relations: Favorecido (→ cadastro_geral via Favorecido_fluxo FK), tipo_de_cpp (→ Tipos_CPP via tipo_de_cpp_fluxo_caixa FK)
   - Entries (entradas) = aportes/investments, require membro_responsavel
   - Exits (saidas) = costs of the project
   - Calculated totals: Total de Aportes (sum of entradas), Custo da Obra (sum of saidas), Saldo (entradas - saidas)
+  - Query uses `fields=*,tipo_de_cpp.*,Favorecido.*` for nested data
+- **Tipos_CPP**: CPP type categories (7 types: CPP de Origem, CPP de Liderança, CPP de Capital, CPP de Obra, CPP Técnica, CPP Comercial, Nenhuma CPP)
+  - Fields: id (int), Nome (string), Descricao (string), tipo_de_cpp_fluxo_caixa (FK → fluxo_caixa)
 - **cadastro_geral**: Members database (16+ members)
   - Key field: `nome` (member name)
 

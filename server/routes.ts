@@ -284,7 +284,9 @@ export async function registerRoutes(
       }
 
       const { collection } = req.params;
-      const response = await fetch(`${DIRECTUS_URL}/items/${collection}?limit=-1`, {
+      const queryString = new URLSearchParams(req.query as Record<string, string>);
+      if (!queryString.has("limit")) queryString.set("limit", "-1");
+      const response = await fetch(`${DIRECTUS_URL}/items/${collection}?${queryString.toString()}`, {
         headers: {
           "Authorization": `Bearer ${DIRECTUS_TOKEN}`,
           "Content-Type": "application/json"

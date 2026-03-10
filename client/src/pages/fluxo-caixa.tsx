@@ -66,7 +66,7 @@ interface CategoriaItem {
   Nome_da_categoria: string;
   Descricao_das_categorias?: string;
   Categoria_fluxo?: string | null;
-  tipo?: string | null;
+  Tipo_de_categoria?: string | null;
 }
 
 interface AnexoFile {
@@ -287,7 +287,7 @@ function LancamentoFormFields({
           <SelectContent>
             <SelectItem value="__none__">Nenhuma</SelectItem>
             {categorias
-              .filter((cat) => !cat.tipo || cat.tipo === formTipo)
+              .filter((cat) => !cat.Tipo_de_categoria || cat.Tipo_de_categoria.toLowerCase() === formTipo)
               .map((cat) => (
               <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
             ))}

@@ -19,10 +19,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1772135999372.png";
 
 const dashboardSubItems = [
-  { title: "Minhas BIAs", url: "/bias", icon: Briefcase },
-  { title: "Minhas OPAs", url: "/opas", icon: Target },
+  { title: "BIAs", url: "/bias", icon: Briefcase },
+  { title: "OPAs", url: "/opas", icon: Target },
   { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: Wallet },
-  { title: "Minha Aura", url: "/aura", icon: Sparkles },
+  { title: "Aura", url: "/aura", icon: Sparkles },
 ];
 
 const adminSubItems = [
@@ -64,7 +64,7 @@ export function AppSidebar() {
                     >
                       <Link href="/">
                         <LayoutDashboard className="w-4 h-4" />
-                        <span>Meu Dashboard</span>
+                        <span>Dashboard</span>
                       </Link>
                     </SidebarMenuButton>
                     <CollapsibleTrigger asChild>

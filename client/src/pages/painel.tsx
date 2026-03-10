@@ -63,7 +63,7 @@ export default function PainelPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-dashboard-title">
-            Meu Dashboard
+            Dashboard
           </h1>
           <p className="text-muted-foreground">Visão geral do ecossistema Built Alliances</p>
         </div>
@@ -78,7 +78,7 @@ export default function PainelPage() {
                 <Briefcase className="w-5 h-5 text-brand-navy" />
               </div>
               <div className="flex-1">
-                <span className="text-base">Minhas BIAs</span>
+                <span className="text-base">BIAs</span>
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">Projetos de aliança ativos</p>
               </div>
               <Link href="/bias">
@@ -141,7 +141,7 @@ export default function PainelPage() {
                 <Target className="w-5 h-5 text-brand-gold" />
               </div>
               <div className="flex-1">
-                <span className="text-base">Minhas OPAs</span>
+                <span className="text-base">OPAs</span>
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">Oportunidades de aliança</p>
               </div>
               <Link href="/opas">
@@ -187,7 +187,7 @@ export default function PainelPage() {
                 <Sparkles className="w-5 h-5 text-brand-gold" />
               </div>
               <div className="flex-1">
-                <span className="text-base">Minha Aura</span>
+                <span className="text-base">Aura</span>
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">Score de engajamento</p>
               </div>
               <Link href="/aura">

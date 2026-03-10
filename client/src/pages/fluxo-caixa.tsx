@@ -57,6 +57,17 @@ interface Membro {
   nome_completo?: string;
   primeiro_nome?: string;
   sobrenome?: string;
+  email?: string;
+  telefone?: string;
+  whatsapp?: string;
+  cidade?: string;
+  estado?: string;
+  empresa?: string;
+  cargo?: string;
+  tipo_pessoa?: string;
+  tipo_de_cadastro?: string;
+  perfil_aliado?: string;
+  nucleo_alianca?: string;
 }
 
 interface TipoCPP {
@@ -507,6 +518,7 @@ export default function FluxoCaixaPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
 
   const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
   const [formValor, setFormValor] = useState<string>("");
@@ -1191,18 +1203,43 @@ export default function FluxoCaixaPage() {
                             ) : "-"}
                           </td>
                           <td className="py-3 px-2">
-                            {item.membro_responsavel ? (
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <User className="w-3 h-3" />
-                                {membroMap[getRelId(item.membro_responsavel as any) || ""] || "—"}
-                              </span>
-                            ) : "-"}
+                            {item.membro_responsavel ? (() => {
+                              const membroId = getRelId(item.membro_responsavel as any) || "";
+                              const nome = membroMap[membroId] || "—";
+                              const membro = membros.find((m) => m.id === membroId);
+                              return (
+                                <button
+                                  onClick={() => membro && setProfileMembro(membro)}
+                                  className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0"
+                                  data-testid={`link-responsavel-${item.id}`}
+                                >
+                                  <User className="w-3 h-3" />
+                                  {nome}
+                                </button>
+                              );
+                            })() : "-"}
                           </td>
                           <td className="py-3 px-2" data-testid={`text-favorecido-${item.id}`}>
                             {item.Favorecido && item.Favorecido.length > 0 ? (
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <UserCheck className="w-3 h-3" />
-                                {item.Favorecido.map((f) => getFavName(f, membroMap)).join(", ")}
+                              <span className="flex items-center gap-1">
+                                <UserCheck className="w-3 h-3 text-muted-foreground" />
+                                {item.Favorecido.map((f, idx) => {
+                                  const favId = getRelId(f as any) || "";
+                                  const nome = getFavName(f, membroMap);
+                                  const membro = membros.find((m) => m.id === favId);
+                                  return (
+                                    <span key={idx}>
+                                      {idx > 0 && ", "}
+                                      <button
+                                        onClick={() => membro && setProfileMembro(membro)}
+                                        className="text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0"
+                                        data-testid={`link-favorecido-${item.id}-${idx}`}
+                                      >
+                                        {nome}
+                                      </button>
+                                    </span>
+                                  );
+                                })}
                               </span>
                             ) : "-"}
                           </td>
@@ -1309,6 +1346,96 @@ export default function FluxoCaixaPage() {
                   {uploading ? "Enviando..." : "Salvar Alterações"}
                 </Button>
               </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!profileMembro} onOpenChange={(open) => { if (!open) setProfileMembro(null); }}>
+            <DialogContent className="sm:max-w-[450px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-brand-gold" />
+                  Perfil do Membro
+                </DialogTitle>
+              </DialogHeader>
+              {profileMembro && (
+                <div className="space-y-4">
+                  <div className="text-center pb-4 border-b">
+                    <div className="w-16 h-16 rounded-full bg-brand-navy/10 flex items-center justify-center mx-auto mb-3">
+                      <User className="w-8 h-8 text-brand-navy" />
+                    </div>
+                    <h3 className="text-lg font-bold text-brand-navy">{profileMembro.Nome_de_usuario || profileMembro.nome}</h3>
+                    {profileMembro.Nome_de_usuario && profileMembro.nome && (
+                      <p className="text-sm text-muted-foreground">{profileMembro.nome}</p>
+                    )}
+                    {(profileMembro.cargo || profileMembro.empresa) && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {[profileMembro.cargo, profileMembro.empresa].filter(Boolean).join(" • ")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {profileMembro.tipo_de_cadastro && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase">Tipo de Cadastro</p>
+                        <p className="font-medium">{profileMembro.tipo_de_cadastro}</p>
+                      </div>
+                    )}
+                    {profileMembro.tipo_pessoa && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase">Tipo de Pessoa</p>
+                        <p className="font-medium">{profileMembro.tipo_pessoa}</p>
+                      </div>
+                    )}
+                    {profileMembro.email && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase">E-mail</p>
+                        <a href={`mailto:${profileMembro.email}`} className="font-medium text-brand-navy hover:text-brand-gold transition-colors">{profileMembro.email}</a>
+                      </div>
+                    )}
+                    {profileMembro.whatsapp && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase">WhatsApp</p>
+                        <a href={`https://wa.me/${profileMembro.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-navy hover:text-brand-gold transition-colors">{profileMembro.whatsapp}</a>
+                      </div>
+                    )}
+                    {profileMembro.telefone && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase">Telefone</p>
+                        <p className="font-medium">{profileMembro.telefone}</p>
+                      </div>
+                    )}
+                    {(profileMembro.cidade || profileMembro.estado) && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase">Localização</p>
+                        <p className="font-medium">{[profileMembro.cidade, profileMembro.estado].filter(Boolean).join(" - ")}</p>
+                      </div>
+                    )}
+                    {profileMembro.nucleo_alianca && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase">Núcleo da Aliança</p>
+                        <p className="font-medium">{profileMembro.nucleo_alianca}</p>
+                      </div>
+                    )}
+                    {profileMembro.perfil_aliado && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground uppercase">Perfil do Aliado</p>
+                        <p className="font-medium">{profileMembro.perfil_aliado}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-3 border-t flex justify-end">
+                    <a
+                      href={`https://app.builtalliances.com/admin/content/cadastro_geral/${profileMembro.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-brand-navy hover:text-brand-gold underline transition-colors"
+                      data-testid="link-ver-directus"
+                    >
+                      Ver no Directus →
+                    </a>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </>

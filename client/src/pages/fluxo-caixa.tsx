@@ -1423,17 +1423,6 @@ export default function FluxoCaixaPage() {
                       </div>
                     )}
                   </div>
-                  <div className="pt-3 border-t flex justify-end">
-                    <a
-                      href={`https://app.builtalliances.com/admin/content/cadastro_geral/${profileMembro.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-brand-navy hover:text-brand-gold underline transition-colors"
-                      data-testid="link-ver-directus"
-                    >
-                      Ver no Directus →
-                    </a>
-                  </div>
                 </div>
               )}
             </DialogContent>

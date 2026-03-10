@@ -66,6 +66,7 @@ interface CategoriaItem {
   Nome_da_categoria: string;
   Descricao_das_categorias?: string;
   Categoria_fluxo?: string | null;
+  tipo?: string | null;
 }
 
 interface AnexoFile {
@@ -224,7 +225,7 @@ function LancamentoFormFields({
     <div className="space-y-4 py-4">
       <div className="space-y-2">
         <Label>Tipo</Label>
-        <Select value={formTipo} onValueChange={(v) => setFormTipo(v as "entrada" | "saida")}>
+        <Select value={formTipo} onValueChange={(v) => { setFormTipo(v as "entrada" | "saida"); setFormCategoria("__none__"); }}>
           <SelectTrigger data-testid={`${prefix}-select-tipo`}>
             <SelectValue />
           </SelectTrigger>
@@ -285,7 +286,9 @@ function LancamentoFormFields({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">Nenhuma</SelectItem>
-            {categorias.map((cat) => (
+            {categorias
+              .filter((cat) => !cat.tipo || cat.tipo === formTipo)
+              .map((cat) => (
               <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
             ))}
           </SelectContent>

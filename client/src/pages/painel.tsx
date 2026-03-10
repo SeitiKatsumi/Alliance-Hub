@@ -10,12 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Briefcase,
   Target,
-  Wallet,
   Sparkles,
-  ArrowUpCircle,
-  ArrowDownCircle,
   MapPin,
-  TrendingUp,
   ExternalLink,
 } from "lucide-react";
 
@@ -26,7 +22,6 @@ function formatBRL(value: number) {
 export default function PainelPage() {
   const { data: bias = [], isLoading: loadingBias } = useQuery<any[]>({ queryKey: ["/api/bias"] });
   const { data: oportunidades = [], isLoading: loadingOpas } = useQuery<any[]>({ queryKey: ["/api/oportunidades"] });
-  const { data: fluxo = [], isLoading: loadingFluxo } = useQuery<any[]>({ queryKey: ["/api/fluxo-caixa"] });
 
   const biasStats = useMemo(() => {
     const totalValor = bias.reduce((sum: number, b: any) => sum + (parseFloat(b.valor_origem) || 0), 0);
@@ -50,29 +45,6 @@ export default function PainelPage() {
     return { totalValor, porTipo, total: oportunidades.length };
   }, [oportunidades]);
 
-  const fluxoStats = useMemo(() => {
-    const entradas = fluxo.filter((f: any) => f.tipo === "entrada");
-    const saidas = fluxo.filter((f: any) => f.tipo === "saida");
-    const totalEntradas = entradas.reduce((sum: number, f: any) => sum + (parseFloat(f.valor) || 0), 0);
-    const totalSaidas = saidas.reduce((sum: number, f: any) => sum + (parseFloat(f.valor) || 0), 0);
-    const saldo = totalEntradas - totalSaidas;
-
-    const porBia: Record<string, { entradas: number; saidas: number; nome: string }> = {};
-    fluxo.forEach((f: any) => {
-      const biaId = f.bia;
-      if (!biaId) return;
-      if (!porBia[biaId]) {
-        const biaObj = bias.find((b: any) => b.id === biaId);
-        porBia[biaId] = { entradas: 0, saidas: 0, nome: biaObj?.nome_bia || biaId.slice(0, 8) };
-      }
-      const val = parseFloat(f.valor) || 0;
-      if (f.tipo === "entrada") porBia[biaId].entradas += val;
-      else porBia[biaId].saidas += val;
-    });
-
-    return { totalEntradas, totalSaidas, saldo, total: fluxo.length, porBia };
-  }, [fluxo, bias]);
-
   const auraScore = 78;
 
   const opaChartData = useMemo(() => {
@@ -84,14 +56,7 @@ export default function PainelPage() {
     }));
   }, [opasStats]);
 
-  const fluxoChartData = useMemo(() => {
-    return Object.values(fluxoStats.porBia).map((b) => ({
-      label: b.nome.length > 15 ? b.nome.slice(0, 15) + "…" : b.nome,
-      value: b.entradas - b.saidas,
-    }));
-  }, [fluxoStats]);
-
-  const isLoading = loadingBias || loadingOpas || loadingFluxo;
+  const isLoading = loadingBias || loadingOpas;
 
   return (
     <div className="p-6 space-y-6">
@@ -214,75 +179,6 @@ export default function PainelPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 border border-brand-navy/20 bg-gradient-to-r from-brand-navy/5 via-transparent to-brand-gold/5 overflow-hidden relative" data-testid="card-fluxo-dashboard">
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-gold/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-brand-navy/10 to-brand-gold/10 border border-brand-navy/20">
-                <Wallet className="w-5 h-5 text-brand-navy" />
-              </div>
-              <div className="flex-1">
-                <span className="text-base">Fluxo de Caixa</span>
-                <p className="text-xs text-muted-foreground font-normal mt-0.5">Panorama financeiro das BIAs</p>
-              </div>
-              <Link href="/fluxo-caixa">
-                <Badge variant="outline" className="cursor-pointer hover:bg-brand-navy/10 transition-colors text-xs gap-1" data-testid="link-fluxo">
-                  Detalhar <ExternalLink className="w-3 h-3" />
-                </Badge>
-              </Link>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="grid grid-cols-3 gap-4">
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                <div className="md:col-span-4 space-y-3">
-                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                    <div className="flex items-center gap-2 mb-1">
-                      <ArrowUpCircle className="w-4 h-4 text-emerald-600" />
-                      <span className="text-xs text-muted-foreground">Entradas</span>
-                    </div>
-                    <p className="text-xl font-bold text-emerald-700" data-testid="text-fluxo-entradas">{formatBRL(fluxoStats.totalEntradas)}</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                    <div className="flex items-center gap-2 mb-1">
-                      <ArrowDownCircle className="w-4 h-4 text-red-600" />
-                      <span className="text-xs text-muted-foreground">Saídas</span>
-                    </div>
-                    <p className="text-xl font-bold text-red-700" data-testid="text-fluxo-saidas">{formatBRL(fluxoStats.totalSaidas)}</p>
-                  </div>
-                  <div className={`p-4 rounded-xl border ${fluxoStats.saldo >= 0 ? "bg-brand-gold/10 border-brand-gold/20" : "bg-red-500/10 border-red-500/20"}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp className={`w-4 h-4 ${fluxoStats.saldo >= 0 ? "text-brand-gold" : "text-red-600"}`} />
-                      <span className="text-xs text-muted-foreground">Saldo</span>
-                    </div>
-                    <p className={`text-xl font-bold ${fluxoStats.saldo >= 0 ? "text-brand-navy" : "text-red-700"}`} data-testid="text-fluxo-saldo">
-                      {formatBRL(fluxoStats.saldo)}
-                    </p>
-                  </div>
-                </div>
-                <div className="md:col-span-8">
-                  {fluxoChartData.length > 0 ? (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Saldo por BIA</p>
-                      <FuturisticChart data={fluxoChartData} type="bar" height={180} />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                      Nenhum lançamento registrado
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <Card className="border border-brand-gold/20 bg-gradient-to-br from-brand-gold/5 via-transparent to-brand-navy/5 overflow-hidden relative" data-testid="card-aura-dashboard">
           <div className="absolute top-0 left-0 w-24 h-24 bg-brand-gold/10 rounded-full -translate-y-1/2 -translate-x-1/2" />
           <CardHeader className="pb-3">
@@ -303,7 +199,7 @@ export default function PainelPage() {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4 py-4">
             <AuraScore score={auraScore} size="lg" />
-            <div className="grid grid-cols-3 gap-4 w-full mt-2">
+            <div className="grid grid-cols-2 gap-4 w-full mt-2">
               <div className="text-center p-2 rounded-lg bg-muted/50">
                 <p className="text-lg font-bold text-brand-navy">{biasStats.total}</p>
                 <p className="text-[10px] text-muted-foreground uppercase">BIAs</p>
@@ -311,10 +207,6 @@ export default function PainelPage() {
               <div className="text-center p-2 rounded-lg bg-muted/50">
                 <p className="text-lg font-bold text-brand-navy">{opasStats.total}</p>
                 <p className="text-[10px] text-muted-foreground uppercase">OPAs</p>
-              </div>
-              <div className="text-center p-2 rounded-lg bg-muted/50">
-                <p className="text-lg font-bold text-brand-navy">{fluxoStats.total}</p>
-                <p className="text-[10px] text-muted-foreground uppercase">Lançamentos</p>
               </div>
             </div>
           </CardContent>

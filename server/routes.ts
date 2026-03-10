@@ -424,7 +424,7 @@ export async function registerRoutes(
   app.get("/api/categorias", async (req, res) => {
     try {
       const items = await directusFetch("Categorias");
-      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias }));
+      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, tipo: c.tipo || null, Categoria_fluxo: c.Categoria_fluxo || null }));
       res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

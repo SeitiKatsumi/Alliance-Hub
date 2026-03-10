@@ -49,6 +49,7 @@ interface BiasProjeto {
 interface Membro {
   id: string;
   nome?: string;
+  Nome_de_usuario?: string | null;
   nome_completo?: string;
   primeiro_nome?: string;
   sobrenome?: string;
@@ -105,6 +106,7 @@ function formatDate(dateStr: string): string {
 }
 
 function getMembroNome(membro: Membro): string {
+  if (membro.Nome_de_usuario) return membro.Nome_de_usuario;
   if (membro.nome) return membro.nome;
   if (membro.nome_completo) return membro.nome_completo;
   return [membro.primeiro_nome, membro.sobrenome].filter(Boolean).join(" ") || "Sem nome";
@@ -287,7 +289,11 @@ function LancamentoFormFields({
           <SelectContent>
             <SelectItem value="__none__">Nenhuma</SelectItem>
             {categorias
-              .filter((cat) => !cat.Tipo_de_categoria || cat.Tipo_de_categoria.toLowerCase() === formTipo)
+              .filter((cat) => {
+                if (!cat.Tipo_de_categoria) return true;
+                const normalized = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return normalized === formTipo;
+              })
               .map((cat) => (
               <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
             ))}

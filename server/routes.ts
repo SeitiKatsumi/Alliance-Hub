@@ -180,6 +180,7 @@ export async function registerRoutes(
       const mapped = items.map((m: any) => ({
         id: m.id,
         nome: m.nome,
+        Nome_de_usuario: m.Nome_de_usuario || null,
         email: m.email,
         telefone: m.telefone,
         whatsapp: m.whatsapp,
@@ -206,6 +207,7 @@ export async function registerRoutes(
       res.json({
         id: m.id,
         nome: m.nome,
+        Nome_de_usuario: m.Nome_de_usuario || null,
         email: m.email,
         telefone: m.telefone,
         whatsapp: m.whatsapp,

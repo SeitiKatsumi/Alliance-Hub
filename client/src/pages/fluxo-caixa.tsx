@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -37,7 +39,9 @@ import {
   Image,
   Filter,
   Search,
-  RotateCcw
+  RotateCcw,
+  ChevronsUpDown,
+  Check
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -158,6 +162,98 @@ function getFileName(url: string) {
   const full = parts[parts.length - 1];
   if (full.length > 25) return full.substring(0, 10) + "..." + full.substring(full.length - 10);
   return full;
+}
+
+function SearchableMembroSelect({
+  membros,
+  value,
+  onValueChange,
+  placeholder,
+  testId,
+  allowNone,
+}: {
+  membros: Membro[];
+  value: string;
+  onValueChange: (v: string) => void;
+  placeholder: string;
+  testId: string;
+  allowNone?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const sorted = useMemo(() =>
+    [...membros].sort((a, b) => getMembroNome(a).localeCompare(getMembroNome(b), "pt-BR")),
+    [membros]
+  );
+
+  const selectedLabel = useMemo(() => {
+    if (!value || value === "__none__") return allowNone ? "Nenhum" : "";
+    const found = membros.find((m) => m.id === value);
+    return found ? getMembroNome(found) : "";
+  }, [value, membros, allowNone]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+          data-testid={testId}
+        >
+          <span className="truncate">{selectedLabel || placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Digite para buscar..."
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandEmpty>Nenhum membro encontrado.</CommandEmpty>
+            <CommandGroup>
+              {allowNone && (
+                <CommandItem
+                  value="__none__"
+                  onSelect={() => { onValueChange("__none__"); setOpen(false); setSearch(""); }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${value === "__none__" ? "opacity-100" : "opacity-0"}`} />
+                  Nenhum
+                </CommandItem>
+              )}
+              {sorted
+                .filter((m) => {
+                  if (!search || search.length < 3) return !search;
+                  const nome = getMembroNome(m).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                  const s = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                  return nome.includes(s);
+                })
+                .map((m) => (
+                  <CommandItem
+                    key={m.id}
+                    value={m.id}
+                    onSelect={() => { onValueChange(m.id); setOpen(false); setSearch(""); }}
+                  >
+                    <Check className={`mr-2 h-4 w-4 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
+                    {getMembroNome(m)}
+                  </CommandItem>
+                ))}
+              {search && search.length > 0 && search.length < 3 && (
+                <div className="px-4 py-2 text-sm text-muted-foreground">
+                  Digite ao menos 3 letras...
+                </div>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function LancamentoFormFields({
@@ -303,34 +399,28 @@ function LancamentoFormFields({
 
       <div className="space-y-2">
         <Label className="flex items-center gap-1">
-          Membro Responsável
+          Responsável pelo Lançamento
           {formTipo === "entrada" && <span className="text-red-500 text-xs">*obrigatório</span>}
         </Label>
-        <Select value={formMembro} onValueChange={setFormMembro}>
-          <SelectTrigger data-testid={`${prefix}-select-membro`}>
-            <SelectValue placeholder="Selecione um membro..." />
-          </SelectTrigger>
-          <SelectContent>
-            {membros.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableMembroSelect
+          membros={membros}
+          value={formMembro}
+          onValueChange={setFormMembro}
+          placeholder="Selecione um membro..."
+          testId={`${prefix}-select-membro`}
+        />
       </div>
 
       <div className="space-y-2">
         <Label>Favorecido</Label>
-        <Select value={formFavorecido} onValueChange={setFormFavorecido}>
-          <SelectTrigger data-testid={`${prefix}-select-favorecido`}>
-            <SelectValue placeholder="Selecione o favorecido..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Nenhum</SelectItem>
-            {membros.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableMembroSelect
+          membros={membros}
+          value={formFavorecido}
+          onValueChange={setFormFavorecido}
+          placeholder="Selecione o favorecido..."
+          testId={`${prefix}-select-favorecido`}
+          allowNone
+        />
       </div>
 
       <div className="space-y-2">

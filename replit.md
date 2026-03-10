@@ -20,22 +20,21 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express 5
-- **API Pattern**: RESTful endpoints — GET routes fetch from Directus API in real-time, POST/PATCH/DELETE write to local PostgreSQL
-- **Directus Integration**: `directusFetch(collection)` and `directusFetchOne(collection, id)` helpers in `server/routes.ts` fetch from `https://app.builtalliances.com` using `DIRECTUS_TOKEN`
-- **Database ORM**: Drizzle ORM with PostgreSQL (node-postgres driver) for local data (users)
+- **API Pattern**: RESTful endpoints — all business data CRUD via Directus API, user management via local PostgreSQL
+- **Directus Integration**: `directusFetch`, `directusFetchOne`, `directusCreate`, `directusUpdate`, `directusDelete` helpers in `server/routes.ts` for full CRUD via Directus API at `https://app.builtalliances.com` using `DIRECTUS_TOKEN`
+- **Database ORM**: Drizzle ORM with PostgreSQL (node-postgres driver) for local data (users only)
 - **Database Connection**: `server/db.ts` using `drizzle-orm/node-postgres` with pg Pool
-- **Storage Layer**: `server/storage.ts` with `DatabaseStorage` class (PostgreSQL-backed, primarily for users)
+- **Storage Layer**: `server/storage.ts` with `DatabaseStorage` class (PostgreSQL-backed, users only)
 
 ### Data Flow
 - Frontend makes API calls to `/api/*` endpoints
-- GET endpoints fetch live data from Directus CMS (always up-to-date)
-- POST/PATCH/DELETE write to local PostgreSQL via Drizzle ORM
+- All business data CRUD (membros, BIAs, fluxo_caixa, categorias, tipos_cpp, oportunidades) goes through Directus API
 - User management with hashed passwords (scrypt) in local PostgreSQL
 - React Query handles caching and refetching strategies
 
 ### Key Design Decisions
 
-1. **Directus as Source of Truth**: All business data (membros, BIAs, fluxo_caixa, categorias, tipos_cpp, oportunidades) is read from Directus in real-time. Changes made in Directus appear immediately in the app.
+1. **Directus as Source of Truth**: All business data (membros, BIAs, fluxo_caixa, categorias, tipos_cpp, oportunidades) is fully managed through Directus in real-time — both reads and writes. Changes made in either Directus or the app are immediately synchronized.
 
 2. **Component Library**: shadcn/ui provides accessible, customizable components.
 

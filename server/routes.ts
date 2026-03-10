@@ -38,6 +38,55 @@ async function directusFetchOne(collection: string, id: string) {
   return json.data || null;
 }
 
+async function directusCreate(collection: string, data: Record<string, any>) {
+  const url = `${DIRECTUS_URL}/items/${collection}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Directus create error ${res.status}: ${text}`);
+  }
+  const json = await res.json();
+  return json.data;
+}
+
+async function directusUpdate(collection: string, id: string, data: Record<string, any>) {
+  const url = `${DIRECTUS_URL}/items/${collection}/${id}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Directus update error ${res.status}: ${text}`);
+  }
+  const json = await res.json();
+  return json.data;
+}
+
+async function directusDelete(collection: string, id: string) {
+  const url = `${DIRECTUS_URL}/items/${collection}/${id}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Directus delete error ${res.status}: ${text}`);
+  }
+  return true;
+}
+
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -145,7 +194,7 @@ export async function registerRoutes(
 
   app.post("/api/membros", async (req, res) => {
     try {
-      const item = await storage.createMembro(req.body);
+      const item = await directusCreate("cadastro_geral", req.body);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -154,8 +203,7 @@ export async function registerRoutes(
 
   app.patch("/api/membros/:id", async (req, res) => {
     try {
-      const item = await storage.updateMembro(req.params.id, req.body);
-      if (!item) return res.status(404).json({ error: "Membro não encontrado" });
+      const item = await directusUpdate("cadastro_geral", req.params.id, req.body);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -164,8 +212,7 @@ export async function registerRoutes(
 
   app.delete("/api/membros/:id", async (req, res) => {
     try {
-      const ok = await storage.deleteMembro(req.params.id);
-      if (!ok) return res.status(404).json({ error: "Membro não encontrado" });
+      await directusDelete("cadastro_geral", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -194,7 +241,7 @@ export async function registerRoutes(
 
   app.post("/api/bias", async (req, res) => {
     try {
-      const item = await storage.createBia(req.body);
+      const item = await directusCreate("bias_projetos", req.body);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -203,8 +250,7 @@ export async function registerRoutes(
 
   app.patch("/api/bias/:id", async (req, res) => {
     try {
-      const item = await storage.updateBia(req.params.id, req.body);
-      if (!item) return res.status(404).json({ error: "BIA não encontrada" });
+      const item = await directusUpdate("bias_projetos", req.params.id, req.body);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -213,8 +259,7 @@ export async function registerRoutes(
 
   app.delete("/api/bias/:id", async (req, res) => {
     try {
-      const ok = await storage.deleteBia(req.params.id);
-      if (!ok) return res.status(404).json({ error: "BIA não encontrada" });
+      await directusDelete("bias_projetos", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -247,19 +292,19 @@ export async function registerRoutes(
   app.post("/api/fluxo-caixa", async (req, res) => {
     try {
       const body = req.body;
-      const data = {
-        bia_id: body.bia || body.bia_id || null,
+      const data: Record<string, any> = {
+        bia: body.bia || body.bia_id || null,
         tipo: body.tipo,
         valor: String(body.valor),
         data: body.data || null,
         descricao: body.descricao || null,
-        membro_responsavel_id: body.membro_responsavel || body.membro_responsavel_id || null,
-        categoria_id: body.categoria_id || (body.Categoria && body.Categoria[0] ? String(body.Categoria[0]) : null),
-        tipo_cpp_id: body.tipo_cpp_id || (body.tipo_de_cpp && body.tipo_de_cpp[0] ? String(body.tipo_de_cpp[0]) : null),
-        favorecido_id: body.favorecido_id || (body.Favorecido && body.Favorecido[0] ? String(body.Favorecido[0]) : null),
-        anexos: body.anexos || [],
+        membro_responsavel: body.membro_responsavel || null,
+        Categoria: body.Categoria || [],
+        tipo_de_cpp: body.tipo_de_cpp || [],
+        Favorecido: body.Favorecido || [],
+        Anexos: body.anexos || [],
       };
-      const item = await storage.createFluxoCaixa(data);
+      const item = await directusCreate("fluxo_caixa", data);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -274,19 +319,13 @@ export async function registerRoutes(
       if (body.valor !== undefined) data.valor = String(body.valor);
       if (body.data !== undefined) data.data = body.data;
       if (body.descricao !== undefined) data.descricao = body.descricao;
-      if (body.membro_responsavel !== undefined || body.membro_responsavel_id !== undefined) {
-        data.membro_responsavel_id = body.membro_responsavel || body.membro_responsavel_id || null;
-      }
-      if (body.categoria_id !== undefined) data.categoria_id = body.categoria_id;
-      if (body.Categoria !== undefined) data.categoria_id = body.Categoria[0] ? String(body.Categoria[0]) : null;
-      if (body.tipo_cpp_id !== undefined) data.tipo_cpp_id = body.tipo_cpp_id;
-      if (body.tipo_de_cpp !== undefined) data.tipo_cpp_id = body.tipo_de_cpp[0] ? String(body.tipo_de_cpp[0]) : null;
-      if (body.favorecido_id !== undefined) data.favorecido_id = body.favorecido_id;
-      if (body.Favorecido !== undefined) data.favorecido_id = body.Favorecido[0] ? String(body.Favorecido[0]) : null;
-      if (body.anexos !== undefined) data.anexos = body.anexos;
+      if (body.membro_responsavel !== undefined) data.membro_responsavel = body.membro_responsavel;
+      if (body.Categoria !== undefined) data.Categoria = body.Categoria;
+      if (body.tipo_de_cpp !== undefined) data.tipo_de_cpp = body.tipo_de_cpp;
+      if (body.Favorecido !== undefined) data.Favorecido = body.Favorecido;
+      if (body.anexos !== undefined) data.Anexos = body.anexos;
 
-      const item = await storage.updateFluxoCaixa(req.params.id, data);
-      if (!item) return res.status(404).json({ error: "Lançamento não encontrado" });
+      const item = await directusUpdate("fluxo_caixa", req.params.id, data);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -295,8 +334,7 @@ export async function registerRoutes(
 
   app.delete("/api/fluxo-caixa/:id", async (req, res) => {
     try {
-      const ok = await storage.deleteFluxoCaixa(req.params.id);
-      if (!ok) return res.status(404).json({ error: "Lançamento não encontrado" });
+      await directusDelete("fluxo_caixa", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -316,7 +354,7 @@ export async function registerRoutes(
 
   app.post("/api/tipos-cpp", async (req, res) => {
     try {
-      const item = await storage.createTipoCpp(req.body);
+      const item = await directusCreate("Tipos_CPP", { Nome: req.body.nome || req.body.Nome, Descricao: req.body.descricao || req.body.Descricao });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -336,7 +374,7 @@ export async function registerRoutes(
 
   app.post("/api/categorias", async (req, res) => {
     try {
-      const item = await storage.createCategoria(req.body);
+      const item = await directusCreate("Categorias", { Nome_da_categoria: req.body.nome || req.body.Nome_da_categoria, Descricao_das_categorias: req.body.descricao || req.body.Descricao_das_categorias });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -368,9 +406,7 @@ export async function registerRoutes(
 
   app.post("/api/oportunidades", async (req, res) => {
     try {
-      const body = { ...req.body };
-      if (body.bia && !body.bia_id) { body.bia_id = body.bia; delete body.bia; }
-      const item = await storage.createOportunidade(body);
+      const item = await directusCreate("tipos_oportunidades", req.body);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -379,10 +415,7 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id", async (req, res) => {
     try {
-      const body = { ...req.body };
-      if (body.bia && !body.bia_id) { body.bia_id = body.bia; delete body.bia; }
-      const item = await storage.updateOportunidade(req.params.id, body);
-      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const item = await directusUpdate("tipos_oportunidades", req.params.id, req.body);
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

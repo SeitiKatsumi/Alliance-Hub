@@ -93,15 +93,15 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 }
 ```
 
-## Navigation Structure
-1. **Oportunidades** (/) — Opportunities to attract new members
-2. **BIAS - Alianças** (/bias) — Alliance projects
-3. **Calculadora DM** (/bias-calculadora) — Financial calculator
-4. **Fluxo de Caixa** (/fluxo-caixa) — Cash flow management per BIA
-5. **Membros** (/membros) — Member directory
-6. **AURA Built** (/aura) — Scoring system
-7. **Meu Painel** (/painel) — Personal dashboard
-8. **Administração** (/admin) — Admin settings
+## Navigation Structure (Collapsible Sidebar)
+1. **Meu Dashboard** (/) — Main dashboard with summary blocks (starts closed)
+   1.1 Minhas BIAs (/bias) — Alliance projects
+   1.2 Minhas OPAs (/opas) — Opportunities (formerly Oportunidades)
+   1.3 Fluxo de Caixa (/fluxo-caixa) — Cash flow management per BIA
+   1.4 Minha Aura (/aura) — Scoring system
+2. **Administração** (/admin) — Admin settings (starts closed)
+   2.1 Membros (/membros) — Member directory
+   2.2 Calculadora DM (/bias-calculadora) — Financial calculator
 
 ## Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string

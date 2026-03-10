@@ -18,8 +18,9 @@ import FluxoCaixaPage from "@/pages/fluxo-caixa";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={OportunidadesPage} />
+      <Route path="/" component={PainelPage} />
       <Route path="/bias" component={BiasPage} />
+      <Route path="/opas" component={OportunidadesPage} />
       <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
       <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
       <Route path="/membros" component={MembrosPage} />

@@ -67,8 +67,8 @@ Preferred communication style: Simple, everyday language.
 ### File Upload
 - `POST /api/upload` — Multipart file upload (multer), accepts `files` field, max 10 files, 10MB each
   - Allowed types: PDF, PNG, JPG, JPEG, WebP, GIF, DOC, DOCX, XLS, XLSX
-  - Returns `{ success: true, urls: ["/uploads/filename.ext"] }`
-- `/uploads/*` — Static file serving for uploaded files (stored in `uploads/` directory)
+  - Files are uploaded to Directus `/files` API, local temp files are cleaned up
+  - Returns `{ success: true, fileIds: ["directus-file-uuid"] }`
 
 ### AI Routes
 - `POST /api/assistant` — AI assistant with context from local data
@@ -112,6 +112,8 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 - `apiRequest` signature: `(method, url, data?)` — NOT fetch-style
 - Field `diretor_execucao` (not `diretor_obra`) is used in bias_projetos
 - Valor input uses Brazilian currency formatting (1.234,56) with `formatInputBRL`/`parseBRLToNumber`
-- Fluxo de caixa `anexos` field stores array of file URLs/paths for receipts
-- Storage `_enrichFluxoItems` joins fluxo_caixa with membros, categorias, tipos_cpp for response
+- Fluxo de caixa `Anexos` field is a Directus many-to-many files relationship (junction table `fluxo_caixa_files`)
+- File upload goes to Directus `/files` API, returns file UUIDs; those UUIDs are sent as `[{directus_files_id: "uuid"}]` in `Anexos` field
+- GET `/api/fluxo-caixa` resolves Anexos to `{id, title, filename, url, size}` objects via `fields=*,Anexos.directus_files_id.*`
+- Frontend stores existing anexos as `AnexoFile[]` objects, sends file IDs (not URLs) in payload
 - User permissions: 8 modules × 3 levels (none/view/edit)

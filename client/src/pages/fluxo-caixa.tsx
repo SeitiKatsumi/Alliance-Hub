@@ -68,6 +68,14 @@ interface CategoriaItem {
   Categoria_fluxo?: string | null;
 }
 
+interface AnexoFile {
+  id: string;
+  title?: string;
+  filename?: string;
+  url: string;
+  size?: number;
+}
+
 interface FluxoCaixaItem {
   id: string;
   bia: string | { id: string };
@@ -79,7 +87,7 @@ interface FluxoCaixaItem {
   Categoria: (CategoriaItem | number)[];
   tipo_de_cpp: (TipoCPP | number)[];
   Favorecido: (Membro | string)[];
-  anexos: string[];
+  anexos: (AnexoFile | string)[];
 }
 
 function formatBRL(value: number): string {
@@ -186,8 +194,8 @@ function LancamentoFormFields({
   prefix: string;
   pendingFiles: globalThis.File[];
   setPendingFiles: (files: globalThis.File[]) => void;
-  existingAnexos: string[];
-  setExistingAnexos: (urls: string[]) => void;
+  existingAnexos: AnexoFile[];
+  setExistingAnexos: (files: AnexoFile[]) => void;
   uploading: boolean;
 }) {
   function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -339,14 +347,16 @@ function LancamentoFormFields({
 
         {existingAnexos.length > 0 && (
           <div className="space-y-1">
-            {existingAnexos.map((url, i) => {
-              const IconComp = getFileIcon(url);
+            {existingAnexos.map((anexo, i) => {
+              const displayName = anexo.filename || anexo.title || anexo.id;
+              const IconComp = getFileIcon(displayName);
               return (
                 <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 text-sm">
                   <IconComp className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="truncate text-brand-gold hover:underline flex-1" data-testid={`link-anexo-existing-${i}`}>
-                    {getFileName(url)}
+                  <a href={anexo.url} target="_blank" rel="noopener noreferrer" className="truncate text-brand-gold hover:underline flex-1" data-testid={`link-anexo-existing-${i}`}>
+                    {displayName}
                   </a>
+                  {anexo.size && <span className="text-xs text-muted-foreground shrink-0">{(Number(anexo.size) / 1024).toFixed(0)} KB</span>}
                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeExistingAnexo(i)} data-testid={`button-remove-existing-anexo-${i}`}>
                     <X className="w-3 h-3" />
                   </Button>
@@ -408,7 +418,7 @@ export default function FluxoCaixaPage() {
   const [formFavorecido, setFormFavorecido] = useState<string>("");
   const [formTipoCpp, setFormTipoCpp] = useState<string>("");
   const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
-  const [existingAnexos, setExistingAnexos] = useState<string[]>([]);
+  const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
 
   const [filterTipo, setFilterTipo] = useState<string>("todos");
@@ -514,10 +524,12 @@ export default function FluxoCaixaPage() {
       throw new Error(err.error || "Erro ao enviar arquivos");
     }
     const result = await response.json();
-    return result.urls;
+    return result.fileIds;
   }
 
-  function buildPayload(anexos: string[]) {
+  function buildPayload(newFileIds: string[]) {
+    const existingIds = existingAnexos.map((a) => a.id);
+    const allIds = [...existingIds, ...newFileIds];
     const payload: Record<string, unknown> = {
       bia: selectedBiaId,
       tipo: formTipo,
@@ -525,7 +537,7 @@ export default function FluxoCaixaPage() {
       data: formData,
       descricao: formDescricao,
       membro_responsavel: formMembro || null,
-      anexos,
+      anexos: allIds,
     };
     if (formCategoria && formCategoria !== "__none__") {
       payload.Categoria = [parseInt(formCategoria)];
@@ -549,9 +561,8 @@ export default function FluxoCaixaPage() {
     mutationFn: async () => {
       setUploading(true);
       try {
-        const uploadedUrls = await uploadFiles(pendingFiles);
-        const allAnexos = [...existingAnexos, ...uploadedUrls];
-        await apiRequest("POST", "/api/fluxo-caixa", buildPayload(allAnexos));
+        const newFileIds = await uploadFiles(pendingFiles);
+        await apiRequest("POST", "/api/fluxo-caixa", buildPayload(newFileIds));
       } finally {
         setUploading(false);
       }
@@ -571,9 +582,8 @@ export default function FluxoCaixaPage() {
     mutationFn: async (id: string) => {
       setUploading(true);
       try {
-        const uploadedUrls = await uploadFiles(pendingFiles);
-        const allAnexos = [...existingAnexos, ...uploadedUrls];
-        const payload = buildPayload(allAnexos);
+        const newFileIds = await uploadFiles(pendingFiles);
+        const payload = buildPayload(newFileIds);
         delete payload.bia;
         await apiRequest("PATCH", `/api/fluxo-caixa/${id}`, payload);
       } finally {
@@ -641,7 +651,13 @@ export default function FluxoCaixaPage() {
     setFormTipoCpp(firstCpp || "");
 
     setPendingFiles([]);
-    setExistingAnexos(item.anexos || []);
+    const rawAnexos = item.anexos || [];
+    const normalizedAnexos: AnexoFile[] = rawAnexos.map((a: any) =>
+      typeof a === "string"
+        ? { id: a, url: a, filename: a.split("/").pop() || a }
+        : a
+    );
+    setExistingAnexos(normalizedAnexos);
 
     setEditDialogOpen(true);
   }
@@ -1105,10 +1121,12 @@ export default function FluxoCaixaPage() {
                           <td className="py-3 px-2" data-testid={`text-anexos-${item.id}`}>
                             {item.anexos && item.anexos.length > 0 ? (
                               <div className="flex items-center gap-1">
-                                {item.anexos.map((url, ai) => {
-                                  const IconComp = getFileIcon(url);
+                                {item.anexos.map((anexo: any, ai: number) => {
+                                  const name = typeof anexo === "string" ? anexo : (anexo.filename || anexo.title || anexo.id);
+                                  const href = typeof anexo === "string" ? anexo : anexo.url;
+                                  const IconComp = getFileIcon(name);
                                   return (
-                                    <a key={ai} href={url} target="_blank" rel="noopener noreferrer" title={getFileName(url)} data-testid={`link-anexo-${item.id}-${ai}`}>
+                                    <a key={ai} href={href} target="_blank" rel="noopener noreferrer" title={name} data-testid={`link-anexo-${item.id}-${ai}`}>
                                       <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-brand-gold/20 transition-colors">
                                         <IconComp className="w-3 h-3" />
                                       </Badge>

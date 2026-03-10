@@ -123,7 +123,7 @@ export async function registerRoutes(
   app.use("/uploads", express.static(uploadsDir));
 
   app.post("/api/upload", (req, res) => {
-    upload.array("files", 10)(req, res, (err) => {
+    upload.array("files", 10)(req, res, async (err) => {
       if (err) {
         if (err instanceof multer.MulterError) {
           if (err.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "Arquivo excede o limite de 10MB" });
@@ -136,8 +136,40 @@ export async function registerRoutes(
       if (!files || files.length === 0) {
         return res.status(400).json({ error: "Nenhum arquivo enviado" });
       }
-      const urls = files.map((f) => `/uploads/${f.filename}`);
-      res.json({ success: true, urls });
+
+      try {
+        const directusFileIds: string[] = [];
+        for (const file of files) {
+          const formData = new FormData();
+          const fileBuffer = fs.readFileSync(file.path);
+          const blob = new Blob([fileBuffer], { type: file.mimetype });
+          formData.append("file", blob, file.originalname);
+
+          const directusRes = await fetch(`${DIRECTUS_URL}/files`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+            body: formData,
+          });
+
+          if (!directusRes.ok) {
+            const errText = await directusRes.text();
+            console.error("Directus file upload error:", errText);
+            throw new Error(`Erro ao enviar arquivo ao Directus: ${directusRes.status}`);
+          }
+
+          const json = await directusRes.json();
+          directusFileIds.push(json.data.id);
+
+          fs.unlinkSync(file.path);
+        }
+
+        res.json({ success: true, fileIds: directusFileIds });
+      } catch (uploadErr: any) {
+        for (const file of files) {
+          try { fs.unlinkSync(file.path); } catch {}
+        }
+        res.status(500).json({ error: uploadErr.message });
+      }
     });
   });
 
@@ -269,20 +301,38 @@ export async function registerRoutes(
   // ========== FLUXO DE CAIXA (from Directus) ==========
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
-      const items = await directusFetch("fluxo_caixa");
-      const mapped = items.map((f: any) => ({
-        id: f.id,
-        bia: f.bia,
-        tipo: f.tipo,
-        valor: f.valor,
-        data: f.data,
-        descricao: f.descricao,
-        membro_responsavel: f.membro_responsavel,
-        Categoria: f.Categoria || [],
-        tipo_de_cpp: f.tipo_de_cpp || [],
-        Favorecido: f.Favorecido || [],
-        anexos: f.Anexos || f.anexos || [],
-      }));
+      const items = await directusFetch("fluxo_caixa", "fields=*,Anexos.directus_files_id.*");
+      const mapped = items.map((f: any) => {
+        const anexos = (f.Anexos || []).map((a: any) => {
+          if (a && a.directus_files_id) {
+            const file = typeof a.directus_files_id === "object" ? a.directus_files_id : null;
+            if (file) {
+              return {
+                id: file.id,
+                title: file.title || file.filename_download,
+                filename: file.filename_download,
+                url: `${DIRECTUS_URL}/assets/${file.id}`,
+                size: file.filesize,
+              };
+            }
+            return { id: a.directus_files_id, url: `${DIRECTUS_URL}/assets/${a.directus_files_id}` };
+          }
+          return a;
+        });
+        return {
+          id: f.id,
+          bia: f.bia,
+          tipo: f.tipo,
+          valor: f.valor,
+          data: f.data,
+          descricao: f.descricao,
+          membro_responsavel: f.membro_responsavel,
+          Categoria: f.Categoria || [],
+          tipo_de_cpp: f.tipo_de_cpp || [],
+          Favorecido: f.Favorecido || [],
+          anexos,
+        };
+      });
       res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -292,6 +342,11 @@ export async function registerRoutes(
   app.post("/api/fluxo-caixa", async (req, res) => {
     try {
       const body = req.body;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const anexoFileIds: string[] = (body.anexos || []).filter((id: string) => uuidRegex.test(id));
+      const anexosPayload = anexoFileIds.map((fileId: string) => ({
+        directus_files_id: fileId,
+      }));
       const data: Record<string, any> = {
         bia: body.bia || body.bia_id || null,
         tipo: body.tipo,
@@ -302,7 +357,7 @@ export async function registerRoutes(
         Categoria: body.Categoria || [],
         tipo_de_cpp: body.tipo_de_cpp || [],
         Favorecido: body.Favorecido || [],
-        Anexos: body.anexos || [],
+        Anexos: anexosPayload.length > 0 ? anexosPayload : [],
       };
       const item = await directusCreate("fluxo_caixa", data);
       res.json(item);
@@ -323,7 +378,11 @@ export async function registerRoutes(
       if (body.Categoria !== undefined) data.Categoria = body.Categoria;
       if (body.tipo_de_cpp !== undefined) data.tipo_de_cpp = body.tipo_de_cpp;
       if (body.Favorecido !== undefined) data.Favorecido = body.Favorecido;
-      if (body.anexos !== undefined) data.Anexos = body.anexos;
+      if (body.anexos !== undefined) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validIds: string[] = (body.anexos || []).filter((id: string) => uuidRegex.test(id));
+        data.Anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
+      }
 
       const item = await directusUpdate("fluxo_caixa", req.params.id, data);
       res.json(item);

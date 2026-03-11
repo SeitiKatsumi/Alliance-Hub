@@ -564,6 +564,8 @@ export default function FluxoCaixaPage() {
   const [filterFavorecido, setFilterFavorecido] = useState<string>("todos");
   const [filterTipoCpp, setFilterTipoCpp] = useState<string>("todos");
   const [filterDescricao, setFilterDescricao] = useState<string>("");
+  const [filterDataDe, setFilterDataDe] = useState<string>("");
+  const [filterDataAte, setFilterDataAte] = useState<string>("");
 
   const { data: bias = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -618,9 +620,11 @@ export default function FluxoCaixaPage() {
         const hasCpp = cppArr.some((c) => String(getRelId(c as any)) === filterTipoCpp);
         if (!hasCpp) return false;
       }
+      if (filterDataDe && item.data && item.data < filterDataDe) return false;
+      if (filterDataAte && item.data && item.data > filterDataAte) return false;
       return true;
     });
-  }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao]);
+  }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte]);
 
   const totals = useMemo(() => {
     const entradas = fluxoItems
@@ -1029,7 +1033,7 @@ export default function FluxoCaixaPage() {
                   <FileText className="w-5 h-5 text-brand-gold" />
                   Lançamentos — {selectedBia?.nome_bia}
                 </CardTitle>
-                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterDescricao) && (
+                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterDescricao || filterDataDe || filterDataAte) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1040,6 +1044,8 @@ export default function FluxoCaixaPage() {
                       setFilterFavorecido("todos");
                       setFilterTipoCpp("todos");
                       setFilterDescricao("");
+                      setFilterDataDe("");
+                      setFilterDataAte("");
                     }}
                     className="text-muted-foreground hover:text-foreground gap-1"
                     data-testid="button-limpar-filtros"
@@ -1147,6 +1153,41 @@ export default function FluxoCaixaPage() {
                     data-testid="filter-descricao"
                   />
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-2 mt-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3" /> Período — De
+                  </Label>
+                  <Input
+                    type="date"
+                    value={filterDataDe}
+                    onChange={(e) => setFilterDataDe(e.target.value)}
+                    className="h-8 text-xs w-36"
+                    data-testid="filter-data-de"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Até</Label>
+                  <Input
+                    type="date"
+                    value={filterDataAte}
+                    onChange={(e) => setFilterDataAte(e.target.value)}
+                    className="h-8 text-xs w-36"
+                    data-testid="filter-data-ate"
+                  />
+                </div>
+                {(filterDataDe || filterDataAte) && (
+                  <button
+                    type="button"
+                    onClick={() => { setFilterDataDe(""); setFilterDataAte(""); }}
+                    className="text-xs text-muted-foreground hover:text-foreground pb-0.5"
+                    data-testid="button-limpar-datas"
+                  >
+                    ✕ limpar datas
+                  </button>
+                )}
               </div>
 
               {fluxoItems.length !== fluxoItemsAll.length && (

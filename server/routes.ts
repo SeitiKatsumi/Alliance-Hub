@@ -303,7 +303,7 @@ export async function registerRoutes(
   // ========== FLUXO DE CAIXA (from Directus) ==========
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
-      const items = await directusFetch("fluxo_caixa", "fields=*,Anexos.directus_files_id.*");
+      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Favorecido.*,Anexos.directus_files_id.*");
       const mapped = items.map((f: any) => {
         const anexos = (f.Anexos || []).map((a: any) => {
           if (a && a.directus_files_id) {
@@ -321,6 +321,18 @@ export async function registerRoutes(
           }
           return a;
         });
+        const categorias = (f.Categoria || []).map((c: any) => {
+          if (c && typeof c === "object" && c.categorias_id && typeof c.categorias_id === "object") {
+            return c.categorias_id;
+          }
+          return c;
+        });
+        const tiposCpp = (f.tipo_de_cpp || []).map((c: any) => {
+          if (c && typeof c === "object" && c.tipos_cpp_id && typeof c.tipos_cpp_id === "object") {
+            return c.tipos_cpp_id;
+          }
+          return c;
+        });
         return {
           id: f.id,
           bia: f.bia,
@@ -329,8 +341,8 @@ export async function registerRoutes(
           data: f.data,
           descricao: f.descricao,
           membro_responsavel: f.membro_responsavel,
-          Categoria: f.Categoria || [],
-          tipo_de_cpp: f.tipo_de_cpp || [],
+          Categoria: categorias,
+          tipo_de_cpp: tiposCpp,
           Favorecido: f.Favorecido || [],
           anexos,
         };
@@ -349,6 +361,10 @@ export async function registerRoutes(
       const anexosPayload = anexoFileIds.map((fileId: string) => ({
         directus_files_id: fileId,
       }));
+      const toM2MCategorias = (ids: any[]) =>
+        ids.map((id: any) => (typeof id === "object" ? id : { categorias_id: id }));
+      const toM2MTiposCpp = (ids: any[]) =>
+        ids.map((id: any) => (typeof id === "object" ? id : { tipos_cpp_id: id }));
       const data: Record<string, any> = {
         bia: body.bia || body.bia_id || null,
         tipo: body.tipo,
@@ -356,8 +372,8 @@ export async function registerRoutes(
         data: body.data || null,
         descricao: body.descricao || null,
         membro_responsavel: body.membro_responsavel || null,
-        Categoria: body.Categoria || [],
-        tipo_de_cpp: body.tipo_de_cpp || [],
+        Categoria: toM2MCategorias(body.Categoria || []),
+        tipo_de_cpp: toM2MTiposCpp(body.tipo_de_cpp || []),
         Favorecido: body.Favorecido || [],
         Anexos: anexosPayload.length > 0 ? anexosPayload : [],
       };
@@ -377,8 +393,14 @@ export async function registerRoutes(
       if (body.data !== undefined) data.data = body.data;
       if (body.descricao !== undefined) data.descricao = body.descricao;
       if (body.membro_responsavel !== undefined) data.membro_responsavel = body.membro_responsavel;
-      if (body.Categoria !== undefined) data.Categoria = body.Categoria;
-      if (body.tipo_de_cpp !== undefined) data.tipo_de_cpp = body.tipo_de_cpp;
+      if (body.Categoria !== undefined)
+        data.Categoria = (body.Categoria || []).map((id: any) =>
+          typeof id === "object" ? id : { categorias_id: id }
+        );
+      if (body.tipo_de_cpp !== undefined)
+        data.tipo_de_cpp = (body.tipo_de_cpp || []).map((id: any) =>
+          typeof id === "object" ? id : { tipos_cpp_id: id }
+        );
       if (body.Favorecido !== undefined) data.Favorecido = body.Favorecido;
       if (body.anexos !== undefined) {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -426,7 +448,7 @@ export async function registerRoutes(
   app.get("/api/categorias", async (req, res) => {
     try {
       const items = await directusFetch("Categorias");
-      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, Tipo_de_categoria: c.Tipo_de_categoria || null, Categoria_fluxo: c.Categoria_fluxo || null }));
+      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, Tipo_de_categoria: c.Tipo_de_categoria || null }));
       res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

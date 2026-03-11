@@ -73,14 +73,12 @@ interface TipoCPP {
   id: number;
   Nome: string;
   Descricao?: string;
-  tipo_de_cpp_fluxo_caixa?: string | null;
 }
 
 interface CategoriaItem {
   id: number;
   Nome_da_categoria: string;
   Descricao_das_categorias?: string;
-  Categoria_fluxo?: string | null;
   Tipo_de_categoria?: string | null;
 }
 

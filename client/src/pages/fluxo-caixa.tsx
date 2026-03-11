@@ -542,10 +542,10 @@ export default function FluxoCaixaPage() {
   const [formValor, setFormValor] = useState<string>("");
   const [formData, setFormData] = useState<string>(new Date().toISOString().split("T")[0]);
   const [formDescricao, setFormDescricao] = useState<string>("");
-  const [formCategoria, setFormCategoria] = useState<string>("");
+  const [formCategoria, setFormCategoria] = useState<string>("__none__");
   const [formMembro, setFormMembro] = useState<string>("");
-  const [formFavorecido, setFormFavorecido] = useState<string>("");
-  const [formTipoCpp, setFormTipoCpp] = useState<string>("");
+  const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
+  const [formTipoCpp, setFormTipoCpp] = useState<string>("__none__");
   const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -749,10 +749,10 @@ export default function FluxoCaixaPage() {
     setFormValor("");
     setFormData(new Date().toISOString().split("T")[0]);
     setFormDescricao("");
-    setFormCategoria("");
+    setFormCategoria("__none__");
     setFormMembro("");
-    setFormFavorecido("");
-    setFormTipoCpp("");
+    setFormFavorecido("__none__");
+    setFormTipoCpp("__none__");
     setPendingFiles([]);
     setExistingAnexos([]);
   }
@@ -767,17 +767,17 @@ export default function FluxoCaixaPage() {
 
     const catArr = item.Categoria || [];
     const firstCat = catArr.length > 0 ? getRelId(catArr[0] as any) : null;
-    setFormCategoria(firstCat || "");
+    setFormCategoria(firstCat || "__none__");
 
     setFormMembro(getRelId(item.membro_responsavel as any) || "");
 
     const favArr = item.Favorecido || [];
     const firstFav = favArr.length > 0 ? getRelId(favArr[0] as any) : null;
-    setFormFavorecido(firstFav || "");
+    setFormFavorecido(firstFav || "__none__");
 
     const cppArr = item.tipo_de_cpp || [];
     const firstCpp = cppArr.length > 0 ? getRelId(cppArr[0] as any) : null;
-    setFormTipoCpp(firstCpp || "");
+    setFormTipoCpp(firstCpp || "__none__");
 
     setPendingFiles([]);
     const rawAnexos = item.anexos || [];

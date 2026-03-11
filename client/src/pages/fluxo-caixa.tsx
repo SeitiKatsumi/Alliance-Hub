@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -192,6 +191,7 @@ function SearchableMembroSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const sorted = useMemo(() =>
     [...membros].sort((a, b) => getMembroNome(a).localeCompare(getMembroNome(b), "pt-BR")),
@@ -204,8 +204,23 @@ function SearchableMembroSelect({
     return found ? getMembroNome(found) : "";
   }, [value, membros, allowNone]);
 
+  const filtered = useMemo(() => {
+    if (!search || search.length < 3) return search ? [] : sorted;
+    const s = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return sorted.filter((m) => {
+      const nome = getMembroNome(m).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nome.includes(s);
+    });
+  }, [sorted, search]);
+
+  function handleSelect(id: string) {
+    onValueChange(id);
+    setOpen(false);
+    setSearch("");
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(""); }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -213,55 +228,58 @@ function SearchableMembroSelect({
           aria-expanded={open}
           className="w-full justify-between font-normal"
           data-testid={testId}
+          type="button"
         >
           <span className="truncate">{selectedLabel || placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Digite para buscar..."
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandList>
-            <CommandEmpty>Nenhum membro encontrado.</CommandEmpty>
-            <CommandGroup>
-              {allowNone && (
-                <CommandItem
-                  value="__none__"
-                  onSelect={() => { onValueChange("__none__"); setOpen(false); setSearch(""); }}
-                >
-                  <Check className={`mr-2 h-4 w-4 ${value === "__none__" ? "opacity-100" : "opacity-0"}`} />
-                  Nenhum
-                </CommandItem>
-              )}
-              {sorted
-                .filter((m) => {
-                  if (!search || search.length < 3) return !search;
-                  const nome = getMembroNome(m).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                  const s = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                  return nome.includes(s);
-                })
-                .map((m) => (
-                  <CommandItem
-                    key={m.id}
-                    value={m.id}
-                    onSelect={() => { onValueChange(m.id); setOpen(false); setSearch(""); }}
-                  >
-                    <Check className={`mr-2 h-4 w-4 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
-                    {getMembroNome(m)}
-                  </CommandItem>
-                ))}
-              {search && search.length > 0 && search.length < 3 && (
-                <div className="px-4 py-2 text-sm text-muted-foreground">
-                  Digite ao menos 3 letras...
-                </div>
-              )}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }}>
+        <div className="flex flex-col">
+          <div className="flex items-center border-b px-3 py-2 gap-2">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              ref={inputRef}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              placeholder="Digite para buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <div className="max-h-52 overflow-y-auto py-1">
+            {allowNone && (
+              <button
+                type="button"
+                onClick={() => handleSelect("__none__")}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === "__none__" ? "font-medium" : ""}`}
+              >
+                <Check className={`h-4 w-4 ${value === "__none__" ? "opacity-100" : "opacity-0"}`} />
+                Nenhum
+              </button>
+            )}
+            {search && search.length > 0 && search.length < 3 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">Digite ao menos 3 letras...</p>
+            ) : filtered.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum membro encontrado.</p>
+            ) : filtered.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleSelect(m.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === m.id ? "font-medium" : ""}`}
+              >
+                <Check className={`h-4 w-4 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
+                {getMembroNome(m)}
+              </button>
+            ))}
+          </div>
+        </div>
       </PopoverContent>
     </Popover>
   );

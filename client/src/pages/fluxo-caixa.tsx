@@ -40,7 +40,17 @@ import {
   Search,
   RotateCcw,
   ChevronsUpDown,
-  Check
+  Check,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  DollarSign,
+  CalendarClock,
+  CalendarCheck,
+  Receipt,
+  BadgePercent
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -90,6 +100,8 @@ interface AnexoFile {
   size?: number;
 }
 
+type StatusPagamento = "pendente" | "pago" | "vencido" | "cancelado" | "parcial" | "agendado";
+
 interface FluxoCaixaItem {
   id: string;
   bia: string | { id: string };
@@ -98,10 +110,43 @@ interface FluxoCaixaItem {
   data: string;
   descricao: string;
   membro_responsavel: string | { id: string; nome?: string } | null;
+  status: StatusPagamento | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  multa: number | string | null;
+  juros: number | string | null;
+  responsavel_multa_juros: string | { id: string } | null;
   Categoria: (CategoriaItem | number)[];
   tipo_de_cpp: (TipoCPP | number)[];
   Favorecido: (Membro | string)[];
   anexos: (AnexoFile | string)[];
+}
+
+const STATUS_OPTIONS: { value: StatusPagamento; label: string }[] = [
+  { value: "pendente",  label: "Pendente" },
+  { value: "agendado",  label: "Agendado" },
+  { value: "pago",      label: "Pago" },
+  { value: "parcial",   label: "Parcialmente Pago" },
+  { value: "vencido",   label: "Vencido" },
+  { value: "cancelado", label: "Cancelado" },
+];
+
+function getStatusConfig(status: StatusPagamento | null | undefined) {
+  switch (status) {
+    case "pago":      return { label: "Pago",              color: "text-green-600 bg-green-500/10 border-green-500/40",  Icon: CheckCircle2 };
+    case "parcial":   return { label: "Parcial",           color: "text-blue-600 bg-blue-500/10 border-blue-500/40",     Icon: BadgePercent };
+    case "vencido":   return { label: "Vencido",           color: "text-red-600 bg-red-500/10 border-red-500/40",        Icon: AlertCircle };
+    case "cancelado": return { label: "Cancelado",         color: "text-gray-500 bg-gray-500/10 border-gray-400/40",     Icon: XCircle };
+    case "agendado":  return { label: "Agendado",          color: "text-purple-600 bg-purple-500/10 border-purple-500/40", Icon: CalendarClock };
+    case "pendente":
+    default:          return { label: status ? "Pendente" : "—", color: "text-amber-600 bg-amber-500/10 border-amber-500/40", Icon: Clock };
+  }
+}
+
+function isVencido(item: FluxoCaixaItem): boolean {
+  if (!item.data_vencimento) return false;
+  if (item.status === "pago" || item.status === "cancelado") return false;
+  return item.data_vencimento < new Date().toISOString().split("T")[0];
 }
 
 function formatBRL(value: number): string {
@@ -292,6 +337,12 @@ function LancamentoFormFields({
   formMembro, setFormMembro,
   formFavorecido, setFormFavorecido,
   formTiposCpp, setFormTiposCpp,
+  formStatus, setFormStatus,
+  formDataVencimento, setFormDataVencimento,
+  formDataPagamento, setFormDataPagamento,
+  formMulta, setFormMulta,
+  formJuros, setFormJuros,
+  formResponsavelMultaJuros, setFormResponsavelMultaJuros,
   membros, tiposCpp, categorias,
   prefix,
   pendingFiles, setPendingFiles,
@@ -314,6 +365,18 @@ function LancamentoFormFields({
   setFormFavorecido: (v: string) => void;
   formTiposCpp: number | null;
   setFormTiposCpp: (v: number | null) => void;
+  formStatus: StatusPagamento | "";
+  setFormStatus: (v: StatusPagamento | "") => void;
+  formDataVencimento: string;
+  setFormDataVencimento: (v: string) => void;
+  formDataPagamento: string;
+  setFormDataPagamento: (v: string) => void;
+  formMulta: string;
+  setFormMulta: (v: string) => void;
+  formJuros: string;
+  setFormJuros: (v: string) => void;
+  formResponsavelMultaJuros: string;
+  setFormResponsavelMultaJuros: (v: string) => void;
   membros: Membro[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
@@ -475,6 +538,92 @@ function LancamentoFormFields({
         </Select>
       </div>
 
+      <div className="border-t border-border/50 pt-4 mt-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1">
+          <Receipt className="w-3.5 h-3.5" /> Controle Financeiro
+        </p>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Status do Pagamento</Label>
+            <Select
+              value={formStatus || "__none__"}
+              onValueChange={(v) => setFormStatus(v === "__none__" ? "" : v as StatusPagamento)}
+            >
+              <SelectTrigger data-testid={`${prefix}-select-status`}>
+                <SelectValue placeholder="Selecione o status..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Não definido</SelectItem>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" /> Vencimento</Label>
+              <Input
+                type="date"
+                value={formDataVencimento}
+                onChange={(e) => setFormDataVencimento(e.target.value)}
+                data-testid={`${prefix}-input-data-vencimento`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><CalendarCheck className="w-3.5 h-3.5" /> Data do Pagamento</Label>
+              <Input
+                type="date"
+                value={formDataPagamento}
+                onChange={(e) => setFormDataPagamento(e.target.value)}
+                data-testid={`${prefix}-input-data-pagamento`}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Multa (R$)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formMulta}
+                onChange={(e) => setFormMulta(formatInputBRL(e.target.value))}
+                placeholder="0,00"
+                data-testid={`${prefix}-input-multa`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><BadgePercent className="w-3.5 h-3.5 text-amber-500" /> Juros (R$)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formJuros}
+                onChange={(e) => setFormJuros(formatInputBRL(e.target.value))}
+                placeholder="0,00"
+                data-testid={`${prefix}-input-juros`}
+              />
+            </div>
+          </div>
+
+          {(parseBRLToNumber(formMulta) > 0 || parseBRLToNumber(formJuros) > 0) && (
+            <div className="space-y-2">
+              <Label>Responsável pelas Multas/Juros</Label>
+              <SearchableMembroSelect
+                membros={membros}
+                value={formResponsavelMultaJuros}
+                onValueChange={setFormResponsavelMultaJuros}
+                placeholder="Selecione o responsável..."
+                testId={`${prefix}-select-resp-multa`}
+                allowNone
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <Paperclip className="w-4 h-4" />
@@ -554,6 +703,12 @@ export default function FluxoCaixaPage() {
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
   const [formTiposCpp, setFormTiposCpp] = useState<number | null>(null);
+  const [formStatus, setFormStatus] = useState<StatusPagamento | "">("");
+  const [formDataVencimento, setFormDataVencimento] = useState<string>("");
+  const [formDataPagamento, setFormDataPagamento] = useState<string>("");
+  const [formMulta, setFormMulta] = useState<string>("");
+  const [formJuros, setFormJuros] = useState<string>("");
+  const [formResponsavelMultaJuros, setFormResponsavelMultaJuros] = useState<string>("__none__");
   const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -563,6 +718,7 @@ export default function FluxoCaixaPage() {
   const [filterMembro, setFilterMembro] = useState<string>("todos");
   const [filterFavorecido, setFilterFavorecido] = useState<string>("todos");
   const [filterTipoCpp, setFilterTipoCpp] = useState<string>("todos");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterDescricao, setFilterDescricao] = useState<string>("");
   const [filterDataDe, setFilterDataDe] = useState<string>("");
   const [filterDataAte, setFilterDataAte] = useState<string>("");
@@ -622,9 +778,13 @@ export default function FluxoCaixaPage() {
       }
       if (filterDataDe && item.data && item.data < filterDataDe) return false;
       if (filterDataAte && item.data && item.data > filterDataAte) return false;
+      if (filterStatus !== "todos") {
+        const effectiveStatus = isVencido(item) ? "vencido" : (item.status || "pendente");
+        if (effectiveStatus !== filterStatus) return false;
+      }
       return true;
     });
-  }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte]);
+  }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
 
   const totals = useMemo(() => {
     const entradas = fluxoItems
@@ -635,6 +795,40 @@ export default function FluxoCaixaPage() {
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
   }, [fluxoItems]);
+
+  const today = new Date().toISOString().split("T")[0];
+  const in7days = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+
+  const financialDashboard = useMemo(() => {
+    const allBia = fluxoItemsAll;
+    const contasPagar = allBia.filter(
+      (i) => i.tipo === "saida" && (i.status === "pendente" || i.status === "agendado" || !i.status)
+        && !isVencido(i)
+    );
+    const vencidas = allBia.filter((i) => i.tipo === "saida" && isVencido(i));
+    const aVencer7 = allBia.filter(
+      (i) => i.tipo === "saida" && i.data_vencimento
+        && i.data_vencimento >= today && i.data_vencimento <= in7days
+        && i.status !== "pago" && i.status !== "cancelado"
+    );
+    const aReceber = allBia.filter(
+      (i) => i.tipo === "entrada" && (i.status === "pendente" || i.status === "agendado" || !i.status)
+    );
+    const pagas = allBia.filter((i) => i.status === "pago");
+    const totalMultasJuros = allBia.reduce((s, i) => {
+      return s + (parseFloat(String(i.multa || 0)) || 0) + (parseFloat(String(i.juros || 0)) || 0);
+    }, 0);
+
+    const sum = (arr: FluxoCaixaItem[]) => arr.reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
+    return {
+      contasPagar: { count: contasPagar.length, valor: sum(contasPagar) },
+      vencidas:    { count: vencidas.length,    valor: sum(vencidas) },
+      aVencer7:    { count: aVencer7.length,    valor: sum(aVencer7) },
+      aReceber:    { count: aReceber.length,    valor: sum(aReceber) },
+      pagas:       { count: pagas.length,       valor: sum(pagas) },
+      totalMultasJuros,
+    };
+  }, [fluxoItemsAll, today, in7days]);
 
   const aportesPorMembro = useMemo(() => {
     const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.membro_responsavel);
@@ -678,6 +872,12 @@ export default function FluxoCaixaPage() {
       data: formData,
       descricao: formDescricao,
       membro_responsavel: formMembro || null,
+      status: formStatus || null,
+      data_vencimento: formDataVencimento || null,
+      data_pagamento: formDataPagamento || null,
+      multa: formMulta ? parseBRLToNumber(formMulta) : null,
+      juros: formJuros ? parseBRLToNumber(formJuros) : null,
+      responsavel_multa_juros: formResponsavelMultaJuros && formResponsavelMultaJuros !== "__none__" ? formResponsavelMultaJuros : null,
       Categoria: formCategorias != null ? [formCategorias] : [],
       tipo_de_cpp: formTiposCpp != null ? [formTiposCpp] : [],
       Favorecido: formFavorecido && formFavorecido !== "__none__" ? [formFavorecido] : [],
@@ -753,6 +953,12 @@ export default function FluxoCaixaPage() {
     setFormMembro("");
     setFormFavorecido("__none__");
     setFormTiposCpp(null);
+    setFormStatus("");
+    setFormDataVencimento("");
+    setFormDataPagamento("");
+    setFormMulta("");
+    setFormJuros("");
+    setFormResponsavelMultaJuros("__none__");
     setPendingFiles([]);
     setExistingAnexos([]);
   }
@@ -778,6 +984,15 @@ export default function FluxoCaixaPage() {
     const cppArr = item.tipo_de_cpp || [];
     const firstCpp = cppArr.length > 0 ? getRelId(cppArr[0] as any) : null;
     setFormTiposCpp(firstCpp ? parseInt(firstCpp, 10) : null);
+
+    setFormStatus((item.status as StatusPagamento) || "");
+    setFormDataVencimento(item.data_vencimento || "");
+    setFormDataPagamento(item.data_pagamento || "");
+    const multaVal = parseFloat(String(item.multa || 0)) || 0;
+    setFormMulta(multaVal > 0 ? multaVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
+    const jurosVal = parseFloat(String(item.juros || 0)) || 0;
+    setFormJuros(jurosVal > 0 ? jurosVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
+    setFormResponsavelMultaJuros(getRelId(item.responsavel_multa_juros as any) || "__none__");
 
     setPendingFiles([]);
     const rawAnexos = item.anexos || [];
@@ -907,6 +1122,12 @@ export default function FluxoCaixaPage() {
                   formMembro={formMembro} setFormMembro={setFormMembro}
                   formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
                   formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
+                  formStatus={formStatus} setFormStatus={setFormStatus}
+                  formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
+                  formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
+                  formMulta={formMulta} setFormMulta={setFormMulta}
+                  formJuros={formJuros} setFormJuros={setFormJuros}
+                  formResponsavelMultaJuros={formResponsavelMultaJuros} setFormResponsavelMultaJuros={setFormResponsavelMultaJuros}
                   membros={membros} tiposCpp={tiposCpp}
                   categorias={categorias}
                   prefix="create"
@@ -988,6 +1209,76 @@ export default function FluxoCaixaPage() {
             </Card>
           </div>
 
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="panel-financeiro">
+            <Card className="border-red-500/40 bg-red-500/5" data-testid="panel-contas-pagar">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">A Pagar</CardTitle>
+                <DollarSign className="w-3.5 h-3.5 text-red-500" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-lg font-bold text-red-600 leading-tight" data-testid="text-contas-pagar-valor">{formatBRL(financialDashboard.contasPagar.valor)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.contasPagar.count} lançamento(s)</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-red-700/40 bg-red-700/5" data-testid="panel-vencidas">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Vencidas</CardTitle>
+                <AlertCircle className="w-3.5 h-3.5 text-red-700" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-lg font-bold text-red-700 leading-tight" data-testid="text-vencidas-valor">{formatBRL(financialDashboard.vencidas.valor)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.vencidas.count} lançamento(s)</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-500/40 bg-amber-500/5" data-testid="panel-a-vencer">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Vencem em 7 dias</CardTitle>
+                <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-lg font-bold text-amber-600 leading-tight" data-testid="text-a-vencer-valor">{formatBRL(financialDashboard.aVencer7.valor)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.aVencer7.count} lançamento(s)</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-blue-500/40 bg-blue-500/5" data-testid="panel-a-receber">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">A Receber</CardTitle>
+                <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-lg font-bold text-blue-600 leading-tight" data-testid="text-a-receber-valor">{formatBRL(financialDashboard.aReceber.valor)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.aReceber.count} entrada(s)</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-500/40 bg-green-500/5" data-testid="panel-pagas">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Pagas/Recebidas</CardTitle>
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-lg font-bold text-green-600 leading-tight" data-testid="text-pagas-valor">{formatBRL(financialDashboard.pagas.valor)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.pagas.count} lançamento(s)</p>
+              </CardContent>
+            </Card>
+
+            <Card className={`${financialDashboard.totalMultasJuros > 0 ? "border-amber-600/40 bg-amber-600/5" : "border-border"}`} data-testid="panel-multas-juros">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Multas + Juros</CardTitle>
+                <BadgePercent className="w-3.5 h-3.5 text-amber-600" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className={`text-lg font-bold leading-tight ${financialDashboard.totalMultasJuros > 0 ? "text-amber-600" : "text-muted-foreground"}`} data-testid="text-multas-juros-valor">
+                  {formatBRL(financialDashboard.totalMultasJuros)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">acumulado na BIA</p>
+              </CardContent>
+            </Card>
+          </div>
+
           {aportesPorMembro.length > 0 && (
             <Card data-testid="panel-participacao-aportes">
               <CardHeader>
@@ -1033,7 +1324,7 @@ export default function FluxoCaixaPage() {
                   <FileText className="w-5 h-5 text-brand-gold" />
                   Lançamentos — {selectedBia?.nome_bia}
                 </CardTitle>
-                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterDescricao || filterDataDe || filterDataAte) && (
+                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterStatus !== "todos" || filterDescricao || filterDataDe || filterDataAte) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1043,6 +1334,7 @@ export default function FluxoCaixaPage() {
                       setFilterMembro("todos");
                       setFilterFavorecido("todos");
                       setFilterTipoCpp("todos");
+                      setFilterStatus("todos");
                       setFilterDescricao("");
                       setFilterDataDe("");
                       setFilterDataAte("");
@@ -1056,7 +1348,7 @@ export default function FluxoCaixaPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-3" data-testid="panel-filtros">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2 mt-3" data-testid="panel-filtros">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1">
                     <Filter className="w-3 h-3" /> Tipo
@@ -1143,6 +1435,23 @@ export default function FluxoCaixaPage() {
 
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Status
+                  </Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="h-8 text-xs" data-testid="filter-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      {STATUS_OPTIONS.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
                     <Search className="w-3 h-3" /> Descrição
                   </Label>
                   <Input
@@ -1215,13 +1524,16 @@ export default function FluxoCaixaPage() {
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Status</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Data</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Vencimento</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Categoria</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Responsável</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Favorecido</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo CPP</th>
                         <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Multa/Juros</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Anexos</th>
                         <th className="py-3 px-2 w-20"></th>
                       </tr>
@@ -1377,6 +1689,12 @@ export default function FluxoCaixaPage() {
                 formMembro={formMembro} setFormMembro={setFormMembro}
                 formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
                 formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
+                formStatus={formStatus} setFormStatus={setFormStatus}
+                formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
+                formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
+                formMulta={formMulta} setFormMulta={setFormMulta}
+                formJuros={formJuros} setFormJuros={setFormJuros}
+                formResponsavelMultaJuros={formResponsavelMultaJuros} setFormResponsavelMultaJuros={setFormResponsavelMultaJuros}
                 membros={membros} tiposCpp={tiposCpp}
                 categorias={categorias}
                 prefix="edit"

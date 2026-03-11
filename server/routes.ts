@@ -341,6 +341,12 @@ export async function registerRoutes(
           data: f.data,
           descricao: f.descricao,
           membro_responsavel: f.membro_responsavel,
+          status: f.status || null,
+          data_vencimento: f.data_vencimento || null,
+          data_pagamento: f.data_pagamento || null,
+          multa: f.multa || null,
+          juros: f.juros || null,
+          responsavel_multa_juros: f.responsavel_multa_juros || null,
           Categoria: categorias,
           tipo_de_cpp: tiposCpp,
           Favorecido: f.Favorecido || [],
@@ -372,6 +378,12 @@ export async function registerRoutes(
         data: body.data || null,
         descricao: body.descricao || null,
         membro_responsavel: body.membro_responsavel || null,
+        status: body.status || null,
+        data_vencimento: body.data_vencimento || null,
+        data_pagamento: body.data_pagamento || null,
+        multa: body.multa != null && body.multa !== "" ? String(body.multa) : null,
+        juros: body.juros != null && body.juros !== "" ? String(body.juros) : null,
+        responsavel_multa_juros: body.responsavel_multa_juros || null,
         Categoria: toM2MCategorias(body.Categoria || []),
         tipo_de_cpp: toM2MTiposCpp(body.tipo_de_cpp || []),
         Favorecido: body.Favorecido || [],
@@ -393,6 +405,12 @@ export async function registerRoutes(
       if (body.data !== undefined) data.data = body.data;
       if (body.descricao !== undefined) data.descricao = body.descricao;
       if (body.membro_responsavel !== undefined) data.membro_responsavel = body.membro_responsavel;
+      if (body.status !== undefined) data.status = body.status;
+      if (body.data_vencimento !== undefined) data.data_vencimento = body.data_vencimento || null;
+      if (body.data_pagamento !== undefined) data.data_pagamento = body.data_pagamento || null;
+      if (body.multa !== undefined) data.multa = body.multa != null && body.multa !== "" ? String(body.multa) : null;
+      if (body.juros !== undefined) data.juros = body.juros != null && body.juros !== "" ? String(body.juros) : null;
+      if (body.responsavel_multa_juros !== undefined) data.responsavel_multa_juros = body.responsavel_multa_juros || null;
       if (body.Categoria !== undefined)
         data.Categoria = (body.Categoria || []).map((id: any) =>
           typeof id === "object" ? id : { categorias_id: id }

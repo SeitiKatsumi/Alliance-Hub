@@ -290,10 +290,10 @@ function LancamentoFormFields({
   formValor, setFormValor,
   formData, setFormData,
   formDescricao, setFormDescricao,
-  formCategoria, setFormCategoria,
+  formCategorias, setFormCategorias,
   formMembro, setFormMembro,
   formFavorecido, setFormFavorecido,
-  formTipoCpp, setFormTipoCpp,
+  formTiposCpp, setFormTiposCpp,
   membros, tiposCpp, categorias,
   prefix,
   pendingFiles, setPendingFiles,
@@ -308,14 +308,14 @@ function LancamentoFormFields({
   setFormData: (v: string) => void;
   formDescricao: string;
   setFormDescricao: (v: string) => void;
-  formCategoria: string;
-  setFormCategoria: (v: string) => void;
+  formCategorias: number[];
+  setFormCategorias: (v: number[]) => void;
   formMembro: string;
   setFormMembro: (v: string) => void;
   formFavorecido: string;
   setFormFavorecido: (v: string) => void;
-  formTipoCpp: string;
-  setFormTipoCpp: (v: string) => void;
+  formTiposCpp: number[];
+  setFormTiposCpp: (v: number[]) => void;
   membros: Membro[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
@@ -406,24 +406,40 @@ function LancamentoFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label>Categoria</Label>
-        <Select value={formCategoria} onValueChange={setFormCategoria}>
-          <SelectTrigger data-testid={`${prefix}-select-categoria`}>
-            <SelectValue placeholder="Selecione..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Nenhuma</SelectItem>
-            {categorias
-              .filter((cat) => {
-                if (!cat.Tipo_de_categoria) return true;
-                const normalized = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return normalized === formTipo;
-              })
-              .map((cat) => (
-              <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>Categorias (selecione uma ou mais)</Label>
+        <div className="space-y-2 border rounded-md p-3">
+          {categorias
+            .filter((cat) => {
+              if (!cat.Tipo_de_categoria) return true;
+              const normalized = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+              return normalized === formTipo;
+            })
+            .map((cat) => (
+            <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formCategorias.includes(cat.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setFormCategorias([...formCategorias, cat.id]);
+                  } else {
+                    setFormCategorias(formCategorias.filter(id => id !== cat.id));
+                  }
+                }}
+                data-testid={`${prefix}-check-categoria-${cat.id}`}
+                className="rounded"
+              />
+              <span className="text-sm">{cat.Nome_da_categoria}</span>
+            </label>
+          ))}
+          {categorias.filter((cat) => {
+            if (!cat.Tipo_de_categoria) return true;
+            const normalized = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return normalized === formTipo;
+          }).length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhuma categoria disponível para este tipo</p>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -453,18 +469,30 @@ function LancamentoFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label>Tipo de CPP</Label>
-        <Select value={formTipoCpp} onValueChange={setFormTipoCpp}>
-          <SelectTrigger data-testid={`${prefix}-select-tipo-cpp`}>
-            <SelectValue placeholder="Selecione o tipo de CPP..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Nenhum</SelectItem>
-            {tiposCpp.map((cpp) => (
-              <SelectItem key={cpp.id} value={String(cpp.id)}>{cpp.Nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>Tipos de CPP (selecione um ou mais)</Label>
+        <div className="space-y-2 border rounded-md p-3">
+          {tiposCpp.map((cpp) => (
+            <label key={cpp.id} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formTiposCpp.includes(cpp.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setFormTiposCpp([...formTiposCpp, cpp.id]);
+                  } else {
+                    setFormTiposCpp(formTiposCpp.filter(id => id !== cpp.id));
+                  }
+                }}
+                data-testid={`${prefix}-check-cpp-${cpp.id}`}
+                className="rounded"
+              />
+              <span className="text-sm">{cpp.Nome}</span>
+            </label>
+          ))}
+          {tiposCpp.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhum tipo de CPP disponível</p>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -542,10 +570,10 @@ export default function FluxoCaixaPage() {
   const [formValor, setFormValor] = useState<string>("");
   const [formData, setFormData] = useState<string>(new Date().toISOString().split("T")[0]);
   const [formDescricao, setFormDescricao] = useState<string>("");
-  const [formCategoria, setFormCategoria] = useState<string>("__none__");
+  const [formCategorias, setFormCategorias] = useState<number[]>([]);
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
-  const [formTipoCpp, setFormTipoCpp] = useState<string>("__none__");
+  const [formTiposCpp, setFormTiposCpp] = useState<number[]>([]);
   const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -666,16 +694,11 @@ export default function FluxoCaixaPage() {
       data: formData,
       descricao: formDescricao,
       membro_responsavel: formMembro || null,
+      Categoria: formCategorias,
+      tipo_de_cpp: formTiposCpp,
+      Favorecido: formFavorecido && formFavorecido !== "__none__" ? [formFavorecido] : [],
       anexos: allIds,
     };
-    const catNum = formCategoria && formCategoria !== "__none__" ? parseInt(formCategoria, 10) : null;
-    payload.Categoria = catNum !== null && !isNaN(catNum) ? [catNum] : [];
-    
-    payload.Favorecido = formFavorecido && formFavorecido !== "__none__" ? [formFavorecido] : [];
-    
-    const cppNum = formTipoCpp && formTipoCpp !== "__none__" ? parseInt(formTipoCpp, 10) : null;
-    payload.tipo_de_cpp = cppNum !== null && !isNaN(cppNum) ? [cppNum] : [];
-    
     return payload;
   }
 
@@ -742,10 +765,10 @@ export default function FluxoCaixaPage() {
     setFormValor("");
     setFormData(new Date().toISOString().split("T")[0]);
     setFormDescricao("");
-    setFormCategoria("__none__");
+    setFormCategorias([]);
     setFormMembro("");
     setFormFavorecido("__none__");
-    setFormTipoCpp("__none__");
+    setFormTiposCpp([]);
     setPendingFiles([]);
     setExistingAnexos([]);
   }
@@ -759,8 +782,10 @@ export default function FluxoCaixaPage() {
     setFormDescricao(item.descricao || "");
 
     const catArr = item.Categoria || [];
-    const firstCat = catArr.length > 0 ? getRelId(catArr[0] as any) : null;
-    setFormCategoria(firstCat || "__none__");
+    setFormCategorias(catArr.map((c: any) => {
+      const id = getRelId(c as any);
+      return id ? parseInt(id, 10) : null;
+    }).filter(id => id !== null) as number[]);
 
     setFormMembro(getRelId(item.membro_responsavel as any) || "");
 
@@ -769,8 +794,10 @@ export default function FluxoCaixaPage() {
     setFormFavorecido(firstFav || "__none__");
 
     const cppArr = item.tipo_de_cpp || [];
-    const firstCpp = cppArr.length > 0 ? getRelId(cppArr[0] as any) : null;
-    setFormTipoCpp(firstCpp || "__none__");
+    setFormTiposCpp(cppArr.map((c: any) => {
+      const id = getRelId(c as any);
+      return id ? parseInt(id, 10) : null;
+    }).filter(id => id !== null) as number[]);
 
     setPendingFiles([]);
     const rawAnexos = item.anexos || [];
@@ -896,10 +923,10 @@ export default function FluxoCaixaPage() {
                   formValor={formValor} setFormValor={setFormValor}
                   formData={formData} setFormData={setFormData}
                   formDescricao={formDescricao} setFormDescricao={setFormDescricao}
-                  formCategoria={formCategoria} setFormCategoria={setFormCategoria}
+                  formCategorias={formCategorias} setFormCategorias={setFormCategorias}
                   formMembro={formMembro} setFormMembro={setFormMembro}
                   formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
-                  formTipoCpp={formTipoCpp} setFormTipoCpp={setFormTipoCpp}
+                  formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
                   membros={membros} tiposCpp={tiposCpp}
                   categorias={categorias}
                   prefix="create"
@@ -1329,10 +1356,10 @@ export default function FluxoCaixaPage() {
                 formValor={formValor} setFormValor={setFormValor}
                 formData={formData} setFormData={setFormData}
                 formDescricao={formDescricao} setFormDescricao={setFormDescricao}
-                formCategoria={formCategoria} setFormCategoria={setFormCategoria}
+                formCategorias={formCategorias} setFormCategorias={setFormCategorias}
                 formMembro={formMembro} setFormMembro={setFormMembro}
                 formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
-                formTipoCpp={formTipoCpp} setFormTipoCpp={setFormTipoCpp}
+                formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
                 membros={membros} tiposCpp={tiposCpp}
                 categorias={categorias}
                 prefix="edit"

@@ -668,21 +668,14 @@ export default function FluxoCaixaPage() {
       membro_responsavel: formMembro || null,
       anexos: allIds,
     };
-    if (formCategoria && formCategoria !== "__none__") {
-      payload.Categoria = [parseInt(formCategoria)];
-    } else {
-      payload.Categoria = [];
-    }
-    if (formFavorecido && formFavorecido !== "__none__") {
-      payload.Favorecido = [formFavorecido];
-    } else {
-      payload.Favorecido = [];
-    }
-    if (formTipoCpp && formTipoCpp !== "__none__") {
-      payload.tipo_de_cpp = [parseInt(formTipoCpp)];
-    } else {
-      payload.tipo_de_cpp = [];
-    }
+    const catNum = formCategoria && formCategoria !== "__none__" ? parseInt(formCategoria, 10) : null;
+    payload.Categoria = catNum !== null && !isNaN(catNum) ? [catNum] : [];
+    
+    payload.Favorecido = formFavorecido && formFavorecido !== "__none__" ? [formFavorecido] : [];
+    
+    const cppNum = formTipoCpp && formTipoCpp !== "__none__" ? parseInt(formTipoCpp, 10) : null;
+    payload.tipo_de_cpp = cppNum !== null && !isNaN(cppNum) ? [cppNum] : [];
+    
     return payload;
   }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, ChevronDown } from "lucide-react";
+import { Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, Target, ChevronDown } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1772135999372.png";
 
 const dashboardSubItems = [
+  { title: "BIAs", url: "/bias", icon: Briefcase },
+  { title: "OPAs", url: "/opas", icon: Target },
   { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: Wallet },
   { title: "Aura", url: "/aura", icon: Sparkles },
 ];

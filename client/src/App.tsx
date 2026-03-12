@@ -6,8 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
-import OportunidadesPage from "@/pages/oportunidades";
-import BiasPage from "@/pages/bias";
 import MembrosPage from "@/pages/membros";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
@@ -19,8 +17,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={PainelPage} />
-      <Route path="/bias" component={BiasPage} />
-      <Route path="/opas" component={OportunidadesPage} />
       <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
       <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
       <Route path="/membros" component={MembrosPage} />

@@ -120,9 +120,6 @@ interface FluxoCaixaItem {
   status: StatusPagamento | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
-  multa: number | string | null;
-  juros: number | string | null;
-  responsavel_multa_juros: string | { id: string } | null;
   Categoria: (CategoriaItem | number)[];
   tipo_de_cpp: (TipoCPP | number)[];
   Favorecido: (Membro | string)[];
@@ -349,9 +346,6 @@ function LancamentoFormFields({
   formStatus, setFormStatus,
   formDataVencimento, setFormDataVencimento,
   formDataPagamento, setFormDataPagamento,
-  formMulta, setFormMulta,
-  formJuros, setFormJuros,
-  formResponsavelMultaJuros, setFormResponsavelMultaJuros,
   membros, tiposCpp, categorias,
   prefix,
   pendingFiles, setPendingFiles,
@@ -385,12 +379,6 @@ function LancamentoFormFields({
   setFormDataVencimento: (v: string) => void;
   formDataPagamento: string;
   setFormDataPagamento: (v: string) => void;
-  formMulta: string;
-  setFormMulta: (v: string) => void;
-  formJuros: string;
-  setFormJuros: (v: string) => void;
-  formResponsavelMultaJuros: string;
-  setFormResponsavelMultaJuros: (v: string) => void;
   membros: Membro[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
@@ -698,44 +686,6 @@ function LancamentoFormFields({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Multa (R$)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={formMulta}
-                onChange={(e) => setFormMulta(formatInputBRL(e.target.value))}
-                placeholder="0,00"
-                data-testid={`${prefix}-input-multa`}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1"><BadgePercent className="w-3.5 h-3.5 text-amber-500" /> Juros (R$)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={formJuros}
-                onChange={(e) => setFormJuros(formatInputBRL(e.target.value))}
-                placeholder="0,00"
-                data-testid={`${prefix}-input-juros`}
-              />
-            </div>
-          </div>
-
-          {(parseBRLToNumber(formMulta) > 0 || parseBRLToNumber(formJuros) > 0) && (
-            <div className="space-y-2">
-              <Label>Responsável pelas Multas/Juros</Label>
-              <SearchableMembroSelect
-                membros={membros}
-                value={formResponsavelMultaJuros}
-                onValueChange={setFormResponsavelMultaJuros}
-                placeholder="Selecione o responsável..."
-                testId={`${prefix}-select-resp-multa`}
-                allowNone
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -824,9 +774,6 @@ export default function FluxoCaixaPage() {
   const [formStatus, setFormStatus] = useState<StatusPagamento | "">("");
   const [formDataVencimento, setFormDataVencimento] = useState<string>(new Date().toISOString().split("T")[0]);
   const [formDataPagamento, setFormDataPagamento] = useState<string>("");
-  const [formMulta, setFormMulta] = useState<string>("");
-  const [formJuros, setFormJuros] = useState<string>("");
-  const [formResponsavelMultaJuros, setFormResponsavelMultaJuros] = useState<string>("__none__");
   const [pendingFiles, setPendingFiles] = useState<globalThis.File[]>([]);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -933,10 +880,6 @@ export default function FluxoCaixaPage() {
       (i) => i.tipo === "entrada" && (i.status === "pendente" || i.status === "agendado" || !i.status)
     );
     const pagas = allBia.filter((i) => i.status === "pago");
-    const totalMultasJuros = allBia.reduce((s, i) => {
-      return s + (parseFloat(String(i.multa || 0)) || 0) + (parseFloat(String(i.juros || 0)) || 0);
-    }, 0);
-
     const sum = (arr: FluxoCaixaItem[]) => arr.reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
     return {
       contasPagar: { count: contasPagar.length, valor: sum(contasPagar) },
@@ -944,7 +887,6 @@ export default function FluxoCaixaPage() {
       aVencer7:    { count: aVencer7.length,    valor: sum(aVencer7) },
       aReceber:    { count: aReceber.length,    valor: sum(aReceber) },
       pagas:       { count: pagas.length,       valor: sum(pagas) },
-      totalMultasJuros,
     };
   }, [fluxoItemsAll, today, in7days]);
 
@@ -993,9 +935,6 @@ export default function FluxoCaixaPage() {
       status: formStatus || null,
       data_vencimento: formDataVencimento || null,
       data_pagamento: formDataPagamento || null,
-      multa: formMulta ? parseBRLToNumber(formMulta) : null,
-      juros: formJuros ? parseBRLToNumber(formJuros) : null,
-      responsavel_multa_juros: formResponsavelMultaJuros && formResponsavelMultaJuros !== "__none__" ? formResponsavelMultaJuros : null,
       Categoria: formCategorias != null ? [formCategorias] : [],
       tipo_de_cpp: formTiposCpp != null ? [formTiposCpp] : [],
       Favorecido: formFavorecido && formFavorecido !== "__none__" ? [formFavorecido] : [],
@@ -1089,9 +1028,6 @@ export default function FluxoCaixaPage() {
     setFormStatus("");
     setFormDataVencimento(new Date().toISOString().split("T")[0]);
     setFormDataPagamento("");
-    setFormMulta("");
-    setFormJuros("");
-    setFormResponsavelMultaJuros("__none__");
     setPendingFiles([]);
     setExistingAnexos([]);
   }
@@ -1121,11 +1057,6 @@ export default function FluxoCaixaPage() {
     setFormStatus((item.status as StatusPagamento) || "");
     setFormDataVencimento(item.data_vencimento || "");
     setFormDataPagamento(item.data_pagamento || "");
-    const multaVal = parseFloat(String(item.multa || 0)) || 0;
-    setFormMulta(multaVal > 0 ? multaVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
-    const jurosVal = parseFloat(String(item.juros || 0)) || 0;
-    setFormJuros(jurosVal > 0 ? jurosVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
-    setFormResponsavelMultaJuros(getRelId(item.responsavel_multa_juros as any) || "__none__");
 
     setPendingFiles([]);
     const rawAnexos = item.anexos || [];
@@ -1292,9 +1223,6 @@ export default function FluxoCaixaPage() {
                   formStatus={formStatus} setFormStatus={setFormStatus}
                   formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                   formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                  formMulta={formMulta} setFormMulta={setFormMulta}
-                  formJuros={formJuros} setFormJuros={setFormJuros}
-                  formResponsavelMultaJuros={formResponsavelMultaJuros} setFormResponsavelMultaJuros={setFormResponsavelMultaJuros}
                   membros={membros} tiposCpp={tiposCpp}
                   categorias={categorias}
                   prefix="create"
@@ -1433,18 +1361,6 @@ export default function FluxoCaixaPage() {
               </CardContent>
             </Card>
 
-            <Card className={`${financialDashboard.totalMultasJuros > 0 ? "border-amber-600/40 bg-amber-600/5" : "border-border"}`} data-testid="panel-multas-juros">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Multas + Juros</CardTitle>
-                <BadgePercent className="w-3.5 h-3.5 text-amber-600" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <p className={`text-lg font-bold leading-tight ${financialDashboard.totalMultasJuros > 0 ? "text-amber-600" : "text-muted-foreground"}`} data-testid="text-multas-juros-valor">
-                  {formatBRL(financialDashboard.totalMultasJuros)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">acumulado na BIA</p>
-              </CardContent>
-            </Card>
           </div>
 
           {aportesPorMembro.length > 0 && (
@@ -1848,9 +1764,6 @@ export default function FluxoCaixaPage() {
                 formStatus={formStatus} setFormStatus={setFormStatus}
                 formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                 formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                formMulta={formMulta} setFormMulta={setFormMulta}
-                formJuros={formJuros} setFormJuros={setFormJuros}
-                formResponsavelMultaJuros={formResponsavelMultaJuros} setFormResponsavelMultaJuros={setFormResponsavelMultaJuros}
                 membros={membros} tiposCpp={tiposCpp}
                 categorias={categorias}
                 prefix="edit"

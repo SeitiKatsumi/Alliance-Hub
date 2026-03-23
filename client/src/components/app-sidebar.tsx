@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, Target, ChevronDown, Landmark } from "lucide-react";
+import { Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, Target, ChevronDown } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,22 +23,24 @@ const adminSubItems = [
   { title: "Calculadora DM", url: "/bias-calculadora", icon: Calculator },
 ];
 
+const biasSubItems = [
+  { title: "Financeiro", url: "/fluxo-caixa", icon: Wallet },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
-
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
-  const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa");
   const [adminOpen, setAdminOpen] = useState(false);
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+      <SidebarHeader className="p-3 border-b border-sidebar-border">
         <div className="flex items-center justify-center">
           <img
             src={builtLogo}
             alt="Built Alliances"
-            className="h-12 w-auto max-w-[180px]"
+            className="h-10 w-auto max-w-[160px]"
           />
         </div>
       </SidebarHeader>
@@ -50,26 +52,26 @@ export function AppSidebar() {
 
               {/* Dashboard */}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/"} data-testid="nav-dashboard">
+                <SidebarMenuButton asChild isActive={location === "/"} data-testid="nav-dashboard" className="text-sm">
                   <Link href="/">
-                    <LayoutDashboard className="w-4 h-4" />
+                    <LayoutDashboard className="w-3.5 h-3.5" />
                     <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* BIAs — colapsável com subitens */}
+              {/* BIAs — colapsável */}
               <Collapsible open={biasOpen} onOpenChange={setBiasOpen} className="group/collapsible">
                 <SidebarMenuItem>
                   <div className="flex items-center">
                     <SidebarMenuButton
                       asChild
                       isActive={location === "/bias"}
-                      className="flex-1"
+                      className="flex-1 text-sm"
                       data-testid="nav-bias"
                     >
                       <Link href="/bias">
-                        <Briefcase className="w-4 h-4" />
+                        <Briefcase className="w-3.5 h-3.5" />
                         <span>BIAs</span>
                       </Link>
                     </SidebarMenuButton>
@@ -78,56 +80,27 @@ export function AppSidebar() {
                         className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
                         data-testid="toggle-bias-menu"
                       >
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${biasOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${biasOpen ? "rotate-180" : ""}`} />
                       </button>
                     </CollapsibleTrigger>
                   </div>
-
                   <CollapsibleContent>
                     <SidebarMenuSub>
-
-                      {/* Núcleo de Capital — colapsável dentro de BIAs */}
-                      <SidebarMenuSubItem>
-                        <Collapsible open={nucleoOpen} onOpenChange={setNucleoOpen}>
-                          <div className="flex items-center w-full">
-                            <SidebarMenuSubButton
-                              isActive={location === "/fluxo-caixa"}
-                              className="flex-1 cursor-default gap-2"
-                              data-testid="nav-nucleo-capital"
-                            >
-                              <Landmark className="w-3.5 h-3.5" />
-                              <span>Núcleo de Capital</span>
-                            </SidebarMenuSubButton>
-                            <CollapsibleTrigger asChild>
-                              <button
-                                className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1"
-                                data-testid="toggle-nucleo-menu"
-                              >
-                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${nucleoOpen ? "rotate-180" : ""}`} />
-                              </button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent>
-                            <div className="pl-4 mt-0.5">
-                              <SidebarMenuSub>
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    isActive={location === "/fluxo-caixa"}
-                                    data-testid="nav-fluxo-caixa"
-                                  >
-                                    <Link href="/fluxo-caixa">
-                                      <Wallet className="w-3.5 h-3.5" />
-                                      <span>Gestão Financeira</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              </SidebarMenuSub>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      </SidebarMenuSubItem>
-
+                      {biasSubItems.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={location === item.url}
+                            data-testid={`nav-${item.url.replace("/", "")}`}
+                            className="text-xs"
+                          >
+                            <Link href={item.url}>
+                              <item.icon className="w-3 h-3" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -135,9 +108,9 @@ export function AppSidebar() {
 
               {/* OPAs */}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/opas"} data-testid="nav-opas">
+                <SidebarMenuButton asChild isActive={location === "/opas"} data-testid="nav-opas" className="text-sm">
                   <Link href="/opas">
-                    <Target className="w-4 h-4" />
+                    <Target className="w-3.5 h-3.5" />
                     <span>OPAs</span>
                   </Link>
                 </SidebarMenuButton>
@@ -145,9 +118,9 @@ export function AppSidebar() {
 
               {/* Aura */}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/aura"} data-testid="nav-aura">
+                <SidebarMenuButton asChild isActive={location === "/aura"} data-testid="nav-aura" className="text-sm">
                   <Link href="/aura">
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles className="w-3.5 h-3.5" />
                     <span>Aura</span>
                   </Link>
                 </SidebarMenuButton>
@@ -160,11 +133,11 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={location === "/admin"}
-                      className="flex-1"
+                      className="flex-1 text-sm"
                       data-testid="nav-admin"
                     >
                       <Link href="/admin">
-                        <Settings className="w-4 h-4" />
+                        <Settings className="w-3.5 h-3.5" />
                         <span>Administração</span>
                       </Link>
                     </SidebarMenuButton>
@@ -173,7 +146,7 @@ export function AppSidebar() {
                         className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
                         data-testid="toggle-admin-menu"
                       >
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${adminOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${adminOpen ? "rotate-180" : ""}`} />
                       </button>
                     </CollapsibleTrigger>
                   </div>
@@ -185,9 +158,10 @@ export function AppSidebar() {
                             asChild
                             isActive={location === item.url}
                             data-testid={`nav-${item.url.replace("/", "")}`}
+                            className="text-xs"
                           >
                             <Link href={item.url}>
-                              <item.icon className="w-3.5 h-3.5" />
+                              <item.icon className="w-3 h-3" />
                               <span>{item.title}</span>
                             </Link>
                           </SidebarMenuSubButton>
@@ -203,8 +177,8 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="text-xs text-sidebar-foreground/60 text-center">
+      <SidebarFooter className="p-3 border-t border-sidebar-border">
+        <div className="text-[11px] text-sidebar-foreground/60 text-center">
           Built Alliances Platform
         </div>
       </SidebarFooter>

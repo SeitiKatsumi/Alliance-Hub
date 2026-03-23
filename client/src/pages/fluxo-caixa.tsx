@@ -1391,7 +1391,7 @@ export default function FluxoCaixaPage() {
                   return catValorOrigem && id === catValorOrigem.id;
                 }))
                 .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
-              const percPago = valorOrigemTotal > 0 ? Math.min(100, (valorOrigemPago / valorOrigemTotal) * 100) : 0;
+              const percPago = valorOrigemTotal > 0 ? (valorOrigemPago / valorOrigemTotal) * 100 : 0;
               return (
                 <Card className="border-brand-gold/40 bg-brand-gold/5" data-testid="panel-valor-origem">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">

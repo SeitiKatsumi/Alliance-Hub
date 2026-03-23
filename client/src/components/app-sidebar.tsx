@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, Target, ChevronDown } from "lucide-react";
+import { Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, Target, ChevronDown, Landmark } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,11 +18,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1772135999372.png";
 
-const dashboardSubItems = [
-  { title: "BIAs", url: "/bias", icon: Briefcase },
-  { title: "OPAs", url: "/opas", icon: Target },
+const nucleoSubItems = [
   { title: "Gestão Financeira", url: "/fluxo-caixa", icon: Wallet },
-  { title: "Aura", url: "/aura", icon: Sparkles },
 ];
 
 const adminSubItems = [
@@ -32,11 +29,11 @@ const adminSubItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa");
   const [adminOpen, setAdminOpen] = useState(false);
 
-  const isDashboardActive = location === "/" || dashboardSubItems.some(i => location === i.url);
   const isAdminActive = adminSubItems.some(i => location === i.url) || location === "/admin";
+  const isNucleoActive = nucleoSubItems.some(i => location === i.url);
 
   return (
     <Sidebar>
@@ -53,32 +50,69 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <Collapsible open={dashboardOpen} onOpenChange={setDashboardOpen} className="group/collapsible">
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location === "/"}
+                  data-testid="nav-dashboard"
+                >
+                  <Link href="/">
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location === "/bias"}
+                  data-testid="nav-bias"
+                >
+                  <Link href="/bias">
+                    <Briefcase className="w-4 h-4" />
+                    <span>BIAs</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location === "/opas"}
+                  data-testid="nav-opas"
+                >
+                  <Link href="/opas">
+                    <Target className="w-4 h-4" />
+                    <span>OPAs</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <Collapsible open={nucleoOpen} onOpenChange={setNucleoOpen} className="group/collapsible">
                 <SidebarMenuItem>
                   <div className="flex items-center">
                     <SidebarMenuButton
-                      asChild
-                      isActive={location === "/"}
-                      className="flex-1"
-                      data-testid="nav-dashboard"
+                      isActive={isNucleoActive}
+                      className="flex-1 cursor-default"
+                      data-testid="nav-nucleo-capital"
                     >
-                      <Link href="/">
-                        <LayoutDashboard className="w-4 h-4" />
-                        <span>Dashboard</span>
-                      </Link>
+                      <Landmark className="w-4 h-4" />
+                      <span>Núcleo de Capital</span>
                     </SidebarMenuButton>
                     <CollapsibleTrigger asChild>
                       <button
                         className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
-                        data-testid="toggle-dashboard-menu"
+                        data-testid="toggle-nucleo-menu"
                       >
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${dashboardOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${nucleoOpen ? "rotate-180" : ""}`} />
                       </button>
                     </CollapsibleTrigger>
                   </div>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {dashboardSubItems.map((item) => (
+                      {nucleoSubItems.map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild
@@ -96,6 +130,19 @@ export function AppSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location === "/aura"}
+                  data-testid="nav-aura"
+                >
+                  <Link href="/aura">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Aura</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               <Collapsible open={adminOpen} onOpenChange={setAdminOpen} className="group/collapsible">
                 <SidebarMenuItem>
@@ -140,6 +187,7 @@ export function AppSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

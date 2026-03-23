@@ -476,13 +476,13 @@ function LancamentoFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label>Data</Label>
-        <Input
-          type="date"
-          value={formData}
-          onChange={(e) => setFormData(e.target.value)}
-          data-testid={`${prefix}-input-data`}
-        />
+        <Label className="flex items-center gap-1">
+          <Calendar className="w-3.5 h-3.5" /> Data do Lançamento
+        </Label>
+        <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/50 text-muted-foreground text-sm" data-testid={`${prefix}-input-data`}>
+          <Calendar className="w-3.5 h-3.5 shrink-0" />
+          {formData ? new Date(formData + "T12:00:00").toLocaleDateString("pt-BR") : "-"}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -678,7 +678,7 @@ function LancamentoFormFields({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" /> Vencimento</Label>
+              <Label className="flex items-center gap-1"><CalendarClock className="w-3.5 h-3.5" /> Vencimento <span className="text-red-500 text-xs">*obrigatório</span></Label>
               <Input
                 type="date"
                 value={formDataVencimento}
@@ -1150,6 +1150,10 @@ export default function FluxoCaixaPage() {
       toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
       return;
     }
+    if (!formDataVencimento) {
+      toast({ title: "Informe a data de vencimento", variant: "destructive" });
+      return;
+    }
     if (!formStatus) {
       toast({ title: "Selecione o status do pagamento", variant: "destructive" });
       return;
@@ -1185,6 +1189,10 @@ export default function FluxoCaixaPage() {
     }
     if (formTipo === "entrada" && !formMembro) {
       toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
+      return;
+    }
+    if (!formDataVencimento) {
+      toast({ title: "Informe a data de vencimento", variant: "destructive" });
       return;
     }
     if (!formStatus) {

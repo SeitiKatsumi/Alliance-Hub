@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -807,6 +808,7 @@ export default function FluxoCaixaPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
 
   const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
@@ -1807,7 +1809,7 @@ export default function FluxoCaixaPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-red-500"
-                                onClick={() => deleteMutation.mutate(item.id)}
+                                onClick={() => setDeleteConfirmId(item.id)}
                                 disabled={deleteMutation.isPending}
                                 data-testid={`button-delete-${item.id}`}
                               >
@@ -1875,6 +1877,36 @@ export default function FluxoCaixaPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                  <Trash2 className="w-5 h-5" />
+                  Excluir lançamento
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. O lançamento será excluído permanentemente do Directus.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => {
+                    if (deleteConfirmId) {
+                      deleteMutation.mutate(deleteConfirmId);
+                      setDeleteConfirmId(null);
+                    }
+                  }}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Dialog open={!!profileMembro} onOpenChange={(open) => { if (!open) setProfileMembro(null); }}>
             <DialogContent className="sm:max-w-[450px]">

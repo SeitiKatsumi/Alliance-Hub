@@ -1386,7 +1386,7 @@ export default function FluxoCaixaPage() {
               const valorOrigemTotal = parseFloat(String(selectedBia?.valor_origem || 0)) || 0;
               const catValorOrigem = categorias.find((c) => c.Nome_da_categoria === "Valor de Origem");
               const valorOrigemPago = fluxoItemsContabeis
-                .filter((i) => i.Categoria.some((c) => {
+                .filter((i) => i.tipo === "saida" && i.status === "pago" && i.Categoria.some((c) => {
                   const id = typeof c === "object" && c !== null ? (c as CategoriaItem).id : c;
                   return catValorOrigem && id === catValorOrigem.id;
                 }))

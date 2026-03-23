@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Users, Sparkles, LayoutDashboard, Settings, Calculator, Wallet, Target, ChevronDown, Landmark } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,

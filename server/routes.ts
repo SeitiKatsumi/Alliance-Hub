@@ -484,6 +484,13 @@ export async function registerRoutes(
 
   app.delete("/api/fluxo-caixa/:id", async (req, res) => {
     try {
+      // Limpa relações M2M primeiro para evitar violação de foreign key
+      await directusUpdate("fluxo_caixa", req.params.id, {
+        Categoria: [],
+        tipo_de_cpp: [],
+        Favorecido: [],
+        Anexos: [],
+      });
       await directusDelete("fluxo_caixa", req.params.id);
       res.json({ success: true });
     } catch (error: any) {

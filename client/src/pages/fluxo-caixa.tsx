@@ -820,7 +820,7 @@ export default function FluxoCaixaPage() {
   const [rateioItems, setRateioItems] = useState<RateioItem[]>([]);
   const [formTiposCpp, setFormTiposCpp] = useState<number | null>(null);
   const [formStatus, setFormStatus] = useState<StatusPagamento | "">("");
-  const [formDataVencimento, setFormDataVencimento] = useState<string>("");
+  const [formDataVencimento, setFormDataVencimento] = useState<string>(new Date().toISOString().split("T")[0]);
   const [formDataPagamento, setFormDataPagamento] = useState<string>("");
   const [formMulta, setFormMulta] = useState<string>("");
   const [formJuros, setFormJuros] = useState<string>("");
@@ -1085,7 +1085,7 @@ export default function FluxoCaixaPage() {
     setRateioItems([]);
     setFormTiposCpp(null);
     setFormStatus("");
-    setFormDataVencimento("");
+    setFormDataVencimento(new Date().toISOString().split("T")[0]);
     setFormDataPagamento("");
     setFormMulta("");
     setFormJuros("");
@@ -1681,17 +1681,13 @@ export default function FluxoCaixaPage() {
                   <table className="w-full text-sm" data-testid="table-lancamentos">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Status</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Data</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Vencimento</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Status</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Categoria</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Responsável</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Favorecido</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo CPP</th>
-                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Multa/Juros</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Anexos</th>
                         <th className="py-3 px-2 w-20"></th>
                       </tr>
@@ -1699,19 +1695,16 @@ export default function FluxoCaixaPage() {
                     <tbody>
                       {fluxoItems.map((item) => (
                         <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lancamento-${item.id}`}>
-                          <td className="py-3 px-2">
-                            {item.tipo === "entrada" ? (
-                              <Badge variant="outline" className="border-green-500/50 text-green-600 bg-green-500/10 gap-1">
-                                <ArrowUpCircle className="w-3 h-3" />
-                                Entrada
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-500/10 gap-1">
-                                <ArrowDownCircle className="w-3 h-3" />
-                                Saída
-                              </Badge>
-                            )}
+                          {/* Vencimento */}
+                          <td className="py-3 px-2 text-sm" data-testid={`text-vencimento-${item.id}`}>
+                            {item.data_vencimento ? (
+                              <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
+                                <CalendarClock className="w-3 h-3" />
+                                {formatDate(item.data_vencimento)}
+                              </span>
+                            ) : "-"}
                           </td>
+                          {/* Status */}
                           <td className="py-3 px-2" data-testid={`text-status-${item.id}`}>
                             {(() => {
                               const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "vencido" : (item.status || null);
@@ -1724,21 +1717,13 @@ export default function FluxoCaixaPage() {
                               );
                             })()}
                           </td>
-                          <td className="py-3 px-2 text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(item.data)}
-                            </span>
+                          {/* Valor */}
+                          <td className={`py-3 px-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
+                            {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
-                          <td className="py-3 px-2 text-muted-foreground text-sm" data-testid={`text-vencimento-${item.id}`}>
-                            {item.data_vencimento ? (
-                              <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "text-red-500 font-medium" : ""}`}>
-                                <CalendarClock className="w-3 h-3" />
-                                {formatDate(item.data_vencimento)}
-                              </span>
-                            ) : "-"}
-                          </td>
+                          {/* Descrição */}
                           <td className="py-3 px-2" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
+                          {/* Categoria */}
                           <td className="py-3 px-2">
                             {item.Categoria && item.Categoria.length > 0 ? (
                               <Badge variant="secondary" className="gap-1">
@@ -1747,47 +1732,30 @@ export default function FluxoCaixaPage() {
                               </Badge>
                             ) : "-"}
                           </td>
-                          <td className="py-3 px-2">
-                            {item.membro_responsavel ? (() => {
-                              const membroId = getRelId(item.membro_responsavel as any) || "";
-                              const nome = membroMap[membroId] || "—";
-                              const membro = membros.find((m) => m.id === membroId);
-                              return (
-                                <button
-                                  onClick={() => membro && setProfileMembro(membro)}
-                                  className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0"
-                                  data-testid={`link-responsavel-${item.id}`}
-                                >
-                                  <User className="w-3 h-3" />
-                                  {nome}
-                                </button>
-                              );
-                            })() : "-"}
-                          </td>
+                          {/* Favorecido */}
                           <td className="py-3 px-2" data-testid={`text-favorecido-${item.id}`}>
                             {item.Favorecido && item.Favorecido.length > 0 ? (
-                              <span className="flex items-center gap-1">
-                                <UserCheck className="w-3 h-3 text-muted-foreground" />
+                              <span className="flex flex-col gap-0.5">
                                 {item.Favorecido.map((f, idx) => {
                                   const favId = getRelId(f as any) || "";
                                   const nome = getFavName(f, membroMap);
                                   const membro = membros.find((m) => m.id === favId);
                                   return (
-                                    <span key={idx}>
-                                      {idx > 0 && ", "}
-                                      <button
-                                        onClick={() => membro && setProfileMembro(membro)}
-                                        className="text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0"
-                                        data-testid={`link-favorecido-${item.id}-${idx}`}
-                                      >
-                                        {nome}
-                                      </button>
-                                    </span>
+                                    <button
+                                      key={idx}
+                                      onClick={() => membro && setProfileMembro(membro)}
+                                      className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left"
+                                      data-testid={`link-favorecido-${item.id}-${idx}`}
+                                    >
+                                      <UserCheck className="w-3 h-3 shrink-0" />
+                                      {nome}
+                                    </button>
                                   );
                                 })}
                               </span>
                             ) : "-"}
                           </td>
+                          {/* Tipo CPP */}
                           <td className="py-3 px-2" data-testid={`text-tipo-cpp-${item.id}`}>
                             {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ? (
                               <Badge variant="secondary" className="gap-1">
@@ -1796,32 +1764,23 @@ export default function FluxoCaixaPage() {
                               </Badge>
                             ) : "-"}
                           </td>
-                          <td className={`py-3 px-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
-                            {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
-                          </td>
-                          <td className="py-3 px-2 text-sm" data-testid={`text-multa-juros-${item.id}`}>
-                            {(parseFloat(String(item.multa || 0)) > 0 || parseFloat(String(item.juros || 0)) > 0) ? (
-                              <span className="text-amber-600 font-medium">
-                                {formatBRL((parseFloat(String(item.multa || 0)) || 0) + (parseFloat(String(item.juros || 0)) || 0))}
-                              </span>
-                            ) : "-"}
-                          </td>
+                          {/* Anexos */}
                           <td className="py-3 px-2" data-testid={`text-anexos-${item.id}`}>
                             {item.anexos && item.anexos.length > 0 ? (
-                              <div className="flex items-center gap-1">
+                              <div className="flex flex-wrap items-center gap-1">
                                 {item.anexos.map((anexo: any, ai: number) => {
                                   const name = typeof anexo === "string" ? anexo : (anexo.filename || anexo.title || anexo.id);
                                   const href = typeof anexo === "string" ? anexo : anexo.url;
                                   const IconComp = getFileIcon(name);
                                   return (
                                     <a key={ai} href={href} target="_blank" rel="noopener noreferrer" title={name} data-testid={`link-anexo-${item.id}-${ai}`}>
-                                      <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-brand-gold/20 transition-colors">
+                                      <Button variant="outline" size="sm" className="h-7 px-2 gap-1 text-xs hover:bg-brand-gold/10 hover:border-brand-gold/40">
                                         <IconComp className="w-3 h-3" />
-                                      </Badge>
+                                        <span className="max-w-[80px] truncate">{name}</span>
+                                      </Button>
                                     </a>
                                   );
                                 })}
-                                <span className="text-xs text-muted-foreground ml-1">{item.anexos.length}</span>
                               </div>
                             ) : "-"}
                           </td>

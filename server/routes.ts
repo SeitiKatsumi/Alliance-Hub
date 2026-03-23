@@ -87,6 +87,47 @@ async function directusDelete(collection: string, id: string) {
   return true;
 }
 
+async function findOrCreateValorOrigemCategoria(): Promise<number> {
+  const cats = await directusFetch("Categorias", "fields=id,Nome_da_categoria");
+  const existing = cats.find((c: any) => c.Nome_da_categoria === "Valor de Origem");
+  if (existing) return existing.id;
+  const created = await directusCreate("Categorias", { Nome_da_categoria: "Valor de Origem" });
+  return created.id;
+}
+
+async function syncValorOrigemLancamento(biaId: string, valorOrigem: number): Promise<void> {
+  const today = new Date().toISOString().split("T")[0];
+  const descricaoMarca = "Valor de Origem da BIA";
+  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_eq]=${encodeURIComponent(descricaoMarca)}&fields=id,valor`;
+  const existing = await directusFetch("fluxo_caixa", params);
+
+  if (valorOrigem > 0) {
+    const catId = await findOrCreateValorOrigemCategoria();
+    if (existing.length > 0) {
+      const existingValor = parseFloat(existing[0].valor) || 0;
+      if (Math.abs(existingValor - valorOrigem) > 0.001) {
+        await directusUpdate("fluxo_caixa", existing[0].id, { valor: String(valorOrigem) });
+      }
+    } else {
+      await directusCreate("fluxo_caixa", {
+        bia: biaId,
+        tipo: "saida",
+        valor: String(valorOrigem),
+        data: today,
+        descricao: descricaoMarca,
+        data_vencimento: today,
+        status: "pendente",
+        Categoria: [{ categorias_id: catId }],
+        tipo_de_cpp: [],
+        Favorecido: [],
+        Anexos: [],
+      });
+    }
+  } else if (existing.length > 0) {
+    await directusDelete("fluxo_caixa", existing[0].id);
+  }
+}
+
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -276,6 +317,10 @@ export async function registerRoutes(
   app.post("/api/bias", async (req, res) => {
     try {
       const item = await directusCreate("bias_projetos", req.body);
+      const valorOrigem = parseFloat(req.body.valor_origem) || 0;
+      if (valorOrigem > 0) {
+        syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
+      }
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -285,6 +330,10 @@ export async function registerRoutes(
   app.patch("/api/bias/:id", async (req, res) => {
     try {
       const item = await directusUpdate("bias_projetos", req.params.id, req.body);
+      if (req.body.valor_origem !== undefined) {
+        const valorOrigem = parseFloat(req.body.valor_origem) || 0;
+        syncValorOrigemLancamento(req.params.id, valorOrigem).catch(console.error);
+      }
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

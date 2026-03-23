@@ -59,6 +59,7 @@ interface BiasProjeto {
   id: string;
   nome_bia: string;
   objetivo_alianca?: string;
+  valor_origem?: string | number | null;
 }
 
 interface Membro {
@@ -1371,7 +1372,25 @@ export default function FluxoCaixaPage() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(() => {
+              const valorOrigem = parseFloat(String(selectedBia?.valor_origem || 0)) || 0;
+              return (
+                <Card className="border-brand-gold/40 bg-brand-gold/5" data-testid="panel-valor-origem">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">Valor de Origem da BIA</CardTitle>
+                    <DollarSign className="w-4 h-4 text-brand-gold" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-brand-gold" data-testid="text-valor-origem">
+                      {formatBRL(valorOrigem)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Capital comprometido</p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <Card className="border-green-500/30" data-testid="panel-total-aportes">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                 <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>

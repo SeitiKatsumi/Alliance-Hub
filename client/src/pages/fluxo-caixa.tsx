@@ -100,6 +100,12 @@ interface AnexoFile {
   size?: number;
 }
 
+interface RateioItem {
+  id: string;
+  membroId: string;
+  valor: string;
+}
+
 type StatusPagamento = "pendente" | "pago" | "vencido" | "cancelado" | "parcial" | "agendado";
 
 interface FluxoCaixaItem {
@@ -336,6 +342,8 @@ function LancamentoFormFields({
   formCategorias, setFormCategorias,
   formMembro, setFormMembro,
   formFavorecido, setFormFavorecido,
+  rateioTipo, setRateioTipo,
+  rateioItems, setRateioItems,
   formTiposCpp, setFormTiposCpp,
   formStatus, setFormStatus,
   formDataVencimento, setFormDataVencimento,
@@ -348,6 +356,7 @@ function LancamentoFormFields({
   pendingFiles, setPendingFiles,
   existingAnexos, setExistingAnexos,
   uploading,
+  isCreate,
 }: {
   formTipo: "entrada" | "saida";
   setFormTipo: (v: "entrada" | "saida") => void;
@@ -363,6 +372,10 @@ function LancamentoFormFields({
   setFormMembro: (v: string) => void;
   formFavorecido: string;
   setFormFavorecido: (v: string) => void;
+  rateioTipo: "individual" | "grupo";
+  setRateioTipo: (v: "individual" | "grupo") => void;
+  rateioItems: RateioItem[];
+  setRateioItems: (items: RateioItem[]) => void;
   formTiposCpp: number | null;
   setFormTiposCpp: (v: number | null) => void;
   formStatus: StatusPagamento | "";
@@ -386,12 +399,28 @@ function LancamentoFormFields({
   existingAnexos: AnexoFile[];
   setExistingAnexos: (files: AnexoFile[]) => void;
   uploading: boolean;
+  isCreate?: boolean;
 }) {
   function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
     const formatted = formatInputBRL(raw);
     setFormValor(formatted);
   }
+
+  function addRateioItem() {
+    setRateioItems([...rateioItems, { id: String(Date.now() + Math.random()), membroId: "__none__", valor: "" }]);
+  }
+
+  function removeRateioItem(id: string) {
+    setRateioItems(rateioItems.filter((item) => item.id !== id));
+  }
+
+  function updateRateioItem(id: string, field: "membroId" | "valor", value: string) {
+    setRateioItems(rateioItems.map((item) => item.id === id ? { ...item, [field]: value } : item));
+  }
+
+  const totalRateado = rateioItems.reduce((acc, item) => acc + parseBRLToNumber(item.valor), 0);
+  const valorTotal = parseBRLToNumber(formValor);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files;
@@ -507,15 +536,100 @@ function LancamentoFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label>Favorecido</Label>
-        <SearchableMembroSelect
-          membros={membros}
-          value={formFavorecido}
-          onValueChange={setFormFavorecido}
-          placeholder="Selecione o favorecido..."
-          testId={`${prefix}-select-favorecido`}
-          allowNone
-        />
+        <div className="flex items-center justify-between">
+          <Label>Favorecido</Label>
+          {isCreate && (
+            <div className="flex gap-0.5 p-0.5 bg-muted rounded-md">
+              <button
+                type="button"
+                onClick={() => { setRateioTipo("individual"); }}
+                className={`px-2.5 py-1 text-xs rounded transition-all ${rateioTipo === "individual" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                data-testid={`${prefix}-rateio-individual`}
+              >
+                Individual
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRateioTipo("grupo"); if (rateioItems.length === 0) addRateioItem(); }}
+                className={`px-2.5 py-1 text-xs rounded transition-all ${rateioTipo === "grupo" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                data-testid={`${prefix}-rateio-grupo`}
+              >
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" />Em Grupo</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {(!isCreate || rateioTipo === "individual") ? (
+          <SearchableMembroSelect
+            membros={membros}
+            value={formFavorecido}
+            onValueChange={setFormFavorecido}
+            placeholder="Selecione o favorecido..."
+            testId={`${prefix}-select-favorecido`}
+            allowNone
+          />
+        ) : (
+          <div className="space-y-3">
+            {valorTotal > 0 && (
+              <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border ${Math.abs(totalRateado - valorTotal) < 0.01 ? "bg-green-50 border-green-200 text-green-700" : totalRateado > valorTotal ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
+                <span>Rateado: <strong>{formatBRL(totalRateado)}</strong></span>
+                <span>Valor total: <strong>{formatBRL(valorTotal)}</strong></span>
+                {Math.abs(totalRateado - valorTotal) < 0.01 && <span className="font-medium">✓ Balanceado</span>}
+                {totalRateado > valorTotal && <span className="font-medium">⚠ Excede valor total</span>}
+                {totalRateado < valorTotal && totalRateado > 0 && <span className="text-amber-600 font-medium">Diferença: {formatBRL(valorTotal - totalRateado)}</span>}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {rateioItems.map((item, idx) => (
+                <div key={item.id} className="flex gap-2 items-center">
+                  <div className="flex-1 min-w-0">
+                    <SearchableMembroSelect
+                      membros={membros}
+                      value={item.membroId}
+                      onValueChange={(v) => updateRateioItem(item.id, "membroId", v)}
+                      placeholder={`Favorecido ${idx + 1}...`}
+                      testId={`${prefix}-rateio-membro-${idx}`}
+                      allowNone
+                    />
+                  </div>
+                  <div className="w-28 shrink-0">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={item.valor}
+                      onChange={(e) => updateRateioItem(item.id, "valor", formatInputBRL(e.target.value))}
+                      placeholder="0,00"
+                      className="text-sm h-9"
+                      data-testid={`${prefix}-rateio-valor-${idx}`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeRateioItem(item.id)}
+                    className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                    data-testid={`${prefix}-rateio-remove-${idx}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addRateioItem}
+              className="w-full border-dashed"
+              data-testid={`${prefix}-rateio-adicionar`}
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Adicionar Favorecido
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -702,6 +816,8 @@ export default function FluxoCaixaPage() {
   const [formCategorias, setFormCategorias] = useState<number | null>(null);
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
+  const [rateioTipo, setRateioTipo] = useState<"individual" | "grupo">("individual");
+  const [rateioItems, setRateioItems] = useState<RateioItem[]>([]);
   const [formTiposCpp, setFormTiposCpp] = useState<number | null>(null);
   const [formStatus, setFormStatus] = useState<StatusPagamento | "">("");
   const [formDataVencimento, setFormDataVencimento] = useState<string>("");
@@ -891,14 +1007,27 @@ export default function FluxoCaixaPage() {
       setUploading(true);
       try {
         const newFileIds = await uploadFiles(pendingFiles);
-        await apiRequest("POST", "/api/fluxo-caixa", buildPayload(newFileIds));
+        if (rateioTipo === "grupo" && rateioItems.length > 0) {
+          const base = buildPayload(newFileIds);
+          for (const item of rateioItems) {
+            const payload = {
+              ...base,
+              valor: parseBRLToNumber(item.valor),
+              Favorecido: item.membroId && item.membroId !== "__none__" ? [item.membroId] : [],
+            };
+            await apiRequest("POST", "/api/fluxo-caixa", payload);
+          }
+        } else {
+          await apiRequest("POST", "/api/fluxo-caixa", buildPayload(newFileIds));
+        }
       } finally {
         setUploading(false);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
-      toast({ title: "Lançamento criado com sucesso" });
+      const count = rateioTipo === "grupo" ? rateioItems.length : 1;
+      toast({ title: count > 1 ? `${count} lançamentos criados com sucesso` : "Lançamento criado com sucesso" });
       resetForm();
       setDialogOpen(false);
     },
@@ -952,6 +1081,8 @@ export default function FluxoCaixaPage() {
     setFormCategorias(null);
     setFormMembro("");
     setFormFavorecido("__none__");
+    setRateioTipo("individual");
+    setRateioItems([]);
     setFormTiposCpp(null);
     setFormStatus("");
     setFormDataVencimento("");
@@ -1018,6 +1149,22 @@ export default function FluxoCaixaPage() {
     if (formTipo === "entrada" && !formMembro) {
       toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
       return;
+    }
+    if (rateioTipo === "grupo") {
+      if (rateioItems.length === 0) {
+        toast({ title: "Adicione pelo menos um favorecido no rateio", variant: "destructive" });
+        return;
+      }
+      for (const item of rateioItems) {
+        if (!item.membroId || item.membroId === "__none__") {
+          toast({ title: "Selecione o membro para todos os itens do rateio", variant: "destructive" });
+          return;
+        }
+        if (!item.valor || parseBRLToNumber(item.valor) <= 0) {
+          toast({ title: "Informe o valor para todos os itens do rateio", variant: "destructive" });
+          return;
+        }
+      }
     }
     createMutation.mutate();
   }
@@ -1121,6 +1268,8 @@ export default function FluxoCaixaPage() {
                   formCategorias={formCategorias} setFormCategorias={setFormCategorias}
                   formMembro={formMembro} setFormMembro={setFormMembro}
                   formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
+                  rateioTipo={rateioTipo} setRateioTipo={setRateioTipo}
+                  rateioItems={rateioItems} setRateioItems={setRateioItems}
                   formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
                   formStatus={formStatus} setFormStatus={setFormStatus}
                   formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
@@ -1134,6 +1283,7 @@ export default function FluxoCaixaPage() {
                   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
                   existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
                   uploading={uploading}
+                  isCreate
                 />
                 <DialogFooter>
                   <DialogClose asChild>
@@ -1688,6 +1838,8 @@ export default function FluxoCaixaPage() {
                 formCategorias={formCategorias} setFormCategorias={setFormCategorias}
                 formMembro={formMembro} setFormMembro={setFormMembro}
                 formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
+                rateioTipo={rateioTipo} setRateioTipo={setRateioTipo}
+                rateioItems={rateioItems} setRateioItems={setRateioItems}
                 formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
                 formStatus={formStatus} setFormStatus={setFormStatus}
                 formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}

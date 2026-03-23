@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -332,6 +333,127 @@ function SearchableMembroSelect({
   );
 }
 
+function CategoriaCombobox({
+  categorias,
+  value,
+  onValueChange,
+  formTipo,
+  prefix,
+}: {
+  categorias: CategoriaItem[];
+  value: number | null;
+  onValueChange: (v: number | null) => void;
+  formTipo: string;
+  prefix: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const { toast } = useToast();
+
+  const filtered = useMemo(() => {
+    const base = categorias.filter((cat) => {
+      if (!cat.Tipo_de_categoria) return true;
+      const norm = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return norm === formTipo;
+    });
+    const sorted = [...base].sort((a, b) => a.Nome_da_categoria.localeCompare(b.Nome_da_categoria, "pt-BR"));
+    if (!search.trim()) return sorted;
+    const s = search.toLowerCase();
+    return sorted.filter((c) => c.Nome_da_categoria.toLowerCase().includes(s));
+  }, [categorias, formTipo, search]);
+
+  const selected = categorias.find((c) => c.id === value);
+  const exactMatch = filtered.some((c) => c.Nome_da_categoria.toLowerCase() === search.toLowerCase());
+
+  async function handleCreate() {
+    if (!search.trim()) return;
+    setCreating(true);
+    try {
+      const res = await apiRequest("POST", "/api/categorias", { Nome_da_categoria: search.trim() });
+      const created: CategoriaItem = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/categorias"] });
+      onValueChange(created.id);
+      setSearch("");
+      setOpen(false);
+      toast({ title: `Categoria "${created.Nome_da_categoria}" criada!` });
+    } catch {
+      toast({ title: "Erro ao criar categoria", variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-testid={`${prefix}-select-categoria`}
+          className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className={selected ? "" : "text-muted-foreground"}>
+            {selected ? selected.Nome_da_categoria : "Nenhuma"}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[280px]" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Buscar categoria..."
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandGroup>
+              <CommandItem
+                value="__none__"
+                onSelect={() => { onValueChange(null); setSearch(""); setOpen(false); }}
+              >
+                <Check className={`mr-2 h-4 w-4 ${value === null ? "opacity-100" : "opacity-0"}`} />
+                Nenhuma
+              </CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Categorias">
+              {filtered.length === 0 && !search && (
+                <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+              )}
+              {filtered.map((cat) => (
+                <CommandItem
+                  key={cat.id}
+                  value={String(cat.id)}
+                  onSelect={() => { onValueChange(cat.id); setSearch(""); setOpen(false); }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${value === cat.id ? "opacity-100" : "opacity-0"}`} />
+                  {cat.Nome_da_categoria}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {search.trim() && !exactMatch && (
+              <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem
+                    value="__create__"
+                    onSelect={handleCreate}
+                    disabled={creating}
+                    className="text-brand-gold cursor-pointer"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {creating ? "Criando..." : `Criar "${search.trim()}"`}
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function LancamentoFormFields({
   formTipo, setFormTipo,
   formValor, setFormValor,
@@ -486,28 +608,13 @@ function LancamentoFormFields({
 
       <div className="space-y-2">
         <Label>Categoria</Label>
-        <Select
-          value={formCategorias != null ? String(formCategorias) : "__none__"}
-          onValueChange={(v) => setFormCategorias(v === "__none__" ? null : parseInt(v, 10))}
-        >
-          <SelectTrigger data-testid={`${prefix}-select-categoria`}>
-            <SelectValue placeholder="Selecione uma categoria..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Nenhuma</SelectItem>
-            {categorias
-              .filter((cat) => {
-                if (!cat.Tipo_de_categoria) return true;
-                const normalized = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return normalized === formTipo;
-              })
-              .map((cat) => (
-                <SelectItem key={cat.id} value={String(cat.id)}>
-                  {cat.Nome_da_categoria}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+        <CategoriaCombobox
+          categorias={categorias}
+          value={formCategorias}
+          onValueChange={setFormCategorias}
+          formTipo={formTipo}
+          prefix={prefix}
+        />
       </div>
 
       <div className="space-y-2">

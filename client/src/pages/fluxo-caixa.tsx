@@ -916,6 +916,9 @@ export default function FluxoCaixaPage() {
     queryKey: ["/api/fluxo-caixa"],
   });
 
+  const MARCA_VALOR_ORIGEM = "Valor de Origem da BIA";
+  const isValorOrigemAuto = (item: FluxoCaixaItem) => item.descricao === MARCA_VALOR_ORIGEM;
+
   const fluxoItemsAll = useMemo(() => {
     if (!selectedBiaId) return [];
     return allFluxo
@@ -925,6 +928,11 @@ export default function FluxoCaixaPage() {
       })
       .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
   }, [allFluxo, selectedBiaId]);
+
+  // itens que entram no fluxo de caixa (excluindo o lançamento automático de Valor de Origem)
+  const fluxoItemsContabeis = useMemo(() => {
+    return fluxoItemsAll.filter((item) => !isValorOrigemAuto(item));
+  }, [fluxoItemsAll]);
 
   const fluxoItems = useMemo(() => {
     return fluxoItemsAll.filter((item) => {
@@ -960,10 +968,11 @@ export default function FluxoCaixaPage() {
   }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
 
   const totals = useMemo(() => {
-    const entradas = fluxoItems
+    const contabeis = fluxoItems.filter((i) => !isValorOrigemAuto(i));
+    const entradas = contabeis
       .filter((i) => i.tipo === "entrada")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
-    const saidas = fluxoItems
+    const saidas = contabeis
       .filter((i) => i.tipo === "saida")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
@@ -973,7 +982,7 @@ export default function FluxoCaixaPage() {
   const in7days = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
 
   const financialDashboard = useMemo(() => {
-    const allBia = fluxoItemsAll;
+    const allBia = fluxoItemsContabeis;
     const contasPagar = allBia.filter(
       (i) => i.tipo === "saida" && (i.status === "pendente" || i.status === "agendado" || !i.status)
         && !isVencido(i)
@@ -1374,7 +1383,15 @@ export default function FluxoCaixaPage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {(() => {
-              const valorOrigem = parseFloat(String(selectedBia?.valor_origem || 0)) || 0;
+              const valorOrigemTotal = parseFloat(String(selectedBia?.valor_origem || 0)) || 0;
+              const catValorOrigem = categorias.find((c) => c.Nome_da_categoria === "Valor de Origem");
+              const valorOrigemPago = fluxoItemsContabeis
+                .filter((i) => i.tipo === "entrada" && i.Categoria.some((c) => {
+                  const id = typeof c === "object" && c !== null ? (c as CategoriaItem).id : c;
+                  return catValorOrigem && id === catValorOrigem.id;
+                }))
+                .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
+              const percPago = valorOrigemTotal > 0 ? Math.min(100, (valorOrigemPago / valorOrigemTotal) * 100) : 0;
               return (
                 <Card className="border-brand-gold/40 bg-brand-gold/5" data-testid="panel-valor-origem">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
@@ -1383,9 +1400,11 @@ export default function FluxoCaixaPage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-2xl font-bold text-brand-gold" data-testid="text-valor-origem">
-                      {formatBRL(valorOrigem)}
+                      {formatBRL(valorOrigemPago)}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Capital comprometido</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      de {formatBRL(valorOrigemTotal)} ({percPago.toFixed(0)}% pago)
+                    </p>
                   </CardContent>
                 </Card>
               );

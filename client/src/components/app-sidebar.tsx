@@ -20,12 +20,11 @@ import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1774284078992.p
 
 const adminSubItems = [
   { title: "Membros", url: "/membros", icon: Users },
-  { title: "Calculadora DM", url: "/bias-calculadora", icon: Calculator },
 ];
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const isBiasSection = location === "/bias" || location === "/fluxo-caixa";
+  const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa");
   const [adminOpen, setAdminOpen] = useState(false);
@@ -105,6 +104,16 @@ export function AppSidebar() {
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
+                      </SidebarMenuSubItem>
+
+                      {/* Calculadora DM — abaixo do Núcleo de Capital */}
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/bias-calculadora"} data-testid="nav-bias-calculadora" className="text-xs">
+                          <Link href="/bias-calculadora">
+                            <Calculator className="w-3 h-3" />
+                            <span>Calculadora DM</span>
+                          </Link>
+                        </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>

@@ -194,7 +194,6 @@ export default function BiasCalculadoraPage() {
             </div>
             Calculadora DM
           </h1>
-          <p className="text-muted-foreground mt-1">Gestão financeira das alianças</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -219,7 +218,7 @@ export default function BiasCalculadoraPage() {
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            Salvar no Directus
+            Atualizar valores na BIA
           </Button>
         </div>
       </div>

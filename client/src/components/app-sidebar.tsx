@@ -18,16 +18,11 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1774284078992.png";
 
-const adminSubItems = [
-  { title: "Membros", url: "/membros", icon: Users },
-];
-
 export function AppSidebar() {
   const [location] = useLocation();
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa");
-  const [adminOpen, setAdminOpen] = useState(false);
 
   return (
     <Sidebar>
@@ -139,39 +134,6 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-
-              {/* Administração */}
-              <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
-                <SidebarMenuItem>
-                  <div className="flex items-center">
-                    <SidebarMenuButton asChild isActive={location === "/admin"} className="flex-1 text-sm" data-testid="nav-admin">
-                      <Link href="/admin">
-                        <Settings className="w-3.5 h-3.5" />
-                        <span>Administração</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    <CollapsibleTrigger asChild>
-                      <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors" data-testid="toggle-admin-menu">
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${adminOpen ? "rotate-180" : ""}`} />
-                      </button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {adminSubItems.map((item) => (
-                        <SidebarMenuSubItem key={item.title}>
-                          <SidebarMenuSubButton asChild isActive={location === item.url} data-testid={`nav-${item.url.replace("/", "")}`} className="text-xs">
-                            <Link href={item.url}>
-                              <item.icon className="w-3 h-3" />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
 
             </SidebarMenu>
           </SidebarGroupContent>

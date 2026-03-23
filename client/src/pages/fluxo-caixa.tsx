@@ -1081,7 +1081,7 @@ export default function FluxoCaixaPage() {
             <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
               <Wallet className="w-6 h-6" />
             </div>
-            Fluxo de Caixa
+            Gestão Financeira
           </h1>
           <p className="text-muted-foreground mt-1">Gestão de entradas e saídas por BIA</p>
         </div>

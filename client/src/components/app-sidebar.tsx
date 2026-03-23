@@ -21,7 +21,7 @@ import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1772135999372.png"
 const dashboardSubItems = [
   { title: "BIAs", url: "/bias", icon: Briefcase },
   { title: "OPAs", url: "/opas", icon: Target },
-  { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: Wallet },
+  { title: "Gestão Financeira", url: "/fluxo-caixa", icon: Wallet },
   { title: "Aura", url: "/aura", icon: Sparkles },
 ];
 

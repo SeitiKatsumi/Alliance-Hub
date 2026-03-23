@@ -16,7 +16,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1772135999372.png";
+import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1774284078992.png";
 
 const adminSubItems = [
   { title: "Membros", url: "/membros", icon: Users },
@@ -34,7 +34,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-3 border-b border-sidebar-border">
         <div className="flex items-center justify-center">
-          <img src={builtLogo} alt="Built Alliances" className="h-10 w-auto max-w-[160px]" />
+          <img src={builtLogo} alt="Built Alliances" className="h-16 w-auto max-w-[200px]" />
         </div>
       </SidebarHeader>
 

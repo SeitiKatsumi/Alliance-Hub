@@ -892,8 +892,8 @@ export default function FluxoCaixaPage() {
         const hasCpp = cppArr.some((c) => String(getRelId(c as any)) === filterTipoCpp);
         if (!hasCpp) return false;
       }
-      if (filterDataDe && item.data && item.data < filterDataDe) return false;
-      if (filterDataAte && item.data && item.data > filterDataAte) return false;
+      if (filterDataDe && item.data_vencimento && item.data_vencimento < filterDataDe) return false;
+      if (filterDataAte && item.data_vencimento && item.data_vencimento > filterDataAte) return false;
       if (filterStatus !== "todos") {
         const effectiveStatus = isVencido(item) ? "vencido" : (item.status || "pendente");
         if (effectiveStatus !== filterStatus) return false;
@@ -1625,7 +1625,7 @@ export default function FluxoCaixaPage() {
               <div className="flex flex-wrap items-end gap-2 mt-2">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="w-3 h-3" /> Período — De
+                    <CalendarClock className="w-3 h-3" /> Vencimento — De
                   </Label>
                   <Input
                     type="date"

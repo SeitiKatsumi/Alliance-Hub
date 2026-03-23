@@ -1171,7 +1171,7 @@ export default function FluxoCaixaPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-green-500/30" data-testid="panel-total-aportes">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Aportes</CardTitle>
+                <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>
                 <TrendingUp className="w-4 h-4 text-green-500" />
               </CardHeader>
               <CardContent>
@@ -1184,7 +1184,7 @@ export default function FluxoCaixaPage() {
 
             <Card className="border-red-500/30" data-testid="panel-custo-obra">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Custo da Obra</CardTitle>
+                <CardTitle className="text-sm font-medium">Total de Saídas</CardTitle>
                 <TrendingDown className="w-4 h-4 text-red-500" />
               </CardHeader>
               <CardContent>

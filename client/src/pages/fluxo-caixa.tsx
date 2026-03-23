@@ -659,7 +659,7 @@ function LancamentoFormFields({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Status do Pagamento</Label>
+            <Label className="flex items-center gap-1">Status do Pagamento <span className="text-red-500 text-xs">*obrigatório</span></Label>
             <Select
               value={formStatus || "__none__"}
               onValueChange={(v) => setFormStatus(v === "__none__" ? "" : v as StatusPagamento)}
@@ -1150,6 +1150,10 @@ export default function FluxoCaixaPage() {
       toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
       return;
     }
+    if (!formStatus) {
+      toast({ title: "Selecione o status do pagamento", variant: "destructive" });
+      return;
+    }
     if (rateioTipo === "grupo") {
       if (rateioItems.length === 0) {
         toast({ title: "Adicione pelo menos um favorecido no rateio", variant: "destructive" });
@@ -1181,6 +1185,10 @@ export default function FluxoCaixaPage() {
     }
     if (formTipo === "entrada" && !formMembro) {
       toast({ title: "Entradas precisam de um membro responsável", variant: "destructive" });
+      return;
+    }
+    if (!formStatus) {
+      toast({ title: "Selecione o status do pagamento", variant: "destructive" });
       return;
     }
     updateMutation.mutate(editingItemId);
@@ -1704,11 +1712,31 @@ export default function FluxoCaixaPage() {
                               </Badge>
                             )}
                           </td>
+                          <td className="py-3 px-2" data-testid={`text-status-${item.id}`}>
+                            {(() => {
+                              const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "vencido" : (item.status || null);
+                              const { label, color, Icon } = getStatusConfig(effective as StatusPagamento | null);
+                              return (
+                                <Badge variant="outline" className={`gap-1 ${color}`}>
+                                  <Icon className="w-3 h-3" />
+                                  {label}
+                                </Badge>
+                              );
+                            })()}
+                          </td>
                           <td className="py-3 px-2 text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               {formatDate(item.data)}
                             </span>
+                          </td>
+                          <td className="py-3 px-2 text-muted-foreground text-sm" data-testid={`text-vencimento-${item.id}`}>
+                            {item.data_vencimento ? (
+                              <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "text-red-500 font-medium" : ""}`}>
+                                <CalendarClock className="w-3 h-3" />
+                                {formatDate(item.data_vencimento)}
+                              </span>
+                            ) : "-"}
                           </td>
                           <td className="py-3 px-2" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           <td className="py-3 px-2">
@@ -1770,6 +1798,13 @@ export default function FluxoCaixaPage() {
                           </td>
                           <td className={`py-3 px-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
                             {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
+                          </td>
+                          <td className="py-3 px-2 text-sm" data-testid={`text-multa-juros-${item.id}`}>
+                            {(parseFloat(String(item.multa || 0)) > 0 || parseFloat(String(item.juros || 0)) > 0) ? (
+                              <span className="text-amber-600 font-medium">
+                                {formatBRL((parseFloat(String(item.multa || 0)) || 0) + (parseFloat(String(item.juros || 0)) || 0))}
+                              </span>
+                            ) : "-"}
                           </td>
                           <td className="py-3 px-2" data-testid={`text-anexos-${item.id}`}>
                             {item.anexos && item.anexos.length > 0 ? (

@@ -352,7 +352,7 @@ export async function registerRoutes(
   // ========== FLUXO DE CAIXA (from Directus) ==========
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
-      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Favorecidos.cadastro_geral_id.*,Anexos.directus_files_id.*");
+      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*");
       const mapped = items.map((f: any) => {
         const anexos = (f.Anexos || []).map((a: any) => {
           if (a && a.directus_files_id) {
@@ -398,12 +398,7 @@ export async function registerRoutes(
           responsavel_multa_juros: f.responsavel_multa_juros || null,
           Categoria: categorias,
           tipo_de_cpp: tiposCpp,
-          Favorecido: (f.Favorecidos || []).map((fav: any) => {
-            if (fav && typeof fav === "object" && fav.cadastro_geral_id && typeof fav.cadastro_geral_id === "object") {
-              return fav.cadastro_geral_id;
-            }
-            return fav;
-          }),
+          Favorecido: f.favorecido_id ? [{ id: f.favorecido_id }] : [],
           anexos,
         };
       });
@@ -440,7 +435,7 @@ export async function registerRoutes(
         responsavel_multa_juros: body.responsavel_multa_juros || null,
         Categoria: toM2MCategorias(body.Categoria || []),
         tipo_de_cpp: toM2MTiposCpp(body.tipo_de_cpp || []),
-        Favorecidos: (body.Favorecido || []).map((id: any) => ({ cadastro_geral_id: id })),
+        favorecido_id: (body.Favorecido || [])[0] || null,
         Anexos: anexosPayload.length > 0 ? anexosPayload : [],
       };
       const item = await directusCreate("fluxo_caixa", data);
@@ -474,7 +469,7 @@ export async function registerRoutes(
           typeof id === "object" ? id : { tipos_cpp_id: id }
         );
       if (body.Favorecido !== undefined)
-        data.Favorecidos = (body.Favorecido || []).map((id: any) => ({ cadastro_geral_id: id }));
+        data.favorecido_id = (body.Favorecido || [])[0] || null;
       if (body.anexos !== undefined) {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const validIds: string[] = (body.anexos || []).filter((id: string) => uuidRegex.test(id));
@@ -494,7 +489,7 @@ export async function registerRoutes(
       await directusUpdate("fluxo_caixa", req.params.id, {
         Categoria: [],
         tipo_de_cpp: [],
-        Favorecidos: [],
+        favorecido_id: null,
         Anexos: [],
       });
       await directusDelete("fluxo_caixa", req.params.id);

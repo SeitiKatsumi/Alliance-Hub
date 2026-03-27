@@ -352,7 +352,7 @@ export async function registerRoutes(
   // ========== FLUXO DE CAIXA (from Directus) ==========
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
-      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Favorecido.*,Anexos.directus_files_id.*");
+      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Favorecido.cadastro_geral_id.*,Anexos.directus_files_id.*");
       const mapped = items.map((f: any) => {
         const anexos = (f.Anexos || []).map((a: any) => {
           if (a && a.directus_files_id) {
@@ -398,7 +398,12 @@ export async function registerRoutes(
           responsavel_multa_juros: f.responsavel_multa_juros || null,
           Categoria: categorias,
           tipo_de_cpp: tiposCpp,
-          Favorecido: f.Favorecido || [],
+          Favorecido: (f.Favorecido || []).map((fav: any) => {
+            if (fav && typeof fav === "object" && fav.cadastro_geral_id && typeof fav.cadastro_geral_id === "object") {
+              return fav.cadastro_geral_id;
+            }
+            return fav;
+          }),
           anexos,
         };
       });
@@ -420,6 +425,9 @@ export async function registerRoutes(
         ids.map((id: any) => (typeof id === "object" ? id : { categorias_id: id }));
       const toM2MTiposCpp = (ids: any[]) =>
         ids.map((id: any) => (typeof id === "object" ? id : { tipos_cpp_id: id }));
+      // Favorecido usa junction cadastro_geral_id — nunca enviar UUID cru (causa "roubo" de registro)
+      const toM2MFavorecido = (ids: any[]) =>
+        ids.map((id: any) => (typeof id === "object" && id !== null && id.cadastro_geral_id ? id : { cadastro_geral_id: id }));
       const data: Record<string, any> = {
         bia: body.bia || body.bia_id || null,
         tipo: body.tipo,
@@ -435,7 +443,7 @@ export async function registerRoutes(
         responsavel_multa_juros: body.responsavel_multa_juros || null,
         Categoria: toM2MCategorias(body.Categoria || []),
         tipo_de_cpp: toM2MTiposCpp(body.tipo_de_cpp || []),
-        Favorecido: body.Favorecido || [],
+        Favorecido: toM2MFavorecido(body.Favorecido || []),
         Anexos: anexosPayload.length > 0 ? anexosPayload : [],
       };
       const item = await directusCreate("fluxo_caixa", data);
@@ -468,7 +476,10 @@ export async function registerRoutes(
         data.tipo_de_cpp = (body.tipo_de_cpp || []).map((id: any) =>
           typeof id === "object" ? id : { tipos_cpp_id: id }
         );
-      if (body.Favorecido !== undefined) data.Favorecido = body.Favorecido;
+      if (body.Favorecido !== undefined)
+        data.Favorecido = (body.Favorecido || []).map((id: any) =>
+          typeof id === "object" && id !== null && id.cadastro_geral_id ? id : { cadastro_geral_id: id }
+        );
       if (body.anexos !== undefined) {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const validIds: string[] = (body.anexos || []).filter((id: string) => uuidRegex.test(id));

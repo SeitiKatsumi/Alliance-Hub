@@ -187,8 +187,12 @@ function getCppName(cpp: TipoCPP | number, cppMap: Record<number, string>): stri
 }
 
 function getFavName(fav: Membro | string, membroMap: Record<string, string>): string {
-  if (typeof fav === "object" && fav !== null) return getMembroNome(fav as Membro);
-  return membroMap[fav] || "Membro";
+  if (typeof fav === "object" && fav !== null) {
+    const f = fav as any;
+    if (f.Nome_de_usuario || f.nome || f.nome_completo || f.primeiro_nome) return getMembroNome(fav as Membro);
+    return membroMap[f.id] || "";
+  }
+  return membroMap[fav as string] || "";
 }
 
 function getCatName(cat: CategoriaItem | number, catMap: Record<number, string>): string {

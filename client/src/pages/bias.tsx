@@ -630,9 +630,9 @@ function BrazilMapHeader({ biasAll, membros }: { biasAll: BiasProjeto[]; membros
                   key={geo.rsmKey}
                   geography={geo}
                   style={{
-                    default: { fill: "#010f22", stroke: "#D7BB7D0D", strokeWidth: 0.2, outline: "none" },
-                    hover:   { fill: "#010f22", stroke: "#D7BB7D0D", strokeWidth: 0.2, outline: "none" },
-                    pressed: { fill: "#010f22", outline: "none" },
+                    default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                    hover:   { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                    pressed: { fill: "#011630", outline: "none" },
                   }}
                 />
               ))

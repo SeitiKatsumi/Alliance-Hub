@@ -30,7 +30,7 @@ import {
   Navigation, Crosshair, Loader2
 } from "lucide-react";
 import {
-  ComposableMap, Geographies, Geography, Marker
+  ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 
 const BRAZIL_GEO = "/brazil-states.json";
@@ -506,25 +506,34 @@ function LocationField({ form, setForm, onPickerOpen }: {
 }
 
 // ---- Brazil Map Header ----
+const WORLD_GEO = "/world-countries-50m.json";
+
 function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
   const [hoveredBia, setHoveredBia] = useState<BiasProjeto | null>(null);
+  const [zoom, setZoom] = useState(3);
+  const [center, setCenter] = useState<[number, number]>([-52, -15]);
+
   const biasWithCoords = useMemo(
     () => biasAll.filter(b => b.latitude != null && b.longitude != null),
     [biasAll]
   );
   const totalVgv = biasAll.reduce((s, b) => s + n(b.valor_geral_venda_vgv), 0);
 
+  const handleZoomIn = () => setZoom(z => Math.min(z * 1.5, 16));
+  const handleZoomOut = () => setZoom(z => Math.max(z / 1.5, 1));
+  const handleReset = () => { setZoom(3); setCenter([-52, -15]); };
+
   return (
     <div
       className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
-      style={{ height: 400, background: "radial-gradient(ellipse at 50% 120%, #001830 0%, #000b14 60%, #000508 100%)" }}
+      style={{ height: 440, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       {/* Grid overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(215,187,125,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.06) 1px, transparent 1px)",
+            "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
           backgroundSize: "50px 50px",
         }}
       />
@@ -565,54 +574,112 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
         <p className="text-[9px] text-brand-gold/30 mt-2">{biasWithCoords.length} geolocalizadas</p>
       </div>
 
+      {/* Zoom controls */}
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">
+        <button
+          onClick={handleZoomIn}
+          className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
+          data-testid="btn-map-zoom-in"
+          title="Ampliar"
+        >+</button>
+        <button
+          onClick={handleReset}
+          className="w-7 h-7 flex items-center justify-center rounded border font-mono text-[9px] font-bold transition-colors"
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.2)", color: "#D7BB7D80" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.1)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
+          data-testid="btn-map-reset"
+          title="Resetar zoom"
+        >⊙</button>
+        <button
+          onClick={handleZoomOut}
+          className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
+          data-testid="btn-map-zoom-out"
+          title="Reduzir"
+        >−</button>
+      </div>
+
       {/* Map */}
       <ComposableMap
         projection="geoMercator"
-        projectionConfig={{ center: [-52, -15], scale: 670 }}
+        projectionConfig={{ center: [0, 10], scale: 160 }}
         style={{ width: "100%", height: "100%" }}
       >
-        <Geographies geography={BRAZIL_GEO}>
-          {({ geographies }) =>
-            geographies.map((geo) => (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                style={{
-                  default: { fill: "#011e38", stroke: "#D7BB7D50", strokeWidth: 0.6, outline: "none" },
-                  hover: { fill: "#013060", stroke: "#D7BB7D80", strokeWidth: 0.8, outline: "none" },
-                  pressed: { fill: "#011e38", outline: "none" },
-                }}
-              />
-            ))
-          }
-        </Geographies>
+        <ZoomableGroup
+          zoom={zoom}
+          center={center}
+          minZoom={1}
+          maxZoom={16}
+          onMoveEnd={({ coordinates, zoom: z }) => {
+            setCenter(coordinates);
+            setZoom(z);
+          }}
+        >
+          {/* World layer — subtle background */}
+          <Geographies geography={WORLD_GEO}>
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  style={{
+                    default: { fill: "#011228", stroke: "#D7BB7D18", strokeWidth: 0.4, outline: "none" },
+                    hover:   { fill: "#011228", stroke: "#D7BB7D18", strokeWidth: 0.4, outline: "none" },
+                    pressed: { fill: "#011228", outline: "none" },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
 
-        {biasWithCoords.map((b) => {
-          const lng = parseFloat(String(b.longitude));
-          const lat = parseFloat(String(b.latitude));
-          const isHovered = hoveredBia?.id === b.id;
-          return (
-            <Marker
-              key={b.id}
-              coordinates={[lng, lat]}
-              onMouseEnter={() => setHoveredBia(b)}
-              onMouseLeave={() => setHoveredBia(null)}
-            >
-              <g style={{ cursor: "pointer" }}>
-                {/* Outer ping ring */}
-                <circle r={isHovered ? 20 : 16} fill="#D7BB7D" fillOpacity={0.06}>
-                  <animate attributeName="r" from={isHovered ? 16 : 12} to={isHovered ? 28 : 22} dur="1.6s" repeatCount="indefinite" />
-                  <animate attributeName="fill-opacity" from="0.3" to="0" dur="1.6s" repeatCount="indefinite" />
-                </circle>
-                {/* Mid ring */}
-                <circle r={isHovered ? 10 : 8} fill="#D7BB7D" fillOpacity={isHovered ? 0.25 : 0.15} />
-                {/* Core dot */}
-                <circle r={isHovered ? 5 : 4} fill="#D7BB7D" fillOpacity={0.95} />
-                <circle r={isHovered ? 2.5 : 2} fill="white" fillOpacity={0.9} />
-              </g>
-            </Marker>
-          );
-        })}
+          {/* Brazil states — highlighted on top */}
+          <Geographies geography={BRAZIL_GEO}>
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  style={{
+                    default: { fill: "#012244", stroke: "#D7BB7D55", strokeWidth: 0.7, outline: "none" },
+                    hover:   { fill: "#013570", stroke: "#D7BB7D90", strokeWidth: 0.9, outline: "none" },
+                    pressed: { fill: "#012244", outline: "none" },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+
+          {biasWithCoords.map((b) => {
+            const lng = parseFloat(String(b.longitude));
+            const lat = parseFloat(String(b.latitude));
+            const isHovered = hoveredBia?.id === b.id;
+            const r = Math.max(2, 5 / zoom);
+            return (
+              <Marker
+                key={b.id}
+                coordinates={[lng, lat]}
+                onMouseEnter={() => setHoveredBia(b)}
+                onMouseLeave={() => setHoveredBia(null)}
+              >
+                <g style={{ cursor: "pointer" }}>
+                  <circle r={r * (isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={0.06}>
+                    <animate attributeName="r" from={r * (isHovered ? 3 : 2.5)} to={r * (isHovered ? 6 : 5)} dur="1.6s" repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.3" to="0" dur="1.6s" repeatCount="indefinite" />
+                  </circle>
+                  <circle r={r * (isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isHovered ? 0.3 : 0.18} />
+                  <circle r={r * (isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * 0.6} fill="white" fillOpacity={0.9} />
+                </g>
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
       </ComposableMap>
 
       {/* Hover info bar */}

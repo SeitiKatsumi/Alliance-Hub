@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
 import OportunidadesPage from "@/pages/oportunidades";
 import BiasPage from "@/pages/bias";
+import BiaDetalhePage from "@/pages/bia-detalhe";
 import MembrosPage from "@/pages/membros";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
@@ -79,6 +80,7 @@ function ProtectedApp() {
           <main className="flex-1 overflow-auto bg-background">
             <Switch>
               <Route path="/" component={PainelPage} />
+              <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />
               <Route path="/opas" component={OportunidadesPage} />
               <Route path="/bias-calculadora" component={BiasCalculadoraPage} />

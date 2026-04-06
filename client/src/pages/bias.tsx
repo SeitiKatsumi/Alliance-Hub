@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -521,6 +522,7 @@ function LocationField({ form, setForm, onPickerOpen }: {
 const WORLD_GEO = "/world-countries-50m.json";
 
 function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; membros: Membro[]; opas: Oportunidade[] }) {
+  const [, navigate] = useLocation();
   const [hoveredBia, setHoveredBia] = useState<BiasProjeto | null>(null);
   const [selectedBia, setSelectedBia] = useState<BiasProjeto | null>(null);
   const [zoom, setZoom] = useState(3);
@@ -680,7 +682,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                 coordinates={[lng, lat]}
                 onMouseEnter={() => setHoveredBia(b)}
                 onMouseLeave={() => setHoveredBia(null)}
-                onClick={() => setSelectedBia(prev => prev?.id === b.id ? null : b)}
+                onClick={() => navigate(`/bias/${b.id}`)}
               >
                 <g style={{ cursor: "pointer" }}>
                   <circle r={r * (isSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected ? 0.12 : 0.06}>
@@ -881,6 +883,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
   bia: BiasProjeto; membros: Membro[]; opas: Oportunidade[];
   onEdit: () => void; onDelete: () => void;
 }) {
+  const [, navigate] = useLocation();
   const membroMap = useMemo(() => {
     const map: Record<string, string> = {};
     membros.forEach((m) => { map[m.id] = getMembroNome(m); });
@@ -897,7 +900,11 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
   const autorBia = bia.autor_bia ? membroMap[bia.autor_bia] : null;
 
   return (
-    <Card className="hover:border-brand-gold/40 transition-colors group" data-testid={`card-bia-${bia.id}`}>
+    <Card
+      className="hover:border-brand-gold/40 transition-colors group cursor-pointer"
+      data-testid={`card-bia-${bia.id}`}
+      onClick={() => navigate(`/bias/${bia.id}`)}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -916,10 +923,10 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
             )}
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onEdit} data-testid={`btn-edit-bia-${bia.id}`}>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit(); }} data-testid={`btn-edit-bia-${bia.id}`}>
               <Pencil className="w-3.5 h-3.5" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onDelete} data-testid={`btn-delete-bia-${bia.id}`}>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }} data-testid={`btn-delete-bia-${bia.id}`}>
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>

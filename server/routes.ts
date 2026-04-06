@@ -5,9 +5,7 @@ import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSI
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import express from "express";
-import crypto from "crypto";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -128,30 +126,28 @@ async function syncValorOrigemLancamento(biaId: string, valorOrigem: number): Pr
   }
 }
 
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const uploadStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = crypto.randomBytes(8).toString("hex");
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${uniqueSuffix}${ext}`);
-  },
-});
-
 const upload = multer({
-  storage: uploadStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".doc", ".docx", ".xls", ".xlsx"];
+    const allowed = [
+      ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif",
+      ".doc", ".docx", ".xls", ".xlsx", ".heic", ".heif",
+    ];
+    const allowedMime = [
+      "image/jpeg", "image/png", "image/webp", "image/gif",
+      "image/heic", "image/heif",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
     const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) {
+    if (allowed.includes(ext) || allowedMime.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Tipo de arquivo não permitido: ${ext}`));
+      cb(new Error(`Tipo de arquivo não permitido: ${ext || file.mimetype}`));
     }
   },
 });
@@ -160,8 +156,6 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-
-  app.use("/uploads", express.static(uploadsDir));
 
   app.post("/api/upload", (req, res) => {
     upload.array("files", 10)(req, res, async (err) => {
@@ -182,8 +176,7 @@ export async function registerRoutes(
         const directusFileIds: string[] = [];
         for (const file of files) {
           const formData = new FormData();
-          const fileBuffer = fs.readFileSync(file.path);
-          const blob = new Blob([fileBuffer], { type: file.mimetype });
+          const blob = new Blob([file.buffer], { type: file.mimetype || "application/octet-stream" });
           formData.append("file", blob, file.originalname);
 
           const directusRes = await fetch(`${DIRECTUS_URL}/files`, {
@@ -195,20 +188,15 @@ export async function registerRoutes(
           if (!directusRes.ok) {
             const errText = await directusRes.text();
             console.error("Directus file upload error:", errText);
-            throw new Error(`Erro ao enviar arquivo ao Directus: ${directusRes.status}`);
+            throw new Error(`Erro ao enviar arquivo ao Directus: ${directusRes.status} — ${errText}`);
           }
 
           const json = await directusRes.json();
           directusFileIds.push(json.data.id);
-
-          fs.unlinkSync(file.path);
         }
 
         res.json({ success: true, fileIds: directusFileIds });
       } catch (uploadErr: any) {
-        for (const file of files) {
-          try { fs.unlinkSync(file.path); } catch {}
-        }
         res.status(500).json({ error: uploadErr.message });
       }
     });

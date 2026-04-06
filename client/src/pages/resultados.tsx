@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -104,6 +104,20 @@ export default function ResultadosPage() {
     queryKey: ["/api/fluxo-caixa"],
   });
 
+  // Auto-select the last used BIA (or first in list)
+  useEffect(() => {
+    if ((biasRaw as BiasProjeto[]).length > 0 && !selectedBiaId) {
+      const lastUsed = localStorage.getItem("resultados-bia-id");
+      const found = lastUsed ? (biasRaw as BiasProjeto[]).find((b) => b.id === lastUsed) : null;
+      setSelectedBiaId(found ? lastUsed! : (biasRaw as BiasProjeto[])[0].id);
+    }
+  }, [biasRaw, selectedBiaId]);
+
+  function handleBiaChange(id: string) {
+    setSelectedBiaId(id);
+    localStorage.setItem("resultados-bia-id", id);
+  }
+
   const bia = useMemo(
     () => (biasRaw as BiasProjeto[]).find((b) => b.id === selectedBiaId),
     [biasRaw, selectedBiaId]
@@ -195,7 +209,7 @@ export default function ResultadosPage() {
           <p className="text-sm text-muted-foreground mt-1">Análise de retorno e performance por BIA</p>
         </div>
 
-        <Select value={selectedBiaId} onValueChange={setSelectedBiaId}>
+        <Select value={selectedBiaId} onValueChange={handleBiaChange}>
           <SelectTrigger className="w-[300px]" data-testid="select-bia">
             <SelectValue placeholder="Selecione uma BIA..." />
           </SelectTrigger>

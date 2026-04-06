@@ -933,6 +933,20 @@ export default function FluxoCaixaPage() {
     queryKey: ["/api/bias"],
   });
 
+  // Auto-select the last used BIA (or first in list) when bias loads
+  useEffect(() => {
+    if (bias.length > 0 && !selectedBiaId) {
+      const lastUsed = localStorage.getItem("fluxo-caixa-bia-id");
+      const found = lastUsed ? bias.find((b) => b.id === lastUsed) : null;
+      setSelectedBiaId(found ? lastUsed! : bias[0].id);
+    }
+  }, [bias, selectedBiaId]);
+
+  function handleBiaChange(id: string) {
+    setSelectedBiaId(id);
+    localStorage.setItem("fluxo-caixa-bia-id", id);
+  }
+
   const { data: membros = [] } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
   });
@@ -1342,7 +1356,7 @@ export default function FluxoCaixaPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={selectedBiaId} onValueChange={setSelectedBiaId}>
+          <Select value={selectedBiaId} onValueChange={handleBiaChange}>
             <SelectTrigger className="w-[280px]" data-testid="select-bia">
               <SelectValue placeholder="Selecione uma BIA..." />
             </SelectTrigger>

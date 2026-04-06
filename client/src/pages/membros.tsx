@@ -10,6 +10,8 @@ import {
   Briefcase, Globe, Activity, Cpu, Wifi, X
 } from "lucide-react";
 
+const DIRECTUS_URL = "https://app.builtalliances.com";
+
 interface Membro {
   id: string;
   nome: string;
@@ -24,6 +26,14 @@ interface Membro {
   estado?: string;
   empresa?: string;
   cargo?: string;
+  especialidade?: string;
+  foto?: string | null;
+  tipo_de_cadastro?: string;
+}
+
+function fotoUrl(foto?: string | null): string | null {
+  if (!foto) return null;
+  return `${DIRECTUS_URL}/assets/${foto}?width=160&height=160&fit=cover`;
 }
 
 function getDisplayNome(m: Membro): string {
@@ -52,12 +62,13 @@ function hashColor(str: string): string {
   return colors[Math.abs(hash) % colors.length][1];
 }
 
-function MembroCard({ membro, index }: { membro: Membro; index: number }) {
+function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; index: number }) {
   const nome = getDisplayNome(membro);
   const initials = getInitials(nome);
   const accentColor = hashColor(membro.id);
   const location = [membro.cidade, membro.estado].filter(Boolean).join(", ");
   const contacto = membro.whatsapp || membro.telefone;
+  const foto = fotoUrl(membro.foto);
 
   return (
     <div
@@ -99,7 +110,7 @@ function MembroCard({ membro, index }: { membro: Membro; index: number }) {
             />
             {/* Avatar circle */}
             <div
-              className="relative w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg font-mono border"
+              className="relative w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-bold text-lg font-mono border"
               style={{
                 background: `radial-gradient(circle at 30% 30%, ${accentColor}20, #030812)`,
                 borderColor: `${accentColor}40`,
@@ -107,7 +118,11 @@ function MembroCard({ membro, index }: { membro: Membro; index: number }) {
                 boxShadow: `0 0 12px ${accentColor}20`,
               }}
             >
-              {initials}
+              {foto ? (
+                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
             {/* Online indicator */}
             <div

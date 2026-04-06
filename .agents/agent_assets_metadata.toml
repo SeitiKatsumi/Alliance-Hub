@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "etAMjwof32Cbs1c9bXSuR"
+uri = "file://docs/DIRECTUS_FRONTEND.md"
+type = "text"
+title = "Documentação — Frontend & Directus"

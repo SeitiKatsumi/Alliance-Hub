@@ -131,10 +131,18 @@ export default function ResultadosPage() {
   const custoCPP            = n(bia?.custo_final_previsto);
   const custoOrigem         = n(bia?.custo_origem_bia);
   const valorOrigem         = n(bia?.valor_origem);
-  const comissao            = n(bia?.comissao_prevista_corretor);
-  const ir                  = n(bia?.ir_previsto);
-  const inss                = n(bia?.inss_previsto);
-  const manutencao          = n(bia?.manutencao_pos_obra_prevista);
+
+  // Estes campos são percentuais (%) sobre o valor realizado de venda
+  const comissaoPct         = n(bia?.comissao_prevista_corretor);
+  const irPct               = n(bia?.ir_previsto);
+  const inssPct             = n(bia?.inss_previsto);
+  const manutencaoPct       = n(bia?.manutencao_pos_obra_prevista);
+
+  // Valores em BRL = (% / 100) × valor realizado
+  const comissao    = (comissaoPct  / 100) * valorRealizado;
+  const ir          = (irPct        / 100) * valorRealizado;
+  const inss        = (inssPct      / 100) * valorRealizado;
+  const manutencao  = (manutencaoPct / 100) * valorRealizado;
 
   // Total de deduções fiscais
   const totalDeducoes = comissao + ir + inss + manutencao;
@@ -331,10 +339,10 @@ export default function ResultadosPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <RowItem label="Comissão Corretor" value={comissao} positive={false} />
-                <RowItem label="IR Previsto" value={ir} positive={false} />
-                <RowItem label="INSS Previsto" value={inss} positive={false} />
-                <RowItem label="Manutenção Pós Obra" value={manutencao} positive={false} />
+                <RowItem label="Comissão Corretor" sub={`${comissaoPct.toFixed(2)}% sobre valor realizado`} value={comissao} positive={false} />
+                <RowItem label="IR Previsto" sub={`${irPct.toFixed(2)}% sobre valor realizado`} value={ir} positive={false} />
+                <RowItem label="INSS Previsto" sub={`${inssPct.toFixed(2)}% sobre valor realizado`} value={inss} positive={false} />
+                <RowItem label="Manutenção Pós Obra" sub={`${manutencaoPct.toFixed(2)}% sobre valor realizado`} value={manutencao} positive={false} />
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-sm font-semibold">Total Deduções</span>

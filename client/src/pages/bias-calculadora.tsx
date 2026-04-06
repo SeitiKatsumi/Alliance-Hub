@@ -104,6 +104,39 @@ function NumInput({
   );
 }
 
+function PercInput({
+  label, value, onChange, testId, hint, baseValue
+}: { label: string; value: number; onChange: (v: number) => void; testId?: string; hint?: string; baseValue?: number }) {
+  const brlEquiv = baseValue && baseValue > 0 ? (value / 100) * baseValue : null;
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={value || ""}
+            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            className="pr-8 h-8 text-sm"
+            placeholder="0,00"
+            data-testid={testId}
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+        </div>
+        {brlEquiv !== null && (
+          <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums min-w-[90px] text-right">
+            = {formatBRL(brlEquiv)}
+          </span>
+        )}
+      </div>
+      {hint && <p className="text-xs text-muted-foreground/70">{hint}</p>}
+    </div>
+  );
+}
+
 export default function BiasCalculadoraPage() {
   const { toast } = useToast();
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
@@ -170,7 +203,12 @@ export default function BiasCalculadoraPage() {
   const cppCapital = valorOrigem * percCapital / 100;
   const custoFinalPrevisto = cppAutor + cppAliado + cppBuilt + cppTecnico + cppObras + cppComercial + cppCapital;
 
-  const totalDeducoes = comissaoCorretor + irPrevisto + inssPrevisto + manutencao;
+  // Deduções são percentuais sobre o valor realizado de venda
+  const comissaoValor    = (comissaoCorretor / 100) * valorRealizadoVenda;
+  const irValor          = (irPrevisto       / 100) * valorRealizadoVenda;
+  const inssValor        = (inssPrevisto     / 100) * valorRealizadoVenda;
+  const manutencaoValor  = (manutencao       / 100) * valorRealizadoVenda;
+  const totalDeducoes = comissaoValor + irValor + inssValor + manutencaoValor;
   const totalReceita = valorRealizadoVenda - totalDeducoes;
   const resultadoLiquido = totalReceita - custoFinalPrevisto;
   const lucroPrevisto = valorRealizadoVenda > 0 ? ((resultadoLiquido / valorRealizadoVenda) * 100) : 0;
@@ -456,29 +494,37 @@ export default function BiasCalculadoraPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <NumInput
+                <PercInput
                   label="Comissão Prevista Corretor"
                   value={comissaoCorretor}
                   onChange={setComissaoCorretor}
                   testId="input-comissao"
+                  baseValue={valorRealizadoVenda}
+                  hint="% sobre o valor realizado de venda"
                 />
-                <NumInput
+                <PercInput
                   label="IR Previsto"
                   value={irPrevisto}
                   onChange={setIrPrevisto}
                   testId="input-ir"
+                  baseValue={valorRealizadoVenda}
+                  hint="% sobre o valor realizado de venda"
                 />
-                <NumInput
+                <PercInput
                   label="INSS Previsto"
                   value={inssPrevisto}
                   onChange={setInssPrevisto}
                   testId="input-inss"
+                  baseValue={valorRealizadoVenda}
+                  hint="% sobre o valor realizado de venda"
                 />
-                <NumInput
+                <PercInput
                   label="Manutenção Pós Obra Prevista"
                   value={manutencao}
                   onChange={setManutencao}
                   testId="input-manutencao"
+                  baseValue={valorRealizadoVenda}
+                  hint="% sobre o valor realizado de venda"
                 />
                 <Separator />
                 <div className="flex items-center justify-between py-1">

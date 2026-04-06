@@ -790,14 +790,41 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
             <div className="h-px bg-gradient-to-r from-transparent via-brand-gold/20 to-transparent mb-3" />
 
             {/* Details row */}
-            <div className="flex items-end gap-6">
-              <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-6">
+              {/* Left: objetivo + OPAs */}
+              <div className="flex-1 min-w-0 space-y-2">
                 {selectedBia.objetivo_alianca && (
                   <p className="text-[10px] text-brand-gold/45 leading-relaxed line-clamp-2">{selectedBia.objetivo_alianca}</p>
                 )}
+                {(() => {
+                  const biasOpas = opas.filter(o => o.bia_id === selectedBia.id);
+                  if (!biasOpas.length) return null;
+                  return (
+                    <div>
+                      <p className="text-[8px] text-brand-gold/35 tracking-[0.3em] uppercase mb-1.5">
+                        OPAs Relacionadas ({biasOpas.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {biasOpas.map(opa => (
+                          <span
+                            key={opa.id}
+                            className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-sm"
+                            style={{ background: "rgba(215,187,125,0.1)", border: "1px solid rgba(215,187,125,0.25)", color: "#D7BB7D99" }}
+                          >
+                            <span style={{ color: "#D7BB7D60" }}>◆</span>
+                            {opa.nome_oportunidade || "OPA sem nome"}
+                            {n(opa.valor_origem_opa) > 0 && (
+                              <span style={{ color: "#D7BB7D50" }}> · {brl(n(opa.valor_origem_opa))}</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
-              {/* Team + coords */}
+              {/* Right: author + coords */}
               <div className="text-right shrink-0 space-y-0.5">
                 {(() => {
                   const autor = membros.find(m => m.id === selectedBia.autor_bia);
@@ -850,8 +877,8 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 }
 
 // ---- BIA Card ----
-function BiaCard({ bia, membros, onEdit, onDelete }: {
-  bia: BiasProjeto; membros: Membro[];
+function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
+  bia: BiasProjeto; membros: Membro[]; opas: Oportunidade[];
   onEdit: () => void; onDelete: () => void;
 }) {
   const membroMap = useMemo(() => {
@@ -944,6 +971,36 @@ function BiaCard({ bia, membros, onEdit, onDelete }: {
             </div>
           )}
         </div>
+
+        {/* OPAs relacionadas */}
+        {(() => {
+          const biasOpas = opas.filter(o => o.bia_id === bia.id);
+          if (!biasOpas.length) return null;
+          return (
+            <div className="border-t border-border/50 pt-2.5">
+              <p className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
+                <span className="text-brand-gold/60">◆</span>
+                OPAs Relacionadas
+                <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1.5 font-normal">
+                  {biasOpas.length}
+                </Badge>
+              </p>
+              <div className="flex flex-col gap-1">
+                {biasOpas.slice(0, 3).map(opa => (
+                  <div key={opa.id} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-foreground/80 truncate">{opa.nome_oportunidade || "—"}</span>
+                    {n(opa.valor_origem_opa) > 0 && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{brl(n(opa.valor_origem_opa))}</span>
+                    )}
+                  </div>
+                ))}
+                {biasOpas.length > 3 && (
+                  <p className="text-[10px] text-muted-foreground/60">+{biasOpas.length - 3} outras</p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
@@ -1175,6 +1232,10 @@ export default function BiasPage() {
     queryKey: ["/api/membros"],
   });
 
+  const { data: opasRaw = [] } = useQuery<Oportunidade[]>({
+    queryKey: ["/api/oportunidades"],
+  });
+
   const membros = useMemo(
     () => [...(membrosRaw as Membro[])].sort((a, b) =>
       getMembroNome(a).localeCompare(getMembroNome(b), "pt-BR")
@@ -1236,7 +1297,7 @@ export default function BiasPage() {
 
       {/* Futuristic Brazil Map */}
       {!loading && (
-        <BrazilMapHeader biasAll={biasRaw as BiasProjeto[]} membros={membros} />
+        <BrazilMapHeader biasAll={biasRaw as BiasProjeto[]} membros={membros} opas={opasRaw as Oportunidade[]} />
       )}
       {loading && <Skeleton className="h-[440px] rounded-2xl" />}
 
@@ -1321,6 +1382,7 @@ export default function BiasPage() {
               key={b.id}
               bia={b}
               membros={membros}
+              opas={opasRaw as Oportunidade[]}
               onEdit={() => openEdit(b)}
               onDelete={() => setDeleteTarget(b)}
             />

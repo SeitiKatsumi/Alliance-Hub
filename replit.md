@@ -103,12 +103,12 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 
 ## Navigation Structure (Collapsible Sidebar)
 1. **Meu Dashboard** (/) — Main dashboard with summary blocks (starts closed)
-   1.1 Minhas BIAs (/bias) — BIAs Dashboard: cards with key info, create/edit/delete all Directus fields (Geral, Equipe, CPP, Receita tabs), summary stats, search
+   1.1 Minhas BIAs (/bias) — BIAs Dashboard: cards with key info, create/edit/delete all Directus fields (Geral, Equipe, CPP, Receita tabs), summary stats, search. Each BIA card shows related OPAs count and list. Interactive world+Brazil map with zoom/pan, click on markers shows BIA info panel with related OPAs.
        - Núcleo de Capital (collapsible)
          - Financeiro (/fluxo-caixa) — Cash flow management per BIA
          - Resultados (/resultados) — Investment analysis dashboard (ROI, Múltiplo, Lucro %)
        - Calculadora DM (/bias-calculadora) — Financial calculator
-   1.2 Minhas OPAs (/opas) — Opportunities (formerly Oportunidades)
+   1.2 Minhas OPAs (/opas) — Full OPAs dashboard: futuristic header with stats, cards with BIA relationship badge, CRUD (create/edit/delete), filter by BIA, search. Each OPA linked to one BIA via bia_id.
    1.3 Minha Aura (/aura) — Scoring system
 2. **Administração** (/admin) — Admin settings (starts closed)
    2.1 Membros (/membros) — Member directory

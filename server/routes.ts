@@ -620,6 +620,15 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/oportunidades/:id", async (req, res) => {
+    try {
+      await directusDelete("tipos_oportunidades", req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== AI ANALYZE (per-item) ==========
   app.post("/api/analyze/bia/:id", async (req, res) => {
     try {

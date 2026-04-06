@@ -96,7 +96,7 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 
 ## Navigation Structure (Collapsible Sidebar)
 1. **Meu Dashboard** (/) — Main dashboard with summary blocks (starts closed)
-   1.1 Minhas BIAs (/bias) — Alliance projects
+   1.1 Minhas BIAs (/bias) — BIAs Dashboard: cards with key info, create/edit/delete all Directus fields (Geral, Equipe, CPP, Receita tabs), summary stats, search
        - Núcleo de Capital (collapsible)
          - Financeiro (/fluxo-caixa) — Cash flow management per BIA
          - Resultados (/resultados) — Investment analysis dashboard (ROI, Múltiplo, Lucro %)

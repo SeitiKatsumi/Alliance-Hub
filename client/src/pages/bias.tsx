@@ -97,6 +97,18 @@ interface BiasProjeto {
   total_aportes?: string | number;
 }
 
+interface Oportunidade {
+  id: string;
+  nome_oportunidade?: string;
+  tipo?: string;
+  bia_id?: string;
+  valor_origem_opa?: string | number;
+  objetivo_alianca?: string;
+  nucleo_alianca?: string;
+  pais?: string;
+  descricao?: string;
+}
+
 interface NominatimResult {
   place_id: number;
   display_name: string;
@@ -508,7 +520,7 @@ function LocationField({ form, setForm, onPickerOpen }: {
 // ---- Brazil Map Header ----
 const WORLD_GEO = "/world-countries-50m.json";
 
-function BrazilMapHeader({ biasAll, membros }: { biasAll: BiasProjeto[]; membros: Membro[] }) {
+function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; membros: Membro[]; opas: Oportunidade[] }) {
   const [hoveredBia, setHoveredBia] = useState<BiasProjeto | null>(null);
   const [selectedBia, setSelectedBia] = useState<BiasProjeto | null>(null);
   const [zoom, setZoom] = useState(3);

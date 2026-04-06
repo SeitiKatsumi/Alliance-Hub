@@ -968,7 +968,7 @@ export default function FluxoCaixaPage() {
   }, [fluxoItemsAll]);
 
   const fluxoItems = useMemo(() => {
-    return fluxoItemsAll.filter((item) => {
+    const filtered = fluxoItemsAll.filter((item) => {
       if (filterTipo !== "todos" && item.tipo !== filterTipo) return false;
       if (filterDescricao && !(item.descricao || "").toLowerCase().includes(filterDescricao.toLowerCase())) return false;
       if (filterCategoria !== "todos") {
@@ -997,6 +997,15 @@ export default function FluxoCaixaPage() {
         if (effectiveStatus !== filterStatus) return false;
       }
       return true;
+    });
+
+    return filtered.sort((a, b) => {
+      const da = a.data_vencimento || "";
+      const db = b.data_vencimento || "";
+      if (da && db) return da < db ? -1 : da > db ? 1 : 0;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
     });
   }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
 

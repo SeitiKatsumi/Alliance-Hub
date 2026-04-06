@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X
@@ -361,28 +363,38 @@ export default function MembrosPage() {
 
         {/* Cargo filter */}
         {cargos.length > 0 && (
-          <select
-            value={filterCargo}
-            onChange={e => setFilterCargo(e.target.value)}
-            className="h-8 text-xs rounded-md border border-white/10 bg-white/5 text-white/60 px-2 font-mono cursor-pointer focus:border-brand-gold/40 focus:outline-none"
-            data-testid="select-filter-cargo"
-          >
-            <option value="">Todos os cargos</option>
-            {cargos.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <Select value={filterCargo || "__all__"} onValueChange={v => setFilterCargo(v === "__all__" ? "" : v)}>
+            <SelectTrigger
+              className="h-8 w-44 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
+              data-testid="select-filter-cargo"
+            >
+              <SelectValue placeholder="Todos os cargos" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
+              <SelectItem value="__all__" className="text-white/50">Todos os cargos</SelectItem>
+              {cargos.map(c => (
+                <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {/* Estado filter */}
         {estados.length > 0 && (
-          <select
-            value={filterEstado}
-            onChange={e => setFilterEstado(e.target.value)}
-            className="h-8 text-xs rounded-md border border-white/10 bg-white/5 text-white/60 px-2 font-mono cursor-pointer focus:border-brand-gold/40 focus:outline-none"
-            data-testid="select-filter-estado"
-          >
-            <option value="">Todos os estados</option>
-            {estados.map(e => <option key={e} value={e}>{e}</option>)}
-          </select>
+          <Select value={filterEstado || "__all__"} onValueChange={v => setFilterEstado(v === "__all__" ? "" : v)}>
+            <SelectTrigger
+              className="h-8 w-36 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
+              data-testid="select-filter-estado"
+            >
+              <SelectValue placeholder="Todos os estados" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
+              <SelectItem value="__all__" className="text-white/50">Todos os estados</SelectItem>
+              {estados.map(e => (
+                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {/* Clear filters */}

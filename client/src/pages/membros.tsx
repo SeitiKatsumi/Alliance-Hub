@@ -135,10 +135,10 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
             <h3 className="font-bold text-sm leading-tight truncate" style={{ color: accentColor }}>
               {nome}
             </h3>
-            {membro.cargo && (
+            {membro.especialidade && (
               <p className="text-xs text-white/50 truncate mt-0.5 flex items-center gap-1">
                 <Briefcase className="w-2.5 h-2.5 shrink-0" />
-                {membro.cargo}
+                {membro.especialidade}
               </p>
             )}
             {membro.empresa && (
@@ -178,14 +178,14 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
         </div>
 
         {/* Tags bottom */}
-        {(membro.cargo || membro.estado) && (
+        {(membro.especialidade || membro.estado) && (
           <div className="flex flex-wrap gap-1 mt-3">
-            {membro.cargo && (
+            {membro.especialidade && (
               <span
                 className="text-[9px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wide border"
                 style={{ color: `${accentColor}99`, borderColor: `${accentColor}20`, background: `${accentColor}08` }}
               >
-                {membro.cargo}
+                {membro.especialidade}
               </span>
             )}
             {membro.estado && (
@@ -215,7 +215,7 @@ function StatItem({ label, value, icon: Icon }: { label: string; value: number |
 
 export default function MembrosPage() {
   const [search, setSearch] = useState("");
-  const [filterCargo, setFilterCargo] = useState("");
+  const [filterEspecialidade, setFilterEspecialidade] = useState("");
   const [filterEstado, setFilterEstado] = useState("");
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
@@ -227,8 +227,8 @@ export default function MembrosPage() {
     [membrosRaw]
   );
 
-  const cargos = useMemo(
-    () => [...new Set(membros.map(m => m.cargo).filter(Boolean))].sort() as string[],
+  const especialidades = useMemo(
+    () => [...new Set(membros.map(m => m.especialidade).filter(Boolean))].sort() as string[],
     [membros]
   );
 
@@ -246,22 +246,22 @@ export default function MembrosPage() {
     const q = search.toLowerCase().trim();
     return membros.filter(m => {
       const matchSearch = !q || [
-        m._nome, m.cargo, m.empresa, m.cidade, m.estado, m.email
+        m._nome, m.especialidade, m.empresa, m.cidade, m.estado, m.email
       ].some(f => f?.toLowerCase().includes(q));
-      const matchCargo = !filterCargo || m.cargo === filterCargo;
+      const matchCargo = !filterEspecialidade || m.especialidade === filterEspecialidade;
       const matchEstado = !filterEstado || m.estado === filterEstado;
       return matchSearch && matchCargo && matchEstado;
     });
-  }, [membros, search, filterCargo, filterEstado]);
+  }, [membros, search, filterEspecialidade, filterEstado]);
 
   const stats = useMemo(() => ({
     total: membros.length,
     empresas: empresas.length,
     estados: estados.length,
-    cargos: cargos.length,
-  }), [membros, empresas, estados, cargos]);
+    especialidades: especialidades.length,
+  }), [membros, empresas, estados, especialidades]);
 
-  const hasFilters = search || filterCargo || filterEstado;
+  const hasFilters = search || filterEspecialidade || filterEstado;
 
   return (
     <div className="min-h-screen" style={{ background: "#020b16" }}>
@@ -352,7 +352,7 @@ export default function MembrosPage() {
             <StatItem label="Membros" value={stats.total} icon={Users} />
             <StatItem label="Empresas" value={stats.empresas} icon={Building2} />
             <StatItem label="Estados" value={stats.estados} icon={Globe} />
-            <StatItem label="Cargos" value={stats.cargos} icon={Activity} />
+            <StatItem label="Especialidades" value={stats.especialidades} icon={Activity} />
           </div>
         </div>
       </div>
@@ -365,7 +365,7 @@ export default function MembrosPage() {
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nome, cargo, empresa, cidade..."
+            placeholder="Buscar por nome, especialidade, empresa, cidade..."
             className="pl-9 pr-8 h-8 text-sm bg-white/5 border-white/10 focus:border-brand-gold/40 placeholder:text-white/20 text-white font-mono"
             data-testid="input-busca-membros"
           />
@@ -377,18 +377,18 @@ export default function MembrosPage() {
         </div>
 
         {/* Cargo filter */}
-        {cargos.length > 0 && (
-          <Select value={filterCargo || "__all__"} onValueChange={v => setFilterCargo(v === "__all__" ? "" : v)}>
+        {especialidades.length > 0 && (
+          <Select value={filterEspecialidade || "__all__"} onValueChange={v => setFilterEspecialidade(v === "__all__" ? "" : v)}>
             <SelectTrigger
-              className="h-8 w-44 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
-              data-testid="select-filter-cargo"
+              className="h-8 w-52 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
+              data-testid="select-filter-especialidade"
             >
-              <SelectValue placeholder="Todos os cargos" />
+              <SelectValue placeholder="Todas as especialidades" />
             </SelectTrigger>
             <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
-              <SelectItem value="__all__" className="text-white/50">Todos os cargos</SelectItem>
-              {cargos.map(c => (
-                <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
+              <SelectItem value="__all__" className="text-white/50">Todas as especialidades</SelectItem>
+              {especialidades.map(e => (
+                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -415,7 +415,7 @@ export default function MembrosPage() {
         {/* Clear filters */}
         {hasFilters && (
           <button
-            onClick={() => { setSearch(""); setFilterCargo(""); setFilterEstado(""); }}
+            onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); }}
             className="h-8 px-3 text-xs rounded-md border border-red-500/20 text-red-400/60 hover:border-red-500/40 hover:text-red-400 transition-colors font-mono flex items-center gap-1.5"
           >
             <X className="w-3 h-3" />
@@ -461,7 +461,7 @@ export default function MembrosPage() {
             </p>
             {hasFilters && (
               <button
-                onClick={() => { setSearch(""); setFilterCargo(""); setFilterEstado(""); }}
+                onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); }}
                 className="mt-3 text-xs text-brand-gold/40 hover:text-brand-gold/70 font-mono underline"
               >
                 limpar filtros

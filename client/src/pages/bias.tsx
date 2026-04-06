@@ -103,6 +103,51 @@ function brl(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
+// BRL input formatting (same logic as fluxo-caixa)
+function formatInputBRL(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const cents = parseInt(digits, 10);
+  const reais = cents / 100;
+  return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseBRLToNumber(formatted: string): number {
+  if (!formatted) return 0;
+  const cleaned = formatted.replace(/\./g, "").replace(",", ".");
+  return parseFloat(cleaned) || 0;
+}
+
+function numToBRLStr(v?: string | number | null): string {
+  const num = parseFloat(String(v ?? "")) || 0;
+  if (!num) return "";
+  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ---- BRLInput component ----
+function BRLInput({ label, field, form, setForm, testId }: {
+  label: string; field: keyof FormState; form: FormState;
+  setForm: (f: FormState) => void; testId?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+        <Input
+          type="text"
+          inputMode="numeric"
+          placeholder="0,00"
+          value={form[field] as string}
+          onChange={(e) => setForm({ ...form, [field]: formatInputBRL(e.target.value) })}
+          className="pl-9 h-8 text-sm tabular-nums"
+          data-testid={testId ?? `input-${field}`}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ---- Form state type ----
 const EMPTY_FORM = {
   nome_bia: "",
@@ -147,7 +192,7 @@ function biaToForm(b: BiasProjeto): FormState {
     diretor_execucao: b.diretor_execucao || "",
     diretor_comercial: b.diretor_comercial || "",
     diretor_capital: b.diretor_capital || "",
-    valor_origem: b.valor_origem != null ? String(b.valor_origem) : "",
+    valor_origem: numToBRLStr(b.valor_origem),
     perc_autor_opa: b.perc_autor_opa != null ? String(b.perc_autor_opa) : "",
     perc_aliado_built: b.perc_aliado_built != null ? String(b.perc_aliado_built) : "",
     perc_built: b.perc_built != null ? String(b.perc_built) : "",
@@ -155,14 +200,14 @@ function biaToForm(b: BiasProjeto): FormState {
     perc_dir_obras: b.perc_dir_obras != null ? String(b.perc_dir_obras) : "",
     perc_dir_comercial: b.perc_dir_comercial != null ? String(b.perc_dir_comercial) : "",
     perc_dir_capital: b.perc_dir_capital != null ? String(b.perc_dir_capital) : "",
-    valor_geral_venda_vgv: b.valor_geral_venda_vgv != null ? String(b.valor_geral_venda_vgv) : "",
-    valor_realizado_venda: b.valor_realizado_venda != null ? String(b.valor_realizado_venda) : "",
+    valor_geral_venda_vgv: numToBRLStr(b.valor_geral_venda_vgv),
+    valor_realizado_venda: numToBRLStr(b.valor_realizado_venda),
     comissao_prevista_corretor: b.comissao_prevista_corretor != null ? String(b.comissao_prevista_corretor) : "",
     ir_previsto: b.ir_previsto != null ? String(b.ir_previsto) : "",
     inss_previsto: b.inss_previsto != null ? String(b.inss_previsto) : "",
     manutencao_pos_obra_prevista: b.manutencao_pos_obra_prevista != null ? String(b.manutencao_pos_obra_prevista) : "",
     inicio_aportes: b.inicio_aportes || "",
-    total_aportes: b.total_aportes != null ? String(b.total_aportes) : "",
+    total_aportes: numToBRLStr(b.total_aportes),
   };
 }
 
@@ -387,8 +432,8 @@ function BiaFormSheet({
     }
   }, [open, bia]);
 
-  const valorRealizado = parseFloat(form.valor_realizado_venda) || 0;
-  const valorOrigem = parseFloat(form.valor_origem) || 0;
+  const valorRealizado = parseBRLToNumber(form.valor_realizado_venda);
+  const valorOrigem = parseBRLToNumber(form.valor_origem);
 
   // CPP calc preview
   const percTotal = ["perc_autor_opa","perc_aliado_built","perc_built","perc_dir_tecnico",
@@ -410,7 +455,7 @@ function BiaFormSheet({
         diretor_execucao: form.diretor_execucao || null,
         diretor_comercial: form.diretor_comercial || null,
         diretor_capital: form.diretor_capital || null,
-        valor_origem: form.valor_origem || null,
+        valor_origem: form.valor_origem ? parseBRLToNumber(form.valor_origem) : null,
         perc_autor_opa: form.perc_autor_opa || null,
         perc_aliado_built: form.perc_aliado_built || null,
         perc_built: form.perc_built || null,
@@ -418,14 +463,14 @@ function BiaFormSheet({
         perc_dir_obras: form.perc_dir_obras || null,
         perc_dir_comercial: form.perc_dir_comercial || null,
         perc_dir_capital: form.perc_dir_capital || null,
-        valor_geral_venda_vgv: form.valor_geral_venda_vgv || null,
-        valor_realizado_venda: form.valor_realizado_venda || null,
+        valor_geral_venda_vgv: form.valor_geral_venda_vgv ? parseBRLToNumber(form.valor_geral_venda_vgv) : null,
+        valor_realizado_venda: form.valor_realizado_venda ? parseBRLToNumber(form.valor_realizado_venda) : null,
         comissao_prevista_corretor: form.comissao_prevista_corretor || null,
         ir_previsto: form.ir_previsto || null,
         inss_previsto: form.inss_previsto || null,
         manutencao_pos_obra_prevista: form.manutencao_pos_obra_prevista || null,
         inicio_aportes: form.inicio_aportes || null,
-        total_aportes: form.total_aportes || null,
+        total_aportes: form.total_aportes ? parseBRLToNumber(form.total_aportes) : null,
       };
       if (isEdit) {
         return apiRequest("PATCH", `/api/bias/${bia!.id}`, payload);
@@ -506,22 +551,7 @@ function BiaFormSheet({
 
           {/* Tab CPP */}
           <TabsContent value="cpp" className="space-y-4 mt-4 flex-1">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Valor de Origem (R$)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0,00"
-                  value={form.valor_origem}
-                  onChange={(e) => setForm({ ...form, valor_origem: e.target.value })}
-                  className="pl-9 h-8 text-sm"
-                  data-testid="input-valor_origem"
-                />
-              </div>
-            </div>
+            <BRLInput label="Valor de Origem (R$)" field="valor_origem" form={form} setForm={setForm} />
             <Separator />
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais CPP (% sobre Valor de Origem)</p>
             <div className="grid grid-cols-1 gap-3">
@@ -544,30 +574,8 @@ function BiaFormSheet({
           {/* Tab Receita */}
           <TabsContent value="receita" className="space-y-4 mt-4 flex-1">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Receita</p>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">VGV — Valor Geral de Venda (R$)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                <Input
-                  type="number" step="0.01" min="0" placeholder="0,00"
-                  value={form.valor_geral_venda_vgv}
-                  onChange={(e) => setForm({ ...form, valor_geral_venda_vgv: e.target.value })}
-                  className="pl-9 h-8 text-sm" data-testid="input-valor_geral_venda_vgv"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Valor Realizado de Venda (R$)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                <Input
-                  type="number" step="0.01" min="0" placeholder="0,00"
-                  value={form.valor_realizado_venda}
-                  onChange={(e) => setForm({ ...form, valor_realizado_venda: e.target.value })}
-                  className="pl-9 h-8 text-sm" data-testid="input-valor_realizado_venda"
-                />
-              </div>
-            </div>
+            <BRLInput label="VGV — Valor Geral de Venda (R$)" field="valor_geral_venda_vgv" form={form} setForm={setForm} />
+            <BRLInput label="Valor Realizado de Venda (R$)" field="valor_realizado_venda" form={form} setForm={setForm} />
             <Separator />
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Deduções (% sobre Valor Realizado)</p>
             <PercField label="Comissão Prevista Corretor" field="comissao_prevista_corretor" form={form} setForm={setForm} baseValue={valorRealizado} />
@@ -577,18 +585,7 @@ function BiaFormSheet({
             <Separator />
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Aportes</p>
             <FieldInput label="Início dos Aportes" field="inicio_aportes" form={form} setForm={setForm} type="date" />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Total de Aportes (R$)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                <Input
-                  type="number" step="0.01" min="0" placeholder="0,00"
-                  value={form.total_aportes}
-                  onChange={(e) => setForm({ ...form, total_aportes: e.target.value })}
-                  className="pl-9 h-8 text-sm" data-testid="input-total_aportes"
-                />
-              </div>
-            </div>
+            <BRLInput label="Total de Aportes (R$)" field="total_aportes" form={form} setForm={setForm} />
           </TabsContent>
         </Tabs>
 

@@ -80,21 +80,47 @@ function formatPerc(value: number): string {
   return `${value.toFixed(2)}%`;
 }
 
+function formatInputBRL(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const cents = parseInt(digits, 10);
+  const reais = cents / 100;
+  return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function numToBRLStr(v: number): string {
+  if (!v) return "";
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseBRLCalc(formatted: string): number {
+  if (!formatted) return 0;
+  return parseFloat(formatted.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
 function NumInput({
   label, value, onChange, testId, hint
 }: { label: string; value: number; onChange: (v: number) => void; testId?: string; hint?: string }) {
+  const [display, setDisplay] = useState(() => numToBRLStr(value));
+
+  // Sync display when parent value changes (e.g. when BIA is selected)
+  useEffect(() => { setDisplay(numToBRLStr(value)); }, [value]);
+
   return (
     <div className="space-y-1">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
         <Input
-          type="number"
-          step="0.01"
-          min="0"
-          value={value || ""}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="pl-9 h-8 text-sm"
+          type="text"
+          inputMode="numeric"
+          value={display}
+          onChange={(e) => {
+            const formatted = formatInputBRL(e.target.value);
+            setDisplay(formatted);
+            onChange(parseBRLCalc(formatted));
+          }}
+          className="pl-9 h-8 text-sm tabular-nums"
           placeholder="0,00"
           data-testid={testId}
         />

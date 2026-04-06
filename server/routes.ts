@@ -157,6 +157,28 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  // Proxy para servir arquivos do Directus sem expor o token
+  app.get("/api/files/:fileId", async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const directusRes = await fetch(`${DIRECTUS_URL}/assets/${fileId}`, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (!directusRes.ok) {
+        return res.status(directusRes.status).json({ error: "Arquivo não encontrado" });
+      }
+      const contentType = directusRes.headers.get("content-type") || "application/octet-stream";
+      const contentDisposition = directusRes.headers.get("content-disposition");
+      res.setHeader("Content-Type", contentType);
+      if (contentDisposition) res.setHeader("Content-Disposition", contentDisposition);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      const buffer = await directusRes.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/upload", (req, res) => {
     upload.array("files", 10)(req, res, async (err) => {
       if (err) {
@@ -350,11 +372,11 @@ export async function registerRoutes(
                 id: file.id,
                 title: file.title || file.filename_download,
                 filename: file.filename_download,
-                url: `${DIRECTUS_URL}/assets/${file.id}`,
+                url: `/api/files/${file.id}`,
                 size: file.filesize,
               };
             }
-            return { id: a.directus_files_id, url: `${DIRECTUS_URL}/assets/${a.directus_files_id}` };
+            return { id: a.directus_files_id, url: `/api/files/${a.directus_files_id}` };
           }
           return a;
         });

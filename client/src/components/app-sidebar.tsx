@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -159,6 +159,16 @@ export function AppSidebar() {
                   <Link href="/meu-perfil">
                     <UserCircle className="w-3.5 h-3.5" />
                     <span>Meu Perfil</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Documentação */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/documentacao"} data-testid="nav-documentacao" className="text-sm">
+                  <Link href="/documentacao">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Documentação</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -16,6 +16,7 @@ import AdminPage from "@/pages/admin";
 import BiasCalculadoraPage from "@/pages/bias-calculadora";
 import FluxoCaixaPage from "@/pages/fluxo-caixa";
 import MeuPerfilPage from "@/pages/meu-perfil";
+import DocumentacaoPage from "@/pages/documentacao";
 import ResultadosPage from "@/pages/resultados";
 import LoginPage from "@/pages/login";
 import { useAuth } from "@/hooks/use-auth";
@@ -91,6 +92,7 @@ function ProtectedApp() {
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />
               <Route path="/meu-perfil" component={MeuPerfilPage} />
+              <Route path="/documentacao" component={DocumentacaoPage} />
               <Route path="/admin" component={AdminPage} />
               <Route component={NotFound} />
             </Switch>

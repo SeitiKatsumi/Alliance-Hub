@@ -13,7 +13,7 @@ export default function LoginPage() {
   const { login, loginPending } = useAuth();
   const { toast } = useToast();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      await login({ username, password });
+      await login({ email, password });
       navigate("/");
     } catch (err: any) {
       const msg = err?.message || "Credenciais inválidas";
@@ -49,14 +49,15 @@ export default function LoginPage() {
           <CardContent className="px-6 pb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="username" className="text-white/70 text-sm">Usuário</Label>
+                <Label htmlFor="email" className="text-white/70 text-sm">Email</Label>
                 <Input
-                  id="username"
-                  data-testid="input-username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Seu login"
-                  autoComplete="username"
+                  id="email"
+                  type="email"
+                  data-testid="input-email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  autoComplete="email"
                   className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-[#D7BB7D] focus:ring-[#D7BB7D]/20"
                   required
                 />

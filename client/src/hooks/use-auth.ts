@@ -26,9 +26,16 @@ export function useAuth() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (creds: { username: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/login", creds);
-      return res.json();
+    mutationFn: async (creds: { email: string; password: string }) => {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(creds),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Credenciais inválidas");
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });

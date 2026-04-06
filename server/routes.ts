@@ -705,19 +705,61 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // ========== AUTH ==========
+  // ========== AUTH (Directus-based) ==========
   app.post("/api/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
-      if (!username || !password) return res.status(400).json({ error: "Usuário e senha são obrigatórios" });
-      const user = await storage.getUserByUsername(username);
-      if (!user || !user.ativo) return res.status(401).json({ error: "Credenciais inválidas" });
-      const { comparePasswords } = await import("./storage");
-      const valid = await comparePasswords(password, user.password);
-      if (!valid) return res.status(401).json({ error: "Credenciais inválidas" });
-      (req.session as any).userId = user.id;
-      const { password: _pw, ...safe } = user;
-      res.json(safe);
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email e senha são obrigatórios" });
+
+      // Authenticate against Directus
+      const authRes = await fetch(`${DIRECTUS_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!authRes.ok) {
+        return res.status(401).json({ error: "Credenciais inválidas" });
+      }
+
+      const authData = await authRes.json();
+      const accessToken = authData.data?.access_token;
+      if (!accessToken) return res.status(401).json({ error: "Erro ao obter token" });
+
+      // Get the Directus user info
+      const meRes = await fetch(`${DIRECTUS_URL}/users/me?fields=id,email,first_name,last_name,role`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const meData = await meRes.json();
+      const directusUser = meData.data;
+      if (!directusUser) return res.status(401).json({ error: "Usuário não encontrado" });
+
+      // Find the matching member in cadastro_geral by email
+      let membroId: string | null = null;
+      let nome = [directusUser.first_name, directusUser.last_name].filter(Boolean).join(" ") || email;
+
+      try {
+        const membros = await directusFetch("cadastro_geral", `filter[email][_eq]=${encodeURIComponent(email)}&fields=id,Nome_de_usuario,nome,primeiro_nome,sobrenome`);
+        if (membros.length > 0) {
+          membroId = membros[0].id;
+          const m = membros[0];
+          nome = m.Nome_de_usuario || [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") || m.nome || nome;
+        }
+      } catch { /* ignore lookup failure */ }
+
+      // Store session
+      (req.session as any).directusUserId = directusUser.id;
+      (req.session as any).membroId = membroId;
+      (req.session as any).nome = nome;
+      (req.session as any).email = email;
+
+      res.json({
+        id: directusUser.id,
+        nome,
+        email,
+        membro_directus_id: membroId,
+        role: "user",
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -729,17 +771,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     });
   });
 
-  app.get("/api/me", async (req, res) => {
-    try {
-      const userId = (req.session as any).userId;
-      if (!userId) return res.status(401).json({ error: "Não autenticado" });
-      const user = await storage.getUser(userId);
-      if (!user || !user.ativo) return res.status(401).json({ error: "Sessão inválida" });
-      const { password: _pw, ...safe } = user;
-      res.json(safe);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
+  app.get("/api/me", (req, res) => {
+    const directusUserId = (req.session as any).directusUserId;
+    if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    res.json({
+      id: directusUserId,
+      nome: (req.session as any).nome || "",
+      email: (req.session as any).email || "",
+      membro_directus_id: (req.session as any).membroId || null,
+      role: "user",
+    });
   });
 
   // ========== USER MANAGEMENT ==========

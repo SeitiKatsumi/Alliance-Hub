@@ -705,6 +705,43 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // ========== AUTH ==========
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) return res.status(400).json({ error: "Usuário e senha são obrigatórios" });
+      const user = await storage.getUserByUsername(username);
+      if (!user || !user.ativo) return res.status(401).json({ error: "Credenciais inválidas" });
+      const { comparePasswords } = await import("./storage");
+      const valid = await comparePasswords(password, user.password);
+      if (!valid) return res.status(401).json({ error: "Credenciais inválidas" });
+      (req.session as any).userId = user.id;
+      const { password: _pw, ...safe } = user;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ ok: true });
+    });
+  });
+
+  app.get("/api/me", async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const user = await storage.getUser(userId);
+      if (!user || !user.ativo) return res.status(401).json({ error: "Sessão inválida" });
+      const { password: _pw, ...safe } = user;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== USER MANAGEMENT ==========
   app.get("/api/users", async (req, res) => {
     try {

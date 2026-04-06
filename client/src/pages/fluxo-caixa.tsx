@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -866,6 +867,7 @@ function LancamentoFormFields({
 
 export default function FluxoCaixaPage() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -1012,10 +1014,10 @@ export default function FluxoCaixaPage() {
   }, [fluxoItemsAll, today, in7days]);
 
   const aportesPorMembro = useMemo(() => {
-    const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.membro_responsavel);
+    const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
     const map: Record<string, number> = {};
     entradas.forEach((i) => {
-      const mid = getRelId(i.membro_responsavel as any);
+      const mid = getRelId((i.Favorecido || [])[0] as any);
       if (mid) {
         map[mid] = (map[mid] || 0) + (parseFloat(String(i.valor)) || 0);
       }
@@ -1141,7 +1143,7 @@ export default function FluxoCaixaPage() {
     setFormData(new Date().toISOString().split("T")[0]);
     setFormDescricao("");
     setFormCategorias(null);
-    setFormMembro("");
+    setFormMembro(currentUser?.membro_directus_id || "");
     setFormFavorecido("__none__");
     setRateioTipo("individual");
     setRateioItems([]);

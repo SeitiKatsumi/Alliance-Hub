@@ -25,6 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **Database ORM**: Drizzle ORM with PostgreSQL (node-postgres driver) for local data (users only)
 - **Database Connection**: `server/db.ts` using `drizzle-orm/node-postgres` with pg Pool
 - **Storage Layer**: `server/storage.ts` with `DatabaseStorage` class (PostgreSQL-backed, users only)
+- **Session Auth**: `express-session` + `connect-pg-simple` for persistent session management. Endpoints: `POST /api/login`, `POST /api/logout`, `GET /api/me`. Session stored in PostgreSQL (session table auto-created).
 
 ### Data Flow
 - Frontend makes API calls to `/api/*` endpoints

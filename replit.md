@@ -71,6 +71,13 @@ Preferred communication style: Simple, everyday language.
   - Files are uploaded to Directus `/files` API, local temp files are cleaned up
   - Returns `{ success: true, fileIds: ["directus-file-uuid"] }`
 
+### Proposals Routes
+- `GET/POST /api/proposals` — List/create proposals (stored in local PostgreSQL)
+- `GET/PATCH/DELETE /api/proposals/:id` — Get/update/delete a proposal
+- `POST /api/proposals/generate` — Generate HTML proposal with GPT-4o based on OPA/BIA data
+- `POST /api/proposals/:id/send-email` — Send proposal via Nodemailer SMTP (requires SMTP env vars)
+- `GET /api/smtp/status` — Check SMTP configuration status
+
 ### AI Routes
 - `POST /api/assistant` — AI assistant with context from local data
 - `POST /api/analyze/bia/:id` — AI analysis for BIA projects

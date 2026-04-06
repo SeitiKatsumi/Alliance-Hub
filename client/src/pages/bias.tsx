@@ -508,8 +508,9 @@ function LocationField({ form, setForm, onPickerOpen }: {
 // ---- Brazil Map Header ----
 const WORLD_GEO = "/world-countries-50m.json";
 
-function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
+function BrazilMapHeader({ biasAll, membros }: { biasAll: BiasProjeto[]; membros: Membro[] }) {
   const [hoveredBia, setHoveredBia] = useState<BiasProjeto | null>(null);
+  const [selectedBia, setSelectedBia] = useState<BiasProjeto | null>(null);
   const [zoom, setZoom] = useState(3);
   const [center, setCenter] = useState<[number, number]>([-52, -15]);
 
@@ -621,7 +622,7 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
             setZoom(z);
           }}
         >
-          {/* World layer — subtle background */}
+          {/* World layer — very subtle background */}
           <Geographies geography={WORLD_GEO}>
             {({ geographies }) =>
               geographies.map((geo) => (
@@ -629,16 +630,16 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
                   key={geo.rsmKey}
                   geography={geo}
                   style={{
-                    default: { fill: "#011228", stroke: "#D7BB7D18", strokeWidth: 0.4, outline: "none" },
-                    hover:   { fill: "#011228", stroke: "#D7BB7D18", strokeWidth: 0.4, outline: "none" },
-                    pressed: { fill: "#011228", outline: "none" },
+                    default: { fill: "#010f22", stroke: "#D7BB7D0D", strokeWidth: 0.2, outline: "none" },
+                    hover:   { fill: "#010f22", stroke: "#D7BB7D0D", strokeWidth: 0.2, outline: "none" },
+                    pressed: { fill: "#010f22", outline: "none" },
                   }}
                 />
               ))
             }
           </Geographies>
 
-          {/* Brazil states — highlighted on top */}
+          {/* Brazil states — elegant fine lines */}
           <Geographies geography={BRAZIL_GEO}>
             {({ geographies }) =>
               geographies.map((geo) => (
@@ -646,9 +647,9 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
                   key={geo.rsmKey}
                   geography={geo}
                   style={{
-                    default: { fill: "#012244", stroke: "#D7BB7D55", strokeWidth: 0.7, outline: "none" },
-                    hover:   { fill: "#013570", stroke: "#D7BB7D90", strokeWidth: 0.9, outline: "none" },
-                    pressed: { fill: "#012244", outline: "none" },
+                    default: { fill: "#011d3a", stroke: "#D7BB7D38", strokeWidth: 0.35, outline: "none" },
+                    hover:   { fill: "#012f5c", stroke: "#D7BB7D65", strokeWidth: 0.45, outline: "none" },
+                    pressed: { fill: "#011d3a", outline: "none" },
                   }}
                 />
               ))
@@ -659,6 +660,7 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
             const lng = parseFloat(String(b.longitude));
             const lat = parseFloat(String(b.latitude));
             const isHovered = hoveredBia?.id === b.id;
+            const isSelected = selectedBia?.id === b.id;
             const r = Math.max(2, 5 / zoom);
             return (
               <Marker
@@ -666,15 +668,16 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
                 coordinates={[lng, lat]}
                 onMouseEnter={() => setHoveredBia(b)}
                 onMouseLeave={() => setHoveredBia(null)}
+                onClick={() => setSelectedBia(prev => prev?.id === b.id ? null : b)}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={0.06}>
-                    <animate attributeName="r" from={r * (isHovered ? 3 : 2.5)} to={r * (isHovered ? 6 : 5)} dur="1.6s" repeatCount="indefinite" />
-                    <animate attributeName="fill-opacity" from="0.3" to="0" dur="1.6s" repeatCount="indefinite" />
+                  <circle r={r * (isSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected ? 0.12 : 0.06}>
+                    <animate attributeName="r" from={r * (isSelected ? 4 : isHovered ? 3 : 2.5)} to={r * (isSelected ? 7 : isHovered ? 6 : 5)} dur={isSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.4" to="0" dur={isSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
                   </circle>
-                  <circle r={r * (isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isHovered ? 0.3 : 0.18} />
-                  <circle r={r * (isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
-                  <circle r={r * 0.6} fill="white" fillOpacity={0.9} />
+                  <circle r={r * (isSelected ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected ? 0.4 : isHovered ? 0.3 : 0.18} />
+                  <circle r={r * (isSelected ? 1.6 : isHovered ? 1.3 : 1)} fill={isSelected ? "#D7BB7D" : "#D7BB7D"} fillOpacity={0.95} />
+                  <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
                 </g>
               </Marker>
             );
@@ -682,41 +685,124 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Hover info bar */}
-      <div
-        className="absolute bottom-0 left-0 right-0 z-20 transition-all duration-200 pointer-events-none"
-        style={{
-          background: "linear-gradient(to top, rgba(0,11,20,0.95) 0%, transparent 100%)",
-          padding: "24px 24px 16px",
-          opacity: hoveredBia ? 1 : 0,
-          transform: hoveredBia ? "translateY(0)" : "translateY(4px)",
-        }}
-      >
-        {hoveredBia && (
-          <div className="flex items-end justify-between font-mono">
-            <div>
-              <p className="text-[9px] text-brand-gold/50 tracking-widest uppercase">Aliança Selecionada</p>
-              <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredBia.nome_bia}</p>
-              {hoveredBia.localizacao && (
-                <p className="text-[11px] text-brand-gold/60 flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3 h-3" />{hoveredBia.localizacao}
-                </p>
-              )}
-            </div>
-            <div className="text-right">
-              {hoveredBia.valor_geral_venda_vgv && n(hoveredBia.valor_geral_venda_vgv) > 0 && (
-                <div>
+      {/* Hover tooltip bar — only when nothing selected */}
+      {!selectedBia && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20 transition-all duration-200 pointer-events-none"
+          style={{
+            background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)",
+            padding: "28px 24px 14px",
+            opacity: hoveredBia ? 1 : 0,
+            transform: hoveredBia ? "translateY(0)" : "translateY(6px)",
+          }}
+        >
+          {hoveredBia && (
+            <div className="flex items-end justify-between font-mono">
+              <div>
+                <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
+                <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredBia.nome_bia}</p>
+                {hoveredBia.localizacao && (
+                  <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3" />{hoveredBia.localizacao}
+                  </p>
+                )}
+              </div>
+              {n(hoveredBia.valor_geral_venda_vgv) > 0 && (
+                <div className="text-right">
                   <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">VGV</p>
                   <p className="text-sm text-brand-gold tabular-nums">{brl(n(hoveredBia.valor_geral_venda_vgv))}</p>
                 </div>
               )}
-              <p className="text-[9px] text-brand-gold/30 mt-1 font-mono">
-                {parseFloat(String(hoveredBia.latitude)).toFixed(4)}, {parseFloat(String(hoveredBia.longitude)).toFixed(4)}
-              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selected BIA info panel */}
+      {selectedBia && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
+          style={{
+            background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)",
+            padding: "32px 24px 18px",
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setSelectedBia(null)}
+            className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest"
+            data-testid="btn-map-close-panel"
+          >
+            ✕ FECHAR
+          </button>
+
+          <div className="font-mono">
+            {/* Header row */}
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] text-brand-gold/40 tracking-[0.35em] uppercase mb-0.5">// Aliança Selecionada</p>
+                <h3 className="text-base font-bold text-brand-gold leading-tight truncate">{selectedBia.nome_bia}</h3>
+                {selectedBia.localizacao && (
+                  <p className="text-[11px] text-brand-gold/50 flex items-center gap-1 mt-1">
+                    <MapPin className="w-3 h-3 shrink-0" />{selectedBia.localizacao}
+                  </p>
+                )}
+              </div>
+
+              {/* Key metrics */}
+              <div className="flex gap-5 shrink-0 text-right">
+                {n(selectedBia.valor_geral_venda_vgv) > 0 && (
+                  <div>
+                    <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">VGV</p>
+                    <p className="text-xs font-semibold text-brand-gold tabular-nums">{brl(n(selectedBia.valor_geral_venda_vgv))}</p>
+                  </div>
+                )}
+                {n(selectedBia.resultado_liquido) !== 0 && (
+                  <div>
+                    <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">Resultado</p>
+                    <p className={`text-xs font-semibold tabular-nums ${n(selectedBia.resultado_liquido) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      {brl(n(selectedBia.resultado_liquido))}
+                    </p>
+                  </div>
+                )}
+                {n(selectedBia.lucro_previsto) !== 0 && (
+                  <div>
+                    <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">Lucro Prev.</p>
+                    <p className="text-xs font-semibold text-brand-gold/80 tabular-nums">{brl(n(selectedBia.lucro_previsto))}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-brand-gold/20 to-transparent mb-3" />
+
+            {/* Details row */}
+            <div className="flex items-end gap-6">
+              <div className="flex-1 min-w-0">
+                {selectedBia.objetivo_alianca && (
+                  <p className="text-[10px] text-brand-gold/45 leading-relaxed line-clamp-2">{selectedBia.objetivo_alianca}</p>
+                )}
+              </div>
+
+              {/* Team + coords */}
+              <div className="text-right shrink-0 space-y-0.5">
+                {(() => {
+                  const autor = membros.find(m => m.id === selectedBia.autor_bia);
+                  return autor ? (
+                    <p className="text-[9px] text-brand-gold/40">
+                      <span className="text-brand-gold/25">Autor: </span>{getMembroNome(autor)}
+                    </p>
+                  ) : null;
+                })()}
+                <p className="text-[9px] text-brand-gold/25 font-mono">
+                  {parseFloat(String(selectedBia.latitude)).toFixed(4)}, {parseFloat(String(selectedBia.longitude)).toFixed(4)}
+                </p>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* No coords hint */}
       {biasAll.length > 0 && biasWithCoords.length === 0 && (
@@ -1138,9 +1224,9 @@ export default function BiasPage() {
 
       {/* Futuristic Brazil Map */}
       {!loading && (
-        <BrazilMapHeader biasAll={biasRaw as BiasProjeto[]} />
+        <BrazilMapHeader biasAll={biasRaw as BiasProjeto[]} membros={membros} />
       )}
-      {loading && <Skeleton className="h-[400px] rounded-2xl" />}
+      {loading && <Skeleton className="h-[440px] rounded-2xl" />}
 
       {/* Summary Cards */}
       {!loading && total > 0 && (

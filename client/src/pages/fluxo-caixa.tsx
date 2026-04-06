@@ -460,6 +460,51 @@ function CategoriaCombobox({
   );
 }
 
+function FilePickerButton({
+  prefix,
+  uploading,
+  onFilesSelected,
+}: {
+  prefix: string;
+  uploading: boolean;
+  onFilesSelected: (files: globalThis.File[]) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files;
+    if (!selected || selected.length === 0) return;
+    onFilesSelected(Array.from(selected));
+    e.target.value = "";
+  }
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
+        onChange={handleChange}
+        disabled={uploading}
+        style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
+        tabIndex={-1}
+        data-testid={`${prefix}-input-file`}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="flex items-center gap-2 px-4 py-2 rounded-md border border-dashed border-muted-foreground/30 hover:bg-muted/50 transition-colors text-sm text-muted-foreground w-full justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        data-testid={`${prefix}-button-upload`}
+      >
+        <Upload className="w-4 h-4" />
+        {uploading ? "Enviando..." : "Selecionar arquivos"}
+      </button>
+    </div>
+  );
+}
+
 function LancamentoFormFields({
   formTipo, setFormTipo,
   formValor, setFormValor,
@@ -538,14 +583,6 @@ function LancamentoFormFields({
 
   const totalRateado = rateioItems.reduce((acc, item) => acc + parseBRLToNumber(item.valor), 0);
   const valorTotal = parseBRLToNumber(formValor);
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files;
-    if (!selected) return;
-    const newFiles = Array.from(selected);
-    setPendingFiles([...pendingFiles, ...newFiles]);
-    e.target.value = "";
-  }
 
   function removePendingFile(index: number) {
     setPendingFiles(pendingFiles.filter((_, i) => i !== index));
@@ -844,21 +881,11 @@ function LancamentoFormFields({
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 px-4 py-2 rounded-md border border-dashed border-muted-foreground/30 cursor-pointer hover:bg-muted/50 transition-colors text-sm text-muted-foreground w-full justify-center" data-testid={`${prefix}-button-upload`}>
-            <Upload className="w-4 h-4" />
-            {uploading ? "Enviando..." : "Selecionar arquivos"}
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
-              onChange={handleFileSelect}
-              className="hidden"
-              disabled={uploading}
-              data-testid={`${prefix}-input-file`}
-            />
-          </label>
-        </div>
+        <FilePickerButton
+          prefix={prefix}
+          uploading={uploading}
+          onFilesSelected={(files) => setPendingFiles([...pendingFiles, ...files])}
+        />
         <p className="text-xs text-muted-foreground">PDF, imagens, Word ou Excel. Máx. 10MB por arquivo.</p>
       </div>
     </div>
@@ -976,10 +1003,10 @@ export default function FluxoCaixaPage() {
   const totals = useMemo(() => {
     const contabeis = fluxoItems.filter((i) => !isValorOrigemAuto(i));
     const entradas = contabeis
-      .filter((i) => i.tipo === "entrada")
+      .filter((i) => i.tipo === "entrada" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     const saidas = contabeis
-      .filter((i) => i.tipo === "saida")
+      .filter((i) => i.tipo === "saida" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
   }, [fluxoItems]);
@@ -1424,7 +1451,7 @@ export default function FluxoCaixaPage() {
               <CardContent>
                 <p className="text-2xl font-bold text-green-600" data-testid="text-total-entradas">{formatBRL(totals.entradas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItems.filter((i) => i.tipo === "entrada").length} entrada(s)
+                  {fluxoItems.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
                 </p>
               </CardContent>
             </Card>
@@ -1437,7 +1464,7 @@ export default function FluxoCaixaPage() {
               <CardContent>
                 <p className="text-2xl font-bold text-red-600" data-testid="text-total-saidas">{formatBRL(totals.saidas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItems.filter((i) => i.tipo === "saida").length} saída(s)
+                  {fluxoItems.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
                 </p>
               </CardContent>
             </Card>

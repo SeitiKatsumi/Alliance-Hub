@@ -651,7 +651,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
             }
           </Geographies>
 
-          {/* Brazil states — elegant fine lines */}
+          {/* Brazil states — same style as world */}
           <Geographies geography={BRAZIL_GEO}>
             {({ geographies }) =>
               geographies.map((geo) => (
@@ -659,9 +659,9 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                   key={geo.rsmKey}
                   geography={geo}
                   style={{
-                    default: { fill: "#011d3a", stroke: "#D7BB7D38", strokeWidth: 0.35, outline: "none" },
-                    hover:   { fill: "#012f5c", stroke: "#D7BB7D65", strokeWidth: 0.45, outline: "none" },
-                    pressed: { fill: "#011d3a", outline: "none" },
+                    default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                    hover:   { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                    pressed: { fill: "#011630", outline: "none" },
                   }}
                 />
               ))

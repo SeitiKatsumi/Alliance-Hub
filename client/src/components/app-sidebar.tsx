@@ -99,7 +99,7 @@ export function AppSidebar() {
                                   <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs">
                                     <Link href="/resultados">
                                       <BarChart3 className="w-3 h-3" />
-                                      <span>Resultados</span>
+                                      <span>Análises</span>
                                     </Link>
                                   </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>

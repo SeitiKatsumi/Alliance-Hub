@@ -204,7 +204,7 @@ export default function ResultadosPage() {
             <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
               <BarChart3 className="w-6 h-6" />
             </div>
-            Resultados
+            Análises
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Análise de retorno e performance por BIA</p>
         </div>

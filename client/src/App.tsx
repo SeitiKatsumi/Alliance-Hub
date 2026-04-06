@@ -14,6 +14,7 @@ import PainelPage from "@/pages/painel";
 import AdminPage from "@/pages/admin";
 import BiasCalculadoraPage from "@/pages/bias-calculadora";
 import FluxoCaixaPage from "@/pages/fluxo-caixa";
+import ResultadosPage from "@/pages/resultados";
 import LoginPage from "@/pages/login";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
@@ -82,6 +83,7 @@ function ProtectedApp() {
               <Route path="/opas" component={OportunidadesPage} />
               <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
               <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
+              <Route path="/resultados" component={ResultadosPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />

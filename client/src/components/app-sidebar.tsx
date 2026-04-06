@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,9 +20,9 @@ import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1774284078992.p
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora";
+  const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
-  const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa");
+  const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa" || location === "/resultados");
 
   return (
     <Sidebar>
@@ -92,6 +92,14 @@ export function AppSidebar() {
                                     <Link href="/fluxo-caixa">
                                       <Wallet className="w-3 h-3" />
                                       <span>Financeiro</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs">
+                                    <Link href="/resultados">
+                                      <BarChart3 className="w-3 h-3" />
+                                      <span>Resultados</span>
                                     </Link>
                                   </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>

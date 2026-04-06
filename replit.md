@@ -94,6 +94,13 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 }
 ```
 
+## Geolocation (BIAs)
+- `latitude` and `longitude` fields are created in Directus `bias_projetos` at server startup via `ensureBiasGeoFields()`
+- Location picker uses Nominatim (OpenStreetMap) free geocoding API — no API key required
+- BIAs Dashboard has a futuristic Brazil map header using `react-simple-maps` with animated pulse markers for geolocated BIAs
+- TopoJSON source: `https://raw.githubusercontent.com/deldersveld/topojson/master/countries/brazil/brazil-states.json`
+- Type declarations for react-simple-maps: `client/src/types/react-simple-maps.d.ts`
+
 ## Navigation Structure (Collapsible Sidebar)
 1. **Meu Dashboard** (/) — Main dashboard with summary blocks (starts closed)
    1.1 Minhas BIAs (/bias) — BIAs Dashboard: cards with key info, create/edit/delete all Directus fields (Geral, Equipe, CPP, Receita tabs), summary stats, search

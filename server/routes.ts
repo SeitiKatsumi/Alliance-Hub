@@ -15,6 +15,33 @@ const openai = new OpenAI({
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
+async function ensureBiasGeoFields() {
+  const fields = [
+    { field: "latitude", type: "float", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "longitude", type: "float", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+  ];
+  for (const fieldDef of fields) {
+    try {
+      const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(fieldDef),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const code = err?.errors?.[0]?.extensions?.code;
+        if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
+          console.warn(`[geo] Field ${fieldDef.field} response: ${res.status}`);
+        }
+      } else {
+        console.log(`[geo] Field ${fieldDef.field} created in bias_projetos`);
+      }
+    } catch (e) {
+      // silently ignore network errors
+    }
+  }
+}
+
 async function directusFetch(collection: string, params: string = "") {
   const url = `${DIRECTUS_URL}/items/${collection}?limit=-1&fields=*${params ? "&" + params : ""}`;
   const res = await fetch(url, {
@@ -156,6 +183,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // Ensure geo fields exist in Directus
+  ensureBiasGeoFields().catch(console.error);
 
   // Proxy para servir arquivos do Directus sem expor o token
   app.get("/api/files/:fileId", async (req, res) => {

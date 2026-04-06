@@ -33,7 +33,7 @@ import {
   ComposableMap, Geographies, Geography, Marker
 } from "react-simple-maps";
 
-const BRAZIL_GEO = "https://raw.githubusercontent.com/deldersveld/topojson/master/countries/brazil/brazil-states.json";
+const BRAZIL_GEO = "/brazil-states.json";
 
 // ---- Types ----
 interface Membro {
@@ -578,9 +578,9 @@ function BrazilMapHeader({ biasAll }: { biasAll: BiasProjeto[] }) {
                 key={geo.rsmKey}
                 geography={geo}
                 style={{
-                  default: { fill: "#011a2e", stroke: "#D7BB7D22", strokeWidth: 0.8, outline: "none" },
-                  hover: { fill: "#012644", stroke: "#D7BB7D44", strokeWidth: 0.8, outline: "none" },
-                  pressed: { fill: "#011a2e", outline: "none" },
+                  default: { fill: "#011e38", stroke: "#D7BB7D50", strokeWidth: 0.6, outline: "none" },
+                  hover: { fill: "#013060", stroke: "#D7BB7D80", strokeWidth: 0.8, outline: "none" },
+                  pressed: { fill: "#011e38", outline: "none" },
                 }}
               />
             ))

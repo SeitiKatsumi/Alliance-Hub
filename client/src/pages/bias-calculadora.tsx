@@ -139,6 +139,7 @@ interface BiasProjeto {
   autor_bia?: string | null;
   aliado_built?: string | null;
   diretor_alianca?: string | null;
+  diretor_nucleo_tecnico?: string | null;
   diretor_execucao?: string | null;
   diretor_comercial?: string | null;
   diretor_capital?: string | null;
@@ -285,6 +286,7 @@ export default function BiasCalculadoraPage() {
   const [membroAutorOpa, setMembroAutorOpa] = useState<string>("");
   const [membroAliadoBuilt, setMembroAliadoBuilt] = useState<string>("");
   const [membroDirTecnico, setMembroDirTecnico] = useState<string>("");
+  const [membroDirNucleoTecnico, setMembroDirNucleoTecnico] = useState<string>("");
   const [membroDirObras, setMembroDirObras] = useState<string>("");
   const [membroDirComercial, setMembroDirComercial] = useState<string>("");
   const [membroDirCapital, setMembroDirCapital] = useState<string>("");
@@ -336,6 +338,7 @@ export default function BiasCalculadoraPage() {
       setMembroAutorOpa(selectedBia.autor_bia || "");
       setMembroAliadoBuilt(selectedBia.aliado_built || "");
       setMembroDirTecnico(selectedBia.diretor_alianca || "");
+      setMembroDirNucleoTecnico(selectedBia.diretor_nucleo_tecnico || "");
       setMembroDirObras(selectedBia.diretor_execucao || "");
       setMembroDirComercial(selectedBia.diretor_comercial || "");
       setMembroDirCapital(selectedBia.diretor_capital || "");
@@ -401,6 +404,7 @@ export default function BiasCalculadoraPage() {
         autor_bia: membroAutorOpa || null,
         aliado_built: membroAliadoBuilt || null,
         diretor_alianca: membroDirTecnico || null,
+        diretor_nucleo_tecnico: membroDirNucleoTecnico || null,
         diretor_execucao: membroDirObras || null,
         diretor_comercial: membroDirComercial || null,
         diretor_capital: membroDirCapital || null,

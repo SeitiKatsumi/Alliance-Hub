@@ -30,6 +30,12 @@ async function ensureBiasExtraFields() {
       schema: { is_nullable: true },
     },
     {
+      field: "diretor_nucleo_tecnico",
+      type: "string",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
+    {
       field: "selo_certified_alliance",
       type: "boolean",
       meta: { interface: "boolean", display: "boolean", hidden: false },

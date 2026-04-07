@@ -64,6 +64,7 @@ interface BiasProjeto {
   autor_bia?: string | null;
   aliado_built?: string | null;
   diretor_alianca?: string | null;
+  diretor_nucleo_tecnico?: string | null;
   diretor_execucao?: string | null;
   diretor_comercial?: string | null;
   diretor_capital?: string | null;
@@ -198,6 +199,7 @@ const EMPTY_FORM = {
   autor_bia: "",
   aliado_built: "",
   diretor_alianca: "",
+  diretor_nucleo_tecnico: "",
   diretor_execucao: "",
   diretor_comercial: "",
   diretor_capital: "",
@@ -235,6 +237,7 @@ function biaToForm(b: BiasProjeto): FormState {
     autor_bia: b.autor_bia || "",
     aliado_built: b.aliado_built || "",
     diretor_alianca: b.diretor_alianca || "",
+    diretor_nucleo_tecnico: b.diretor_nucleo_tecnico || "",
     diretor_execucao: b.diretor_execucao || "",
     diretor_comercial: b.diretor_comercial || "",
     diretor_capital: b.diretor_capital || "",
@@ -1103,6 +1106,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         autor_bia: form.autor_bia || null,
         aliado_built: form.aliado_built || null,
         diretor_alianca: form.diretor_alianca || null,
+        diretor_nucleo_tecnico: form.diretor_nucleo_tecnico || null,
         diretor_execucao: form.diretor_execucao || null,
         diretor_comercial: form.diretor_comercial || null,
         diretor_capital: form.diretor_capital || null,
@@ -1256,6 +1260,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
               <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} />
+              <MembroSelect label="Diretor de Núcleo Técnico" field="diretor_nucleo_tecnico" form={form} setForm={setForm} membros={membros} icon={Shield} />
               <MembroSelect label="Diretor de Núcleo de Obra" field="diretor_execucao" form={form} setForm={setForm} membros={membros} icon={Hammer} />
               <MembroSelect label="Diretor Comercial" field="diretor_comercial" form={form} setForm={setForm} membros={membros} icon={Building2} />
               <MembroSelect label="Diretor de Capital" field="diretor_capital" form={form} setForm={setForm} membros={membros} icon={Wallet} />

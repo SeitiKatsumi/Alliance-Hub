@@ -24,6 +24,7 @@ interface BiasProjeto {
   autor_bia?: string | null;
   aliado_built?: string | null;
   diretor_alianca?: string | null;
+  diretor_nucleo_tecnico?: string | null;
   diretor_execucao?: string | null;
   diretor_comercial?: string | null;
   diretor_capital?: string | null;
@@ -214,6 +215,7 @@ export default function BiaDetalhePage() {
       { id: bia.autor_bia, role: "Autor da BIA (OPA)", icon: Briefcase },
       { id: bia.aliado_built, role: "Aliado BUILT", icon: Shield },
       { id: bia.diretor_alianca, role: "Diretor de Aliança", icon: Crown },
+      { id: bia.diretor_nucleo_tecnico, role: "Diretor de Núcleo Técnico", icon: Shield },
       { id: bia.diretor_execucao, role: "Diretor de Núcleo de Obra", icon: Hammer },
       { id: bia.diretor_comercial, role: "Diretor Comercial", icon: Briefcase },
       { id: bia.diretor_capital, role: "Diretor de Capital", icon: Wallet },

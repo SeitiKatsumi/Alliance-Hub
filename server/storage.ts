@@ -7,7 +7,6 @@ import {
   tiposCpp, type TipoCpp, type InsertTipoCpp,
   categorias, type Categoria, type InsertCategoria,
   oportunidades, type Oportunidade, type InsertOportunidade,
-  proposals, type Proposal, type InsertProposal,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -64,11 +63,6 @@ export interface IStorage {
   createOportunidade(data: InsertOportunidade): Promise<Oportunidade>;
   updateOportunidade(id: string, data: Partial<InsertOportunidade>): Promise<Oportunidade | undefined>;
 
-  getAllProposals(): Promise<Proposal[]>;
-  getProposal(id: string): Promise<Proposal | undefined>;
-  createProposal(data: InsertProposal): Promise<Proposal>;
-  updateProposal(id: string, data: Partial<Proposal>): Promise<Proposal | undefined>;
-  deleteProposal(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -259,29 +253,6 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async getAllProposals(): Promise<Proposal[]> {
-    return db.select().from(proposals).orderBy(proposals.created_at);
-  }
-
-  async getProposal(id: string): Promise<Proposal | undefined> {
-    const [p] = await db.select().from(proposals).where(eq(proposals.id, id));
-    return p;
-  }
-
-  async createProposal(data: InsertProposal): Promise<Proposal> {
-    const [p] = await db.insert(proposals).values(data).returning();
-    return p;
-  }
-
-  async updateProposal(id: string, data: Partial<Proposal>): Promise<Proposal | undefined> {
-    const [p] = await db.update(proposals).set(data).where(eq(proposals.id, id)).returning();
-    return p;
-  }
-
-  async deleteProposal(id: string): Promise<boolean> {
-    const result = await db.delete(proposals).where(eq(proposals.id, id)).returning();
-    return result.length > 0;
-  }
 }
 
 export const storage = new DatabaseStorage();

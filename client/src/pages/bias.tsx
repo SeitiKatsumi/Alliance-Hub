@@ -901,7 +901,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
   const vgv = n(bia.valor_geral_venda_vgv);
 
   const dirAlianca = bia.diretor_alianca ? membroMap[bia.diretor_alianca] : null;
-  const autorBia = bia.autor_bia ? membroMap[bia.autor_bia] : null;
+  const aliadoBuilt = bia.aliado_built ? membroMap[bia.aliado_built] : null;
 
   return (
     <Card
@@ -953,14 +953,14 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
           <p className="text-xs text-muted-foreground line-clamp-2">{bia.objetivo_alianca}</p>
         )}
 
-        {(autorBia || dirAlianca) && (
+        {(aliadoBuilt || dirAlianca) && (
           <div className="flex flex-wrap gap-1.5">
-            {autorBia && (
+            {aliadoBuilt && (
               <Badge variant="outline" className="text-xs font-normal gap-1">
-                <Briefcase className="w-2.5 h-2.5" /> {autorBia}
+                <Building2 className="w-2.5 h-2.5" /> {aliadoBuilt}
               </Badge>
             )}
-            {dirAlianca && dirAlianca !== autorBia && (
+            {dirAlianca && dirAlianca !== aliadoBuilt && (
               <Badge variant="outline" className="text-xs font-normal gap-1">
                 <Crown className="w-2.5 h-2.5" /> {dirAlianca}
               </Badge>

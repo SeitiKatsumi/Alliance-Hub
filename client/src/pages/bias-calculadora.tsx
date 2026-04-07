@@ -286,8 +286,8 @@ export default function BiasCalculadoraPage() {
 
   const percFields = [
     { label: "Autor da OPA", icon: Crown, value: percAutor, setter: setPercAutor, cpp: cppAutor, color: "text-amber-500" },
-    { label: "Aliado Built", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500" },
-    { label: "Built", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold" },
+    { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500" },
+    { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold" },
     { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500" },
     { label: "Dir. Núcleo de Obras", icon: Hammer, value: percObras, setter: setPercObras, cpp: cppObras, color: "text-orange-500" },
     { label: "Dir. Núcleo Comercial", icon: Briefcase, value: percComercial, setter: setPercComercial, cpp: cppComercial, color: "text-green-500" },

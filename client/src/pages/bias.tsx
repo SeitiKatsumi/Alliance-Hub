@@ -1149,7 +1149,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4 flex-1">
               <MembroSelect label="Autor da BIA (OPA)" field="autor_bia" form={form} setForm={setForm} membros={membros} icon={Briefcase} />
-              <MembroSelect label="Aliado Built" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} />
+              <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
               <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} />
@@ -1165,8 +1165,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais CPP (% sobre Valor de Origem)</p>
               <div className="grid grid-cols-1 gap-3">
                 <PercField label="Autor da OPA" field="perc_autor_opa" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Aliado Built" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
-                <PercField label="Built" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
+                <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
+                <PercField label="BUILT" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor Técnico" field="perc_dir_tecnico" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor de Obras" field="perc_dir_obras" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor Comercial" field="perc_dir_comercial" form={form} setForm={setForm} baseValue={valorOrigem} />
@@ -1291,7 +1291,7 @@ export default function BiasPage() {
             </div>
             BIAs
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestão de Alianças Built — {total} BIA{total !== 1 ? "s" : ""} cadastrada{total !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-muted-foreground mt-1">Alianças Integradas BUILT — {total} BIA{total !== 1 ? "s" : ""} cadastrada{total !== 1 ? "s" : ""}</p>
         </div>
         <Button
           className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"

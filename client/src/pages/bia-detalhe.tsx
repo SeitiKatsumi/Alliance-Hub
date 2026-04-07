@@ -212,7 +212,7 @@ export default function BiaDetalhePage() {
     if (!bia) return [];
     return [
       { id: bia.autor_bia, role: "Autor da BIA (OPA)", icon: Briefcase },
-      { id: bia.aliado_built, role: "Aliado Built", icon: Shield },
+      { id: bia.aliado_built, role: "Aliado BUILT", icon: Shield },
       { id: bia.diretor_alianca, role: "Diretor de Aliança", icon: Crown },
       { id: bia.diretor_execucao, role: "Diretor de Execução", icon: Hammer },
       { id: bia.diretor_comercial, role: "Diretor Comercial", icon: Briefcase },
@@ -224,8 +224,8 @@ export default function BiaDetalhePage() {
     if (!bia) return [];
     return [
       { label: "Autor OPA", perc: bia.perc_autor_opa, cpp: bia.cpp_autor_opa },
-      { label: "Aliado Built", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
-      { label: "Built", perc: bia.perc_built, cpp: bia.cpp_built },
+      { label: "Aliado BUILT", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
+      { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
       { label: "Dir. Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
       { label: "Dir. Obras", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
       { label: "Dir. Comercial", perc: bia.perc_dir_comercial, cpp: bia.cpp_dir_comercial },

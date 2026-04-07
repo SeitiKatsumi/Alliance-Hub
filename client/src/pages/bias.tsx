@@ -25,6 +25,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
@@ -50,6 +51,7 @@ interface Membro {
 interface BiasProjeto {
   id: string;
   nome_bia: string;
+  situacao?: "ativa" | "em_formacao" | null;
   objetivo_alianca?: string;
   observacoes?: string;
   localizacao?: string;
@@ -182,6 +184,7 @@ function BRLInput({ label, field, form, setForm, testId }: {
 // ---- Form state type ----
 const EMPTY_FORM = {
   nome_bia: "",
+  situacao: "ativa" as "ativa" | "em_formacao",
   localizacao: "",
   latitude: "",
   longitude: "",
@@ -216,6 +219,7 @@ type FormState = typeof EMPTY_FORM;
 function biaToForm(b: BiasProjeto): FormState {
   return {
     nome_bia: b.nome_bia || "",
+    situacao: (b.situacao === "em_formacao" ? "em_formacao" : "ativa") as "ativa" | "em_formacao",
     localizacao: b.localizacao || "",
     latitude: b.latitude != null ? String(b.latitude) : "",
     longitude: b.longitude != null ? String(b.longitude) : "",
@@ -908,9 +912,20 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-base font-semibold leading-tight truncate" data-testid={`text-bia-nome-${bia.id}`}>
-              {bia.nome_bia}
-            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <CardTitle className="text-base font-semibold leading-tight truncate" data-testid={`text-bia-nome-${bia.id}`}>
+                {bia.nome_bia}
+              </CardTitle>
+              {bia.situacao === "em_formacao" ? (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 bg-amber-500/10 shrink-0">
+                  Em Formação
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-green-500/40 text-green-600 bg-green-500/10 shrink-0">
+                  Ativa
+                </Badge>
+              )}
+            </div>
             {bia.localizacao && (
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                 <MapPin className="w-3 h-3 shrink-0" /> {bia.localizacao}
@@ -1048,6 +1063,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     mutationFn: async () => {
       const payload: Record<string, any> = {
         nome_bia: form.nome_bia.trim(),
+        situacao: form.situacao,
         localizacao: form.localizacao.trim() || null,
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
@@ -1121,6 +1137,34 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             {/* Tab Geral */}
             <TabsContent value="geral" className="space-y-4 mt-4 flex-1">
               <FieldInput label="Nome da BIA *" field="nome_bia" form={form} setForm={setForm} placeholder="Ex: BIA Residencial Norte" />
+
+              {/* Status da BIA */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Status da BIA</Label>
+                <ToggleGroup
+                  type="single"
+                  value={form.situacao}
+                  onValueChange={(v) => { if (v) setForm({ ...form, situacao: v as "ativa" | "em_formacao" }); }}
+                  className="justify-start"
+                  data-testid="toggle-situacao"
+                >
+                  <ToggleGroupItem
+                    value="em_formacao"
+                    className="data-[state=on]:bg-amber-500/15 data-[state=on]:text-amber-600 data-[state=on]:border-amber-500/40 border"
+                    data-testid="toggle-em-formacao"
+                  >
+                    Em Formação
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="ativa"
+                    className="data-[state=on]:bg-green-500/15 data-[state=on]:text-green-600 data-[state=on]:border-green-500/40 border"
+                    data-testid="toggle-ativa"
+                  >
+                    Ativa
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
               <LocationField form={form} setForm={setForm} onPickerOpen={() => setLocationPickerOpen(true)} />
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Objetivo da Aliança</Label>

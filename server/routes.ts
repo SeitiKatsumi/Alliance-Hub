@@ -15,6 +15,26 @@ const openai = new OpenAI({
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
+async function ensureBiasSituacaoField() {
+  try {
+    const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        field: "situacao",
+        type: "string",
+        meta: { interface: "select-dropdown", display: "raw", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Em Formação", value: "em_formacao" }] } },
+        schema: { is_nullable: true, default_value: "ativa" },
+      }),
+    });
+    if (res.ok) {
+      console.log("[bia] Field situacao created in bias_projetos");
+    }
+  } catch (e) {
+    // silently ignore
+  }
+}
+
 async function ensureBiasGeoFields() {
   const fields = [
     { field: "latitude", type: "float", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
@@ -186,6 +206,7 @@ export async function registerRoutes(
 
   // Ensure geo fields exist in Directus
   ensureBiasGeoFields().catch(console.error);
+  ensureBiasSituacaoField().catch(console.error);
 
   // Proxy para servir arquivos do Directus sem expor o token
   app.get("/api/files/:fileId", async (req, res) => {

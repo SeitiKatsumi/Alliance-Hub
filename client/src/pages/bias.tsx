@@ -1255,7 +1255,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
-              <MembroSelect label="Diretor de Núcleo Técnico" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} />
+              <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} />
               <MembroSelect label="Diretor de Núcleo de Obra" field="diretor_execucao" form={form} setForm={setForm} membros={membros} icon={Hammer} />
               <MembroSelect label="Diretor Comercial" field="diretor_comercial" form={form} setForm={setForm} membros={membros} icon={Building2} />
               <MembroSelect label="Diretor de Capital" field="diretor_capital" form={form} setForm={setForm} membros={membros} icon={Wallet} />

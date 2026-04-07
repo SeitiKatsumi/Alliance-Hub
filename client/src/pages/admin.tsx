@@ -71,7 +71,7 @@ const MODULE_LABELS: Record<string, string> = {
   calculadora: "Calculadora DM",
   fluxo_caixa: "Gestão Financeira",
   membros: "Membros",
-  aura: "AURA Built",
+  aura: "AURA BUILT",
   painel: "Meu Painel",
   admin: "Administração",
 };

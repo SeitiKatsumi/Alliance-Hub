@@ -63,7 +63,7 @@ export default function ValidationPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
-              Built Alliances - Directus
+              BUILT Alliances - Directus
             </h1>
             <p className="text-muted-foreground mt-1" data-testid="text-page-description">
               Validação e gerenciamento de coleções

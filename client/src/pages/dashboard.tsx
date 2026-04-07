@@ -64,7 +64,7 @@ export default function Dashboard() {
             Bem-vindo, {currentUser?.nome?.split(" ")[0] || "Membro"}
           </h1>
           <p className="text-muted-foreground">
-            Seu painel de gestão Built Alliances
+            Seu painel de gestão BUILT Alliances
           </p>
         </div>
         <Badge variant="secondary" className="px-3 py-1">

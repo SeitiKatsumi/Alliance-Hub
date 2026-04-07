@@ -26,7 +26,7 @@ const presets = [
   {
     icon: TrendingUp,
     label: "Análise de Performance",
-    prompt: "Faça uma análise geral da performance atual da Built Alliances, incluindo métricas de membros, BIAS e oportunidades."
+    prompt: "Faça uma análise geral da performance atual da BUILT Alliances, incluindo métricas de membros, BIAS e oportunidades."
   },
   {
     icon: Users,

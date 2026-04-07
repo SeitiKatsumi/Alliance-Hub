@@ -1371,7 +1371,7 @@ export default function BiasPage() {
               <>
                 <Briefcase className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">Nenhuma BIA cadastrada</h3>
-                <p className="text-sm text-muted-foreground/70 mb-4">Comece criando a primeira aliança Built</p>
+                <p className="text-sm text-muted-foreground/70 mb-4">Comece criando a primeira aliança BUILT</p>
                 <Button
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
                   onClick={openCreate}

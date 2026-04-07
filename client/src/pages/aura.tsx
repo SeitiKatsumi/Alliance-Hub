@@ -46,7 +46,7 @@ export default function AuraPage() {
             AURA
           </h1>
           <p className="text-sm text-white/30 max-w-xs leading-relaxed">
-            O módulo de scoring e reputação da rede Built Alliances está sendo desenvolvido e em breve estará disponível.
+            O módulo de scoring e reputação da rede BUILT Alliances está sendo desenvolvido e em breve estará disponível.
           </p>
         </div>
 

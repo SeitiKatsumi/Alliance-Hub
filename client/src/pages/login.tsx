@@ -38,7 +38,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-full bg-[#D7BB7D]/20 flex items-center justify-center mb-4 border border-[#D7BB7D]/40">
             <Shield className="w-7 h-7 text-[#D7BB7D]" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Built Alliances</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">BUILT Alliances</h1>
           <p className="text-white/50 text-sm mt-1">Plataforma de Gestão</p>
         </div>
 
@@ -114,7 +114,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-white/30 text-xs mt-6">
-          &copy; {new Date().getFullYear()} Built Alliances. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} BUILT Alliances. Todos os direitos reservados.
         </p>
       </div>
     </div>

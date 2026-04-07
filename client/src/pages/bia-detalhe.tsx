@@ -358,7 +358,7 @@ export default function BiaDetalhePage() {
           {equipe.length > 0 && (
             <Card>
               <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={Users}>Equipe</SectionTitle>
+                <SectionTitle icon={Users}>Diretoria</SectionTitle>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {equipe.map((e, i) => (
                     <MembroChip

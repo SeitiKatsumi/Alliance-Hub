@@ -258,26 +258,53 @@ export async function registerRoutes(
   // ========== MEMBROS (from Directus: cadastro_geral) ==========
   app.get("/api/membros", async (req, res) => {
     try {
-      const items = await directusFetch("cadastro_geral");
-      const mapped = items.map((m: any) => ({
-        id: m.id,
-        nome: m.nome,
-        Nome_de_usuario: m.Nome_de_usuario || null,
-        email: m.email,
-        telefone: m.telefone,
-        whatsapp: m.whatsapp,
-        cidade: m.cidade,
-        estado: m.estado,
-        empresa: m.empresa,
-        cargo: m.cargo || m.responsavel_cargo,
-        especialidade: m.especialidade || null,
-        foto: m.foto || null,
-        perfil_aliado: m.perfil_aliado,
-        nucleo_alianca: m.nucleo_alianca,
-        tipo_pessoa: m.tipo_pessoa,
-        tipo_de_cadastro: m.tipo_de_cadastro,
-        ativo: m.ativo,
-      }));
+      const items = await directusFetch("cadastro_geral", "fields=*,Especialidades.*.*");
+      const mapped = items.map((m: any) => {
+        // Parse relational Especialidades (M2M or O2M from Directus)
+        let especialidades_arr: string[] = [];
+        const esp = m.Especialidades;
+        if (Array.isArray(esp)) {
+          especialidades_arr = esp.map((e: any) => {
+            if (typeof e === "string") return e;
+            if (typeof e === "number") return String(e);
+            // M2M junction: try nested object fields
+            const nested = e?.Especialidades_id || e?.especialidade_id || e;
+            if (typeof nested === "object" && nested !== null) {
+              return nested.nome || nested.name || nested.titulo || nested.label || String(nested.id || "");
+            }
+            return null;
+          }).filter(Boolean) as string[];
+        } else if (typeof esp === "string" && esp) {
+          especialidades_arr = [esp];
+        } else if (typeof esp === "object" && esp !== null) {
+          const n = esp.nome || esp.name || esp.titulo;
+          if (n) especialidades_arr = [n];
+        }
+        // Fallback to plain text field
+        if (especialidades_arr.length === 0 && m.especialidade) {
+          especialidades_arr = [m.especialidade];
+        }
+        return {
+          id: m.id,
+          nome: m.nome,
+          Nome_de_usuario: m.Nome_de_usuario || null,
+          email: m.email,
+          telefone: m.telefone,
+          whatsapp: m.whatsapp,
+          cidade: m.cidade,
+          estado: m.estado,
+          empresa: m.empresa,
+          cargo: m.cargo || m.responsavel_cargo,
+          especialidade: especialidades_arr[0] || m.especialidade || null,
+          especialidades: especialidades_arr,
+          foto: m.foto || null,
+          perfil_aliado: m.perfil_aliado,
+          nucleo_alianca: m.nucleo_alianca,
+          tipo_pessoa: m.tipo_pessoa,
+          tipo_de_cadastro: m.tipo_de_cadastro,
+          ativo: m.ativo,
+        };
+      });
       res.json(mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

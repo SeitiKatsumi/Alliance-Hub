@@ -27,6 +27,7 @@ interface Membro {
   empresa?: string;
   cargo?: string;
   especialidade?: string;
+  especialidades?: string[];
   foto?: string | null;
   tipo_de_cadastro?: string;
 }
@@ -135,10 +136,10 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
             <h3 className="font-bold text-sm leading-tight truncate" style={{ color: accentColor }}>
               {nome}
             </h3>
-            {membro.especialidade && (
+            {(membro.especialidades?.length || membro.especialidade) && (
               <p className="text-xs text-white/50 truncate mt-0.5 flex items-center gap-1">
                 <Briefcase className="w-2.5 h-2.5 shrink-0" />
-                {membro.especialidade}
+                {(membro.especialidades?.length ? membro.especialidades[0] : membro.especialidade)}
               </p>
             )}
             {membro.empresa && (
@@ -178,23 +179,27 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
         </div>
 
         {/* Tags bottom */}
-        {(membro.especialidade || membro.estado) && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {membro.especialidade && (
-              <span
-                className="text-[9px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wide border"
-                style={{ color: `${accentColor}99`, borderColor: `${accentColor}20`, background: `${accentColor}08` }}
-              >
-                {membro.especialidade}
-              </span>
-            )}
-            {membro.estado && (
-              <span className="text-[9px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wide border border-white/10 text-white/30">
-                {membro.estado}
-              </span>
-            )}
-          </div>
-        )}
+        {(() => {
+          const esps = (membro.especialidades?.length ? membro.especialidades : membro.especialidade ? [membro.especialidade] : []);
+          return (esps.length > 0 || membro.estado) ? (
+            <div className="flex flex-wrap gap-1 mt-3">
+              {esps.map((e) => (
+                <span
+                  key={e}
+                  className="text-[9px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wide border"
+                  style={{ color: `${accentColor}99`, borderColor: `${accentColor}20`, background: `${accentColor}08` }}
+                >
+                  {e}
+                </span>
+              ))}
+              {membro.estado && (
+                <span className="text-[9px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wide border border-white/10 text-white/30">
+                  {membro.estado}
+                </span>
+              )}
+            </div>
+          ) : null;
+        })()}
       </div>
     </div>
   );
@@ -217,6 +222,7 @@ export default function MembrosPage() {
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("");
   const [filterEstado, setFilterEstado] = useState("");
+  const [filterTipoCadastro, setFilterTipoCadastro] = useState("");
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
@@ -227,10 +233,14 @@ export default function MembrosPage() {
     [membrosRaw]
   );
 
-  const especialidades = useMemo(
-    () => [...new Set(membros.map(m => m.especialidade).filter(Boolean))].sort() as string[],
-    [membros]
-  );
+  const especialidades = useMemo(() => {
+    const all = new Set<string>();
+    membros.forEach(m => {
+      if (Array.isArray(m.especialidades)) m.especialidades.forEach(e => e && all.add(e));
+      else if (m.especialidade) all.add(m.especialidade);
+    });
+    return [...all].sort();
+  }, [membros]);
 
   const estados = useMemo(
     () => [...new Set(membros.map(m => m.estado).filter(Boolean))].sort() as string[],
@@ -242,17 +252,26 @@ export default function MembrosPage() {
     [membros]
   );
 
+  const tiposCadastro = useMemo(
+    () => [...new Set(membros.map(m => m.tipo_de_cadastro).filter(Boolean))].sort() as string[],
+    [membros]
+  );
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return membros.filter(m => {
+      const allEsps = Array.isArray(m.especialidades) && m.especialidades.length > 0
+        ? m.especialidades
+        : m.especialidade ? [m.especialidade] : [];
       const matchSearch = !q || [
-        m._nome, m.especialidade, m.empresa, m.cidade, m.estado, m.email
+        m._nome, ...allEsps, m.empresa, m.cidade, m.estado, m.email
       ].some(f => f?.toLowerCase().includes(q));
-      const matchCargo = !filterEspecialidade || m.especialidade === filterEspecialidade;
+      const matchEsp = !filterEspecialidade || allEsps.includes(filterEspecialidade);
       const matchEstado = !filterEstado || m.estado === filterEstado;
-      return matchSearch && matchCargo && matchEstado;
+      const matchTipo = !filterTipoCadastro || m.tipo_de_cadastro === filterTipoCadastro;
+      return matchSearch && matchEsp && matchEstado && matchTipo;
     });
-  }, [membros, search, filterEspecialidade, filterEstado]);
+  }, [membros, search, filterEspecialidade, filterEstado, filterTipoCadastro]);
 
   const stats = useMemo(() => ({
     total: membros.length,
@@ -261,7 +280,7 @@ export default function MembrosPage() {
     especialidades: especialidades.length,
   }), [membros, empresas, estados, especialidades]);
 
-  const hasFilters = search || filterEspecialidade || filterEstado;
+  const hasFilters = search || filterEspecialidade || filterEstado || filterTipoCadastro;
 
   return (
     <div className="min-h-screen" style={{ background: "#020b16" }}>
@@ -412,10 +431,28 @@ export default function MembrosPage() {
           </Select>
         )}
 
+        {/* Tipo de Cadastro filter */}
+        {tiposCadastro.length > 0 && (
+          <Select value={filterTipoCadastro || "__all__"} onValueChange={v => setFilterTipoCadastro(v === "__all__" ? "" : v)}>
+            <SelectTrigger
+              className="h-8 w-40 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
+              data-testid="select-filter-tipo-cadastro"
+            >
+              <SelectValue placeholder="Tipo de cadastro" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
+              <SelectItem value="__all__" className="text-white/50">Todos os tipos</SelectItem>
+              {tiposCadastro.map(t => (
+                <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         {/* Clear filters */}
         {hasFilters && (
           <button
-            onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); }}
+            onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); setFilterTipoCadastro(""); }}
             className="h-8 px-3 text-xs rounded-md border border-red-500/20 text-red-400/60 hover:border-red-500/40 hover:text-red-400 transition-colors font-mono flex items-center gap-1.5"
           >
             <X className="w-3 h-3" />
@@ -461,7 +498,7 @@ export default function MembrosPage() {
             </p>
             {hasFilters && (
               <button
-                onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); }}
+                onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); setFilterTipoCadastro(""); }}
                 className="mt-3 text-xs text-brand-gold/40 hover:text-brand-gold/70 font-mono underline"
               >
                 limpar filtros

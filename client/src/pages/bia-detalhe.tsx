@@ -421,7 +421,7 @@ export default function BiaDetalhePage() {
           {cpp.length > 0 && (
             <Card>
               <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={Layers}>CPP — Partilha</SectionTitle>
+                <SectionTitle icon={Layers}>CPP — DM</SectionTitle>
                 <div className="space-y-1">
                   {cpp.map((row, i) => (
                     <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">

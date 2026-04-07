@@ -16,7 +16,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1774284078992.png";
+import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1775603722664.png";
 
 export function AppSidebar() {
   const [location] = useLocation();

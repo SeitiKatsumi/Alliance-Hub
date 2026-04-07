@@ -1137,17 +1137,6 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
               <p className="text-xs font-semibold tabular-nums truncate">{brl(valorRealizado)}</p>
             </div>
           )}
-          {resultado !== 0 && (
-            <div className={`rounded-md p-2 col-span-2 ${resultado >= 0 ? "bg-green-500/10" : "bg-red-500/10"}`}>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                {resultado >= 0 ? <TrendingUp className="w-2.5 h-2.5 text-green-500" /> : <TrendingDown className="w-2.5 h-2.5 text-red-500" />}
-                Resultado Líquido
-              </p>
-              <p className={`text-sm font-bold tabular-nums ${resultado >= 0 ? "text-green-600" : "text-red-600"}`} data-testid={`text-resultado-${bia.id}`}>
-                {brl(resultado)}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* OPAs relacionadas */}

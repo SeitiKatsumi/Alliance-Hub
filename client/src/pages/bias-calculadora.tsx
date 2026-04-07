@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -30,12 +32,114 @@ import {
   CalendarDays,
   Wrench,
   HandCoins,
+  ChevronsUpDown,
+  Check,
+  UserCircle,
 } from "lucide-react";
+
+interface Membro {
+  id: string;
+  nome?: string;
+  Nome_de_usuario?: string | null;
+  foto?: string | null;
+}
+
+const DIRECTUS_URL = "https://app.builtalliances.com";
+
+function membroNome(m: Membro): string {
+  return m.nome || m.Nome_de_usuario || m.id;
+}
+
+function membroFoto(m: Membro): string | null {
+  return m.foto ? `${DIRECTUS_URL}/assets/${m.foto}?width=40&height=40&fit=cover` : null;
+}
+
+function MemberSelect({
+  value, onChange, membros, label
+}: { value: string; onChange: (v: string) => void; membros: Membro[]; label: string }) {
+  const [open, setOpen] = useState(false);
+  const selected = membros.find(m => m.id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center gap-2 text-left rounded-md border border-input bg-background px-2 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors min-h-[30px]"
+          data-testid={`member-select-${label.replace(/\s+/g, "-").toLowerCase()}`}
+        >
+          {selected ? (
+            <>
+              {membroFoto(selected) ? (
+                <img src={membroFoto(selected)!} className="w-5 h-5 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-brand-gold/20 flex items-center justify-center shrink-0">
+                  <span className="text-[8px] font-bold text-brand-gold">{membroNome(selected).charAt(0).toUpperCase()}</span>
+                </div>
+              )}
+              <span className="truncate text-foreground">{membroNome(selected)}</span>
+            </>
+          ) : (
+            <>
+              <UserCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">Selecionar...</span>
+            </>
+          )}
+          <ChevronsUpDown className="w-3 h-3 ml-auto text-muted-foreground shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar membro..." className="h-8 text-xs" />
+          <CommandList>
+            <CommandEmpty className="text-xs p-3 text-muted-foreground">Nenhum membro encontrado.</CommandEmpty>
+            <CommandGroup>
+              {value && (
+                <CommandItem
+                  value="__clear__"
+                  onSelect={() => { onChange(""); setOpen(false); }}
+                  className="text-xs text-muted-foreground"
+                >
+                  <Check className="w-3 h-3 mr-2 opacity-0" />
+                  — Remover seleção
+                </CommandItem>
+              )}
+              {membros.map(m => (
+                <CommandItem
+                  key={m.id}
+                  value={membroNome(m)}
+                  onSelect={() => { onChange(m.id); setOpen(false); }}
+                  className="text-xs"
+                >
+                  <Check className={`w-3 h-3 mr-2 ${m.id === value ? "opacity-100" : "opacity-0"}`} />
+                  {membroFoto(m) ? (
+                    <img src={membroFoto(m)!} className="w-5 h-5 rounded-full object-cover mr-2 shrink-0" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-brand-gold/20 flex items-center justify-center mr-2 shrink-0">
+                      <span className="text-[8px] font-bold text-brand-gold">{membroNome(m).charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <span className="truncate">{membroNome(m)}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface BiasProjeto {
   id: string;
   nome_bia: string;
   objetivo_alianca: string;
+  autor_bia?: string | null;
+  aliado_built?: string | null;
+  diretor_alianca?: string | null;
+  diretor_execucao?: string | null;
+  diretor_comercial?: string | null;
+  diretor_capital?: string | null;
   valor_origem?: string | number;
   divisor_multiplicador?: string | number;
   perc_autor_opa?: string | number;
@@ -171,6 +275,18 @@ export default function BiasCalculadoraPage() {
     queryKey: ["/api/bias"],
   });
 
+  const { data: membros = [] } = useQuery<Membro[]>({
+    queryKey: ["/api/membros"],
+  });
+
+  // Member selections per role
+  const [membroAutorOpa, setMembroAutorOpa] = useState<string>("");
+  const [membroAliadoBuilt, setMembroAliadoBuilt] = useState<string>("");
+  const [membroDirTecnico, setMembroDirTecnico] = useState<string>("");
+  const [membroDirObras, setMembroDirObras] = useState<string>("");
+  const [membroDirComercial, setMembroDirComercial] = useState<string>("");
+  const [membroDirCapital, setMembroDirCapital] = useState<string>("");
+
   const bias = useMemo(() => biasRaw || [], [biasRaw]);
   const selectedBia = useMemo(() => bias.find(b => b.id === selectedBiaId), [bias, selectedBiaId]);
 
@@ -214,6 +330,13 @@ export default function BiasCalculadoraPage() {
       setManutencao(toNum(selectedBia.manutencao_pos_obra_prevista));
       setTotalAportes(toNum(selectedBia.total_aportes));
       setInicioAportes(selectedBia.inicio_aportes || "");
+      // Load member selections
+      setMembroAutorOpa(selectedBia.autor_bia || "");
+      setMembroAliadoBuilt(selectedBia.aliado_built || "");
+      setMembroDirTecnico(selectedBia.diretor_alianca || "");
+      setMembroDirObras(selectedBia.diretor_execucao || "");
+      setMembroDirComercial(selectedBia.diretor_comercial || "");
+      setMembroDirCapital(selectedBia.diretor_capital || "");
     }
   }, [selectedBia]);
 

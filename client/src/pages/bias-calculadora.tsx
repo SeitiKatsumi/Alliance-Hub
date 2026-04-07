@@ -92,7 +92,9 @@ function MemberSelect({
         <Command>
           <CommandInput placeholder="Buscar membro..." className="h-8 text-xs" />
           <CommandList>
-            <CommandEmpty className="text-xs p-3 text-muted-foreground">Nenhum membro encontrado.</CommandEmpty>
+            <CommandEmpty>
+              <div className="text-xs p-3 text-muted-foreground text-center">Nenhum membro encontrado.</div>
+            </CommandEmpty>
             <CommandGroup>
               {value && (
                 <CommandItem
@@ -395,6 +397,13 @@ export default function BiasCalculadoraPage() {
         lucro_previsto: lucroPrevisto.toFixed(2),
         total_aportes: totalAportes.toFixed(2),
         inicio_aportes: inicioAportes || null,
+        // Member assignments
+        autor_bia: membroAutorOpa || null,
+        aliado_built: membroAliadoBuilt || null,
+        diretor_alianca: membroDirTecnico || null,
+        diretor_execucao: membroDirObras || null,
+        diretor_comercial: membroDirComercial || null,
+        diretor_capital: membroDirCapital || null,
       };
       await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, payload);
     },
@@ -408,13 +417,13 @@ export default function BiasCalculadoraPage() {
   });
 
   const percFields = [
-    { label: "Autor da OPA", icon: Crown, value: percAutor, setter: setPercAutor, cpp: cppAutor, color: "text-amber-500" },
-    { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500" },
-    { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold" },
-    { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500" },
-    { label: "Dir. Núcleo de Obras", icon: Hammer, value: percObras, setter: setPercObras, cpp: cppObras, color: "text-orange-500" },
-    { label: "Dir. Núcleo Comercial", icon: Briefcase, value: percComercial, setter: setPercComercial, cpp: cppComercial, color: "text-green-500" },
-    { label: "Dir. Núcleo de Capital", icon: Wallet, value: percCapital, setter: setPercCapital, cpp: cppCapital, color: "text-red-500" },
+    { label: "Autor da OPA", icon: Crown, value: percAutor, setter: setPercAutor, cpp: cppAutor, color: "text-amber-500", memberId: membroAutorOpa, memberSetter: setMembroAutorOpa },
+    { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500", memberId: membroAliadoBuilt, memberSetter: setMembroAliadoBuilt },
+    { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold", memberId: null, memberSetter: null },
+    { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500", memberId: membroDirTecnico, memberSetter: setMembroDirTecnico },
+    { label: "Dir. Núcleo de Obras", icon: Hammer, value: percObras, setter: setPercObras, cpp: cppObras, color: "text-orange-500", memberId: membroDirObras, memberSetter: setMembroDirObras },
+    { label: "Dir. Núcleo Comercial", icon: Briefcase, value: percComercial, setter: setPercComercial, cpp: cppComercial, color: "text-green-500", memberId: membroDirComercial, memberSetter: setMembroDirComercial },
+    { label: "Dir. Núcleo de Capital", icon: Wallet, value: percCapital, setter: setPercCapital, cpp: cppCapital, color: "text-red-500", memberId: membroDirCapital, memberSetter: setMembroDirCapital },
   ];
 
   if (loadingBias) {
@@ -550,6 +559,20 @@ export default function BiasCalculadoraPage() {
                           <Icon className={`w-4 h-4 ${field.color}`} />
                           <span className="text-sm font-medium truncate">{field.label}</span>
                         </div>
+
+                        {/* Member selector */}
+                        {field.memberSetter !== null && (
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Membro</Label>
+                            <MemberSelect
+                              value={field.memberId || ""}
+                              onChange={field.memberSetter}
+                              membros={membros}
+                              label={field.label}
+                            />
+                          </div>
+                        )}
+
                         <div className="space-y-2">
                           <div>
                             <Label className="text-xs text-muted-foreground">Percentual (%)</Label>

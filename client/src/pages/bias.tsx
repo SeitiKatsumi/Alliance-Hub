@@ -537,8 +537,9 @@ const WORLD_GEO = "/world-countries-50m.json";
 
 function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; membros: Membro[]; opas: Oportunidade[] }) {
   const [, navigate] = useLocation();
-  const [hoveredBia, setHoveredBia] = useState<BiasProjeto | null>(null);
+  const [hoveredCluster, setHoveredCluster] = useState<{ center: [number, number]; items: BiasProjeto[] } | null>(null);
   const [selectedBia, setSelectedBia] = useState<BiasProjeto | null>(null);
+  const [clusterBias, setClusterBias] = useState<BiasProjeto[] | null>(null);
   const [zoom, setZoom] = useState(3);
   const [center, setCenter] = useState<[number, number]>([-52, -15]);
 
@@ -546,6 +547,25 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
     () => biasAll.filter(b => b.latitude != null && b.longitude != null),
     [biasAll]
   );
+
+  // Group BIAs by proximity (within ~1km / 0.01 degree threshold)
+  const clusters = useMemo(() => {
+    const THRESHOLD = 0.01;
+    const result: { center: [number, number]; items: BiasProjeto[] }[] = [];
+    for (const b of biasWithCoords) {
+      const lng = parseFloat(String(b.longitude));
+      const lat = parseFloat(String(b.latitude));
+      const existing = result.find(
+        c => Math.abs(c.center[0] - lng) < THRESHOLD && Math.abs(c.center[1] - lat) < THRESHOLD
+      );
+      if (existing) {
+        existing.items.push(b);
+      } else {
+        result.push({ center: [lng, lat], items: [b] });
+      }
+    }
+    return result;
+  }, [biasWithCoords]);
   const totalVgv = biasAll.reduce((s, b) => s + n(b.valor_geral_venda_vgv), 0);
 
   const handleZoomIn = () => setZoom(z => Math.min(z * 1.5, 16));
@@ -684,28 +704,64 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
             }
           </Geographies>
 
-          {biasWithCoords.map((b) => {
-            const lng = parseFloat(String(b.longitude));
-            const lat = parseFloat(String(b.latitude));
-            const isHovered = hoveredBia?.id === b.id;
-            const isSelected = selectedBia?.id === b.id;
+          {clusters.map((cluster, idx) => {
+            const [lng, lat] = cluster.center;
+            const isMulti = cluster.items.length > 1;
+            const isHovered = hoveredCluster === cluster;
+            const isSelected = !isMulti && selectedBia?.id === cluster.items[0]?.id;
+            const isClusterSelected = isMulti && clusterBias === cluster.items;
             const r = Math.max(2, 5 / zoom);
             return (
               <Marker
-                key={b.id}
+                key={idx}
                 coordinates={[lng, lat]}
-                onMouseEnter={() => setHoveredBia(b)}
-                onMouseLeave={() => setHoveredBia(null)}
-                onClick={() => navigate(`/bias/${b.id}`)}
+                onMouseEnter={() => setHoveredCluster(cluster)}
+                onMouseLeave={() => setHoveredCluster(null)}
+                onClick={() => {
+                  setHoveredCluster(null);
+                  if (isMulti) {
+                    setSelectedBia(null);
+                    setClusterBias(cluster.items);
+                  } else {
+                    setClusterBias(null);
+                    setSelectedBia(cluster.items[0]);
+                  }
+                }}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected ? 0.12 : 0.06}>
-                    <animate attributeName="r" from={r * (isSelected ? 4 : isHovered ? 3 : 2.5)} to={r * (isSelected ? 7 : isHovered ? 6 : 5)} dur={isSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
-                    <animate attributeName="fill-opacity" from="0.4" to="0" dur={isSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
+                  {/* Pulse ring */}
+                  <circle r={r * (isSelected || isClusterSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.12 : 0.06}>
+                    <animate attributeName="r" from={r * (isSelected || isClusterSelected ? 4 : 2.5)} to={r * (isSelected || isClusterSelected ? 7 : 5)} dur={isSelected || isClusterSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.4" to="0" dur={isSelected || isClusterSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
                   </circle>
-                  <circle r={r * (isSelected ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected ? 0.4 : isHovered ? 0.3 : 0.18} />
-                  <circle r={r * (isSelected ? 1.6 : isHovered ? 1.3 : 1)} fill={isSelected ? "#D7BB7D" : "#D7BB7D"} fillOpacity={0.95} />
+                  <circle r={r * (isSelected || isClusterSelected ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.4 : isHovered ? 0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSelected ? 1.6 : isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
                   <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
+                  {/* Count badge for clusters */}
+                  {isMulti && (
+                    <>
+                      <circle
+                        cx={r * 1.6}
+                        cy={r * -1.6}
+                        r={r * 1.2}
+                        fill={isClusterSelected ? "#D7BB7D" : "#001D34"}
+                        stroke="#D7BB7D"
+                        strokeWidth={0.5}
+                      />
+                      <text
+                        x={r * 1.6}
+                        y={r * -1.6}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={r * 1.0}
+                        fontWeight="bold"
+                        fontFamily="monospace"
+                        fill={isClusterSelected ? "#001D34" : "#D7BB7D"}
+                      >
+                        {cluster.items.length}
+                      </text>
+                    </>
+                  )}
                 </g>
               </Marker>
             );
@@ -713,36 +769,95 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Hover tooltip bar — only when nothing selected */}
-      {!selectedBia && (
+      {/* Hover tooltip bar — only when nothing selected/clustered */}
+      {!selectedBia && !clusterBias && (
         <div
           className="absolute bottom-0 left-0 right-0 z-20 transition-all duration-200 pointer-events-none"
           style={{
             background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)",
             padding: "28px 24px 14px",
-            opacity: hoveredBia ? 1 : 0,
-            transform: hoveredBia ? "translateY(0)" : "translateY(6px)",
+            opacity: hoveredCluster ? 1 : 0,
+            transform: hoveredCluster ? "translateY(0)" : "translateY(6px)",
           }}
         >
-          {hoveredBia && (
+          {hoveredCluster && (
             <div className="flex items-end justify-between font-mono">
               <div>
-                <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
-                <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredBia.nome_bia}</p>
-                {hoveredBia.localizacao && (
-                  <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3 h-3" />{hoveredBia.localizacao}
-                  </p>
+                {hoveredCluster.items.length > 1 ? (
+                  <>
+                    <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para selecionar</p>
+                    <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items.length} BIAs neste local</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {hoveredCluster.items.slice(0, 3).map(b => (
+                        <span key={b.id} className="text-[10px] text-brand-gold/60 font-mono">· {b.nome_bia}</span>
+                      ))}
+                      {hoveredCluster.items.length > 3 && <span className="text-[10px] text-brand-gold/40">+{hoveredCluster.items.length - 3}</span>}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
+                    <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items[0].nome_bia}</p>
+                    {hoveredCluster.items[0].localizacao && (
+                      <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />{hoveredCluster.items[0].localizacao}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
-              {n(hoveredBia.valor_geral_venda_vgv) > 0 && (
+              {hoveredCluster.items.length === 1 && n(hoveredCluster.items[0].valor_geral_venda_vgv) > 0 && (
                 <div className="text-right">
                   <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">VGV</p>
-                  <p className="text-sm text-brand-gold tabular-nums">{brl(n(hoveredBia.valor_geral_venda_vgv))}</p>
+                  <p className="text-sm text-brand-gold tabular-nums">{brl(n(hoveredCluster.items[0].valor_geral_venda_vgv))}</p>
                 </div>
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Cluster picker panel */}
+      {clusterBias && !selectedBia && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
+          style={{
+            background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)",
+            padding: "32px 24px 18px",
+          }}
+        >
+          <button
+            onClick={() => setClusterBias(null)}
+            className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest"
+            data-testid="btn-map-close-cluster"
+          >
+            ✕ FECHAR
+          </button>
+          <div className="font-mono">
+            <p className="text-[9px] text-brand-gold/40 tracking-[0.35em] uppercase mb-1">// {clusterBias.length} Alianças neste Local</p>
+            <div className="h-px bg-gradient-to-r from-transparent via-brand-gold/20 to-transparent mb-3" />
+            <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {clusterBias.map(b => (
+                <button
+                  key={b.id}
+                  onClick={() => { setSelectedBia(b); setClusterBias(null); }}
+                  className="flex items-center justify-between gap-3 text-left px-3 py-2 rounded transition-colors"
+                  style={{ background: "rgba(215,187,125,0.06)", border: "1px solid rgba(215,187,125,0.15)" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.14)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "rgba(215,187,125,0.06)")}
+                  data-testid={`btn-cluster-select-${b.id}`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-brand-gold truncate">{b.nome_bia}</p>
+                    {b.localizacao && <p className="text-[10px] text-brand-gold/40 truncate">{b.localizacao}</p>}
+                  </div>
+                  {n(b.valor_geral_venda_vgv) > 0 && (
+                    <p className="text-[10px] text-brand-gold/70 tabular-nums shrink-0">{brl(n(b.valor_geral_venda_vgv))}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -756,13 +871,22 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
           }}
         >
           {/* Close button */}
-          <button
-            onClick={() => setSelectedBia(null)}
-            className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest"
-            data-testid="btn-map-close-panel"
-          >
-            ✕ FECHAR
-          </button>
+          <div className="absolute top-3 right-4 flex items-center gap-3">
+            <button
+              onClick={() => navigate(`/bias/${selectedBia.id}`)}
+              className="text-brand-gold/70 hover:text-brand-gold transition-colors font-mono text-xs tracking-widest border border-brand-gold/20 hover:border-brand-gold/50 px-2 py-0.5 rounded"
+              data-testid="btn-map-navigate-bia"
+            >
+              VER DETALHES →
+            </button>
+            <button
+              onClick={() => setSelectedBia(null)}
+              className="text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest"
+              data-testid="btn-map-close-panel"
+            >
+              ✕
+            </button>
+          </div>
 
           <div className="font-mono">
             {/* Header row */}

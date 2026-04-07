@@ -179,7 +179,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
-        <div className="text-[11px] text-sidebar-foreground/60 text-center">Built Alliances Platform</div>
+        <div className="text-[11px] text-sidebar-foreground/60 text-center">BUILT Alliances Platform</div>
       </SidebarFooter>
     </Sidebar>
   );

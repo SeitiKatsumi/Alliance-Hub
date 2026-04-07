@@ -213,7 +213,7 @@ export default function BiaDetalhePage() {
     return [
       { id: bia.autor_bia, role: "Autor da BIA (OPA)", icon: Briefcase },
       { id: bia.aliado_built, role: "Aliado BUILT", icon: Shield },
-      { id: bia.diretor_alianca, role: "Diretor de Aliança", icon: Crown },
+      { id: bia.diretor_alianca, role: "Diretor de Núcleo Técnico", icon: Crown },
       { id: bia.diretor_execucao, role: "Diretor de Núcleo de Obra", icon: Hammer },
       { id: bia.diretor_comercial, role: "Diretor Comercial", icon: Briefcase },
       { id: bia.diretor_capital, role: "Diretor de Capital", icon: Wallet },

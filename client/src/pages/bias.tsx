@@ -26,10 +26,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
-  Navigation, Crosshair, Loader2
+  Navigation, Crosshair, Loader2, Award, FileText
 } from "lucide-react";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -52,6 +53,8 @@ interface BiasProjeto {
   id: string;
   nome_bia: string;
   situacao?: "ativa" | "em_formacao" | null;
+  destinacao?: string | null;
+  selo_certified_alliance?: boolean | null;
   objetivo_alianca?: string;
   observacoes?: string;
   localizacao?: string;
@@ -185,6 +188,8 @@ function BRLInput({ label, field, form, setForm, testId }: {
 const EMPTY_FORM = {
   nome_bia: "",
   situacao: "ativa" as "ativa" | "em_formacao",
+  destinacao: "",
+  selo_certified_alliance: false,
   localizacao: "",
   latitude: "",
   longitude: "",
@@ -220,6 +225,8 @@ function biaToForm(b: BiasProjeto): FormState {
   return {
     nome_bia: b.nome_bia || "",
     situacao: (b.situacao === "em_formacao" ? "em_formacao" : "ativa") as "ativa" | "em_formacao",
+    destinacao: b.destinacao || "",
+    selo_certified_alliance: !!b.selo_certified_alliance,
     localizacao: b.localizacao || "",
     latitude: b.latitude != null ? String(b.latitude) : "",
     longitude: b.longitude != null ? String(b.longitude) : "",
@@ -949,8 +956,30 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
       </CardHeader>
 
       <CardContent className="pt-0 pb-4 space-y-3">
-        {bia.objetivo_alianca && (
-          <p className="text-xs text-muted-foreground line-clamp-2">{bia.objetivo_alianca}</p>
+        {/* Destinação + Objetivo */}
+        <div className="flex flex-wrap gap-1.5">
+          {bia.destinacao && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1" data-testid={`text-destinacao-${bia.id}`}>
+              <MapPin className="w-2.5 h-2.5" />{bia.destinacao}
+            </Badge>
+          )}
+          {bia.objetivo_alianca && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4" data-testid={`text-objetivo-${bia.id}`}>
+              {bia.objetivo_alianca}
+            </Badge>
+          )}
+          {bia.selo_certified_alliance && (
+            <Badge className="text-[10px] px-1.5 py-0 h-4 gap-1 bg-brand-gold/20 text-brand-gold border-brand-gold/40 hover:bg-brand-gold/30" data-testid={`badge-selo-${bia.id}`}>
+              <Award className="w-2.5 h-2.5" />Certified Alliance
+            </Badge>
+          )}
+        </div>
+
+        {/* Descrição */}
+        {bia.observacoes && (
+          <p className="text-xs text-muted-foreground line-clamp-2 flex items-start gap-1">
+            <FileText className="w-3 h-3 shrink-0 mt-0.5" />{bia.observacoes}
+          </p>
         )}
 
         {(aliadoBuilt || dirAlianca) && (
@@ -1064,6 +1093,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       const payload: Record<string, any> = {
         nome_bia: form.nome_bia.trim(),
         situacao: form.situacao,
+        destinacao: form.destinacao.trim() || null,
+        selo_certified_alliance: form.selo_certified_alliance,
         localizacao: form.localizacao.trim() || null,
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
@@ -1163,6 +1194,34 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                     Ativa
                   </ToggleGroupItem>
                 </ToggleGroup>
+              </div>
+
+              {/* Destinação */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Destinação</Label>
+                <Input
+                  placeholder="Ex: Residencial, Comercial, Misto..."
+                  value={form.destinacao}
+                  onChange={(e) => setForm({ ...form, destinacao: e.target.value })}
+                  className="text-sm"
+                  data-testid="input-destinacao"
+                />
+              </div>
+
+              {/* Selo Certified Alliance */}
+              <div className="flex items-center justify-between rounded-md border border-input px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-brand-gold" />
+                  <div>
+                    <p className="text-sm font-medium">Selo Certified Alliance</p>
+                    <p className="text-xs text-muted-foreground">Esta BIA possui certificação BUILT Alliance</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={form.selo_certified_alliance}
+                  onCheckedChange={(v) => setForm({ ...form, selo_certified_alliance: v })}
+                  data-testid="switch-selo"
+                />
               </div>
 
               <LocationField form={form} setForm={setForm} onPickerOpen={() => setLocationPickerOpen(true)} />

@@ -196,17 +196,17 @@ function OpaCard({
       <CardContent className="pt-0 pb-4 flex flex-col gap-2.5 flex-1">
         {/* BIA vinculada */}
         {bia && (
-          <div className="flex items-center gap-1.5 rounded-md bg-brand-gold/5 border border-brand-gold/15 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 rounded-md bg-brand-gold/5 border border-brand-gold/15 px-2.5 py-1.5 min-w-0">
             <Layers className="w-3 h-3 text-brand-gold/60 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[9px] text-brand-gold/50 uppercase tracking-wider leading-none mb-0.5">BIA Vinculada</p>
               <p className="text-xs font-medium text-brand-gold/80 truncate">{bia.nome_bia}</p>
+              {bia.localizacao && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate mt-0.5">
+                  <MapPin className="w-2.5 h-2.5 shrink-0" /><span className="truncate">{bia.localizacao}</span>
+                </p>
+              )}
             </div>
-            {bia.localizacao && (
-              <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 shrink-0">
-                <MapPin className="w-2.5 h-2.5" />{bia.localizacao}
-              </p>
-            )}
           </div>
         )}
 

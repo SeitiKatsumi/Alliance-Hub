@@ -28,10 +28,6 @@ import {
   Wallet,
   ArrowRight,
   BarChart3,
-  Receipt,
-  CalendarDays,
-  Wrench,
-  HandCoins,
   ChevronsUpDown,
   Check,
   UserCircle,
@@ -239,38 +235,6 @@ function NumInput({
   );
 }
 
-function PercInput({
-  label, value, onChange, testId, hint, baseValue
-}: { label: string; value: number; onChange: (v: number) => void; testId?: string; hint?: string; baseValue?: number }) {
-  const brlEquiv = baseValue && baseValue > 0 ? (value / 100) * baseValue : null;
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            value={value || ""}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            className="pr-8 h-8 text-sm"
-            placeholder="0,00"
-            data-testid={testId}
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-        </div>
-        {brlEquiv !== null && (
-          <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums min-w-[90px] text-right">
-            = {formatBRL(brlEquiv)}
-          </span>
-        )}
-      </div>
-      {hint && <p className="text-xs text-muted-foreground/70">{hint}</p>}
-    </div>
-  );
-}
 
 export default function BiasCalculadoraPage() {
   const { toast } = useToast();
@@ -393,17 +357,6 @@ export default function BiasCalculadoraPage() {
         cpp_dir_capital: cppCapital.toFixed(2),
         custo_origem_bia: custoOrigemBia.toFixed(2),
         custo_final_previsto: custoFinalPrevisto.toFixed(2),
-        valor_geral_venda_vgv: vgv.toFixed(2),
-        valor_realizado_venda: valorRealizadoVenda.toFixed(2),
-        comissao_prevista_corretor: comissaoCorretor.toFixed(2),
-        ir_previsto: irPrevisto.toFixed(2),
-        inss_previsto: inssPrevisto.toFixed(2),
-        manutencao_pos_obra_prevista: manutencao.toFixed(2),
-        total_receita: totalReceita.toFixed(2),
-        resultado_liquido: resultadoLiquido.toFixed(2),
-        lucro_previsto: lucroPrevisto.toFixed(2),
-        total_aportes: totalAportes.toFixed(2),
-        inicio_aportes: inicioAportes || null,
         // Member assignments
         autor_bia: membroAutorOpa || null,
         aliado_built: membroAliadoBuilt || null,
@@ -634,156 +587,6 @@ export default function BiasCalculadoraPage() {
             </CardContent>
           </Card>
 
-          {/* Receita, Impostos e Resultado */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Receita */}
-            <Card data-testid="panel-receita">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Receipt className="w-5 h-5 text-green-500" />
-                  Receita
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <NumInput
-                  label="VGV — Valor Geral de Venda"
-                  value={vgv}
-                  onChange={setVgv}
-                  testId="input-vgv"
-                  hint="Valor total previsto de venda"
-                />
-                <NumInput
-                  label="Valor Realizado de Venda"
-                  value={valorRealizadoVenda}
-                  onChange={setValorRealizadoVenda}
-                  testId="input-valor-realizado"
-                  hint="Valor efetivamente realizado"
-                />
-                <Separator />
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-sm font-medium text-muted-foreground">Total de Receita</span>
-                  <span className={`text-lg font-bold ${totalReceita >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-total-receita">
-                    {formatBRL(totalReceita)}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">Valor realizado − deduções</p>
-              </CardContent>
-            </Card>
-
-            {/* Deduções */}
-            <Card data-testid="panel-deducoes">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Receipt className="w-5 h-5 text-red-500" />
-                  Deduções e Impostos
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <PercInput
-                  label="Comissão Prevista Corretor"
-                  value={comissaoCorretor}
-                  onChange={setComissaoCorretor}
-                  testId="input-comissao"
-                  baseValue={valorRealizadoVenda}
-                  hint="% sobre o valor realizado de venda"
-                />
-                <PercInput
-                  label="IR Previsto"
-                  value={irPrevisto}
-                  onChange={setIrPrevisto}
-                  testId="input-ir"
-                  baseValue={valorRealizadoVenda}
-                  hint="% sobre o valor realizado de venda"
-                />
-                <PercInput
-                  label="INSS Previsto"
-                  value={inssPrevisto}
-                  onChange={setInssPrevisto}
-                  testId="input-inss"
-                  baseValue={valorRealizadoVenda}
-                  hint="% sobre o valor realizado de venda"
-                />
-                <PercInput
-                  label="Manutenção Pós Obra Prevista"
-                  value={manutencao}
-                  onChange={setManutencao}
-                  testId="input-manutencao"
-                  baseValue={valorRealizadoVenda}
-                  hint="% sobre o valor realizado de venda"
-                />
-                <Separator />
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-sm font-medium text-muted-foreground">Total de Deduções</span>
-                  <span className="text-lg font-bold text-red-600" data-testid="text-total-deducoes">
-                    {formatBRL(totalDeducoes)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Aportes */}
-          <Card data-testid="panel-aportes">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <HandCoins className="w-5 h-5 text-blue-500" />
-                Aportes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <CalendarDays className="w-3 h-3" /> Início dos Aportes
-                  </Label>
-                  <Input
-                    type="date"
-                    value={inicioAportes}
-                    onChange={(e) => setInicioAportes(e.target.value)}
-                    className="h-8 text-sm"
-                    data-testid="input-inicio-aportes"
-                  />
-                </div>
-                <NumInput
-                  label="Total de Aportes"
-                  value={totalAportes}
-                  onChange={setTotalAportes}
-                  testId="input-total-aportes"
-                  hint="Total aportado pelos membros"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Resultado Final */}
-          <Card className="border-brand-gold/30 bg-gradient-to-br from-brand-gold/5 to-transparent" data-testid="panel-resultado">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <TrendingUp className="w-5 h-5 text-brand-gold" />
-                Resultado Final
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Custo Final Previsto</p>
-                  <p className="text-lg font-bold text-orange-600" data-testid="text-custo-final">{formatBRL(custoFinalPrevisto)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Total Receita</p>
-                  <p className={`text-lg font-bold ${totalReceita >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-receita-final">{formatBRL(totalReceita)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Resultado Líquido</p>
-                  <p className={`text-lg font-bold ${resultadoLiquido >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-resultado">{formatBRL(resultadoLiquido)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Lucro Previsto</p>
-                  <p className={`text-lg font-bold ${lucroPrevisto >= 0 ? "text-brand-gold" : "text-red-600"}`} data-testid="text-lucro">{formatPerc(lucroPrevisto)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </>
       )}
     </div>

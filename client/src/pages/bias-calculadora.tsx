@@ -324,7 +324,7 @@ export default function BiasCalculadoraPage() {
       setValorOrigem(toNum(selectedBia.valor_origem));
       setPercAutor(toNum(selectedBia.perc_autor_opa));
       setPercAliado(toNum(selectedBia.perc_aliado_built));
-      setPercBuilt(toNum(selectedBia.perc_built));
+      setPercBuilt(Math.max(toNum(selectedBia.perc_built), 1));
       setPercTecnico(toNum(selectedBia.perc_dir_tecnico));
       setPercAlianca(toNum(selectedBia.perc_dir_alianca));
       setPercObras(toNum(selectedBia.perc_dir_obras));
@@ -430,7 +430,7 @@ export default function BiasCalculadoraPage() {
   const percFields = [
     { label: "Autor da OPA", icon: Crown, value: percAutor, setter: setPercAutor, cpp: cppAutor, color: "text-amber-500", memberId: membroAutorOpa, memberSetter: setMembroAutorOpa },
     { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500", memberId: membroAliadoBuilt, memberSetter: setMembroAliadoBuilt },
-    { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold", memberId: null, memberSetter: null },
+    { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold", memberId: null, memberSetter: null, min: 1 },
     { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500", memberId: membroDirNucleoTecnico, memberSetter: setMembroDirNucleoTecnico },
     { label: "Dir. de Aliança", icon: Crown, value: percAlianca, setter: setPercAlianca, cpp: cppAlianca, color: "text-indigo-500", memberId: membroDirTecnico, memberSetter: setMembroDirTecnico },
     { label: "Dir. Núcleo de Obra", icon: Hammer, value: percObras, setter: setPercObras, cpp: cppObras, color: "text-orange-500", memberId: membroDirObras, memberSetter: setMembroDirObras },
@@ -591,8 +591,13 @@ export default function BiasCalculadoraPage() {
                             <Input
                               type="number"
                               step="0.01"
+                              min={(field as any).min ?? 0}
                               value={field.value || ""}
-                              onChange={(e) => field.setter(parseFloat(e.target.value) || 0)}
+                              onChange={(e) => {
+                                const raw = parseFloat(e.target.value) || 0;
+                                const minVal = (field as any).min ?? 0;
+                                field.setter(Math.max(raw, minVal));
+                              }}
                               className="h-8 text-sm"
                               placeholder="0,00"
                               data-testid={`input-perc-${idx}`}

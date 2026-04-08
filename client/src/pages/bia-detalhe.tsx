@@ -125,15 +125,16 @@ function StatBox({ label, value, color }: { label: string; value: string; color?
   );
 }
 
-function MembroChip({ nome, role, icon: Icon }: { nome: string; role: string; icon: any }) {
+function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; icon: any }) {
+  const unassigned = !nome;
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+    <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${unassigned ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-muted/20"}`}>
       <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0">
         <Icon className="w-3.5 h-3.5 text-brand-gold/70" />
       </div>
       <div className="min-w-0">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider leading-none">{role}</p>
-        <p className="text-xs font-medium truncate mt-0.5">{nome}</p>
+        <p className={`text-xs font-medium truncate mt-0.5 ${unassigned ? "text-muted-foreground/50 italic" : ""}`}>{nome || "Não atribuído"}</p>
       </div>
     </div>
   );
@@ -221,8 +222,8 @@ export default function BiaDetalhePage() {
       { id: bia.diretor_execucao, role: "Diretor de Núcleo de Obra", icon: Hammer },
       { id: bia.diretor_comercial, role: "Diretor Comercial", icon: Briefcase },
       { id: bia.diretor_capital, role: "Diretor de Capital", icon: Wallet },
-    ].filter(e => e.id && membros[e.id]);
-  }, [bia, membros]);
+    ];
+  }, [bia]);
 
   const cpp = useMemo(() => {
     if (!bia) return [];
@@ -360,23 +361,21 @@ export default function BiaDetalhePage() {
         <div className="lg:col-span-2 space-y-6">
 
           {/* Equipe */}
-          {equipe.length > 0 && (
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={Users}>Diretoria</SectionTitle>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {equipe.map((e, i) => (
-                    <MembroChip
-                      key={i}
-                      nome={membros[e.id!]}
-                      role={e.role}
-                      icon={e.icon}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardContent className="pt-5 pb-4">
+              <SectionTitle icon={Users}>Diretoria</SectionTitle>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {equipe.map((e, i) => (
+                  <MembroChip
+                    key={i}
+                    nome={e.id ? membros[e.id] : undefined}
+                    role={e.role}
+                    icon={e.icon}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* OPAs relacionadas */}
           <Card>

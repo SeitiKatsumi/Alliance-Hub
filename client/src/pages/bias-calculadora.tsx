@@ -556,7 +556,7 @@ export default function BiasCalculadoraPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Percent className="w-5 h-5 text-brand-gold" />
-                Percentuais e CPPs de Origem
+                Percentuais e CPPs de Origem/Liderança
               </CardTitle>
             </CardHeader>
             <CardContent>

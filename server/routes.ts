@@ -42,6 +42,30 @@ async function ensureBiasExtraFields() {
       schema: { is_nullable: true, default_value: false },
     },
     {
+      field: "comissao_realizada",
+      type: "float",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "ir_realizado",
+      type: "float",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "inss_realizado",
+      type: "float",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "manutencao_realizada",
+      type: "float",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
+    {
       field: "perc_dir_alianca",
       type: "float",
       meta: { interface: "input", display: "raw", hidden: false },

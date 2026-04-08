@@ -1,14 +1,19 @@
 import { useState, useMemo, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   TrendingUp, TrendingDown, BarChart3, DollarSign,
   Percent, PiggyBank, Receipt, Landmark, ArrowUpCircle,
-  ArrowDownCircle, Target, Layers
+  ArrowDownCircle, Target, Layers, Save
 } from "lucide-react";
 
 // ---- Types ----
@@ -28,6 +33,10 @@ interface BiasProjeto {
   lucro_previsto?: string | number;
   total_receita?: string | number;
   total_aportes?: string | number;
+  comissao_realizada?: string | number;
+  ir_realizado?: string | number;
+  inss_realizado?: string | number;
+  manutencao_realizada?: string | number;
 }
 
 interface FluxoItem {
@@ -95,6 +104,13 @@ function RowItem({ label, value, sub, positive }: { label: string; value: number
 // ---- Main Page ----
 export default function ResultadosPage() {
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
+  const { toast } = useToast();
+
+  // Realized percentage states
+  const [comissaoRealPct, setComissaoRealPct] = useState(0);
+  const [irRealPct, setIrRealPct] = useState(0);
+  const [inssRealPct, setInssRealPct] = useState(0);
+  const [manutRealPct, setManutRealPct] = useState(0);
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -113,15 +129,43 @@ export default function ResultadosPage() {
     }
   }, [biasRaw, selectedBiaId]);
 
+  const bia = useMemo(
+    () => (biasRaw as BiasProjeto[]).find((b) => b.id === selectedBiaId),
+    [biasRaw, selectedBiaId]
+  );
+
+  // Load realized values when BIA changes
+  useEffect(() => {
+    if (bia) {
+      setComissaoRealPct(n(bia.comissao_realizada));
+      setIrRealPct(n(bia.ir_realizado));
+      setInssRealPct(n(bia.inss_realizado));
+      setManutRealPct(n(bia.manutencao_realizada));
+    }
+  }, [bia?.id]);
+
   function handleBiaChange(id: string) {
     setSelectedBiaId(id);
     localStorage.setItem("resultados-bia-id", id);
   }
 
-  const bia = useMemo(
-    () => (biasRaw as BiasProjeto[]).find((b) => b.id === selectedBiaId),
-    [biasRaw, selectedBiaId]
-  );
+  // Save realized deductions to Directus
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedBiaId) throw new Error("Selecione uma BIA");
+      await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
+        comissao_realizada: comissaoRealPct,
+        ir_realizado: irRealPct,
+        inss_realizado: inssRealPct,
+        manutencao_realizada: manutRealPct,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      toast({ title: "Salvo", description: "Valores realizados atualizados." });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
   // Soma de aportes pagos no fluxo de caixa desta BIA
   const totalAportesPagos = useMemo(() => {
@@ -139,47 +183,40 @@ export default function ResultadosPage() {
       .reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
   }, [fluxoRaw, selectedBiaId]);
 
-  // ---- Cálculos (da planilha) ----
+  // ---- Cálculos ----
   const vgv                 = n(bia?.valor_geral_venda_vgv);
   const valorRealizado      = n(bia?.valor_realizado_venda);
   const custoCPP            = n(bia?.custo_final_previsto);
   const custoOrigem         = n(bia?.custo_origem_bia);
   const valorOrigem         = n(bia?.valor_origem);
 
-  // Estes campos são percentuais (%) sobre o valor realizado de venda
+  // Previsto (%)
   const comissaoPct         = n(bia?.comissao_prevista_corretor);
   const irPct               = n(bia?.ir_previsto);
   const inssPct             = n(bia?.inss_previsto);
   const manutencaoPct       = n(bia?.manutencao_pos_obra_prevista);
 
-  // Valores em BRL = (% / 100) × valor realizado
-  const comissao    = (comissaoPct  / 100) * valorRealizado;
-  const ir          = (irPct        / 100) * valorRealizado;
-  const inss        = (inssPct      / 100) * valorRealizado;
-  const manutencao  = (manutencaoPct / 100) * valorRealizado;
+  // Previsto (valores BRL)
+  const comissaoPrev    = (comissaoPct  / 100) * valorRealizado;
+  const irPrev          = (irPct        / 100) * valorRealizado;
+  const inssPrev        = (inssPct      / 100) * valorRealizado;
+  const manutPrev       = (manutencaoPct / 100) * valorRealizado;
+  const totalDeducoesPrev = comissaoPrev + irPrev + inssPrev + manutPrev;
 
-  // Total de deduções fiscais
-  const totalDeducoes = comissao + ir + inss + manutencao;
+  // Realizado (valores BRL — usa os estados editáveis)
+  const comissaoReal    = (comissaoRealPct  / 100) * valorRealizado;
+  const irReal          = (irRealPct        / 100) * valorRealizado;
+  const inssReal        = (inssRealPct      / 100) * valorRealizado;
+  const manutReal       = (manutRealPct     / 100) * valorRealizado;
+  const totalDeducoesReal = comissaoReal + irReal + inssReal + manutReal;
 
-  // Receita líquida = Valor Realizado - Deduções
-  const receitaLiquida = valorRealizado - totalDeducoes;
-
-  // Resultado = Receita Líquida - Custo Final CPP
+  // Resultado usando deduções realizadas
+  const receitaLiquida = valorRealizado - totalDeducoesReal;
   const resultadoLiquido = receitaLiquida - custoCPP;
-
-  // Lucro % sobre o valor realizado
   const lucroPct = valorRealizado > 0 ? (resultadoLiquido / valorRealizado) * 100 : 0;
-
-  // ROI = Resultado / Total Aportes (real, do fluxo de caixa)
   const roi = totalAportesPagos > 0 ? (resultadoLiquido / totalAportesPagos) * 100 : 0;
-
-  // Múltiplo do capital = Valor Realizado / Total Aportes
   const multiplo = totalAportesPagos > 0 ? valorRealizado / totalAportesPagos : 0;
-
-  // % VGV realizado
   const percVGV = vgv > 0 ? (valorRealizado / vgv) * 100 : 0;
-
-  // Caixa líquido real = Aportes Recebidos - Saídas Pagas
   const caixaLiquidoReal = totalAportesPagos - totalSaidasPagas;
 
   const loading = loadingBias || loadingFluxo;
@@ -345,22 +382,79 @@ export default function ResultadosPage() {
               </CardContent>
             </Card>
 
-            {/* Deduções */}
+            {/* Deduções — Previsto vs Realizado */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-orange-500" /> Deduções e Impostos
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-orange-500" /> Deduções e Impostos
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                    data-testid="button-save-realizados"
+                  >
+                    <Save className="w-3 h-3" />
+                    Salvar
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
-                <RowItem label="Comissão Corretor" sub={`${comissaoPct.toFixed(2)}% sobre valor realizado`} value={comissao} positive={false} />
-                <RowItem label="IR Previsto" sub={`${irPct.toFixed(2)}% sobre valor realizado`} value={ir} positive={false} />
-                <RowItem label="INSS Previsto" sub={`${inssPct.toFixed(2)}% sobre valor realizado`} value={inss} positive={false} />
-                <RowItem label="Manutenção Pós Obra" sub={`${manutencaoPct.toFixed(2)}% sobre valor realizado`} value={manutencao} positive={false} />
-                <Separator className="my-2" />
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-sm font-semibold">Total Deduções</span>
-                  <span className="text-sm font-bold text-red-600 tabular-nums">{brl(totalDeducoes)}</span>
+              <CardContent className="space-y-3">
+                {/* Header columns */}
+                <div className="grid grid-cols-3 gap-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider pb-1 border-b border-border/40">
+                  <span>Dedução</span>
+                  <span className="text-center">Previsto</span>
+                  <span className="text-center">Realizado</span>
+                </div>
+
+                {/* Comissão Corretor */}
+                <DeducaoRow
+                  label="Comissão Corretor"
+                  prevPct={comissaoPct}
+                  prevVal={comissaoPrev}
+                  realPct={comissaoRealPct}
+                  onChangeReal={setComissaoRealPct}
+                  realVal={comissaoReal}
+                />
+
+                {/* IR */}
+                <DeducaoRow
+                  label="IR"
+                  prevPct={irPct}
+                  prevVal={irPrev}
+                  realPct={irRealPct}
+                  onChangeReal={setIrRealPct}
+                  realVal={irReal}
+                />
+
+                {/* INSS */}
+                <DeducaoRow
+                  label="INSS"
+                  prevPct={inssPct}
+                  prevVal={inssPrev}
+                  realPct={inssRealPct}
+                  onChangeReal={setInssRealPct}
+                  realVal={inssReal}
+                />
+
+                {/* Manutenção */}
+                <DeducaoRow
+                  label="Manutenção Pós Obra"
+                  prevPct={manutencaoPct}
+                  prevVal={manutPrev}
+                  realPct={manutRealPct}
+                  onChangeReal={setManutRealPct}
+                  realVal={manutReal}
+                />
+
+                <Separator className="my-1" />
+                <div className="grid grid-cols-3 gap-1 pt-1">
+                  <span className="text-sm font-semibold">Total</span>
+                  <span className="text-sm font-bold text-red-600 tabular-nums text-center">{brl(totalDeducoesPrev)}</span>
+                  <span className="text-sm font-bold text-orange-600 tabular-nums text-center">{brl(totalDeducoesReal)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -377,7 +471,7 @@ export default function ResultadosPage() {
               <div className="space-y-0">
                 <RowItem label="(+) Valor Realizado de Venda" value={valorRealizado} positive />
                 <RowItem label="(−) Custo Final CPP" value={-custoCPP} />
-                <RowItem label="(−) Total de Deduções" value={-totalDeducoes} />
+                <RowItem label="(−) Total de Deduções (Realizado)" value={-totalDeducoesReal} />
                 <Separator className="my-3" />
                 <div className="flex items-center justify-between py-2">
                   <span className="font-semibold">Resultado Líquido</span>
@@ -409,6 +503,65 @@ export default function ResultadosPage() {
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+// ---- DeducaoRow sub-component ----
+function DeducaoRow({
+  label, prevPct, prevVal, realPct, onChangeReal, realVal
+}: {
+  label: string;
+  prevPct: number;
+  prevVal: number;
+  realPct: number;
+  onChangeReal: (v: number) => void;
+  realVal: number;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-[10px] text-muted-foreground">{label}</Label>
+      <div className="grid grid-cols-3 gap-2 items-center">
+        {/* Previsto */}
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground/70 bg-muted/30 rounded px-2 py-1.5">
+            <span className="font-medium">{prevPct.toFixed(2)}%</span>
+          </div>
+          <p className="text-[10px] text-red-600/70 tabular-nums px-1">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(prevVal)}</p>
+        </div>
+
+        {/* Realizado — input editável */}
+        <div className="space-y-0.5">
+          <div className="relative">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={realPct || ""}
+              onChange={(e) => onChangeReal(parseFloat(e.target.value) || 0)}
+              className="h-8 text-xs pr-6 border-orange-500/40 focus-visible:ring-orange-500/30"
+              placeholder="0.00"
+              data-testid={`input-real-${label.toLowerCase().replace(/\s/g, "-")}`}
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">%</span>
+          </div>
+          <p className="text-[10px] text-orange-600 tabular-nums px-1 font-medium">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(realVal)}</p>
+        </div>
+
+        {/* Diferença */}
+        <div className="text-center">
+          {prevPct !== realPct && realPct > 0 ? (
+            <Badge
+              variant="outline"
+              className={`text-[9px] ${realPct > prevPct ? "border-red-400/50 text-red-500" : "border-green-400/50 text-green-500"}`}
+            >
+              {realPct > prevPct ? "▲" : "▼"} {Math.abs(realPct - prevPct).toFixed(2)}%
+            </Badge>
+          ) : (
+            <span className="text-[10px] text-muted-foreground/40">—</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1344,14 +1344,24 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <LocationField form={form} setForm={setForm} onPickerOpen={() => setLocationPickerOpen(true)} />
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Objetivo da Aliança</Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Descreva o objetivo desta BIA..."
+                <ToggleGroup
+                  type="single"
                   value={form.objetivo_alianca}
-                  onChange={(e) => setForm({ ...form, objetivo_alianca: e.target.value })}
-                  className="text-sm resize-none"
-                  data-testid="input-objetivo_alianca"
-                />
+                  onValueChange={(v) => setForm({ ...form, objetivo_alianca: v || "" })}
+                  className="justify-start gap-2"
+                  data-testid="toggle-objetivo"
+                >
+                  {["Renda", "Vendas", "Operação"].map((opt) => (
+                    <ToggleGroupItem
+                      key={opt}
+                      value={opt}
+                      className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold text-sm px-4"
+                      data-testid={`toggle-objetivo-${opt.toLowerCase()}`}
+                    >
+                      {opt}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Observações</Label>

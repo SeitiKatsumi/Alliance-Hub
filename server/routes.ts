@@ -41,6 +41,18 @@ async function ensureBiasExtraFields() {
       meta: { interface: "boolean", display: "boolean", hidden: false },
       schema: { is_nullable: true, default_value: false },
     },
+    {
+      field: "perc_dir_alianca",
+      type: "float",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "cpp_dir_alianca",
+      type: "float",
+      meta: { interface: "input", display: "raw", hidden: false },
+      schema: { is_nullable: true },
+    },
   ];
   for (const fieldDef of fields) {
     try {

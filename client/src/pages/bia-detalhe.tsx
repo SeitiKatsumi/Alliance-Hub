@@ -34,6 +34,7 @@ interface BiasProjeto {
   perc_aliado_built?: string | number;
   perc_built?: string | number;
   perc_dir_tecnico?: string | number;
+  perc_dir_alianca?: string | number;
   perc_dir_obras?: string | number;
   perc_dir_comercial?: string | number;
   perc_dir_capital?: string | number;
@@ -41,6 +42,7 @@ interface BiasProjeto {
   cpp_aliado_built?: string | number;
   cpp_built?: string | number;
   cpp_dir_tecnico?: string | number;
+  cpp_dir_alianca?: string | number;
   cpp_dir_obras?: string | number;
   cpp_dir_comercial?: string | number;
   cpp_dir_capital?: string | number;
@@ -228,7 +230,8 @@ export default function BiaDetalhePage() {
       { label: "Autor OPA", perc: bia.perc_autor_opa, cpp: bia.cpp_autor_opa },
       { label: "Aliado BUILT", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
       { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
-      { label: "Dir. Aliança", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
+      { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
+      { label: "Dir. Aliança", perc: bia.perc_dir_alianca, cpp: bia.cpp_dir_alianca },
       { label: "Dir. Obras", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
       { label: "Dir. Comercial", perc: bia.perc_dir_comercial, cpp: bia.cpp_dir_comercial },
       { label: "Dir. Capital", perc: bia.perc_dir_capital, cpp: bia.cpp_dir_capital },

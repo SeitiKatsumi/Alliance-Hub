@@ -149,6 +149,7 @@ interface BiasProjeto {
   perc_aliado_built?: string | number;
   perc_built?: string | number;
   perc_dir_tecnico?: string | number;
+  perc_dir_alianca?: string | number;
   perc_dir_obras?: string | number;
   perc_dir_comercial?: string | number;
   perc_dir_capital?: string | number;
@@ -156,6 +157,7 @@ interface BiasProjeto {
   cpp_aliado_built?: string | number;
   cpp_built?: string | number;
   cpp_dir_tecnico?: string | number;
+  cpp_dir_alianca?: string | number;
   cpp_dir_obras?: string | number;
   cpp_dir_comercial?: string | number;
   cpp_dir_capital?: string | number;
@@ -300,6 +302,7 @@ export default function BiasCalculadoraPage() {
   const [percAliado, setPercAliado] = useState(0);
   const [percBuilt, setPercBuilt] = useState(0);
   const [percTecnico, setPercTecnico] = useState(0);
+  const [percAlianca, setPercAlianca] = useState(0);
   const [percObras, setPercObras] = useState(0);
   const [percComercial, setPercComercial] = useState(0);
   const [percCapital, setPercCapital] = useState(0);
@@ -323,6 +326,7 @@ export default function BiasCalculadoraPage() {
       setPercAliado(toNum(selectedBia.perc_aliado_built));
       setPercBuilt(toNum(selectedBia.perc_built));
       setPercTecnico(toNum(selectedBia.perc_dir_tecnico));
+      setPercAlianca(toNum(selectedBia.perc_dir_alianca));
       setPercObras(toNum(selectedBia.perc_dir_obras));
       setPercComercial(toNum(selectedBia.perc_dir_comercial));
       setPercCapital(toNum(selectedBia.perc_dir_capital));
@@ -346,16 +350,17 @@ export default function BiasCalculadoraPage() {
   }, [selectedBia]);
 
   // Calculations
-  const divisorMultiplicador = percAutor + percAliado + percBuilt + percTecnico + percObras + percComercial + percCapital;
+  const divisorMultiplicador = percAutor + percAliado + percBuilt + percTecnico + percAlianca + percObras + percComercial + percCapital;
   const custoOrigemBia = valorOrigem + (valorOrigem * divisorMultiplicador / 100);
   const cppAutor = valorOrigem * percAutor / 100;
   const cppAliado = valorOrigem * percAliado / 100;
   const cppBuilt = valorOrigem * percBuilt / 100;
   const cppTecnico = valorOrigem * percTecnico / 100;
+  const cppAlianca = valorOrigem * percAlianca / 100;
   const cppObras = valorOrigem * percObras / 100;
   const cppComercial = valorOrigem * percComercial / 100;
   const cppCapital = valorOrigem * percCapital / 100;
-  const custoFinalPrevisto = cppAutor + cppAliado + cppBuilt + cppTecnico + cppObras + cppComercial + cppCapital;
+  const custoFinalPrevisto = cppAutor + cppAliado + cppBuilt + cppTecnico + cppAlianca + cppObras + cppComercial + cppCapital;
 
   // Deduções são percentuais sobre o valor realizado de venda
   const comissaoValor    = (comissaoCorretor / 100) * valorRealizadoVenda;
@@ -377,6 +382,7 @@ export default function BiasCalculadoraPage() {
         perc_aliado_built: percAliado.toFixed(2),
         perc_built: percBuilt.toFixed(2),
         perc_dir_tecnico: percTecnico.toFixed(2),
+        perc_dir_alianca: percAlianca.toFixed(2),
         perc_dir_obras: percObras.toFixed(2),
         perc_dir_comercial: percComercial.toFixed(2),
         perc_dir_capital: percCapital.toFixed(2),
@@ -384,6 +390,7 @@ export default function BiasCalculadoraPage() {
         cpp_aliado_built: cppAliado.toFixed(2),
         cpp_built: cppBuilt.toFixed(2),
         cpp_dir_tecnico: cppTecnico.toFixed(2),
+        cpp_dir_alianca: cppAlianca.toFixed(2),
         cpp_dir_obras: cppObras.toFixed(2),
         cpp_dir_comercial: cppComercial.toFixed(2),
         cpp_dir_capital: cppCapital.toFixed(2),
@@ -424,7 +431,8 @@ export default function BiasCalculadoraPage() {
     { label: "Autor da OPA", icon: Crown, value: percAutor, setter: setPercAutor, cpp: cppAutor, color: "text-amber-500", memberId: membroAutorOpa, memberSetter: setMembroAutorOpa },
     { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500", memberId: membroAliadoBuilt, memberSetter: setMembroAliadoBuilt },
     { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold", memberId: null, memberSetter: null },
-    { label: "Dir. de Aliança", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500", memberId: membroDirTecnico, memberSetter: setMembroDirTecnico },
+    { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500", memberId: membroDirNucleoTecnico, memberSetter: setMembroDirNucleoTecnico },
+    { label: "Dir. de Aliança", icon: Crown, value: percAlianca, setter: setPercAlianca, cpp: cppAlianca, color: "text-indigo-500", memberId: membroDirTecnico, memberSetter: setMembroDirTecnico },
     { label: "Dir. Núcleo de Obra", icon: Hammer, value: percObras, setter: setPercObras, cpp: cppObras, color: "text-orange-500", memberId: membroDirObras, memberSetter: setMembroDirObras },
     { label: "Dir. Núcleo Comercial", icon: Briefcase, value: percComercial, setter: setPercComercial, cpp: cppComercial, color: "text-green-500", memberId: membroDirComercial, memberSetter: setMembroDirComercial },
     { label: "Dir. Núcleo de Capital", icon: Wallet, value: percCapital, setter: setPercCapital, cpp: cppCapital, color: "text-red-500", memberId: membroDirCapital, memberSetter: setMembroDirCapital },

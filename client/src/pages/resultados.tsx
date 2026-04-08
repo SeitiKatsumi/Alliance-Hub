@@ -402,15 +402,7 @@ export default function ResultadosPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Header columns */}
-                <div className="grid grid-cols-3 gap-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider pb-1 border-b border-border/40">
-                  <span>Dedução</span>
-                  <span className="text-center">Previsto</span>
-                  <span className="text-center">Realizado</span>
-                </div>
-
-                {/* Comissão Corretor */}
+              <CardContent>
                 <DeducaoRow
                   label="Comissão Corretor"
                   prevPct={comissaoPct}
@@ -419,28 +411,22 @@ export default function ResultadosPage() {
                   onChangeReal={setComissaoRealPct}
                   realVal={comissaoReal}
                 />
-
-                {/* IR */}
                 <DeducaoRow
-                  label="IR"
+                  label="IR Previsto"
                   prevPct={irPct}
                   prevVal={irPrev}
                   realPct={irRealPct}
                   onChangeReal={setIrRealPct}
                   realVal={irReal}
                 />
-
-                {/* INSS */}
                 <DeducaoRow
-                  label="INSS"
+                  label="INSS Previsto"
                   prevPct={inssPct}
                   prevVal={inssPrev}
                   realPct={inssRealPct}
                   onChangeReal={setInssRealPct}
                   realVal={inssReal}
                 />
-
-                {/* Manutenção */}
                 <DeducaoRow
                   label="Manutenção Pós Obra"
                   prevPct={manutencaoPct}
@@ -449,12 +435,10 @@ export default function ResultadosPage() {
                   onChangeReal={setManutRealPct}
                   realVal={manutReal}
                 />
-
-                <Separator className="my-1" />
-                <div className="grid grid-cols-3 gap-1 pt-1">
-                  <span className="text-sm font-semibold">Total</span>
-                  <span className="text-sm font-bold text-red-600 tabular-nums text-center">{brl(totalDeducoesPrev)}</span>
-                  <span className="text-sm font-bold text-orange-600 tabular-nums text-center">{brl(totalDeducoesReal)}</span>
+                <Separator className="my-2" />
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-sm font-semibold">Total Deduções</span>
+                  <span className="text-sm font-bold text-red-600 tabular-nums">{brl(totalDeducoesReal)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -518,49 +502,37 @@ function DeducaoRow({
   onChangeReal: (v: number) => void;
   realVal: number;
 }) {
+  const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
   return (
-    <div className="space-y-1">
-      <Label className="text-[10px] text-muted-foreground">{label}</Label>
-      <div className="grid grid-cols-3 gap-2 items-center">
-        {/* Previsto */}
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground/70 bg-muted/30 rounded px-2 py-1.5">
-            <span className="font-medium">{prevPct.toFixed(2)}%</span>
-          </div>
-          <p className="text-[10px] text-red-600/70 tabular-nums px-1">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(prevVal)}</p>
+    <div className="py-2 border-b border-border/40 last:border-0 space-y-1.5">
+      {/* Linha previsto — igual ao layout original */}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm">{label}</p>
+          <p className="text-xs text-muted-foreground">{prevPct.toFixed(2)}% sobre valor realizado</p>
         </div>
+        <span className="text-sm font-semibold text-red-600 tabular-nums shrink-0 ml-2">{fmt(prevVal)}</span>
+      </div>
 
-        {/* Realizado — input editável */}
-        <div className="space-y-0.5">
-          <div className="relative">
+      {/* Linha realizado — input embaixo */}
+      <div className="flex items-center justify-between gap-2 pl-2 border-l-2 border-orange-400/40">
+        <div className="flex items-center gap-1.5 flex-1">
+          <div className="relative w-24">
             <Input
               type="number"
               step="0.01"
               min="0"
               value={realPct || ""}
               onChange={(e) => onChangeReal(parseFloat(e.target.value) || 0)}
-              className="h-8 text-xs pr-6 border-orange-500/40 focus-visible:ring-orange-500/30"
+              className="h-7 text-xs pr-6 border-orange-400/40 focus-visible:ring-orange-400/30"
               placeholder="0.00"
               data-testid={`input-real-${label.toLowerCase().replace(/\s/g, "-")}`}
             />
             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">%</span>
           </div>
-          <p className="text-[10px] text-orange-600 tabular-nums px-1 font-medium">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(realVal)}</p>
+          <span className="text-[10px] text-muted-foreground">realizado</span>
         </div>
-
-        {/* Diferença */}
-        <div className="text-center">
-          {prevPct !== realPct && realPct > 0 ? (
-            <Badge
-              variant="outline"
-              className={`text-[9px] ${realPct > prevPct ? "border-red-400/50 text-red-500" : "border-green-400/50 text-green-500"}`}
-            >
-              {realPct > prevPct ? "▲" : "▼"} {Math.abs(realPct - prevPct).toFixed(2)}%
-            </Badge>
-          ) : (
-            <span className="text-[10px] text-muted-foreground/40">—</span>
-          )}
-        </div>
+        <span className="text-xs font-semibold text-orange-600 tabular-nums shrink-0">{fmt(realVal)}</span>
       </div>
     </div>
   );

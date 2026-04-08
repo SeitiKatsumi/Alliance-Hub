@@ -390,44 +390,48 @@ export default function ResultadosPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {/* VGV */}
-                <div className="flex items-center justify-between py-2 border-b border-border/40 gap-3">
-                  <span className="text-sm shrink-0">VGV (Valor Geral de Venda)</span>
-                  <div className="relative w-36 shrink-0">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                <div className="py-2 border-b border-border/40">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm">VGV (Valor Geral de Venda)</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                     <Input
                       type="number"
                       step="0.01"
                       min="0"
                       value={vgvEdit || ""}
                       onChange={(e) => setVgvEdit(parseFloat(e.target.value) || 0)}
-                      className="h-8 text-xs pl-7 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
-                      placeholder="0.00"
+                      className="h-8 text-sm pl-8 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
+                      placeholder="0,00"
                       data-testid="input-vgv"
                     />
                   </div>
                 </div>
 
                 {/* Valor Realizado */}
-                <div className="flex items-center justify-between py-2 border-b border-border/40 gap-3">
-                  <span className="text-sm shrink-0">Valor Realizado de Venda</span>
-                  <div className="relative w-36 shrink-0">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                <div className="py-2 border-b border-border/40">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm">Valor Realizado de Venda</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                     <Input
                       type="number"
                       step="0.01"
                       min="0"
                       value={valorRealizadoEdit || ""}
                       onChange={(e) => setValorRealizadoEdit(parseFloat(e.target.value) || 0)}
-                      className="h-8 text-xs pl-7 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
-                      placeholder="0.00"
+                      className="h-8 text-sm pl-8 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
+                      placeholder="0,00"
                       data-testid="input-valor-realizado"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between pt-3">
                   <span className="text-sm font-semibold">Realizado vs VGV</span>
                   <Badge variant={percVGV >= 100 ? "default" : "secondary"} className="text-xs">
                     {pct(percVGV, 1)} do VGV

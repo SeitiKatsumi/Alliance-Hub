@@ -1316,13 +1316,24 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               {/* Destinação */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Destinação</Label>
-                <Input
-                  placeholder="Ex: Residencial, Comercial, Misto..."
+                <ToggleGroup
+                  type="single"
                   value={form.destinacao}
-                  onChange={(e) => setForm({ ...form, destinacao: e.target.value })}
-                  className="text-sm"
-                  data-testid="input-destinacao"
-                />
+                  onValueChange={(v) => setForm({ ...form, destinacao: v || "" })}
+                  className="justify-start flex-wrap gap-2"
+                  data-testid="toggle-destinacao"
+                >
+                  {["Residencial", "Comercial", "Industrial", "Misto", "Hospedagem"].map((opt) => (
+                    <ToggleGroupItem
+                      key={opt}
+                      value={opt}
+                      className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold text-sm px-4"
+                      data-testid={`toggle-destinacao-${opt.toLowerCase()}`}
+                    >
+                      {opt}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
               </div>
 
               {/* Selo Certified Alliance */}

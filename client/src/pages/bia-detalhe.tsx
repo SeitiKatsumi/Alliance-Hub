@@ -281,7 +281,7 @@ export default function BiaDetalhePage() {
           variant="outline"
           size="sm"
           className="gap-2 border-brand-gold/30 text-brand-gold hover:border-brand-gold hover:bg-brand-gold/5"
-          onClick={() => navigate("/bias")}
+          onClick={() => navigate(`/bias?edit=${id}`)}
           data-testid="btn-edit-bia-detail"
         >
           <Pencil className="w-3.5 h-3.5" />

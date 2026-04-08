@@ -106,6 +106,10 @@ export default function ResultadosPage() {
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
   const { toast } = useToast();
 
+  // Receita editável
+  const [vgvEdit, setVgvEdit] = useState(0);
+  const [valorRealizadoEdit, setValorRealizadoEdit] = useState(0);
+
   // Realized percentage states
   const [comissaoRealPct, setComissaoRealPct] = useState(0);
   const [irRealPct, setIrRealPct] = useState(0);
@@ -134,9 +138,11 @@ export default function ResultadosPage() {
     [biasRaw, selectedBiaId]
   );
 
-  // Load realized values when BIA changes
+  // Load editable values when BIA changes
   useEffect(() => {
     if (bia) {
+      setVgvEdit(n(bia.valor_geral_venda_vgv));
+      setValorRealizadoEdit(n(bia.valor_realizado_venda));
       setComissaoRealPct(n(bia.comissao_realizada));
       setIrRealPct(n(bia.ir_realizado));
       setInssRealPct(n(bia.inss_realizado));
@@ -154,6 +160,8 @@ export default function ResultadosPage() {
     mutationFn: async () => {
       if (!selectedBiaId) throw new Error("Selecione uma BIA");
       await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
+        valor_geral_venda_vgv: vgvEdit,
+        valor_realizado_venda: valorRealizadoEdit,
         comissao_realizada: comissaoRealPct,
         ir_realizado: irRealPct,
         inss_realizado: inssRealPct,
@@ -184,8 +192,8 @@ export default function ResultadosPage() {
   }, [fluxoRaw, selectedBiaId]);
 
   // ---- Cálculos ----
-  const vgv                 = n(bia?.valor_geral_venda_vgv);
-  const valorRealizado      = n(bia?.valor_realizado_venda);
+  const vgv                 = vgvEdit;
+  const valorRealizado      = valorRealizadoEdit;
   const custoCPP            = n(bia?.custo_final_previsto);
   const custoOrigem         = n(bia?.custo_origem_bia);
   const valorOrigem         = n(bia?.valor_origem);
@@ -365,14 +373,60 @@ export default function ResultadosPage() {
             {/* Receita */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-green-500" /> Receita
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-green-500" /> Receita
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                    data-testid="button-save-receita"
+                  >
+                    <Save className="w-3 h-3" />
+                    Salvar
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
-                <RowItem label="VGV (Valor Geral de Venda)" value={vgv} positive />
-                <RowItem label="Valor Realizado de Venda" value={valorRealizado} positive />
-                <Separator className="my-2" />
+              <CardContent className="space-y-3">
+                {/* VGV */}
+                <div className="flex items-center justify-between py-2 border-b border-border/40 gap-3">
+                  <span className="text-sm shrink-0">VGV (Valor Geral de Venda)</span>
+                  <div className="relative w-36 shrink-0">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={vgvEdit || ""}
+                      onChange={(e) => setVgvEdit(parseFloat(e.target.value) || 0)}
+                      className="h-8 text-xs pl-7 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
+                      placeholder="0.00"
+                      data-testid="input-vgv"
+                    />
+                  </div>
+                </div>
+
+                {/* Valor Realizado */}
+                <div className="flex items-center justify-between py-2 border-b border-border/40 gap-3">
+                  <span className="text-sm shrink-0">Valor Realizado de Venda</span>
+                  <div className="relative w-36 shrink-0">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={valorRealizadoEdit || ""}
+                      onChange={(e) => setValorRealizadoEdit(parseFloat(e.target.value) || 0)}
+                      className="h-8 text-xs pl-7 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
+                      placeholder="0.00"
+                      data-testid="input-valor-realizado"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-sm font-semibold">Realizado vs VGV</span>
                   <Badge variant={percVGV >= 100 ? "default" : "secondary"} className="text-xs">

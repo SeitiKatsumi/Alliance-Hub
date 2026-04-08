@@ -509,7 +509,7 @@ function DeducaoRow({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm">{label}</p>
-          <p className="text-xs text-muted-foreground">{prevPct.toFixed(2)}% sobre valor realizado</p>
+          <p className="text-xs text-muted-foreground">{prevPct.toFixed(2)}% previsto</p>
         </div>
         <span className="text-sm font-semibold text-red-600 tabular-nums shrink-0 ml-2">{fmt(prevVal)}</span>
       </div>

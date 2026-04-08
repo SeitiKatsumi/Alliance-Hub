@@ -412,7 +412,7 @@ export default function ResultadosPage() {
                   realVal={comissaoReal}
                 />
                 <DeducaoRow
-                  label="IR Previsto"
+                  label="IR"
                   prevPct={irPct}
                   prevVal={irPrev}
                   realPct={irRealPct}
@@ -420,7 +420,7 @@ export default function ResultadosPage() {
                   realVal={irReal}
                 />
                 <DeducaoRow
-                  label="INSS Previsto"
+                  label="INSS"
                   prevPct={inssPct}
                   prevVal={inssPrev}
                   realPct={inssRealPct}

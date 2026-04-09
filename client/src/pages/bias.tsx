@@ -1375,10 +1375,10 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                 </ToggleGroup>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Observações</Label>
+                <Label className="text-xs text-muted-foreground">Descrição</Label>
                 <Textarea
                   rows={3}
-                  placeholder="Observações adicionais..."
+                  placeholder="Descrição da BIA..."
                   value={form.observacoes}
                   onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
                   className="text-sm resize-none"

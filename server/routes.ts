@@ -309,6 +309,12 @@ export async function registerRoutes(
   ensureBiasGeoFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
+  // Update observacoes field label in Directus admin
+  fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
+    method: "PATCH",
+    headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ meta: { note: "Descrição da BIA" } }),
+  }).catch(() => {});
 
   // Proxy para servir arquivos do Directus sem expor o token
   app.get("/api/files/:fileId", async (req, res) => {

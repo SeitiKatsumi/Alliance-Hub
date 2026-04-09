@@ -407,11 +407,11 @@ export default function BiaDetalhePage() {
             </CardContent>
           </Card>
 
-          {/* Observações */}
+          {/* Descrição */}
           {bia.observacoes && (
             <Card>
               <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={FileText}>Observações</SectionTitle>
+                <SectionTitle icon={FileText}>Descrição</SectionTitle>
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bia.observacoes}</p>
               </CardContent>
             </Card>

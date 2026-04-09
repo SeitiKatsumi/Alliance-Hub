@@ -1362,7 +1362,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   className="justify-start gap-2"
                   data-testid="toggle-objetivo"
                 >
-                  {["Renda", "Vendas", "Operação"].map((opt) => (
+                  {["Renda", "Venda", "Operação"].map((opt) => (
                     <ToggleGroupItem
                       key={opt}
                       value={opt}

@@ -1433,10 +1433,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <PercField label="IR Previsto" field="ir_previsto" form={form} setForm={setForm} baseValue={valorRealizado} />
               <PercField label="INSS Previsto" field="inss_previsto" form={form} setForm={setForm} baseValue={valorRealizado} />
               <PercField label="Manutenção Pós Obra Prevista" field="manutencao_pos_obra_prevista" form={form} setForm={setForm} baseValue={valorRealizado} />
-              <Separator />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Aportes</p>
-              <FieldInput label="Início dos Aportes" field="inicio_aportes" form={form} setForm={setForm} type="date" />
-              <BRLInput label="Total de Aportes (R$)" field="total_aportes" form={form} setForm={setForm} />
             </TabsContent>
           </Tabs>
 

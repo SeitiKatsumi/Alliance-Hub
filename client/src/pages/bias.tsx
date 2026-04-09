@@ -501,7 +501,7 @@ function LocationField({ form, setForm, onPickerOpen }: {
   const hasCoords = form.latitude && form.longitude;
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">Localização</Label>
+      <Label className="text-xs text-muted-foreground">Localização <span className="text-red-500">*</span></Label>
       <div className="flex gap-2">
         <Input
           placeholder="Cidade, Estado ou País"
@@ -1256,7 +1256,12 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     }
   });
 
-  const canSave = form.nome_bia.trim().length > 0;
+  const canSave =
+    form.nome_bia.trim().length > 0 &&
+    form.destinacao.trim().length > 0 &&
+    form.localizacao.trim().length > 0 &&
+    form.objetivo_alianca.trim().length > 0 &&
+    form.observacoes.trim().length > 0;
 
   function handleLocationSelect(localizacao: string, lat: number, lng: number) {
     setForm({ ...form, localizacao, latitude: String(lat), longitude: String(lng) });
@@ -1315,7 +1320,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
               {/* Destinação */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Destinação</Label>
+                <Label className="text-xs text-muted-foreground">Destinação <span className="text-red-500">*</span></Label>
                 <ToggleGroup
                   type="single"
                   value={form.destinacao}
@@ -1354,7 +1359,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
               <LocationField form={form} setForm={setForm} onPickerOpen={() => setLocationPickerOpen(true)} />
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Objetivo da Aliança</Label>
+                <Label className="text-xs text-muted-foreground">Objetivo da Aliança <span className="text-red-500">*</span></Label>
                 <ToggleGroup
                   type="single"
                   value={form.objetivo_alianca}
@@ -1375,7 +1380,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                 </ToggleGroup>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Descrição</Label>
+                <Label className="text-xs text-muted-foreground">Descrição <span className="text-red-500">*</span></Label>
                 <Textarea
                   rows={3}
                   placeholder="Descrição da BIA..."

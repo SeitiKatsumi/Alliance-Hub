@@ -1466,8 +1466,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     <>
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">
-          <div className="flex-1 overflow-y-auto px-6 pt-6">
-          <SheetHeader className="shrink-0">
+          <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6">
+          <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               {isEdit ? <Pencil className="w-4 h-4 text-brand-gold" /> : <Plus className="w-4 h-4 text-brand-gold" />}
               {isEdit ? `Editar BIA` : "Nova BIA"}
@@ -1475,8 +1475,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             <SheetDescription>{isEdit ? bia?.nome_bia : "Preencha os dados da nova aliança"}</SheetDescription>
           </SheetHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 mt-4 flex flex-col min-h-0">
-            <TabsList className="grid grid-cols-4 shrink-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            <TabsList className="grid grid-cols-4">
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
               <TabsTrigger value="cpp" data-testid="tab-cpp">CPP</TabsTrigger>
@@ -1484,7 +1484,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             </TabsList>
 
             {/* Tab Geral */}
-            <TabsContent value="geral" className="space-y-4 mt-4 flex-1">
+            <TabsContent value="geral" className="space-y-4 mt-4">
               <FieldInput label="Nome da BIA *" field="nome_bia" form={form} setForm={setForm} placeholder="Ex: BIA Residencial Norte" />
 
               {/* Status da BIA */}
@@ -1682,7 +1682,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             </TabsContent>
 
             {/* Tab Equipe */}
-            <TabsContent value="equipe" className="space-y-4 mt-4 flex-1">
+            <TabsContent value="equipe" className="space-y-4 mt-4">
               <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
@@ -1694,7 +1694,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             </TabsContent>
 
             {/* Tab CPP */}
-            <TabsContent value="cpp" className="space-y-4 mt-4 flex-1">
+            <TabsContent value="cpp" className="space-y-4 mt-4">
               <BRLInput label="Valor de Origem (R$)" field="valor_origem" form={form} setForm={setForm} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais CPP (% sobre Valor de Origem)</p>
@@ -1716,7 +1716,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             </TabsContent>
 
             {/* Tab Receita */}
-            <TabsContent value="receita" className="space-y-4 mt-4 flex-1">
+            <TabsContent value="receita" className="space-y-4 mt-4">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Receita</p>
               <BRLInput label="VGV — Valor Geral de Venda (R$)" field="valor_geral_venda_vgv" form={form} setForm={setForm} />
               <BRLInput label="Valor Realizado de Venda (R$)" field="valor_realizado_venda" form={form} setForm={setForm} />

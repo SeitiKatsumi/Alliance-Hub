@@ -1683,7 +1683,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4 flex-1">
-              <MembroSelect label="Autor da BIA (OPA)" field="autor_bia" form={form} setForm={setForm} membros={membros} icon={Briefcase} />
               <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>

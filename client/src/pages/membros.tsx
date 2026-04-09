@@ -1,13 +1,22 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription
+} from "@/components/ui/sheet";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
-  Briefcase, Globe, Activity, Cpu, Wifi, X
+  Briefcase, Globe, Activity, Cpu, Wifi, X,
+  Pencil, Camera, Loader2, Save, User
 } from "lucide-react";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -30,11 +39,14 @@ interface Membro {
   especialidades?: string[];
   foto?: string | null;
   tipo_de_cadastro?: string;
+  nucleo_alianca?: string;
+  perfil_aliado?: string;
+  descricao?: string;
 }
 
-function fotoUrl(foto?: string | null): string | null {
+function fotoUrl(foto?: string | null, size = 160): string | null {
   if (!foto) return null;
-  return `${DIRECTUS_URL}/assets/${foto}?width=160&height=160&fit=cover`;
+  return `${DIRECTUS_URL}/assets/${foto}?width=${size}&height=${size}&fit=cover`;
 }
 
 function getDisplayNome(m: Membro): string {
@@ -63,7 +75,260 @@ function hashColor(str: string): string {
   return colors[Math.abs(hash) % colors.length][1];
 }
 
-function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; index: number }) {
+// ---- Membro Edit Sheet ----
+function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => void }) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const nome = getDisplayNome(membro);
+  const accentColor = hashColor(membro.id);
+  const currentFoto = fotoUrl(membro.foto, 200);
+
+  const [form, setForm] = useState<Partial<Membro>>({ ...membro });
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(currentFoto);
+  const [uploading, setUploading] = useState(false);
+
+  function setField(field: keyof Membro, value: string) {
+    setForm(f => ({ ...f, [field]: value }));
+  }
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingPhoto(file);
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+    e.target.value = "";
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      let fotoId: string | undefined;
+
+      if (pendingPhoto) {
+        setUploading(true);
+        try {
+          const fd = new FormData();
+          fd.append("files", pendingPhoto, pendingPhoto.name);
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (!res.ok) throw new Error("Falha no upload da foto");
+          const data = await res.json();
+          fotoId = data.fileIds?.[0];
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      const { id, especialidades, ...rest } = form as Membro;
+      const payload: Record<string, unknown> = { ...rest };
+      if (fotoId) payload.foto = fotoId;
+
+      return apiRequest("PATCH", `/api/membros/${membro.id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      toast({ title: "Membro atualizado com sucesso!" });
+      onClose();
+    },
+    onError: (e: any) => {
+      toast({ title: "Erro ao salvar", description: e?.message, variant: "destructive" });
+    },
+  });
+
+  const inputCls = "bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm";
+  const labelCls = "text-xs text-white/50 mb-1 block";
+
+  return (
+    <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0" style={{ background: "#020b16", borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex-1 overflow-y-auto">
+          {/* Header */}
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-white/5">
+            <div className="flex items-center gap-4">
+              {/* Avatar with upload */}
+              <div className="relative shrink-0 cursor-pointer group/avatar" onClick={() => fileInputRef.current?.click()}>
+                <div
+                  className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-bold text-xl font-mono border-2"
+                  style={{
+                    background: `radial-gradient(circle at 30% 30%, ${accentColor}20, #030812)`,
+                    borderColor: `${accentColor}40`,
+                    color: accentColor,
+                  }}
+                >
+                  {photoPreview ? (
+                    <img src={photoPreview} alt={nome} className="w-full h-full object-cover" />
+                  ) : (
+                    getInitials(nome)
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <div
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-2 flex items-center justify-center"
+                  style={{ background: "#020b16", borderColor: `${accentColor}40` }}
+                >
+                  <Camera className="w-3.5 h-3.5" style={{ color: accentColor }} />
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                  data-testid="input-foto-membro"
+                />
+              </div>
+              <div>
+                <SheetTitle className="text-brand-gold font-mono text-lg">{nome}</SheetTitle>
+                <SheetDescription className="text-white/40 text-xs mt-0.5">
+                  Clique no avatar para alterar a foto
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+
+          <div className="px-6 py-5 space-y-5">
+            {/* Dados pessoais */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <User className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Dados Pessoais</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Nome completo</label>
+                  <Input value={form.nome || ""} onChange={e => setField("nome", e.target.value)} className={inputCls} data-testid="input-edit-nome" />
+                </div>
+                <div>
+                  <label className={labelCls}>E-mail</label>
+                  <Input value={form.email || ""} onChange={e => setField("email", e.target.value)} type="email" className={inputCls} data-testid="input-edit-email" />
+                </div>
+                <div>
+                  <label className={labelCls}>Telefone</label>
+                  <Input value={form.telefone || ""} onChange={e => setField("telefone", e.target.value)} className={inputCls} data-testid="input-edit-telefone" />
+                </div>
+                <div>
+                  <label className={labelCls}>WhatsApp</label>
+                  <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} className={inputCls} data-testid="input-edit-whatsapp" />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Localização */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Localização</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Cidade</label>
+                  <Input value={form.cidade || ""} onChange={e => setField("cidade", e.target.value)} className={inputCls} data-testid="input-edit-cidade" />
+                </div>
+                <div>
+                  <label className={labelCls}>Estado (UF)</label>
+                  <Input value={form.estado || ""} onChange={e => setField("estado", e.target.value)} maxLength={2} className={inputCls} placeholder="SP" data-testid="input-edit-estado" />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Profissional */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Briefcase className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Profissional</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Empresa</label>
+                  <Input value={form.empresa || ""} onChange={e => setField("empresa", e.target.value)} className={inputCls} data-testid="input-edit-empresa" />
+                </div>
+                <div>
+                  <label className={labelCls}>Cargo</label>
+                  <Input value={form.cargo || ""} onChange={e => setField("cargo", e.target.value)} className={inputCls} data-testid="input-edit-cargo" />
+                </div>
+                <div>
+                  <label className={labelCls}>Especialidade</label>
+                  <Input value={form.especialidade || ""} onChange={e => setField("especialidade", e.target.value)} className={inputCls} data-testid="input-edit-especialidade" />
+                </div>
+                <div>
+                  <label className={labelCls}>Tipo de Cadastro</label>
+                  <Input value={form.tipo_de_cadastro || ""} onChange={e => setField("tipo_de_cadastro", e.target.value)} className={inputCls} data-testid="input-edit-tipo" />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Aliança */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Globe className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Aliança</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Núcleo de Aliança</label>
+                  <Input value={form.nucleo_alianca || ""} onChange={e => setField("nucleo_alianca", e.target.value)} className={inputCls} data-testid="input-edit-nucleo" />
+                </div>
+                <div>
+                  <label className={labelCls}>Perfil de Aliado</label>
+                  <Input value={form.perfil_aliado || ""} onChange={e => setField("perfil_aliado", e.target.value)} className={inputCls} data-testid="input-edit-perfil" />
+                </div>
+              </div>
+            </div>
+
+            {pendingPhoto && (
+              <div className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/5 px-3 py-2">
+                <Camera className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
+                <span className="text-xs text-brand-gold/70">Nova foto selecionada: {pendingPhoto.name}</span>
+                <button
+                  onClick={() => { setPendingPhoto(null); setPhotoPreview(currentFoto); }}
+                  className="ml-auto text-white/30 hover:text-white/70"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 px-6 py-4 border-t border-white/5 flex justify-end gap-2" style={{ background: "rgba(2,11,22,0.95)" }}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={saveMutation.isPending || uploading}
+            className="border-white/10 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || uploading}
+            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
+            data-testid="btn-salvar-membro"
+          >
+            {(saveMutation.isPending || uploading) ? (
+              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />{uploading ? "Enviando foto..." : "Salvando..."}</>
+            ) : (
+              <><Save className="w-3.5 h-3.5 mr-2" />Salvar alterações</>
+            )}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ---- Membro Card ----
+function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: string }; index: number; onEdit: (m: Membro) => void }) {
   const nome = getDisplayNome(membro);
   const initials = getInitials(nome);
   const accentColor = hashColor(membro.id);
@@ -97,11 +362,21 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
         NODE_{String(index + 1).padStart(3, "0")}
       </div>
 
+      {/* Edit button */}
+      <button
+        onClick={() => onEdit(membro)}
+        className="absolute top-3 left-3 w-6 h-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:scale-110"
+        style={{ background: `${accentColor}15`, border: `1px solid ${accentColor}30` }}
+        data-testid={`btn-editar-membro-${membro.id}`}
+        title="Editar membro"
+      >
+        <Pencil className="w-3 h-3" style={{ color: accentColor }} />
+      </button>
+
       <div className="p-5">
         {/* Avatar + name */}
         <div className="flex items-start gap-4 mb-4">
           <div className="relative shrink-0">
-            {/* Outer pulse ring */}
             <div
               className="absolute inset-0 rounded-full opacity-20 group-hover:opacity-40 transition-opacity"
               style={{
@@ -109,7 +384,6 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
                 transform: "scale(1.8)",
               }}
             />
-            {/* Avatar circle */}
             <div
               className="relative w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-bold text-lg font-mono border"
               style={{
@@ -125,7 +399,6 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
                 initials
               )}
             </div>
-            {/* Online indicator */}
             <div
               className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#030812]"
               style={{ background: accentColor }}
@@ -157,7 +430,7 @@ function MembroCard({ membro, index }: { membro: Membro & { _nome?: string }; in
         {/* Contact info */}
         <div className="space-y-1.5">
           {membro.email && (
-            <div className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors group/item">
+            <div className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors">
               <Mail className="w-3 h-3 shrink-0 text-white/20" />
               <a href={`mailto:${membro.email}`} className="text-[11px] truncate hover:underline" onClick={e => e.stopPropagation()}>
                 {membro.email}
@@ -223,6 +496,7 @@ export default function MembrosPage() {
   const [filterEspecialidade, setFilterEspecialidade] = useState("");
   const [filterEstado, setFilterEstado] = useState("");
   const [filterTipoCadastro, setFilterTipoCadastro] = useState("");
+  const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
@@ -317,7 +591,6 @@ export default function MembrosPage() {
           minHeight: 220,
         }}
       >
-        {/* Tech grid overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -325,21 +598,13 @@ export default function MembrosPage() {
             backgroundSize: "48px 48px",
           }}
         />
-
-        {/* Floating orbs */}
         <div className="absolute top-8 right-20 w-48 h-48 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(215,187,125,0.06) 0%, transparent 70%)", animation: "drift 8s ease-in-out infinite" }} />
         <div className="absolute bottom-0 left-32 w-32 h-32 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(109,168,220,0.06) 0%, transparent 70%)", animation: "drift 11s ease-in-out infinite reverse" }} />
-
-        {/* Scan line */}
         <div className="absolute left-0 right-0 h-px pointer-events-none" style={{ background: "linear-gradient(90deg, transparent, rgba(215,187,125,0.3), transparent)", animation: "scanline 4s linear infinite", top: "50%" }} />
-
-        {/* Corner decorations */}
         <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-brand-gold/40" />
         <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-brand-gold/40" />
         <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-brand-gold/40" />
         <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-brand-gold/40" />
-
-        {/* Side node decorations */}
         {[0.2, 0.5, 0.8].map((pos, i) => (
           <div key={i} className="absolute left-0 w-1 h-6 rounded-r" style={{ top: `${pos * 100}%`, background: "rgba(215,187,125,0.4)" }} />
         ))}
@@ -348,14 +613,12 @@ export default function MembrosPage() {
         ))}
 
         <div className="relative z-10 px-6 py-8">
-          {/* Tag line */}
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-1 rounded-full bg-brand-gold" style={{ animation: "pulse-dot 2s ease-in-out infinite" }} />
             <span className="text-[10px] font-mono text-brand-gold/50 tracking-[0.4em] uppercase">
               BUILT ALLIANCES // REDE DE PROFISSIONAIS
             </span>
           </div>
-
           <h1
             className="text-3xl font-bold font-mono text-brand-gold tracking-wide mb-1"
             style={{ animation: "flicker 6s ease-in-out infinite", textShadow: "0 0 20px rgba(215,187,125,0.3)" }}
@@ -365,8 +628,6 @@ export default function MembrosPage() {
           <p className="text-sm text-white/30 font-mono mb-6">
             &gt; {isLoading ? "carregando perfis..." : `${membros.length} nós ativos na rede`}
           </p>
-
-          {/* Stats */}
           <div className="inline-flex items-center rounded-lg border border-brand-gold/10 py-3" style={{ background: "rgba(0,10,20,0.6)", backdropFilter: "blur(8px)" }}>
             <StatItem label="Membros" value={stats.total} icon={Users} />
             <StatItem label="Empresas" value={stats.empresas} icon={Building2} />
@@ -378,7 +639,6 @@ export default function MembrosPage() {
 
       {/* ── Search & Filter Bar ── */}
       <div className="sticky top-0 z-20 border-b border-white/5 px-6 py-3 flex flex-wrap gap-3 items-center" style={{ background: "rgba(2,11,22,0.95)", backdropFilter: "blur(12px)" }}>
-        {/* Search */}
         <div className="relative flex-1 min-w-52 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-gold/40" />
           <Input
@@ -395,61 +655,42 @@ export default function MembrosPage() {
           )}
         </div>
 
-        {/* Cargo filter */}
         {especialidades.length > 0 && (
           <Select value={filterEspecialidade || "__all__"} onValueChange={v => setFilterEspecialidade(v === "__all__" ? "" : v)}>
-            <SelectTrigger
-              className="h-8 w-52 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
-              data-testid="select-filter-especialidade"
-            >
+            <SelectTrigger className="h-8 w-52 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40" data-testid="select-filter-especialidade">
               <SelectValue placeholder="Todas as especialidades" />
             </SelectTrigger>
             <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
               <SelectItem value="__all__" className="text-white/50">Todas as especialidades</SelectItem>
-              {especialidades.map(e => (
-                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
-              ))}
+              {especialidades.map(e => <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
 
-        {/* Estado filter */}
         {estados.length > 0 && (
           <Select value={filterEstado || "__all__"} onValueChange={v => setFilterEstado(v === "__all__" ? "" : v)}>
-            <SelectTrigger
-              className="h-8 w-36 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
-              data-testid="select-filter-estado"
-            >
+            <SelectTrigger className="h-8 w-36 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40" data-testid="select-filter-estado">
               <SelectValue placeholder="Todos os estados" />
             </SelectTrigger>
             <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
               <SelectItem value="__all__" className="text-white/50">Todos os estados</SelectItem>
-              {estados.map(e => (
-                <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>
-              ))}
+              {estados.map(e => <SelectItem key={e} value={e} className="text-xs">{e}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
 
-        {/* Tipo de Cadastro filter */}
         {tiposCadastro.length > 0 && (
           <Select value={filterTipoCadastro || "__all__"} onValueChange={v => setFilterTipoCadastro(v === "__all__" ? "" : v)}>
-            <SelectTrigger
-              className="h-8 w-40 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40"
-              data-testid="select-filter-tipo-cadastro"
-            >
+            <SelectTrigger className="h-8 w-40 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40" data-testid="select-filter-tipo-cadastro">
               <SelectValue placeholder="Tipo de cadastro" />
             </SelectTrigger>
             <SelectContent className="bg-[#050f1c] border-white/10 text-white/80 font-mono text-xs">
               <SelectItem value="__all__" className="text-white/50">Todos os tipos</SelectItem>
-              {tiposCadastro.map(t => (
-                <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-              ))}
+              {tiposCadastro.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
 
-        {/* Clear filters */}
         {hasFilters && (
           <button
             onClick={() => { setSearch(""); setFilterEspecialidade(""); setFilterEstado(""); setFilterTipoCadastro(""); }}
@@ -460,7 +701,6 @@ export default function MembrosPage() {
           </button>
         )}
 
-        {/* Result count */}
         <div className="ml-auto text-xs font-mono text-white/25 hidden sm:block">
           {filtered.length} / {membros.length} nós
         </div>
@@ -508,11 +748,24 @@ export default function MembrosPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((membro, i) => (
-              <MembroCard key={membro.id} membro={membro} index={i} />
+              <MembroCard
+                key={membro.id}
+                membro={membro}
+                index={i}
+                onEdit={setEditingMembro}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Edit Sheet */}
+      {editingMembro && (
+        <MembroEditSheet
+          membro={editingMembro}
+          onClose={() => setEditingMembro(null)}
+        />
+      )}
     </div>
   );
 }

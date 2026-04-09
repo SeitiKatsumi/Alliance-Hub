@@ -1465,7 +1465,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   return (
     <>
       <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col">
+        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">
+          <div className="flex-1 overflow-y-auto px-6 pt-6">
           <SheetHeader className="shrink-0">
             <SheetTitle className="flex items-center gap-2">
               {isEdit ? <Pencil className="w-4 h-4 text-brand-gold" /> : <Plus className="w-4 h-4 text-brand-gold" />}
@@ -1728,8 +1729,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <PercField label="Manutenção Pós Obra Prevista" field="manutencao_pos_obra_prevista" form={form} setForm={setForm} baseValue={valorRealizado} />
             </TabsContent>
           </Tabs>
+          </div>
 
-          <div className="shrink-0 pt-4 border-t flex justify-end gap-2 mt-4">
+          <div className="shrink-0 px-6 py-4 border-t flex justify-end gap-2 bg-background">
             <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending}>
               Cancelar
             </Button>

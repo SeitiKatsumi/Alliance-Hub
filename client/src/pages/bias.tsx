@@ -1347,7 +1347,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   <Award className="w-4 h-4 text-brand-gold" />
                   <div>
                     <p className="text-sm font-medium">Selo Certified Alliance</p>
-                    <p className="text-xs text-muted-foreground">Esta BIA possui certificação BUILT Alliance</p>
+                    <p className="text-xs text-muted-foreground">Esta BIA foi validada por um Aliado BUILT</p>
                   </div>
                 </div>
                 <Switch

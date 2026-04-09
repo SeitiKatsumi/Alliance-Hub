@@ -37,6 +37,7 @@ interface BiasProjeto {
   ir_realizado?: string | number;
   inss_realizado?: string | number;
   manutencao_realizada?: string | number;
+  moeda?: string | null;
 }
 
 interface FluxoItem {
@@ -55,6 +56,14 @@ function n(v?: string | number | null): number {
 
 function brl(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function formatMoney(value: number, currency = "BRL"): string {
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+  } catch {
+    return brl(value);
+  }
 }
 
 function pct(value: number, decimals = 2): string {
@@ -88,7 +97,7 @@ function MetricCard({
   );
 }
 
-function RowItem({ label, value, sub, positive }: { label: string; value: number; sub?: string; positive?: boolean }) {
+function RowItem({ label, value, sub, positive, currency = "BRL" }: { label: string; value: number; sub?: string; positive?: boolean; currency?: string }) {
   const cls = positive !== undefined ? (positive ? "text-green-600" : "text-red-600") : colorClass(value);
   return (
     <div className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
@@ -96,7 +105,7 @@ function RowItem({ label, value, sub, positive }: { label: string; value: number
         <span className="text-sm">{label}</span>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </div>
-      <span className={`text-sm font-semibold tabular-nums ${cls}`}>{brl(value)}</span>
+      <span className={`text-sm font-semibold tabular-nums ${cls}`}>{formatMoney(value, currency)}</span>
     </div>
   );
 }
@@ -280,7 +289,7 @@ export default function ResultadosPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
               label="Resultado Líquido"
-              value={brl(resultadoLiquido)}
+              value={formatMoney(resultadoLiquido, bia?.moeda || "BRL")}
               icon={resultadoLiquido >= 0 ? TrendingUp : TrendingDown}
               color={resultadoLiquido >= 0 ? "text-green-600" : "text-red-600"}
               border={resultadoLiquido >= 0 ? "border-green-500/30" : "border-red-500/30"}
@@ -317,7 +326,7 @@ export default function ResultadosPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
               label="Total de Aportes"
-              value={brl(totalAportesPagos)}
+              value={formatMoney(totalAportesPagos, bia?.moeda || "BRL")}
               sub="entradas pagas no caixa"
               icon={ArrowUpCircle}
               color="text-blue-600"
@@ -325,7 +334,7 @@ export default function ResultadosPage() {
             />
             <MetricCard
               label="Saídas Realizadas"
-              value={brl(totalSaidasPagas)}
+              value={formatMoney(totalSaidasPagas, bia?.moeda || "BRL")}
               sub="saídas pagas no caixa"
               icon={ArrowDownCircle}
               color="text-red-600"
@@ -333,7 +342,7 @@ export default function ResultadosPage() {
             />
             <MetricCard
               label="Caixa Líquido Real"
-              value={brl(caixaLiquidoReal)}
+              value={formatMoney(caixaLiquidoReal, bia?.moeda || "BRL")}
               sub="aportes − saídas pagas"
               icon={PiggyBank}
               color={caixaLiquidoReal >= 0 ? "text-green-600" : "text-red-600"}
@@ -342,7 +351,7 @@ export default function ResultadosPage() {
             <MetricCard
               label="% VGV Realizado"
               value={pct(percVGV)}
-              sub={`VGV: ${brl(vgv)}`}
+              sub={`VGV: ${formatMoney(vgv, bia?.moeda || "BRL")}`}
               icon={DollarSign}
               color="text-purple-600"
               border="border-purple-500/30"
@@ -359,13 +368,13 @@ export default function ResultadosPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <RowItem label="Valor de Origem" value={valorOrigem} positive={false} />
-                <RowItem label="Custo de Origem da BIA" sub="Origem + Divisor" value={custoOrigem} positive={false} />
-                <RowItem label="CPP Total (Custo Final)" sub="Soma dos percentuais" value={custoCPP} positive={false} />
+                <RowItem label="Valor de Origem" value={valorOrigem} positive={false} currency={bia?.moeda || "BRL"} />
+                <RowItem label="Custo de Origem da BIA" sub="Origem + Divisor" value={custoOrigem} positive={false} currency={bia?.moeda || "BRL"} />
+                <RowItem label="CPP Total (Custo Final)" sub="Soma dos percentuais" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} />
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-sm font-semibold">Total Custos</span>
-                  <span className="text-sm font-bold text-red-600 tabular-nums">{brl(custoCPP)}</span>
+                  <span className="text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoCPP, bia?.moeda || "BRL")}</span>
                 </div>
               </CardContent>
             </Card>
@@ -496,7 +505,7 @@ export default function ResultadosPage() {
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-sm font-semibold">Total Deduções</span>
-                  <span className="text-sm font-bold text-red-600 tabular-nums">{brl(totalDeducoesReal)}</span>
+                  <span className="text-sm font-bold text-red-600 tabular-nums">{formatMoney(totalDeducoesReal, bia?.moeda || "BRL")}</span>
                 </div>
               </CardContent>
             </Card>
@@ -511,14 +520,14 @@ export default function ResultadosPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-0">
-                <RowItem label="(+) Valor Realizado de Venda" value={valorRealizado} positive />
-                <RowItem label="(−) Custo Final CPP" value={-custoCPP} />
-                <RowItem label="(−) Total de Deduções (Realizado)" value={-totalDeducoesReal} />
+                <RowItem label="(+) Valor Realizado de Venda" value={valorRealizado} positive currency={bia?.moeda || "BRL"} />
+                <RowItem label="(−) Custo Final CPP" value={-custoCPP} currency={bia?.moeda || "BRL"} />
+                <RowItem label="(−) Total de Deduções (Realizado)" value={-totalDeducoesReal} currency={bia?.moeda || "BRL"} />
                 <Separator className="my-3" />
                 <div className="flex items-center justify-between py-2">
                   <span className="font-semibold">Resultado Líquido</span>
                   <span className={`text-xl font-bold tabular-nums ${colorClass(resultadoLiquido)}`}>
-                    {brl(resultadoLiquido)}
+                    {formatMoney(resultadoLiquido, bia?.moeda || "BRL")}
                   </span>
                 </div>
                 <Separator className="my-1" />

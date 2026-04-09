@@ -118,6 +118,13 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 - `DIRECTUS_TOKEN`: Bearer token for Directus CMS API access
 - `DIRECTUS_URL`: Directus base URL (defaults to https://app.builtalliances.com)
 
+## Currency Support
+- Each BIA has a `moeda` field (ISO 4217 currency code, e.g. BRL, USD, EUR) stored in Directus
+- `CurrencyCombobox` component in `bias.tsx` uses Popover + Command with search across 80+ world currencies
+- `formatMoney(value, currency)` helper uses `Intl.NumberFormat` to format values in the BIA's currency
+- All monetary displays in `bias.tsx`, `bia-detalhe.tsx`, and `resultados.tsx` use `formatMoney(value, bia.moeda || "BRL")`
+- Aggregate totals (cross-BIA) remain formatted in BRL
+
 ## Technical Notes
 - `apiRequest` signature: `(method, url, data?)` — NOT fetch-style
 - Field `diretor_execucao` (not `diretor_obra`) is used in bias_projetos

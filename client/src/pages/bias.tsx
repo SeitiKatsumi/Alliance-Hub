@@ -370,7 +370,57 @@ function biaToForm(b: BiasProjeto): FormState {
     manutencao_pos_obra_prevista: b.manutencao_pos_obra_prevista != null ? String(b.manutencao_pos_obra_prevista) : "",
     inicio_aportes: b.inicio_aportes || "",
     total_aportes: numToBRLStr(b.total_aportes),
+    moeda: b.moeda || "BRL",
   };
+}
+
+// ---- Currency Combobox ----
+function CurrencyCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = CURRENCIES.find(c => c.code === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center justify-between w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-muted/30 transition-colors"
+          data-testid="btn-moeda-select"
+        >
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            {selected ? (
+              <span><span className="font-medium">{selected.code}</span> — {selected.name}</span>
+            ) : (
+              <span className="text-muted-foreground">Selecionar moeda...</span>
+            )}
+          </div>
+          <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[340px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar moeda..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>Moeda não encontrada.</CommandEmpty>
+            <CommandGroup>
+              {CURRENCIES.map(c => (
+                <CommandItem
+                  key={c.code}
+                  value={`${c.code} ${c.name}`}
+                  onSelect={() => { onChange(c.code); setOpen(false); }}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Check className={`w-3.5 h-3.5 shrink-0 ${value === c.code ? "opacity-100 text-brand-gold" : "opacity-0"}`} />
+                  <span className="font-mono text-xs text-muted-foreground w-10 shrink-0">{c.code}</span>
+                  <span className="text-sm">{c.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ---- Sub-components ----
@@ -922,7 +972,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
               {hoveredCluster.items.length === 1 && n(hoveredCluster.items[0].valor_geral_venda_vgv) > 0 && (
                 <div className="text-right">
                   <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">VGV</p>
-                  <p className="text-sm text-brand-gold tabular-nums">{brl(n(hoveredCluster.items[0].valor_geral_venda_vgv))}</p>
+                  <p className="text-sm text-brand-gold tabular-nums">{formatMoney(n(hoveredCluster.items[0].valor_geral_venda_vgv), hoveredCluster.items[0].moeda || "BRL")}</p>
                 </div>
               )}
             </div>
@@ -965,7 +1015,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                     {b.localizacao && <p className="text-[10px] text-brand-gold/40 truncate">{b.localizacao}</p>}
                   </div>
                   {n(b.valor_geral_venda_vgv) > 0 && (
-                    <p className="text-[10px] text-brand-gold/70 tabular-nums shrink-0">{brl(n(b.valor_geral_venda_vgv))}</p>
+                    <p className="text-[10px] text-brand-gold/70 tabular-nums shrink-0">{formatMoney(n(b.valor_geral_venda_vgv), b.moeda || "BRL")}</p>
                   )}
                 </button>
               ))}
@@ -1019,21 +1069,21 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                 {n(selectedBia.valor_geral_venda_vgv) > 0 && (
                   <div>
                     <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">VGV</p>
-                    <p className="text-xs font-semibold text-brand-gold tabular-nums">{brl(n(selectedBia.valor_geral_venda_vgv))}</p>
+                    <p className="text-xs font-semibold text-brand-gold tabular-nums">{formatMoney(n(selectedBia.valor_geral_venda_vgv), selectedBia.moeda || "BRL")}</p>
                   </div>
                 )}
                 {n(selectedBia.resultado_liquido) !== 0 && (
                   <div>
                     <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">Resultado</p>
                     <p className={`text-xs font-semibold tabular-nums ${n(selectedBia.resultado_liquido) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                      {brl(n(selectedBia.resultado_liquido))}
+                      {formatMoney(n(selectedBia.resultado_liquido), selectedBia.moeda || "BRL")}
                     </p>
                   </div>
                 )}
                 {n(selectedBia.lucro_previsto) !== 0 && (
                   <div>
                     <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">Lucro Prev.</p>
-                    <p className="text-xs font-semibold text-brand-gold/80 tabular-nums">{brl(n(selectedBia.lucro_previsto))}</p>
+                    <p className="text-xs font-semibold text-brand-gold/80 tabular-nums">{formatMoney(n(selectedBia.lucro_previsto), selectedBia.moeda || "BRL")}</p>
                   </div>
                 )}
               </div>
@@ -1067,7 +1117,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                             <span style={{ color: "#D7BB7D60" }}>◆</span>
                             {opa.nome_oportunidade || "OPA sem nome"}
                             {n(opa.valor_origem_opa) > 0 && (
-                              <span style={{ color: "#D7BB7D50" }}> · {brl(n(opa.valor_origem_opa))}</span>
+                              <span style={{ color: "#D7BB7D50" }}> · {formatMoney(n(opa.valor_origem_opa), selectedBia.moeda || "BRL")}</span>
                             )}
                           </span>
                         ))}
@@ -1241,13 +1291,13 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
           {vgv > 0 && (
             <div className="rounded-md bg-muted/50 p-2">
               <p className="text-[10px] text-muted-foreground">VGV</p>
-              <p className="text-xs font-semibold tabular-nums truncate" data-testid={`text-vgv-${bia.id}`}>{brl(vgv)}</p>
+              <p className="text-xs font-semibold tabular-nums truncate" data-testid={`text-vgv-${bia.id}`}>{formatMoney(vgv, bia.moeda || "BRL")}</p>
             </div>
           )}
           {valorRealizado > 0 && (
             <div className="rounded-md bg-muted/50 p-2">
               <p className="text-[10px] text-muted-foreground">Realizado</p>
-              <p className="text-xs font-semibold tabular-nums truncate">{brl(valorRealizado)}</p>
+              <p className="text-xs font-semibold tabular-nums truncate">{formatMoney(valorRealizado, bia.moeda || "BRL")}</p>
             </div>
           )}
         </div>
@@ -1270,7 +1320,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
                   <div key={opa.id} className="flex items-center justify-between gap-2 text-xs">
                     <span className="text-foreground/80 truncate">{opa.nome_oportunidade || "—"}</span>
                     {n(opa.valor_origem_opa) > 0 && (
-                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{brl(n(opa.valor_origem_opa))}</span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{formatMoney(n(opa.valor_origem_opa), bia.moeda || "BRL")}</span>
                     )}
                   </div>
                 ))}
@@ -1381,6 +1431,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         manutencao_pos_obra_prevista: form.manutencao_pos_obra_prevista || null,
         inicio_aportes: form.inicio_aportes || null,
         total_aportes: form.total_aportes ? parseBRLToNumber(form.total_aportes) : null,
+        moeda: form.moeda || "BRL",
         Anexos: allAnexoIds,
       };
       if (isEdit) {
@@ -1483,6 +1534,15 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
+              </div>
+
+              {/* Moeda */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Moeda da BIA</Label>
+                <CurrencyCombobox
+                  value={form.moeda || "BRL"}
+                  onChange={(v) => setForm({ ...form, moeda: v })}
+                />
               </div>
 
               {/* Selo Certified Alliance */}

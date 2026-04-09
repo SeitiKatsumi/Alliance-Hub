@@ -68,6 +68,7 @@ interface BiasProjeto {
   inicio_aportes?: string | null;
   total_aportes?: string | number;
   Anexos?: AnexoFile[];
+  moeda?: string | null;
 }
 
 interface Membro {
@@ -101,6 +102,14 @@ function n(v?: string | number | null): number {
 
 function brl(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function formatMoney(value: number, currency = "BRL"): string {
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+  } catch {
+    return brl(value);
+  }
 }
 
 function pct(v?: string | number | null): string {
@@ -149,7 +158,7 @@ function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; i
   );
 }
 
-function OpaCard({ opa }: { opa: Oportunidade }) {
+function OpaCard({ opa, currency = "BRL" }: { opa: Oportunidade; currency?: string }) {
   const valor = n(opa.valor_origem_opa);
   return (
     <div className="rounded-lg border border-brand-gold/20 bg-brand-gold/[0.03] p-4 space-y-2">
@@ -164,7 +173,7 @@ function OpaCard({ opa }: { opa: Oportunidade }) {
         {valor > 0 && (
           <div className="text-right shrink-0">
             <p className="text-[9px] text-muted-foreground uppercase">Valor</p>
-            <p className="text-sm font-bold text-brand-gold tabular-nums">{brl(valor)}</p>
+            <p className="text-sm font-bold text-brand-gold tabular-nums">{formatMoney(valor, currency)}</p>
           </div>
         )}
       </div>
@@ -351,18 +360,18 @@ export default function BiaDetalhePage() {
 
       {/* Key metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {vgv > 0 && <StatBox label="VGV" value={brl(vgv)} />}
-        {realizado > 0 && <StatBox label="Realizado" value={brl(realizado)} />}
+        {vgv > 0 && <StatBox label="VGV" value={formatMoney(vgv, bia.moeda || "BRL")} />}
+        {realizado > 0 && <StatBox label="Realizado" value={formatMoney(realizado, bia.moeda || "BRL")} />}
         {resultado !== 0 && (
           <StatBox
             label="Resultado Líquido"
-            value={brl(resultado)}
+            value={formatMoney(resultado, bia.moeda || "BRL")}
             color={resultado >= 0 ? "text-green-600" : "text-red-600"}
           />
         )}
-        {lucro !== 0 && <StatBox label="Lucro Previsto" value={brl(lucro)} />}
-        {custoFinal > 0 && <StatBox label="Custo Final Previsto" value={brl(custoFinal)} />}
-        {totalAportes > 0 && <StatBox label="Total de Aportes" value={brl(totalAportes)} />}
+        {lucro !== 0 && <StatBox label="Lucro Previsto" value={formatMoney(lucro, bia.moeda || "BRL")} />}
+        {custoFinal > 0 && <StatBox label="Custo Final Previsto" value={formatMoney(custoFinal, bia.moeda || "BRL")} />}
+        {totalAportes > 0 && <StatBox label="Total de Aportes" value={formatMoney(totalAportes, bia.moeda || "BRL")} />}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -410,7 +419,7 @@ export default function BiaDetalhePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {opas.map(opa => <OpaCard key={opa.id} opa={opa} />)}
+                  {opas.map(opa => <OpaCard key={opa.id} opa={opa} currency={bia.moeda || "BRL"} />)}
                 </div>
               )}
             </CardContent>
@@ -475,7 +484,7 @@ export default function BiaDetalhePage() {
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-brand-gold/80">{pct(row.perc)}</p>
                         {n(row.cpp) > 0 && (
-                          <p className="text-[11px] text-muted-foreground tabular-nums">{brl(n(row.cpp))}</p>
+                          <p className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(n(row.cpp), bia.moeda || "BRL")}</p>
                         )}
                       </div>
                     </div>
@@ -486,13 +495,13 @@ export default function BiaDetalhePage() {
                   {n(bia.valor_origem) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Valor Origem</span>
-                      <span className="font-medium tabular-nums">{brl(n(bia.valor_origem))}</span>
+                      <span className="font-medium tabular-nums">{formatMoney(n(bia.valor_origem), bia.moeda || "BRL")}</span>
                     </div>
                   )}
                   {n(bia.custo_origem_bia) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Custo Origem</span>
-                      <span className="font-medium tabular-nums">{brl(n(bia.custo_origem_bia))}</span>
+                      <span className="font-medium tabular-nums">{formatMoney(n(bia.custo_origem_bia), bia.moeda || "BRL")}</span>
                     </div>
                   )}
                   {n(bia.divisor_multiplicador) > 0 && (
@@ -558,7 +567,7 @@ export default function BiaDetalhePage() {
                   {n(bia.total_aportes) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total de Aportes</span>
-                      <span className="font-semibold text-brand-gold/80 tabular-nums">{brl(n(bia.total_aportes))}</span>
+                      <span className="font-semibold text-brand-gold/80 tabular-nums">{formatMoney(n(bia.total_aportes), bia.moeda || "BRL")}</span>
                     </div>
                   )}
                 </div>

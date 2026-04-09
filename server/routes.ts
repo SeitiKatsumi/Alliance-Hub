@@ -96,16 +96,40 @@ async function ensureBiasExtraFields() {
 
 async function ensureNomeBiaLength() {
   try {
-    const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/nome_bia`, {
+    // Step 1: Get current schema snapshot (with hash needed for apply)
+    const snapshotRes = await fetch(`${DIRECTUS_URL}/schema/snapshot`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!snapshotRes.ok) {
+      console.warn("[bia] schema snapshot failed:", snapshotRes.status);
+      return;
+    }
+    const snapshot = await snapshotRes.json();
+    const currentHash = snapshot?.data?.hash;
+    const fields: any[] = snapshot?.data?.fields ?? [];
+
+    const nomeBiaField = fields.find((f: any) => f.collection === "bias_projetos" && f.field === "nome_bia");
+    const currentMaxLen = nomeBiaField?.schema?.max_length;
+    if (currentMaxLen != null && currentMaxLen >= 500) {
+      console.log("[bia] nome_bia varchar length OK, skipping");
+      return;
+    }
+    console.log("[bia] nome_bia current schema:", JSON.stringify(nomeBiaField?.schema));
+
+    // Force ALTER TABLE to varchar(500) — fix MySQL column that may be too short or wrongly typed as text
+    const patchRes = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/nome_bia`, {
       method: "PATCH",
       headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "text", schema: { data_type: "text", is_nullable: true } }),
+      body: JSON.stringify({
+        type: "string",
+        schema: { data_type: "varchar", max_length: 500, is_nullable: false },
+      }),
     });
-    if (res.ok) {
-      console.log("[bia] nome_bia field updated to text type");
+    const patchBody = await patchRes.json().catch(() => ({}));
+    if (patchRes.ok) {
+      console.log("[bia] nome_bia expanded to varchar(500), schema:", JSON.stringify(patchBody?.data?.schema));
     } else {
-      const err = await res.json().catch(() => ({}));
-      console.warn("[bia] nome_bia patch:", err?.errors?.[0]?.message || res.status);
+      console.warn("[bia] nome_bia PATCH failed:", patchRes.status, JSON.stringify(patchBody?.errors?.[0]?.message ?? patchBody));
     }
   } catch (e) {
     console.warn("[bia] ensureNomeBiaLength error:", e);

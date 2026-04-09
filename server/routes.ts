@@ -94,6 +94,24 @@ async function ensureBiasExtraFields() {
   }
 }
 
+async function ensureNomeBiaLength() {
+  try {
+    const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/nome_bia`, {
+      method: "PATCH",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "text", schema: { data_type: "text", is_nullable: true } }),
+    });
+    if (res.ok) {
+      console.log("[bia] nome_bia field updated to text type");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      console.warn("[bia] nome_bia patch:", err?.errors?.[0]?.message || res.status);
+    }
+  } catch (e) {
+    console.warn("[bia] ensureNomeBiaLength error:", e);
+  }
+}
+
 async function ensureBiasGeoFields() {
   const fields = [
     { field: "latitude", type: "float", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
@@ -266,6 +284,7 @@ export async function registerRoutes(
   // Ensure geo fields exist in Directus
   ensureBiasGeoFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
+  ensureNomeBiaLength().catch(console.error);
 
   // Proxy para servir arquivos do Directus sem expor o token
   app.get("/api/files/:fileId", async (req, res) => {

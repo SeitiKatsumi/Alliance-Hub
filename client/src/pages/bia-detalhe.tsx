@@ -356,9 +356,8 @@ export default function BiaDetalhePage() {
         {totalAportes > 0 && <StatBox label="Total de Aportes" value={brl(totalAportes)} />}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
+        <div className="space-y-6">
 
           {/* Equipe */}
           <Card>
@@ -413,108 +412,6 @@ export default function BiaDetalhePage() {
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={FileText}>Descrição</SectionTitle>
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bia.observacoes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-6">
-
-          {/* CPP */}
-          {cpp.length > 0 && (
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={Layers}>CPP — DM</SectionTitle>
-                <div className="space-y-1">
-                  {cpp.map((row, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
-                      <p className="text-xs text-muted-foreground">{row.label}</p>
-                      <div className="text-right">
-                        <span className="text-xs font-semibold text-brand-gold/80">{pct(row.perc)}</span>
-                        {n(row.cpp) > 0 && (
-                          <p className="text-[10px] text-muted-foreground tabular-nums">{brl(n(row.cpp))}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {n(bia.custo_origem_bia) > 0 && (
-                  <div className="mt-3 pt-3 border-t border-border/40">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Valor Origem</span>
-                      <span className="font-semibold tabular-nums">{brl(n(bia.valor_origem))}</span>
-                    </div>
-                    <div className="flex justify-between text-xs mt-1">
-                      <span className="text-muted-foreground">Custo Origem</span>
-                      <span className="font-semibold tabular-nums">{brl(n(bia.custo_origem_bia))}</span>
-                    </div>
-                    {n(bia.divisor_multiplicador) > 0 && (
-                      <div className="flex justify-between text-xs mt-1">
-                        <span className="text-muted-foreground">Divisor/Multiplicador</span>
-                        <span className="font-semibold tabular-nums">{n(bia.divisor_multiplicador).toLocaleString("pt-BR")}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Deduções */}
-          {(n(bia.comissao_prevista_corretor) > 0 || n(bia.ir_previsto) > 0 || n(bia.inss_previsto) > 0 || n(bia.manutencao_pos_obra_prevista) > 0) && (
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={TrendingDown}>Deduções</SectionTitle>
-                <div className="space-y-1">
-                  {n(bia.comissao_prevista_corretor) > 0 && (
-                    <div className="flex justify-between text-xs py-1 border-b border-border/40">
-                      <span className="text-muted-foreground">Comissão Corretor</span>
-                      <span className="font-semibold">{pct(bia.comissao_prevista_corretor)}</span>
-                    </div>
-                  )}
-                  {n(bia.ir_previsto) > 0 && (
-                    <div className="flex justify-between text-xs py-1 border-b border-border/40">
-                      <span className="text-muted-foreground">IR Previsto</span>
-                      <span className="font-semibold">{pct(bia.ir_previsto)}</span>
-                    </div>
-                  )}
-                  {n(bia.inss_previsto) > 0 && (
-                    <div className="flex justify-between text-xs py-1 border-b border-border/40">
-                      <span className="text-muted-foreground">INSS Previsto</span>
-                      <span className="font-semibold">{pct(bia.inss_previsto)}</span>
-                    </div>
-                  )}
-                  {n(bia.manutencao_pos_obra_prevista) > 0 && (
-                    <div className="flex justify-between text-xs py-1">
-                      <span className="text-muted-foreground">Manutenção Pós-Obra</span>
-                      <span className="font-semibold">{pct(bia.manutencao_pos_obra_prevista)}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Aportes */}
-          {(bia.inicio_aportes || totalAportes > 0) && (
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={Wallet}>Aportes</SectionTitle>
-                <div className="space-y-1">
-                  {bia.inicio_aportes && (
-                    <div className="flex justify-between text-xs py-1 border-b border-border/40">
-                      <span className="text-muted-foreground">Início</span>
-                      <span className="font-semibold">{new Date(bia.inicio_aportes).toLocaleDateString("pt-BR")}</span>
-                    </div>
-                  )}
-                  {totalAportes > 0 && (
-                    <div className="flex justify-between text-xs py-1">
-                      <span className="text-muted-foreground">Total</span>
-                      <span className="font-semibold tabular-nums">{brl(totalAportes)}</span>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
           )}

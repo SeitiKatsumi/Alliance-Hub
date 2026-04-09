@@ -77,6 +77,12 @@ async function ensureBiasExtraFields() {
       meta: { interface: "input", display: "raw", hidden: false },
       schema: { is_nullable: true },
     },
+    {
+      field: "moeda",
+      type: "string",
+      meta: { interface: "input", display: "raw", hidden: false, note: "Código ISO da moeda (ex: BRL, USD, EUR)" },
+      schema: { is_nullable: true, default_value: "BRL" },
+    },
   ];
   for (const fieldDef of fields) {
     try {

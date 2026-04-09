@@ -27,11 +27,13 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
-  X, ExternalLink
+  X, ExternalLink, ChevronsUpDown, Check, DollarSign
 } from "lucide-react";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -113,6 +115,8 @@ interface BiasProjeto {
   total_aportes?: string | number;
   // Anexos
   Anexos?: AnexoFile[];
+  // Moeda
+  moeda?: string | null;
 }
 
 interface Oportunidade {
@@ -151,6 +155,103 @@ function n(v?: string | number | null): number {
 function brl(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
+
+function formatMoney(value: number, currency = "BRL"): string {
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+  } catch {
+    return brl(value);
+  }
+}
+
+// ---- Currency list (ISO 4217) ----
+const CURRENCIES: { code: string; name: string }[] = [
+  { code: "BRL", name: "Real Brasileiro" },
+  { code: "USD", name: "Dólar Americano" },
+  { code: "EUR", name: "Euro" },
+  { code: "GBP", name: "Libra Esterlina" },
+  { code: "JPY", name: "Iene Japonês" },
+  { code: "CNY", name: "Yuan Chinês" },
+  { code: "CHF", name: "Franco Suíço" },
+  { code: "AUD", name: "Dólar Australiano" },
+  { code: "CAD", name: "Dólar Canadense" },
+  { code: "HKD", name: "Dólar de Hong Kong" },
+  { code: "SGD", name: "Dólar de Singapura" },
+  { code: "NOK", name: "Coroa Norueguesa" },
+  { code: "SEK", name: "Coroa Sueca" },
+  { code: "DKK", name: "Coroa Dinamarquesa" },
+  { code: "NZD", name: "Dólar da Nova Zelândia" },
+  { code: "MXN", name: "Peso Mexicano" },
+  { code: "ARS", name: "Peso Argentino" },
+  { code: "CLP", name: "Peso Chileno" },
+  { code: "COP", name: "Peso Colombiano" },
+  { code: "PEN", name: "Sol Peruano" },
+  { code: "UYU", name: "Peso Uruguaio" },
+  { code: "PYG", name: "Guarani Paraguaio" },
+  { code: "BOB", name: "Boliviano" },
+  { code: "VEF", name: "Bolívar Venezuelano" },
+  { code: "ZAR", name: "Rand Sul-Africano" },
+  { code: "INR", name: "Rúpia Indiana" },
+  { code: "IDR", name: "Rúpia Indonésia" },
+  { code: "MYR", name: "Ringgit Malaio" },
+  { code: "PHP", name: "Peso Filipino" },
+  { code: "THB", name: "Baht Tailandês" },
+  { code: "VND", name: "Dong Vietnamita" },
+  { code: "KRW", name: "Won Sul-Coreano" },
+  { code: "TRY", name: "Lira Turca" },
+  { code: "RUB", name: "Rublo Russo" },
+  { code: "PLN", name: "Zlóti Polonês" },
+  { code: "CZK", name: "Coroa Tcheca" },
+  { code: "HUF", name: "Florim Húngaro" },
+  { code: "RON", name: "Leu Romeno" },
+  { code: "ILS", name: "Shekel Israelense" },
+  { code: "SAR", name: "Riyal Saudita" },
+  { code: "AED", name: "Dirham dos EAU" },
+  { code: "QAR", name: "Riyal Catarense" },
+  { code: "KWD", name: "Dinar Kuwaitiano" },
+  { code: "BHD", name: "Dinar do Bahrein" },
+  { code: "OMR", name: "Rial Omanense" },
+  { code: "JOD", name: "Dinar Jordaniano" },
+  { code: "EGP", name: "Libra Egípcia" },
+  { code: "MAD", name: "Dirham Marroquino" },
+  { code: "NGN", name: "Naira Nigeriana" },
+  { code: "KES", name: "Xelim Queniano" },
+  { code: "GHS", name: "Cedi Ganense" },
+  { code: "TZS", name: "Xelim Tanzaniano" },
+  { code: "ETB", name: "Birr Etíope" },
+  { code: "UGX", name: "Xelim Ugandense" },
+  { code: "PKR", name: "Rúpia Paquistanesa" },
+  { code: "BDT", name: "Taka de Bangladesh" },
+  { code: "LKR", name: "Rúpia do Sri Lanka" },
+  { code: "NPR", name: "Rúpia Nepalesa" },
+  { code: "MMK", name: "Kyat de Mianmar" },
+  { code: "KHR", name: "Riel Cambojano" },
+  { code: "TWD", name: "Novo Dólar Taiwanês" },
+  { code: "HRK", name: "Kuna Croata" },
+  { code: "BGN", name: "Lev Búlgaro" },
+  { code: "UAH", name: "Hryvnia Ucraniana" },
+  { code: "CRC", name: "Colón Costa-Riquenho" },
+  { code: "GTQ", name: "Quetzal Guatemalteco" },
+  { code: "HNL", name: "Lempira Hondurenha" },
+  { code: "NIO", name: "Córdoba Nicaraguense" },
+  { code: "PAB", name: "Balboa Panamenho" },
+  { code: "DOP", name: "Peso Dominicano" },
+  { code: "CUP", name: "Peso Cubano" },
+  { code: "TTD", name: "Dólar de Trinidad e Tobago" },
+  { code: "BBD", name: "Dólar de Barbados" },
+  { code: "JMD", name: "Dólar Jamaicano" },
+  { code: "ISK", name: "Coroa Islandesa" },
+  { code: "MKD", name: "Denar Macedônio" },
+  { code: "RSD", name: "Dinar Sérvio" },
+  { code: "ALL", name: "Lek Albanês" },
+  { code: "BAM", name: "Marco da Bósnia" },
+  { code: "GEL", name: "Lari Georgiano" },
+  { code: "AMD", name: "Dram Armênio" },
+  { code: "AZN", name: "Manat Azerbaijano" },
+  { code: "KZT", name: "Tenge Cazaque" },
+  { code: "UZS", name: "Som Uzbeque" },
+  { code: "MNT", name: "Tugrik Mongol" },
+];
 
 function formatInputBRL(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -230,6 +331,7 @@ const EMPTY_FORM = {
   manutencao_pos_obra_prevista: "",
   inicio_aportes: "",
   total_aportes: "",
+  moeda: "BRL",
 };
 
 type FormState = typeof EMPTY_FORM;

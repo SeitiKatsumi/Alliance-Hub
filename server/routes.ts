@@ -173,8 +173,8 @@ async function directusFetch(collection: string, params: string = "") {
   return json.data || [];
 }
 
-async function directusFetchOne(collection: string, id: string) {
-  const url = `${DIRECTUS_URL}/items/${collection}/${id}?fields=*`;
+async function directusFetchOne(collection: string, id: string, params: string = "") {
+  const url = `${DIRECTUS_URL}/items/${collection}/${id}?fields=*${params ? "&" + params : ""}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
   });
@@ -495,10 +495,27 @@ export async function registerRoutes(
   });
 
   // ========== BIAS PROJETOS (from Directus) ==========
+  function resolveAnexosBia(items: any[]): any[] {
+    return items.map((b: any) => ({
+      ...b,
+      Anexos: (b.Anexos || []).map((a: any) => {
+        const f = a.directus_files_id;
+        if (!f || typeof f !== "object") return null;
+        return {
+          id: f.id,
+          title: f.title || f.filename_download || f.id,
+          filename: f.filename_download || f.id,
+          url: `${DIRECTUS_URL}/assets/${f.id}`,
+          size: f.filesize,
+        };
+      }).filter(Boolean),
+    }));
+  }
+
   app.get("/api/bias", async (req, res) => {
     try {
-      const items = await directusFetch("bias_projetos");
-      res.json(items);
+      const items = await directusFetch("bias_projetos", "fields=*,Anexos.directus_files_id.*");
+      res.json(resolveAnexosBia(items));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -506,17 +523,29 @@ export async function registerRoutes(
 
   app.get("/api/bias/:id", async (req, res) => {
     try {
-      const item = await directusFetchOne("bias_projetos", req.params.id);
+      const item = await directusFetchOne("bias_projetos", req.params.id, "fields=*,Anexos.directus_files_id.*");
       if (!item) return res.status(404).json({ error: "BIA não encontrada" });
-      res.json(item);
+      res.json(resolveAnexosBia([item])[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
+  function prepareBiaPayload(body: Record<string, any>): Record<string, any> {
+    const data = { ...body };
+    if (data.Anexos !== undefined) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (Array.isArray(data.Anexos) && data.Anexos.every((a: any) => typeof a === "string")) {
+        const validIds: string[] = data.Anexos.filter((id: string) => uuidRegex.test(id));
+        data.Anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
+      }
+    }
+    return data;
+  }
+
   app.post("/api/bias", async (req, res) => {
     try {
-      const item = await directusCreate("bias_projetos", req.body);
+      const item = await directusCreate("bias_projetos", prepareBiaPayload(req.body));
       const valorOrigem = parseFloat(req.body.valor_origem) || 0;
       if (valorOrigem > 0) {
         syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
@@ -529,7 +558,7 @@ export async function registerRoutes(
 
   app.patch("/api/bias/:id", async (req, res) => {
     try {
-      const item = await directusUpdate("bias_projetos", req.params.id, req.body);
+      const item = await directusUpdate("bias_projetos", req.params.id, prepareBiaPayload(req.body));
       if (req.body.valor_origem !== undefined) {
         const valorOrigem = parseFloat(req.body.valor_origem) || 0;
         syncValorOrigemLancamento(req.params.id, valorOrigem).catch(console.error);

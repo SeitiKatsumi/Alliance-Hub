@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
   Wallet, TrendingUp, TrendingDown, Target, Building2, Globe,
-  Pencil, Layers, FileText, Users
+  Pencil, Layers, FileText, Users, Paperclip, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,14 @@ import { Separator } from "@/components/ui/separator";
 import { useMemo } from "react";
 
 // ---- Types ----
+interface AnexoFile {
+  id: string;
+  title?: string;
+  filename?: string;
+  url: string;
+  size?: number;
+}
+
 interface BiasProjeto {
   id: string;
   nome_bia: string;
@@ -59,6 +67,7 @@ interface BiasProjeto {
   lucro_previsto?: string | number;
   inicio_aportes?: string | null;
   total_aportes?: string | number;
+  Anexos?: AnexoFile[];
 }
 
 interface Membro {
@@ -412,6 +421,39 @@ export default function BiaDetalhePage() {
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={FileText}>Descrição</SectionTitle>
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{bia.observacoes}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Anexos */}
+          {bia.Anexos && bia.Anexos.length > 0 && (
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <SectionTitle icon={Paperclip}>
+                  Anexos
+                  <Badge variant="secondary" className="ml-2 text-xs">{bia.Anexos.length}</Badge>
+                </SectionTitle>
+                <div className="space-y-2">
+                  {bia.Anexos.map(anexo => (
+                    <a
+                      key={anexo.id}
+                      href={anexo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/40 px-3 py-2.5 transition-colors group"
+                      data-testid={`link-anexo-${anexo.id}`}
+                    >
+                      <FileText className="w-4 h-4 text-brand-gold/60 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{anexo.title || anexo.filename || anexo.id}</p>
+                        {anexo.size && (
+                          <p className="text-[11px] text-muted-foreground">{(anexo.size / 1024).toFixed(0)} KB</p>
+                        )}
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
+                    </a>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}

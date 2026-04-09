@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -30,7 +30,8 @@ import { Switch } from "@/components/ui/switch";
 import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
-  Navigation, Crosshair, Loader2, Award, FileText
+  Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
+  X, ExternalLink
 } from "lucide-react";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -39,6 +40,14 @@ import {
 const BRAZIL_GEO = "/brazil-states.json";
 
 // ---- Types ----
+interface AnexoFile {
+  id: string;
+  title?: string;
+  filename?: string;
+  url: string;
+  size?: number;
+}
+
 interface Membro {
   id: string;
   nome?: string;
@@ -102,6 +111,8 @@ interface BiasProjeto {
   // Aportes
   inicio_aportes?: string | null;
   total_aportes?: string | number;
+  // Anexos
+  Anexos?: AnexoFile[];
 }
 
 interface Oportunidade {
@@ -1187,13 +1198,33 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [activeTab, setActiveTab] = useState("geral");
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setForm(bia ? biaToForm(bia) : EMPTY_FORM);
       setActiveTab("geral");
+      setExistingAnexos(bia?.Anexos ?? []);
+      setPendingFiles([]);
+      setUploading(false);
     }
   }, [open, bia]);
+
+  async function uploadFiles(files: File[]): Promise<string[]> {
+    if (files.length === 0) return [];
+    const formData = new FormData();
+    files.forEach(f => formData.append("files", f));
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Erro no upload" }));
+      throw new Error(err.error || "Erro no upload");
+    }
+    const result = await res.json();
+    return result.fileIds as string[];
+  }
 
   const valorRealizado = parseBRLToNumber(form.valor_realizado_venda);
   const valorOrigem = parseBRLToNumber(form.valor_origem);
@@ -1206,6 +1237,15 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      setUploading(pendingFiles.length > 0);
+      let newFileIds: string[] = [];
+      if (pendingFiles.length > 0) {
+        newFileIds = await uploadFiles(pendingFiles);
+        setUploading(false);
+      }
+      const existingIds = existingAnexos.map(a => a.id);
+      const allAnexoIds = [...existingIds, ...newFileIds];
+
       const payload: Record<string, any> = {
         nome_bia: form.nome_bia.trim(),
         situacao: form.situacao,
@@ -1239,6 +1279,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         manutencao_pos_obra_prevista: form.manutencao_pos_obra_prevista || null,
         inicio_aportes: form.inicio_aportes || null,
         total_aportes: form.total_aportes ? parseBRLToNumber(form.total_aportes) : null,
+        Anexos: allAnexoIds,
       };
       if (isEdit) {
         return apiRequest("PATCH", `/api/bias/${bia!.id}`, payload);
@@ -1252,6 +1293,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       onClose();
     },
     onError: (e: any) => {
+      setUploading(false);
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     }
   });
@@ -1390,6 +1432,90 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   data-testid="input-observacoes"
                 />
               </div>
+
+              {/* Anexos */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Label className="text-xs text-muted-foreground">Anexos</Label>
+                  {(existingAnexos.length + pendingFiles.length) > 0 && (
+                    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                      {existingAnexos.length + pendingFiles.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Existing files */}
+                {existingAnexos.length > 0 && (
+                  <div className="space-y-1.5">
+                    {existingAnexos.map((a, i) => (
+                      <div key={a.id} className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-2">
+                        <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-xs text-foreground/80 truncate flex-1">{a.title || a.filename || a.id}</span>
+                        <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setExistingAnexos(existingAnexos.filter((_, idx) => idx !== i))}
+                          className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                          data-testid={`btn-remove-anexo-existing-${i}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pending files (not yet uploaded) */}
+                {pendingFiles.length > 0 && (
+                  <div className="space-y-1.5">
+                    {pendingFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/[0.04] px-3 py-2">
+                        <FileText className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
+                        <span className="text-xs text-foreground/80 truncate flex-1">{f.name}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingFiles(pendingFiles.filter((_, idx) => idx !== i))}
+                          className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                          data-testid={`btn-remove-anexo-pending-${i}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* File picker button */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
+                  style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
+                  tabIndex={-1}
+                  onChange={(e) => {
+                    const selected = e.target.files;
+                    if (!selected || selected.length === 0) return;
+                    setPendingFiles(prev => [...prev, ...Array.from(selected)]);
+                    e.target.value = "";
+                  }}
+                  data-testid="input-anexos-file"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-md border border-dashed border-muted-foreground/30 hover:bg-muted/50 transition-colors text-sm text-muted-foreground w-full justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="btn-add-anexo"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploading ? "Enviando..." : "Adicionar arquivos"}
+                </button>
+              </div>
             </TabsContent>
 
             {/* Tab Equipe */}
@@ -1447,11 +1573,11 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             </Button>
             <Button
               onClick={() => saveMutation.mutate()}
-              disabled={!canSave || saveMutation.isPending || isLoading}
+              disabled={!canSave || saveMutation.isPending || uploading || isLoading}
               className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
               data-testid="btn-save-bia"
             >
-              {saveMutation.isPending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar BIA"}
+              {uploading ? "Enviando arquivos..." : saveMutation.isPending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar BIA"}
             </Button>
           </div>
         </SheetContent>

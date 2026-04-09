@@ -188,7 +188,7 @@ function BRLInput({ label, field, form, setForm, testId }: {
 // ---- Form state type ----
 const EMPTY_FORM = {
   nome_bia: "",
-  situacao: "ativa" as "ativa" | "em_formacao",
+  situacao: "em_formacao" as "ativa" | "em_formacao",
   destinacao: "",
   selo_certified_alliance: false,
   localizacao: "",

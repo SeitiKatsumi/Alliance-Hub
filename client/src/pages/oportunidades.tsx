@@ -335,6 +335,10 @@ function OpaFormDialog({
       toast({ title: "Nome da OPA é obrigatório", variant: "destructive" });
       return;
     }
+    if (!form.tipo) {
+      toast({ title: "Tipo é obrigatório", variant: "destructive" });
+      return;
+    }
     if (!form.bia_id) {
       toast({ title: "BIA Vinculada é obrigatória", variant: "destructive" });
       return;
@@ -374,16 +378,18 @@ function OpaFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Tipo</Label>
+              <Label className="text-xs text-muted-foreground">Tipo *</Label>
               <Select
-                value={form.tipo || "__none__"}
-                onValueChange={v => setForm(f => ({ ...f, tipo: v === "__none__" ? "" : v }))}
+                value={form.tipo || undefined}
+                onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
               >
-                <SelectTrigger className="h-8 text-sm" data-testid="select-opa-tipo">
+                <SelectTrigger
+                  className={`h-8 text-sm ${!form.tipo ? "text-muted-foreground border-destructive/40" : ""}`}
+                  data-testid="select-opa-tipo"
+                >
                   <SelectValue placeholder="Selecionar tipo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— Sem tipo —</SelectItem>
                   {tiposOpa.map(t => (
                     <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
                   ))}

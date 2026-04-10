@@ -23,25 +23,45 @@ const DIRECTUS_URL = "https://app.builtalliances.com";
 
 interface Membro {
   id: string;
-  nome: string;
+  nome?: string;
   Nome_de_usuario?: string;
   nome_completo?: string;
   primeiro_nome?: string;
   sobrenome?: string;
+  tipo_pessoa?: string;
+  tipo_de_cadastro?: string;
+  cpf_cnpj?: string;
+  razao_social?: string;
+  nome_fantasia?: string;
+  rg_ie?: string;
+  inscricao_municipal?: string;
+  data_nascimento?: string;
   email?: string;
-  telefone?: string;
   whatsapp?: string;
+  telefone?: string;
+  telefone_secundario?: string;
+  site?: string;
+  instagram?: string;
+  responsavel_nome?: string;
+  responsavel_cargo?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
   cidade?: string;
   estado?: string;
+  pais?: string;
   empresa?: string;
   cargo?: string;
+  categoria?: string;
   especialidade?: string;
   especialidades?: string[];
-  foto?: string | null;
-  tipo_de_cadastro?: string;
   nucleo_alianca?: string;
   perfil_aliado?: string;
-  descricao?: string;
+  observacoes?: string;
+  foto?: string | null;
+  ativo?: boolean;
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -120,7 +140,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         }
       }
 
-      const { id, especialidades, ...rest } = form as Membro & { _nome?: string };
+      const { id, especialidades, foto, ...rest } = form as Membro & { _nome?: string };
       const { _nome, ...cleanRest } = rest as any;
       const payload: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(cleanRest)) {
@@ -128,7 +148,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
           payload[key] = value;
         }
       }
-      if (fotoId) payload.foto = fotoId;
+      if (fotoId) payload.foto_perfil = fotoId;
 
       return apiRequest("PATCH", `/api/membros/${membro.id}`, payload);
     },
@@ -196,41 +216,166 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
           </SheetHeader>
 
           <div className="px-6 py-5 space-y-5">
-            {/* Dados pessoais */}
+
+            {/* Identificação */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <User className="w-3.5 h-3.5 text-brand-gold/50" />
-                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Dados Pessoais</span>
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Identificação</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Nome completo</label>
+                <div className="sm:col-span-2">
+                  <label className={labelCls}>Nome Completo (para Contrato)</label>
                   <Input value={form.nome || ""} onChange={e => setField("nome", e.target.value)} className={inputCls} data-testid="input-edit-nome" />
                 </div>
-                <div>
-                  <label className={labelCls}>E-mail</label>
-                  <Input value={form.email || ""} onChange={e => setField("email", e.target.value)} type="email" className={inputCls} data-testid="input-edit-email" />
+                <div className="sm:col-span-2">
+                  <label className={labelCls}>Nome de usuário (para visualização na plataforma)</label>
+                  <Input value={form.Nome_de_usuario || ""} onChange={e => setField("Nome_de_usuario", e.target.value)} className={inputCls} data-testid="input-edit-nome-usuario" />
                 </div>
                 <div>
-                  <label className={labelCls}>Telefone</label>
-                  <Input value={form.telefone || ""} onChange={e => setField("telefone", e.target.value)} className={inputCls} data-testid="input-edit-telefone" />
+                  <label className={labelCls}>Tipo de Pessoa</label>
+                  <Select value={form.tipo_pessoa || ""} onValueChange={v => setField("tipo_pessoa", v)}>
+                    <SelectTrigger className={inputCls} data-testid="select-edit-tipo-pessoa">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PF">Pessoa Física (PF)</SelectItem>
+                      <SelectItem value="PJ">Pessoa Jurídica (PJ)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <label className={labelCls}>WhatsApp</label>
-                  <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} className={inputCls} data-testid="input-edit-whatsapp" />
+                  <label className={labelCls}>Tipo de Cadastro</label>
+                  <Select value={form.tipo_de_cadastro || ""} onValueChange={v => setField("tipo_de_cadastro", v)}>
+                    <SelectTrigger className={inputCls} data-testid="select-edit-tipo-cadastro">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CEO Built">CEO Built</SelectItem>
+                      <SelectItem value="Aliado Built">Aliado Built</SelectItem>
+                      <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                      <SelectItem value="Investidor">Investidor</SelectItem>
+                      <SelectItem value="Parceiro">Parceiro</SelectItem>
+                      <SelectItem value="Consultor">Consultor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className={labelCls}>CPF / CNPJ</label>
+                  <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="000.000.000-00" data-testid="input-edit-cpf-cnpj" />
+                </div>
+                <div>
+                  <label className={labelCls}>Data de Nascimento</label>
+                  <Input value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} type="date" className={inputCls} data-testid="input-edit-data-nascimento" />
                 </div>
               </div>
             </div>
 
             <Separator className="bg-white/5" />
 
-            {/* Localização */}
+            {/* Dados da Empresa */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Dados da Empresa</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Razão Social</label>
+                  <Input value={form.razao_social || ""} onChange={e => setField("razao_social", e.target.value)} className={inputCls} data-testid="input-edit-razao-social" />
+                </div>
+                <div>
+                  <label className={labelCls}>Nome Fantasia</label>
+                  <Input value={form.nome_fantasia || ""} onChange={e => setField("nome_fantasia", e.target.value)} className={inputCls} data-testid="input-edit-nome-fantasia" />
+                </div>
+                <div>
+                  <label className={labelCls}>Empresa</label>
+                  <Input value={form.empresa || ""} onChange={e => setField("empresa", e.target.value)} className={inputCls} data-testid="input-edit-empresa" />
+                </div>
+                <div>
+                  <label className={labelCls}>Cargo / Função</label>
+                  <Input value={form.cargo || ""} onChange={e => setField("cargo", e.target.value)} className={inputCls} data-testid="input-edit-cargo" />
+                </div>
+                <div>
+                  <label className={labelCls}>Categoria</label>
+                  <Input value={form.categoria || ""} onChange={e => setField("categoria", e.target.value)} className={inputCls} data-testid="input-edit-categoria" />
+                </div>
+                <div>
+                  <label className={labelCls}>RG / IE</label>
+                  <Input value={form.rg_ie || ""} onChange={e => setField("rg_ie", e.target.value)} className={inputCls} data-testid="input-edit-rg-ie" />
+                </div>
+                <div>
+                  <label className={labelCls}>Inscrição Municipal</label>
+                  <Input value={form.inscricao_municipal || ""} onChange={e => setField("inscricao_municipal", e.target.value)} className={inputCls} data-testid="input-edit-inscricao-municipal" />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Contato */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Phone className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Contato</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>E-mail</label>
+                  <Input value={form.email || ""} onChange={e => setField("email", e.target.value)} type="email" className={inputCls} data-testid="input-edit-email" />
+                </div>
+                <div>
+                  <label className={labelCls}>WhatsApp</label>
+                  <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} className={inputCls} placeholder="+55..." data-testid="input-edit-whatsapp" />
+                </div>
+                <div>
+                  <label className={labelCls}>Telefone</label>
+                  <Input value={form.telefone || ""} onChange={e => setField("telefone", e.target.value)} className={inputCls} data-testid="input-edit-telefone" />
+                </div>
+                <div>
+                  <label className={labelCls}>Telefone Secundário</label>
+                  <Input value={form.telefone_secundario || ""} onChange={e => setField("telefone_secundario", e.target.value)} className={inputCls} data-testid="input-edit-telefone2" />
+                </div>
+                <div>
+                  <label className={labelCls}>Site</label>
+                  <Input value={form.site || ""} onChange={e => setField("site", e.target.value)} className={inputCls} placeholder="https://" data-testid="input-edit-site" />
+                </div>
+                <div>
+                  <label className={labelCls}>Instagram</label>
+                  <Input value={form.instagram || ""} onChange={e => setField("instagram", e.target.value)} className={inputCls} placeholder="@usuario" data-testid="input-edit-instagram" />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Endereço */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <MapPin className="w-3.5 h-3.5 text-brand-gold/50" />
-                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Localização</span>
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Endereço</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>CEP</label>
+                  <Input value={form.cep || ""} onChange={e => setField("cep", e.target.value)} className={inputCls} placeholder="00000-000" data-testid="input-edit-cep" />
+                </div>
+                <div>
+                  <label className={labelCls}>Logradouro</label>
+                  <Input value={form.logradouro || ""} onChange={e => setField("logradouro", e.target.value)} className={inputCls} data-testid="input-edit-logradouro" />
+                </div>
+                <div>
+                  <label className={labelCls}>Número</label>
+                  <Input value={form.numero || ""} onChange={e => setField("numero", e.target.value)} className={inputCls} data-testid="input-edit-numero" />
+                </div>
+                <div>
+                  <label className={labelCls}>Complemento</label>
+                  <Input value={form.complemento || ""} onChange={e => setField("complemento", e.target.value)} className={inputCls} data-testid="input-edit-complemento" />
+                </div>
+                <div>
+                  <label className={labelCls}>Bairro</label>
+                  <Input value={form.bairro || ""} onChange={e => setField("bairro", e.target.value)} className={inputCls} data-testid="input-edit-bairro" />
+                </div>
                 <div>
                   <label className={labelCls}>Cidade</label>
                   <Input value={form.cidade || ""} onChange={e => setField("cidade", e.target.value)} className={inputCls} data-testid="input-edit-cidade" />
@@ -239,33 +384,9 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <label className={labelCls}>Estado (UF)</label>
                   <Input value={form.estado || ""} onChange={e => setField("estado", e.target.value)} maxLength={2} className={inputCls} placeholder="SP" data-testid="input-edit-estado" />
                 </div>
-              </div>
-            </div>
-
-            <Separator className="bg-white/5" />
-
-            {/* Profissional */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Briefcase className="w-3.5 h-3.5 text-brand-gold/50" />
-                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Profissional</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Empresa</label>
-                  <Input value={form.empresa || ""} onChange={e => setField("empresa", e.target.value)} className={inputCls} data-testid="input-edit-empresa" />
-                </div>
-                <div>
-                  <label className={labelCls}>Cargo</label>
-                  <Input value={form.cargo || ""} onChange={e => setField("cargo", e.target.value)} className={inputCls} data-testid="input-edit-cargo" />
-                </div>
-                <div>
-                  <label className={labelCls}>Especialidade</label>
-                  <Input value={form.especialidade || ""} onChange={e => setField("especialidade", e.target.value)} className={inputCls} data-testid="input-edit-especialidade" />
-                </div>
-                <div>
-                  <label className={labelCls}>Tipo de Cadastro</label>
-                  <Input value={form.tipo_de_cadastro || ""} onChange={e => setField("tipo_de_cadastro", e.target.value)} className={inputCls} data-testid="input-edit-tipo" />
+                  <label className={labelCls}>País</label>
+                  <Input value={form.pais || ""} onChange={e => setField("pais", e.target.value)} className={inputCls} placeholder="Brasil" data-testid="input-edit-pais" />
                 </div>
               </div>
             </div>
@@ -287,7 +408,29 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <label className={labelCls}>Perfil de Aliado</label>
                   <Input value={form.perfil_aliado || ""} onChange={e => setField("perfil_aliado", e.target.value)} className={inputCls} data-testid="input-edit-perfil" />
                 </div>
+                <div>
+                  <label className={labelCls}>Especialidade</label>
+                  <Input value={form.especialidade || ""} onChange={e => setField("especialidade", e.target.value)} className={inputCls} data-testid="input-edit-especialidade" />
+                </div>
               </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Observações */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Observações</span>
+              </div>
+              <textarea
+                value={form.observacoes || ""}
+                onChange={e => setField("observacoes", e.target.value)}
+                rows={3}
+                placeholder="Observações sobre este membro..."
+                className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 text-sm rounded-md px-3 py-2 resize-none outline-none"
+                data-testid="textarea-edit-observacoes"
+              />
             </div>
 
             {pendingPhoto && (

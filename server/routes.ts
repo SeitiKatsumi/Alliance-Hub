@@ -560,24 +560,11 @@ export async function registerRoutes(
           especialidades_arr = [m.especialidade];
         }
         return {
-          id: m.id,
-          nome: m.nome,
-          Nome_de_usuario: m.Nome_de_usuario || null,
-          email: m.email,
-          telefone: m.telefone,
-          whatsapp: m.whatsapp,
-          cidade: m.cidade,
-          estado: m.estado,
-          empresa: m.empresa,
-          cargo: m.cargo || m.responsavel_cargo,
+          ...m,
+          cargo: m.cargo || m.responsavel_cargo || null,
           especialidade: especialidades_arr[0] || m.especialidade || null,
           especialidades: especialidades_arr,
-          foto: m.foto || null,
-          perfil_aliado: m.perfil_aliado,
-          nucleo_alianca: m.nucleo_alianca,
-          tipo_pessoa: m.tipo_pessoa,
-          tipo_de_cadastro: m.tipo_de_cadastro,
-          ativo: m.ativo,
+          foto: m.foto_perfil || m.foto || null,
         };
       });
       res.json(mapped);
@@ -588,26 +575,12 @@ export async function registerRoutes(
 
   app.get("/api/membros/:id", async (req, res) => {
     try {
-      const m = await directusFetchOne("cadastro_geral", req.params.id);
+      const m = await directusFetchOne("cadastro_geral", req.params.id, "fields=*");
       if (!m) return res.status(404).json({ error: "Membro não encontrado" });
       res.json({
-        id: m.id,
-        nome: m.nome,
-        Nome_de_usuario: m.Nome_de_usuario || null,
-        email: m.email,
-        telefone: m.telefone,
-        whatsapp: m.whatsapp,
-        cidade: m.cidade,
-        estado: m.estado,
-        empresa: m.empresa,
-        cargo: m.cargo || m.responsavel_cargo,
-        especialidade: m.especialidade || null,
-        foto: m.foto || null,
-        perfil_aliado: m.perfil_aliado,
-        nucleo_alianca: m.nucleo_alianca,
-        tipo_pessoa: m.tipo_pessoa,
-        tipo_de_cadastro: m.tipo_de_cadastro,
-        ativo: m.ativo,
+        ...m,
+        cargo: m.cargo || m.responsavel_cargo || null,
+        foto: m.foto_perfil || m.foto || null,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

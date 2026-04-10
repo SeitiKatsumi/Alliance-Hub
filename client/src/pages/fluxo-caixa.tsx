@@ -1012,7 +1012,17 @@ export default function FluxoCaixaPage() {
       return true;
     });
 
+    const statusPriority = (item: FluxoCaixaItem): number => {
+      const effective = isVencido(item) ? "vencido" : (item.status || "pendente");
+      if (effective === "agendado") return 0;
+      if (effective === "vencido") return 1;
+      return 2;
+    };
+
     return filtered.sort((a, b) => {
+      const pa = statusPriority(a);
+      const pb = statusPriority(b);
+      if (pa !== pb) return pa - pb;
       const da = a.data_vencimento || "";
       const db = b.data_vencimento || "";
       if (da && db) return da < db ? -1 : da > db ? 1 : 0;

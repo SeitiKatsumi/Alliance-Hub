@@ -1,11 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS } from "@shared/schema";
+import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
 import express from "express";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -306,12 +308,86 @@ const upload = multer({
   },
 });
 
+async function grantCollectionPermissions(collection: string) {
+  try {
+    const refRes = await fetch(`${DIRECTUS_URL}/permissions?filter[collection][_eq]=bias_projetos&limit=10`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!refRes.ok) { console.log(`[perms] Cannot read reference permissions (${refRes.status})`); return; }
+    const refData = await refRes.json();
+    const refPerms: any[] = refData.data || [];
+    if (refPerms.length === 0) { console.log("[perms] No reference permissions found"); return; }
+
+    const actions = ["read", "create", "update", "delete"];
+    for (const action of actions) {
+      const ref = refPerms.find((p: any) => p.action === action) || refPerms[0];
+      const policyId = ref?.policy ?? null;
+      const roleId = ref?.role ?? null;
+
+      const filterPart = policyId
+        ? `&filter[policy][_eq]=${policyId}`
+        : roleId ? `&filter[role][_eq]=${roleId}` : "";
+      const existsRes = await fetch(`${DIRECTUS_URL}/permissions?filter[collection][_eq]=${collection}&filter[action][_eq]=${action}${filterPart}&limit=1`, {
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (existsRes.ok) {
+        const ed = await existsRes.json();
+        if ((ed.data || []).length > 0) continue;
+      }
+      const body: any = { collection, action, fields: ["*"], permissions: {}, validation: {} };
+      if (policyId) body.policy = policyId;
+      else if (roleId) body.role = roleId;
+      const r = await fetch(`${DIRECTUS_URL}/permissions`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) console.log(`[perms] ${action} permission granted for ${collection}`);
+      else console.warn(`[perms] ${action} warn:`, (await r.json().catch(() => ({}))).errors?.[0]?.message);
+    }
+  } catch (err) { console.error("[perms] Error:", err); }
+}
+
+async function ensureNucleoTecnicoCollection() {
+  const COL = "nucleo_tecnico_docs";
+  try {
+    const check = await fetch(`${DIRECTUS_URL}/collections/${COL}`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (check.ok) {
+      console.log("[nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)");
+      return;
+    }
+
+    const colRes = await fetch(`${DIRECTUS_URL}/collections`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection: COL,
+        fields: [
+          { field: "id", type: "uuid", meta: { hidden: true, readonly: true, interface: "input", special: ["uuid"] }, schema: { is_primary_key: true, has_auto_increment: false } },
+          { field: "bia_id", type: "string", meta: { interface: "input", label: "BIA ID" }, schema: { is_nullable: true } },
+          { field: "alianca_tipo", type: "string", meta: { interface: "select-dropdown", label: "Tipo de Aliança" }, schema: { is_nullable: true } },
+          { field: "tipo_documento", type: "string", meta: { interface: "input", label: "Tipo de Documento" }, schema: { is_nullable: true } },
+          { field: "descricao", type: "text", meta: { interface: "input-multiline", label: "Descrição" }, schema: { is_nullable: true } },
+          { field: "membro_responsavel", type: "string", meta: { interface: "input", label: "Membro Responsável" }, schema: { is_nullable: true } },
+          { field: "arquivo_ids", type: "json", meta: { interface: "tags", label: "Arquivos (IDs)" }, schema: { is_nullable: true } },
+          { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
+        ],
+        meta: { singleton: false, icon: "folder_open" },
+      }),
+    });
+    if (!colRes.ok) { console.error("[nucleo_tecnico] create collection failed:", await colRes.text()); return; }
+    console.log("[nucleo_tecnico] Collection created with all fields");
+  } catch (err) { console.error("[nucleo_tecnico] Error:", err); }
+}
+
 async function ensureEstudosViabilidadeCollection() {
   try {
     const checkRes = await fetch(`${DIRECTUS_URL}/collections/estudos_viabilidade`, {
       headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
     });
-    if (checkRes.ok) { console.log("[estudos] Collection already exists"); return; }
+    if (checkRes.ok) { console.log("[estudos] Collection already exists"); await grantCollectionPermissions("estudos_viabilidade"); return; }
 
     const colRes = await fetch(`${DIRECTUS_URL}/collections`, {
       method: "POST",
@@ -379,6 +455,7 @@ export async function registerRoutes(
   ensureBiasExtraFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);
+  ensureNucleoTecnicoCollection().catch(console.error);
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -1129,6 +1206,56 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       res.json(safe);
     } catch (error: any) {
       if (error.name === "ZodError") return res.status(400).json({ error: error.errors });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Núcleo Técnico Documentos (PostgreSQL local) ─────────────────
+  app.get("/api/nucleo-tecnico-docs", async (req, res) => {
+    try {
+      let query = db.select().from(nucleoTecnicoDocs).orderBy(desc(nucleoTecnicoDocs.created_at));
+      const rows = await query;
+      const filtered = rows.filter((r: any) => {
+        if (req.query.bia_id && r.bia_id !== req.query.bia_id) return false;
+        if (req.query.alianca_tipo && r.alianca_tipo !== req.query.alianca_tipo) return false;
+        return true;
+      });
+      const enriched = await Promise.all(filtered.map(async (item: any) => {
+        const ids: string[] = Array.isArray(item.arquivo_ids) ? item.arquivo_ids : [];
+        const arquivos = await resolveFileIds(ids);
+        return { ...item, arquivos };
+      }));
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/nucleo-tecnico-docs", async (req, res) => {
+    try {
+      const { arquivos, ...rest } = req.body;
+      const [item] = await db.insert(nucleoTecnicoDocs).values(rest).returning();
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/nucleo-tecnico-docs/:id", async (req, res) => {
+    try {
+      const { arquivos, ...rest } = req.body;
+      const [item] = await db.update(nucleoTecnicoDocs).set(rest).where(eq(nucleoTecnicoDocs.id, req.params.id)).returning();
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/nucleo-tecnico-docs/:id", async (req, res) => {
+    try {
+      await db.delete(nucleoTecnicoDocs).where(eq(nucleoTecnicoDocs.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });

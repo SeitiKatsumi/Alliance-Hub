@@ -129,11 +129,20 @@ export function AppSidebar() {
                           <CollapsibleContent>
                             <div className="pl-3">
                               <SidebarMenuSub>
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton className="text-xs text-sidebar-foreground/40 cursor-not-allowed" data-testid="nav-nucleo-tecnico-placeholder">
-                                    <span className="italic">Em desenvolvimento</span>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
+                                {[
+                                  { label: "Alianças de Projetos", hash: "projetos" },
+                                  { label: "Alianças Jurídicas", hash: "juridica" },
+                                  { label: "Alianças de Inteligência", hash: "inteligencia" },
+                                  { label: "Alianças de Governança", hash: "governanca" },
+                                ].map(item => (
+                                  <SidebarMenuSubItem key={item.hash}>
+                                    <SidebarMenuSubButton asChild className="text-xs" data-testid={`nav-nt-${item.hash}`}>
+                                      <Link href="/nucleo-tecnico">
+                                        <span>{item.label}</span>
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                ))}
                               </SidebarMenuSub>
                             </div>
                           </CollapsibleContent>

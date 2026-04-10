@@ -104,6 +104,14 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 ## Navigation Structure (Collapsible Sidebar)
 1. **Meu Dashboard** (/) — Main dashboard with summary blocks (starts closed)
    1.1 Minhas BIAs (/bias) — BIAs Dashboard: cards with key info, create/edit/delete all Directus fields (Geral, Equipe, CPP, Receita tabs), summary stats, search. Each BIA card shows related OPAs count and list. Interactive world+Brazil map with zoom/pan, click on markers shows BIA info panel with related OPAs.
+       - Diretoria da Aliança (/diretoria-alianca) — stub placeholder (gold)
+       - Núcleo Técnico (/nucleo-tecnico) — **FULL MODULE**: 4 tabs (Projetos/Jurídica/Inteligência/Governança), CRUD de documentos com upload, destaque em verde para itens integrados. Dados em PostgreSQL local (`nucleo_tecnico_docs`).
+         - Alianças de Projetos (tab on /nucleo-tecnico)
+         - Alianças Jurídicas (tab on /nucleo-tecnico) — green: Termo de adesão, Due diligence, NDA, MOU Padrão BUILT
+         - Alianças de Inteligência (tab) — green: Análise de mercado, Roadmap do projeto
+         - Alianças de Governança (tab) — green: Manual de governança, Relatórios periódicos
+       - Núcleo de Obra (/nucleo-obra) — stub placeholder (orange)
+       - Núcleo Comercial (/nucleo-comercial) — stub placeholder (green)
        - Núcleo de Capital (collapsible)
          - Financeiro (/fluxo-caixa) — Cash flow management per BIA
          - Resultados (/resultados) — Investment analysis dashboard (ROI, Múltiplo, Lucro %)

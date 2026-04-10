@@ -227,3 +227,22 @@ export const insertOportunidadeSchema = createInsertSchema(oportunidades).omit({
 export type InsertOportunidade = z.infer<typeof insertOportunidadeSchema>;
 export type Oportunidade = typeof oportunidades.$inferSelect;
 
+export const nucleoTecnicoDocs = pgTable("nucleo_tecnico_docs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id"),
+  alianca_tipo: text("alianca_tipo"),
+  tipo_documento: text("tipo_documento"),
+  descricao: text("descricao"),
+  membro_responsavel: text("membro_responsavel"),
+  arquivo_ids: jsonb("arquivo_ids").$type<string[]>().default([]),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertNucleoTecnicoDocSchema = createInsertSchema(nucleoTecnicoDocs).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertNucleoTecnicoDoc = z.infer<typeof insertNucleoTecnicoDocSchema>;
+export type NucleoTecnicoDoc = typeof nucleoTecnicoDocs.$inferSelect;
+

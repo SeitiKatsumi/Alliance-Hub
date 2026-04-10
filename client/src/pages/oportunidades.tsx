@@ -343,7 +343,7 @@ function OpaFormDialog({
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Nome da Oportunidade *</Label>
+            <Label className="text-xs text-muted-foreground">Título da Oportunidade *</Label>
             <Input
               value={form.nome_oportunidade}
               onChange={e => setForm(f => ({ ...f, nome_oportunidade: e.target.value }))}

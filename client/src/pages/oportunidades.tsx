@@ -257,7 +257,7 @@ function OpaCard({
 
         {/* Perfil do Aliado */}
         {opa.perfil_aliado && (
-          <p className="text-[10px] text-muted-foreground/70 line-clamp-1">{opa.perfil_aliado}</p>
+          <p className="text-[10px] text-muted-foreground/70 truncate">{opa.perfil_aliado}</p>
         )}
 
         {/* Descrição */}

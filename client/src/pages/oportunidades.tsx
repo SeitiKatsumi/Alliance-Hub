@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
   TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink,
-  CheckCircle2, XCircle, RotateCcw, Ban
+  CheckCircle2, XCircle, RotateCcw, Ban, Paperclip, Upload, FileText
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // ---- Types ----
+type AnexoFile = { id: string; title?: string; filename?: string; url?: string; size?: string };
+
 interface Oportunidade {
   id: string;
   nome_oportunidade?: string;
@@ -38,6 +40,7 @@ interface Oportunidade {
   perfil_aliado?: string;
   status?: "ativa" | "concluida" | "desistencia" | null;
   motivo_encerramento?: string | null;
+  Anexos?: AnexoFile[];
 }
 
 interface BiasProjeto {
@@ -391,6 +394,14 @@ function OpaCard({
           <p className="text-[11px] text-muted-foreground/70 line-clamp-1 border-t border-border/40 pt-2">{opa.descricao}</p>
         )}
 
+        {/* Anexos */}
+        {opa.Anexos && opa.Anexos.length > 0 && (
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+            <Paperclip className="w-3 h-3" />
+            <span>{opa.Anexos.length} anexo{opa.Anexos.length !== 1 ? "s" : ""}</span>
+          </div>
+        )}
+
         {/* Motivo encerramento */}
         {isClosed && opa.motivo_encerramento && (
           <div className="rounded-md bg-muted/40 border border-border/50 px-2.5 py-1.5 mt-1">
@@ -438,6 +449,10 @@ function OpaFormDialog({
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [form, setForm] = useState({ ...EMPTY_OPA });
+  const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tiposOpa = [] } = useQuery<TipoOpa[]>({
     queryKey: ["/api/oportunidades/tipos"],
@@ -460,9 +475,12 @@ function OpaFormDialog({
         descricao: opa.descricao || "",
         perfil_aliado: opa.perfil_aliado || "",
       });
+      setExistingAnexos(opa.Anexos || []);
     } else {
       setForm({ ...EMPTY_OPA });
+      setExistingAnexos([]);
     }
+    setPendingFiles([]);
   }, [opa, open]);
 
   const saveMutation = useMutation({
@@ -480,7 +498,17 @@ function OpaFormDialog({
     },
   });
 
-  function handleSave() {
+  async function uploadFiles(files: File[]): Promise<string[]> {
+    if (!files.length) return [];
+    const fd = new FormData();
+    files.forEach(f => fd.append("files", f));
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (!res.ok) throw new Error("Falha no upload dos arquivos");
+    const data = await res.json();
+    return data.fileIds as string[];
+  }
+
+  async function handleSave() {
     if (!form.nome_oportunidade.trim()) {
       toast({ title: "Nome da OPA é obrigatório", variant: "destructive" });
       return;
@@ -505,16 +533,32 @@ function OpaFormDialog({
       toast({ title: "Mín. Esforço Multiplicador é obrigatório", variant: "destructive" });
       return;
     }
-    saveMutation.mutate({
-      nome_oportunidade: form.nome_oportunidade,
-      tipo: form.tipo || null,
-      bia: form.bia_id || null,
-      valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
-      Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
-      nucleo_alianca: form.nucleo_alianca || null,
-      descricao: form.descricao || null,
-      perfil_aliado: form.perfil_aliado || null,
-    });
+    try {
+      setUploading(pendingFiles.length > 0);
+      let newFileIds: string[] = [];
+      if (pendingFiles.length > 0) {
+        newFileIds = await uploadFiles(pendingFiles);
+        setUploading(false);
+      }
+      const allAnexoIds = [
+        ...existingAnexos.map(a => a.id),
+        ...newFileIds,
+      ];
+      saveMutation.mutate({
+        nome_oportunidade: form.nome_oportunidade,
+        tipo: form.tipo || null,
+        bia: form.bia_id || null,
+        valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
+        Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
+        nucleo_alianca: form.nucleo_alianca || null,
+        descricao: form.descricao || null,
+        perfil_aliado: form.perfil_aliado || null,
+        Anexos: allAnexoIds,
+      });
+    } catch (e: any) {
+      setUploading(false);
+      toast({ title: "Erro no upload", description: e.message, variant: "destructive" });
+    }
   }
 
   return (
@@ -670,17 +714,99 @@ function OpaFormDialog({
               data-testid="textarea-opa-descricao"
             />
           </div>
+
+          {/* 8. Anexos */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Paperclip className="w-3 h-3" /> Anexos
+              {(existingAnexos.length + pendingFiles.length) > 0 && (
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-gold/20 text-brand-gold text-[9px] font-bold">
+                  {existingAnexos.length + pendingFiles.length}
+                </span>
+              )}
+            </Label>
+
+            {/* Existing files */}
+            {existingAnexos.length > 0 && (
+              <div className="space-y-1">
+                {existingAnexos.map((a, i) => (
+                  <div key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/50 border border-border/40 group">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="flex-1 text-xs truncate">{a.title || a.filename || a.id}</span>
+                    {a.url && (
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-gold/60 hover:text-brand-gold shrink-0">
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setExistingAnexos(existingAnexos.filter((_, idx) => idx !== i))}
+                      className="text-muted-foreground/40 hover:text-destructive transition-colors shrink-0"
+                      data-testid={`btn-remove-existing-anexo-${i}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Pending files */}
+            {pendingFiles.length > 0 && (
+              <div className="space-y-1">
+                {pendingFiles.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-brand-gold/5 border border-brand-gold/20">
+                    <FileText className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
+                    <span className="flex-1 text-xs truncate text-brand-gold/80">{f.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingFiles(pendingFiles.filter((_, idx) => idx !== i))}
+                      className="text-muted-foreground/40 hover:text-destructive transition-colors shrink-0"
+                      data-testid={`btn-remove-pending-anexo-${i}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-md border border-dashed text-xs transition-colors border-border/40 text-muted-foreground hover:border-brand-gold/40 hover:text-brand-gold/70"
+              disabled={uploading}
+              data-testid="btn-upload-opa-anexo"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {uploading ? "Enviando..." : "Adicionar arquivos"}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
+              onChange={e => {
+                const files = Array.from(e.target.files || []);
+                setPendingFiles(prev => [...prev, ...files]);
+                e.target.value = "";
+              }}
+              data-testid="input-opa-file"
+            />
+          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending || uploading}>Cancelar</Button>
           <Button
             onClick={handleSave}
-            disabled={saveMutation.isPending}
+            disabled={saveMutation.isPending || uploading}
             className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
             data-testid="btn-save-opa"
           >
-            {saveMutation.isPending ? "Salvando..." : opa ? "Salvar" : "Criar OPA"}
+            {uploading ? "Enviando arquivos..." : saveMutation.isPending ? "Salvando..." : opa ? "Salvar" : "Criar OPA"}
           </Button>
         </DialogFooter>
       </DialogContent>

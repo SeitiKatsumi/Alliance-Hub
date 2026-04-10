@@ -889,34 +889,58 @@ export async function registerRoutes(
   });
 
   // ========== OPORTUNIDADES (from Directus: tipos_oportunidades) ==========
+  function resolveAnexosOpa(items: any[]): any[] {
+    return items.map((o: any) => ({
+      id: o.id,
+      nome_oportunidade: o.nome_oportunidade,
+      tipo: o.tipo,
+      bia: o.bia,
+      bia_id: o.bia,
+      valor_origem_opa: o.valor_origem_opa,
+      Minimo_esforco_multiplicador: o.Minimo_esforco_multiplicador,
+      objetivo_alianca: o.objetivo_alianca,
+      nucleo_alianca: o.nucleo_alianca,
+      pais: o.pais,
+      descricao: o.descricao,
+      perfil_aliado: o.perfil_aliado,
+      status: o.status || "ativa",
+      motivo_encerramento: o.motivo_encerramento || null,
+      Anexos: (o.Anexos || []).map((a: any) => {
+        const f = a?.directus_files_id;
+        if (!f || typeof f !== "object") return null;
+        return {
+          id: f.id,
+          title: f.title || f.filename_download,
+          filename: f.filename_download,
+          url: f.id ? `/api/assets/${f.id}` : null,
+          size: f.filesize ? `${Math.round(f.filesize / 1024)} KB` : null,
+        };
+      }).filter(Boolean),
+    }));
+  }
+
   app.get("/api/oportunidades", async (req, res) => {
     try {
-      const items = await directusFetch("tipos_oportunidades");
-      const mapped = items.map((o: any) => ({
-        id: o.id,
-        nome_oportunidade: o.nome_oportunidade,
-        tipo: o.tipo,
-        bia: o.bia,
-        bia_id: o.bia,
-        valor_origem_opa: o.valor_origem_opa,
-        Minimo_esforco_multiplicador: o.Minimo_esforco_multiplicador,
-        objetivo_alianca: o.objetivo_alianca,
-        nucleo_alianca: o.nucleo_alianca,
-        pais: o.pais,
-        descricao: o.descricao,
-        perfil_aliado: o.perfil_aliado,
-        status: o.status || "ativa",
-        motivo_encerramento: o.motivo_encerramento || null,
-      }));
-      res.json(mapped);
+      const items = await directusFetch("tipos_oportunidades", "fields=*,Anexos.directus_files_id.*");
+      res.json(resolveAnexosOpa(items));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
+  function prepareOpaPayload(body: Record<string, any>): Record<string, any> {
+    const data = { ...body };
+    if (Array.isArray(data.Anexos)) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validIds: string[] = data.Anexos.filter((id: any) => typeof id === "string" && uuidRegex.test(id));
+      data.Anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
+    }
+    return data;
+  }
+
   app.post("/api/oportunidades", async (req, res) => {
     try {
-      const item = await directusCreate("tipos_oportunidades", req.body);
+      const item = await directusCreate("tipos_oportunidades", prepareOpaPayload(req.body));
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -938,7 +962,7 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id", async (req, res) => {
     try {
-      const item = await directusUpdate("tipos_oportunidades", req.params.id, req.body);
+      const item = await directusUpdate("tipos_oportunidades", req.params.id, prepareOpaPayload(req.body));
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

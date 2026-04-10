@@ -906,7 +906,7 @@ export async function registerRoutes(
       status: o.status || "ativa",
       motivo_encerramento: o.motivo_encerramento || null,
       date_created: o.date_created || null,
-      Anexos: (o.Anexos || []).map((a: any) => {
+      Anexos: (o.anexos || o.Anexos || []).map((a: any) => {
         const f = a?.directus_files_id;
         if (!f || typeof f !== "object") return null;
         return {
@@ -922,7 +922,7 @@ export async function registerRoutes(
 
   app.get("/api/oportunidades", async (req, res) => {
     try {
-      const items = await directusFetch("tipos_oportunidades", "fields=*,Anexos.directus_files_id.*");
+      const items = await directusFetch("tipos_oportunidades", "fields=*,anexos.directus_files_id.*");
       res.json(resolveAnexosOpa(items));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -931,10 +931,13 @@ export async function registerRoutes(
 
   function prepareOpaPayload(body: Record<string, any>): Record<string, any> {
     const data = { ...body };
-    if (Array.isArray(data.Anexos)) {
+    // Frontend sends 'Anexos', Directus field is 'anexos' (lowercase)
+    const rawIds = data.Anexos ?? data.anexos;
+    delete data.Anexos;
+    if (Array.isArray(rawIds)) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const validIds: string[] = data.Anexos.filter((id: any) => typeof id === "string" && uuidRegex.test(id));
-      data.Anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
+      const validIds: string[] = rawIds.filter((id: any) => typeof id === "string" && uuidRegex.test(id));
+      data.anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
     }
     return data;
   }

@@ -331,12 +331,24 @@ function OpaFormDialog({
       toast({ title: "Nome da OPA é obrigatório", variant: "destructive" });
       return;
     }
+    if (!form.nucleo_alianca.trim()) {
+      toast({ title: "Núcleo de Aliança é obrigatório", variant: "destructive" });
+      return;
+    }
     if (!form.tipo) {
       toast({ title: "Tipo é obrigatório", variant: "destructive" });
       return;
     }
     if (!form.bia_id) {
       toast({ title: "BIA Vinculada é obrigatória", variant: "destructive" });
+      return;
+    }
+    if (!form.valor_origem_opa || parseBRLToNumber(form.valor_origem_opa) <= 0) {
+      toast({ title: "Valor da OPA é obrigatório", variant: "destructive" });
+      return;
+    }
+    if (!form.Minimo_esforco_multiplicador || parseFloat(form.Minimo_esforco_multiplicador) <= 0) {
+      toast({ title: "Mín. Esforço Multiplicador é obrigatório", variant: "destructive" });
       return;
     }
     saveMutation.mutate({
@@ -403,7 +415,7 @@ function OpaFormDialog({
 
           {/* 3. Núcleo de Aliança */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Núcleo de Aliança</Label>
+            <Label className="text-xs text-muted-foreground">Núcleo de Aliança *</Label>
             <Input
               value={form.nucleo_alianca}
               onChange={e => setForm(f => ({ ...f, nucleo_alianca: e.target.value }))}
@@ -437,7 +449,7 @@ function OpaFormDialog({
           {/* 5. Valor + Mín Esforço Multiplicador */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Valor da OPA (R$)</Label>
+              <Label className="text-xs text-muted-foreground">Valor da OPA (R$) *</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                 <Input
@@ -452,7 +464,7 @@ function OpaFormDialog({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Mín. Esforço Multiplicador</Label>
+              <Label className="text-xs text-muted-foreground">Mín. Esforço Multiplicador *</Label>
               <div className="relative">
                 <Input
                   type="number"

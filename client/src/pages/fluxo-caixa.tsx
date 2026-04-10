@@ -1053,6 +1053,7 @@ export default function FluxoCaixaPage() {
       (i) => i.tipo === "entrada" && (i.status === "pendente" || i.status === "agendado" || !i.status)
     );
     const pagas = allBia.filter((i) => i.status === "pago");
+    const cancelados = allBia.filter((i) => i.status === "cancelado");
     const sum = (arr: FluxoCaixaItem[]) => arr.reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
     return {
       contasPagar: { count: contasPagar.length, valor: sum(contasPagar) },
@@ -1060,6 +1061,7 @@ export default function FluxoCaixaPage() {
       aVencer7:    { count: aVencer7.length,    valor: sum(aVencer7) },
       aReceber:    { count: aReceber.length,    valor: sum(aReceber) },
       pagas:       { count: pagas.length,       valor: sum(pagas) },
+      cancelados:  { count: cancelados.length,  valor: sum(cancelados) },
     };
   }, [fluxoItemsAll, today, in7days]);
 
@@ -1559,6 +1561,17 @@ export default function FluxoCaixaPage() {
               <CardContent className="px-4 pb-4">
                 <p className="text-lg font-bold text-green-600 leading-tight" data-testid="text-pagas-valor">{formatBRL(financialDashboard.pagas.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.pagas.count} lançamento(s)</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-400/40 bg-gray-500/5" data-testid="panel-cancelados">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Cancelados</CardTitle>
+                <XCircle className="w-3.5 h-3.5 text-gray-500" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-lg font-bold text-gray-500 leading-tight" data-testid="text-cancelados-valor">{formatBRL(financialDashboard.cancelados.valor)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.cancelados.count} lançamento(s)</p>
               </CardContent>
             </Card>
 

@@ -595,10 +595,10 @@ export default function OportunidadesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Target className="w-6 h-6 text-brand-gold" />
-            Minhas OPAs
+            OPAs
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Gestão de Oportunidades — {loading ? "..." : `${opas.length} OPA${opas.length !== 1 ? "s" : ""} cadastrada${opas.length !== 1 ? "s" : ""}`}
+            Ofertas Públicas de Aliança
           </p>
         </div>
         <Button

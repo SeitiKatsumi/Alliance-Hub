@@ -1224,12 +1224,11 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
               )}
             </div>
             {bia.localizacao && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3 h-3 shrink-0" /> {bia.localizacao}
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 min-w-0">
+                <MapPin className="w-3 h-3 shrink-0" />
+                <span className="truncate">{bia.localizacao}</span>
                 {bia.latitude && bia.longitude && (
-                  <span className="ml-1 text-brand-gold/50" title="Geolocalizado">
-                    <Crosshair className="w-2.5 h-2.5 inline" />
-                  </span>
+                  <Crosshair className="w-2.5 h-2.5 shrink-0 text-brand-gold/50" title="Geolocalizado" />
                 )}
               </p>
             )}

@@ -317,9 +317,6 @@ function OpaCard({
                 </Button>
               </>
             )}
-            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive/60 hover:text-destructive" onClick={onDelete} data-testid={`btn-delete-opa-${opa.id}`}>
-              <Trash2 className="w-3 h-3" />
-            </Button>
           </div>
         </div>
       </CardHeader>

@@ -394,11 +394,20 @@ function OpaCard({
           <p className="text-[11px] text-muted-foreground/70 line-clamp-1 border-t border-border/40 pt-2">{opa.descricao}</p>
         )}
 
-        {/* Anexos */}
-        {opa.Anexos && opa.Anexos.length > 0 && (
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-            <Paperclip className="w-3 h-3" />
-            <span>{opa.Anexos.length} anexo{opa.Anexos.length !== 1 ? "s" : ""}</span>
+        {/* Footer: data criação + anexos */}
+        {(opa.date_created || (opa.Anexos && opa.Anexos.length > 0)) && (
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
+            {opa.date_created ? (
+              <span className="text-[10px] text-muted-foreground/50">
+                Criado em {new Date(opa.date_created).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+              </span>
+            ) : <span />}
+            {opa.Anexos && opa.Anexos.length > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
+                <Paperclip className="w-3 h-3" />
+                <span>{opa.Anexos.length}</span>
+              </div>
+            )}
           </div>
         )}
 

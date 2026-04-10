@@ -905,6 +905,7 @@ export async function registerRoutes(
       perfil_aliado: o.perfil_aliado,
       status: o.status || "ativa",
       motivo_encerramento: o.motivo_encerramento || null,
+      date_created: o.date_created || null,
       Anexos: (o.Anexos || []).map((a: any) => {
         const f = a?.directus_files_id;
         if (!f || typeof f !== "object") return null;

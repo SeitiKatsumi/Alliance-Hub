@@ -191,7 +191,7 @@ export default function OpaDetalhePage() {
             )}
           </div>
 
-          <h1 className="text-2xl font-bold text-brand-gold font-mono tracking-wide">
+          <h1 className="text-2xl font-bold text-brand-gold">
             {opa.nome_oportunidade || "Sem nome"}
           </h1>
 

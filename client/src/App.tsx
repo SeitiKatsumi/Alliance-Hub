@@ -18,6 +18,9 @@ import FluxoCaixaPage from "@/pages/fluxo-caixa";
 import MeuPerfilPage from "@/pages/meu-perfil";
 import DocumentacaoPage from "@/pages/documentacao";
 import ResultadosPage from "@/pages/resultados";
+import NucleoTecnicoPage from "@/pages/nucleo-tecnico";
+import NucleoObraPage from "@/pages/nucleo-obra";
+import NucleoComercialPage from "@/pages/nucleo-comercial";
 import LoginPage from "@/pages/login";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
@@ -88,6 +91,9 @@ function ProtectedApp() {
               <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
               <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
               <Route path="/resultados" component={ResultadosPage} />
+              <Route path="/nucleo-tecnico" component={NucleoTecnicoPage} />
+              <Route path="/nucleo-obra" component={NucleoObraPage} />
+              <Route path="/nucleo-comercial" component={NucleoComercialPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />

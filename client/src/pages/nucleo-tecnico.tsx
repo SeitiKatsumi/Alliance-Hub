@@ -201,10 +201,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
               <SelectContent className="max-h-72">
                 {tipos.map(t => (
                   <SelectItem key={t.label} value={t.label}>
-                    <span className="flex items-center gap-1.5">
-                      {t.verde && <Star className="w-3 h-3 text-green-400 shrink-0" />}
-                      <span className="truncate">{t.label}</span>
-                    </span>
+                    {t.label}
                   </SelectItem>
                 ))}
               </SelectContent>

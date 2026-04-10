@@ -122,7 +122,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 
       const { id, especialidades, ...rest } = form as Membro & { _nome?: string };
       const { _nome, ...cleanRest } = rest as any;
-      const payload: Record<string, unknown> = { ...cleanRest };
+      const payload: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(cleanRest)) {
+        if (value !== "" && value !== null && value !== undefined) {
+          payload[key] = value;
+        }
+      }
       if (fotoId) payload.foto = fotoId;
 
       return apiRequest("PATCH", `/api/membros/${membro.id}`, payload);

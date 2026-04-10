@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,8 +20,9 @@ import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1775603722664.p
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial";
+  const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/diretoria-alianca";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
+  const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
   const [nucleoOpen, setNucleoOpen] = useState(location === "/fluxo-caixa" || location === "/resultados");
   const [nucleoTecnicoOpen, setNucleoTecnicoOpen] = useState(location === "/nucleo-tecnico");
   const [nucleoObraOpen, setNucleoObraOpen] = useState(location === "/nucleo-obra");
@@ -69,6 +70,41 @@ export function AppSidebar() {
 
                   <CollapsibleContent>
                     <SidebarMenuSub>
+                      {/* Diretoria da Aliança */}
+                      <SidebarMenuSubItem>
+                        <Collapsible open={diretoriaOpen} onOpenChange={setDiretoriaOpen}>
+                          <div className="flex items-center w-full">
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location === "/diretoria-alianca"}
+                              className="flex-1 text-xs"
+                              data-testid="nav-diretoria-alianca"
+                            >
+                              <Link href="/diretoria-alianca">
+                                <Shield className="w-3 h-3" />
+                                <span>Diretoria da Aliança</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                            <CollapsibleTrigger asChild>
+                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-diretoria-menu">
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${diretoriaOpen ? "rotate-180" : ""}`} />
+                              </button>
+                            </CollapsibleTrigger>
+                          </div>
+                          <CollapsibleContent>
+                            <div className="pl-3">
+                              <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton className="text-xs text-sidebar-foreground/40 cursor-not-allowed" data-testid="nav-diretoria-placeholder">
+                                    <span className="italic">Em desenvolvimento</span>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </SidebarMenuSub>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </SidebarMenuSubItem>
+
                       {/* Núcleo de Capital — colapsável dentro de BIAs */}
                       <SidebarMenuSubItem>
                         <Collapsible open={nucleoOpen} onOpenChange={setNucleoOpen}>

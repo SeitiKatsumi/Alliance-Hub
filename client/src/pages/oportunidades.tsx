@@ -290,7 +290,7 @@ function OpaCard({
               {opa.nome_oportunidade || "Sem nome"}
             </CardTitle>
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {isClosed ? (
               <Button
                 size="sm"
@@ -309,7 +309,7 @@ function OpaCard({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 px-2 text-[10px] gap-1 text-destructive hover:text-destructive"
+                  className="h-6 px-2 text-[10px] gap-1 text-foreground hover:text-foreground hover:bg-accent"
                   onClick={() => setEncerramentoOpen(true)}
                   data-testid={`btn-encerrar-opa-${opa.id}`}
                 >

@@ -116,7 +116,8 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
          - Financeiro (/fluxo-caixa) — Cash flow management per BIA
          - Resultados (/resultados) — Investment analysis dashboard (ROI, Múltiplo, Lucro %)
        - Calculadora DM (/bias-calculadora) — Financial calculator
-   1.2 Minhas OPAs (/opas) — Full OPAs dashboard: futuristic header with stats, cards with BIA relationship badge, CRUD (create/edit/delete), filter by BIA, search. Each OPA linked to one BIA via bia_id.
+   1.2 Minhas OPAs (/opas) — Full OPAs dashboard: futuristic header with stats, cards with BIA relationship badge, CRUD (create/edit/delete), filter by BIA, search. Each OPA linked to one BIA via bia_id. Clicking a card navigates to /opas/:id (detail page). Edit button from detail page navigates to /opas?edit=:id which auto-opens the edit form.
+       - OPA Detalhe (/opas/:id) — Full detail page: hero header, financial metrics, BIA link, descrição, perfil do aliado, anexos, metadata sidebar. Similar to bia-detalhe.tsx.
    1.3 Minha Aura (/aura) — Scoring system
 2. **Administração** (/admin) — Admin settings (starts closed)
    2.1 Membros (/membros) — Member directory

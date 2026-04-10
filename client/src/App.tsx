@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import OportunidadesPage from "@/pages/oportunidades";
 import BiasPage from "@/pages/bias";
 import BiaDetalhePage from "@/pages/bia-detalhe";
+import OpaDetalhePage from "@/pages/opa-detalhe";
 import MembrosPage from "@/pages/membros";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
@@ -89,6 +90,7 @@ function ProtectedApp() {
               <Route path="/" component={PainelPage} />
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />
+              <Route path="/opas/:id" component={OpaDetalhePage} />
               <Route path="/opas" component={OportunidadesPage} />
               <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
               <Route path="/fluxo-caixa" component={FluxoCaixaPage} />

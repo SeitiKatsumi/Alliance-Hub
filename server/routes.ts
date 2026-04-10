@@ -905,6 +905,7 @@ export async function registerRoutes(
         pais: o.pais,
         descricao: o.descricao,
         perfil_aliado: o.perfil_aliado,
+        status: o.status || "ativa",
       }));
       res.json(mapped);
     } catch (error: any) {

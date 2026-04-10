@@ -3,8 +3,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
-  TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink
+  TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink,
+  CheckCircle2, XCircle, RotateCcw, ChevronDown
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,7 @@ interface Oportunidade {
   pais?: string;
   descricao?: string;
   perfil_aliado?: string;
+  status?: "ativa" | "concluida" | "desistencia" | null;
 }
 
 interface BiasProjeto {
@@ -153,23 +158,26 @@ function OpasHeader({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[] 
 
 // ---- OPA Card ----
 function OpaCard({
-  opa, bia, onEdit, onDelete
+  opa, bia, onEdit, onDelete, onSetStatus
 }: {
   opa: Oportunidade;
   bia?: BiasProjeto;
   onEdit: () => void;
   onDelete: () => void;
+  onSetStatus: (status: "ativa" | "concluida" | "desistencia") => void;
 }) {
   const valor = n(opa.valor_origem_opa);
+  const isClosed = opa.status === "concluida" || opa.status === "desistencia";
+
   return (
     <Card
-      className="hover:border-brand-gold/40 transition-colors group flex flex-col"
+      className={`transition-colors group flex flex-col ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
       data-testid={`card-opa-${opa.id}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span
                 className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-sm border"
                 style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.25)", color: "#D7BB7D99" }}
@@ -179,18 +187,71 @@ function OpaCard({
               {opa.tipo && (
                 <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">{opa.tipo}</Badge>
               )}
+              {opa.status === "concluida" && (
+                <Badge className="text-[9px] h-4 px-1.5 font-normal bg-emerald-500/15 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/15">
+                  <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" /> Concluída
+                </Badge>
+              )}
+              {opa.status === "desistencia" && (
+                <Badge className="text-[9px] h-4 px-1.5 font-normal bg-rose-500/15 text-rose-500 border-rose-500/30 hover:bg-rose-500/15">
+                  <XCircle className="w-2.5 h-2.5 mr-0.5" /> Desistência
+                </Badge>
+              )}
             </div>
             <CardTitle className="text-sm font-semibold leading-tight" data-testid={`text-opa-nome-${opa.id}`}>
               {opa.nome_oportunidade || "Sem nome"}
             </CardTitle>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onEdit} data-testid={`btn-edit-opa-${opa.id}`}>
-              <Pencil className="w-3 h-3" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={onDelete} data-testid={`btn-delete-opa-${opa.id}`}>
-              <Trash2 className="w-3 h-3" />
-            </Button>
+            {!isClosed && (
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onEdit} data-testid={`btn-edit-opa-${opa.id}`}>
+                <Pencil className="w-3 h-3" />
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  data-testid={`btn-status-opa-${opa.id}`}
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {isClosed ? (
+                  <DropdownMenuItem
+                    className="text-xs gap-2 cursor-pointer"
+                    onClick={() => onSetStatus("ativa")}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-brand-gold" /> Reativar OPA
+                  </DropdownMenuItem>
+                ) : (
+                  <>
+                    <DropdownMenuItem
+                      className="text-xs gap-2 cursor-pointer text-emerald-600 focus:text-emerald-600"
+                      onClick={() => onSetStatus("concluida")}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Encerrar por Conclusão
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-xs gap-2 cursor-pointer text-rose-500 focus:text-rose-500"
+                      onClick={() => onSetStatus("desistencia")}
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> Encerrar por Desistência
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem
+                  className="text-xs gap-2 cursor-pointer text-destructive focus:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir OPA
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardHeader>
@@ -605,6 +666,19 @@ export default function OportunidadesPage() {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("PATCH", `/api/oportunidades/${id}`, { status }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
+      const label = vars.status === "concluida" ? "Concluída" : vars.status === "desistencia" ? "Encerrada por desistência" : "Reativada";
+      toast({ title: label });
+    },
+    onError: (e: any) => {
+      toast({ title: "Erro ao atualizar status", description: e.message, variant: "destructive" });
+    },
+  });
+
   const loading = loadingOpas || loadingBias;
 
   function openCreate() { setEditingOpa(null); setFormOpen(true); }
@@ -760,6 +834,7 @@ export default function OportunidadesPage() {
               bia={opa.bia_id ? biasMap[opa.bia_id] : undefined}
               onEdit={() => openEdit(opa)}
               onDelete={() => setDeleteTarget(opa)}
+              onSetStatus={(status) => statusMutation.mutate({ id: opa.id, status })}
             />
           ))}
         </div>

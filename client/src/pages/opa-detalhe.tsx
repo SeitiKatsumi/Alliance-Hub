@@ -272,7 +272,7 @@ export default function OpaDetalhePage() {
             <Card>
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={ClipboardList}>Descrição / Escopo</SectionTitle>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{opa.descricao}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">{opa.descricao}</p>
               </CardContent>
             </Card>
           )}
@@ -282,7 +282,7 @@ export default function OpaDetalhePage() {
             <Card>
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={Users}>Perfil do Aliado Buscado</SectionTitle>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{opa.perfil_aliado}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">{opa.perfil_aliado}</p>
               </CardContent>
             </Card>
           )}

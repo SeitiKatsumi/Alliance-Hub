@@ -304,18 +304,11 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
   const filtered = biaId ? docs.filter(d => d.bia_id === biaId && d.alianca_tipo === aliancaTipo) : docs.filter(d => d.alianca_tipo === aliancaTipo);
   const biaName = (id?: string) => bias.find(b => b.id === id)?.nome_bia || id || "—";
 
-  const verdeCount = filtered.filter(d => isVerde(d.tipo_documento, aliancaTipo)).length;
-
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
           <span className="text-sm text-white/40">{filtered.length} documento{filtered.length !== 1 ? "s" : ""}</span>
-          {verdeCount > 0 && (
-            <span className="flex items-center gap-1 text-xs text-green-400">
-              <Star className="w-3 h-3" /> {verdeCount} integrado{verdeCount !== 1 ? "s" : ""}
-            </span>
-          )}
         </div>
         <Button
           onClick={onNew}
@@ -452,10 +445,6 @@ export default function NucleoTecnicoPage() {
               <div className="text-lg font-bold text-white">{docsFiltered.length}</div>
               <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">Documentos</div>
             </div>
-            <div className="rounded-xl px-4 py-3 text-center" style={{ background: "#050f1c", border: "1px solid #22c55e20" }}>
-              <div className="text-lg font-bold text-green-400">{docsFiltered.filter(d => isVerde(d.tipo_documento, d.alianca_tipo || "")).length}</div>
-              <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">Integrados</div>
-            </div>
           </div>
         </div>
       </div>
@@ -472,10 +461,6 @@ export default function NucleoTecnicoPage() {
             {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-1 text-xs" style={{ color: "#22c55e80" }}>
-          <Star className="w-3 h-3 text-green-400" />
-          <span>= integrado à plataforma</span>
-        </div>
       </div>
 
       {/* Tabs */}

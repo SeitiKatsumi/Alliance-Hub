@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
-  TrendingUp, ChevronRight, Layers, Filter, X
+  TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -281,6 +282,7 @@ function OpaFormDialog({
   bias: BiasProjeto[];
 }) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [form, setForm] = useState({ ...EMPTY_OPA });
 
   const { data: tiposOpa = [] } = useQuery<TipoOpa[]>({
@@ -412,6 +414,15 @@ function OpaFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            <button
+              type="button"
+              onClick={() => { onClose(); navigate("/bias?criar=true"); }}
+              className="mt-1 flex items-center gap-1 text-[11px] text-brand-gold/60 hover:text-brand-gold transition-colors"
+              data-testid="btn-criar-bia-from-opa"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Criar nova BIA
+            </button>
           </div>
 
           <div className="space-y-1.5">

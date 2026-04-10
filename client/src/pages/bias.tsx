@@ -1807,7 +1807,12 @@ export default function BiasPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const editId = params.get("edit");
-    if (editId && (biasRaw as BiasProjeto[]).length > 0) {
+    const criar = params.get("criar");
+    if (criar === "true") {
+      setEditingBia(null);
+      setSheetOpen(true);
+      navigate("/bias", { replace: true });
+    } else if (editId && (biasRaw as BiasProjeto[]).length > 0) {
       const target = (biasRaw as BiasProjeto[]).find(b => b.id === editId);
       if (target) {
         setEditingBia(target);

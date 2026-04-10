@@ -1233,6 +1233,22 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // ── Directus Asset Proxy ────────────────────────────────────────
+  app.get("/api/assets/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+      const url = `${DIRECTUS_URL}/assets/${id}${qs ? `?${qs}` : ""}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` } });
+      if (!r.ok) return res.status(r.status).end();
+      const ct = r.headers.get("content-type") || "application/octet-stream";
+      res.setHeader("Content-Type", ct);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const buf = await r.arrayBuffer();
+      res.end(Buffer.from(buf));
+    } catch (error: any) { res.status(500).end(); }
+  });
+
   // ── Aliança Docs (Obra / Comercial / Capital) ────────────────────
   app.get("/api/alianca-docs", async (req, res) => {
     try {

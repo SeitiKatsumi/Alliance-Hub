@@ -35,7 +35,7 @@ interface Membro {
 
 function fotoUrl(foto?: string | null): string | null {
   if (!foto) return null;
-  return `${DIRECTUS_URL}/assets/${foto}?width=200&height=200&fit=cover`;
+  return `/api/assets/${foto}?width=200&height=200&fit=cover`;
 }
 
 function getInitials(nome: string): string {

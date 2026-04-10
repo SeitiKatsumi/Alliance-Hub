@@ -66,7 +66,7 @@ interface Membro {
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
   if (!foto) return null;
-  return `${DIRECTUS_URL}/assets/${foto}?width=${size}&height=${size}&fit=cover`;
+  return `/api/assets/${foto}?width=${size}&height=${size}&fit=cover`;
 }
 
 function getDisplayNome(m: Membro): string {

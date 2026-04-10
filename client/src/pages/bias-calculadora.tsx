@@ -51,7 +51,7 @@ function membroNome(m: Membro): string {
 }
 
 function membroFoto(m: Membro): string | null {
-  return m.foto ? `${DIRECTUS_URL}/assets/${m.foto}?width=40&height=40&fit=cover` : null;
+  return m.foto ? `/api/assets/${m.foto}?width=40&height=40&fit=cover` : null;
 }
 
 function MemberSelect({

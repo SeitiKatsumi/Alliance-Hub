@@ -399,7 +399,10 @@ function OpaCard({
           <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
             {opa.date_created ? (
               <span className="text-[10px] text-muted-foreground/50">
-                Criado em {new Date(opa.date_created).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                {(() => {
+                  const dias = Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000);
+                  return dias === 0 ? "Publicada hoje" : dias === 1 ? "Publicada há 1 dia" : `Publicada há ${dias} dias`;
+                })()}
               </span>
             ) : <span />}
             {opa.Anexos && opa.Anexos.length > 0 && (

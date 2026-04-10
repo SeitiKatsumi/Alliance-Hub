@@ -231,7 +231,7 @@ export default function OpaDetalhePage() {
           {mult > 0 && (
             <div className="rounded-lg bg-muted/40 border border-border/50 p-4">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Mín. Esforço Multiplicador</p>
-              <p className="text-xl font-bold tabular-nums">{mult}×</p>
+              <p className="text-xl font-bold tabular-nums">{mult}%</p>
             </div>
           )}
         </div>
@@ -358,7 +358,7 @@ export default function OpaDetalhePage() {
                     {mult > 0 && (
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">Mín. Multiplicador</span>
-                        <span className="text-sm font-bold tabular-nums">{mult}×</span>
+                        <span className="text-sm font-bold tabular-nums">{mult}%</span>
                       </div>
                     )}
                   </div>

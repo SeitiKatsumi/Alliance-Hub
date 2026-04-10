@@ -281,7 +281,7 @@ export default function OpaDetalhePage() {
           {opa.perfil_aliado && (
             <Card>
               <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={Users}>Perfil do Aliado Buscado</SectionTitle>
+                <SectionTitle icon={Users}>Perfil do Aliado</SectionTitle>
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">{opa.perfil_aliado}</p>
               </CardContent>
             </Card>

@@ -306,6 +306,69 @@ const upload = multer({
   },
 });
 
+async function ensureEstudosViabilidadeCollection() {
+  try {
+    const checkRes = await fetch(`${DIRECTUS_URL}/collections/estudos_viabilidade`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (checkRes.ok) { console.log("[estudos] Collection already exists"); return; }
+
+    const colRes = await fetch(`${DIRECTUS_URL}/collections`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection: "estudos_viabilidade",
+        fields: [
+          { field: "id", type: "uuid", meta: { hidden: true, readonly: true, interface: "input", special: ["uuid"] }, schema: { is_primary_key: true, has_auto_increment: false } },
+        ],
+        meta: { singleton: false, icon: "article" },
+      }),
+    });
+    if (!colRes.ok) { console.error("[estudos] create collection failed:", await colRes.text()); return; }
+    console.log("[estudos] Collection created");
+
+    const fields = [
+      { field: "bia_id", type: "string", meta: { interface: "input", label: "BIA ID" }, schema: { is_nullable: true } },
+      { field: "tipo_documento", type: "string", meta: { interface: "select-dropdown", label: "Tipo de Documento" }, schema: { is_nullable: true } },
+      { field: "descricao", type: "text", meta: { interface: "input-multiline", label: "Descrição" }, schema: { is_nullable: true } },
+      { field: "membro_responsavel", type: "string", meta: { interface: "input", label: "Membro Responsável" }, schema: { is_nullable: true } },
+      { field: "arquivo_ids", type: "json", meta: { interface: "tags", label: "Arquivos (IDs)" }, schema: { is_nullable: true } },
+      { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
+    ];
+    for (const f of fields) {
+      try {
+        const r = await fetch(`${DIRECTUS_URL}/fields/estudos_viabilidade`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify(f),
+        });
+        if (r.ok) console.log(`[estudos] Field ${f.field} created`);
+        else console.warn(`[estudos] Field ${f.field} warn:`, (await r.json().catch(() => ({}))).errors?.[0]?.message);
+      } catch {}
+    }
+  } catch (err) {
+    console.error("[estudos] Error:", err);
+  }
+}
+
+async function resolveFileIds(ids: string[]): Promise<any[]> {
+  if (!ids || ids.length === 0) return [];
+  const results = [];
+  for (const id of ids) {
+    try {
+      const r = await fetch(`${DIRECTUS_URL}/files/${id}`, {
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const f = d.data;
+        results.push({ id: f.id, title: f.title, filename: f.filename_download, url: `/api/files/${f.id}`, size: String(f.filesize ?? "") });
+      }
+    } catch {}
+  }
+  return results;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -315,6 +378,7 @@ export async function registerRoutes(
   ensureBiasGeoFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
+  ensureEstudosViabilidadeCollection().catch(console.error);
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -1065,6 +1129,51 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       res.json(safe);
     } catch (error: any) {
       if (error.name === "ZodError") return res.status(400).json({ error: error.errors });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Estudos de Viabilidade ──────────────────────────────────────
+  app.get("/api/estudos-viabilidade", async (req, res) => {
+    try {
+      const biaFilter = req.query.bia_id ? `&filter[bia_id][_eq]=${req.query.bia_id}` : "";
+      const items = await directusFetch("estudos_viabilidade", `sort=-date_created${biaFilter}`);
+      const enriched = await Promise.all(items.map(async (item: any) => {
+        const ids: string[] = Array.isArray(item.arquivo_ids) ? item.arquivo_ids : [];
+        const arquivos = await resolveFileIds(ids);
+        return { ...item, arquivos };
+      }));
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/estudos-viabilidade", async (req, res) => {
+    try {
+      const { arquivos, ...rest } = req.body;
+      const item = await directusCreate("estudos_viabilidade", rest);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/estudos-viabilidade/:id", async (req, res) => {
+    try {
+      const { arquivos, ...rest } = req.body;
+      const item = await directusUpdate("estudos_viabilidade", req.params.id, rest);
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/estudos-viabilidade/:id", async (req, res) => {
+    try {
+      await directusDelete("estudos_viabilidade", req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });

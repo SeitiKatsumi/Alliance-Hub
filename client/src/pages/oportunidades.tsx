@@ -233,10 +233,10 @@ function OpaCard({
           </div>
         )}
 
-        {/* Valor + perfil */}
-        <div className="flex items-end justify-between gap-2 mt-auto pt-1">
-          {valor > 0 ? (
-            <div className="rounded-md bg-muted/50 px-2.5 py-1.5">
+        {/* Valor + Mín Esforço */}
+        <div className="flex items-stretch gap-2 mt-auto pt-1">
+          {valor > 0 && (
+            <div className="flex-1 rounded-md bg-muted/50 px-2.5 py-1.5">
               <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                 <TrendingUp className="w-2.5 h-2.5" /> Valor OPA
               </p>
@@ -244,15 +244,25 @@ function OpaCard({
                 {brl(valor)}
               </p>
             </div>
-          ) : <div />}
-          {opa.perfil_aliado && (
-            <p className="text-[10px] text-muted-foreground/70 text-right line-clamp-1 max-w-[120px]">{opa.perfil_aliado}</p>
+          )}
+          {n(opa.Minimo_esforco_multiplicador) > 0 && (
+            <div className="flex-1 rounded-md bg-muted/50 px-2.5 py-1.5">
+              <p className="text-[9px] text-muted-foreground">Mín. Esforço</p>
+              <p className="text-sm font-bold tabular-nums text-foreground" data-testid={`text-min-esforco-opa-${opa.id}`}>
+                {n(opa.Minimo_esforco_multiplicador).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
+              </p>
+            </div>
           )}
         </div>
 
+        {/* Perfil do Aliado */}
+        {opa.perfil_aliado && (
+          <p className="text-[10px] text-muted-foreground/70 line-clamp-1">{opa.perfil_aliado}</p>
+        )}
+
         {/* Descrição */}
         {opa.descricao && (
-          <p className="text-[11px] text-muted-foreground/70 line-clamp-2 border-t border-border/40 pt-2">{opa.descricao}</p>
+          <p className="text-[11px] text-muted-foreground/70 line-clamp-1 border-t border-border/40 pt-2">{opa.descricao}</p>
         )}
       </CardContent>
     </Card>

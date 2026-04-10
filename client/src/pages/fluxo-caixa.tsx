@@ -1524,7 +1524,7 @@ export default function FluxoCaixaPage() {
                 <DollarSign className="w-3.5 h-3.5 text-red-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-lg font-bold text-red-600 leading-tight" data-testid="text-contas-pagar-valor">{formatBRL(financialDashboard.contasPagar.valor)}</p>
+                <p className="text-sm font-bold text-red-600 leading-tight break-all" data-testid="text-contas-pagar-valor">{formatBRL(financialDashboard.contasPagar.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.contasPagar.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -1535,7 +1535,7 @@ export default function FluxoCaixaPage() {
                 <AlertCircle className="w-3.5 h-3.5 text-red-700" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-lg font-bold text-red-700 leading-tight" data-testid="text-vencidas-valor">{formatBRL(financialDashboard.vencidas.valor)}</p>
+                <p className="text-sm font-bold text-red-700 leading-tight break-all" data-testid="text-vencidas-valor">{formatBRL(financialDashboard.vencidas.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.vencidas.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -1546,7 +1546,7 @@ export default function FluxoCaixaPage() {
                 <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-lg font-bold text-amber-600 leading-tight" data-testid="text-a-vencer-valor">{formatBRL(financialDashboard.aVencer7.valor)}</p>
+                <p className="text-sm font-bold text-amber-600 leading-tight break-all" data-testid="text-a-vencer-valor">{formatBRL(financialDashboard.aVencer7.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.aVencer7.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -1557,7 +1557,7 @@ export default function FluxoCaixaPage() {
                 <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-lg font-bold text-blue-600 leading-tight" data-testid="text-a-receber-valor">{formatBRL(financialDashboard.aReceber.valor)}</p>
+                <p className="text-sm font-bold text-blue-600 leading-tight break-all" data-testid="text-a-receber-valor">{formatBRL(financialDashboard.aReceber.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.aReceber.count} entrada(s)</p>
               </CardContent>
             </Card>
@@ -1568,7 +1568,7 @@ export default function FluxoCaixaPage() {
                 <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-lg font-bold text-green-600 leading-tight" data-testid="text-pagas-valor">{formatBRL(financialDashboard.pagas.valor)}</p>
+                <p className="text-sm font-bold text-green-600 leading-tight break-all" data-testid="text-pagas-valor">{formatBRL(financialDashboard.pagas.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.pagas.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -1579,7 +1579,7 @@ export default function FluxoCaixaPage() {
                 <XCircle className="w-3.5 h-3.5 text-gray-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-lg font-bold text-gray-500 leading-tight" data-testid="text-cancelados-valor">{formatBRL(financialDashboard.cancelados.valor)}</p>
+                <p className="text-sm font-bold text-gray-500 leading-tight break-all" data-testid="text-cancelados-valor">{formatBRL(financialDashboard.cancelados.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.cancelados.count} lançamento(s)</p>
               </CardContent>
             </Card>

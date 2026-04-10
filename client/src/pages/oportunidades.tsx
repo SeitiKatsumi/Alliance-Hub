@@ -416,13 +416,23 @@ function OpaFormDialog({
           {/* 3. Núcleo de Aliança */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Núcleo de Aliança *</Label>
-            <Input
-              value={form.nucleo_alianca}
-              onChange={e => setForm(f => ({ ...f, nucleo_alianca: e.target.value }))}
-              placeholder="Ex: Construção Civil"
-              className="h-8 text-sm"
-              data-testid="input-opa-nucleo"
-            />
+            <Select
+              value={form.nucleo_alianca || undefined}
+              onValueChange={v => setForm(f => ({ ...f, nucleo_alianca: v }))}
+            >
+              <SelectTrigger
+                className={`h-8 text-sm ${!form.nucleo_alianca ? "text-muted-foreground border-destructive/40" : ""}`}
+                data-testid="select-opa-nucleo"
+              >
+                <SelectValue placeholder="Selecionar núcleo..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Núcleo técnico">Núcleo técnico</SelectItem>
+                <SelectItem value="Núcleo de Obra">Núcleo de Obra</SelectItem>
+                <SelectItem value="Núcleo Comercial">Núcleo Comercial</SelectItem>
+                <SelectItem value="Núcleo de Capital">Núcleo de Capital</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* 4. Tipo */}

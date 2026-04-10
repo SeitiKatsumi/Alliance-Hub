@@ -4,7 +4,8 @@ import { useLocation } from "wouter";
 import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
   TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink,
-  CheckCircle2, XCircle, RotateCcw, Ban, Paperclip, Upload, FileText
+  CheckCircle2, XCircle, RotateCcw, Ban, Paperclip, Upload, FileText,
+  ArrowRight, DollarSign, Users, ClipboardList
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -41,6 +46,7 @@ interface Oportunidade {
   status?: "ativa" | "concluida" | "desistencia" | null;
   motivo_encerramento?: string | null;
   Anexos?: AnexoFile[];
+  date_created?: string | null;
 }
 
 interface BiasProjeto {
@@ -242,15 +248,259 @@ function EncerramentoDialog({ open, onClose, onConfirm }: {
   );
 }
 
+// ---- OPA Detalhe Sheet ----
+function OpaDetalheSheet({
+  opa, bia, open, onClose, onEdit, onSetStatus
+}: {
+  opa: Oportunidade | null;
+  bia?: BiasProjeto;
+  open: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onSetStatus: (status: "ativa" | "concluida" | "desistencia", motivo?: string) => void;
+}) {
+  const [encerramentoOpen, setEncerramentoOpen] = useState(false);
+  const valor = opa ? n(opa.valor_origem_opa) : 0;
+  const mult = opa ? n(opa.Minimo_esforco_multiplicador) : 0;
+  const isClosed = opa?.status === "concluida" || opa?.status === "desistencia";
+
+  const dias = opa?.date_created
+    ? Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000)
+    : null;
+
+  if (!opa) return null;
+
+  return (
+    <>
+    <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto flex flex-col gap-0 p-0">
+        {/* ── Header ── */}
+        <div
+          className="px-6 pt-8 pb-6 relative overflow-hidden"
+          style={{ background: "linear-gradient(135deg, #001D34 0%, #000c1f 100%)" }}
+        >
+          {/* Background glow */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: "radial-gradient(ellipse at 80% 0%, rgba(215,187,125,0.08) 0%, transparent 60%)"
+          }} />
+          <div className="relative">
+            {/* Badges */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-sm border"
+                style={{ borderColor: "rgba(215,187,125,0.3)", color: "#D7BB7D99", background: "rgba(215,187,125,0.06)" }}>
+                <span style={{ color: "#D7BB7D60" }}>◆</span> OPA
+              </span>
+              {opa.tipo && <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">{opa.tipo}</Badge>}
+              {opa.status === "concluida" && (
+                <Badge className="text-[9px] h-4 px-1.5 font-normal bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/15">
+                  <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" /> Concluída
+                </Badge>
+              )}
+              {opa.status === "desistencia" && (
+                <Badge className="text-[9px] h-4 px-1.5 font-normal bg-rose-500/15 text-rose-400 border-rose-500/30 hover:bg-rose-500/15">
+                  <XCircle className="w-2.5 h-2.5 mr-0.5" /> Desistência
+                </Badge>
+              )}
+            </div>
+
+            <SheetTitle className="text-xl font-bold text-white leading-tight mb-1">
+              {opa.nome_oportunidade || "Sem nome"}
+            </SheetTitle>
+
+            {dias !== null && (
+              <p className="text-[11px] text-white/40">
+                {dias === 0 ? "Publicada hoje" : dias === 1 ? "Publicada há 1 dia" : `Publicada há ${dias} dias`}
+              </p>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 mt-4">
+              <Button
+                size="sm"
+                className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 h-8 text-xs font-semibold"
+                onClick={() => { onClose(); onEdit(); }}
+                data-testid="btn-detalhe-edit-opa"
+              >
+                <Pencil className="w-3.5 h-3.5 mr-1.5" /> Editar
+              </Button>
+              {isClosed ? (
+                <Button
+                  size="sm" variant="outline"
+                  className="h-8 text-xs border-brand-gold/30 text-brand-gold/80 hover:text-brand-gold bg-transparent"
+                  onClick={() => onSetStatus("ativa")}
+                  data-testid="btn-detalhe-reativar-opa"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reativar
+                </Button>
+              ) : (
+                <Button
+                  size="sm" variant="outline"
+                  className="h-8 text-xs border-white/20 text-white/60 hover:text-white bg-transparent"
+                  onClick={() => setEncerramentoOpen(true)}
+                  data-testid="btn-detalhe-encerrar-opa"
+                >
+                  <Ban className="w-3.5 h-3.5 mr-1.5" /> Encerrar
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="flex-1 px-6 py-5 space-y-5">
+
+          {/* BIA vinculada */}
+          {bia && (
+            <div className="flex items-center gap-3 rounded-xl px-4 py-3 border border-brand-gold/20"
+              style={{ background: "rgba(215,187,125,0.04)" }}>
+              <Layers className="w-4 h-4 text-brand-gold/50 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] text-brand-gold/50 uppercase tracking-widest font-mono">BIA Vinculada</p>
+                <p className="text-sm font-semibold text-brand-gold/80 truncate">{bia.nome_bia}</p>
+                {bia.localizacao && (
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3 shrink-0" />{bia.localizacao}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Financeiro */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border/50 px-4 py-3">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-mono mb-1">Valor da OPA</p>
+              <p className="text-lg font-bold text-brand-gold">{valor > 0 ? brl(valor) : "—"}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 px-4 py-3">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-mono mb-1">Mín. Multiplicador</p>
+              <p className="text-lg font-bold">{mult > 0 ? `${mult}×` : "—"}</p>
+            </div>
+          </div>
+
+          {/* Núcleo / País */}
+          <div className="grid grid-cols-2 gap-3">
+            {opa.nucleo_alianca && (
+              <div className="space-y-0.5">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-mono">Núcleo</p>
+                <p className="text-sm">{opa.nucleo_alianca}</p>
+              </div>
+            )}
+            {opa.pais && (
+              <div className="space-y-0.5">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-mono">País</p>
+                <p className="text-sm flex items-center gap-1"><Globe className="w-3.5 h-3.5 text-muted-foreground" />{opa.pais}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Objetivo */}
+          {opa.objetivo_alianca && (
+            <>
+              <Separator />
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" /> Objetivo da Aliança
+                </p>
+                <p className="text-sm leading-relaxed text-foreground/80">{opa.objetivo_alianca}</p>
+              </div>
+            </>
+          )}
+
+          {/* Descrição */}
+          {opa.descricao && (
+            <>
+              <Separator />
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <ClipboardList className="w-3.5 h-3.5" /> Descrição / Escopo
+                </p>
+                <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">{opa.descricao}</p>
+              </div>
+            </>
+          )}
+
+          {/* Perfil do aliado */}
+          {opa.perfil_aliado && (
+            <>
+              <Separator />
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" /> Perfil do Aliado Buscado
+                </p>
+                <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">{opa.perfil_aliado}</p>
+              </div>
+            </>
+          )}
+
+          {/* Motivo encerramento */}
+          {isClosed && opa.motivo_encerramento && (
+            <>
+              <Separator />
+              <div className="rounded-xl bg-muted/40 border border-border/50 px-4 py-3 space-y-1">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Motivo do encerramento</p>
+                <p className="text-sm text-foreground/80">{opa.motivo_encerramento}</p>
+              </div>
+            </>
+          )}
+
+          {/* Anexos */}
+          {opa.Anexos && opa.Anexos.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <Paperclip className="w-3.5 h-3.5" /> Anexos ({opa.Anexos.length})
+                </p>
+                <div className="space-y-2">
+                  {opa.Anexos.map((a, i) => (
+                    <a
+                      key={a.id || i}
+                      href={a.url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 hover:border-brand-gold/40 hover:bg-brand-gold/5 transition-colors group"
+                      data-testid={`link-opa-anexo-${i}`}
+                    >
+                      <FileText className="w-4 h-4 text-brand-gold/50 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{a.title || a.filename || a.id}</p>
+                        {a.size && <p className="text-[10px] text-muted-foreground">{a.size}</p>}
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-brand-gold/60 transition-colors shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+
+    <EncerramentoDialog
+      open={encerramentoOpen}
+      onClose={() => setEncerramentoOpen(false)}
+      onConfirm={(status, motivo) => {
+        onSetStatus(status, motivo);
+        setEncerramentoOpen(false);
+        onClose();
+      }}
+    />
+    </>
+  );
+}
+
 // ---- OPA Card ----
 function OpaCard({
-  opa, bia, onEdit, onDelete, onSetStatus
+  opa, bia, onEdit, onDelete, onSetStatus, onViewDetail
 }: {
   opa: Oportunidade;
   bia?: BiasProjeto;
   onEdit: () => void;
   onDelete: () => void;
   onSetStatus: (status: "ativa" | "concluida" | "desistencia", motivo?: string) => void;
+  onViewDetail: () => void;
 }) {
   const [encerramentoOpen, setEncerramentoOpen] = useState(false);
   const valor = n(opa.valor_origem_opa);
@@ -259,8 +509,9 @@ function OpaCard({
   return (
     <>
     <Card
-      className={`transition-colors group flex flex-col ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
+      className={`transition-colors group flex flex-col cursor-pointer ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
       data-testid={`card-opa-${opa.id}`}
+      onClick={onViewDetail}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
@@ -290,27 +541,27 @@ function OpaCard({
               {opa.nome_oportunidade || "Sem nome"}
             </CardTitle>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
             {isClosed ? (
               <Button
                 size="sm"
                 variant="ghost"
                 className="h-6 px-2 text-[10px] gap-1 text-brand-gold hover:text-brand-gold"
-                onClick={() => onSetStatus("ativa")}
+                onClick={e => { e.stopPropagation(); onSetStatus("ativa"); }}
                 data-testid={`btn-reativar-opa-${opa.id}`}
               >
                 <RotateCcw className="w-3 h-3" /> Reativar
               </Button>
             ) : (
               <>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onEdit} data-testid={`btn-edit-opa-${opa.id}`}>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={e => { e.stopPropagation(); onEdit(); }} data-testid={`btn-edit-opa-${opa.id}`}>
                   <Pencil className="w-3 h-3" />
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-6 px-2 text-[10px] gap-1 text-foreground hover:text-foreground hover:bg-accent"
-                  onClick={() => setEncerramentoOpen(true)}
+                  onClick={e => { e.stopPropagation(); setEncerramentoOpen(true); }}
                   data-testid={`btn-encerrar-opa-${opa.id}`}
                 >
                   <Ban className="w-3 h-3" /> Encerrar
@@ -833,6 +1084,8 @@ export default function OportunidadesPage() {
   const [editingOpa, setEditingOpa] = useState<Oportunidade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Oportunidade | null>(null);
+  const [selectedOpa, setSelectedOpa] = useState<Oportunidade | null>(null);
+  const [detalheOpen, setDetalheOpen] = useState(false);
 
   const { data: opasRaw = [], isLoading: loadingOpas } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -1056,6 +1309,7 @@ export default function OportunidadesPage() {
               onEdit={() => openEdit(opa)}
               onDelete={() => setDeleteTarget(opa)}
               onSetStatus={(status, motivo) => statusMutation.mutate({ id: opa.id, status, motivo })}
+              onViewDetail={() => { setSelectedOpa(opa); setDetalheOpen(true); }}
             />
           ))}
         </div>
@@ -1067,6 +1321,18 @@ export default function OportunidadesPage() {
         onClose={() => setFormOpen(false)}
         opa={editingOpa}
         bias={bias}
+      />
+
+      {/* OPA Detalhe Sheet */}
+      <OpaDetalheSheet
+        opa={selectedOpa}
+        bia={selectedOpa?.bia_id ? biasMap[selectedOpa.bia_id] : undefined}
+        open={detalheOpen}
+        onClose={() => setDetalheOpen(false)}
+        onEdit={() => { setDetalheOpen(false); if (selectedOpa) openEdit(selectedOpa); }}
+        onSetStatus={(status, motivo) => {
+          if (selectedOpa) statusMutation.mutate({ id: selectedOpa.id, status, motivo });
+        }}
       />
 
       {/* Delete confirmation */}

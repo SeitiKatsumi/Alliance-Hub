@@ -253,25 +253,13 @@ function OpaCard({
   onSetStatus: (status: "ativa" | "concluida" | "desistencia", motivo?: string) => void;
 }) {
   const [encerramentoOpen, setEncerramentoOpen] = useState(false);
-  const [anexosDialogOpen, setAnexosDialogOpen] = useState(false);
   const valor = n(opa.valor_origem_opa);
   const isClosed = opa.status === "concluida" || opa.status === "desistencia";
-  const anexos = opa.Anexos || [];
-
-  function handleCardClick() {
-    if (anexos.length === 0) return;
-    if (anexos.length === 1) {
-      window.open(anexos[0].url, "_blank", "noopener,noreferrer");
-    } else {
-      setAnexosDialogOpen(true);
-    }
-  }
 
   return (
     <>
     <Card
-      onClick={handleCardClick}
-      className={`transition-colors group flex flex-col ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"} ${anexos.length > 0 ? "cursor-pointer" : ""}`}
+      className={`transition-colors group flex flex-col ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
       data-testid={`card-opa-${opa.id}`}
     >
       <CardHeader className="pb-2">
@@ -302,7 +290,7 @@ function OpaCard({
               {opa.nome_oportunidade || "Sem nome"}
             </CardTitle>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {isClosed ? (
               <Button
                 size="sm"
@@ -441,33 +429,6 @@ function OpaCard({
         setEncerramentoOpen(false);
       }}
     />
-
-    {/* Dialog múltiplos anexos */}
-    <Dialog open={anexosDialogOpen} onOpenChange={v => { if (!v) setAnexosDialogOpen(false); }}>
-      <DialogContent className="max-w-sm" onClick={e => e.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle className="text-sm flex items-center gap-2">
-            <Paperclip className="w-4 h-4 text-brand-gold" /> Anexos da OPA
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-2 py-1">
-          {anexos.map((a, i) => (
-            <a
-              key={a.id || i}
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border/40 hover:border-brand-gold/40 hover:bg-brand-gold/5 transition-colors group"
-            >
-              <FileText className="w-4 h-4 text-muted-foreground group-hover:text-brand-gold shrink-0" />
-              <span className="flex-1 text-sm truncate">{a.title || a.filename || `Anexo ${i + 1}`}</span>
-              {a.size && <span className="text-[10px] text-muted-foreground shrink-0">{a.size}</span>}
-              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-brand-gold shrink-0" />
-            </a>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
     </>
   );
 }

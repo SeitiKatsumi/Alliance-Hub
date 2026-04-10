@@ -549,6 +549,8 @@ export default function OportunidadesPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [filterBia, setFilterBia] = useState<string>("__all__");
+  const [filterNucleo, setFilterNucleo] = useState<string>("__all__");
+  const [filterTipo, setFilterTipo] = useState<string>("__all__");
   const [editingOpa, setEditingOpa] = useState<Oportunidade | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Oportunidade | null>(null);
@@ -570,6 +572,14 @@ export default function OportunidadesPage() {
     return m;
   }, [bias]);
 
+  const nucleoOptions = useMemo(() =>
+    Array.from(new Set(opas.map(o => o.nucleo_alianca).filter(Boolean))) as string[],
+  [opas]);
+
+  const tipoOptions = useMemo(() =>
+    Array.from(new Set(opas.map(o => o.tipo).filter(Boolean))) as string[],
+  [opas]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return opas.filter(o => {
@@ -577,9 +587,11 @@ export default function OportunidadesPage() {
         .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const matchSearch = !q || haystack.includes(q);
       const matchBia = filterBia === "__all__" || o.bia_id === filterBia;
-      return matchSearch && matchBia;
+      const matchNucleo = filterNucleo === "__all__" || o.nucleo_alianca === filterNucleo;
+      const matchTipo = filterTipo === "__all__" || o.tipo === filterTipo;
+      return matchSearch && matchBia && matchNucleo && matchTipo;
     });
-  }, [opas, search, filterBia]);
+  }, [opas, search, filterBia, filterNucleo, filterTipo]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/oportunidades/${id}`),
@@ -625,8 +637,8 @@ export default function OportunidadesPage() {
       {loading && <Skeleton className="h-[200px] rounded-2xl" />}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar OPA..."
@@ -636,11 +648,11 @@ export default function OportunidadesPage() {
             data-testid="input-search-opas"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
           <Select value={filterBia} onValueChange={setFilterBia}>
-            <SelectTrigger className="w-[220px]" data-testid="select-filter-bia">
-              <SelectValue placeholder="Filtrar por BIA..." />
+            <SelectTrigger className="w-[180px]" data-testid="select-filter-bia">
+              <SelectValue placeholder="Todas as BIAs" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todas as BIAs</SelectItem>
@@ -649,12 +661,34 @@ export default function OportunidadesPage() {
               ))}
             </SelectContent>
           </Select>
-          {(filterBia !== "__all__" || search) && (
+          <Select value={filterNucleo} onValueChange={setFilterNucleo}>
+            <SelectTrigger className="w-[170px]" data-testid="select-filter-nucleo">
+              <SelectValue placeholder="Todos os Núcleos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os Núcleos</SelectItem>
+              {nucleoOptions.map(n => (
+                <SelectItem key={n} value={n}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterTipo} onValueChange={setFilterTipo}>
+            <SelectTrigger className="w-[160px]" data-testid="select-filter-tipo">
+              <SelectValue placeholder="Todos os Tipos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os Tipos</SelectItem>
+              {tipoOptions.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(filterBia !== "__all__" || filterNucleo !== "__all__" || filterTipo !== "__all__" || search) && (
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9"
-              onClick={() => { setFilterBia("__all__"); setSearch(""); }}
+              onClick={() => { setFilterBia("__all__"); setFilterNucleo("__all__"); setFilterTipo("__all__"); setSearch(""); }}
               data-testid="btn-clear-filters"
             >
               <X className="w-4 h-4" />
@@ -701,7 +735,7 @@ export default function OportunidadesPage() {
               <>
                 <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
                 <p className="text-muted-foreground">Nenhuma OPA encontrada com esses filtros</p>
-                <Button variant="link" onClick={() => { setSearch(""); setFilterBia("__all__"); }} className="mt-2">
+                <Button variant="link" onClick={() => { setSearch(""); setFilterBia("__all__"); setFilterNucleo("__all__"); setFilterTipo("__all__"); }} className="mt-2">
                   Limpar filtros
                 </Button>
               </>

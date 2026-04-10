@@ -899,6 +899,7 @@ export async function registerRoutes(
         bia: o.bia,
         bia_id: o.bia,
         valor_origem_opa: o.valor_origem_opa,
+        Minimo_esforco_multiplicador: o.Minimo_esforco_multiplicador,
         objetivo_alianca: o.objetivo_alianca,
         nucleo_alianca: o.nucleo_alianca,
         pais: o.pais,

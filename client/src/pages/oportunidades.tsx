@@ -29,6 +29,7 @@ interface Oportunidade {
   tipo?: string;
   bia_id?: string;
   valor_origem_opa?: string | number;
+  Minimo_esforco_multiplicador?: string | number;
   objetivo_alianca?: string;
   nucleo_alianca?: string;
   pais?: string;
@@ -264,6 +265,7 @@ const EMPTY_OPA = {
   tipo: "",
   bia_id: "",
   valor_origem_opa: "",
+  Minimo_esforco_multiplicador: "",
   objetivo_alianca: "",
   nucleo_alianca: "",
   pais: "",
@@ -298,6 +300,9 @@ function OpaFormDialog({
         bia_id: opa.bia_id || "",
         valor_origem_opa: n(opa.valor_origem_opa) > 0
           ? (n(opa.valor_origem_opa)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+          : "",
+        Minimo_esforco_multiplicador: n(opa.Minimo_esforco_multiplicador) > 0
+          ? String(n(opa.Minimo_esforco_multiplicador))
           : "",
         objetivo_alianca: opa.objetivo_alianca || "",
         nucleo_alianca: opa.nucleo_alianca || "",
@@ -339,6 +344,7 @@ function OpaFormDialog({
       tipo: form.tipo || null,
       bia: form.bia_id || null,
       valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
+      Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
       objetivo_alianca: form.objetivo_alianca || null,
       nucleo_alianca: form.nucleo_alianca || null,
       pais: form.pais || null,
@@ -425,19 +431,39 @@ function OpaFormDialog({
             </button>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Valor da OPA (R$)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={form.valor_origem_opa}
-                onChange={e => setForm(f => ({ ...f, valor_origem_opa: formatInputBRL(e.target.value) }))}
-                placeholder="0,00"
-                className="pl-9 h-8 text-sm tabular-nums"
-                data-testid="input-opa-valor"
-              />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Valor da OPA (R$)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.valor_origem_opa}
+                  onChange={e => setForm(f => ({ ...f, valor_origem_opa: formatInputBRL(e.target.value) }))}
+                  placeholder="0,00"
+                  className="pl-9 h-8 text-sm tabular-nums"
+                  data-testid="input-opa-valor"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Mín. Esforço Multiplicador</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  value={form.Minimo_esforco_multiplicador}
+                  onChange={e => setForm(f => ({ ...f, Minimo_esforco_multiplicador: e.target.value }))}
+                  placeholder="0,00"
+                  className="pr-8 h-8 text-sm tabular-nums"
+                  data-testid="input-opa-minimo-esforco"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              </div>
             </div>
           </div>
 

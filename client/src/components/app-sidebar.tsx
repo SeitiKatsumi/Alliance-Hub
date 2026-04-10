@@ -23,6 +23,7 @@ export function AppSidebar() {
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
+  const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
 
   return (
     <Sidebar>
@@ -148,35 +149,48 @@ export function AppSidebar() {
 
                       {/* Núcleo de Capital */}
                       <SidebarMenuSubItem>
-                        <SidebarMenuSubButton
-                          asChild
-                          isActive={location === "/nucleo-capital"}
-                          className="text-xs"
-                          data-testid="nav-nucleo-capital"
-                        >
-                          <Link href="/nucleo-capital">
-                            <Landmark className="w-3 h-3" />
-                            <span>Núcleo de Capital</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Financeiro / Resultados */}
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/fluxo-caixa"} data-testid="nav-fluxo-caixa" className="text-xs pl-6">
-                          <Link href="/fluxo-caixa">
-                            <Wallet className="w-3 h-3" />
-                            <span>Financeiro</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs pl-6">
-                          <Link href="/resultados">
-                            <BarChart3 className="w-3 h-3" />
-                            <span>Análises</span>
-                          </Link>
-                        </SidebarMenuSubButton>
+                        <Collapsible open={nucleoCapitalOpen} onOpenChange={setNucleoCapitalOpen}>
+                          <div className="flex items-center w-full">
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location === "/nucleo-capital"}
+                              className="flex-1 text-xs"
+                              data-testid="nav-nucleo-capital"
+                            >
+                              <Link href="/nucleo-capital">
+                                <Landmark className="w-3 h-3" />
+                                <span>Núcleo de Capital</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                            <CollapsibleTrigger asChild>
+                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-nucleo-capital-menu">
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${nucleoCapitalOpen ? "rotate-180" : ""}`} />
+                              </button>
+                            </CollapsibleTrigger>
+                          </div>
+                          <CollapsibleContent>
+                            <div className="pl-3">
+                              <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={location === "/fluxo-caixa"} data-testid="nav-fluxo-caixa" className="text-xs">
+                                    <Link href="/fluxo-caixa">
+                                      <Wallet className="w-3 h-3" />
+                                      <span>Financeiro</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs">
+                                    <Link href="/resultados">
+                                      <BarChart3 className="w-3 h-3" />
+                                      <span>Análises</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </SidebarMenuSub>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
                       </SidebarMenuSubItem>
 
                       {/* Calculadora DM */}

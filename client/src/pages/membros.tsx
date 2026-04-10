@@ -514,7 +514,7 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
       {/* Edit button */}
       <button
         onClick={(e) => { e.stopPropagation(); onEdit(membro); }}
-        className="absolute top-2 right-10 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 hover:scale-110"
+        className="absolute bottom-3 right-3 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 hover:scale-110"
         style={{ background: `${accentColor}20`, border: `1px solid ${accentColor}40` }}
         data-testid={`btn-editar-membro-${membro.id}`}
         title="Editar membro"

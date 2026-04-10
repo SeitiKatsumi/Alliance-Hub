@@ -4,11 +4,8 @@ import { useLocation } from "wouter";
 import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
   TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink,
-  CheckCircle2, XCircle, RotateCcw, ChevronDown
+  CheckCircle2, XCircle, RotateCcw, Ban
 } from "lucide-react";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +37,7 @@ interface Oportunidade {
   descricao?: string;
   perfil_aliado?: string;
   status?: "ativa" | "concluida" | "desistencia" | null;
+  motivo_encerramento?: string | null;
 }
 
 interface BiasProjeto {
@@ -156,6 +154,91 @@ function OpasHeader({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[] 
   );
 }
 
+// ---- Encerramento Dialog ----
+function EncerramentoDialog({ open, onClose, onConfirm }: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (status: "concluida" | "desistencia", motivo: string) => void;
+}) {
+  const { toast } = useToast();
+  const [tipo, setTipo] = useState<"concluida" | "desistencia">("concluida");
+  const [motivo, setMotivo] = useState("");
+
+  function handleConfirm() {
+    if (!motivo.trim()) {
+      toast({ title: "Informe o motivo do encerramento", variant: "destructive" });
+      return;
+    }
+    onConfirm(tipo, motivo.trim());
+    setMotivo("");
+    setTipo("concluida");
+  }
+
+  function handleClose() {
+    setMotivo("");
+    setTipo("concluida");
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Ban className="w-4 h-4 text-destructive" /> Encerrar OPA
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Tipo de Encerramento *</Label>
+            <Select value={tipo} onValueChange={v => setTipo(v as "concluida" | "desistencia")}>
+              <SelectTrigger className="h-9 text-sm" data-testid="select-encerramento-tipo">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="concluida">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Conclusão
+                  </span>
+                </SelectItem>
+                <SelectItem value="desistencia">
+                  <span className="flex items-center gap-2">
+                    <XCircle className="w-3.5 h-3.5 text-rose-500" /> Desistência
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Motivo / Justificativa *</Label>
+            <Textarea
+              placeholder="Descreva o motivo do encerramento desta OPA..."
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+              rows={4}
+              className="text-sm resize-none"
+              data-testid="textarea-encerramento-motivo"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} data-testid="btn-encerramento-cancelar">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            className={tipo === "concluida" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"}
+            data-testid="btn-encerramento-confirmar"
+          >
+            {tipo === "concluida" ? <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <XCircle className="w-3.5 h-3.5 mr-1.5" />}
+            Confirmar Encerramento
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---- OPA Card ----
 function OpaCard({
   opa, bia, onEdit, onDelete, onSetStatus
@@ -164,12 +247,14 @@ function OpaCard({
   bia?: BiasProjeto;
   onEdit: () => void;
   onDelete: () => void;
-  onSetStatus: (status: "ativa" | "concluida" | "desistencia") => void;
+  onSetStatus: (status: "ativa" | "concluida" | "desistencia", motivo?: string) => void;
 }) {
+  const [encerramentoOpen, setEncerramentoOpen] = useState(false);
   const valor = n(opa.valor_origem_opa);
   const isClosed = opa.status === "concluida" || opa.status === "desistencia";
 
   return (
+    <>
     <Card
       className={`transition-colors group flex flex-col ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
       data-testid={`card-opa-${opa.id}`}
@@ -203,55 +288,35 @@ function OpaCard({
             </CardTitle>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            {!isClosed && (
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onEdit} data-testid={`btn-edit-opa-${opa.id}`}>
-                <Pencil className="w-3 h-3" />
+            {isClosed ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[10px] gap-1 text-brand-gold hover:text-brand-gold"
+                onClick={() => onSetStatus("ativa")}
+                data-testid={`btn-reativar-opa-${opa.id}`}
+              >
+                <RotateCcw className="w-3 h-3" /> Reativar
               </Button>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  data-testid={`btn-status-opa-${opa.id}`}
-                >
-                  <ChevronDown className="w-3 h-3" />
+            ) : (
+              <>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onEdit} data-testid={`btn-edit-opa-${opa.id}`}>
+                  <Pencil className="w-3 h-3" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                {isClosed ? (
-                  <DropdownMenuItem
-                    className="text-xs gap-2 cursor-pointer"
-                    onClick={() => onSetStatus("ativa")}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-brand-gold" /> Reativar OPA
-                  </DropdownMenuItem>
-                ) : (
-                  <>
-                    <DropdownMenuItem
-                      className="text-xs gap-2 cursor-pointer text-emerald-600 focus:text-emerald-600"
-                      onClick={() => onSetStatus("concluida")}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Encerrar por Conclusão
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-xs gap-2 cursor-pointer text-rose-500 focus:text-rose-500"
-                      onClick={() => onSetStatus("desistencia")}
-                    >
-                      <XCircle className="w-3.5 h-3.5" /> Encerrar por Desistência
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem
-                  className="text-xs gap-2 cursor-pointer text-destructive focus:text-destructive"
-                  onClick={onDelete}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-2 text-[10px] gap-1 text-destructive hover:text-destructive"
+                  onClick={() => setEncerramentoOpen(true)}
+                  data-testid={`btn-encerrar-opa-${opa.id}`}
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Excluir OPA
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <Ban className="w-3 h-3" /> Encerrar
+                </Button>
+              </>
+            )}
+            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive/60 hover:text-destructive" onClick={onDelete} data-testid={`btn-delete-opa-${opa.id}`}>
+              <Trash2 className="w-3 h-3" />
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -325,8 +390,26 @@ function OpaCard({
         {opa.descricao && (
           <p className="text-[11px] text-muted-foreground/70 line-clamp-1 border-t border-border/40 pt-2">{opa.descricao}</p>
         )}
+
+        {/* Motivo encerramento */}
+        {isClosed && opa.motivo_encerramento && (
+          <div className="rounded-md bg-muted/40 border border-border/50 px-2.5 py-1.5 mt-1">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Motivo do encerramento</p>
+            <p className="text-[11px] text-muted-foreground/80 line-clamp-2">{opa.motivo_encerramento}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
+
+    <EncerramentoDialog
+      open={encerramentoOpen}
+      onClose={() => setEncerramentoOpen(false)}
+      onConfirm={(status, motivo) => {
+        onSetStatus(status, motivo);
+        setEncerramentoOpen(false);
+      }}
+    />
+    </>
   );
 }
 
@@ -667,11 +750,14 @@ export default function OportunidadesPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      apiRequest("PATCH", `/api/oportunidades/${id}`, { status }),
+    mutationFn: ({ id, status, motivo }: { id: string; status: string; motivo?: string }) =>
+      apiRequest("PATCH", `/api/oportunidades/${id}`, {
+        status,
+        motivo_encerramento: motivo || null,
+      }),
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
-      const label = vars.status === "concluida" ? "Concluída" : vars.status === "desistencia" ? "Encerrada por desistência" : "Reativada";
+      const label = vars.status === "concluida" ? "OPA encerrada por conclusão" : vars.status === "desistencia" ? "OPA encerrada por desistência" : "OPA reativada";
       toast({ title: label });
     },
     onError: (e: any) => {
@@ -834,7 +920,7 @@ export default function OportunidadesPage() {
               bia={opa.bia_id ? biasMap[opa.bia_id] : undefined}
               onEdit={() => openEdit(opa)}
               onDelete={() => setDeleteTarget(opa)}
-              onSetStatus={(status) => statusMutation.mutate({ id: opa.id, status })}
+              onSetStatus={(status, motivo) => statusMutation.mutate({ id: opa.id, status, motivo })}
             />
           ))}
         </div>

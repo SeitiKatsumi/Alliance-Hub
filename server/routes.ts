@@ -906,6 +906,7 @@ export async function registerRoutes(
         descricao: o.descricao,
         perfil_aliado: o.perfil_aliado,
         status: o.status || "ativa",
+        motivo_encerramento: o.motivo_encerramento || null,
       }));
       res.json(mapped);
     } catch (error: any) {

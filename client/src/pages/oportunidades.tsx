@@ -266,7 +266,6 @@ const EMPTY_OPA = {
   bia_id: "",
   valor_origem_opa: "",
   Minimo_esforco_multiplicador: "",
-  objetivo_alianca: "",
   nucleo_alianca: "",
   descricao: "",
   perfil_aliado: "",
@@ -303,7 +302,6 @@ function OpaFormDialog({
         Minimo_esforco_multiplicador: n(opa.Minimo_esforco_multiplicador) > 0
           ? String(n(opa.Minimo_esforco_multiplicador))
           : "",
-        objetivo_alianca: opa.objetivo_alianca || "",
         nucleo_alianca: opa.nucleo_alianca || "",
         descricao: opa.descricao || "",
         perfil_aliado: opa.perfil_aliado || "",
@@ -347,7 +345,6 @@ function OpaFormDialog({
       bia: form.bia_id || null,
       valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
       Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
-      objetivo_alianca: form.objetivo_alianca || null,
       nucleo_alianca: form.nucleo_alianca || null,
       descricao: form.descricao || null,
       perfil_aliado: form.perfil_aliado || null,
@@ -362,6 +359,7 @@ function OpaFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* 1. Título */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Título da OPA *</Label>
             <Input
@@ -373,26 +371,7 @@ function OpaFormDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Tipo *</Label>
-            <Select
-              value={form.tipo || undefined}
-              onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
-            >
-              <SelectTrigger
-                className={`h-8 text-sm ${!form.tipo ? "text-muted-foreground border-destructive/40" : ""}`}
-                data-testid="select-opa-tipo"
-              >
-                <SelectValue placeholder="Selecionar tipo..." />
-              </SelectTrigger>
-              <SelectContent>
-                {tiposOpa.map(t => (
-                  <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+          {/* 2. BIA */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">BIA Vinculada *</Label>
             <Select
@@ -422,6 +401,40 @@ function OpaFormDialog({
             </button>
           </div>
 
+          {/* 3. Núcleo de Aliança */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Núcleo de Aliança</Label>
+            <Input
+              value={form.nucleo_alianca}
+              onChange={e => setForm(f => ({ ...f, nucleo_alianca: e.target.value }))}
+              placeholder="Ex: Construção Civil"
+              className="h-8 text-sm"
+              data-testid="input-opa-nucleo"
+            />
+          </div>
+
+          {/* 4. Tipo */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Tipo *</Label>
+            <Select
+              value={form.tipo || undefined}
+              onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
+            >
+              <SelectTrigger
+                className={`h-8 text-sm ${!form.tipo ? "text-muted-foreground border-destructive/40" : ""}`}
+                data-testid="select-opa-tipo"
+              >
+                <SelectValue placeholder="Selecionar tipo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tiposOpa.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 5. Valor + Mín Esforço Multiplicador */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Valor da OPA (R$)</Label>
@@ -458,28 +471,7 @@ function OpaFormDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Núcleo de Aliança</Label>
-            <Input
-              value={form.nucleo_alianca}
-              onChange={e => setForm(f => ({ ...f, nucleo_alianca: e.target.value }))}
-              placeholder="Ex: Construção Civil"
-              className="h-8 text-sm"
-              data-testid="input-opa-nucleo"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Objetivo da Aliança</Label>
-            <Textarea
-              value={form.objetivo_alianca}
-              onChange={e => setForm(f => ({ ...f, objetivo_alianca: e.target.value }))}
-              placeholder="Descreva o objetivo..."
-              className="text-sm min-h-[70px] resize-none"
-              data-testid="textarea-opa-objetivo"
-            />
-          </div>
-
+          {/* 6. Perfil do Aliado */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Perfil do Aliado</Label>
             <Textarea
@@ -491,8 +483,9 @@ function OpaFormDialog({
             />
           </div>
 
+          {/* 7. Descrição / Escopo */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Descrição</Label>
+            <Label className="text-xs text-muted-foreground">Descrição / Escopo</Label>
             <Textarea
               value={form.descricao}
               onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}

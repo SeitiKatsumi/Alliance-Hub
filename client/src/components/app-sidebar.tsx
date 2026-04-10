@@ -107,46 +107,17 @@ export function AppSidebar() {
 
                       {/* Núcleo Técnico */}
                       <SidebarMenuSubItem>
-                        <Collapsible open={nucleoTecnicoOpen} onOpenChange={setNucleoTecnicoOpen}>
-                          <div className="flex items-center w-full">
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={location === "/nucleo-tecnico"}
-                              className="flex-1 text-xs"
-                              data-testid="nav-nucleo-tecnico"
-                            >
-                              <Link href="/nucleo-tecnico">
-                                <Wrench className="w-3 h-3" />
-                                <span>Núcleo Técnico</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                            <CollapsibleTrigger asChild>
-                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-nucleo-tecnico-menu">
-                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${nucleoTecnicoOpen ? "rotate-180" : ""}`} />
-                              </button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent>
-                            <div className="pl-3">
-                              <SidebarMenuSub>
-                                {[
-                                  { label: "Alianças de Projetos", hash: "projetos" },
-                                  { label: "Alianças Jurídicas", hash: "juridica" },
-                                  { label: "Alianças de Inteligência", hash: "inteligencia" },
-                                  { label: "Alianças de Governança", hash: "governanca" },
-                                ].map(item => (
-                                  <SidebarMenuSubItem key={item.hash}>
-                                    <SidebarMenuSubButton asChild className="text-xs" data-testid={`nav-nt-${item.hash}`}>
-                                      <Link href="/nucleo-tecnico">
-                                        <span>{item.label}</span>
-                                      </Link>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                ))}
-                              </SidebarMenuSub>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={location === "/nucleo-tecnico"}
+                          className="text-xs"
+                          data-testid="nav-nucleo-tecnico"
+                        >
+                          <Link href="/nucleo-tecnico">
+                            <Wrench className="w-3 h-3" />
+                            <span>Núcleo Técnico</span>
+                          </Link>
+                        </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
 
                       {/* Núcleo de Obra */}

@@ -483,23 +483,29 @@ export default function NucleoTecnicoPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full mb-6 p-1 rounded-xl gap-1 h-auto flex-wrap" style={{ background: "#050f1c", border: `1px solid ${ACCENT}15` }}>
+        <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap" style={{ background: "#050f1c", border: `1px solid ${ACCENT}15` }}>
           {Object.entries(ABA_LABELS).map(([key, label]) => {
             const count = (biaId ? docs.filter(d => d.bia_id === biaId) : docs).filter(d => d.alianca_tipo === key).length;
+            const isActive = activeTab === key;
             return (
-              <TabsTrigger
+              <button
                 key={key}
-                value={key}
-                className="flex-1 text-xs font-medium py-2 px-3 rounded-lg data-[state=active]:text-[#001D34] transition-all"
-                style={{ color: "#ffffff60" }}
+                onClick={() => setActiveTab(key)}
+                className="flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all"
+                style={{
+                  background: isActive ? ACCENT : "transparent",
+                  color: isActive ? "#ffffff" : "#ffffff60",
+                  fontWeight: isActive ? 600 : 400,
+                  minWidth: 0,
+                }}
                 data-testid={`tab-${key}`}
               >
                 {label.replace("Alianças de ", "").replace("Alianças ", "")}
                 {count > 0 && <span className="ml-1.5 text-[10px] opacity-70">({count})</span>}
-              </TabsTrigger>
+              </button>
             );
           })}
-        </TabsList>
+        </div>
 
         {Object.keys(ABA_LABELS).map(key => (
           <TabsContent key={key} value={key}>

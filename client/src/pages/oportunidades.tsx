@@ -328,6 +328,10 @@ function OpaFormDialog({
       toast({ title: "Nome da OPA é obrigatório", variant: "destructive" });
       return;
     }
+    if (!form.bia_id) {
+      toast({ title: "BIA Vinculada é obrigatória", variant: "destructive" });
+      return;
+    }
     saveMutation.mutate({
       nome_oportunidade: form.nome_oportunidade,
       tipo: form.tipo || null,
@@ -391,16 +395,18 @@ function OpaFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">BIA Vinculada</Label>
+            <Label className="text-xs text-muted-foreground">BIA Vinculada *</Label>
             <Select
-              value={form.bia_id || "__none__"}
-              onValueChange={v => setForm(f => ({ ...f, bia_id: v === "__none__" ? "" : v }))}
+              value={form.bia_id || undefined}
+              onValueChange={v => setForm(f => ({ ...f, bia_id: v }))}
             >
-              <SelectTrigger className="h-8 text-sm" data-testid="select-opa-bia">
+              <SelectTrigger
+                className={`h-8 text-sm ${!form.bia_id ? "text-muted-foreground border-destructive/40" : ""}`}
+                data-testid="select-opa-bia"
+              >
                 <SelectValue placeholder="Selecione a BIA..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Sem BIA vinculada</SelectItem>
                 {bias.map(b => (
                   <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
                 ))}

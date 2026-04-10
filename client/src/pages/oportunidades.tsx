@@ -384,14 +384,20 @@ function OpaCard({
           )}
         </div>
 
-        {/* Perfil do Aliado */}
+        {/* Perfil do Membro */}
         {opa.perfil_aliado && (
-          <p className="text-[10px] text-muted-foreground/70 truncate">{opa.perfil_aliado}</p>
+          <div className="rounded-md bg-muted/50 px-2.5 py-1.5">
+            <p className="text-[9px] text-muted-foreground mb-0.5">Perfil do Membro</p>
+            <p className="text-[11px] text-foreground/80 truncate">{opa.perfil_aliado}</p>
+          </div>
         )}
 
         {/* Descrição */}
         {opa.descricao && (
-          <p className="text-[11px] text-muted-foreground/70 line-clamp-1 border-t border-border/40 pt-2">{opa.descricao}</p>
+          <div className="rounded-md bg-muted/50 px-2.5 py-1.5">
+            <p className="text-[9px] text-muted-foreground mb-0.5">Descrição/Escopo</p>
+            <p className="text-[11px] text-foreground/80 line-clamp-1">{opa.descricao}</p>
+          </div>
         )}
 
         {/* Footer: data criação + anexos */}

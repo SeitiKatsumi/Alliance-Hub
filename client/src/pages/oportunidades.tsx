@@ -366,7 +366,7 @@ function OpaFormDialog({
             <Input
               value={form.nome_oportunidade}
               onChange={e => setForm(f => ({ ...f, nome_oportunidade: e.target.value }))}
-              placeholder="Nome da OPA"
+              placeholder="Insira um título"
               className="h-8 text-sm"
               data-testid="input-opa-nome"
             />

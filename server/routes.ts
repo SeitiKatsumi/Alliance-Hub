@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs } from "@shared/schema";
+import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -1258,6 +1258,48 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ── Aliança Docs (Obra / Comercial / Capital) ────────────────────
+  app.get("/api/alianca-docs", async (req, res) => {
+    try {
+      const rows = await db.select().from(aliancaDocs).orderBy(desc(aliancaDocs.created_at));
+      const filtered = rows.filter((r: any) => {
+        if (req.query.modulo && r.modulo !== req.query.modulo) return false;
+        if (req.query.bia_id && r.bia_id !== req.query.bia_id) return false;
+        if (req.query.alianca_tipo && r.alianca_tipo !== req.query.alianca_tipo) return false;
+        return true;
+      });
+      const enriched = await Promise.all(filtered.map(async (item: any) => {
+        const ids: string[] = Array.isArray(item.arquivo_ids) ? item.arquivo_ids : [];
+        const arquivos = await resolveFileIds(ids);
+        return { ...item, arquivos };
+      }));
+      res.json(enriched);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.post("/api/alianca-docs", async (req, res) => {
+    try {
+      const { arquivos, ...rest } = req.body;
+      const [item] = await db.insert(aliancaDocs).values(rest).returning();
+      res.json(item);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.patch("/api/alianca-docs/:id", async (req, res) => {
+    try {
+      const { arquivos, ...rest } = req.body;
+      const [item] = await db.update(aliancaDocs).set(rest).where(eq(aliancaDocs.id, req.params.id)).returning();
+      res.json(item);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.delete("/api/alianca-docs/:id", async (req, res) => {
+    try {
+      await db.delete(aliancaDocs).where(eq(aliancaDocs.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
   });
 
   // ── Estudos de Viabilidade ──────────────────────────────────────

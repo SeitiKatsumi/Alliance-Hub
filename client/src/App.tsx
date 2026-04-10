@@ -22,6 +22,7 @@ import DiretoriaAliancaPage from "@/pages/diretoria-alianca";
 import NucleoTecnicoPage from "@/pages/nucleo-tecnico";
 import NucleoObraPage from "@/pages/nucleo-obra";
 import NucleoComercialPage from "@/pages/nucleo-comercial";
+import NucleoCapitalPage from "@/pages/nucleo-capital";
 import LoginPage from "@/pages/login";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
@@ -96,6 +97,7 @@ function ProtectedApp() {
               <Route path="/nucleo-tecnico" component={NucleoTecnicoPage} />
               <Route path="/nucleo-obra" component={NucleoObraPage} />
               <Route path="/nucleo-comercial" component={NucleoComercialPage} />
+              <Route path="/nucleo-capital" component={NucleoCapitalPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />

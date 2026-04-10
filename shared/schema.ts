@@ -246,3 +246,23 @@ export const insertNucleoTecnicoDocSchema = createInsertSchema(nucleoTecnicoDocs
 export type InsertNucleoTecnicoDoc = z.infer<typeof insertNucleoTecnicoDocSchema>;
 export type NucleoTecnicoDoc = typeof nucleoTecnicoDocs.$inferSelect;
 
+export const aliancaDocs = pgTable("alianca_docs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  modulo: text("modulo"),
+  bia_id: text("bia_id"),
+  alianca_tipo: text("alianca_tipo"),
+  tipo_documento: text("tipo_documento"),
+  descricao: text("descricao"),
+  membro_responsavel: text("membro_responsavel"),
+  arquivo_ids: jsonb("arquivo_ids").$type<string[]>().default([]),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertAliancaDocSchema = createInsertSchema(aliancaDocs).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertAliancaDoc = z.infer<typeof insertAliancaDocSchema>;
+export type AliancaDoc = typeof aliancaDocs.$inferSelect;
+

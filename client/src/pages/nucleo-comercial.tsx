@@ -1,113 +1,52 @@
-import { TrendingUp, Handshake, FileText, Users, BarChart2, CircleDashed } from "lucide-react";
+import { TrendingUp } from "lucide-react";
+import AliancaDocsPage, { AliancaDocsPageConfig } from "./alianca-docs-page";
+
+const config: AliancaDocsPageConfig = {
+  modulo: "comercial",
+  titulo: "Núcleo Comercial",
+  subtitulo: "Documentos de alianças comerciais, vendas e marketing",
+  accentColor: "#6EBF8B",
+  icon: TrendingUp,
+  aliancas: [
+    {
+      key: "comercial",
+      label: "Alianças Comerciais",
+      tipos: [
+        { label: "Plano comercial (canais, público, metas, funil, argumentos)" },
+        { label: "Política de comissionamento (se aplicável)" },
+        { label: "CRM (pipeline, relatórios de conversão, origem do lead)" },
+        { label: "Propostas comerciais padrão + scripts + apresentações" },
+        { label: "Relatórios de performance (leads, ativos, taxa de conversão)" },
+        { label: "Outro" },
+      ],
+    },
+    {
+      key: "vendas",
+      label: "Alianças de Vendas",
+      tipos: [
+        { label: "Tabelas de preço, condições e política de descontos" },
+        { label: "Contratos de reserva/proposta/compromisso (conforme modelo jurídico)" },
+        { label: "Dossie do cliente (KYC/KYB, análise, documentação)" },
+        { label: "Termos de repasse/aditivos + checklists de fechamento" },
+        { label: "Controle de recebíveis e inadimplência (quando for renda/operação)" },
+        { label: "Outro" },
+      ],
+    },
+    {
+      key: "marketing",
+      label: "Alianças de Marketing",
+      tipos: [
+        { label: "Estratégia de marca e posicionamento do produto" },
+        { label: "Plano de mídia e conteúdo + calendário editorial" },
+        { label: "Criativos e peças (book, folder, landing, anúncios)" },
+        { label: "Termos de uso de imagem/filmagem, releases" },
+        { label: "Métricas (CAC, CPI, tráfego, taxa de conversão, ROI de campanhas)" },
+        { label: "Outro" },
+      ],
+    },
+  ],
+};
 
 export default function NucleoComercialPage() {
-  const modules = [
-    { icon: TrendingUp, label: "Pipeline Comercial", desc: "Funil de negócios e oportunidades em andamento" },
-    { icon: FileText, label: "Propostas", desc: "Criação e gestão de propostas comerciais" },
-    { icon: Handshake, label: "Parcerias", desc: "Gestão de parceiros e aliados comerciais" },
-    { icon: BarChart2, label: "Performance", desc: "Indicadores e resultados comerciais das BIAs" },
-  ];
-
-  return (
-    <div className="min-h-screen p-6" style={{ background: "linear-gradient(135deg, #001020 0%, #000c18 100%)" }}>
-      {/* Header */}
-      <div className="relative mb-10">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-24 h-px" style={{ background: "linear-gradient(90deg, #6EBF8B, transparent)" }} />
-          <div className="absolute top-0 left-0 w-px h-24" style={{ background: "linear-gradient(180deg, #6EBF8B, transparent)" }} />
-        </div>
-
-        <div className="flex items-center gap-4 mb-6 pt-2 pl-2">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #6EBF8B20, #001D34)", border: "1px solid #6EBF8B40" }}
-          >
-            <TrendingUp className="w-6 h-6" style={{ color: "#6EBF8B" }} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "#6EBF8B60" }}>
-                BUILT ALLIANCES · MÓDULO
-              </span>
-              <div className="flex gap-1">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="w-1 h-1 rounded-full" style={{ background: "#6EBF8B40" }} />
-                ))}
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold text-white">Núcleo Comercial</h1>
-            <p className="text-sm mt-0.5" style={{ color: "#6EBF8B80" }}>
-              Gestão comercial, propostas e performance das BIAs
-            </p>
-          </div>
-        </div>
-
-        {/* Status badge */}
-        <div
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full ml-2"
-          style={{ background: "#6EBF8B10", border: "1px solid #6EBF8B30" }}
-        >
-          <CircleDashed className="w-3.5 h-3.5 animate-spin" style={{ color: "#6EBF8B", animationDuration: "3s" }} />
-          <span className="text-xs font-mono" style={{ color: "#6EBF8B" }}>EM DESENVOLVIMENTO</span>
-        </div>
-      </div>
-
-      {/* Grid de submódulos */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        {modules.map(({ icon: Icon, label, desc }) => (
-          <div
-            key={label}
-            className="rounded-xl p-5 opacity-60 cursor-not-allowed"
-            style={{
-              background: "linear-gradient(135deg, #050f1c 0%, #030812 100%)",
-              border: "1px solid #6EBF8B20",
-            }}
-          >
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-              style={{ background: "#6EBF8B10", border: "1px solid #6EBF8B25" }}
-            >
-              <Icon className="w-4 h-4" style={{ color: "#6EBF8B" }} />
-            </div>
-            <div className="text-sm font-semibold text-white/70 mb-1">{label}</div>
-            <div className="text-xs text-white/30">{desc}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Placeholder principal */}
-      <div
-        className="rounded-2xl p-12 text-center"
-        style={{
-          background: "linear-gradient(135deg, #050f1c 0%, #030812 100%)",
-          border: "1px dashed #6EBF8B30",
-        }}
-      >
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-          style={{ background: "#6EBF8B10", border: "1px solid #6EBF8B30" }}
-        >
-          <TrendingUp className="w-8 h-8" style={{ color: "#6EBF8B" }} />
-        </div>
-        <h2 className="text-lg font-bold text-white/80 mb-2">Núcleo Comercial</h2>
-        <p className="text-sm text-white/30 max-w-md mx-auto">
-          Este módulo está sendo desenvolvido. Em breve você terá acesso à gestão
-          comercial completa — pipeline de negócios, propostas, parcerias e indicadores de performance.
-        </p>
-        <div className="mt-6 flex items-center justify-center gap-2">
-          {[0, 1, 2, 3, 4].map(i => (
-            <div
-              key={i}
-              className="rounded-full"
-              style={{
-                width: i === 2 ? 24 : 6,
-                height: 6,
-                background: i === 2 ? "#6EBF8B" : "#6EBF8B30",
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <AliancaDocsPage config={config} />;
 }

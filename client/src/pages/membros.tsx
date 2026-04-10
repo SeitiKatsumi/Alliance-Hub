@@ -16,7 +16,7 @@ import {
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
-  Pencil, Camera, Loader2, Save, User
+  Pencil, Camera, Loader2, Save, User, Plus
 } from "lucide-react";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -101,7 +101,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const nome = getDisplayNome(membro);
-  const accentColor = hashColor(membro.id);
+  const accentColor = hashColor(membro.id || "");
   const currentFoto = fotoUrl(membro.foto, 200);
 
   const [form, setForm] = useState<Partial<Membro>>({ ...membro });
@@ -150,11 +150,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       }
       if (fotoId) payload.foto_perfil = fotoId;
 
-      return apiRequest("PATCH", `/api/membros/${membro.id}`, payload);
+      if (membro.id) {
+        return apiRequest("PATCH", `/api/membros/${membro.id}`, payload);
+      } else {
+        return apiRequest("POST", "/api/membros", payload);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
-      toast({ title: "Membro atualizado com sucesso!" });
+      toast({ title: membro.id ? "Membro atualizado com sucesso!" : "Membro criado com sucesso!" });
       onClose();
     },
     onError: (e: any) => {
@@ -207,7 +211,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 />
               </div>
               <div>
-                <SheetTitle className="text-brand-gold font-mono text-lg">{nome}</SheetTitle>
+                <SheetTitle className="text-brand-gold font-mono text-lg">{membro.id ? nome : "Novo Membro"}</SheetTitle>
                 <SheetDescription className="text-white/40 text-xs mt-0.5">
                   Clique no avatar para alterar a foto
                 </SheetDescription>
@@ -850,8 +854,19 @@ export default function MembrosPage() {
           </button>
         )}
 
-        <div className="ml-auto text-xs font-mono text-white/25 hidden sm:block">
-          {filtered.length} / {membros.length} nós
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs font-mono text-white/25 hidden sm:block">
+            {filtered.length} / {membros.length} nós
+          </span>
+          <button
+            onClick={() => setEditingMembro({} as Membro)}
+            className="h-8 px-3 text-xs rounded-md flex items-center gap-1.5 font-mono transition-colors"
+            style={{ background: "rgba(215,187,125,0.12)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+            data-testid="btn-novo-membro"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo Membro
+          </button>
         </div>
       </div>
 

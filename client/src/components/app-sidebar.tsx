@@ -105,49 +105,6 @@ export function AppSidebar() {
                         </Collapsible>
                       </SidebarMenuSubItem>
 
-                      {/* Núcleo de Capital — colapsável dentro de BIAs */}
-                      <SidebarMenuSubItem>
-                        <Collapsible open={nucleoOpen} onOpenChange={setNucleoOpen}>
-                          <div className="flex items-center w-full">
-                            <SidebarMenuSubButton
-                              isActive={location === "/fluxo-caixa"}
-                              className="flex-1 text-xs cursor-default"
-                              data-testid="nav-nucleo-capital"
-                            >
-                              <Landmark className="w-3 h-3" />
-                              <span>Núcleo de Capital</span>
-                            </SidebarMenuSubButton>
-                            <CollapsibleTrigger asChild>
-                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-nucleo-menu">
-                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${nucleoOpen ? "rotate-180" : ""}`} />
-                              </button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent>
-                            <div className="pl-3">
-                              <SidebarMenuSub>
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton asChild isActive={location === "/fluxo-caixa"} data-testid="nav-fluxo-caixa" className="text-xs">
-                                    <Link href="/fluxo-caixa">
-                                      <Wallet className="w-3 h-3" />
-                                      <span>Financeiro</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs">
-                                    <Link href="/resultados">
-                                      <BarChart3 className="w-3 h-3" />
-                                      <span>Análises</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              </SidebarMenuSub>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      </SidebarMenuSubItem>
-
                       {/* Núcleo Técnico */}
                       <SidebarMenuSubItem>
                         <Collapsible open={nucleoTecnicoOpen} onOpenChange={setNucleoTecnicoOpen}>
@@ -253,7 +210,50 @@ export function AppSidebar() {
                         </Collapsible>
                       </SidebarMenuSubItem>
 
-                      {/* Calculadora DM — abaixo do Núcleo de Capital */}
+                      {/* Núcleo de Capital */}
+                      <SidebarMenuSubItem>
+                        <Collapsible open={nucleoOpen} onOpenChange={setNucleoOpen}>
+                          <div className="flex items-center w-full">
+                            <SidebarMenuSubButton
+                              isActive={location === "/fluxo-caixa"}
+                              className="flex-1 text-xs cursor-default"
+                              data-testid="nav-nucleo-capital"
+                            >
+                              <Landmark className="w-3 h-3" />
+                              <span>Núcleo de Capital</span>
+                            </SidebarMenuSubButton>
+                            <CollapsibleTrigger asChild>
+                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-nucleo-menu">
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${nucleoOpen ? "rotate-180" : ""}`} />
+                              </button>
+                            </CollapsibleTrigger>
+                          </div>
+                          <CollapsibleContent>
+                            <div className="pl-3">
+                              <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={location === "/fluxo-caixa"} data-testid="nav-fluxo-caixa" className="text-xs">
+                                    <Link href="/fluxo-caixa">
+                                      <Wallet className="w-3 h-3" />
+                                      <span>Financeiro</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs">
+                                    <Link href="/resultados">
+                                      <BarChart3 className="w-3 h-3" />
+                                      <span>Análises</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </SidebarMenuSub>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </SidebarMenuSubItem>
+
+                      {/* Calculadora DM */}
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild isActive={location === "/bias-calculadora"} data-testid="nav-bias-calculadora" className="text-xs">
                           <Link href="/bias-calculadora">

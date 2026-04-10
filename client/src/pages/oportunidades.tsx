@@ -268,7 +268,6 @@ const EMPTY_OPA = {
   Minimo_esforco_multiplicador: "",
   objetivo_alianca: "",
   nucleo_alianca: "",
-  pais: "",
   descricao: "",
   perfil_aliado: "",
 };
@@ -306,7 +305,6 @@ function OpaFormDialog({
           : "",
         objetivo_alianca: opa.objetivo_alianca || "",
         nucleo_alianca: opa.nucleo_alianca || "",
-        pais: opa.pais || "",
         descricao: opa.descricao || "",
         perfil_aliado: opa.perfil_aliado || "",
       });
@@ -351,7 +349,6 @@ function OpaFormDialog({
       Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
       objetivo_alianca: form.objetivo_alianca || null,
       nucleo_alianca: form.nucleo_alianca || null,
-      pais: form.pais || null,
       descricao: form.descricao || null,
       perfil_aliado: form.perfil_aliado || null,
     });
@@ -376,36 +373,24 @@ function OpaFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Tipo *</Label>
-              <Select
-                value={form.tipo || undefined}
-                onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Tipo *</Label>
+            <Select
+              value={form.tipo || undefined}
+              onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
+            >
+              <SelectTrigger
+                className={`h-8 text-sm ${!form.tipo ? "text-muted-foreground border-destructive/40" : ""}`}
+                data-testid="select-opa-tipo"
               >
-                <SelectTrigger
-                  className={`h-8 text-sm ${!form.tipo ? "text-muted-foreground border-destructive/40" : ""}`}
-                  data-testid="select-opa-tipo"
-                >
-                  <SelectValue placeholder="Selecionar tipo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tiposOpa.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">País</Label>
-              <Input
-                value={form.pais}
-                onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}
-                placeholder="Brasil"
-                className="h-8 text-sm"
-                data-testid="input-opa-pais"
-              />
-            </div>
+                <SelectValue placeholder="Selecionar tipo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tiposOpa.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">

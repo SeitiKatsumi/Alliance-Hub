@@ -1139,11 +1139,22 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       let nome = [directusUser.first_name, directusUser.last_name].filter(Boolean).join(" ") || email;
 
       try {
-        const membros = await directusFetch("cadastro_geral", `filter[email][_eq]=${encodeURIComponent(email)}&fields=id,Nome_de_usuario,nome,primeiro_nome,sobrenome`);
-        if (membros.length > 0) {
-          membroId = membros[0].id;
-          const m = membros[0];
-          nome = m.Nome_de_usuario || [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") || m.nome || nome;
+        const qs = new URLSearchParams({
+          "filter[email][_eq]": email,
+          "fields": "id,Nome_de_usuario,nome,primeiro_nome,sobrenome",
+          "limit": "1",
+        });
+        const cadastroRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?${qs.toString()}`, {
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+        });
+        if (cadastroRes.ok) {
+          const cadastroData = await cadastroRes.json();
+          const membros = cadastroData.data || [];
+          if (membros.length > 0) {
+            membroId = membros[0].id;
+            const m = membros[0];
+            nome = m.Nome_de_usuario || [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") || m.nome || nome;
+          }
         }
       } catch { /* ignore lookup failure */ }
 

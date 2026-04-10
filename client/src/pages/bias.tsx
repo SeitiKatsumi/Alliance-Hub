@@ -1267,7 +1267,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
 
         {/* Descrição */}
         {bia.observacoes && (
-          <p className="text-xs text-muted-foreground line-clamp-2 flex items-start gap-1">
+          <p className="text-xs text-muted-foreground line-clamp-1 flex items-start gap-1">
             <FileText className="w-3 h-3 shrink-0 mt-0.5" />{bia.observacoes}
           </p>
         )}

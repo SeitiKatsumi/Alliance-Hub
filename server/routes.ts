@@ -920,6 +920,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/oportunidades/tipos", async (req, res) => {
+    try {
+      const r = await fetch(`${DIRECTUS_URL}/fields/tipos_oportunidades/tipo`, {
+        headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` },
+      });
+      const d = await r.json();
+      const choices: { text: string; value: string }[] = d?.data?.meta?.options?.choices || [];
+      res.json(choices);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/oportunidades/:id", async (req, res) => {
     try {
       const item = await directusUpdate("tipos_oportunidades", req.params.id, req.body);

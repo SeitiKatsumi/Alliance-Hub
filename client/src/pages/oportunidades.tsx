@@ -270,6 +270,8 @@ const EMPTY_OPA = {
   perfil_aliado: "",
 };
 
+interface TipoOpa { text: string; value: string; }
+
 function OpaFormDialog({
   open, onClose, opa, bias
 }: {
@@ -280,6 +282,11 @@ function OpaFormDialog({
 }) {
   const { toast } = useToast();
   const [form, setForm] = useState({ ...EMPTY_OPA });
+
+  const { data: tiposOpa = [] } = useQuery<TipoOpa[]>({
+    queryKey: ["/api/oportunidades/tipos"],
+    staleTime: 1000 * 60 * 10,
+  });
 
   useMemo(() => {
     if (opa) {
@@ -356,13 +363,20 @@ function OpaFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Tipo</Label>
-              <Input
-                value={form.tipo}
-                onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
-                placeholder="Ex: Imobiliária"
-                className="h-8 text-sm"
-                data-testid="input-opa-tipo"
-              />
+              <Select
+                value={form.tipo || "__none__"}
+                onValueChange={v => setForm(f => ({ ...f, tipo: v === "__none__" ? "" : v }))}
+              >
+                <SelectTrigger className="h-8 text-sm" data-testid="select-opa-tipo">
+                  <SelectValue placeholder="Selecionar tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Sem tipo —</SelectItem>
+                  {tiposOpa.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">País</Label>

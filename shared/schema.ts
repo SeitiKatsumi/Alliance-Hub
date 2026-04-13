@@ -266,3 +266,26 @@ export const insertAliancaDocSchema = createInsertSchema(aliancaDocs).omit({
 export type InsertAliancaDoc = z.infer<typeof insertAliancaDocSchema>;
 export type AliancaDoc = typeof aliancaDocs.$inferSelect;
 
+export const transferenciasCotas = pgTable("transferencias_cotas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: varchar("bia_id").notNull(),
+  membro_origem_id: varchar("membro_origem_id").notNull(),
+  membro_destino_id: varchar("membro_destino_id").notNull(),
+  valor_total: numeric("valor_total"),
+  status: text("status").notNull().default("pendente"),
+  solicitado_por: varchar("solicitado_por"),
+  observacoes: text("observacoes"),
+  motivo_rejeicao: text("motivo_rejeicao"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  atualizado_em: timestamp("atualizado_em").defaultNow(),
+});
+
+export const insertTransferenciaCotasSchema = createInsertSchema(transferenciasCotas).omit({
+  id: true,
+  criado_em: true,
+  atualizado_em: true,
+});
+
+export type InsertTransferenciaCotas = z.infer<typeof insertTransferenciaCotasSchema>;
+export type TransferenciaCotas = typeof transferenciasCotas.$inferSelect;
+

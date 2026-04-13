@@ -134,6 +134,12 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 - All monetary displays in `bias.tsx`, `bia-detalhe.tsx`, and `resultados.tsx` use `formatMoney(value, bia.moeda || "BRL")`
 - Aggregate totals (cross-BIA) remain formatted in BRL
 
+## Transferência de Cotas (Mapa de Alocação Patrimonial)
+- Table `transferencias_cotas` in local PostgreSQL: id, bia_id, membro_origem_id, membro_destino_id, valor_total, status (pendente/aceita/rejeitada), solicitado_por, observacoes, motivo_rejeicao, criado_em, atualizado_em
+- API: `GET /api/transferencia-cotas?bia_id=X`, `POST /api/transferencia-cotas`, `PATCH /api/transferencia-cotas/:id` (action: aceitar/rejeitar)
+- On accept: updates all Directus fluxo_caixa entries with `tipo=entrada` and `favorecido_id=membro_origem_id` for the BIA to use `favorecido_id=membro_destino_id`
+- UI in `fluxo-caixa.tsx`: each mapa row has "Transferir" button → Dialog with destino select + observações; below mapa shows "Solicitações de Transferência" panel with approve/reject buttons for the source member (`currentUser?.membro_directus_id === membro_origem_id`) or admin
+
 ## Technical Notes
 - `apiRequest` signature: `(method, url, data?)` — NOT fetch-style
 - Field `diretor_execucao` (not `diretor_obra`) is used in bias_projetos

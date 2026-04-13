@@ -1504,5 +1504,93 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // ========== TRANSFERÊNCIA DE COTAS ==========
+  app.get("/api/transferencia-cotas", async (req, res) => {
+    try {
+      const biaId = req.query.bia_id as string;
+      if (!biaId) return res.status(400).json({ error: "bia_id é obrigatório" });
+      const items = await storage.getTransferenciasCotasByBia(biaId);
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/transferencia-cotas", async (req, res) => {
+    try {
+      const { bia_id, membro_origem_id, membro_destino_id, valor_total, observacoes } = req.body;
+      if (!bia_id || !membro_origem_id || !membro_destino_id) {
+        return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
+      }
+      const item = await storage.createTransferenciaCotas({
+        bia_id,
+        membro_origem_id,
+        membro_destino_id,
+        valor_total: valor_total != null ? String(valor_total) : null,
+        status: "pendente",
+        solicitado_por: (req.session as any).userId || null,
+        observacoes: observacoes || null,
+        motivo_rejeicao: null,
+      });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/transferencia-cotas/:id", async (req, res) => {
+    try {
+      const { action, motivo_rejeicao } = req.body;
+      if (!action || !["aceitar", "rejeitar"].includes(action)) {
+        return res.status(400).json({ error: "action deve ser 'aceitar' ou 'rejeitar'" });
+      }
+
+      const transfer = await storage.getTransferenciaCotas(req.params.id);
+      if (!transfer) return res.status(404).json({ error: "Solicitação não encontrada" });
+      if (transfer.status !== "pendente") {
+        return res.status(400).json({ error: "Solicitação já foi processada" });
+      }
+
+      if (action === "rejeitar") {
+        const updated = await storage.updateTransferenciaCotas(req.params.id, {
+          status: "rejeitada",
+          motivo_rejeicao: motivo_rejeicao || null,
+        });
+        return res.json(updated);
+      }
+
+      // action === "aceitar": update all Directus fluxo_caixa entradas for this BIA from origem to destino
+      const filterParams = [
+        `filter[bia][_eq]=${transfer.bia_id}`,
+        `filter[tipo][_eq]=entrada`,
+        `filter[favorecido_id][_eq]=${transfer.membro_origem_id}`,
+        `fields=id`,
+      ].join("&");
+      const url = `${DIRECTUS_URL}/items/fluxo_caixa?${filterParams}`;
+      const fetchRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (!fetchRes.ok) {
+        const text = await fetchRes.text();
+        throw new Error(`Directus fetch error ${fetchRes.status}: ${text}`);
+      }
+      const fetchJson = await fetchRes.json();
+      const entradas: { id: string }[] = fetchJson.data || [];
+
+      for (const entrada of entradas) {
+        await directusUpdate("fluxo_caixa", entrada.id, {
+          favorecido_id: transfer.membro_destino_id,
+        });
+      }
+
+      const updated = await storage.updateTransferenciaCotas(req.params.id, {
+        status: "aceita",
+      });
+      res.json({ ...updated, transferidos: entradas.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

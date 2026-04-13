@@ -53,7 +53,11 @@ import {
   CalendarClock,
   CalendarCheck,
   Receipt,
-  BadgePercent
+  BadgePercent,
+  ArrowLeftRight,
+  SendHorizontal,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -61,6 +65,19 @@ interface BiasProjeto {
   nome_bia: string;
   objetivo_alianca?: string;
   valor_origem?: string | number | null;
+}
+
+interface TransferenciaCotas {
+  id: string;
+  bia_id: string;
+  membro_origem_id: string;
+  membro_destino_id: string;
+  valor_total: string | null;
+  status: "pendente" | "aceita" | "rejeitada";
+  solicitado_por: string | null;
+  observacoes: string | null;
+  motivo_rejeicao: string | null;
+  criado_em: string;
 }
 
 interface Membro {
@@ -918,6 +935,15 @@ export default function FluxoCaixaPage() {
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  // Transferência de cotas state
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferOrigemId, setTransferOrigemId] = useState<string>("");
+  const [transferDestinoId, setTransferDestinoId] = useState<string>("");
+  const [transferObservacoes, setTransferObservacoes] = useState<string>("");
+  const [transferValorRef, setTransferValorRef] = useState<number>(0);
+  const [rejeicaoDialogId, setRejeicaoDialogId] = useState<string | null>(null);
+  const [rejeicaoMotivo, setRejeicaoMotivo] = useState<string>("");
+
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [filterCategoria, setFilterCategoria] = useState<string>("todos");
   const [filterMembro, setFilterMembro] = useState<string>("todos");
@@ -960,6 +986,63 @@ export default function FluxoCaixaPage() {
 
   const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
     queryKey: ["/api/fluxo-caixa"],
+  });
+
+  const { data: transferencias = [] } = useQuery<TransferenciaCotas[]>({
+    queryKey: ["/api/transferencia-cotas", selectedBiaId],
+    queryFn: async () => {
+      if (!selectedBiaId) return [];
+      const res = await fetch(`/api/transferencia-cotas?bia_id=${selectedBiaId}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedBiaId,
+  });
+
+  const createTransferMutation = useMutation({
+    mutationFn: async () => {
+      if (!transferDestinoId || !transferOrigemId) throw new Error("Preencha todos os campos");
+      return apiRequest("POST", "/api/transferencia-cotas", {
+        bia_id: selectedBiaId,
+        membro_origem_id: transferOrigemId,
+        membro_destino_id: transferDestinoId,
+        valor_total: transferValorRef,
+        observacoes: transferObservacoes || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
+      setTransferDialogOpen(false);
+      setTransferDestinoId("");
+      setTransferObservacoes("");
+      toast({ title: "Solicitação enviada", description: "Aguardando aprovação do membro de origem ou administrador." });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const aceitarTransferMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("PATCH", `/api/transferencia-cotas/${id}`, { action: "aceitar" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      toast({ title: "Transferência aceita!", description: "As cotas foram transferidas com sucesso." });
+    },
+    onError: (e: any) => toast({ title: "Erro ao aceitar", description: e.message, variant: "destructive" }),
+  });
+
+  const rejeitarTransferMutation = useMutation({
+    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
+      return apiRequest("PATCH", `/api/transferencia-cotas/${id}`, { action: "rejeitar", motivo_rejeicao: motivo || null });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
+      setRejeicaoDialogId(null);
+      setRejeicaoMotivo("");
+      toast({ title: "Solicitação rejeitada" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao rejeitar", description: e.message, variant: "destructive" }),
   });
 
   const MARCA_VALOR_ORIGEM = "Valor de Origem da BIA";
@@ -1608,6 +1691,23 @@ export default function FluxoCaixaPage() {
                           <Badge variant="outline" className="border-brand-gold/50 text-brand-gold bg-brand-gold/10 min-w-[60px] justify-center" data-testid={`text-perc-membro-${item.membroId}`}>
                             {item.percentual.toFixed(1)}%
                           </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-muted-foreground hover:text-brand-navy hover:bg-brand-gold/10"
+                            title="Solicitar transferência de cotas"
+                            data-testid={`btn-transfer-membro-${item.membroId}`}
+                            onClick={() => {
+                              setTransferOrigemId(item.membroId);
+                              setTransferValorRef(item.valor);
+                              setTransferDestinoId("");
+                              setTransferObservacoes("");
+                              setTransferDialogOpen(true);
+                            }}
+                          >
+                            <ArrowLeftRight className="w-3.5 h-3.5 mr-1" />
+                            Transferir
+                          </Button>
                         </span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
@@ -1619,6 +1719,185 @@ export default function FluxoCaixaPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dialog de solicitação de transferência */}
+          <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
+                  Solicitar Transferência de Cotas
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Membro de Origem</Label>
+                  <p className="text-sm font-medium">{membroMap[transferOrigemId] || transferOrigemId}</p>
+                  <p className="text-xs text-muted-foreground">Total: {formatBRL(transferValorRef)} ({aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual.toFixed(1)}%)</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="transfer-destino" className="text-xs font-medium">Membro de Destino *</Label>
+                  <Select value={transferDestinoId} onValueChange={setTransferDestinoId}>
+                    <SelectTrigger data-testid="select-transfer-destino">
+                      <SelectValue placeholder="Selecione o membro de destino..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {membros
+                        .filter((m) => m.id !== transferOrigemId)
+                        .map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {getMembroNome(m)}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="transfer-obs" className="text-xs font-medium">Observações (opcional)</Label>
+                  <Input
+                    id="transfer-obs"
+                    value={transferObservacoes}
+                    onChange={(e) => setTransferObservacoes(e.target.value)}
+                    placeholder="Motivo da transferência..."
+                    data-testid="input-transfer-obs"
+                  />
+                </div>
+                <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
+                  A transferência moverá <strong>todas</strong> as cotas do membro de origem para o destino nesta BIA. Será necessária a aprovação do próprio membro de origem ou de um administrador.
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline" size="sm">Cancelar</Button>
+                </DialogClose>
+                <Button
+                  size="sm"
+                  className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+                  disabled={!transferDestinoId || createTransferMutation.isPending}
+                  onClick={() => createTransferMutation.mutate()}
+                  data-testid="btn-submit-transfer"
+                >
+                  <SendHorizontal className="w-4 h-4 mr-1.5" />
+                  {createTransferMutation.isPending ? "Enviando..." : "Solicitar Transferência"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog de rejeição com motivo */}
+          <AlertDialog open={!!rejeicaoDialogId} onOpenChange={(open) => { if (!open) { setRejeicaoDialogId(null); setRejeicaoMotivo(""); } }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Rejeitar Transferência</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Informe o motivo da rejeição (opcional) e confirme.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <Input
+                value={rejeicaoMotivo}
+                onChange={(e) => setRejeicaoMotivo(e.target.value)}
+                placeholder="Motivo da rejeição..."
+                className="my-2"
+                data-testid="input-rejeicao-motivo"
+              />
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => {
+                    if (rejeicaoDialogId) {
+                      rejeitarTransferMutation.mutate({ id: rejeicaoDialogId, motivo: rejeicaoMotivo });
+                    }
+                  }}
+                  data-testid="btn-confirm-rejeitar"
+                >
+                  Confirmar Rejeição
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Painel de Solicitações de Transferência de Cotas */}
+          {selectedBiaId && transferencias.length > 0 && (
+            <Card data-testid="panel-transferencias">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
+                  Solicitações de Transferência de Cotas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {transferencias.map((t) => {
+                    const canApprove =
+                      currentUser?.membro_directus_id === t.membro_origem_id ||
+                      currentUser?.role === "admin";
+                    const statusConfig =
+                      t.status === "aceita"
+                        ? { label: "Aceita", cls: "text-green-600 bg-green-500/10 border-green-500/40" }
+                        : t.status === "rejeitada"
+                        ? { label: "Rejeitada", cls: "text-red-600 bg-red-500/10 border-red-500/40" }
+                        : { label: "Pendente", cls: "text-amber-600 bg-amber-500/10 border-amber-500/40" };
+                    return (
+                      <div key={t.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg border bg-muted/30" data-testid={`transfer-item-${t.id}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{membroMap[t.membro_origem_id] || t.membro_origem_id}</span>
+                            <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{membroMap[t.membro_destino_id] || t.membro_destino_id}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {t.valor_total && (
+                              <span className="text-xs text-muted-foreground">{formatBRL(parseFloat(t.valor_total))}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(t.criado_em).toLocaleDateString("pt-BR")}
+                            </span>
+                            {t.observacoes && (
+                              <span className="text-xs text-muted-foreground italic truncate max-w-[120px]" title={t.observacoes}>"{t.observacoes}"</span>
+                            )}
+                          </div>
+                          {t.status === "rejeitada" && t.motivo_rejeicao && (
+                            <p className="text-xs text-red-500 mt-0.5">Motivo: {t.motivo_rejeicao}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className={`text-xs ${statusConfig.cls}`}>{statusConfig.label}</Badge>
+                          {t.status === "pendente" && canApprove && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs text-green-600 border-green-500/50 hover:bg-green-500/10"
+                                disabled={aceitarTransferMutation.isPending}
+                                onClick={() => aceitarTransferMutation.mutate(t.id)}
+                                data-testid={`btn-aceitar-${t.id}`}
+                              >
+                                <ThumbsUp className="w-3.5 h-3.5 mr-1" />
+                                Aceitar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs text-red-600 border-red-500/50 hover:bg-red-500/10"
+                                disabled={rejeitarTransferMutation.isPending}
+                                onClick={() => { setRejeicaoDialogId(t.id); setRejeicaoMotivo(""); }}
+                                data-testid={`btn-rejeitar-${t.id}`}
+                              >
+                                <ThumbsDown className="w-3.5 h-3.5 mr-1" />
+                                Rejeitar
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

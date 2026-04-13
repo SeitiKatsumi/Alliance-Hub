@@ -7,8 +7,9 @@ import {
   tiposCpp, type TipoCpp, type InsertTipoCpp,
   categorias, type Categoria, type InsertCategoria,
   oportunidades, type Oportunidade, type InsertOportunidade,
+  transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -63,6 +64,10 @@ export interface IStorage {
   createOportunidade(data: InsertOportunidade): Promise<Oportunidade>;
   updateOportunidade(id: string, data: Partial<InsertOportunidade>): Promise<Oportunidade | undefined>;
 
+  createTransferenciaCotas(data: InsertTransferenciaCotas): Promise<TransferenciaCotas>;
+  getTransferenciaCotas(id: string): Promise<TransferenciaCotas | undefined>;
+  getTransferenciasCotasByBia(biaId: string): Promise<TransferenciaCotas[]>;
+  updateTransferenciaCotas(id: string, data: Partial<TransferenciaCotas>): Promise<TransferenciaCotas | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -253,6 +258,32 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
+  async createTransferenciaCotas(data: InsertTransferenciaCotas): Promise<TransferenciaCotas> {
+    const [item] = await db.insert(transferenciasCotas).values(data).returning();
+    return item;
+  }
+
+  async getTransferenciaCotas(id: string): Promise<TransferenciaCotas | undefined> {
+    const [item] = await db.select().from(transferenciasCotas).where(eq(transferenciasCotas.id, id));
+    return item;
+  }
+
+  async getTransferenciasCotasByBia(biaId: string): Promise<TransferenciaCotas[]> {
+    return db
+      .select()
+      .from(transferenciasCotas)
+      .where(eq(transferenciasCotas.bia_id, biaId))
+      .orderBy(desc(transferenciasCotas.criado_em));
+  }
+
+  async updateTransferenciaCotas(id: string, data: Partial<TransferenciaCotas>): Promise<TransferenciaCotas | undefined> {
+    const [item] = await db
+      .update(transferenciasCotas)
+      .set({ ...data, atualizado_em: new Date() })
+      .where(eq(transferenciasCotas.id, id))
+      .returning();
+    return item;
+  }
 }
 
 export const storage = new DatabaseStorage();

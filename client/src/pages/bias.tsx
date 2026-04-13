@@ -1381,7 +1381,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const valorRealizado = parseBRLToNumber(form.valor_realizado_venda);
   const valorOrigem = parseBRLToNumber(form.valor_origem);
 
-  const percTotal = ["perc_autor_opa","perc_aliado_built","perc_built","perc_dir_tecnico",
+  const percTotal = ["perc_aliado_built","perc_built","perc_dir_tecnico",
     "perc_dir_obras","perc_dir_comercial","perc_dir_capital"].reduce(
     (s, k) => s + (parseFloat(form[k as keyof FormState] as string) || 0), 0
   );
@@ -1416,7 +1416,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         diretor_comercial: form.diretor_comercial || null,
         diretor_capital: form.diretor_capital || null,
         valor_origem: form.valor_origem ? parseBRLToNumber(form.valor_origem) : null,
-        perc_autor_opa: form.perc_autor_opa || null,
         perc_aliado_built: form.perc_aliado_built || null,
         perc_built: form.perc_built || null,
         perc_dir_tecnico: form.perc_dir_tecnico || null,
@@ -1699,7 +1698,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais CPP (% sobre Valor de Origem)</p>
               <div className="grid grid-cols-1 gap-3">
-                <PercField label="Autor da OPA" field="perc_autor_opa" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="BUILT" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor Técnico" field="perc_dir_tecnico" form={form} setForm={setForm} baseValue={valorOrigem} />

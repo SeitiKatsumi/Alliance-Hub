@@ -230,9 +230,9 @@ export default function ResultadosPage() {
   // Resultado usando deduções realizadas
   const receitaLiquida = valorRealizado - totalDeducoesReal;
   const resultadoLiquido = receitaLiquida - custoCPP;
-  const lucroPct = valorRealizado > 0 ? (resultadoLiquido / valorRealizado) * 100 : 0;
-  const roi = totalAportesPagos > 0 ? (resultadoLiquido / totalAportesPagos) * 100 : 0;
-  const multiplo = totalAportesPagos > 0 ? valorRealizado / totalAportesPagos : 0;
+  const lucroValor = resultadoLiquido - totalSaidasPagas;
+  const roi = totalSaidasPagas > 0 ? ((resultadoLiquido - totalSaidasPagas) / totalSaidasPagas) * 100 : 0;
+  const multiplo = totalSaidasPagas > 0 ? resultadoLiquido / totalSaidasPagas : 0;
   const percVGV = vgv > 0 ? (valorRealizado / vgv) * 100 : 0;
   const caixaLiquidoReal = totalAportesPagos - totalSaidasPagas;
 
@@ -296,18 +296,18 @@ export default function ResultadosPage() {
               highlight
             />
             <MetricCard
-              label="Lucro Previsto"
-              value={pct(lucroPct)}
-              sub="sobre valor realizado"
+              label="Lucro"
+              value={formatMoney(lucroValor, bia?.moeda || "BRL")}
+              sub="resultado líquido − saídas"
               icon={Percent}
-              color={lucroPct >= 0 ? "text-brand-gold" : "text-red-600"}
+              color={lucroValor >= 0 ? "text-brand-gold" : "text-red-600"}
               border="border-brand-gold/30"
               highlight
             />
             <MetricCard
               label="ROI"
               value={pct(roi)}
-              sub="sobre aportes pagos"
+              sub="(resultado líquido − saídas) / saídas"
               icon={Target}
               color={roi >= 0 ? "text-blue-600" : "text-red-600"}
               border="border-blue-500/30"
@@ -315,7 +315,7 @@ export default function ResultadosPage() {
             <MetricCard
               label="Múltiplo do Capital"
               value={`${multiplo.toFixed(2)}x`}
-              sub="valor realizado / aportes"
+              sub="resultado líquido / saídas"
               icon={Layers}
               color={multiplo >= 1 ? "text-green-600" : "text-red-600"}
               border="border-green-500/30"
@@ -533,8 +533,8 @@ export default function ResultadosPage() {
                 <Separator className="my-1" />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3">
                   <div className="text-center p-3 rounded-lg bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Lucro %</p>
-                    <p className={`text-lg font-bold ${colorClass(lucroPct)}`}>{pct(lucroPct, 1)}</p>
+                    <p className="text-xs text-muted-foreground mb-1">Lucro</p>
+                    <p className={`text-lg font-bold ${colorClass(lucroValor)}`}>{formatMoney(lucroValor, bia?.moeda || "BRL")}</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">ROI</p>

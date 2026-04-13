@@ -1139,24 +1139,46 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       let nome = [directusUser.first_name, directusUser.last_name].filter(Boolean).join(" ") || email;
 
       try {
-        const qs = new URLSearchParams({
-          "filter[email][_eq]": email,
-          "fields": "id,Nome_de_usuario,nome,primeiro_nome,sobrenome",
-          "limit": "1",
-        });
-        const cadastroRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?${qs.toString()}`, {
+        const qs = new URLSearchParams();
+        qs.set("filter[email][_eq]", email);
+        qs.set("fields", "id,Nome_de_usuario,nome,primeiro_nome,sobrenome,email");
+        qs.set("limit", "1");
+        const lookupUrl = `${DIRECTUS_URL}/items/cadastro_geral?${qs.toString()}`;
+        console.log("[login] cadastro_geral lookup:", lookupUrl);
+        const cadastroRes = await fetch(lookupUrl, {
           headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
         });
+        const cadastroText = await cadastroRes.text();
+        console.log("[login] cadastro_geral status:", cadastroRes.status, "body:", cadastroText.slice(0, 300));
         if (cadastroRes.ok) {
-          const cadastroData = await cadastroRes.json();
+          const cadastroData = JSON.parse(cadastroText);
           const membros = cadastroData.data || [];
           if (membros.length > 0) {
             membroId = membros[0].id;
             const m = membros[0];
             nome = m.Nome_de_usuario || [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") || m.nome || nome;
+          } else {
+            // Fallback: fetch all and find by email match (case-insensitive)
+            console.log("[login] no direct match, trying full scan fallback");
+            const allRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?fields=id,email,Nome_de_usuario,nome,primeiro_nome,sobrenome&limit=200`, {
+              headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+            });
+            if (allRes.ok) {
+              const allData = await allRes.json();
+              const match = (allData.data || []).find((m: any) =>
+                m.email && m.email.toLowerCase() === email.toLowerCase()
+              );
+              if (match) {
+                membroId = match.id;
+                nome = match.Nome_de_usuario || [match.primeiro_nome, match.sobrenome].filter(Boolean).join(" ") || match.nome || nome;
+                console.log("[login] fallback found member:", membroId, nome);
+              }
+            }
           }
         }
-      } catch { /* ignore lookup failure */ }
+      } catch (err: any) {
+        console.error("[login] cadastro_geral lookup error:", err.message);
+      }
 
       // Store session
       (req.session as any).directusUserId = directusUser.id;

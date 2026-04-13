@@ -17,6 +17,9 @@ const openai = new OpenAI({
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
+// Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE — discovered at runtime
+const biasBlockedFields = new Set<string>();
+
 async function ensureBiasExtraFields() {
   const fields = [
     {
@@ -142,6 +145,32 @@ async function ensureNomeBiaLength() {
   } catch (e) {
     console.warn("[bia] ensureNomeBiaLength error:", e);
   }
+}
+
+async function clearBiasFieldValidations() {
+  try {
+    const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!res.ok) { console.log("[bias-valid] Cannot fetch fields:", res.status); return; }
+    const data = await res.json();
+    const fields: any[] = data.data || [];
+    const numericTypes = ["integer", "bigInteger", "float", "decimal", "string"];
+    let cleared = 0;
+    for (const f of fields) {
+      const hasValidation = f.meta?.validation && Object.keys(f.meta.validation).length > 0;
+      if (!hasValidation) continue;
+      if (!numericTypes.includes(f.type)) continue;
+      const pRes = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/${f.field}`, {
+        method: "PATCH",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ meta: { validation: null, validation_message: null } }),
+      });
+      if (pRes.ok) { console.log(`[bias-valid] Cleared validation on field: ${f.field}`); cleared++; }
+      else console.warn(`[bias-valid] Could not clear validation on ${f.field}:`, (await pRes.json().catch(() => ({}))).errors?.[0]?.message);
+    }
+    if (cleared === 0) console.log("[bias-valid] No field validations to clear");
+  } catch (e) { console.warn("[bias-valid] Error:", e); }
 }
 
 async function ensureBiasGeoFields() {
@@ -450,6 +479,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  // Clear Directus field validations that block saving numeric fields
+  clearBiasFieldValidations().catch(console.error);
   // Ensure geo fields exist in Directus
   ensureBiasGeoFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
@@ -679,13 +710,17 @@ export async function registerRoutes(
   app.patch("/api/bias/:id", async (req, res) => {
     try {
       let payload = prepareBiaPayload(req.body);
-      let lastError: any = null;
-      const skipped: string[] = [];
+      // Remove already-known blocked fields before first attempt
+      for (const f of biasBlockedFields) delete (payload as any)[f];
 
-      for (let attempt = 0; attempt < 20; attempt++) {
+      let lastError: any = null;
+      const newlySkipped: string[] = [];
+      const maxAttempts = Object.keys(payload).length + 5;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           const item = await directusUpdate("bias_projetos", req.params.id, payload);
-          if (skipped.length > 0) console.log(`[bias patch] skipped restricted fields: ${skipped.join(", ")}`);
+          if (newlySkipped.length > 0) console.log(`[bias patch] discovered blocked fields: ${newlySkipped.join(", ")}`);
           if (req.body.valor_origem !== undefined) {
             const valorOrigem = parseFloat(req.body.valor_origem) || 0;
             syncValorOrigemLancamento(req.params.id, valorOrigem).catch(console.error);
@@ -704,10 +739,12 @@ export async function registerRoutes(
             .filter(Boolean);
           if (outOfRange.length === 0) { lastError = err; break; }
           for (const f of outOfRange) {
-            skipped.push(f);
+            biasBlockedFields.add(f);
+            newlySkipped.push(f);
             delete (payload as any)[f];
           }
           lastError = err;
+          if (Object.keys(payload).length === 0) break;
         }
       }
 

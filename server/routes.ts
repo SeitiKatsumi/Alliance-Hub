@@ -1141,7 +1141,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       try {
         const qs = new URLSearchParams();
         qs.set("filter[email][_eq]", email);
-        qs.set("fields", "id,Nome_de_usuario,nome,primeiro_nome,sobrenome,email");
+        qs.set("fields", "id,Nome_de_usuario,nome,email");
         qs.set("limit", "1");
         const lookupUrl = `${DIRECTUS_URL}/items/cadastro_geral?${qs.toString()}`;
         console.log("[login] cadastro_geral lookup:", lookupUrl);
@@ -1156,11 +1156,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           if (membros.length > 0) {
             membroId = membros[0].id;
             const m = membros[0];
-            nome = m.Nome_de_usuario || [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") || m.nome || nome;
+            nome = m.Nome_de_usuario || m.nome || nome;
           } else {
             // Fallback: fetch all and find by email match (case-insensitive)
             console.log("[login] no direct match, trying full scan fallback");
-            const allRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?fields=id,email,Nome_de_usuario,nome,primeiro_nome,sobrenome&limit=200`, {
+            const allRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?fields=id,email,Nome_de_usuario,nome&limit=200`, {
               headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
             });
             if (allRes.ok) {
@@ -1170,7 +1170,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
               );
               if (match) {
                 membroId = match.id;
-                nome = match.Nome_de_usuario || [match.primeiro_nome, match.sobrenome].filter(Boolean).join(" ") || match.nome || nome;
+                nome = match.Nome_de_usuario || match.nome || nome;
                 console.log("[login] fallback found member:", membroId, nome);
               }
             }

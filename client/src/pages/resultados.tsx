@@ -298,7 +298,6 @@ export default function ResultadosPage() {
             <MetricCard
               label="Lucro"
               value={formatMoney(lucroValor, bia?.moeda || "BRL")}
-              sub="resultado líquido − saídas"
               icon={Percent}
               color={lucroValor >= 0 ? "text-brand-gold" : "text-red-600"}
               border="border-brand-gold/30"
@@ -307,7 +306,6 @@ export default function ResultadosPage() {
             <MetricCard
               label="ROI"
               value={pct(roi)}
-              sub="(resultado líquido − saídas) / saídas"
               icon={Target}
               color={roi >= 0 ? "text-blue-600" : "text-red-600"}
               border="border-blue-500/30"
@@ -315,7 +313,6 @@ export default function ResultadosPage() {
             <MetricCard
               label="Múltiplo do Capital"
               value={`${multiplo.toFixed(2)}x`}
-              sub="resultado líquido / saídas"
               icon={Layers}
               color={multiplo >= 1 ? "text-green-600" : "text-red-600"}
               border="border-green-500/30"

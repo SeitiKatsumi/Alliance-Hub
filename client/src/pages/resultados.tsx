@@ -54,6 +54,20 @@ function n(v?: string | number | null): number {
   return parseFloat(String(v)) || 0;
 }
 
+function formatInputBRL(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const cents = parseInt(digits, 10);
+  const reais = cents / 100;
+  return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseBRLToNumber(formatted: string): number {
+  if (!formatted) return 0;
+  const cleaned = formatted.replace(/\./g, "").replace(",", ".");
+  return parseFloat(cleaned) || 0;
+}
+
 function brl(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
@@ -115,9 +129,9 @@ export default function ResultadosPage() {
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
   const { toast } = useToast();
 
-  // Receita editável
-  const [vgvEdit, setVgvEdit] = useState(0);
-  const [valorRealizadoEdit, setValorRealizadoEdit] = useState(0);
+  // Receita editável (string BRL formatada)
+  const [vgvEdit, setVgvEdit] = useState("");
+  const [valorRealizadoEdit, setValorRealizadoEdit] = useState("");
 
   // Realized percentage states
   const [comissaoRealPct, setComissaoRealPct] = useState(0);
@@ -150,8 +164,10 @@ export default function ResultadosPage() {
   // Load editable values when BIA changes
   useEffect(() => {
     if (bia) {
-      setVgvEdit(n(bia.valor_geral_venda_vgv));
-      setValorRealizadoEdit(n(bia.valor_realizado_venda));
+      const vgvNum = n(bia.valor_geral_venda_vgv);
+      const vrNum = n(bia.valor_realizado_venda);
+      setVgvEdit(vgvNum > 0 ? formatInputBRL(String(Math.round(vgvNum * 100))) : "");
+      setValorRealizadoEdit(vrNum > 0 ? formatInputBRL(String(Math.round(vrNum * 100))) : "");
       setComissaoRealPct(n(bia.comissao_realizada));
       setIrRealPct(n(bia.ir_realizado));
       setInssRealPct(n(bia.inss_realizado));
@@ -169,8 +185,8 @@ export default function ResultadosPage() {
     mutationFn: async () => {
       if (!selectedBiaId) throw new Error("Selecione uma BIA");
       await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
-        valor_geral_venda_vgv: vgvEdit,
-        valor_realizado_venda: valorRealizadoEdit,
+        valor_geral_venda_vgv: parseBRLToNumber(vgvEdit),
+        valor_realizado_venda: parseBRLToNumber(valorRealizadoEdit),
         comissao_realizada: comissaoRealPct,
         ir_realizado: irRealPct,
         inss_realizado: inssRealPct,
@@ -201,8 +217,8 @@ export default function ResultadosPage() {
   }, [fluxoRaw, selectedBiaId]);
 
   // ---- Cálculos ----
-  const vgv                 = vgvEdit;
-  const valorRealizado      = valorRealizadoEdit;
+  const vgv                 = parseBRLToNumber(vgvEdit);
+  const valorRealizado      = parseBRLToNumber(valorRealizadoEdit);
   const custoCPP            = n(bia?.custo_final_previsto);
   const custoOrigem         = n(bia?.custo_origem_bia);
   const valorOrigem         = n(bia?.valor_origem);
@@ -405,11 +421,10 @@ export default function ResultadosPage() {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                     <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={vgvEdit || ""}
-                      onChange={(e) => setVgvEdit(parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="numeric"
+                      value={vgvEdit}
+                      onChange={(e) => setVgvEdit(formatInputBRL(e.target.value))}
                       className="h-8 text-sm pl-8 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
                       placeholder="0,00"
                       data-testid="input-vgv"
@@ -425,11 +440,10 @@ export default function ResultadosPage() {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                     <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={valorRealizadoEdit || ""}
-                      onChange={(e) => setValorRealizadoEdit(parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="numeric"
+                      value={valorRealizadoEdit}
+                      onChange={(e) => setValorRealizadoEdit(formatInputBRL(e.target.value))}
                       className="h-8 text-sm pl-8 text-green-600 font-semibold border-green-500/30 focus-visible:ring-green-500/30"
                       placeholder="0,00"
                       data-testid="input-valor-realizado"

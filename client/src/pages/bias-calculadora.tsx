@@ -404,14 +404,6 @@ export default function BiasCalculadoraPage() {
         lucro_previsto: lucroPrevisto.toFixed(2),
         total_aportes: totalAportes.toFixed(2),
         inicio_aportes: inicioAportes || null,
-        // Member assignments
-        autor_bia: membroAutorOpa || null,
-        aliado_built: membroAliadoBuilt || null,
-        diretor_alianca: membroDirTecnico || null,
-        diretor_nucleo_tecnico: membroDirNucleoTecnico || null,
-        diretor_execucao: membroDirObras || null,
-        diretor_comercial: membroDirComercial || null,
-        diretor_capital: membroDirCapital || null,
       };
       await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, payload);
     },

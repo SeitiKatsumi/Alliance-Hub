@@ -376,7 +376,6 @@ export default function BiasCalculadoraPage() {
       if (!selectedBiaId) throw new Error("Selecione uma BIA");
       const r = (v: number) => parseFloat(v.toFixed(2));
       const payload = {
-        valor_origem: r(valorOrigem),
         divisor_multiplicador: r(divisorMultiplicador),
         perc_aliado_built: r(percAliado),
         perc_built: r(percBuilt),

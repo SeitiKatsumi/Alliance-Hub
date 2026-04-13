@@ -39,7 +39,7 @@ const config: AliancaDocsPageConfig = {
         { label: "Orçamento baseline + revisões + controle de versões" },
         { label: "Fluxo de caixa (previsto x realizado) + curva de desembolso" },
         { label: "Política de pagamentos (alçadas, aprovadores, evidências)" },
-        { label: "Controle de fornecia + entradas + trilha de aprovação" },
+        { label: "Conciliação bancária + extratos + trilha de aprovação" },
         { label: "Relatórios de distribuição (lucro distribuível, comprovantes, recibos)" },
         { label: "Estornos/correções de despesas e receitas" },
         { label: "Outro" },

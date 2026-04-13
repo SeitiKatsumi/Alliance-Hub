@@ -506,18 +506,12 @@ export default function BiasCalculadoraPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={valorOrigem || ""}
-                      onChange={(e) => setValorOrigem(parseFloat(e.target.value) || 0)}
-                      className="pl-10"
-                      placeholder="0,00"
-                      data-testid="input-valor-origem"
-                    />
-                  </div>
+                  <NumInput
+                    label=""
+                    value={valorOrigem}
+                    onChange={setValorOrigem}
+                    testId="input-valor-origem"
+                  />
                   <p className="text-xs text-muted-foreground">Valor base do projeto</p>
                 </div>
               </CardContent>

@@ -1025,7 +1025,7 @@ export default function FluxoCaixaPage() {
       if (pa !== pb) return pa - pb;
       const da = a.data_vencimento || "";
       const db = b.data_vencimento || "";
-      if (da && db) return da < db ? -1 : da > db ? 1 : 0;
+      if (da && db) return db < da ? -1 : db > da ? 1 : 0;
       if (da) return -1;
       if (db) return 1;
       return 0;

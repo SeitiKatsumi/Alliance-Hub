@@ -678,12 +678,40 @@ export async function registerRoutes(
 
   app.patch("/api/bias/:id", async (req, res) => {
     try {
-      const item = await directusUpdate("bias_projetos", req.params.id, prepareBiaPayload(req.body));
-      if (req.body.valor_origem !== undefined) {
-        const valorOrigem = parseFloat(req.body.valor_origem) || 0;
-        syncValorOrigemLancamento(req.params.id, valorOrigem).catch(console.error);
+      let payload = prepareBiaPayload(req.body);
+      let lastError: any = null;
+      const skipped: string[] = [];
+
+      for (let attempt = 0; attempt < 20; attempt++) {
+        try {
+          const item = await directusUpdate("bias_projetos", req.params.id, payload);
+          if (skipped.length > 0) console.log(`[bias patch] skipped restricted fields: ${skipped.join(", ")}`);
+          if (req.body.valor_origem !== undefined) {
+            const valorOrigem = parseFloat(req.body.valor_origem) || 0;
+            syncValorOrigemLancamento(req.params.id, valorOrigem).catch(console.error);
+          }
+          return res.json(item);
+        } catch (err: any) {
+          const msg: string = err.message || "";
+          let parsed: any = null;
+          try {
+            const jsonStr = msg.replace(/^Directus update error \d+: /, "");
+            parsed = JSON.parse(jsonStr);
+          } catch {}
+          const outOfRange: string[] = (parsed?.errors || [])
+            .filter((e: any) => e.extensions?.code === "VALUE_OUT_OF_RANGE")
+            .map((e: any) => e.extensions?.field)
+            .filter(Boolean);
+          if (outOfRange.length === 0) { lastError = err; break; }
+          for (const f of outOfRange) {
+            skipped.push(f);
+            delete (payload as any)[f];
+          }
+          lastError = err;
+        }
       }
-      res.json(item);
+
+      res.status(500).json({ error: lastError?.message || "Unknown error" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

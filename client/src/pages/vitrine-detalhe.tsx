@@ -25,6 +25,7 @@ interface MembroDetalhe {
   whatsapp_e164?: string;
   email?: string;
   site?: string;
+  link_site?: string;
   instagram?: string;
   foto_perfil?: string | null;
   perfil_aliado?: string;
@@ -285,9 +286,10 @@ export default function VitrineDetalhePage() {
               <InfoRow icon={Phone} label="WhatsApp" value={membro.whatsapp || membro.whatsapp_e164} href={wa || undefined} />
               <InfoRow icon={Mail} label="E-mail" value={membro.email} href={membro.email ? `mailto:${membro.email}` : undefined} />
               <InfoRow icon={MapPin} label="Localização" value={localidade || null} />
-              {membro.site && (
-                <InfoRow icon={Globe} label="Site" value={membro.site} href={membro.site.startsWith("http") ? membro.site : `https://${membro.site}`} />
-              )}
+              {(membro.link_site || membro.site) && (() => {
+                const site = membro.link_site || membro.site!;
+                return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ? site : `https://${site}`} />;
+              })()}
               {membro.instagram && (
                 <InfoRow
                   icon={ExternalLink}

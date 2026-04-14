@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2, Plus
+  Save, Loader2, Camera, CheckCircle2, Plus, Globe
 } from "lucide-react";
 
 interface EspecialidadeOption {
@@ -44,6 +44,7 @@ interface Membro {
   na_vitrine?: boolean;
   em_membros_built?: boolean;
   em_built_capital?: boolean;
+  link_site?: string;
 }
 
 function fotoUrl(foto?: string | null): string | null {
@@ -438,6 +439,19 @@ export default function MeuPerfilPage() {
                     />
                   </Field>
                 </div>
+                <Field label="Site / Portfólio">
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                    <Input
+                      value={form.link_site || ""}
+                      onChange={e => set("link_site", e.target.value)}
+                      type="url"
+                      placeholder="https://www.seusite.com.br"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 pl-10"
+                      data-testid="input-perfil-link-site"
+                    />
+                  </div>
+                </Field>
                 <Field label="Perfil como aliado">
                   <Textarea
                     value={form.perfil_aliado || ""}

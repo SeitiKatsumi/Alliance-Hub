@@ -18,7 +18,7 @@ import {
 import {
   Store, Search, MapPin, Building2,
   Users, X, Plus, Pencil, Trash2, Loader2,
-  FileText, Send, Phone, MessageSquare
+  FileText, Send, Phone, MessageSquare, Globe
 } from "lucide-react";
 
 interface MembroVitrine {
@@ -36,6 +36,7 @@ interface MembroVitrine {
   perfil_aliado?: string;
   nucleo_alianca?: string;
   na_vitrine?: boolean;
+  link_site?: string | null;
 }
 
 interface CardForm {
@@ -49,6 +50,7 @@ interface CardForm {
   email: string;
   perfil_aliado: string;
   nucleo_alianca: string;
+  link_site: string;
 }
 
 interface EspecialidadeOption {
@@ -85,7 +87,7 @@ export default function VitrinePage() {
   const [form, setForm] = useState<CardForm>({
     nome: "", cargo: "", empresa: "", especialidade_id: "",
     cidade: "", estado: "", whatsapp: "", email: "",
-    perfil_aliado: "", nucleo_alianca: ""
+    perfil_aliado: "", nucleo_alianca: "", link_site: ""
   });
 
   const membroId = user?.membro_directus_id;
@@ -135,6 +137,7 @@ export default function VitrinePage() {
         email: myMembro.email || "",
         perfil_aliado: myMembro.perfil_aliado || "",
         nucleo_alianca: myMembro.nucleo_alianca || "",
+        link_site: myMembro.link_site || "",
       });
     }
     setDialogOpen(true);
@@ -595,6 +598,17 @@ export default function VitrinePage() {
               />
             </Field>
 
+            <Field label="Site / Portfólio">
+              <Input
+                value={form.link_site}
+                onChange={e => setForm(f => ({ ...f, link_site: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                placeholder="https://www.seusite.com.br"
+                type="url"
+                data-testid="input-card-link-site"
+              />
+            </Field>
+
             <Field label="Perfil / Descrição">
               <Textarea
                 value={form.perfil_aliado}
@@ -728,6 +742,22 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
                 <MapPin className="w-3 h-3 text-white/20 shrink-0" />
                 <span className="text-xs text-white/35 truncate">{m.cidade}</span>
               </div>
+            )}
+
+            {m.link_site && (
+              <a
+                href={m.link_site.startsWith("http") ? m.link_site : `https://${m.link_site}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="inline-flex items-center justify-center gap-1 text-xs text-brand-gold/50 hover:text-brand-gold transition-colors font-mono"
+                data-testid={`link-site-${m.id}`}
+              >
+                <Globe className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[120px]">
+                  {m.link_site.replace(/^https?:\/\/(www\.)?/, "")}
+                </span>
+              </a>
             )}
           </div>
 

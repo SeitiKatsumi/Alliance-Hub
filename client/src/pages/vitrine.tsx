@@ -661,13 +661,6 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
       <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
       <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
 
-      {isOwn && (
-        <div className="absolute top-2 right-2">
-          <span className="text-[9px] font-mono text-brand-gold/60 bg-brand-gold/10 border border-brand-gold/15 px-1.5 py-0.5 rounded">
-            MEU CARD
-          </span>
-        </div>
-      )}
 
       <div className="p-4 space-y-3">
         {/* Avatar */}

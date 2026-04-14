@@ -75,6 +75,7 @@ interface TransferenciaCotas {
   membro_origem_id: string;
   membro_destino_id: string;
   valor_total: string | null;
+  percentual_transferencia: string | null;
   status: "pendente" | "aceita" | "rejeitada";
   solicitado_por: string | null;
   observacoes: string | null;
@@ -943,6 +944,7 @@ export default function FluxoCaixaPage() {
   const [transferDestinoId, setTransferDestinoId] = useState<string>("");
   const [transferObservacoes, setTransferObservacoes] = useState<string>("");
   const [transferValorRef, setTransferValorRef] = useState<number>(0);
+  const [transferPercentual, setTransferPercentual] = useState<number>(100);
   const [rejeicaoDialogId, setRejeicaoDialogId] = useState<string | null>(null);
   const [rejeicaoMotivo, setRejeicaoMotivo] = useState<string>("");
 
@@ -1004,11 +1006,13 @@ export default function FluxoCaixaPage() {
   const createTransferMutation = useMutation({
     mutationFn: async () => {
       if (!transferDestinoId || !transferOrigemId) throw new Error("Preencha todos os campos");
+      const valorTransferido = parseFloat(((transferPercentual / 100) * transferValorRef).toFixed(2));
       return apiRequest("POST", "/api/transferencia-cotas", {
         bia_id: selectedBiaId,
         membro_origem_id: transferOrigemId,
         membro_destino_id: transferDestinoId,
-        valor_total: transferValorRef,
+        valor_total: valorTransferido,
+        percentual_transferencia: transferPercentual,
         observacoes: transferObservacoes || null,
       });
     },
@@ -1017,7 +1021,8 @@ export default function FluxoCaixaPage() {
       setTransferDialogOpen(false);
       setTransferDestinoId("");
       setTransferObservacoes("");
-      toast({ title: "Solicitação enviada", description: "Aguardando aprovação do membro de origem ou administrador." });
+      setTransferPercentual(100);
+      toast({ title: "Solicitação enviada", description: "Aguardando aprovação do Diretor de Aliança ou Aliado BUILT." });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -1705,6 +1710,7 @@ export default function FluxoCaixaPage() {
                               setTransferValorRef(item.valor);
                               setTransferDestinoId("");
                               setTransferObservacoes("");
+                              setTransferPercentual(100);
                               setTransferDialogOpen(true);
                             }}
                           >
@@ -1740,8 +1746,59 @@ export default function FluxoCaixaPage() {
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Membro de Origem</Label>
                   <p className="text-sm font-medium">{membroMap[transferOrigemId] || transferOrigemId}</p>
-                  <p className="text-xs text-muted-foreground">Total: {formatBRL(transferValorRef)} ({aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual.toFixed(1)}%)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Cotas totais: {formatBRL(transferValorRef)}&nbsp;
+                    ({aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual.toFixed(1)}% do capital total)
+                  </p>
                 </div>
+
+                {/* Percentual a transferir */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">Percentual a transferir *</Label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        step={1}
+                        value={transferPercentual}
+                        onChange={(e) => {
+                          const v = Math.min(100, Math.max(1, Number(e.target.value) || 1));
+                          setTransferPercentual(v);
+                        }}
+                        className="w-16 text-right text-sm font-semibold border rounded-md px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                        data-testid="input-transfer-percentual"
+                      />
+                      <span className="text-sm font-semibold text-brand-gold">%</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={transferPercentual}
+                    onChange={(e) => setTransferPercentual(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none cursor-pointer accent-brand-gold"
+                    data-testid="slider-transfer-percentual"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>1%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                  </div>
+                  {/* Valor calculado */}
+                  <div className="flex items-center justify-between rounded-md bg-muted/60 border px-3 py-2">
+                    <span className="text-xs text-muted-foreground">Valor a transferir</span>
+                    <span className="text-sm font-semibold text-brand-gold">
+                      {formatBRL(parseFloat(((transferPercentual / 100) * transferValorRef).toFixed(2)))}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <Label htmlFor="transfer-destino" className="text-xs font-medium">Membro de Destino *</Label>
                   <Select value={transferDestinoId} onValueChange={setTransferDestinoId}>
@@ -1770,7 +1827,10 @@ export default function FluxoCaixaPage() {
                   />
                 </div>
                 <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
-                  A transferência moverá <strong>todas</strong> as cotas do membro de origem para o destino nesta BIA. Será necessária a aprovação do próprio membro de origem ou de um administrador.
+                  {transferPercentual === 100
+                    ? <>A transferência moverá <strong>100% das cotas</strong> do membro de origem para o destino nesta BIA.</>
+                    : <>A transferência moverá <strong>{transferPercentual}% das cotas</strong> ({formatBRL(parseFloat(((transferPercentual / 100) * transferValorRef).toFixed(2)))}) para o destino.</>
+                  } Será necessária a aprovação do Diretor de Aliança ou Aliado BUILT.
                 </div>
               </div>
               <DialogFooter>
@@ -1868,6 +1928,11 @@ export default function FluxoCaixaPage() {
                             <span className="truncate">{membroMap[t.membro_destino_id] || t.membro_destino_id}</span>
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
+                            {t.percentual_transferencia && (
+                              <Badge variant="outline" className="text-xs border-brand-gold/40 text-brand-gold bg-brand-gold/10 px-1.5 py-0">
+                                {parseFloat(t.percentual_transferencia).toFixed(0)}%
+                              </Badge>
+                            )}
                             {t.valor_total && (
                               <span className="text-xs text-muted-foreground">{formatBRL(parseFloat(t.valor_total))}</span>
                             )}

@@ -290,6 +290,7 @@ export const transferenciasCotas = pgTable("transferencias_cotas", {
   membro_origem_id: varchar("membro_origem_id").notNull(),
   membro_destino_id: varchar("membro_destino_id").notNull(),
   valor_total: numeric("valor_total"),
+  percentual_transferencia: numeric("percentual_transferencia", { precision: 5, scale: 2 }),
   status: text("status").notNull().default("pendente"),
   solicitado_por: varchar("solicitado_por"),
   observacoes: text("observacoes"),

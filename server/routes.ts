@@ -1583,7 +1583,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const sessionDirectusUserId = (req.session as any).directusUserId;
       const sessionRole = (req.session as any).role || "user";
       if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
-      const { bia_id, membro_origem_id, membro_destino_id, valor_total, observacoes } = req.body;
+      const { bia_id, membro_origem_id, membro_destino_id, valor_total, percentual_transferencia, observacoes } = req.body;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
       }
@@ -1603,6 +1603,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         membro_origem_id,
         membro_destino_id,
         valor_total: valor_total != null ? String(valor_total) : null,
+        percentual_transferencia: percentual_transferencia != null ? String(percentual_transferencia) : null,
         status: "pendente",
         solicitado_por: sessionDirectusUserId,
         observacoes: observacoes || null,

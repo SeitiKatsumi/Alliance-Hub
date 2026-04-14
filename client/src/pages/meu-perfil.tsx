@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -71,6 +71,8 @@ export default function MeuPerfilPage() {
   const [form, setForm] = useState<Partial<Membro>>({});
   const [newEspOpen, setNewEspOpen] = useState(false);
   const [newEspNome, setNewEspNome] = useState("");
+  const [uploadingFoto, setUploadingFoto] = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (membro) setForm(membro);
@@ -108,6 +110,29 @@ export default function MeuPerfilPage() {
     },
     onError: () => toast({ title: "Erro ao criar especialidade", variant: "destructive" }),
   });
+
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !membroId) return;
+    setUploadingFoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.fileIds?.[0]) throw new Error(json.error || "Upload falhou");
+      const uuid = json.fileIds[0];
+      await apiRequest("PATCH", `/api/membros/${membroId}`, { foto_perfil: uuid });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
+      toast({ title: "Foto de perfil atualizada!" });
+    } catch {
+      toast({ title: "Erro ao enviar foto", variant: "destructive" });
+    } finally {
+      setUploadingFoto(false);
+      if (fotoInputRef.current) fotoInputRef.current.value = "";
+    }
+  }
 
   function set(field: keyof Membro, value: string) {
     setForm(f => ({ ...f, [field]: value }));
@@ -157,18 +182,44 @@ export default function MeuPerfilPage() {
         <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-brand-gold/40" />
 
         <div className="relative z-10 flex items-center gap-6">
-          {/* Avatar */}
+          {/* Avatar — click to upload */}
           <div className="relative shrink-0">
-            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-brand-gold/30 flex items-center justify-center"
-              style={{ background: "radial-gradient(circle at 30% 30%, #D7BB7D20, #030812)", boxShadow: "0 0 24px rgba(215,187,125,0.15)" }}>
-              {foto ? (
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              className="hidden"
+              onChange={handleFotoChange}
+              data-testid="input-foto-perfil"
+            />
+            <button
+              type="button"
+              onClick={() => fotoInputRef.current?.click()}
+              disabled={uploadingFoto}
+              className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-brand-gold/30 flex items-center justify-center group/avatar cursor-pointer"
+              style={{ background: "radial-gradient(circle at 30% 30%, #D7BB7D20, #030812)", boxShadow: "0 0 24px rgba(215,187,125,0.15)" }}
+              title="Clique para trocar a foto"
+              data-testid="btn-trocar-foto"
+            >
+              {uploadingFoto ? (
+                <Loader2 className="w-6 h-6 text-brand-gold animate-spin" />
+              ) : foto ? (
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-2xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
               )}
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#020b16] border border-brand-gold/30 flex items-center justify-center">
-              <Camera className="w-3 h-3 text-brand-gold/50" />
+              {/* Hover overlay */}
+              {!uploadingFoto && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+              )}
+            </button>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#020b16] border border-brand-gold/30 flex items-center justify-center pointer-events-none">
+              {uploadingFoto
+                ? <Loader2 className="w-3 h-3 text-brand-gold animate-spin" />
+                : <Camera className="w-3 h-3 text-brand-gold/50" />
+              }
             </div>
           </div>
 

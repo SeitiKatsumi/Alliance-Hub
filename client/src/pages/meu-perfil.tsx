@@ -29,6 +29,14 @@ const REDES_DISPONIVEIS = [
   { value: "BNI", label: "BNI", badge: "/bni-badge.png" },
 ];
 
+const NUCLEOS_TIPOS: Record<string, string[]> = {
+  "Diretoria da Aliança": ["Diretor de Aliança", "Aliado BUILT", "Diretor de Execução", "Diretor Comercial", "Diretor de Capital"],
+  "Núcleo Técnico": ["Alianças de Projetos", "Alianças Jurídicas", "Alianças de Inteligência", "Alianças de Governança"],
+  "Núcleo de Obra": ["Construção Civil", "Infraestrutura", "Reforma", "Manutenção"],
+  "Núcleo Comercial": ["Vendas", "Marketing", "Parcerias", "Prospecção"],
+  "Núcleo de Capital": ["Financeiro", "Resultados", "Investimentos"],
+};
+
 interface Membro {
   id: string;
   nome: string;
@@ -44,6 +52,7 @@ interface Membro {
   foto?: string | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
+  tipo_alianca?: string;
   tipo_de_cadastro?: string;
   na_vitrine?: boolean;
   em_membros_built?: boolean;
@@ -436,13 +445,44 @@ export default function MeuPerfilPage() {
                     />
                   </Field>
                   <Field label="Núcleo de Aliança">
-                    <Input
-                      value={form.nucleo_alianca || ""}
-                      onChange={e => set("nucleo_alianca", e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                      data-testid="input-perfil-nucleo"
-                    />
+                    <Select
+                      value={form.nucleo_alianca || undefined}
+                      onValueChange={v => setForm(f => ({ ...f, nucleo_alianca: v, tipo_alianca: "" }))}
+                    >
+                      <SelectTrigger
+                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                        data-testid="select-perfil-nucleo"
+                      >
+                        <SelectValue placeholder="Selecionar núcleo..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                        {Object.keys(NUCLEOS_TIPOS).map(n => (
+                          <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
+
+                  {form.nucleo_alianca && NUCLEOS_TIPOS[form.nucleo_alianca] && (
+                    <Field label="Tipo / Área">
+                      <Select
+                        value={form.tipo_alianca || undefined}
+                        onValueChange={v => setForm(f => ({ ...f, tipo_alianca: v }))}
+                      >
+                        <SelectTrigger
+                          className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                          data-testid="select-perfil-tipo-alianca"
+                        >
+                          <SelectValue placeholder="Selecionar tipo..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                          {NUCLEOS_TIPOS[form.nucleo_alianca].map(t => (
+                            <SelectItem key={t} value={t} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
                 </div>
                 <Field label="Site / Portfólio">
                   <div className="relative">

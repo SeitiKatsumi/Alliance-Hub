@@ -26,6 +26,14 @@ import {
 
 const WORLD_GEO = "/world-countries-50m.json";
 
+const NUCLEOS_TIPOS: Record<string, string[]> = {
+  "Diretoria da Aliança": ["Diretor de Aliança", "Aliado BUILT", "Diretor de Execução", "Diretor Comercial", "Diretor de Capital"],
+  "Núcleo Técnico": ["Alianças de Projetos", "Alianças Jurídicas", "Alianças de Inteligência", "Alianças de Governança"],
+  "Núcleo de Obra": ["Construção Civil", "Infraestrutura", "Reforma", "Manutenção"],
+  "Núcleo Comercial": ["Vendas", "Marketing", "Parcerias", "Prospecção"],
+  "Núcleo de Capital": ["Financeiro", "Resultados", "Investimentos"],
+};
+
 interface MembroVitrine {
   id: string;
   nome?: string;
@@ -343,6 +351,7 @@ interface CardForm {
   email: string;
   perfil_aliado: string;
   nucleo_alianca: string;
+  tipo_alianca: string;
   link_site: string;
 }
 
@@ -380,7 +389,7 @@ export default function VitrinePage() {
   const [form, setForm] = useState<CardForm>({
     nome: "", cargo: "", empresa: "", especialidade_id: "",
     cidade: "", estado: "", whatsapp: "", email: "",
-    perfil_aliado: "", nucleo_alianca: "", link_site: ""
+    perfil_aliado: "", nucleo_alianca: "", tipo_alianca: "", link_site: ""
   });
 
   const membroId = user?.membro_directus_id;
@@ -430,6 +439,7 @@ export default function VitrinePage() {
         email: myMembro.email || "",
         perfil_aliado: myMembro.perfil_aliado || "",
         nucleo_alianca: myMembro.nucleo_alianca || "",
+        tipo_alianca: (myMembro as any).tipo_alianca || "",
         link_site: myMembro.link_site || "",
       });
     }
@@ -845,14 +855,44 @@ export default function VitrinePage() {
             </div>
 
             <Field label="Núcleo de Aliança">
-              <Input
-                value={form.nucleo_alianca}
-                onChange={e => setForm(f => ({ ...f, nucleo_alianca: e.target.value }))}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                placeholder="Ex: Núcleo Técnico, Núcleo Comercial"
-                data-testid="input-card-nucleo"
-              />
+              <Select
+                value={form.nucleo_alianca || undefined}
+                onValueChange={v => setForm(f => ({ ...f, nucleo_alianca: v, tipo_alianca: "" }))}
+              >
+                <SelectTrigger
+                  className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                  data-testid="select-card-nucleo"
+                >
+                  <SelectValue placeholder="Selecionar núcleo..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#001428] border-white/10 text-white">
+                  {Object.keys(NUCLEOS_TIPOS).map(n => (
+                    <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
+
+            {form.nucleo_alianca && NUCLEOS_TIPOS[form.nucleo_alianca] && (
+              <Field label="Tipo / Área">
+                <Select
+                  value={form.tipo_alianca || undefined}
+                  onValueChange={v => setForm(f => ({ ...f, tipo_alianca: v }))}
+                >
+                  <SelectTrigger
+                    className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                    data-testid="select-card-tipo-alianca"
+                  >
+                    <SelectValue placeholder="Selecionar tipo..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#001428] border-white/10 text-white">
+                    {NUCLEOS_TIPOS[form.nucleo_alianca].map(t => (
+                      <SelectItem key={t} value={t} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
 
             <Field label="Site / Portfólio">
               <Input

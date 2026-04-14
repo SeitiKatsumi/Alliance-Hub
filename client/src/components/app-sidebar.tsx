@@ -85,7 +85,7 @@ export function AppSidebar() {
                         <SidebarMenuSubButton asChild isActive={location === "/area-membros"} className="text-xs" data-testid="nav-area-membros">
                           <Link href="/area-membros">
                             <Network className="w-3 h-3" />
-                            <span>Membros BUILT</span>
+                            <span>Membros</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -93,7 +93,7 @@ export function AppSidebar() {
                         <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-xs" data-testid="nav-built-capital">
                           <Link href="/built-capital">
                             <Coins className="w-3 h-3" />
-                            <span>BUILT Capital</span>
+                            <span>Parceiros Capital</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

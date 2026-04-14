@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,9 +21,11 @@ import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1775603722664.p
 export function AppSidebar() {
   const [location] = useLocation();
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
+  const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
   const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
+  const [redeBuiltOpen, setRedeBuiltOpen] = useState(isRedeBuiltSection);
 
   return (
     <Sidebar>
@@ -47,6 +49,55 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {/* Rede Built — colapsável */}
+              <Collapsible open={redeBuiltOpen} onOpenChange={setRedeBuiltOpen}>
+                <SidebarMenuItem>
+                  <div className="flex items-center">
+                    <SidebarMenuButton
+                      className="flex-1 text-sm cursor-pointer"
+                      isActive={isRedeBuiltSection}
+                      data-testid="nav-rede-built"
+                    >
+                      <Globe2 className="w-3.5 h-3.5" />
+                      <span>Rede Built</span>
+                    </SidebarMenuButton>
+                    <CollapsibleTrigger asChild>
+                      <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors" data-testid="toggle-rede-built-menu">
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${redeBuiltOpen ? "rotate-180" : ""}`} />
+                      </button>
+                    </CollapsibleTrigger>
+                  </div>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/vitrine"} className="text-xs" data-testid="nav-vitrine">
+                          <Link href="/vitrine">
+                            <Store className="w-3 h-3" />
+                            <span>Vitrine</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/area-membros"} className="text-xs" data-testid="nav-area-membros">
+                          <Link href="/area-membros">
+                            <Network className="w-3 h-3" />
+                            <span>Área de Membros</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-xs" data-testid="nav-built-capital">
+                          <Link href="/built-capital">
+                            <Coins className="w-3 h-3" />
+                            <span>Built Capital</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
 
               {/* BIAs — colapsável */}
               <Collapsible open={biasOpen} onOpenChange={setBiasOpen}>

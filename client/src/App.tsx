@@ -24,6 +24,9 @@ import NucleoTecnicoPage from "@/pages/nucleo-tecnico";
 import NucleoObraPage from "@/pages/nucleo-obra";
 import NucleoComercialPage from "@/pages/nucleo-comercial";
 import NucleoCapitalPage from "@/pages/nucleo-capital";
+import VitrinePage from "@/pages/vitrine";
+import AreMembroPage from "@/pages/area-membros";
+import BuiltCapitalPage from "@/pages/built-capital";
 import LoginPage from "@/pages/login";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
@@ -100,6 +103,9 @@ function ProtectedApp() {
               <Route path="/nucleo-obra" component={NucleoObraPage} />
               <Route path="/nucleo-comercial" component={NucleoComercialPage} />
               <Route path="/nucleo-capital" component={NucleoCapitalPage} />
+              <Route path="/vitrine" component={VitrinePage} />
+              <Route path="/area-membros" component={AreMembroPage} />
+              <Route path="/built-capital" component={BuiltCapitalPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />

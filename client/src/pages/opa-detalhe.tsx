@@ -1,16 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Target, Building2, Globe, Pencil,
   Layers, FileText, Paperclip, ExternalLink, CheckCircle2,
-  XCircle, DollarSign, TrendingUp, ClipboardList, Users
+  XCircle, DollarSign, TrendingUp, ClipboardList, Users,
+  HandHeart, Loader2, Sparkles, UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { useMemo } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useMemo, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AnexoFile {
   id: string;
@@ -43,6 +48,22 @@ interface BiasProjeto {
   nome_bia: string;
   localizacao?: string;
   moeda?: string;
+}
+
+interface OpaInteresse {
+  id: string;
+  opa_id: string;
+  user_id: string;
+  membro_id?: string | null;
+  membro_nome?: string | null;
+  mensagem?: string | null;
+  criado_em?: string | null;
+}
+
+interface InteresseResponse {
+  interesses: OpaInteresse[];
+  meuInteresse: OpaInteresse | null;
+  total: number;
 }
 
 function n(v?: string | number | null): number {
@@ -81,6 +102,10 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 export default function OpaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [interesseDialog, setInteresseDialog] = useState(false);
+  const [mensagem, setMensagem] = useState("");
 
   const { data: opasRaw = [], isLoading } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -88,6 +113,51 @@ export default function OpaDetalhePage() {
 
   const { data: biasRaw = [] } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
+  });
+
+  const { data: interesseData } = useQuery<InteresseResponse>({
+    queryKey: ["/api/oportunidades", id, "interesse"],
+    queryFn: async () => {
+      const res = await fetch(`/api/oportunidades/${id}/interesse`);
+      if (!res.ok) throw new Error("Erro ao buscar interesses");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  const interesseMutation = useMutation({
+    mutationFn: async (msg: string) => {
+      return apiRequest("POST", `/api/oportunidades/${id}/interesse`, { mensagem: msg || null });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
+      setInteresseDialog(false);
+      setMensagem("");
+      toast({
+        title: "Interesse registrado!",
+        description: "O autor e diretor desta OPA foram notificados sobre seu interesse.",
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Erro",
+        description: err?.message || "Não foi possível registrar o interesse.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removerInteresseMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/oportunidades/${id}/interesse`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
+      toast({ title: "Interesse removido", description: "Seu interesse nesta OPA foi cancelado." });
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível remover o interesse.", variant: "destructive" });
+    },
   });
 
   const opa = useMemo(
@@ -107,6 +177,9 @@ export default function OpaDetalhePage() {
   const dias = opa?.date_created
     ? Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000)
     : null;
+
+  const jaInteressado = !!interesseData?.meuInteresse;
+  const totalInteresses = interesseData?.total ?? 0;
 
   if (isLoading) {
     return (
@@ -329,8 +402,8 @@ export default function OpaDetalhePage() {
           )}
         </div>
 
-        {/* Right col — metadata */}
-        <div className="space-y-6">
+        {/* Right col — metadata + interesse */}
+        <div className="space-y-4">
           <Card>
             <CardContent className="pt-5 pb-4 space-y-4">
               <SectionTitle icon={Target}>Informações</SectionTitle>
@@ -366,8 +439,139 @@ export default function OpaDetalhePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Manifestar Interesse */}
+          {!isClosed && (
+            <Card className={jaInteressado ? "border-brand-gold/30" : "border-border/50"}>
+              <CardContent className="pt-5 pb-4 space-y-3">
+                <SectionTitle icon={HandHeart}>Interesse</SectionTitle>
+
+                {jaInteressado ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 rounded-lg bg-brand-gold/8 border border-brand-gold/25 px-3 py-2.5">
+                      <UserCheck className="w-4 h-4 text-brand-gold shrink-0" />
+                      <p className="text-sm font-medium text-brand-gold">Interesse registrado</p>
+                    </div>
+                    {interesseData?.meuInteresse?.mensagem && (
+                      <p className="text-xs text-muted-foreground italic leading-relaxed">
+                        "{interesseData.meuInteresse.mensagem}"
+                      </p>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/5 text-xs"
+                      onClick={() => removerInteresseMutation.mutate()}
+                      disabled={removerInteresseMutation.isPending}
+                      data-testid="btn-remover-interesse"
+                    >
+                      {removerInteresseMutation.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Cancelar interesse
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Tem interesse nesta oportunidade? Notifique o responsável pela OPA.
+                    </p>
+                    <Button
+                      className="w-full gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
+                      onClick={() => setInteresseDialog(true)}
+                      data-testid="btn-manifestar-interesse"
+                    >
+                      <HandHeart className="w-4 h-4" />
+                      Manifestar Interesse
+                    </Button>
+                  </div>
+                )}
+
+                {totalInteresses > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-brand-gold/60" />
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {totalInteresses === 1 ? "1 membro interessado" : `${totalInteresses} membros interessados`}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {(interesseData?.interesses || []).map((i) => (
+                          <div key={i.id} className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-brand-gold/15 border border-brand-gold/25 flex items-center justify-center shrink-0">
+                              <span className="text-[9px] font-bold text-brand-gold">
+                                {(i.membro_nome || "?")[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-xs text-muted-foreground truncate">{i.membro_nome || "Membro"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* Manifestar Interesse Dialog */}
+      <Dialog open={interesseDialog} onOpenChange={setInteresseDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HandHeart className="w-5 h-5 text-brand-gold" />
+              Manifestar Interesse
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-brand-gold/20 bg-brand-gold/5 px-4 py-3">
+              <p className="text-sm font-medium text-brand-gold/90">{opa.nome_oportunidade}</p>
+              {opa.nucleo_alianca && (
+                <p className="text-xs text-muted-foreground mt-0.5">{opa.nucleo_alianca}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
+                Mensagem (opcional)
+              </label>
+              <Textarea
+                placeholder="Descreva brevemente seu interesse ou como pode contribuir..."
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+                className="resize-none min-h-[90px]"
+                data-testid="textarea-mensagem-interesse"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O autor e o diretor desta OPA serão notificados sobre seu interesse.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInteresseDialog(false)} data-testid="btn-cancel-interesse">
+              Cancelar
+            </Button>
+            <Button
+              className="gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
+              onClick={() => interesseMutation.mutate(mensagem)}
+              disabled={interesseMutation.isPending}
+              data-testid="btn-confirm-interesse"
+            >
+              {interesseMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <HandHeart className="w-4 h-4" />
+              )}
+              {interesseMutation.isPending ? "Registrando..." : "Confirmar Interesse"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

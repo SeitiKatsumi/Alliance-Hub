@@ -1045,6 +1045,51 @@ export async function registerRoutes(
     }
   });
 
+  // ========== OPA INTERESSES ==========
+  app.get("/api/oportunidades/:id/interesse", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const interesses = await storage.getInteressesByOpa(id);
+      const user = (req.session as any)?.user;
+      const meuInteresse = user ? await storage.getUserInteresseByOpa(id, user.id) : null;
+      res.json({ interesses, meuInteresse: meuInteresse || null, total: interesses.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oportunidades/:id/interesse", async (req, res) => {
+    try {
+      const user = (req.session as any)?.user;
+      if (!user) return res.status(401).json({ error: "Não autenticado" });
+      const { id } = req.params;
+      const existing = await storage.getUserInteresseByOpa(id, user.id);
+      if (existing) return res.status(409).json({ error: "Interesse já registrado" });
+      const item = await storage.createOpaInteresse({
+        opa_id: id,
+        user_id: user.id,
+        membro_id: user.membro_directus_id || null,
+        membro_nome: user.nome || user.username,
+        mensagem: req.body.mensagem || null,
+      });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/oportunidades/:id/interesse", async (req, res) => {
+    try {
+      const user = (req.session as any)?.user;
+      if (!user) return res.status(401).json({ error: "Não autenticado" });
+      const { id } = req.params;
+      await storage.deleteOpaInteresse(id, user.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== AI ANALYZE (per-item) ==========
   app.post("/api/analyze/bia/:id", async (req, res) => {
     try {

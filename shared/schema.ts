@@ -266,6 +266,24 @@ export const insertAliancaDocSchema = createInsertSchema(aliancaDocs).omit({
 export type InsertAliancaDoc = z.infer<typeof insertAliancaDocSchema>;
 export type AliancaDoc = typeof aliancaDocs.$inferSelect;
 
+export const opaInteresses = pgTable("opa_interesses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  opa_id: text("opa_id").notNull(),
+  user_id: text("user_id").notNull(),
+  membro_id: text("membro_id"),
+  membro_nome: text("membro_nome"),
+  mensagem: text("mensagem"),
+  criado_em: timestamp("criado_em").defaultNow(),
+});
+
+export const insertOpaInteresseSchema = createInsertSchema(opaInteresses).omit({
+  id: true,
+  criado_em: true,
+});
+
+export type InsertOpaInteresse = z.infer<typeof insertOpaInteresseSchema>;
+export type OpaInteresse = typeof opaInteresses.$inferSelect;
+
 export const transferenciasCotas = pgTable("transferencias_cotas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bia_id: varchar("bia_id").notNull(),

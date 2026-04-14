@@ -8,8 +8,9 @@ import {
   categorias, type Categoria, type InsertCategoria,
   oportunidades, type Oportunidade, type InsertOportunidade,
   transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
+  opaInteresses, type OpaInteresse, type InsertOpaInteresse,
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -68,6 +69,11 @@ export interface IStorage {
   getTransferenciaCotas(id: string): Promise<TransferenciaCotas | undefined>;
   getTransferenciasCotasByBia(biaId: string): Promise<TransferenciaCotas[]>;
   updateTransferenciaCotas(id: string, data: Partial<TransferenciaCotas>): Promise<TransferenciaCotas | undefined>;
+
+  getInteressesByOpa(opaId: string): Promise<OpaInteresse[]>;
+  getUserInteresseByOpa(opaId: string, userId: string): Promise<OpaInteresse | undefined>;
+  createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse>;
+  deleteOpaInteresse(opaId: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -283,6 +289,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(transferenciasCotas.id, id))
       .returning();
     return item;
+  }
+
+  async getInteressesByOpa(opaId: string): Promise<OpaInteresse[]> {
+    return db
+      .select()
+      .from(opaInteresses)
+      .where(eq(opaInteresses.opa_id, opaId))
+      .orderBy(desc(opaInteresses.criado_em));
+  }
+
+  async getUserInteresseByOpa(opaId: string, userId: string): Promise<OpaInteresse | undefined> {
+    const [item] = await db
+      .select()
+      .from(opaInteresses)
+      .where(and(eq(opaInteresses.opa_id, opaId), eq(opaInteresses.user_id, userId)));
+    return item;
+  }
+
+  async createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse> {
+    const [item] = await db.insert(opaInteresses).values(data).returning();
+    return item;
+  }
+
+  async deleteOpaInteresse(opaId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(opaInteresses)
+      .where(and(eq(opaInteresses.opa_id, opaId), eq(opaInteresses.user_id, userId)))
+      .returning();
+    return result.length > 0;
   }
 }
 

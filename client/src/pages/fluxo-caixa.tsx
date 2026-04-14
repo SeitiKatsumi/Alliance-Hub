@@ -1823,15 +1823,24 @@ export default function FluxoCaixaPage() {
           </AlertDialog>
 
           {/* Painel de Solicitações de Transferência de Cotas */}
-          {selectedBiaId && transferencias.length > 0 && (
+          {selectedBiaId && (
             <Card data-testid="panel-transferencias">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
                   Solicitações de Transferência de Cotas
+                  {transferencias.length > 0 && (
+                    <Badge variant="secondary" className="text-xs ml-1">{transferencias.length}</Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {transferencias.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma solicitação de transferência para esta BIA.
+                  </p>
+                )}
+                {transferencias.length > 0 && (
                 <div className="space-y-3">
                   {transferencias.map((t) => {
                     const canApprove =
@@ -1900,6 +1909,7 @@ export default function FluxoCaixaPage() {
                     );
                   })}
                 </div>
+                )}
               </CardContent>
             </Card>
           )}

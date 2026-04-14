@@ -10,9 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from "@/components/ui/dialog";
+import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2
+  Save, Loader2, Camera, CheckCircle2, Plus
 } from "lucide-react";
+
+interface EspecialidadeOption {
+  id: string;
+  nome_especialidade: string;
+}
 
 interface Membro {
   id: string;
@@ -25,6 +36,7 @@ interface Membro {
   empresa?: string;
   cargo?: string;
   especialidade?: string;
+  especialidade_id?: string | null;
   foto?: string | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
@@ -57,10 +69,17 @@ export default function MeuPerfilPage() {
   });
 
   const [form, setForm] = useState<Partial<Membro>>({});
+  const [newEspOpen, setNewEspOpen] = useState(false);
+  const [newEspNome, setNewEspNome] = useState("");
 
   useEffect(() => {
     if (membro) setForm(membro);
   }, [membro]);
+
+  const { data: especialidadesOptions = [] } = useQuery<EspecialidadeOption[]>({
+    queryKey: ["/api/especialidades"],
+    queryFn: () => fetch("/api/especialidades").then(r => r.json()),
+  });
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Membro>) =>
@@ -77,13 +96,31 @@ export default function MeuPerfilPage() {
     },
   });
 
+  const createEspMutation = useMutation({
+    mutationFn: (nome: string) =>
+      apiRequest("POST", "/api/especialidades", { nome_especialidade: nome }),
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/especialidades"] });
+      setForm(f => ({ ...f, especialidade_id: data.id, especialidade: data.nome_especialidade }));
+      setNewEspNome("");
+      setNewEspOpen(false);
+      toast({ title: "Especialidade criada e selecionada!" });
+    },
+    onError: () => toast({ title: "Erro ao criar especialidade", variant: "destructive" }),
+  });
+
   function set(field: keyof Membro, value: string) {
     setForm(f => ({ ...f, [field]: value }));
   }
 
   function handleSave() {
-    const { id, ...rest } = form as Membro;
-    updateMutation.mutate(rest);
+    const { id, especialidade_id, especialidade, ...rest } = form as Membro;
+    const payload: Record<string, any> = { ...rest };
+    // Send Especialidades as Directus M2M array
+    payload.Especialidades = especialidade_id
+      ? [{ especialidades_id: especialidade_id }]
+      : [];
+    updateMutation.mutate(payload as any);
   }
 
   if (!membroId) {
@@ -243,13 +280,96 @@ export default function MeuPerfilPage() {
                     />
                   </Field>
                   <Field label="Especialidade">
-                    <Input
-                      value={form.especialidade || ""}
-                      onChange={e => set("especialidade", e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                      data-testid="input-perfil-especialidade"
-                    />
+                    <Select
+                      value={form.especialidade_id || ""}
+                      onValueChange={v => {
+                        const found = especialidadesOptions.find(e => e.id === v);
+                        setForm(f => ({ ...f, especialidade_id: v, especialidade: found?.nome_especialidade || "" }));
+                      }}
+                    >
+                      <SelectTrigger
+                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                        data-testid="select-perfil-especialidade"
+                      >
+                        <SelectValue placeholder="Selecione uma especialidade" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                        {especialidadesOptions.map(e => (
+                          <SelectItem
+                            key={e.id}
+                            value={e.id}
+                            className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
+                          >
+                            {e.nome_especialidade}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!form.especialidade_id && (
+                      <button
+                        type="button"
+                        onClick={() => { setNewEspNome(""); setNewEspOpen(true); }}
+                        className="mt-1.5 flex items-center gap-1.5 text-xs font-mono text-brand-gold/60 hover:text-brand-gold transition-colors"
+                        data-testid="btn-perfil-criar-especialidade"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Não encontrou? Criar nova especialidade
+                      </button>
+                    )}
                   </Field>
+
+                  {/* Sub-dialog: criar nova especialidade */}
+                  <Dialog open={newEspOpen} onOpenChange={setNewEspOpen}>
+                    <DialogContent
+                      className="border-brand-gold/20 text-white max-w-sm"
+                      style={{ background: "#001428" }}
+                    >
+                      <DialogHeader>
+                        <DialogTitle className="font-mono text-brand-gold">Nova Especialidade</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-2">
+                        <Label className="text-xs font-mono text-white/50 mb-1.5 block">Nome *</Label>
+                        <Input
+                          value={newEspNome}
+                          onChange={e => setNewEspNome(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && newEspNome.trim()) {
+                              createEspMutation.mutate(newEspNome.trim());
+                            }
+                          }}
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                          placeholder="Ex: Gestão de contratos"
+                          autoFocus
+                          data-testid="input-perfil-nova-especialidade"
+                        />
+                      </div>
+                      <DialogFooter className="gap-2">
+                        <Button
+                          variant="ghost"
+                          onClick={() => setNewEspOpen(false)}
+                          className="text-white/50 hover:text-white"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={() => createEspMutation.mutate(newEspNome.trim())}
+                          disabled={!newEspNome.trim() || createEspMutation.isPending}
+                          className="font-mono"
+                          style={{ background: "#D7BB7D", color: "#001D34" }}
+                          data-testid="btn-perfil-confirmar-nova-especialidade"
+                        >
+                          {createEspMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 mr-1" />
+                              Criar e selecionar
+                            </>
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                   <Field label="Cargo">
                     <Input
                       value={form.cargo || ""}

@@ -726,12 +726,17 @@ export async function registerRoutes(
   app.get("/api/membros/:id", async (req, res) => {
     if (!requireCadastroOrOwn(req, res)) return;
     try {
-      const m = await directusFetchOne("cadastro_geral", req.params.id, "fields=*");
+      const m = await directusFetchOne("cadastro_geral", req.params.id, "fields=*,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade");
       if (!m) return res.status(404).json({ error: "Membro não encontrado" });
+      // Extract first specialty id and name from M2M relation
+      const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
+      const firstEsp = espArr[0]?.especialidades_id;
       res.json({
         ...m,
         cargo: m.cargo || m.responsavel_cargo || null,
         foto: m.foto_perfil || m.foto || null,
+        especialidade_id: (typeof firstEsp === "object" ? firstEsp?.id : null) ?? null,
+        especialidade: (typeof firstEsp === "object" ? firstEsp?.nome_especialidade : null) ?? null,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

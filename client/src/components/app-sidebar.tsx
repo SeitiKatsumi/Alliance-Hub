@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins } from "lucide-react";
 import {
   Sidebar,
@@ -19,6 +20,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1775603722664.png";
 
 export function AppSidebar() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
   const [location] = useLocation();
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
   const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital";
@@ -268,15 +271,17 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Cadastro Geral */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
-                  <Link href="/membros">
-                    <Users className="w-3.5 h-3.5" />
-                    <span>Cadastro Geral</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {/* Cadastro Geral — somente admin e manager */}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
+                    <Link href="/membros">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Cadastro Geral</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Aura */}
               <SidebarMenuItem>

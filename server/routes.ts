@@ -203,6 +203,32 @@ async function ensureBiasGeoFields() {
   await ensureGeoFields("bias_projetos", "geo-bias");
 }
 
+async function ensureVitrineFields() {
+  const fields = [
+    { field: "na_vitrine", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: false } },
+    { field: "em_membros_built", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: false } },
+    { field: "em_built_capital", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: false } },
+  ];
+  for (const fieldDef of fields) {
+    try {
+      const res = await fetch(`${DIRECTUS_URL}/fields/cadastro_geral`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(fieldDef),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const code = err?.errors?.[0]?.extensions?.code;
+        if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
+          console.warn(`[vitrine-fields] Field ${fieldDef.field} response: ${res.status}`);
+        }
+      }
+    } catch (e) {
+      // silently ignore
+    }
+  }
+}
+
 async function directusFetch(collection: string, params: string = "") {
   const url = `${DIRECTUS_URL}/items/${collection}?limit=-1&fields=*${params ? "&" + params : ""}`;
   const res = await fetch(url, {
@@ -486,6 +512,7 @@ export async function registerRoutes(
   clearBiasFieldValidations().catch(console.error);
   // Ensure geo fields exist in Directus
   ensureBiasGeoFields().catch(console.error);
+  ensureVitrineFields().catch(console.error);
   ensureGeoFields("tipos_oportunidades", "geo-opa").catch(console.error);
   ensureBiasExtraFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
@@ -563,6 +590,26 @@ export async function registerRoutes(
         res.status(500).json({ error: uploadErr.message });
       }
     });
+  });
+
+  // ========== VITRINE (membros que optaram por aparecer na Vitrine) ==========
+  app.get("/api/vitrine", async (req, res) => {
+    try {
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&filter[na_vitrine][_eq]=true&fields=id,nome,cargo,especialidade,empresa,cidade,estado,whatsapp,email,foto_perfil,foto,perfil_aliado,nucleo_alianca`;
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (!response.ok) throw new Error(`Directus error: ${response.status}`);
+      const json = await response.json();
+      const items = (json.data || []).map((m: any) => ({
+        ...m,
+        cargo: m.cargo || m.responsavel_cargo || null,
+        foto: m.foto_perfil || m.foto || null,
+      }));
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // ========== MEMBROS (from Directus: cadastro_geral) ==========

@@ -331,7 +331,7 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-empresa"
                     />
                   </Field>
-                  <Field label="Especialidade">
+                  <Field label="Ramo de atuação">
                     <Select
                       value={form.especialidade_id || ""}
                       onValueChange={v => {
@@ -377,7 +377,7 @@ export default function MeuPerfilPage() {
                       style={{ background: "#001428" }}
                     >
                       <DialogHeader>
-                        <DialogTitle className="font-mono text-brand-gold">Nova Especialidade</DialogTitle>
+                        <DialogTitle className="font-mono text-brand-gold">Novo Ramo de Atuação</DialogTitle>
                       </DialogHeader>
                       <div className="py-2">
                         <Label className="text-xs font-mono text-white/50 mb-1.5 block">Nome *</Label>

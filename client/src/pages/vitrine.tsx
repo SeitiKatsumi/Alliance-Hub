@@ -599,10 +599,10 @@ export default function VitrinePage() {
 
         <Select value={filterEspecialidade} onValueChange={setFilterEspecialidade}>
           <SelectTrigger className="w-44 h-9 text-sm" data-testid="select-vitrine-especialidade">
-            <SelectValue placeholder="Especialidade" />
+            <SelectValue placeholder="Ramo de atuação" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas especialidades</SelectItem>
+            <SelectItem value="all">Todos ramos</SelectItem>
             {especialidades.map(e => (
               <SelectItem key={e} value={e}>{e}</SelectItem>
             ))}
@@ -704,7 +704,7 @@ export default function VitrinePage() {
                   data-testid="input-card-empresa"
                 />
               </Field>
-              <Field label="Especialidade">
+              <Field label="Ramo de atuação">
                 <Select
                   value={form.especialidade_id}
                   onValueChange={v => setForm(f => ({ ...f, especialidade_id: v }))}
@@ -747,7 +747,7 @@ export default function VitrinePage() {
                   style={{ background: "#001428" }}
                 >
                   <DialogHeader>
-                    <DialogTitle className="font-mono text-brand-gold">Nova Especialidade</DialogTitle>
+                    <DialogTitle className="font-mono text-brand-gold">Novo Ramo de Atuação</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-3 py-2">
                     <div>

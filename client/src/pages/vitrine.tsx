@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -524,15 +525,17 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
   const foto = fotoUrl(m);
   const nome = m.nome || "—";
   const wa = whatsappLink(m.whatsapp);
+  const [, navigate] = useLocation();
 
   return (
     <div
-      className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg"
+      className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01]"
       style={{
         background: "linear-gradient(145deg, #071626, #040e1c)",
         boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
         borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
       }}
+      onClick={() => navigate(`/vitrine/${m.id}`)}
       data-testid={`card-vitrine-${m.id}`}
     >
       {/* Top accent */}

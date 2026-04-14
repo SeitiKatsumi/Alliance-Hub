@@ -209,6 +209,8 @@ async function ensureVitrineFields() {
     { field: "em_membros_built", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: false } },
     { field: "em_built_capital", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: false } },
     { field: "link_site", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "latitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
+    { field: "longitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
   ];
   for (const fieldDef of fields) {
     try {
@@ -227,6 +229,27 @@ async function ensureVitrineFields() {
     } catch (e) {
       // silently ignore
     }
+  }
+}
+
+async function geocodeMembrosCadastro(membros: any[]): Promise<void> {
+  const toGeocode = membros.filter(m => !m.latitude && !m.longitude && m.cidade);
+  for (const m of toGeocode.slice(0, 8)) {
+    try {
+      const query = [m.cidade, m.estado, m.pais || "Brasil"].filter(Boolean).join(", ");
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+      const r = await fetch(url, { headers: { "User-Agent": "BuiltAlliances/1.0 contact@builtalliances.com" } });
+      const data = await r.json();
+      if (data?.[0]) {
+        await directusUpdate("cadastro_geral", m.id, {
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon),
+        });
+        m.latitude = parseFloat(data[0].lat);
+        m.longitude = parseFloat(data[0].lon);
+      }
+    } catch { /* ignore errors */ }
+    await new Promise(res => setTimeout(res, 250));
   }
 }
 
@@ -603,7 +626,7 @@ export async function registerRoutes(
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
       // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,na_vitrine,link_site,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,na_vitrine,link_site,latitude,longitude,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
@@ -621,8 +644,13 @@ export async function registerRoutes(
             cargo: m.cargo || m.responsavel_cargo || null,
             foto: m.foto_perfil || null,
             especialidade: especialidades[0] || null,
+            latitude: m.latitude ? parseFloat(m.latitude) : null,
+            longitude: m.longitude ? parseFloat(m.longitude) : null,
           };
         });
+      // Fire-and-forget: geocode members without coordinates (max 8 per call, 250ms apart)
+      const needGeo = items.filter((m: any) => !m.latitude && !m.longitude && m.cidade);
+      if (needGeo.length > 0) geocodeMembrosCadastro(needGeo).catch(() => {});
       res.json(items);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

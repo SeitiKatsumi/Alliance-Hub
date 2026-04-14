@@ -8,18 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
 import {
   Store, Search, MapPin, Building2,
   Users, X, Plus, Pencil, Trash2, Loader2,
-  FileText, Send, Phone, MessageSquare, Globe
+  FileText, Mail, MessageSquare, Globe, Phone
 } from "lucide-react";
+import {
+  ComposableMap, Geographies, Geography, Marker, ZoomableGroup
+} from "react-simple-maps";
+
+const WORLD_GEO = "/world-countries-50m.json";
 
 interface MembroVitrine {
   id: string;
@@ -37,6 +42,294 @@ interface MembroVitrine {
   nucleo_alianca?: string;
   na_vitrine?: boolean;
   link_site?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+// ===== WORLD MAP COMPONENT =====
+function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
+  const [, navigate] = useLocation();
+  const [hoveredMembro, setHoveredMembro] = useState<MembroVitrine | null>(null);
+  const [selectedMembro, setSelectedMembro] = useState<MembroVitrine | null>(null);
+  const [clusterItems, setClusterItems] = useState<MembroVitrine[] | null>(null);
+  const [zoom, setZoom] = useState(1.2);
+  const [center, setCenter] = useState<[number, number]>([10, 20]);
+
+  const withCoords = useMemo(
+    () => membros.filter(m => m.latitude != null && m.longitude != null),
+    [membros]
+  );
+
+  const clusters = useMemo(() => {
+    const THRESHOLD = 1.5;
+    const result: { center: [number, number]; items: MembroVitrine[] }[] = [];
+    for (const m of withCoords) {
+      const lng = m.longitude!;
+      const lat = m.latitude!;
+      const existing = result.find(
+        c => Math.abs(c.center[0] - lng) < THRESHOLD && Math.abs(c.center[1] - lat) < THRESHOLD
+      );
+      if (existing) existing.items.push(m);
+      else result.push({ center: [lng, lat], items: [m] });
+    }
+    return result;
+  }, [withCoords]);
+
+  function fotoUrlMap(m: MembroVitrine): string | null {
+    const f = m.foto || m.foto_perfil;
+    if (!f) return null;
+    return `/api/assets/${f}?width=80&height=80&fit=cover`;
+  }
+
+  function getInitialsMap(nome?: string): string {
+    if (!nome) return "?";
+    return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  }
+
+  const especialidades = useMemo(() => {
+    const s = new Set(membros.map(m => m.especialidade).filter(Boolean));
+    return s.size;
+  }, [membros]);
+
+  const estados = useMemo(() => {
+    const s = new Set(membros.map(m => m.estado).filter(Boolean));
+    return s.size;
+  }, [membros]);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
+      style={{ height: 440, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+    >
+      {/* Grid overlay */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
+        backgroundSize: "50px 50px",
+      }} />
+      {/* Corner accents */}
+      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-brand-gold/40 rounded-tl-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-brand-gold/40 rounded-tr-2xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-brand-gold/40 rounded-bl-2xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl pointer-events-none" />
+
+      {/* Top-left header */}
+      <div className="absolute top-5 left-6 z-20">
+        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+          MAPA DA REDE
+        </h2>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
+          </span>
+          <span className="text-[10px] text-green-400/80 font-mono tracking-[0.2em] uppercase">Sistema Ativo</span>
+        </div>
+      </div>
+
+      {/* Top-right stats */}
+      <div className="absolute top-5 right-6 z-20 text-right font-mono">
+        <div className="mb-2">
+          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Membros</p>
+          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{membros.length}</p>
+        </div>
+        <div className="mb-1">
+          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Especialidades</p>
+          <p className="text-xs font-semibold" style={{ color: "#D7BB7D99" }}>{especialidades}</p>
+        </div>
+        <p className="text-[9px] text-brand-gold/30">{estados} estados · {withCoords.length} geolocalizados</p>
+      </div>
+
+      {/* Zoom controls */}
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">
+        {[
+          { label: "+", action: () => setZoom(z => Math.min(z * 1.5, 20)), title: "Ampliar" },
+          { label: "⊙", action: () => { setZoom(1.2); setCenter([10, 20]); }, title: "Resetar" },
+          { label: "−", action: () => setZoom(z => Math.max(z / 1.5, 1)), title: "Reduzir" },
+        ].map(({ label, action, title }) => (
+          <button
+            key={label}
+            onClick={action}
+            title={title}
+            className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
+          >{label}</button>
+        ))}
+      </div>
+
+      {/* Map */}
+      <ComposableMap
+        projection="geoMercator"
+        projectionConfig={{ center: [0, 10], scale: 160 }}
+        style={{ width: "100%", height: "100%" }}
+      >
+        <ZoomableGroup
+          zoom={zoom}
+          center={center}
+          minZoom={1}
+          maxZoom={20}
+          onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
+        >
+          <Geographies geography={WORLD_GEO}>
+            {({ geographies }) => geographies.map(geo => (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                style={{
+                  default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                  hover:   { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                  pressed: { fill: "#011630", outline: "none" },
+                }}
+              />
+            ))}
+          </Geographies>
+
+          {clusters.map((cluster, idx) => {
+            const [lng, lat] = cluster.center;
+            const isMulti = cluster.items.length > 1;
+            const isHovered = hoveredMembro && cluster.items.includes(hoveredMembro);
+            const isSelected = !isMulti && selectedMembro?.id === cluster.items[0]?.id;
+            const isClusterSelected = isMulti && clusterItems === cluster.items;
+            const r = Math.max(2, 5 / zoom);
+            return (
+              <Marker
+                key={idx}
+                coordinates={[lng, lat]}
+                onMouseEnter={() => { if (!isMulti) setHoveredMembro(cluster.items[0]); }}
+                onMouseLeave={() => setHoveredMembro(null)}
+                onClick={() => {
+                  setHoveredMembro(null);
+                  if (isMulti) {
+                    setSelectedMembro(null);
+                    setClusterItems(cluster.items);
+                  } else {
+                    setClusterItems(null);
+                    setSelectedMembro(cluster.items[0]);
+                  }
+                }}
+              >
+                <g style={{ cursor: "pointer" }}>
+                  <circle r={r * (isSelected || isClusterSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.12 : 0.06}>
+                    <animate attributeName="r" from={r * 2.5} to={r * 5} dur="1.6s" repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.4" to="0" dur="1.6s" repeatCount="indefinite" />
+                  </circle>
+                  <circle r={r * (isSelected || isClusterSelected ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.4 : isHovered ? 0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSelected ? 1.6 : isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
+                  {isMulti && (
+                    <>
+                      <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2}
+                        fill={isClusterSelected ? "#D7BB7D" : "#001D34"}
+                        stroke="#D7BB7D" strokeWidth={0.5} />
+                      <text x={r * 1.6} y={r * -1.6} textAnchor="middle" dominantBaseline="central"
+                        fontSize={r * 1.0} fontWeight="bold" fontFamily="monospace"
+                        fill={isClusterSelected ? "#001D34" : "#D7BB7D"}>
+                        {cluster.items.length}
+                      </text>
+                    </>
+                  )}
+                </g>
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+
+      {/* Hover tooltip */}
+      {!selectedMembro && !clusterItems && hoveredMembro && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none"
+          style={{ background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)", padding: "28px 24px 14px" }}>
+          <div className="flex items-end justify-between font-mono">
+            <div>
+              <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver perfil</p>
+              <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredMembro.nome || "—"}</p>
+              {hoveredMembro.especialidade && (
+                <p className="text-[11px] text-brand-gold/55 mt-0.5">{hoveredMembro.especialidade}</p>
+              )}
+            </div>
+            {hoveredMembro.empresa && (
+              <div className="text-right">
+                <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Empresa</p>
+                <p className="text-xs text-brand-gold/70">{hoveredMembro.empresa}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Cluster picker */}
+      {clusterItems && !selectedMembro && (
+        <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
+          style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)", padding: "32px 24px 18px" }}>
+          <button onClick={() => setClusterItems(null)}
+            className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest">
+            ✕ FECHAR
+          </button>
+          <div className="font-mono">
+            <p className="text-[9px] text-brand-gold/40 tracking-[0.35em] uppercase mb-1">// {clusterItems.length} Membros neste Local</p>
+            <div className="h-px bg-gradient-to-r from-transparent via-brand-gold/20 to-transparent mb-3" />
+            <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {clusterItems.map(m => (
+                <button key={m.id} onClick={() => { setSelectedMembro(m); setClusterItems(null); }}
+                  className="flex items-center justify-between gap-3 text-left px-3 py-2 rounded transition-colors"
+                  style={{ background: "rgba(215,187,125,0.06)", border: "1px solid rgba(215,187,125,0.15)" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.14)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "rgba(215,187,125,0.06)")}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-brand-gold truncate">{m.nome || "—"}</p>
+                    {m.especialidade && <p className="text-[10px] text-brand-gold/40 truncate">{m.especialidade}</p>}
+                  </div>
+                  {m.empresa && <p className="text-[10px] text-brand-gold/70 shrink-0 truncate max-w-[120px]">{m.empresa}</p>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selected member info panel */}
+      {selectedMembro && (
+        <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
+          style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)", padding: "32px 24px 18px" }}>
+          <div className="absolute top-3 right-4 flex items-center gap-3">
+            <button onClick={() => navigate(`/vitrine/${selectedMembro.id}`)}
+              className="text-brand-gold/70 hover:text-brand-gold transition-colors font-mono text-xs tracking-widest border border-brand-gold/20 hover:border-brand-gold/50 px-2 py-0.5 rounded">
+              VER PERFIL →
+            </button>
+            <button onClick={() => setSelectedMembro(null)}
+              className="text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest">
+              ✕
+            </button>
+          </div>
+          <div className="flex items-center gap-4 font-mono">
+            <div className="w-12 h-12 rounded-full overflow-hidden border border-brand-gold/30 shrink-0 flex items-center justify-center"
+              style={{ background: "rgba(215,187,125,0.08)" }}>
+              {fotoUrlMap(selectedMembro) ? (
+                <img src={fotoUrlMap(selectedMembro)!} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold text-brand-gold/70">{getInitialsMap(selectedMembro.nome)}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Membro BUILT</p>
+              <p className="text-sm font-bold text-brand-gold mt-0.5 truncate">{selectedMembro.nome || "—"}</p>
+              {selectedMembro.especialidade && (
+                <p className="text-[11px] text-brand-gold/55 truncate">{selectedMembro.especialidade}</p>
+              )}
+              {(selectedMembro.cidade || selectedMembro.estado) && (
+                <p className="text-[10px] text-brand-gold/35 flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-2.5 h-2.5" />
+                  {[selectedMembro.cidade, selectedMembro.estado].filter(Boolean).join(", ")}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface CardForm {
@@ -226,137 +519,104 @@ export default function VitrinePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#020b16" }}>
-      {/* Header */}
-      <div
-        className="relative overflow-hidden border-b border-brand-gold/10 px-6 py-8"
-        style={{ background: "radial-gradient(ellipse at 30% 50%, #001428 0%, #000c1f 50%, #020b16 100%)" }}
-      >
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: "linear-gradient(rgba(215,187,125,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.04) 1px, transparent 1px)",
-          backgroundSize: "50px 50px",
-        }} />
-        <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-brand-gold/40" />
-        <div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-brand-gold/40" />
-        <div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-brand-gold/40" />
-        <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-brand-gold/40" />
-
-        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl border border-brand-gold/20 flex items-center justify-center"
-                style={{ background: "rgba(215,187,125,0.08)" }}>
-                <Store className="w-5 h-5 text-brand-gold/70" />
-              </div>
-              <div>
-                <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.35em] uppercase">// Rede BUILT</p>
-                <h1 className="text-xl font-bold font-mono text-brand-gold">VITRINE BUILT</h1>
-              </div>
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Header — BIA style */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-vitrine-title">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
+              <Store className="w-6 h-6" />
             </div>
+            Vitrine BUILT
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Encontre fornecedores, prestadores e empresas da rede BUILT —{" "}
+            {isLoading ? "..." : `${membros.length} membro${membros.length !== 1 ? "s" : ""} na vitrine`}
+            {hasFilters && ` · ${filtered.length} exibindo`}
+          </p>
+        </div>
 
-            <p className="text-sm text-white/40 max-w-2xl leading-relaxed">
-              Área de acesso livre — encontre fornecedores, prestadores de serviços e empresas da rede BUILT.
-              Presença, divulgação de ofertas e conexões estratégicas.
-            </p>
-
-            <div className="flex items-center gap-4 mt-4 flex-wrap">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5"
-                style={{ background: "rgba(215,187,125,0.06)" }}>
-                <Users className="w-3.5 h-3.5 text-brand-gold/50" />
-                <span className="text-xs font-mono text-white/50">
-                  {isLoading ? "..." : `${membros.length} cadastro${membros.length !== 1 ? "s" : ""}`}
-                </span>
-              </div>
-              {hasFilters && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5"
-                  style={{ background: "rgba(215,187,125,0.04)" }}>
-                  <span className="text-xs font-mono text-white/40">{filtered.length} exibindo</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* My card actions */}
-          {membroId && (
-            <div className="flex items-center gap-2 shrink-0">
-              {myCardExists ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={openDialog}
-                    className="gap-2 border-brand-gold/20 text-brand-gold/70 hover:bg-brand-gold/10 hover:text-brand-gold font-mono text-xs"
-                    data-testid="btn-editar-meu-card"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Editar meu card
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removeMutation.mutate()}
-                    disabled={removeMutation.isPending}
-                    className="gap-2 text-red-400/60 hover:text-red-400 hover:bg-red-400/10 font-mono text-xs"
-                    data-testid="btn-remover-meu-card"
-                  >
-                    {removeMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    Remover
-                  </Button>
-                </>
-              ) : (
+        {membroId && (
+          <div className="flex items-center gap-2">
+            {myCardExists ? (
+              <>
                 <Button
                   size="sm"
+                  variant="outline"
                   onClick={openDialog}
-                  className="gap-2 font-mono text-xs"
-                  style={{
-                    background: "linear-gradient(135deg, #D7BB7D, #b89a50)",
-                    color: "#001D34",
-                  }}
-                  data-testid="btn-criar-meu-card"
+                  className="gap-2 border-brand-gold/20 text-brand-gold/70 hover:bg-brand-gold/10 hover:text-brand-gold font-mono text-xs"
+                  data-testid="btn-editar-meu-card"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  Criar meu card
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar meu card
                 </Button>
-              )}
-            </div>
-          )}
-        </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeMutation.mutate()}
+                  disabled={removeMutation.isPending}
+                  className="gap-2 text-red-400/60 hover:text-red-400 hover:bg-red-400/10 font-mono text-xs"
+                  data-testid="btn-remover-meu-card"
+                >
+                  {removeMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Remover
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                onClick={openDialog}
+                className="gap-2 font-mono text-xs bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
+                data-testid="btn-criar-meu-card"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Criar meu card
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* World Map */}
+      {isLoading ? (
+        <Skeleton className="h-[440px] rounded-2xl" />
+      ) : (
+        <WorldMapHeader membros={membros} />
+      )}
+
       {/* Filters */}
-      <div className="px-6 py-4 border-b border-white/5 flex flex-wrap items-center gap-3"
-        style={{ background: "#030d1a" }}>
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, empresa ou especialidade..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm"
+            className="pl-9 h-9 text-sm"
             data-testid="input-vitrine-search"
           />
         </div>
 
         <Select value={filterEspecialidade} onValueChange={setFilterEspecialidade}>
-          <SelectTrigger className="w-44 h-9 bg-white/5 border-white/10 text-sm text-white" data-testid="select-vitrine-especialidade">
+          <SelectTrigger className="w-44 h-9 text-sm" data-testid="select-vitrine-especialidade">
             <SelectValue placeholder="Especialidade" />
           </SelectTrigger>
-          <SelectContent className="bg-[#030d1a] border-white/10">
-            <SelectItem value="all" className="text-white/60">Todas especialidades</SelectItem>
+          <SelectContent>
+            <SelectItem value="all">Todas especialidades</SelectItem>
             {especialidades.map(e => (
-              <SelectItem key={e} value={e} className="text-white">{e}</SelectItem>
+              <SelectItem key={e} value={e}>{e}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <Select value={filterEstado} onValueChange={setFilterEstado}>
-          <SelectTrigger className="w-32 h-9 bg-white/5 border-white/10 text-sm text-white" data-testid="select-vitrine-estado">
+          <SelectTrigger className="w-32 h-9 text-sm" data-testid="select-vitrine-estado">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
-          <SelectContent className="bg-[#030d1a] border-white/10">
-            <SelectItem value="all" className="text-white/60">Todos estados</SelectItem>
+          <SelectContent>
+            <SelectItem value="all">Todos estados</SelectItem>
             {estados.map(e => (
-              <SelectItem key={e} value={e} className="text-white">{e}</SelectItem>
+              <SelectItem key={e} value={e}>{e}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -364,7 +624,7 @@ export default function VitrinePage() {
         {hasFilters && (
           <button
             onClick={clearFilters}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-muted-foreground hover:text-foreground border border-border hover:border-foreground/20 transition-colors"
             data-testid="btn-vitrine-clear-filters"
           >
             <X className="w-3 h-3" />
@@ -373,32 +633,28 @@ export default function VitrinePage() {
         )}
       </div>
 
-      {/* Grid */}
-      <div className="p-6">
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-52 rounded-xl bg-white/5" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Store className="w-12 h-12 text-white/10 mb-4" />
-            <p className="text-white/30 font-mono text-sm">
-              {hasFilters ? "Nenhum resultado para os filtros aplicados" : "Nenhum membro na Vitrine ainda"}
-            </p>
-            <p className="text-white/15 text-xs mt-1 font-mono">
-              {hasFilters ? "Tente ajustar os filtros" : "Crie seu card usando o botão acima"}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(m => (
-              <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Card grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-52 rounded-xl" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <Store className="w-12 h-12 text-muted-foreground/20 mb-4" />
+          <p className="text-muted-foreground font-mono text-sm">
+            {hasFilters ? "Nenhum resultado para os filtros aplicados" : "Nenhum membro na Vitrine ainda"}
+          </p>
+          <p className="text-muted-foreground/50 text-xs mt-1 font-mono">
+            {hasFilters ? "Tente ajustar os filtros" : "Crie seu card usando o botão acima"}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map(m => (
+            <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
+          ))}
+        </div>
+      )}
 
       {/* Create/Edit Card Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

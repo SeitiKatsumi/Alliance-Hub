@@ -63,6 +63,8 @@ interface BiasProjeto {
   id: string;
   nome_bia: string;
   localizacao?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // ---- Helpers ----
@@ -172,11 +174,13 @@ function LocationPickerModal({ open, onClose, onSelect }: {
 }
 
 // ---- OPA World Map ----
+type OpaResolved = Oportunidade & { _lat: number; _lng: number; _localizacao: string | null };
+
 function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[] }) {
   const [, navigate] = useLocation();
-  const [hoveredCluster, setHoveredCluster] = useState<{ center: [number, number]; items: Oportunidade[] } | null>(null);
-  const [selectedOpa, setSelectedOpa] = useState<Oportunidade | null>(null);
-  const [clusterOpas, setClusterOpas] = useState<Oportunidade[] | null>(null);
+  const [hoveredCluster, setHoveredCluster] = useState<{ center: [number, number]; items: OpaResolved[] } | null>(null);
+  const [selectedOpa, setSelectedOpa] = useState<OpaResolved | null>(null);
+  const [clusterOpas, setClusterOpas] = useState<OpaResolved[] | null>(null);
   const [zoom, setZoom] = useState(1.2);
   const [center, setCenter] = useState<[number, number]>([-20, 10]);
 
@@ -186,22 +190,28 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
     return m;
   }, [bias]);
 
-  const opasWithCoords = useMemo(
-    () => opas.filter(o => o.latitude != null && o.longitude != null),
-    [opas]
-  );
+  // Resolve effective coordinates: OPA's own coords first, then fall back to BIA's coords
+  const opasWithCoords = useMemo(() => {
+    return opas
+      .map(o => {
+        const lat = o.latitude ?? biasMap[o.bia_id ?? ""]?.latitude ?? null;
+        const lng = o.longitude ?? biasMap[o.bia_id ?? ""]?.longitude ?? null;
+        const localizacao = o.localizacao ?? biasMap[o.bia_id ?? ""]?.localizacao ?? null;
+        if (lat == null || lng == null) return null;
+        return { ...o, _lat: parseFloat(String(lat)), _lng: parseFloat(String(lng)), _localizacao: localizacao };
+      })
+      .filter((o): o is NonNullable<typeof o> => o !== null);
+  }, [opas, biasMap]);
 
   const clusters = useMemo(() => {
     const THRESHOLD = 0.5;
-    const result: { center: [number, number]; items: Oportunidade[] }[] = [];
+    const result: { center: [number, number]; items: typeof opasWithCoords }[] = [];
     for (const o of opasWithCoords) {
-      const lng = parseFloat(String(o.longitude));
-      const lat = parseFloat(String(o.latitude));
       const existing = result.find(
-        c => Math.abs(c.center[0] - lng) < THRESHOLD && Math.abs(c.center[1] - lat) < THRESHOLD
+        c => Math.abs(c.center[0] - o._lng) < THRESHOLD && Math.abs(c.center[1] - o._lat) < THRESHOLD
       );
       if (existing) existing.items.push(o);
-      else result.push({ center: [lng, lat], items: [o] });
+      else result.push({ center: [o._lng, o._lat], items: [o] });
     }
     return result;
   }, [opasWithCoords]);
@@ -378,9 +388,9 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
                   <>
                     <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
                     <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items[0].nome_oportunidade}</p>
-                    {hoveredCluster.items[0].localizacao && (
+                    {hoveredCluster.items[0]._localizacao && (
                       <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" />{hoveredCluster.items[0].localizacao?.split(",")[0]}
+                        <MapPin className="w-3 h-3" />{hoveredCluster.items[0]._localizacao?.split(",")[0]}
                       </p>
                     )}
                   </>
@@ -431,9 +441,9 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
             <div className="flex-1 min-w-0">
               <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase font-mono">OPA Selecionada</p>
               <p className="text-base font-bold text-brand-gold font-mono truncate mt-0.5">{selectedOpa.nome_oportunidade}</p>
-              {selectedOpa.localizacao && (
+              {selectedOpa._localizacao && (
                 <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5 truncate">
-                  <MapPin className="w-3 h-3 shrink-0" />{selectedOpa.localizacao?.split(",").slice(0, 2).join(",")}
+                  <MapPin className="w-3 h-3 shrink-0" />{selectedOpa._localizacao?.split(",").slice(0, 2).join(",")}
                 </p>
               )}
               {selectedOpa.bia_id && biasMap[selectedOpa.bia_id] && (

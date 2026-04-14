@@ -594,6 +594,10 @@ export async function registerRoutes(
 
   // ========== VITRINE (membros que optaram por aparecer na Vitrine) ==========
   app.get("/api/vitrine", async (req, res) => {
+    // Require authenticated session — Vitrine is available to all logged-in users
+    if (!(req.session as any).directusUserId) {
+      return res.status(401).json({ error: "Não autenticado" });
+    }
     try {
       const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&filter[na_vitrine][_eq]=true&fields=id,nome,cargo,especialidade,empresa,cidade,estado,whatsapp,email,foto_perfil,foto,perfil_aliado,nucleo_alianca`;
       const response = await fetch(url, {

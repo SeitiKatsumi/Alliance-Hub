@@ -1292,18 +1292,30 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         console.error("[login] cadastro_geral lookup error:", err.message);
       }
 
+      // Check local users table for admin role
+      let role = "user";
+      try {
+        const localUser = await storage.getUserByUsername(email);
+        if (localUser && localUser.ativo) {
+          role = localUser.role || "user";
+        }
+      } catch {
+        // ignore — local user lookup is optional
+      }
+
       // Store session
       (req.session as any).directusUserId = directusUser.id;
       (req.session as any).membroId = membroId;
       (req.session as any).nome = nome;
       (req.session as any).email = email;
+      (req.session as any).role = role;
 
       res.json({
         id: directusUser.id,
         nome,
         email,
         membro_directus_id: membroId,
-        role: "user",
+        role,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1324,7 +1336,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       nome: (req.session as any).nome || "",
       email: (req.session as any).email || "",
       membro_directus_id: (req.session as any).membroId || null,
-      role: "user",
+      role: (req.session as any).role || "user",
     });
   });
 
@@ -1565,14 +1577,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/transferencia-cotas", async (req, res) => {
     try {
-      const sessionMembroId = (req.session as any).membroId;
+      const sessionMembroId = (req.session as any).membroId as string | null;
       const sessionDirectusUserId = (req.session as any).directusUserId;
+      const sessionRole = (req.session as any).role || "user";
       if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
       const { bia_id, membro_origem_id, membro_destino_id, valor_total, observacoes } = req.body;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
       }
-      if (sessionMembroId && sessionMembroId !== membro_origem_id) {
+      if (sessionRole !== "admin" && sessionMembroId !== membro_origem_id) {
         return res.status(403).json({ error: "Você só pode solicitar transferência das suas próprias cotas" });
       }
       const item = await storage.createTransferenciaCotas({

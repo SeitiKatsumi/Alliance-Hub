@@ -601,7 +601,8 @@ export async function registerRoutes(
     try {
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,especialidade,empresa,cidade,estado,whatsapp,email,foto_perfil,foto,perfil_aliado,nucleo_alianca,na_vitrine`;
+      // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,na_vitrine,Especialidades.Especialidade_id.nome`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
@@ -609,11 +610,18 @@ export async function registerRoutes(
       const json = await response.json();
       const items = (json.data || [])
         .filter((m: any) => m.na_vitrine === true || m.na_vitrine === 1)
-        .map((m: any) => ({
-          ...m,
-          cargo: m.cargo || m.responsavel_cargo || null,
-          foto: m.foto_perfil || m.foto || null,
-        }));
+        .map((m: any) => {
+          // Extract first especialidade from relation
+          const especialidades = (m.Especialidades || [])
+            .map((e: any) => e?.Especialidade_id?.nome)
+            .filter(Boolean);
+          return {
+            ...m,
+            cargo: m.cargo || m.responsavel_cargo || null,
+            foto: m.foto_perfil || null,
+            especialidade: especialidades[0] || null,
+          };
+        });
       res.json(items);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

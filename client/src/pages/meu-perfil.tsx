@@ -9,10 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2, Eye
+  Save, Loader2, Camera, CheckCircle2
 } from "lucide-react";
 
 interface Membro {
@@ -79,10 +78,6 @@ export default function MeuPerfilPage() {
   });
 
   function set(field: keyof Membro, value: string) {
-    setForm(f => ({ ...f, [field]: value }));
-  }
-
-  function setToggle(field: keyof Membro, value: boolean) {
     setForm(f => ({ ...f, [field]: value }));
   }
 
@@ -284,47 +279,6 @@ export default function MeuPerfilPage() {
               </CardContent>
             </Card>
 
-            {/* Visibilidade na Rede */}
-            <Card className="border-white/5" style={{ background: "#050f1c" }}>
-              <CardContent className="pt-5 space-y-5">
-                <SectionLabel icon={Eye} label="Visibilidade na Rede" />
-                <p className="text-xs text-white/30 font-mono -mt-2">
-                  Escolha onde seu perfil aparece dentro da plataforma BUILT.
-                </p>
-
-                <VisibilityToggle
-                  id="toggle-na-vitrine"
-                  checked={!!form.na_vitrine}
-                  onChange={v => setToggle("na_vitrine", v)}
-                  title="Aparecer na Vitrine"
-                  description="Divulgue suas ofertas e seja encontrado como fornecedor ou prestador de serviços"
-                  color="gold"
-                />
-
-                <div className="h-px bg-white/5" />
-
-                <VisibilityToggle
-                  id="toggle-em-membros-built"
-                  checked={!!form.em_membros_built}
-                  onChange={v => setToggle("em_membros_built", v)}
-                  title="Aparecer em Membros BUILT"
-                  description="Visível para membros validados da rede — acesso à aura percebida, OPAs e BIAs"
-                  color="blue"
-                />
-
-                <div className="h-px bg-white/5" />
-
-                <VisibilityToggle
-                  id="toggle-em-built-capital"
-                  checked={!!form.em_built_capital}
-                  onChange={v => setToggle("em_built_capital", v)}
-                  title="Aparecer em BUILT Capital"
-                  description="Visível para investidores da rede — acesso a BIAs e OPAs de investimento"
-                  color="green"
-                />
-              </CardContent>
-            </Card>
-
             {/* Save button */}
             <div className="flex justify-end">
               <Button
@@ -351,39 +305,6 @@ export default function MeuPerfilPage() {
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function VisibilityToggle({
-  id, checked, onChange, title, description, color
-}: {
-  id: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  title: string;
-  description: string;
-  color: "gold" | "blue" | "green";
-}) {
-  const accent = color === "gold"
-    ? "text-brand-gold"
-    : color === "blue"
-    ? "text-blue-400"
-    : "text-emerald-400";
-
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-mono font-semibold ${accent}`}>{title}</p>
-        <p className="text-xs text-white/35 mt-0.5 leading-relaxed">{description}</p>
-      </div>
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onChange}
-        data-testid={id}
-        className="shrink-0 mt-0.5"
-      />
     </div>
   );
 }

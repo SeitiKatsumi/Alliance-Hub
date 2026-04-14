@@ -183,7 +183,7 @@ export default function VitrinePage() {
     const payload: Record<string, any> = { ...rest, na_vitrine: true };
     // Send Especialidades as Directus M2M array (replaces existing)
     payload.Especialidades = especialidade_id
-      ? [{ Especialidade_id: especialidade_id }]
+      ? [{ especialidades_id: especialidade_id }]
       : [];
     saveMutation.mutate(payload as any);
   }

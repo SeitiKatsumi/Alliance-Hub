@@ -602,7 +602,7 @@ export async function registerRoutes(
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
       // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,na_vitrine,Especialidades.Especialidade_id.nome`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,na_vitrine,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
@@ -613,7 +613,7 @@ export async function registerRoutes(
         .map((m: any) => {
           // Extract first especialidade from relation
           const especialidades = (m.Especialidades || [])
-            .map((e: any) => e?.Especialidade_id?.nome)
+            .map((e: any) => e?.especialidades_id?.nome_especialidade)
             .filter(Boolean);
           return {
             ...m,
@@ -692,10 +692,10 @@ export async function registerRoutes(
           especialidades_arr = esp.map((e: any) => {
             if (typeof e === "string") return e;
             if (typeof e === "number") return String(e);
-            // M2M junction: try nested object fields
-            const nested = e?.Especialidades_id || e?.especialidade_id || e;
+            // M2M junction: junction field is especialidades_id → nome_especialidade
+            const nested = e?.especialidades_id || e?.Especialidades_id || e?.especialidade_id || e;
             if (typeof nested === "object" && nested !== null) {
-              return nested.nome || nested.name || nested.titulo || nested.label || String(nested.id || "");
+              return nested.nome_especialidade || nested.nome || nested.name || nested.titulo || nested.label || String(nested.id || "");
             }
             return null;
           }).filter(Boolean) as string[];

@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   Store, Search, MapPin, Building2,
-  Users, X, Plus, Pencil, Trash2, Loader2
+  Users, X, Plus, Pencil, Trash2, Loader2,
+  FileText, Send, Phone, MessageSquare
 } from "lucide-react";
 
 interface MembroVitrine {
@@ -638,72 +639,206 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
   const foto = fotoUrl(m);
   const nome = m.nome || "—";
   const [, navigate] = useLocation();
+  const [orcamentoOpen, setOrcamentoOpen] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+
+  function waLink() {
+    if (!m.whatsapp) return null;
+    const digits = m.whatsapp.replace(/\D/g, "");
+    return `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`;
+  }
+
+  function handleEnviarWa(e: React.MouseEvent) {
+    e.stopPropagation();
+    const wa = waLink();
+    if (!wa) return;
+    const texto = `Olá ${nome}! Gostaria de solicitar um orçamento.\n\n${mensagem}`.trim();
+    window.open(`${wa}?text=${encodeURIComponent(texto)}`, "_blank");
+    setOrcamentoOpen(false);
+    setMensagem("");
+  }
+
+  function handleEnviarEmail(e: React.MouseEvent) {
+    e.stopPropagation();
+    const assunto = encodeURIComponent(`Solicitação de orçamento - BUILT Alliances`);
+    const corpo = encodeURIComponent(`Olá ${nome}!\n\nGostaria de solicitar um orçamento.\n\n${mensagem}`);
+    window.open(`mailto:${m.email}?subject=${assunto}&body=${corpo}`, "_blank");
+    setOrcamentoOpen(false);
+    setMensagem("");
+  }
 
   return (
-    <div
-      className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01]"
-      style={{
-        background: "linear-gradient(145deg, #071626, #040e1c)",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-        borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
-      }}
-      onClick={() => navigate(`/vitrine/${m.id}`)}
-      data-testid={`card-vitrine-${m.id}`}
-    >
-      {/* Top accent */}
-      <div className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: isOwn
-          ? "linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
-          : "linear-gradient(90deg, transparent, rgba(215,187,125,0.3), transparent)"
-        }} />
+    <>
+      <div
+        className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01]"
+        style={{
+          background: "linear-gradient(145deg, #071626, #040e1c)",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+          borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+        }}
+        onClick={() => navigate(`/vitrine/${m.id}`)}
+        data-testid={`card-vitrine-${m.id}`}
+      >
+        {/* Top accent */}
+        <div className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: isOwn
+            ? "linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
+            : "linear-gradient(90deg, transparent, rgba(215,187,125,0.3), transparent)"
+          }} />
 
-      {/* Corner decorations */}
-      <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
-      <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
+        {/* Corner decorations */}
+        <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
+        <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
 
+        <div className="p-4 space-y-3">
+          {/* Avatar */}
+          <div className="flex justify-center">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
+              style={{
+                background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
+                boxShadow: "0 0 16px rgba(215,187,125,0.1)",
+              }}
+            >
+              {foto ? (
+                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
+              )}
+            </div>
+          </div>
 
-      <div className="p-4 space-y-3">
-        {/* Avatar */}
-        <div className="flex justify-center">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
-            style={{
-              background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
-              boxShadow: "0 0 16px rgba(215,187,125,0.1)",
-            }}
-          >
-            {foto ? (
-              <img src={foto} alt={nome} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
+          {/* Name + info */}
+          <div className="text-center space-y-1.5">
+            <p className="text-sm font-semibold text-white font-mono leading-tight">{nome}</p>
+
+            {m.especialidade && (
+              <p className="text-xs text-brand-gold/60 font-mono truncate">{m.especialidade}</p>
+            )}
+
+            {m.empresa && (
+              <div className="flex items-center justify-center gap-1">
+                <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+                <span className="text-xs text-white/40 truncate">{m.empresa}</span>
+              </div>
+            )}
+
+            {m.cidade && (
+              <div className="flex items-center justify-center gap-1">
+                <MapPin className="w-3 h-3 text-white/20 shrink-0" />
+                <span className="text-xs text-white/35 truncate">{m.cidade}</span>
+              </div>
             )}
           </div>
-        </div>
 
-        {/* Name + info */}
-        <div className="text-center space-y-1.5">
-          <p className="text-sm font-semibold text-white font-mono leading-tight">{nome}</p>
-
-          {m.especialidade && (
-            <p className="text-xs text-brand-gold/60 font-mono truncate">{m.especialidade}</p>
-          )}
-
-          {m.empresa && (
-            <div className="flex items-center justify-center gap-1">
-              <Building2 className="w-3 h-3 text-white/25 shrink-0" />
-              <span className="text-xs text-white/40 truncate">{m.empresa}</span>
-            </div>
-          )}
-
-          {m.cidade && (
-            <div className="flex items-center justify-center gap-1">
-              <MapPin className="w-3 h-3 text-white/20 shrink-0" />
-              <span className="text-xs text-white/35 truncate">{m.cidade}</span>
-            </div>
+          {/* Quote button — only for other members */}
+          {!isOwn && (
+            <>
+              <div className="h-px bg-white/5" />
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setMensagem(""); setOrcamentoOpen(true); }}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono font-medium transition-all duration-200 border"
+                style={{
+                  background: "rgba(215,187,125,0.06)",
+                  borderColor: "rgba(215,187,125,0.18)",
+                  color: "rgba(215,187,125,0.75)",
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(215,187,125,0.12)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(215,187,125,0.35)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#D7BB7D";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(215,187,125,0.06)";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(215,187,125,0.18)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "rgba(215,187,125,0.75)";
+                }}
+                data-testid={`btn-orcamento-${m.id}`}
+              >
+                <FileText className="w-3 h-3" />
+                Solicitar orçamento
+              </button>
+            </>
           )}
         </div>
       </div>
-    </div>
+
+      {/* Orçamento dialog */}
+      <Dialog open={orcamentoOpen} onOpenChange={setOrcamentoOpen}>
+        <DialogContent
+          className="border-brand-gold/20 text-white max-w-md"
+          style={{ background: "#001428" }}
+        >
+          <DialogHeader>
+            <DialogTitle className="font-mono text-brand-gold flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Solicitar Orçamento
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-white/8"
+              style={{ background: "rgba(255,255,255,0.03)" }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-brand-gold/20"
+                style={{ background: "rgba(215,187,125,0.08)" }}>
+                <span className="text-[10px] font-mono font-bold text-brand-gold/70">{getInitials(nome)}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-white/40 font-mono">Para</p>
+                <p className="text-sm font-semibold text-white font-mono truncate">{nome}</p>
+                {m.especialidade && (
+                  <p className="text-xs text-brand-gold/50 truncate">{m.especialidade}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-white/50">Descreva sua necessidade</Label>
+              <Textarea
+                value={mensagem}
+                onChange={e => setMensagem(e.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 resize-none min-h-[100px]"
+                placeholder="Ex: Preciso de orçamento para instalação elétrica em imóvel comercial de 200m²..."
+                autoFocus
+                data-testid={`textarea-orcamento-${m.id}`}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            <Button
+              variant="ghost"
+              onClick={() => setOrcamentoOpen(false)}
+              className="text-white/40 hover:text-white/70 text-sm"
+            >
+              Cancelar
+            </Button>
+            {m.email && (
+              <Button
+                onClick={handleEnviarEmail}
+                variant="outline"
+                className="border-white/15 text-white/60 hover:text-white hover:border-white/30 font-mono text-xs gap-1.5"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Enviar por E-mail
+              </Button>
+            )}
+            {waLink() && (
+              <Button
+                onClick={handleEnviarWa}
+                className="font-mono text-xs gap-1.5"
+                style={{ background: "#25D366", color: "#fff" }}
+                data-testid={`btn-enviar-orcamento-wa-${m.id}`}
+              >
+                <Phone className="w-3.5 h-3.5" />
+                Enviar via WhatsApp
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

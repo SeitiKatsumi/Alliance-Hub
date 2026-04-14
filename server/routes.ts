@@ -1566,6 +1566,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // ========== TRANSFERÊNCIA DE COTAS ==========
   app.get("/api/transferencia-cotas", async (req, res) => {
     try {
+      const directusUserId = (req.session as any).directusUserId;
+      if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
       const biaId = req.query.bia_id as string;
       if (!biaId) return res.status(400).json({ error: "bia_id é obrigatório" });
       const items = await storage.getTransferenciasCotasByBia(biaId);

@@ -58,6 +58,8 @@ import {
   SendHorizontal,
   ThumbsUp,
   ThumbsDown,
+  Divide,
+  PlusCircle,
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -939,12 +941,12 @@ export default function FluxoCaixaPage() {
   const [uploading, setUploading] = useState(false);
 
   // Transferência de cotas state
+  interface Destinatario { membroId: string; percentual: number; }
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [transferOrigemId, setTransferOrigemId] = useState<string>("");
-  const [transferDestinoId, setTransferDestinoId] = useState<string>("");
   const [transferObservacoes, setTransferObservacoes] = useState<string>("");
   const [transferValorRef, setTransferValorRef] = useState<number>(0);
-  const [transferPercentual, setTransferPercentual] = useState<number>(100);
+  const [destinatarios, setDestinatarios] = useState<Destinatario[]>([{ membroId: "", percentual: 100 }]);
   const [rejeicaoDialogId, setRejeicaoDialogId] = useState<string | null>(null);
   const [rejeicaoMotivo, setRejeicaoMotivo] = useState<string>("");
 
@@ -1003,29 +1005,59 @@ export default function FluxoCaixaPage() {
     enabled: !!selectedBiaId,
   });
 
+  const totalPercentual = destinatarios.reduce((s, d) => s + (d.percentual || 0), 0);
+  const destValidos = destinatarios.every((d) => d.membroId !== "");
+  const hasDuplicateDest = destinatarios.length !== new Set(destinatarios.map((d) => d.membroId).filter(Boolean)).size;
+
   const createTransferMutation = useMutation({
     mutationFn: async () => {
-      if (!transferDestinoId || !transferOrigemId) throw new Error("Preencha todos os campos");
-      const valorTransferido = parseFloat(((transferPercentual / 100) * transferValorRef).toFixed(2));
-      return apiRequest("POST", "/api/transferencia-cotas", {
-        bia_id: selectedBiaId,
-        membro_origem_id: transferOrigemId,
-        membro_destino_id: transferDestinoId,
-        valor_total: valorTransferido,
-        percentual_transferencia: transferPercentual,
-        observacoes: transferObservacoes || null,
-      });
+      if (!transferOrigemId) throw new Error("Membro de origem não definido");
+      if (!destValidos) throw new Error("Selecione todos os membros destinatários");
+      if (hasDuplicateDest) throw new Error("Destinatários duplicados");
+      if (totalPercentual > 100) throw new Error("A soma dos percentuais não pode exceder 100%");
+      if (totalPercentual <= 0) throw new Error("A soma dos percentuais deve ser maior que 0%");
+      for (const dest of destinatarios) {
+        const valor = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+        await apiRequest("POST", "/api/transferencia-cotas", {
+          bia_id: selectedBiaId,
+          membro_origem_id: transferOrigemId,
+          membro_destino_id: dest.membroId,
+          valor_total: valor,
+          percentual_transferencia: dest.percentual,
+          observacoes: transferObservacoes || null,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
       setTransferDialogOpen(false);
-      setTransferDestinoId("");
       setTransferObservacoes("");
-      setTransferPercentual(100);
-      toast({ title: "Solicitação enviada", description: "Aguardando aprovação do Diretor de Aliança ou Aliado BUILT." });
+      setDestinatarios([{ membroId: "", percentual: 100 }]);
+      const n = destinatarios.length;
+      toast({ title: "Solicitação enviada", description: `${n} solicitaç${n === 1 ? "ão criada" : "ões criadas"}. Aguardando aprovação do Diretor de Aliança ou Aliado BUILT.` });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
+
+  function handleDividirIgualmente() {
+    const n = destinatarios.length;
+    if (n === 0) return;
+    const base = Math.floor(100 / n);
+    const resto = 100 - base * n;
+    setDestinatarios(destinatarios.map((d, i) => ({ ...d, percentual: i === n - 1 ? base + resto : base })));
+  }
+
+  function updateDestinatario(idx: number, field: "membroId" | "percentual", value: string | number) {
+    setDestinatarios((prev) => prev.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+  }
+
+  function addDestinatario() {
+    setDestinatarios((prev) => [...prev, { membroId: "", percentual: 0 }]);
+  }
+
+  function removeDestinatario(idx: number) {
+    setDestinatarios((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   const aceitarTransferMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -1708,9 +1740,8 @@ export default function FluxoCaixaPage() {
                             onClick={() => {
                               setTransferOrigemId(item.membroId);
                               setTransferValorRef(item.valor);
-                              setTransferDestinoId("");
                               setTransferObservacoes("");
-                              setTransferPercentual(100);
+                              setDestinatarios([{ membroId: "", percentual: 100 }]);
                               setTransferDialogOpen(true);
                             }}
                           >
@@ -1735,87 +1766,152 @@ export default function FluxoCaixaPage() {
 
           {/* Dialog de solicitação de transferência */}
           <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
                   Solicitar Transferência de Cotas
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Membro de Origem</Label>
-                  <p className="text-sm font-medium">{membroMap[transferOrigemId] || transferOrigemId}</p>
+              <div className="space-y-5 py-2">
+
+                {/* Origem */}
+                <div className="rounded-md bg-muted/40 border px-3 py-2.5 space-y-0.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Membro de Origem</p>
+                  <p className="text-sm font-semibold">{membroMap[transferOrigemId] || transferOrigemId}</p>
                   <p className="text-xs text-muted-foreground">
                     Cotas totais: {formatBRL(transferValorRef)}&nbsp;
-                    ({aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual.toFixed(1)}% do capital total)
+                    ({aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual.toFixed(1)}% do capital total da BIA)
                   </p>
                 </div>
 
-                {/* Percentual a transferir */}
-                <div className="space-y-2">
+                {/* Destinatários */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Percentual a transferir *</Label>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min={1}
-                        max={100}
-                        step={1}
-                        value={transferPercentual}
-                        onChange={(e) => {
-                          const v = Math.min(100, Math.max(1, Number(e.target.value) || 1));
-                          setTransferPercentual(v);
-                        }}
-                        className="w-16 text-right text-sm font-semibold border rounded-md px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-brand-gold"
-                        data-testid="input-transfer-percentual"
-                      />
-                      <span className="text-sm font-semibold text-brand-gold">%</span>
+                    <Label className="text-xs font-semibold uppercase tracking-wide">Destinatários</Label>
+                    <div className="flex gap-1.5">
+                      {destinatarios.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={handleDividirIgualmente}
+                          data-testid="btn-dividir-igualmente"
+                        >
+                          <Divide className="w-3 h-3 mr-1" />
+                          Dividir igualmente
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-brand-gold border-brand-gold/50 hover:bg-brand-gold/10"
+                        onClick={addDestinatario}
+                        data-testid="btn-add-destinatario"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5 mr-1" />
+                        Adicionar
+                      </Button>
                     </div>
                   </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={100}
-                    step={1}
-                    value={transferPercentual}
-                    onChange={(e) => setTransferPercentual(Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer accent-brand-gold"
-                    data-testid="slider-transfer-percentual"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>1%</span>
-                    <span>25%</span>
-                    <span>50%</span>
-                    <span>75%</span>
-                    <span>100%</span>
-                  </div>
-                  {/* Valor calculado */}
-                  <div className="flex items-center justify-between rounded-md bg-muted/60 border px-3 py-2">
-                    <span className="text-xs text-muted-foreground">Valor a transferir</span>
-                    <span className="text-sm font-semibold text-brand-gold">
-                      {formatBRL(parseFloat(((transferPercentual / 100) * transferValorRef).toFixed(2)))}
-                    </span>
+
+                  {destinatarios.map((dest, idx) => {
+                    const valorDest = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+                    const isDuplicate = hasDuplicateDest && dest.membroId !== "" &&
+                      destinatarios.findIndex((d, i) => i !== idx && d.membroId === dest.membroId) !== -1;
+                    return (
+                      <div key={idx} className="space-y-1.5 rounded-lg border bg-muted/20 p-3" data-testid={`destinatario-row-${idx}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-muted-foreground w-4 shrink-0">{idx + 1}.</span>
+                          <Select
+                            value={dest.membroId}
+                            onValueChange={(v) => updateDestinatario(idx, "membroId", v)}
+                          >
+                            <SelectTrigger className={`flex-1 h-8 text-sm ${isDuplicate ? "border-red-500" : ""}`} data-testid={`select-dest-${idx}`}>
+                              <SelectValue placeholder="Selecione o membro..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {membros
+                                .filter((m) => m.id !== transferOrigemId)
+                                .map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          {destinatarios.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0 text-muted-foreground hover:text-red-500"
+                              onClick={() => removeDestinatario(idx)}
+                              data-testid={`btn-remove-dest-${idx}`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 pl-6">
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={dest.percentual}
+                            onChange={(e) => updateDestinatario(idx, "percentual", Number(e.target.value))}
+                            className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer accent-brand-gold"
+                            data-testid={`slider-dest-${idx}`}
+                          />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={dest.percentual}
+                              onChange={(e) => updateDestinatario(idx, "percentual", Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                              className="w-14 text-right text-xs font-semibold border rounded px-1.5 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                              data-testid={`input-perc-dest-${idx}`}
+                            />
+                            <span className="text-xs text-brand-gold font-semibold">%</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0 w-24 text-right">
+                            {formatBRL(valorDest)}
+                          </span>
+                        </div>
+                        {isDuplicate && (
+                          <p className="text-xs text-red-500 pl-6">Membro já selecionado</p>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Barra de total */}
+                  <div className={`flex items-center justify-between rounded-md px-3 py-2 border text-sm ${
+                    totalPercentual > 100 ? "bg-red-500/10 border-red-500/40" :
+                    totalPercentual === 100 ? "bg-green-500/10 border-green-500/40" :
+                    "bg-muted/60"
+                  }`}>
+                    <span className="text-xs text-muted-foreground">Total alocado</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold ${totalPercentual > 100 ? "text-red-500" : totalPercentual === 100 ? "text-green-600" : ""}`}>
+                        {totalPercentual}%
+                      </span>
+                      {totalPercentual < 100 && totalPercentual > 0 && (
+                        <span className="text-xs text-muted-foreground">({100 - totalPercentual}% disponível)</span>
+                      )}
+                      {totalPercentual > 100 && (
+                        <span className="text-xs text-red-500">excede em {totalPercentual - 100}%</span>
+                      )}
+                      {totalPercentual === 100 && (
+                        <span className="text-xs text-green-600">✓ completo</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="transfer-destino" className="text-xs font-medium">Membro de Destino *</Label>
-                  <Select value={transferDestinoId} onValueChange={setTransferDestinoId}>
-                    <SelectTrigger data-testid="select-transfer-destino">
-                      <SelectValue placeholder="Selecione o membro de destino..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {membros
-                        .filter((m) => m.id !== transferOrigemId)
-                        .map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {getMembroNome(m)}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="transfer-obs" className="text-xs font-medium">Observações (opcional)</Label>
                   <Input
@@ -1826,13 +1922,15 @@ export default function FluxoCaixaPage() {
                     data-testid="input-transfer-obs"
                   />
                 </div>
+
                 <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
-                  {transferPercentual === 100
-                    ? <>A transferência moverá <strong>100% das cotas</strong> do membro de origem para o destino nesta BIA.</>
-                    : <>A transferência moverá <strong>{transferPercentual}% das cotas</strong> ({formatBRL(parseFloat(((transferPercentual / 100) * transferValorRef).toFixed(2)))}) para o destino.</>
-                  } Será necessária a aprovação do Diretor de Aliança ou Aliado BUILT.
+                  {destinatarios.length === 1
+                    ? <>Serão transferidos <strong>{destinatarios[0].percentual}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
+                    : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{totalPercentual}%</strong> das cotas ({formatBRL(parseFloat(((totalPercentual / 100) * transferValorRef).toFixed(2)))}).</>
+                  } Necessária aprovação do Diretor de Aliança ou Aliado BUILT.
                 </div>
               </div>
+
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline" size="sm">Cancelar</Button>
@@ -1840,12 +1938,16 @@ export default function FluxoCaixaPage() {
                 <Button
                   size="sm"
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
-                  disabled={!transferDestinoId || createTransferMutation.isPending}
+                  disabled={!destValidos || hasDuplicateDest || totalPercentual > 100 || totalPercentual <= 0 || createTransferMutation.isPending}
                   onClick={() => createTransferMutation.mutate()}
                   data-testid="btn-submit-transfer"
                 >
                   <SendHorizontal className="w-4 h-4 mr-1.5" />
-                  {createTransferMutation.isPending ? "Enviando..." : "Solicitar Transferência"}
+                  {createTransferMutation.isPending
+                    ? "Enviando..."
+                    : destinatarios.length > 1
+                      ? `Solicitar (${destinatarios.length} destinatários)`
+                      : "Solicitar Transferência"}
                 </Button>
               </DialogFooter>
             </DialogContent>

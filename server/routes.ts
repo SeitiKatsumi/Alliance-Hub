@@ -599,17 +599,21 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&filter[na_vitrine][_eq]=true&fields=id,nome,cargo,especialidade,empresa,cidade,estado,whatsapp,email,foto_perfil,foto,perfil_aliado,nucleo_alianca`;
+      // Fetch all members with the na_vitrine field and filter server-side
+      // (avoids URL bracket encoding issues with Directus filter API)
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,especialidade,empresa,cidade,estado,whatsapp,email,foto_perfil,foto,perfil_aliado,nucleo_alianca,na_vitrine`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
       const json = await response.json();
-      const items = (json.data || []).map((m: any) => ({
-        ...m,
-        cargo: m.cargo || m.responsavel_cargo || null,
-        foto: m.foto_perfil || m.foto || null,
-      }));
+      const items = (json.data || [])
+        .filter((m: any) => m.na_vitrine === true || m.na_vitrine === 1)
+        .map((m: any) => ({
+          ...m,
+          cargo: m.cargo || m.responsavel_cargo || null,
+          foto: m.foto_perfil || m.foto || null,
+        }));
       res.json(items);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

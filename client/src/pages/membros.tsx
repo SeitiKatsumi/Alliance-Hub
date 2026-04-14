@@ -776,13 +776,13 @@ export default function MembrosPage() {
             className="text-3xl font-bold font-mono text-brand-gold tracking-wide mb-1"
             style={{ animation: "flicker 6s ease-in-out infinite", textShadow: "0 0 20px rgba(215,187,125,0.3)" }}
           >
-            MEMBROS
+            CADASTRO GERAL
           </h1>
           <p className="text-sm text-white/30 font-mono mb-6">
             &gt; {isLoading ? "carregando perfis..." : `${membros.length} nós ativos na rede`}
           </p>
           <div className="inline-flex items-center rounded-lg border border-brand-gold/10 py-3" style={{ background: "rgba(0,10,20,0.6)", backdropFilter: "blur(8px)" }}>
-            <StatItem label="Membros" value={stats.total} icon={Users} />
+            <StatItem label="Cadastros" value={stats.total} icon={Users} />
             <StatItem label="Empresas" value={stats.empresas} icon={Building2} />
             <StatItem label="Estados" value={stats.estados} icon={Globe} />
             <StatItem label="Especialidades" value={stats.especialidades} icon={Activity} />

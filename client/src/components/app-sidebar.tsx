@@ -217,12 +217,12 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Membros */}
+              {/* Cadastro Geral */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
                   <Link href="/membros">
                     <Users className="w-3.5 h-3.5" />
-                    <span>Membros</span>
+                    <span>Cadastro Geral</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

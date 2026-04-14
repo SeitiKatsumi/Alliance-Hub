@@ -147,7 +147,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
         {
           icon: Users,
           title: "Participantes",
-          description: "Membros ativos nas alianças",
+          description: "Cadastros ativos nas alianças",
           highlight: `${membrosCount}+ membros`,
           type: "warning"
         }

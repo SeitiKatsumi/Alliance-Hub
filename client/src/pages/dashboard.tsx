@@ -45,7 +45,7 @@ export default function Dashboard() {
   const distributionData = [
     { label: "BIAS", value: bias.length || 4, color: "#001D34" },
     { label: "Oportunidades", value: oportunidades.length || 5, color: "#D7BB7D" },
-    { label: "Membros", value: membros.length || 4, color: "#6A7984" },
+    { label: "Cadastro Geral", value: membros.length || 4, color: "#6A7984" },
   ];
 
   const activityData = [
@@ -116,7 +116,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">{membros.length || 4}</p>
-              <p className="text-sm text-muted-foreground">Membros Ativos</p>
+              <p className="text-sm text-muted-foreground">Cadastro Geral</p>
             </div>
           </CardContent>
         </Card>

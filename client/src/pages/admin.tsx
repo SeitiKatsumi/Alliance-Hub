@@ -70,7 +70,7 @@ const MODULE_LABELS: Record<string, string> = {
   bias: "BIAS - Alianças",
   calculadora: "Calculadora DM",
   fluxo_caixa: "Gestão Financeira",
-  membros: "Membros",
+  membros: "Cadastro Geral",
   aura: "AURA BUILT",
   painel: "Meu Painel",
   admin: "Administração",
@@ -311,7 +311,7 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="membros" className="flex items-center gap-2" data-testid="tab-membros">
             <UserIcon className="w-4 h-4" />
-            Membros
+            Cadastro Geral
           </TabsTrigger>
         </TabsList>
 

@@ -1292,10 +1292,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         console.error("[login] cadastro_geral lookup error:", err.message);
       }
 
-      // Check local users table for admin role
+      // Check local users table for admin role by email
       let role = "user";
       try {
-        const localUser = await storage.getUserByUsername(email);
+        const localUser = await storage.getUserByEmail(email);
         if (localUser && localUser.ativo) {
           role = localUser.role || "user";
         }
@@ -1606,8 +1606,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.patch("/api/transferencia-cotas/:id", async (req, res) => {
     try {
-      const sessionMembroId = (req.session as any).membroId;
+      const sessionMembroId = (req.session as any).membroId as string | null;
       const sessionDirectusUserId = (req.session as any).directusUserId;
+      const sessionRole = (req.session as any).role || "user";
       if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
 
       const { action, motivo_rejeicao } = req.body;
@@ -1621,8 +1622,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(400).json({ error: "Solicitação já foi processada" });
       }
 
-      // Only the membro_origem_id (cota holder) can approve/reject their own transfer
-      if (sessionMembroId && sessionMembroId !== transfer.membro_origem_id) {
+      // Only the membro_origem_id (cota holder) or admin can approve/reject transfers
+      if (sessionRole !== "admin" && sessionMembroId !== transfer.membro_origem_id) {
         return res.status(403).json({ error: "Sem permissão para processar esta solicitação" });
       }
 

@@ -9,6 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+const REDE_BADGES: Record<string, { img: string; label: string }> = {
+  BNI: { img: "/bni-badge.png", label: "Membro BNI" },
+};
+
 interface MembroDetalhe {
   id: string;
   nome?: string;
@@ -32,6 +36,7 @@ interface MembroDetalhe {
   nucleo_alianca?: string;
   na_vitrine?: boolean;
   Especialidades?: { Especialidade_id?: { nome?: string } }[];
+  Outras_redes_as_quais_pertenco?: string[] | null;
 }
 
 function getInitials(nome?: string): string {
@@ -97,6 +102,7 @@ export default function VitrineDetalhePage() {
   const especialidades = (membro?.Especialidades || [])
     .map(e => e?.Especialidade_id?.nome)
     .filter(Boolean) as string[];
+  const redes = (membro?.Outras_redes_as_quais_pertenco || []).filter(r => REDE_BADGES[r]);
   const localidade = [membro?.cidade, membro?.estado?.toUpperCase(), membro?.pais]
     .filter(Boolean).join(", ");
 
@@ -235,6 +241,22 @@ export default function VitrineDetalhePage() {
                 >
                   {membro.nucleo_alianca}
                 </Badge>
+              )}
+
+              {/* Selos de redes de negócios */}
+              {redes.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
+                  {redes.map(rede => (
+                    <img
+                      key={rede}
+                      src={REDE_BADGES[rede].img}
+                      alt={REDE_BADGES[rede].label}
+                      title={REDE_BADGES[rede].label}
+                      className="h-10 w-auto object-contain rounded"
+                      data-testid={`badge-rede-${rede.toLowerCase()}`}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>

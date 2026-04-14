@@ -25,6 +25,10 @@ interface EspecialidadeOption {
   nome_especialidade: string;
 }
 
+const REDES_DISPONIVEIS = [
+  { value: "BNI", label: "BNI", badge: "/bni-badge.png" },
+];
+
 interface Membro {
   id: string;
   nome: string;
@@ -45,6 +49,7 @@ interface Membro {
   em_membros_built?: boolean;
   em_built_capital?: boolean;
   link_site?: string;
+  Outras_redes_as_quais_pertenco?: string[] | null;
 }
 
 function fotoUrl(foto?: string | null): string | null {
@@ -461,6 +466,58 @@ export default function MeuPerfilPage() {
                     data-testid="input-perfil-aliado"
                   />
                 </Field>
+
+                {/* Redes de Negócios */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/40 font-mono">Outras redes de negócios</Label>
+                  <div className="flex flex-wrap gap-3">
+                    {REDES_DISPONIVEIS.map(rede => {
+                      const redes = form.Outras_redes_as_quais_pertenco || [];
+                      const selected = redes.includes(rede.value);
+                      return (
+                        <button
+                          key={rede.value}
+                          type="button"
+                          onClick={() => {
+                            const current = form.Outras_redes_as_quais_pertenco || [];
+                            setForm(f => ({
+                              ...f,
+                              Outras_redes_as_quais_pertenco: selected
+                                ? current.filter(r => r !== rede.value)
+                                : [...current, rede.value],
+                            }));
+                          }}
+                          data-testid={`btn-rede-${rede.value.toLowerCase()}`}
+                          className="relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-all"
+                          style={{
+                            background: selected ? "rgba(215,187,125,0.1)" : "rgba(255,255,255,0.03)",
+                            borderColor: selected ? "rgba(215,187,125,0.4)" : "rgba(255,255,255,0.08)",
+                            boxShadow: selected ? "0 0 12px rgba(215,187,125,0.1)" : "none",
+                          }}
+                        >
+                          <img
+                            src={rede.badge}
+                            alt={rede.label}
+                            className="h-10 w-auto object-contain rounded"
+                            style={{ opacity: selected ? 1 : 0.4, filter: selected ? "none" : "grayscale(0.5)" }}
+                          />
+                          {selected && (
+                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
+                              style={{ background: "#D7BB7D" }}>
+                              <CheckCircle2 className="w-3 h-3 text-[#001D34]" />
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono" style={{ color: selected ? "#D7BB7D" : "rgba(255,255,255,0.3)" }}>
+                            {rede.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-white/20 font-mono">
+                    Selecione as redes de negócios das quais você é membro. Os selos aparecerão no seu perfil.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

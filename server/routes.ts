@@ -628,6 +628,19 @@ export async function registerRoutes(
     }
   });
 
+  // ========== ESPECIALIDADES (from Directus) ==========
+  app.get("/api/especialidades", async (req, res) => {
+    try {
+      const url = `${DIRECTUS_URL}/items/especialidades?limit=-1&fields=id,nome_especialidade,categoria&sort=nome_especialidade`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const json = await r.json();
+      if (!r.ok) return res.status(r.status).json({ error: json.errors?.[0]?.message || "Erro Directus" });
+      res.json(json.data || []);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== MEMBROS (from Directus: cadastro_geral) ==========
   // Helper: check if the session role allows full Cadastro Geral access
   function requireCadastroAccess(req: any, res: any): boolean {

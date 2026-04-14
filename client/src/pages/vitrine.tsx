@@ -41,13 +41,19 @@ interface CardForm {
   nome: string;
   cargo: string;
   empresa: string;
-  especialidade: string;
+  especialidade_id: string;
   cidade: string;
   estado: string;
   whatsapp: string;
   email: string;
   perfil_aliado: string;
   nucleo_alianca: string;
+}
+
+interface EspecialidadeOption {
+  id: string;
+  nome_especialidade: string;
+  categoria?: string;
 }
 
 function fotoUrl(m: MembroVitrine): string | null {
@@ -74,7 +80,7 @@ export default function VitrinePage() {
   const [filterEstado, setFilterEstado] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CardForm>({
-    nome: "", cargo: "", empresa: "", especialidade: "",
+    nome: "", cargo: "", empresa: "", especialidade_id: "",
     cidade: "", estado: "", whatsapp: "", email: "",
     perfil_aliado: "", nucleo_alianca: ""
   });
@@ -99,16 +105,25 @@ export default function VitrinePage() {
     enabled: !!membroId,
   });
 
+  // Fetch especialidades options from Directus
+  const { data: especialidadesOptions = [] } = useQuery<EspecialidadeOption[]>({
+    queryKey: ["/api/especialidades"],
+    queryFn: () => fetch("/api/especialidades").then(r => r.json()),
+  });
+
   const myCardExists = !!myMembro?.na_vitrine;
 
   // Pre-fill form when dialog opens
   function openDialog() {
     if (myMembro) {
+      // myMembro.Especialidades is the M2M junction array from Directus fields=*
+      const espArr = Array.isArray(myMembro.Especialidades) ? myMembro.Especialidades : [];
+      const espId = espArr[0]?.Especialidade_id ?? "";
       setForm({
         nome: myMembro.nome || "",
         cargo: myMembro.cargo || myMembro.responsavel_cargo || "",
         empresa: myMembro.empresa || myMembro.nome_fantasia || "",
-        especialidade: myMembro.especialidade || "",
+        especialidade_id: typeof espId === "string" ? espId : (espId?.id ?? ""),
         cidade: myMembro.cidade || "",
         estado: myMembro.estado || "",
         whatsapp: myMembro.whatsapp || myMembro.whatsapp_e164 || "",
@@ -146,7 +161,13 @@ export default function VitrinePage() {
   });
 
   function handleSubmit() {
-    saveMutation.mutate({ ...form, na_vitrine: true });
+    const { especialidade_id, ...rest } = form;
+    const payload: Record<string, any> = { ...rest, na_vitrine: true };
+    // Send Especialidades as Directus M2M array (replaces existing)
+    payload.Especialidades = especialidade_id
+      ? [{ Especialidade_id: especialidade_id }]
+      : [];
+    saveMutation.mutate(payload as any);
   }
 
   const especialidades = useMemo(() => {
@@ -406,13 +427,28 @@ export default function VitrinePage() {
                 />
               </Field>
               <Field label="Especialidade">
-                <Input
-                  value={form.especialidade}
-                  onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                  placeholder="Ex: Engenharia Civil"
-                  data-testid="input-card-especialidade"
-                />
+                <Select
+                  value={form.especialidade_id}
+                  onValueChange={v => setForm(f => ({ ...f, especialidade_id: v }))}
+                >
+                  <SelectTrigger
+                    className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                    data-testid="select-card-especialidade"
+                  >
+                    <SelectValue placeholder="Selecione uma especialidade" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                    {especialidadesOptions.map(e => (
+                      <SelectItem
+                        key={e.id}
+                        value={e.id}
+                        className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
+                      >
+                        {e.nome_especialidade}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
 

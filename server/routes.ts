@@ -1050,8 +1050,8 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const interesses = await storage.getInteressesByOpa(id);
-      const user = (req.session as any)?.user;
-      const meuInteresse = user ? await storage.getUserInteresseByOpa(id, user.id) : null;
+      const directusUserId = (req.session as any).directusUserId as string | undefined;
+      const meuInteresse = directusUserId ? await storage.getUserInteresseByOpa(id, directusUserId) : null;
       res.json({ interesses, meuInteresse: meuInteresse || null, total: interesses.length });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1060,16 +1060,18 @@ export async function registerRoutes(
 
   app.post("/api/oportunidades/:id/interesse", async (req, res) => {
     try {
-      const user = (req.session as any)?.user;
-      if (!user) return res.status(401).json({ error: "Não autenticado" });
+      const directusUserId = (req.session as any).directusUserId as string | undefined;
+      if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      const membroId = (req.session as any).membroId as string | undefined;
+      const nome = (req.session as any).nome as string | undefined;
       const { id } = req.params;
-      const existing = await storage.getUserInteresseByOpa(id, user.id);
+      const existing = await storage.getUserInteresseByOpa(id, directusUserId);
       if (existing) return res.status(409).json({ error: "Interesse já registrado" });
       const item = await storage.createOpaInteresse({
         opa_id: id,
-        user_id: user.id,
-        membro_id: user.membro_directus_id || null,
-        membro_nome: user.nome || user.username,
+        user_id: directusUserId,
+        membro_id: membroId || null,
+        membro_nome: nome || directusUserId,
         mensagem: req.body.mensagem || null,
       });
       res.json(item);
@@ -1080,10 +1082,10 @@ export async function registerRoutes(
 
   app.delete("/api/oportunidades/:id/interesse", async (req, res) => {
     try {
-      const user = (req.session as any)?.user;
-      if (!user) return res.status(401).json({ error: "Não autenticado" });
+      const directusUserId = (req.session as any).directusUserId as string | undefined;
+      if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
       const { id } = req.params;
-      await storage.deleteOpaInteresse(id, user.id);
+      await storage.deleteOpaInteresse(id, directusUserId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1563,9 +1565,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/transferencia-cotas", async (req, res) => {
     try {
+      const sessionMembroId = (req.session as any).membroId;
+      const sessionDirectusUserId = (req.session as any).directusUserId;
+      if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
       const { bia_id, membro_origem_id, membro_destino_id, valor_total, observacoes } = req.body;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
+      }
+      if (sessionMembroId && sessionMembroId !== membro_origem_id) {
+        return res.status(403).json({ error: "Você só pode solicitar transferência das suas próprias cotas" });
       }
       const item = await storage.createTransferenciaCotas({
         bia_id,
@@ -1573,7 +1581,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         membro_destino_id,
         valor_total: valor_total != null ? String(valor_total) : null,
         status: "pendente",
-        solicitado_por: (req.session as any).userId || null,
+        solicitado_por: sessionDirectusUserId,
         observacoes: observacoes || null,
         motivo_rejeicao: null,
       });
@@ -1585,6 +1593,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.patch("/api/transferencia-cotas/:id", async (req, res) => {
     try {
+      const sessionMembroId = (req.session as any).membroId;
+      const sessionDirectusUserId = (req.session as any).directusUserId;
+      if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
+
       const { action, motivo_rejeicao } = req.body;
       if (!action || !["aceitar", "rejeitar"].includes(action)) {
         return res.status(400).json({ error: "action deve ser 'aceitar' ou 'rejeitar'" });
@@ -1594,6 +1606,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!transfer) return res.status(404).json({ error: "Solicitação não encontrada" });
       if (transfer.status !== "pendente") {
         return res.status(400).json({ error: "Solicitação já foi processada" });
+      }
+
+      // Only the membro_origem_id (cota holder) can approve/reject their own transfer
+      if (sessionMembroId && sessionMembroId !== transfer.membro_origem_id) {
+        return res.status(403).json({ error: "Sem permissão para processar esta solicitação" });
       }
 
       if (action === "rejeitar") {

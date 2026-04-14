@@ -1588,6 +1588,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (sessionRole !== "admin" && sessionMembroId !== membro_origem_id) {
         return res.status(403).json({ error: "Você só pode solicitar transferência das suas próprias cotas" });
       }
+      if (membro_origem_id === membro_destino_id) {
+        return res.status(400).json({ error: "Origem e destino não podem ser o mesmo membro" });
+      }
       const item = await storage.createTransferenciaCotas({
         bia_id,
         membro_origem_id,

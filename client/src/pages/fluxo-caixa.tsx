@@ -1038,6 +1038,7 @@ export default function FluxoCaixaPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       setRejeicaoDialogId(null);
       setRejeicaoMotivo("");
       toast({ title: "Solicitação rejeitada" });

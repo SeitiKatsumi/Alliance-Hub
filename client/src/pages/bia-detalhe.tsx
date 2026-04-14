@@ -329,7 +329,7 @@ export default function BiaDetalhePage() {
         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl" />
 
         <div className="relative z-10">
-          <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono mb-1">// Built Alliances · BIA</p>
+          <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono mb-1">// BUILT Alliances · BIA</p>
           <h1 className="text-2xl font-bold text-brand-gold font-mono tracking-wide">{bia.nome_bia}</h1>
 
           <div className="flex flex-wrap items-center gap-3 mt-2">

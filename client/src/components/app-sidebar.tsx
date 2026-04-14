@@ -60,7 +60,7 @@ export function AppSidebar() {
                       data-testid="nav-rede-built"
                     >
                       <Globe2 className="w-3.5 h-3.5" />
-                      <span>Rede Built</span>
+                      <span>Rede BUILT</span>
                     </SidebarMenuButton>
                     <CollapsibleTrigger asChild>
                       <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors" data-testid="toggle-rede-built-menu">
@@ -90,7 +90,7 @@ export function AppSidebar() {
                         <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-xs" data-testid="nav-built-capital">
                           <Link href="/built-capital">
                             <Coins className="w-3 h-3" />
-                            <span>Built Capital</span>
+                            <span>BUILT Capital</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

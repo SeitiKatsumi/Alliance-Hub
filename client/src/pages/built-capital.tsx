@@ -18,7 +18,7 @@ export default function BuiltCapitalPage() {
             <Coins className="w-10 h-10 text-brand-gold/60" />
           </div>
         </div>
-        <p className="text-[11px] text-brand-gold/40 tracking-[0.4em] uppercase font-mono mb-2">// Rede Built</p>
+        <p className="text-[11px] text-brand-gold/40 tracking-[0.4em] uppercase font-mono mb-2">// Rede BUILT</p>
         <h1 className="text-3xl font-bold font-mono tracking-wide mb-3" style={{ color: "#D7BB7D" }}>BUILT CAPITAL</h1>
         <div className="w-16 h-px mx-auto mb-4" style={{ background: "linear-gradient(to right, transparent, #D7BB7D60, transparent)" }} />
         <p className="text-sm text-white/30 font-mono">Módulo em desenvolvimento</p>

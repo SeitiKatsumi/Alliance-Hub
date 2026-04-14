@@ -288,7 +288,7 @@ client/public/
         </Section>
 
         <div className="text-center py-6 text-[10px] font-mono text-white/15">
-          // Built Alliances Platform · Documentação Técnica
+          // BUILT Alliances Platform · Documentação Técnica
         </div>
       </div>
     </div>

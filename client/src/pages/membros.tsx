@@ -255,8 +255,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CEO Built">CEO Built</SelectItem>
-                      <SelectItem value="Aliado Built">Aliado Built</SelectItem>
+                      <SelectItem value="CEO Built">CEO BUILT</SelectItem>
+                      <SelectItem value="Aliado Built">Aliado BUILT</SelectItem>
                       <SelectItem value="Fornecedor">Fornecedor</SelectItem>
                       <SelectItem value="Investidor">Investidor</SelectItem>
                       <SelectItem value="Parceiro">Parceiro</SelectItem>

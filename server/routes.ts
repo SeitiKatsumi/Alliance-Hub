@@ -173,14 +173,15 @@ async function clearBiasFieldValidations() {
   } catch (e) { console.warn("[bias-valid] Error:", e); }
 }
 
-async function ensureBiasGeoFields() {
+async function ensureGeoFields(collection: string, tag: string) {
   const fields = [
     { field: "latitude", type: "float", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "longitude", type: "float", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "localizacao", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
   ];
   for (const fieldDef of fields) {
     try {
-      const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos`, {
+      const res = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify(fieldDef),
@@ -189,15 +190,17 @@ async function ensureBiasGeoFields() {
         const err = await res.json().catch(() => ({}));
         const code = err?.errors?.[0]?.extensions?.code;
         if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
-          console.warn(`[geo] Field ${fieldDef.field} response: ${res.status}`);
+          console.warn(`[${tag}] Field ${fieldDef.field} response: ${res.status}`);
         }
-      } else {
-        console.log(`[geo] Field ${fieldDef.field} created in bias_projetos`);
       }
     } catch (e) {
       // silently ignore network errors
     }
   }
+}
+
+async function ensureBiasGeoFields() {
+  await ensureGeoFields("bias_projetos", "geo-bias");
 }
 
 async function directusFetch(collection: string, params: string = "") {
@@ -483,6 +486,7 @@ export async function registerRoutes(
   clearBiasFieldValidations().catch(console.error);
   // Ensure geo fields exist in Directus
   ensureBiasGeoFields().catch(console.error);
+  ensureGeoFields("tipos_oportunidades", "geo-opa").catch(console.error);
   ensureBiasExtraFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);

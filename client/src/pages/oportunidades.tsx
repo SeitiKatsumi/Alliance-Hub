@@ -4,7 +4,8 @@ import { useLocation, useSearch } from "wouter";
 import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
   TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink,
-  CheckCircle2, XCircle, RotateCcw, Ban, Paperclip, Upload, FileText
+  CheckCircle2, XCircle, RotateCcw, Ban, Paperclip, Upload, FileText,
+  Navigation, ZoomIn, ZoomOut
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +16,27 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
+
+const WORLD_GEO = "/world-countries-50m.json";
 
 // ---- Types ----
 type AnexoFile = { id: string; title?: string; filename?: string; url?: string; size?: string };
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  type?: string;
+}
 
 interface Oportunidade {
   id: string;
@@ -42,6 +54,9 @@ interface Oportunidade {
   motivo_encerramento?: string | null;
   Anexos?: AnexoFile[];
   date_created?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  localizacao?: string | null;
 }
 
 interface BiasProjeto {
@@ -72,88 +87,389 @@ function parseBRLToNumber(formatted: string): number {
   return parseFloat(formatted.replace(/\./g, "").replace(",", ".")) || 0;
 }
 
-// ---- Futuristic header ----
-function OpasHeader({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[] }) {
+// ---- Location Picker Modal ----
+function LocationPickerModal({ open, onClose, onSelect }: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (localizacao: string, lat: number, lng: number) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<NominatimResult | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) { setSearch(""); setResults([]); setSelected(null); setError(""); }
+  }, [open]);
+
+  async function handleSearch() {
+    if (!search.trim()) return;
+    setLoading(true); setError(""); setResults([]); setSelected(null);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(search)}&format=json&limit=8&accept-language=pt-BR,pt`;
+      const res = await fetch(url, { headers: { "Accept-Language": "pt-BR,pt;q=0.9" } });
+      if (!res.ok) throw new Error("Erro na busca");
+      const data: NominatimResult[] = await res.json();
+      if (data.length === 0) setError("Nenhum resultado encontrado.");
+      setResults(data);
+    } catch { setError("Falha ao buscar localização."); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Navigation className="w-5 h-5 text-brand-gold" />
+            Selecionar Localização
+          </DialogTitle>
+          <DialogDescription>Busque cidade, país ou endereço para geolocalizar esta OPA no mapa.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="flex gap-2">
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+              placeholder="Ex: São Paulo, Brazil..."
+              className="h-9 text-sm"
+            />
+            <Button size="sm" onClick={handleSearch} disabled={loading} className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 shrink-0">
+              {loading ? "..." : <Search className="w-4 h-4" />}
+            </Button>
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {results.map(r => (
+              <button
+                key={r.place_id}
+                onClick={() => setSelected(r)}
+                className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors border ${selected?.place_id === r.place_id ? "bg-brand-gold/15 border-brand-gold/40 text-brand-gold" : "border-transparent hover:bg-muted"}`}
+              >
+                <span className="font-medium">{r.display_name}</span>
+                <span className="block text-muted-foreground mt-0.5">{parseFloat(r.lat).toFixed(4)}, {parseFloat(r.lon).toFixed(4)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button
+            size="sm"
+            disabled={!selected}
+            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+            onClick={() => { if (selected) { onSelect(selected.display_name, parseFloat(selected.lat), parseFloat(selected.lon)); onClose(); } }}
+          >
+            <MapPin className="w-3.5 h-3.5 mr-1.5" />
+            Confirmar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- OPA World Map ----
+function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[] }) {
+  const [, navigate] = useLocation();
+  const [hoveredCluster, setHoveredCluster] = useState<{ center: [number, number]; items: Oportunidade[] } | null>(null);
+  const [selectedOpa, setSelectedOpa] = useState<Oportunidade | null>(null);
+  const [clusterOpas, setClusterOpas] = useState<Oportunidade[] | null>(null);
+  const [zoom, setZoom] = useState(1.2);
+  const [center, setCenter] = useState<[number, number]>([-20, 10]);
+
+  const biasMap = useMemo(() => {
+    const m: Record<string, BiasProjeto> = {};
+    bias.forEach(b => { m[b.id] = b; });
+    return m;
+  }, [bias]);
+
+  const opasWithCoords = useMemo(
+    () => opas.filter(o => o.latitude != null && o.longitude != null),
+    [opas]
+  );
+
+  const clusters = useMemo(() => {
+    const THRESHOLD = 0.5;
+    const result: { center: [number, number]; items: Oportunidade[] }[] = [];
+    for (const o of opasWithCoords) {
+      const lng = parseFloat(String(o.longitude));
+      const lat = parseFloat(String(o.latitude));
+      const existing = result.find(
+        c => Math.abs(c.center[0] - lng) < THRESHOLD && Math.abs(c.center[1] - lat) < THRESHOLD
+      );
+      if (existing) existing.items.push(o);
+      else result.push({ center: [lng, lat], items: [o] });
+    }
+    return result;
+  }, [opasWithCoords]);
+
   const totalValor = opas.reduce((s, o) => s + n(o.valor_origem_opa), 0);
   const biasComOpas = new Set(opas.map(o => o.bia_id).filter(Boolean)).size;
-  const paises = new Set(opas.map(o => o.pais).filter(Boolean)).size;
+
+  const handleZoomIn = () => setZoom(z => Math.min(z * 1.5, 16));
+  const handleZoomOut = () => setZoom(z => Math.max(z / 1.5, 0.8));
+  const handleReset = () => { setZoom(1.2); setCenter([-20, 10]); };
 
   return (
     <div
       className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
-      style={{ height: 200, background: "radial-gradient(ellipse at 30% 50%, #001d34 0%, #000c1f 55%, #000408 100%)" }}
+      style={{ height: 440, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
-      {/* Grid overlay */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
-
-      {/* Corner accents */}
-      <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-brand-gold/40 rounded-tl-2xl pointer-events-none" />
-      <div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-brand-gold/40 rounded-tr-2xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-brand-gold/40 rounded-bl-2xl pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl pointer-events-none" />
-
-      {/* Scan line */}
-      <div
-        className="absolute left-0 right-0 h-px pointer-events-none"
-        style={{
-          background: "linear-gradient(to right, transparent, #D7BB7D40 20%, #D7BB7D60 50%, #D7BB7D40 80%, transparent)",
-          animation: "scanLine 8s linear infinite",
-          top: 0,
-        }}
-      />
-      <style dangerouslySetInnerHTML={{
-        __html: `@keyframes scanLine { 0%{top:0%;opacity:0} 5%{opacity:1} 95%{opacity:1} 100%{top:100%;opacity:0} }`
+      {/* Grid */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
+        backgroundSize: "50px 50px",
       }} />
+      {/* Corner accents */}
+      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-brand-gold/40 rounded-tl-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-brand-gold/40 rounded-tr-2xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-brand-gold/40 rounded-bl-2xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl pointer-events-none" />
 
-      <div className="relative z-10 h-full flex items-center px-8 gap-12">
-        {/* Left: title */}
-        <div className="flex-1">
-          <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono mb-1">// Built Alliances</p>
-          <h2 className="text-2xl font-bold tracking-[0.1em] font-mono" style={{ color: "#D7BB7D" }}>
-            MAPA DE OPORTUNIDADES
-          </h2>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-gold opacity-60" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-gold" />
-            </span>
-            <span className="text-[10px] text-brand-gold/60 font-mono tracking-[0.2em] uppercase">
-              {opas.length} oportunidade{opas.length !== 1 ? "s" : ""} ativas
-            </span>
+      {/* Top-left label */}
+      <div className="absolute top-5 left-6 z-20">
+        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// Built Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+          MAPA DE OPORTUNIDADES
+        </h2>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-gold opacity-60" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-gold" />
+          </span>
+          <span className="text-[10px] text-brand-gold/60 font-mono tracking-[0.2em] uppercase">
+            {opasWithCoords.length} geolocalizadas
+          </span>
+        </div>
+      </div>
+
+      {/* Top-right stats */}
+      <div className="absolute top-5 right-6 z-20 text-right font-mono">
+        <div className="mb-3">
+          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">OPAs</p>
+          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{opas.length}</p>
+        </div>
+        <div className="mb-2">
+          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Valor Total</p>
+          <p className="text-xs font-semibold tabular-nums" style={{ color: "#D7BB7D99" }}>
+            {totalValor > 0 ? brl(totalValor) : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">BIAs</p>
+          <p className="text-lg font-bold" style={{ color: "#D7BB7D" }}>{biasComOpas}</p>
+        </div>
+      </div>
+
+      {/* Zoom controls */}
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">
+        {[
+          { label: "+", title: "Ampliar", onClick: handleZoomIn },
+          { label: "⊙", title: "Resetar", onClick: handleReset },
+          { label: "−", title: "Reduzir", onClick: handleZoomOut },
+        ].map(btn => (
+          <button
+            key={btn.label}
+            onClick={btn.onClick}
+            title={btn.title}
+            className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
+          >{btn.label}</button>
+        ))}
+      </div>
+
+      {/* Empty state */}
+      {opasWithCoords.length === 0 && (
+        <div className="absolute inset-0 flex items-end justify-center pb-16 z-10 pointer-events-none">
+          <div className="text-center">
+            <p className="text-[10px] text-brand-gold/30 font-mono tracking-widest uppercase">Nenhuma OPA geolocal.</p>
+            <p className="text-[9px] text-brand-gold/20 font-mono mt-0.5">Edite uma OPA e adicione localização</p>
           </div>
         </div>
+      )}
 
-        {/* Right: stats */}
-        <div className="flex gap-8 font-mono text-right">
-          <div>
-            <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">OPAs</p>
-            <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{opas.length}</p>
-          </div>
-          <div className="border-l border-brand-gold/15 pl-8">
-            <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Valor Total</p>
-            <p className="text-lg font-semibold tabular-nums" style={{ color: "#D7BB7D99" }}>
-              {totalValor > 0 ? brl(totalValor) : "—"}
-            </p>
-          </div>
-          <div className="border-l border-brand-gold/15 pl-8">
-            <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">BIAs Vinculadas</p>
-            <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{biasComOpas}</p>
-          </div>
-          {paises > 0 && (
-            <div className="border-l border-brand-gold/15 pl-8">
-              <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Países</p>
-              <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{paises}</p>
+      {/* Map */}
+      <ComposableMap
+        projection="geoMercator"
+        projectionConfig={{ center: [0, 10], scale: 160 }}
+        style={{ width: "100%", height: "100%" }}
+      >
+        <ZoomableGroup zoom={zoom} center={center} minZoom={0.8} maxZoom={16}
+          onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
+        >
+          <Geographies geography={WORLD_GEO}>
+            {({ geographies }) =>
+              geographies.map(geo => (
+                <Geography key={geo.rsmKey} geography={geo}
+                  style={{
+                    default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                    hover:   { fill: "#011a3c", stroke: "#D7BB7D40", strokeWidth: 0.3, outline: "none" },
+                    pressed: { fill: "#011630", outline: "none" },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+
+          {clusters.map((cluster, idx) => {
+            const [lng, lat] = cluster.center;
+            const isMulti = cluster.items.length > 1;
+            const isHovered = hoveredCluster === cluster;
+            const isSelected = !isMulti && selectedOpa?.id === cluster.items[0]?.id;
+            const isClusterSel = isMulti && clusterOpas === cluster.items;
+            const r = Math.max(2, 5 / zoom);
+            return (
+              <Marker key={idx} coordinates={[lng, lat]}
+                onMouseEnter={() => setHoveredCluster(cluster)}
+                onMouseLeave={() => setHoveredCluster(null)}
+                onClick={() => {
+                  setHoveredCluster(null);
+                  if (isMulti) { setSelectedOpa(null); setClusterOpas(cluster.items); }
+                  else { setClusterOpas(null); setSelectedOpa(cluster.items[0]); }
+                }}
+              >
+                <g style={{ cursor: "pointer" }}>
+                  <circle r={r * (isSelected || isClusterSel ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={0.06}>
+                    <animate attributeName="r" from={r * 2.5} to={r * 5} dur="1.6s" repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.4" to="0" dur="1.6s" repeatCount="indefinite" />
+                  </circle>
+                  <circle r={r * (isSelected || isClusterSel ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSel ? 0.4 : isHovered ? 0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSel ? 1.6 : isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
+                  {isMulti && (
+                    <>
+                      <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2} fill={isClusterSel ? "#D7BB7D" : "#001D34"} stroke="#D7BB7D" strokeWidth={0.5} />
+                      <text x={r * 1.6} y={r * -1.6} textAnchor="middle" dominantBaseline="central"
+                        fontSize={r * 1.0} fontWeight="bold" fontFamily="monospace"
+                        fill={isClusterSel ? "#001D34" : "#D7BB7D"}>{cluster.items.length}</text>
+                    </>
+                  )}
+                </g>
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+
+      {/* Hover tooltip */}
+      {!selectedOpa && !clusterOpas && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 transition-all duration-200 pointer-events-none"
+          style={{
+            background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)",
+            padding: "28px 24px 14px",
+            opacity: hoveredCluster ? 1 : 0,
+            transform: hoveredCluster ? "translateY(0)" : "translateY(6px)",
+          }}
+        >
+          {hoveredCluster && (
+            <div className="flex items-end justify-between font-mono">
+              <div>
+                {hoveredCluster.items.length > 1 ? (
+                  <>
+                    <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para selecionar</p>
+                    <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items.length} OPAs neste local</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
+                    <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items[0].nome_oportunidade}</p>
+                    {hoveredCluster.items[0].localizacao && (
+                      <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />{hoveredCluster.items[0].localizacao?.split(",")[0]}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              {hoveredCluster.items.length === 1 && n(hoveredCluster.items[0].valor_origem_opa) > 0 && (
+                <div className="text-right">
+                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Valor</p>
+                  <p className="text-sm text-brand-gold tabular-nums">{brl(n(hoveredCluster.items[0].valor_origem_opa))}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Cluster picker */}
+      {clusterOpas && !selectedOpa && (
+        <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
+          style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)", padding: "32px 24px 18px" }}
+        >
+          <button onClick={() => setClusterOpas(null)} className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest">
+            ✕ FECHAR
+          </button>
+          <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase font-mono mb-2">{clusterOpas.length} OPAs neste local</p>
+          <div className="flex flex-wrap gap-2">
+            {clusterOpas.map(o => (
+              <button key={o.id} onClick={() => { setClusterOpas(null); setSelectedOpa(o); }}
+                className="text-left px-3 py-1.5 rounded border border-brand-gold/20 hover:border-brand-gold/50 hover:bg-brand-gold/10 transition-colors"
+              >
+                <p className="text-xs font-semibold text-brand-gold font-mono">{o.nome_oportunidade}</p>
+                <p className="text-[10px] text-brand-gold/50">{o.nucleo_alianca}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Selected OPA panel */}
+      {selectedOpa && (
+        <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
+          style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 80%, transparent 100%)", padding: "32px 24px 18px" }}
+        >
+          <button onClick={() => setSelectedOpa(null)} className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest">
+            ✕ FECHAR
+          </button>
+          <div className="flex items-end justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase font-mono">OPA Selecionada</p>
+              <p className="text-base font-bold text-brand-gold font-mono truncate mt-0.5">{selectedOpa.nome_oportunidade}</p>
+              {selectedOpa.localizacao && (
+                <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5 truncate">
+                  <MapPin className="w-3 h-3 shrink-0" />{selectedOpa.localizacao?.split(",").slice(0, 2).join(",")}
+                </p>
+              )}
+              {selectedOpa.bia_id && biasMap[selectedOpa.bia_id] && (
+                <p className="text-[10px] text-brand-gold/40 mt-1 font-mono">
+                  BIA: {biasMap[selectedOpa.bia_id].nome_bia}
+                </p>
+              )}
+              {selectedOpa.nucleo_alianca && (
+                <p className="text-[10px] text-brand-gold/40 font-mono">{selectedOpa.nucleo_alianca}</p>
+              )}
+            </div>
+            <div className="flex gap-6 font-mono text-right ml-6 shrink-0">
+              {n(selectedOpa.valor_origem_opa) > 0 && (
+                <div>
+                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Valor</p>
+                  <p className="text-sm font-bold text-brand-gold tabular-nums">{brl(n(selectedOpa.valor_origem_opa))}</p>
+                </div>
+              )}
+              {n(selectedOpa.Minimo_esforco_multiplicador) > 0 && (
+                <div>
+                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Mín. Mult.</p>
+                  <p className="text-sm font-bold text-brand-gold">{n(selectedOpa.Minimo_esforco_multiplicador)}%</p>
+                </div>
+              )}
+              <div>
+                <button
+                  onClick={() => navigate(`/opas/${selectedOpa.id}`)}
+                  className="mt-1 px-3 py-1.5 rounded border border-brand-gold/40 hover:bg-brand-gold/15 transition-colors text-xs text-brand-gold font-mono tracking-wider"
+                >
+                  VER OPA →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -452,6 +768,7 @@ const EMPTY_OPA = {
   nucleo_alianca: "",
   descricao: "",
   perfil_aliado: "",
+  localizacao: "",
 };
 
 interface TipoOpa { text: string; value: string; }
@@ -467,6 +784,9 @@ function OpaFormDialog({
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [form, setForm] = useState({ ...EMPTY_OPA });
+  const [formLat, setFormLat] = useState<number | null>(null);
+  const [formLng, setFormLng] = useState<number | null>(null);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -492,10 +812,15 @@ function OpaFormDialog({
         nucleo_alianca: opa.nucleo_alianca || "",
         descricao: opa.descricao || "",
         perfil_aliado: opa.perfil_aliado || "",
+        localizacao: opa.localizacao || "",
       });
+      setFormLat(opa.latitude ?? null);
+      setFormLng(opa.longitude ?? null);
       setExistingAnexos(opa.Anexos || []);
     } else {
       setForm({ ...EMPTY_OPA });
+      setFormLat(null);
+      setFormLng(null);
       setExistingAnexos([]);
     }
     setPendingFiles([]);
@@ -571,6 +896,9 @@ function OpaFormDialog({
         nucleo_alianca: form.nucleo_alianca || null,
         descricao: form.descricao || null,
         perfil_aliado: form.perfil_aliado || null,
+        localizacao: form.localizacao || null,
+        latitude: formLat,
+        longitude: formLng,
         Anexos: allAnexoIds,
       });
     } catch (e: any) {
@@ -672,7 +1000,50 @@ function OpaFormDialog({
             </Select>
           </div>
 
-          {/* 5. Valor + Mín Esforço Multiplicador */}
+          {/* 5. Localização */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Localização (para mapa)</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.localizacao}
+                onChange={e => setForm(f => ({ ...f, localizacao: e.target.value }))}
+                placeholder="Cidade, País..."
+                className="h-8 text-sm flex-1"
+                data-testid="input-opa-localizacao"
+                readOnly={formLat !== null}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 border-brand-gold/30 hover:bg-brand-gold/10 text-brand-gold shrink-0"
+                onClick={() => setLocationPickerOpen(true)}
+                data-testid="btn-opa-location-picker"
+              >
+                <MapPin className="w-3.5 h-3.5 mr-1" />
+                {formLat ? "Alterar" : "📍 Localizar"}
+              </Button>
+              {formLat !== null && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={() => { setFormLat(null); setFormLng(null); setForm(f => ({ ...f, localizacao: "" })); }}
+                  title="Remover localização"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+            {formLat !== null && (
+              <p className="text-[10px] text-brand-gold/60 font-mono">
+                {formLat.toFixed(4)}, {formLng?.toFixed(4)}
+              </p>
+            )}
+          </div>
+
+          {/* 6. Valor + Mín Esforço Multiplicador */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Valor da OPA (R$) *</Label>
@@ -828,6 +1199,15 @@ function OpaFormDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <LocationPickerModal
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={(localizacao, lat, lng) => {
+          setForm(f => ({ ...f, localizacao }));
+          setFormLat(lat);
+          setFormLng(lng);
+        }}
+      />
     </Dialog>
   );
 }
@@ -948,8 +1328,8 @@ export default function OportunidadesPage() {
       </div>
 
       {/* Futuristic header */}
-      {!loading && <OpasHeader opas={opas} bias={bias} />}
-      {loading && <Skeleton className="h-[200px] rounded-2xl" />}
+      {!loading && <OpaWorldMap opas={opas} bias={bias} />}
+      {loading && <Skeleton className="h-[440px] rounded-2xl" />}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">

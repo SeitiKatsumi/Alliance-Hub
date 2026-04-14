@@ -11,8 +11,6 @@ import {
   Briefcase, Users, X
 } from "lucide-react";
 
-const DIRECTUS_URL = "https://app.builtalliances.com";
-
 interface MembroVitrine {
   id: string;
   nome?: string;
@@ -53,7 +51,12 @@ export default function VitrinePage() {
 
   const { data: membros = [], isLoading } = useQuery<MembroVitrine[]>({
     queryKey: ["/api/vitrine"],
-    queryFn: () => fetch("/api/vitrine").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/vitrine");
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const especialidades = useMemo(() => {

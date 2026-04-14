@@ -12,10 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2, Globe2, Eye
+  Save, Loader2, Camera, CheckCircle2, Eye
 } from "lucide-react";
-
-const DIRECTUS_URL = "https://app.builtalliances.com";
 
 interface Membro {
   id: string;
@@ -298,7 +296,7 @@ export default function MeuPerfilPage() {
                   id="toggle-na-vitrine"
                   checked={!!form.na_vitrine}
                   onChange={v => setToggle("na_vitrine", v)}
-                  title="Vitrine BUILT"
+                  title="Aparecer na Vitrine"
                   description="Divulgue suas ofertas e seja encontrado como fornecedor ou prestador de serviços"
                   color="gold"
                 />
@@ -309,7 +307,7 @@ export default function MeuPerfilPage() {
                   id="toggle-em-membros-built"
                   checked={!!form.em_membros_built}
                   onChange={v => setToggle("em_membros_built", v)}
-                  title="Membros BUILT"
+                  title="Aparecer em Membros BUILT"
                   description="Visível para membros validados da rede — acesso à aura percebida, OPAs e BIAs"
                   color="blue"
                 />
@@ -320,7 +318,7 @@ export default function MeuPerfilPage() {
                   id="toggle-em-built-capital"
                   checked={!!form.em_built_capital}
                   onChange={v => setToggle("em_built_capital", v)}
-                  title="BUILT Capital"
+                  title="Aparecer em BUILT Capital"
                   description="Visível para investidores da rede — acesso a BIAs e OPAs de investimento"
                   color="green"
                 />

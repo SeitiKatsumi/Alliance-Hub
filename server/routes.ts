@@ -1591,12 +1591,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
       }
-      // Fetch the BIA to check if session user is the diretor_alianca
+      // Fetch the BIA to check roles
       const bia = await directusFetchOne("bias_projetos", bia_id, "fields=diretor_alianca,aliado_built");
       const biaDiretorAlianca = bia?.diretor_alianca as string | null | undefined;
+      const biaAliadoBuilt = bia?.aliado_built as string | null | undefined;
       const isOrigem = sessionMembroId && sessionMembroId === membro_origem_id;
       const isDiretorAlianca = sessionMembroId && biaDiretorAlianca && sessionMembroId === biaDiretorAlianca;
-      if (sessionRole !== "admin" && !isOrigem && !isDiretorAlianca) {
+      const isAliadoBuilt = sessionMembroId && biaAliadoBuilt && sessionMembroId === biaAliadoBuilt;
+      // Origem, diretor_alianca, aliado_built e admin podem solicitar transferência de qualquer cota
+      if (sessionRole !== "admin" && !isOrigem && !isDiretorAlianca && !isAliadoBuilt) {
         return res.status(403).json({ error: "Você não tem permissão para solicitar esta transferência" });
       }
       if (membro_origem_id === membro_destino_id) {

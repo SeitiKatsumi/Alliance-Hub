@@ -65,6 +65,8 @@ interface BiasProjeto {
   nome_bia: string;
   objetivo_alianca?: string;
   valor_origem?: string | number | null;
+  diretor_alianca?: string | null;
+  aliado_built?: string | null;
 }
 
 interface TransferenciaCotas {
@@ -1843,9 +1845,13 @@ export default function FluxoCaixaPage() {
                 {transferencias.length > 0 && (
                 <div className="space-y-3">
                   {transferencias.map((t) => {
+                    const myMembroId = currentUser?.membro_directus_id;
+                    const isOrigem = myMembroId && myMembroId === t.membro_origem_id;
+                    const isDiretorAlianca = myMembroId && selectedBia?.diretor_alianca && myMembroId === selectedBia.diretor_alianca;
+                    const isAliadoBuilt = myMembroId && selectedBia?.aliado_built && myMembroId === selectedBia.aliado_built;
                     const canApprove =
-                      currentUser?.membro_directus_id === t.membro_origem_id ||
-                      currentUser?.role === "admin";
+                      !isOrigem &&
+                      (isDiretorAlianca || isAliadoBuilt || currentUser?.role === "admin");
                     const statusConfig =
                       t.status === "aceita"
                         ? { label: "Aceita", cls: "text-green-600 bg-green-500/10 border-green-500/40" }

@@ -1587,8 +1587,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
       }
-      if (sessionRole !== "admin" && sessionMembroId !== membro_origem_id) {
-        return res.status(403).json({ error: "Você só pode solicitar transferência das suas próprias cotas" });
+      // Fetch the BIA to check if session user is the diretor_alianca
+      const bia = await directusFetchOne("bias_projetos", bia_id, "fields=diretor_alianca,aliado_built");
+      const biaDiretorAlianca = bia?.diretor_alianca as string | null | undefined;
+      const isOrigem = sessionMembroId && sessionMembroId === membro_origem_id;
+      const isDiretorAlianca = sessionMembroId && biaDiretorAlianca && sessionMembroId === biaDiretorAlianca;
+      if (sessionRole !== "admin" && !isOrigem && !isDiretorAlianca) {
+        return res.status(403).json({ error: "Você não tem permissão para solicitar esta transferência" });
       }
       if (membro_origem_id === membro_destino_id) {
         return res.status(400).json({ error: "Origem e destino não podem ser o mesmo membro" });
@@ -1627,8 +1632,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(400).json({ error: "Solicitação já foi processada" });
       }
 
-      // Only the membro_origem_id (cota holder) or admin can approve/reject transfers
-      if (sessionRole !== "admin" && sessionMembroId !== transfer.membro_origem_id) {
+      // Fetch the BIA to get diretor_alianca and aliado_built
+      const bia = await directusFetchOne("bias_projetos", transfer.bia_id!, "fields=diretor_alianca,aliado_built");
+      const biaDiretorAlianca = bia?.diretor_alianca as string | null | undefined;
+      const biaAliadoBuilt = bia?.aliado_built as string | null | undefined;
+
+      // Membro de origem cannot accept/reject their own transfer request
+      if (sessionMembroId && sessionMembroId === transfer.membro_origem_id) {
+        return res.status(403).json({ error: "O membro de origem não pode aceitar ou rejeitar a própria solicitação" });
+      }
+      // Only diretor_alianca, aliado_built, or admin can approve/reject
+      const canProcess =
+        sessionRole === "admin" ||
+        (sessionMembroId && biaDiretorAlianca && sessionMembroId === biaDiretorAlianca) ||
+        (sessionMembroId && biaAliadoBuilt && sessionMembroId === biaAliadoBuilt);
+      if (!canProcess) {
         return res.status(403).json({ error: "Sem permissão para processar esta solicitação" });
       }
 

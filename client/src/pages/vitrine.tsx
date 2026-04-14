@@ -12,13 +12,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
 import {
-  Store, Search, MapPin, Phone, Mail, Building2,
-  Briefcase, Users, X, Plus, Pencil, Trash2, Loader2
+  Store, Search, MapPin, Building2,
+  Users, X, Plus, Pencil, Trash2, Loader2
 } from "lucide-react";
 
 interface MembroVitrine {
@@ -60,12 +59,6 @@ function fotoUrl(m: MembroVitrine): string | null {
 function getInitials(nome?: string): string {
   if (!nome) return "?";
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
-}
-
-function whatsappLink(w?: string): string | null {
-  if (!w) return null;
-  const digits = w.replace(/\D/g, "");
-  return `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`;
 }
 
 const ESTADOS_BR = [
@@ -524,7 +517,6 @@ export default function VitrinePage() {
 function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
   const foto = fotoUrl(m);
   const nome = m.nome || "—";
-  const wa = whatsappLink(m.whatsapp);
   const [, navigate] = useLocation();
 
   return (
@@ -558,98 +550,45 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
       )}
 
       <div className="p-4 space-y-3">
-        {/* Avatar + name */}
-        <div className="flex items-center gap-3">
+        {/* Avatar */}
+        <div className="flex justify-center">
           <div
-            className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center overflow-hidden border border-brand-gold/20"
+            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
             style={{
               background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
-              boxShadow: "0 0 12px rgba(215,187,125,0.1)",
+              boxShadow: "0 0 16px rgba(215,187,125,0.1)",
             }}
           >
             {foto ? (
               <img src={foto} alt={nome} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-base font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate font-mono">{nome}</p>
-            {(m.cargo || m.especialidade) && (
-              <p className="text-xs text-white/40 truncate">{m.cargo || m.especialidade}</p>
+              <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
             )}
           </div>
         </div>
 
-        {/* Details */}
-        <div className="space-y-1.5">
+        {/* Name + info */}
+        <div className="text-center space-y-1.5">
+          <p className="text-sm font-semibold text-white font-mono leading-tight">{nome}</p>
+
+          {m.especialidade && (
+            <p className="text-xs text-brand-gold/60 font-mono truncate">{m.especialidade}</p>
+          )}
+
           {m.empresa && (
-            <div className="flex items-center gap-1.5">
-              <Building2 className="w-3 h-3 text-brand-gold/30 shrink-0" />
-              <span className="text-xs text-white/50 truncate">{m.empresa}</span>
+            <div className="flex items-center justify-center gap-1">
+              <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+              <span className="text-xs text-white/40 truncate">{m.empresa}</span>
             </div>
           )}
-          {m.especialidade && m.cargo && (
-            <div className="flex items-center gap-1.5">
-              <Briefcase className="w-3 h-3 text-brand-gold/30 shrink-0" />
-              <span className="text-xs text-white/50 truncate">{m.especialidade}</span>
-            </div>
-          )}
-          {(m.cidade || m.estado) && (
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3 h-3 text-brand-gold/30 shrink-0" />
-              <span className="text-xs text-white/50 truncate">
-                {[m.cidade, m.estado?.toUpperCase()].filter(Boolean).join(", ")}
-              </span>
+
+          {m.cidade && (
+            <div className="flex items-center justify-center gap-1">
+              <MapPin className="w-3 h-3 text-white/20 shrink-0" />
+              <span className="text-xs text-white/35 truncate">{m.cidade}</span>
             </div>
           )}
         </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/5" />
-
-        {/* Contact */}
-        <div className="flex gap-2">
-          {wa && (
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-white/50 hover:text-white/80 border border-white/8 hover:border-white/20 transition-colors"
-              style={{ background: "rgba(255,255,255,0.03)" }}
-              data-testid={`btn-vitrine-whatsapp-${m.id}`}
-            >
-              <Phone className="w-3 h-3" />
-              WhatsApp
-            </a>
-          )}
-          {m.email && (
-            <a
-              href={`mailto:${m.email}`}
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-white/50 hover:text-white/80 border border-white/8 hover:border-white/20 transition-colors"
-              style={{ background: "rgba(255,255,255,0.03)" }}
-              data-testid={`btn-vitrine-email-${m.id}`}
-            >
-              <Mail className="w-3 h-3" />
-              E-mail
-            </a>
-          )}
-          {!wa && !m.email && (
-            <span className="flex-1 flex items-center justify-center py-1.5 text-xs font-mono text-white/20">
-              Sem contato público
-            </span>
-          )}
-        </div>
-
-        {/* Nucleo badge */}
-        {m.nucleo_alianca && (
-          <Badge
-            variant="outline"
-            className="text-[10px] font-mono border-brand-gold/15 text-brand-gold/40 bg-transparent w-full justify-center truncate"
-          >
-            {m.nucleo_alianca}
-          </Badge>
-        )}
       </div>
     </div>
   );

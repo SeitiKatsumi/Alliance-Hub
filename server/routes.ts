@@ -20,8 +20,15 @@ const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 // Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE — discovered at runtime
 const biasBlockedFields = new Set<string>();
 
-// Resolved at startup: actual collection name for comunidade
+// Resolved at startup: actual collection name for comunidade (default is "Comunidade" — confirmed always correct)
 let COMUNIDADE_COL = "Comunidade";
+// Promise that resolves once ensureComunidadeFields() has discovered the real collection name
+let comunidadeColResolve: (() => void) | null = null;
+const comunidadeColReady: Promise<void> = new Promise(res => { comunidadeColResolve = res; });
+async function getComunidadeCol(): Promise<string> {
+  await comunidadeColReady;
+  return COMUNIDADE_COL;
+}
 
 async function ensureBiasExtraFields() {
   const fields = [
@@ -675,11 +682,15 @@ async function ensureComunidadeFields() {
     }
     if (!COL) {
       console.warn("[comunidade] Collection not found in Directus — skipping field creation");
+      comunidadeColResolve?.(); // Unblock pending requests using default "Comunidade"
       return;
     }
     COMUNIDADE_COL = COL;
     console.log(`[comunidade] Found collection as '${COL}'`);
-  } catch { return; }
+  } catch {
+    comunidadeColResolve?.(); // Unblock on error with default
+    return;
+  }
 
   // Scalar fields (INVALID_PAYLOAD can occur when field already exists with different meta)
   const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
@@ -709,6 +720,7 @@ async function ensureComunidadeFields() {
   await ensureComunidadeM2M(COL, "bias", "bias_projetos");
 
   console.log("[comunidade] Fields ensured (M2O/M2M)");
+  comunidadeColResolve?.(); // Unblock pending route handlers
 }
 
 function nextComunidadeCode(codes: string[]): string {
@@ -2136,7 +2148,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/comunidades", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const all: any[] = await directusFetch(COMUNIDADE_COL, COMUNIDADE_FIELDS);
+      const col = await getComunidadeCol();
+      const all: any[] = await directusFetch(col, COMUNIDADE_FIELDS);
       const membroId = req.query.membro_id as string | undefined;
 
       let items = all;
@@ -2164,7 +2177,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     const { pais, territorio } = req.query as { pais?: string; territorio?: string };
     try {
-      const all: any[] = await directusFetch(COMUNIDADE_COL, "fields=pais,territorio,codigo_sequencial");
+      const col = await getComunidadeCol();
+      const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
       const same = all.filter((c: any) =>
         c.pais?.toLowerCase() === pais?.toLowerCase() &&
         c.territorio?.toLowerCase() === territorio?.toLowerCase()
@@ -2179,7 +2193,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/comunidades/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const url = `${DIRECTUS_URL}/items/${COMUNIDADE_COL}/${req.params.id}?${COMUNIDADE_FIELDS}`;
+      const col = await getComunidadeCol();
+      const url = `${DIRECTUS_URL}/items/${col}/${req.params.id}?${COMUNIDADE_FIELDS}`;
       const r = await fetch(url, { headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.status(404).json({ error: "Não encontrado" });
       const d = await r.json();
@@ -2192,7 +2207,27 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.post("/api/comunidades", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const created = await directusCreate(COMUNIDADE_COL, toComunidadePayload(req.body));
+      const col = await getComunidadeCol();
+      const payload = toComunidadePayload(req.body);
+
+      // Server-side uniqueness: recalculate codigo_sequencial to avoid race conditions on concurrent creation
+      if (payload.pais && payload.territorio) {
+        const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
+        const same = all.filter((c: any) =>
+          c.pais?.toLowerCase() === payload.pais?.toLowerCase() &&
+          c.territorio?.toLowerCase() === payload.territorio?.toLowerCase()
+        );
+        const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
+        payload.codigo_sequencial = nextComunidadeCode(codes);
+        // Regenerate nome and sigla with guaranteed code
+        const { sigla_pais, sigla_territorio } = payload;
+        if (sigla_pais && sigla_territorio) {
+          payload.sigla = `${sigla_pais.toUpperCase()}-${sigla_territorio.toUpperCase()}-COM-${payload.codigo_sequencial}`;
+        }
+        payload.nome = `BUILT ${payload.pais} | ${payload.territorio} | Comunidade ${payload.codigo_sequencial}`;
+      }
+
+      const created = await directusCreate(col, payload);
       res.json(created);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2202,7 +2237,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.patch("/api/comunidades/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const updated = await directusUpdate(COMUNIDADE_COL, req.params.id, toComunidadePayload(req.body));
+      const col = await getComunidadeCol();
+      const updated = await directusUpdate(col, req.params.id, toComunidadePayload(req.body));
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2212,7 +2248,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.delete("/api/comunidades/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      await directusDelete(COMUNIDADE_COL, req.params.id);
+      const col = await getComunidadeCol();
+      await directusDelete(col, req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

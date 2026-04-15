@@ -136,17 +136,17 @@ export default function ComunidadePage() {
 
   const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades"],
-    queryFn: () => fetch("/api/comunidades").then(r => r.json()),
+    queryFn: () => fetch("/api/comunidades").then(r => { if (!r.ok) throw new Error("Erro ao buscar comunidades"); return r.json(); }),
   });
 
   const { data: membros = [] } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
-    queryFn: () => fetch("/api/membros").then(r => r.json()),
+    queryFn: () => fetch("/api/membros").then(r => { if (!r.ok) throw new Error("Erro ao buscar membros"); return r.json(); }),
   });
 
   const { data: bias = [] } = useQuery<Bia[]>({
     queryKey: ["/api/bias"],
-    queryFn: () => fetch("/api/bias").then(r => r.json()),
+    queryFn: () => fetch("/api/bias").then(r => { if (!r.ok) throw new Error("Erro ao buscar BIAs"); return r.json(); }),
   });
 
   // Auto-generate nome and sigla

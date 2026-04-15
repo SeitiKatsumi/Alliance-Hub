@@ -294,7 +294,7 @@ export default function VitrineDetalhePage() {
         </div>
 
         {/* Profissional card */}
-        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.tipo_de_cadastro || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
+        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Briefcase className="w-3 h-3 text-brand-gold" />
@@ -337,21 +337,19 @@ export default function VitrineDetalhePage() {
                   )}
                 </div>
 
-                {/* Especialidade + Ramo de Atuação */}
-                {(membro.especialidade_livre || especialidades.length > 0 || membro.tipo_de_cadastro) && (
+                {/* Ramo de Atuação + Especialidade */}
+                {(especialidades.length > 0 || membro.especialidade_livre) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(membro.especialidade_livre || especialidades.length > 0) && (
-                      <div>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
-                        <p className="text-sm text-gray-800 font-mono">
-                          {membro.especialidade_livre || especialidades[0]}
-                        </p>
-                      </div>
-                    )}
-                    {membro.tipo_de_cadastro && (
+                    {especialidades.length > 0 && (
                       <div>
                         <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
-                        <p className="text-sm text-gray-800 font-mono">{membro.tipo_de_cadastro}</p>
+                        <p className="text-sm text-gray-800 font-mono">{especialidades[0]}</p>
+                      </div>
+                    )}
+                    {membro.especialidade_livre && (
+                      <div>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
+                        <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
                       </div>
                     )}
                   </div>

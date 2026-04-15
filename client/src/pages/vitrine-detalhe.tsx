@@ -192,17 +192,15 @@ export default function VitrineDetalhePage() {
             </div>
 
             {/* Nome + selos */}
-            <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div className="text-center sm:text-left">
-                <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase mb-1">
-                  // Vitrine BUILT
-                </p>
-                <h1 className="text-2xl font-bold font-mono text-white leading-tight">{nome}</h1>
-              </div>
+            <div className="flex-1 min-w-0 text-center sm:text-left">
+              <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase mb-1">
+                // Vitrine BUILT
+              </p>
+              <h1 className="text-2xl font-bold font-mono text-white leading-tight">{nome}</h1>
 
-              {/* Selos de redes de negócios — alinhados à direita */}
+              {/* Selos de redes de negócios — abaixo do nome */}
               {redes.length > 0 && (
-                <div className="flex flex-wrap gap-2 items-end justify-center sm:justify-end shrink-0">
+                <div className="flex flex-wrap gap-2 items-end justify-center sm:justify-start mt-4">
                   {redes.map(rede => (
                     <img
                       key={rede}
@@ -210,9 +208,7 @@ export default function VitrineDetalhePage() {
                       alt={REDE_BADGES[rede].label}
                       title={REDE_BADGES[rede].label}
                       className="w-auto object-contain rounded"
-                      style={{
-                        height: rede === "BUILT_PROUD_MEMBER" ? 64 : 40,
-                      }}
+                      style={{ height: rede === "BUILT_PROUD_MEMBER" ? 64 : 40 }}
                       data-testid={`badge-rede-${rede.toLowerCase()}`}
                     />
                   ))}

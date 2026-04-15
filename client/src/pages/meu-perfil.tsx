@@ -197,7 +197,6 @@ interface Membro {
   tipo_alianca?: string;
   nucleos_alianca?: string[] | null;
   tipos_alianca?: string[] | null;
-  ramo_atuacao?: string;
   tipo_de_cadastro?: string;
   na_vitrine?: boolean;
   em_membros_built?: boolean;
@@ -711,15 +710,6 @@ export default function MeuPerfilPage() {
                       placeholder="Ex: Gestão de contratos, Retrofit, BIM..."
                       className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                       data-testid="input-perfil-especialidade-livre"
-                    />
-                  </Field>
-                  <Field label="Ramo de Atuação">
-                    <Input
-                      value={form.ramo_atuacao || ""}
-                      onChange={e => set("ramo_atuacao", e.target.value)}
-                      placeholder="Ex: Construção civil, Engenharia, Incorporação..."
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                      data-testid="input-perfil-ramo-atuacao"
                     />
                   </Field>
                 </div>

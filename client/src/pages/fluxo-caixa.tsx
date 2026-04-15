@@ -1200,16 +1200,23 @@ export default function FluxoCaixaPage() {
   const aportesPorMembro = useMemo(() => {
     const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
     const map: Record<string, number> = {};
+    const nameMap: Record<string, string> = {};
     entradas.forEach((i) => {
-      const mid = getRelId((i.Favorecido || [])[0] as any);
+      const fav = (i.Favorecido || [])[0] as any;
+      const mid = getRelId(fav);
       if (mid) {
         map[mid] = (map[mid] || 0) + (parseFloat(String(i.valor)) || 0);
+        if (!nameMap[mid] && typeof fav === "object" && fav !== null) {
+          const n = fav.Nome_de_usuario || fav.nome || fav.nome_completo || fav.razao_social;
+          if (n) nameMap[mid] = n;
+        }
       }
     });
     const totalAportesComMembro = Object.values(map).reduce((s, v) => s + v, 0);
     return Object.entries(map)
       .map(([membroId, valor]) => ({
         membroId,
+        inlineName: nameMap[membroId] || null,
         valor,
         percentual: totalAportesComMembro > 0 ? (valor / totalAportesComMembro) * 100 : 0,
       }))
@@ -1724,7 +1731,7 @@ export default function FluxoCaixaPage() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 font-medium">
                           <User className="w-3.5 h-3.5 text-muted-foreground" />
-                          {membroMap[item.membroId] || "Membro desconhecido"}
+                          {membroMap[item.membroId] || item.inlineName || "Membro desconhecido"}
                         </span>
                         <span className="flex items-center gap-3">
                           <span className="text-muted-foreground">{formatBRL(item.valor)}</span>

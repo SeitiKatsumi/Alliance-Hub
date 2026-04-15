@@ -710,7 +710,7 @@ export async function registerRoutes(
   }
 
   app.get("/api/membros", async (req, res) => {
-    if (!(req.session as any).userId) {
+    if (!(req.session as any).directusUserId) {
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
@@ -925,7 +925,7 @@ export async function registerRoutes(
   // ========== FLUXO DE CAIXA (from Directus) ==========
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
-      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*");
+      const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario,favorecido_id.razao_social");
       const mapped = items.map((f: any) => {
         const anexos = (f.Anexos || []).map((a: any) => {
           if (a && a.directus_files_id) {
@@ -971,7 +971,14 @@ export async function registerRoutes(
           responsavel_multa_juros: f.responsavel_multa_juros || null,
           Categoria: categorias,
           tipo_de_cpp: tiposCpp,
-          Favorecido: f.favorecido_id ? [{ id: f.favorecido_id }] : [],
+          Favorecido: (() => {
+            if (!f.favorecido_id) return [];
+            if (typeof f.favorecido_id === "object") {
+              const fav = f.favorecido_id as any;
+              return [{ id: fav.id, nome: fav.Nome_de_usuario || fav.nome || fav.razao_social || fav.id }];
+            }
+            return [{ id: f.favorecido_id }];
+          })(),
           anexos,
         };
       });

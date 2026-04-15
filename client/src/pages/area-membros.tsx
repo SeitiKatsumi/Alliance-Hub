@@ -112,10 +112,6 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
         <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
           MAPA DE MEMBROS
         </h2>
-        <div className="flex items-center gap-2 mt-2">
-          <img src="/built-proud-member.png" alt="BUILT Proud Member" className="h-5 w-auto object-contain" />
-          <span className="text-[10px] text-brand-gold/60 font-mono tracking-[0.2em] uppercase">Proud Members</span>
-        </div>
       </div>
 
       {/* Top-right stats */}
@@ -665,10 +661,7 @@ export default function AreMembroPage() {
             </div>
             Membros BUILT
           </h1>
-          <p className="text-sm text-white/40 font-mono mt-1 flex items-center gap-2">
-            <img src="/built-proud-member.png" alt="" className="h-4 w-auto object-contain" />
-            Área exclusiva BUILT Proud Members
-          </p>
+          <p className="text-sm text-white/40 font-mono mt-1">Área exclusiva BUILT Proud Members</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-gold/20"
           style={{ background: "rgba(215,187,125,0.06)" }}>

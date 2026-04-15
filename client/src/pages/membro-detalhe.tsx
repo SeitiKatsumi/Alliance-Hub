@@ -91,12 +91,30 @@ function InfoRow({ icon: Icon, label, value, href }: {
   );
 }
 
+interface Comunidade {
+  id: string;
+  nome?: string;
+  sigla?: string;
+  pais?: string;
+  territorio?: string;
+  status?: string;
+  aliado?: { id: string; nome?: string } | null;
+  membros?: { id: string }[];
+  bias?: { id: string; nome_bia?: string }[];
+}
+
 export default function MembroDetalhePage() {
   const { id } = useParams<{ id: string }>();
 
   const { data: membro, isLoading } = useQuery<MembroDetalhe>({
     queryKey: ["/api/membros", id],
     queryFn: () => fetch(`/api/membros/${id}`).then(r => r.json()),
+    enabled: !!id,
+  });
+
+  const { data: comunidades = [] } = useQuery<Comunidade[]>({
+    queryKey: ["/api/comunidades", { membro_id: id }],
+    queryFn: () => fetch(`/api/comunidades?membro_id=${id}`).then(r => r.json()),
     enabled: !!id,
   });
 
@@ -376,10 +394,39 @@ export default function MembroDetalhePage() {
             <MessageCircle className="w-3 h-3 text-brand-gold" />
             Comunidade
           </p>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <MessageCircle className="w-8 h-8 text-gray-200 mb-3" />
-            <p className="text-xs text-gray-400 font-mono">Em breve</p>
-          </div>
+          {comunidades.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <MessageCircle className="w-7 h-7 text-gray-200 mb-2" />
+              <p className="text-xs text-gray-400 font-mono">Não integra nenhuma comunidade</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {comunidades.map(c => (
+                <div key={c.id} className="rounded-xl border border-gray-100 p-3 bg-gray-50" data-testid={`membro-comunidade-${c.id}`}>
+                  {c.sigla && (
+                    <p className="text-[10px] font-mono text-brand-gold/60 tracking-widest uppercase mb-0.5">{c.sigla}</p>
+                  )}
+                  <p className="text-sm font-mono text-gray-800 font-medium leading-snug">{c.nome || "—"}</p>
+                  {c.aliado && (
+                    <p className="text-xs text-gray-400 font-mono mt-1">
+                      Aliado-Líder: <span className="text-gray-600">{c.aliado.nome}</span>
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-gray-400 font-mono">
+                    {(c.membros || []).length > 0 && (
+                      <span>{(c.membros || []).length} membro{(c.membros || []).length !== 1 ? "s" : ""}</span>
+                    )}
+                    {(c.bias || []).length > 0 && (
+                      <span>{(c.bias || []).length} BIA{(c.bias || []).length !== 1 ? "s" : ""}</span>
+                    )}
+                    {c.status && (
+                      <span className={c.status === "ativa" ? "text-emerald-500" : "text-gray-400"}>{c.status}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

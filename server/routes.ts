@@ -20,6 +20,9 @@ const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 // Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE — discovered at runtime
 const biasBlockedFields = new Set<string>();
 
+// Resolved at startup: actual collection name for comunidade
+let COMUNIDADE_COL = "comunidade";
+
 async function ensureBiasExtraFields() {
   const fields = [
     {
@@ -514,6 +517,79 @@ async function ensureEstudosViabilidadeCollection() {
   }
 }
 
+async function ensureComunidadeFields() {
+  // Try both singular and plural collection names
+  let COL = "comunidade";
+  try {
+    const check = await fetch(`${DIRECTUS_URL}/collections/${COL}`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!check.ok) {
+      // Try plural
+      const check2 = await fetch(`${DIRECTUS_URL}/collections/comunidades`, {
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (check2.ok) {
+        COL = "comunidades";
+        COMUNIDADE_COL = "comunidades";
+        console.log("[comunidade] Found collection as 'comunidades'");
+      } else {
+        console.warn("[comunidade] Collection not found in Directus — skipping field creation");
+        return;
+      }
+    }
+  } catch { return; }
+
+  const fields = [
+    { field: "nome", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome completo: BUILT País | Território | Comunidade A01" }, schema: { is_nullable: true } },
+    { field: "sigla", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código sistêmico: BR-BHZ-COM-A01" }, schema: { is_nullable: true } },
+    { field: "pais", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome completo do país" }, schema: { is_nullable: true } },
+    { field: "sigla_pais", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código do país (ex: BR, PT, US)" }, schema: { is_nullable: true } },
+    { field: "territorio", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Cidade ou região" }, schema: { is_nullable: true } },
+    { field: "sigla_territorio", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código do território (ex: BHZ, SPO, LIS)" }, schema: { is_nullable: true } },
+    { field: "codigo_sequencial", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código sequencial: A01, A02, ..., B01" }, schema: { is_nullable: true } },
+    { field: "aliado_id", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "UUID do Aliado-Líder em cadastro_geral" }, schema: { is_nullable: true } },
+    { field: "membros_ids", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Array de UUIDs de membros (cadastro_geral)" }, schema: { is_nullable: true } },
+    { field: "bias_ids", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Array de UUIDs de BIAs (bias_projetos)" }, schema: { is_nullable: true } },
+    { field: "status", type: "string", meta: { interface: "select-dropdown", display: "raw", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Inativa", value: "inativa" }] }, default_value: "ativa" }, schema: { is_nullable: true, default_value: "ativa" } },
+    { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
+  ];
+
+  for (const f of fields) {
+    try {
+      const r = await fetch(`${DIRECTUS_URL}/fields/${COL}`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(f),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        const code = err?.errors?.[0]?.extensions?.code;
+        if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
+          console.warn(`[comunidade] Field ${f.field} response: ${r.status}`);
+        }
+      }
+    } catch {}
+  }
+  console.log("[comunidade] Fields ensured");
+}
+
+function nextComunidadeCode(codes: string[]): string {
+  // Sequence: A01...A99, B01...B99, ...
+  if (codes.length === 0) return "A01";
+  const sorted = [...codes].sort();
+  const last = sorted[sorted.length - 1];
+  const match = last.match(/^([A-Z])(\d{2})$/);
+  if (!match) return "A01";
+  const letter = match[1];
+  const num = parseInt(match[2], 10);
+  if (num < 99) {
+    return `${letter}${String(num + 1).padStart(2, "0")}`;
+  }
+  const nextLetter = String.fromCharCode(letter.charCodeAt(0) + 1);
+  return `${nextLetter}01`;
+}
+
 async function resolveFileIds(ids: string[]): Promise<any[]> {
   if (!ids || ids.length === 0) return [];
   const results = [];
@@ -544,6 +620,7 @@ export async function registerRoutes(
   ensureVitrineFields().catch(console.error);
   ensureGeoFields("tipos_oportunidades", "geo-opa").catch(console.error);
   ensureBiasExtraFields().catch(console.error);
+  ensureComunidadeFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);
   ensureNucleoTecnicoCollection().catch(console.error);
@@ -1895,6 +1972,113 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         status: "aceita",
       });
       res.json({ ...updated, transferidos: entradas.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== COMUNIDADES ==========
+  app.get("/api/comunidades", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const all: any[] = await directusFetch(COMUNIDADE_COL);
+      const membroId = req.query.membro_id as string | undefined;
+
+      let items = all;
+      if (membroId) {
+        items = all.filter((c: any) => {
+          const ids: string[] = Array.isArray(c.membros_ids) ? c.membros_ids : [];
+          return ids.includes(membroId) || c.aliado_id === membroId;
+        });
+      }
+
+      // Resolve aliado names
+      const membrosAll: any[] = await directusFetch("cadastro_geral", "fields=id,nome,foto_perfil,cargo,empresa");
+      const membrosMap: Record<string, any> = {};
+      for (const m of membrosAll) membrosMap[m.id] = m;
+
+      // Resolve BIA names
+      const biasAll: any[] = await directusFetch("bias_projetos", "fields=id,nome_bia");
+      const biasMap: Record<string, any> = {};
+      for (const b of biasAll) biasMap[b.id] = b;
+
+      const enriched = items.map((c: any) => ({
+        ...c,
+        aliado: c.aliado_id ? membrosMap[c.aliado_id] || null : null,
+        membros: (Array.isArray(c.membros_ids) ? c.membros_ids : []).map((id: string) => membrosMap[id]).filter(Boolean),
+        bias: (Array.isArray(c.bias_ids) ? c.bias_ids : []).map((id: string) => biasMap[id]).filter(Boolean),
+      }));
+
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/comunidades/proximo-codigo", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const { pais, territorio } = req.query as { pais?: string; territorio?: string };
+    try {
+      const all: any[] = await directusFetch(COMUNIDADE_COL);
+      const same = all.filter((c: any) =>
+        c.pais?.toLowerCase() === pais?.toLowerCase() &&
+        c.territorio?.toLowerCase() === territorio?.toLowerCase()
+      );
+      const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
+      res.json({ codigo: nextComunidadeCode(codes) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/comunidades/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const c: any = await directusFetchOne(COMUNIDADE_COL, req.params.id);
+      if (!c) return res.status(404).json({ error: "Não encontrado" });
+      const membrosAll: any[] = await directusFetch("cadastro_geral", "fields=id,nome,foto_perfil,cargo,empresa");
+      const membrosMap: Record<string, any> = {};
+      for (const m of membrosAll) membrosMap[m.id] = m;
+      const biasAll: any[] = await directusFetch("bias_projetos", "fields=id,nome_bia");
+      const biasMap: Record<string, any> = {};
+      for (const b of biasAll) biasMap[b.id] = b;
+      res.json({
+        ...c,
+        aliado: c.aliado_id ? membrosMap[c.aliado_id] || null : null,
+        membros: (Array.isArray(c.membros_ids) ? c.membros_ids : []).map((id: string) => membrosMap[id]).filter(Boolean),
+        bias: (Array.isArray(c.bias_ids) ? c.bias_ids : []).map((id: string) => biasMap[id]).filter(Boolean),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/comunidades", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const data = req.body;
+      const created = await directusCreate(COMUNIDADE_COL, data);
+      res.json(created);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/comunidades/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const updated = await directusUpdate(COMUNIDADE_COL, req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/comunidades/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await directusDelete(COMUNIDADE_COL, req.params.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

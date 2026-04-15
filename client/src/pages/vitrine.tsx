@@ -28,10 +28,10 @@ const WORLD_GEO = "/world-countries-50m.json";
 
 const NUCLEOS_TIPOS: Record<string, string[]> = {
   "Diretoria da Aliança": ["Diretor de Aliança", "Aliado BUILT", "Diretor de Execução", "Diretor Comercial", "Diretor de Capital"],
-  "Núcleo Técnico": ["Alianças de Projetos", "Alianças Jurídicas", "Alianças de Inteligência", "Alianças de Governança"],
-  "Núcleo de Obra": ["Construção Civil", "Infraestrutura", "Reforma", "Manutenção"],
-  "Núcleo Comercial": ["Vendas", "Marketing", "Parcerias", "Prospecção"],
-  "Núcleo de Capital": ["Financeiro", "Resultados", "Investimentos"],
+  "Núcleo Técnico": ["Alianças de Projeto", "Alianças Jurídicas", "Alianças de Inteligência", "Alianças de Governança"],
+  "Núcleo de Obra": ["Alianças de Execução", "Construtoras", "Alianças de Fornecimento"],
+  "Núcleo Comercial": ["Alianças Comerciais", "Alianças de Vendas e Locação", "Alianças de Marketing", "Alianças de Operações e Facilities", "Alianças de Gestão de Relacionamento com Cliente"],
+  "Núcleo de Capital": ["Alianças de Investimento", "Alianças Contábeis e Tributárias", "Alianças de Gestão Financeira"],
 };
 
 interface MembroVitrine {

@@ -529,52 +529,28 @@ export default function ComunidadePage() {
               )}
             </Button>
 
-            {/* País + Sigla País */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-mono text-white/50 mb-1.5 block">País *</Label>
-                <Input
-                  value={form.pais || ""}
-                  onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}
-                  placeholder="Ex: Brasil"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                  data-testid="input-comunidade-pais"
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Sigla do País</Label>
-                <Input
-                  value={form.sigla_pais || ""}
-                  readOnly
-                  placeholder="Preenchido automaticamente"
-                  className="bg-white/5 border-white/10 text-brand-gold font-mono placeholder:text-white/20 cursor-default select-none"
-                  data-testid="input-comunidade-sigla-pais"
-                />
-              </div>
+            {/* País */}
+            <div>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">País *</Label>
+              <Input
+                value={form.pais || ""}
+                onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}
+                placeholder="Ex: Brasil"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                data-testid="input-comunidade-pais"
+              />
             </div>
 
-            {/* Território + Sigla Território */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Território *</Label>
-                <Input
-                  value={form.territorio || ""}
-                  onChange={e => setForm(f => ({ ...f, territorio: e.target.value }))}
-                  placeholder="Ex: Belo Horizonte"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                  data-testid="input-comunidade-territorio"
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Sigla do Território</Label>
-                <Input
-                  value={form.sigla_territorio || ""}
-                  readOnly
-                  placeholder="Preenchido automaticamente"
-                  className="bg-white/5 border-white/10 text-brand-gold font-mono placeholder:text-white/20 cursor-default select-none"
-                  data-testid="input-comunidade-sigla-territorio"
-                />
-              </div>
+            {/* Território */}
+            <div>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">Território *</Label>
+              <Input
+                value={form.territorio || ""}
+                onChange={e => setForm(f => ({ ...f, territorio: e.target.value }))}
+                placeholder="Ex: Belo Horizonte"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                data-testid="input-comunidade-territorio"
+              />
             </div>
 
             {/* Código Sequencial — hidden, calculated automatically on backend */}

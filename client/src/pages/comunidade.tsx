@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation, useSearch } from "wouter";
 import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
@@ -284,6 +285,8 @@ function getInitials(nome?: string): string {
 
 export default function ComunidadePage() {
   const { toast } = useToast();
+  const searchParams = useSearch();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
@@ -306,6 +309,16 @@ export default function ComunidadePage() {
     queryKey: ["/api/bias"],
     queryFn: () => fetch("/api/bias").then(r => { if (!r.ok) throw new Error("Erro ao buscar BIAs"); return r.json(); }),
   });
+
+  // Open edit dialog when ?edit=:id is in the URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const editId = params.get("edit");
+    if (editId && comunidades.length > 0 && !dialogOpen) {
+      const c = comunidades.find(x => x.id === editId);
+      if (c) { openEdit(c); navigate("/comunidade", { replace: true }); }
+    }
+  }, [searchParams, comunidades]);
 
   // Auto-generate nome and sigla
   useEffect(() => {
@@ -705,18 +718,20 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const [, navigate] = useLocation();
   const aliado = resolveAliado(c);
   const membros = resolveMembros(c);
   const bias = resolveBias(c);
   const foto = fotoUrl(aliado?.foto_perfil);
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border transition-all duration-200 hover:border-brand-gold/25"
+      className="relative rounded-2xl overflow-hidden border transition-all duration-200 hover:border-brand-gold/25 cursor-pointer"
       style={{
         background: "linear-gradient(145deg, #071626, #040e1c)",
         borderColor: "rgba(255,255,255,0.06)",
         boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
       }}
+      onClick={() => navigate(`/comunidade/${c.id}`)}
       data-testid={`card-comunidade-${c.id}`}
     >
       {/* Top gold line */}
@@ -779,7 +794,7 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
       {/* Actions */}
       <div className="flex border-t border-white/5">
         <button
-          onClick={onEdit}
+          onClick={e => { e.stopPropagation(); onEdit(); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono text-white/40 hover:text-brand-gold hover:bg-white/5 transition-colors"
           data-testid={`btn-edit-comunidade-${c.id}`}
         >
@@ -788,7 +803,7 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
         </button>
         <div className="w-px bg-white/5" />
         <button
-          onClick={onDelete}
+          onClick={e => { e.stopPropagation(); onDelete(); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono text-white/40 hover:text-red-400 hover:bg-red-950/20 transition-colors"
           data-testid={`btn-delete-comunidade-${c.id}`}
         >

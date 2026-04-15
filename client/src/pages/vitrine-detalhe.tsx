@@ -42,6 +42,8 @@ interface MembroDetalhe {
   logo_empresa?: string | null;
   especialidade_livre?: string | null;
   idiomas?: string[] | null;
+  nucleos_alianca?: string[] | null;
+  tipos_alianca?: string[] | null;
 }
 
 function getInitials(nome?: string): string {
@@ -344,21 +346,43 @@ export default function VitrineDetalhePage() {
                   </div>
                 )}
 
-                {/* Núcleo + Tipo */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {membro.nucleo_alianca && (
-                    <div>
-                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Núcleo</p>
-                      <p className="text-sm text-gray-800 font-mono">{membro.nucleo_alianca}</p>
+                {/* Núcleos + Tipos */}
+                {(() => {
+                  const nucleos = (membro.nucleos_alianca || []).length > 0
+                    ? membro.nucleos_alianca!
+                    : membro.nucleo_alianca ? [membro.nucleo_alianca] : [];
+                  const tipos = (membro.tipos_alianca || []).length > 0
+                    ? membro.tipos_alianca!
+                    : membro.tipo_alianca ? [membro.tipo_alianca] : [];
+                  return (nucleos.length > 0 || tipos.length > 0) ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {nucleos.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1.5">
+                            {nucleos.length > 1 ? "Núcleos" : "Núcleo"}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {nucleos.map(n => (
+                              <span key={n} className="px-2 py-0.5 rounded-full text-xs font-mono bg-[#001D34]/10 text-[#001D34] border border-[#001D34]/20">{n}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {tipos.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1.5">
+                            {tipos.length > 1 ? "Tipos" : "Tipo"}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {tipos.map(t => (
+                              <span key={t} className="px-2 py-0.5 rounded-full text-xs font-mono bg-brand-gold/10 text-brand-gold border border-brand-gold/20">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {membro.tipo_alianca && (
-                    <div>
-                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Tipo</p>
-                      <p className="text-sm text-gray-800 font-mono">{membro.tipo_alianca}</p>
-                    </div>
-                  )}
-                </div>
+                  ) : null;
+                })()}
 
                 {/* Idiomas */}
                 {(membro.idiomas || []).length > 0 && (

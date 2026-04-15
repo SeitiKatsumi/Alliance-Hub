@@ -44,6 +44,7 @@ interface MembroDetalhe {
   idiomas?: string[] | null;
   nucleos_alianca?: string[] | null;
   tipos_alianca?: string[] | null;
+  tipo_de_cadastro?: string | null;
 }
 
 function getInitials(nome?: string): string {
@@ -293,7 +294,7 @@ export default function VitrineDetalhePage() {
         </div>
 
         {/* Profissional card */}
-        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.idiomas || []).length > 0) && (
+        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.tipo_de_cadastro || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Briefcase className="w-3 h-3 text-brand-gold" />
@@ -336,17 +337,27 @@ export default function VitrineDetalhePage() {
                   )}
                 </div>
 
-                {/* Especialidade */}
-                {(membro.especialidade_livre || especialidades.length > 0) && (
-                  <div>
-                    <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Especialidade</p>
-                    <p className="text-sm text-gray-800 font-mono">
-                      {membro.especialidade_livre || especialidades[0]}
-                    </p>
+                {/* Especialidade + Ramo de Atuação */}
+                {(membro.especialidade_livre || especialidades.length > 0 || membro.tipo_de_cadastro) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(membro.especialidade_livre || especialidades.length > 0) && (
+                      <div>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
+                        <p className="text-sm text-gray-800 font-mono">
+                          {membro.especialidade_livre || especialidades[0]}
+                        </p>
+                      </div>
+                    )}
+                    {membro.tipo_de_cadastro && (
+                      <div>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
+                        <p className="text-sm text-gray-800 font-mono">{membro.tipo_de_cadastro}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Núcleos + Tipos */}
+                {/* Núcleos + Tipos — texto simples */}
                 {(() => {
                   const nucleos = (membro.nucleos_alianca || []).length > 0
                     ? membro.nucleos_alianca!
@@ -358,26 +369,18 @@ export default function VitrineDetalhePage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {nucleos.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1.5">
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">
                             {nucleos.length > 1 ? "Núcleos" : "Núcleo"}
                           </p>
-                          <div className="flex flex-wrap gap-1">
-                            {nucleos.map(n => (
-                              <span key={n} className="px-2 py-0.5 rounded-full text-xs font-mono bg-[#001D34]/10 text-[#001D34] border border-[#001D34]/20">{n}</span>
-                            ))}
-                          </div>
+                          <p className="text-sm text-gray-800 font-mono">{nucleos.join(", ")}</p>
                         </div>
                       )}
                       {tipos.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1.5">
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">
                             {tipos.length > 1 ? "Tipos" : "Tipo"}
                           </p>
-                          <div className="flex flex-wrap gap-1">
-                            {tipos.map(t => (
-                              <span key={t} className="px-2 py-0.5 rounded-full text-xs font-mono bg-brand-gold/10 text-brand-gold border border-brand-gold/20">{t}</span>
-                            ))}
-                          </div>
+                          <p className="text-sm text-gray-800 font-mono">{tipos.join(", ")}</p>
                         </div>
                       )}
                     </div>

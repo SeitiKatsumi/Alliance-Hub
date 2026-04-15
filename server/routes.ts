@@ -2175,11 +2175,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.get("/api/comunidades/proximo-codigo", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const { pais, territorio } = req.query as { pais?: string; territorio?: string };
     try {
       const col = await getComunidadeCol();
-      const all: any[] = await directusFetch(col, "fields=codigo_sequencial");
-      // Global sequence — not filtered by pais/territorio
-      const codes = all.map((c: any) => c.codigo_sequencial).filter(Boolean);
+      const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
+      const same = all.filter((c: any) =>
+        c.pais?.toLowerCase() === pais?.toLowerCase() &&
+        c.territorio?.toLowerCase() === territorio?.toLowerCase()
+      );
+      const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
       res.json({ codigo: nextComunidadeCode(codes) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2206,10 +2210,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const col = await getComunidadeCol();
       const payload = toComunidadePayload(req.body);
 
-      // Server-side uniqueness: recalculate using GLOBAL sequence (not per territory)
+      // Server-side uniqueness: recalculate codigo_sequencial to avoid race conditions on concurrent creation
       if (payload.pais && payload.territorio) {
-        const all: any[] = await directusFetch(col, "fields=codigo_sequencial");
-        const codes = all.map((c: any) => c.codigo_sequencial).filter(Boolean);
+        const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
+        const same = all.filter((c: any) =>
+          c.pais?.toLowerCase() === payload.pais?.toLowerCase() &&
+          c.territorio?.toLowerCase() === payload.territorio?.toLowerCase()
+        );
+        const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
         payload.codigo_sequencial = nextComunidadeCode(codes);
         // Regenerate nome and sigla with guaranteed code
         const { sigla_pais, sigla_territorio } = payload;

@@ -18,7 +18,7 @@ import {
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
-  Upload, ImageIcon, X
+  Upload, ImageIcon, X, Languages
 } from "lucide-react";
 
 interface NominatimResult {
@@ -165,6 +165,15 @@ const NUCLEOS = [
   "Núcleo de Capital",
 ];
 
+const IDIOMAS_DISPONIVEIS = [
+  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
+  "Mandarim", "Japonês", "Árabe", "Russo", "Hindi", "Coreano",
+  "Holandês", "Sueco", "Norueguês", "Dinamarquês", "Finlandês",
+  "Polonês", "Turco", "Hebraico", "Grego", "Tailandês", "Vietnamita",
+  "Indonésio", "Malaio", "Húngaro", "Tcheco", "Romeno", "Búlgaro",
+  "Ucraniano", "Croata", "Sérvio", "Eslovaco", "Catalão", "Persa",
+];
+
 interface TipoOpa { text: string; value: string; }
 
 interface Membro {
@@ -192,6 +201,8 @@ interface Membro {
   em_built_capital?: boolean;
   link_site?: string;
   logo_empresa?: string | null;
+  especialidade_livre?: string;
+  idiomas?: string[] | null;
   Outras_redes_as_quais_pertenco?: string[] | null;
 }
 
@@ -223,6 +234,7 @@ export default function MeuPerfilPage() {
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [idiomaInput, setIdiomaInput] = useState("");
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -689,6 +701,15 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-cargo"
                     />
                   </Field>
+                  <Field label="Especialidade">
+                    <Input
+                      value={form.especialidade_livre || ""}
+                      onChange={e => set("especialidade_livre", e.target.value)}
+                      placeholder="Ex: Gestão de contratos, Retrofit, BIM..."
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                      data-testid="input-perfil-especialidade-livre"
+                    />
+                  </Field>
                   <Field label="Núcleo de Aliança">
                     <Select
                       value={form.nucleo_alianca || undefined}
@@ -729,6 +750,114 @@ export default function MeuPerfilPage() {
                     </Field>
                   )}
                 </div>
+
+                {/* Idiomas Falados */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/40 font-mono flex items-center gap-1.5">
+                    <Languages className="w-3.5 h-3.5" />
+                    Idiomas Falados
+                  </Label>
+                  {/* Chips de idiomas selecionados */}
+                  {(form.idiomas || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(form.idiomas || []).map(idioma => (
+                        <span
+                          key={idioma}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono border"
+                          style={{ background: "rgba(215,187,125,0.12)", borderColor: "rgba(215,187,125,0.35)", color: "#D7BB7D" }}
+                          data-testid={`chip-idioma-${idioma}`}
+                        >
+                          {idioma}
+                          <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, idiomas: (f.idiomas || []).filter(i => i !== idioma) }))}
+                            className="ml-0.5 rounded-full hover:text-white transition-colors"
+                            data-testid={`btn-remover-idioma-${idioma}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Input + sugestões */}
+                  <div className="relative">
+                    <Input
+                      value={idiomaInput}
+                      onChange={e => setIdiomaInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && idiomaInput.trim()) {
+                          const val = idiomaInput.trim();
+                          if (!(form.idiomas || []).includes(val)) {
+                            setForm(f => ({ ...f, idiomas: [...(f.idiomas || []), val] }));
+                          }
+                          setIdiomaInput("");
+                          e.preventDefault();
+                        }
+                      }}
+                      placeholder="Buscar ou digitar idioma..."
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                      data-testid="input-idioma-busca"
+                    />
+                    {/* Dropdown de sugestões */}
+                    {idiomaInput.length > 0 && (
+                      <div
+                        className="absolute z-20 left-0 right-0 top-full mt-1 rounded-lg border border-white/10 overflow-hidden"
+                        style={{ background: "#001428", maxHeight: "180px", overflowY: "auto" }}
+                      >
+                        {[
+                          ...IDIOMAS_DISPONIVEIS.filter(i =>
+                            i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
+                          ),
+                          ...(IDIOMAS_DISPONIVEIS.some(i => i.toLowerCase() === idiomaInput.trim().toLowerCase()) || (form.idiomas || []).includes(idiomaInput.trim())
+                            ? []
+                            : [idiomaInput.trim()]
+                          ),
+                        ].map(sugestao => (
+                          <button
+                            key={sugestao}
+                            type="button"
+                            onClick={() => {
+                              if (!(form.idiomas || []).includes(sugestao)) {
+                                setForm(f => ({ ...f, idiomas: [...(f.idiomas || []), sugestao] }));
+                              }
+                              setIdiomaInput("");
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-brand-gold/10 hover:text-white transition-colors font-mono"
+                            data-testid={`opt-idioma-${sugestao}`}
+                          >
+                            {sugestao === idiomaInput.trim() && !IDIOMAS_DISPONIVEIS.some(i => i.toLowerCase() === sugestao.toLowerCase())
+                              ? `+ Adicionar "${sugestao}"`
+                              : sugestao}
+                          </button>
+                        ))}
+                        {IDIOMAS_DISPONIVEIS.filter(i =>
+                          i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
+                        ).length === 0 && (form.idiomas || []).includes(idiomaInput.trim()) && (
+                          <p className="px-3 py-2 text-xs text-white/30 font-mono">Idioma já adicionado</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {/* Atalhos rápidos */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {IDIOMAS_DISPONIVEIS.slice(0, 6).filter(i => !(form.idiomas || []).includes(i)).map(i => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, idiomas: [...(f.idiomas || []), i] }))}
+                        className="px-2 py-0.5 rounded text-[11px] font-mono border border-white/10 text-white/40 hover:border-brand-gold/30 hover:text-white/70 transition-colors"
+                        data-testid={`btn-quick-idioma-${i}`}
+                      >
+                        {i}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/20 font-mono">
+                    Digite para buscar, pressione Enter para adicionar qualquer idioma.
+                  </p>
+                </div>
+
                 <Field label="Site / Portfólio">
                   <div className="relative">
                     <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />

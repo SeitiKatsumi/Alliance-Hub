@@ -29,7 +29,6 @@ export function AppSidebar() {
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
   const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
   const [redeBuiltOpen, setRedeBuiltOpen] = useState(isRedeBuiltSection);
-  const [membrosOpen, setMembrosOpen] = useState(location === "/area-membros" || location === "/comunidade");
 
   return (
     <Sidebar>
@@ -83,40 +82,20 @@ export function AppSidebar() {
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
-                        <Collapsible open={membrosOpen} onOpenChange={setMembrosOpen}>
-                          <div className="flex items-center w-full">
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={location === "/area-membros"}
-                              className="flex-1 text-xs"
-                              data-testid="nav-area-membros"
-                            >
-                              <Link href="/area-membros">
-                                <Network className="w-3 h-3" />
-                                <span>Membros</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                            <CollapsibleTrigger asChild>
-                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-membros-menu">
-                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${membrosOpen ? "rotate-180" : ""}`} />
-                              </button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent>
-                            <div className="pl-3">
-                              <SidebarMenuSub>
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton asChild isActive={location === "/comunidade"} className="text-xs" data-testid="nav-comunidade">
-                                    <Link href="/comunidade">
-                                      <MessageCircle className="w-3 h-3" />
-                                      <span>Comunidade</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              </SidebarMenuSub>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
+                        <SidebarMenuSubButton asChild isActive={location === "/area-membros"} className="text-xs" data-testid="nav-area-membros">
+                          <Link href="/area-membros">
+                            <Network className="w-3 h-3" />
+                            <span>Membros</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/comunidade"} className="text-xs" data-testid="nav-comunidade">
+                          <Link href="/comunidade">
+                            <MessageCircle className="w-3 h-3" />
+                            <span>Comunidade</span>
+                          </Link>
+                        </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-xs" data-testid="nav-built-capital">

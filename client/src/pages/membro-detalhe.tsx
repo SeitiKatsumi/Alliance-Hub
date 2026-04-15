@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
-  User, Globe, MessageSquare, Shield, ExternalLink, Languages
+  User, Globe, MessageSquare, Shield, ExternalLink, Languages, MessageCircle
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -369,6 +369,19 @@ export default function MembroDetalhePage() {
             </div>
           </div>
         )}
+
+        {/* Comunidade */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <MessageCircle className="w-3 h-3 text-brand-gold" />
+            Comunidade
+          </p>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <MessageCircle className="w-8 h-8 text-gray-200 mb-3" />
+            <p className="text-xs text-gray-400 font-mono">Em breve</p>
+          </div>
+        </div>
+
       </div>
     </div>
   );

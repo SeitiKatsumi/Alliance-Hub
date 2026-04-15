@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins, MessageCircle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,11 +24,12 @@ export function AppSidebar() {
   const isAdmin = user?.role === "admin" || user?.role === "manager";
   const [location] = useLocation();
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
-  const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital";
+  const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital" || location === "/comunidade";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
   const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
   const [redeBuiltOpen, setRedeBuiltOpen] = useState(isRedeBuiltSection);
+  const [membrosOpen, setMembrosOpen] = useState(location === "/area-membros" || location === "/comunidade");
 
   return (
     <Sidebar>
@@ -82,12 +83,40 @@ export function AppSidebar() {
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/area-membros"} className="text-xs" data-testid="nav-area-membros">
-                          <Link href="/area-membros">
-                            <Network className="w-3 h-3" />
-                            <span>Membros</span>
-                          </Link>
-                        </SidebarMenuSubButton>
+                        <Collapsible open={membrosOpen} onOpenChange={setMembrosOpen}>
+                          <div className="flex items-center w-full">
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location === "/area-membros"}
+                              className="flex-1 text-xs"
+                              data-testid="nav-area-membros"
+                            >
+                              <Link href="/area-membros">
+                                <Network className="w-3 h-3" />
+                                <span>Membros</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                            <CollapsibleTrigger asChild>
+                              <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-membros-menu">
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${membrosOpen ? "rotate-180" : ""}`} />
+                              </button>
+                            </CollapsibleTrigger>
+                          </div>
+                          <CollapsibleContent>
+                            <div className="pl-3">
+                              <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton asChild isActive={location === "/comunidade"} className="text-xs" data-testid="nav-comunidade">
+                                    <Link href="/comunidade">
+                                      <MessageCircle className="w-3 h-3" />
+                                      <span>Comunidade</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </SidebarMenuSub>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-xs" data-testid="nav-built-capital">

@@ -730,7 +730,7 @@ export default function MeuPerfilPage() {
                   </Field>
 
                   {form.nucleo_alianca && (
-                    <Field label="Tipo / Área">
+                    <Field label="Tipo">
                       <Select
                         value={form.tipo_alianca || undefined}
                         onValueChange={v => setForm(f => ({ ...f, tipo_alianca: v }))}

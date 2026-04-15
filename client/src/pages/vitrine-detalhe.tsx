@@ -440,7 +440,7 @@ export default function VitrineDetalhePage() {
                   )}
                   {membro.tipo_alianca && (
                     <div>
-                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Tipo / Área</p>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Tipo</p>
                       <p className="text-sm text-gray-800 font-mono">{membro.tipo_alianca}</p>
                     </div>
                   )}

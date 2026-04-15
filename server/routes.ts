@@ -662,6 +662,40 @@ export async function registerRoutes(
     }
   });
 
+  // ========== MEMBROS BUILT (PROUD MEMBER only) ==========
+  app.get("/api/membros-built", async (req, res) => {
+    if (!(req.session as any).directusUserId) {
+      return res.status(401).json({ error: "Não autenticado" });
+    }
+    try {
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!response.ok) throw new Error(`Directus error: ${response.status}`);
+      const json = await response.json();
+      const items = (json.data || [])
+        .filter((m: any) => {
+          const redes = m.Outras_redes_as_quais_pertenco || [];
+          return Array.isArray(redes) && redes.includes("BUILT_PROUD_MEMBER");
+        })
+        .map((m: any) => {
+          const especialidades = (m.Especialidades || [])
+            .map((e: any) => e?.especialidades_id?.nome_especialidade)
+            .filter(Boolean);
+          return {
+            ...m,
+            cargo: m.cargo || m.responsavel_cargo || null,
+            foto: m.foto_perfil || null,
+            especialidade: especialidades[0] || null,
+            latitude: m.latitude ? parseFloat(m.latitude) : null,
+            longitude: m.longitude ? parseFloat(m.longitude) : null,
+          };
+        });
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== ESPECIALIDADES (from Directus) ==========
   app.get("/api/especialidades", async (req, res) => {
     try {

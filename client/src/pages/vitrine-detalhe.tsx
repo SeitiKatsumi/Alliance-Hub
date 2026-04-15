@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
   BNI: { img: "/bni-badge.png", label: "Membro BNI" },
+  BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
+  BUILT_FOUNDING_MEMBER: { img: "/built-founding-member.png", label: "BUILT Founding Member" },
 };
 
 interface MembroDetalhe {

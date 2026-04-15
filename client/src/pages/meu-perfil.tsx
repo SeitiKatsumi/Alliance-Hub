@@ -27,6 +27,8 @@ interface EspecialidadeOption {
 
 const REDES_DISPONIVEIS = [
   { value: "BNI", label: "BNI", badge: "/bni-badge.png" },
+  { value: "BUILT_PROUD_MEMBER", label: "BUILT Proud Member", badge: "/built-proud-member.png" },
+  { value: "BUILT_FOUNDING_MEMBER", label: "BUILT Founding Member", badge: "/built-founding-member.png" },
 ];
 
 const NUCLEOS = [

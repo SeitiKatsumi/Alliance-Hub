@@ -108,11 +108,11 @@ export default function VitrineDetalhePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen" style={{ background: "#020b16" }}>
+      <div className="min-h-screen bg-white">
         <div className="max-w-3xl mx-auto p-6 space-y-6">
-          <Skeleton className="h-8 w-32 bg-white/5" />
-          <Skeleton className="h-48 rounded-2xl bg-white/5" />
-          <Skeleton className="h-64 rounded-2xl bg-white/5" />
+          <Skeleton className="h-8 w-32 bg-gray-100" />
+          <Skeleton className="h-48 rounded-2xl bg-gray-100" />
+          <Skeleton className="h-64 rounded-2xl bg-gray-100" />
         </div>
       </div>
     );
@@ -120,12 +120,12 @@ export default function VitrineDetalhePage() {
 
   if (!membro || membro.na_vitrine === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#020b16" }}>
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center space-y-4">
-          <Store className="w-12 h-12 text-white/10 mx-auto" />
-          <p className="text-white/30 font-mono text-sm">Perfil não encontrado na Vitrine</p>
+          <Store className="w-12 h-12 text-gray-200 mx-auto" />
+          <p className="text-gray-400 font-mono text-sm">Perfil não encontrado na Vitrine</p>
           <Link href="/vitrine">
-            <Button variant="outline" size="sm" className="border-white/10 text-white/40 hover:text-white">
+            <Button variant="outline" size="sm" className="border-gray-200 text-gray-400 hover:text-gray-700">
               <ArrowLeft className="w-3.5 h-3.5 mr-2" />
               Voltar
             </Button>
@@ -136,12 +136,12 @@ export default function VitrineDetalhePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#020b16" }}>
+    <div className="min-h-screen bg-white">
       {/* Back nav */}
       <div className="px-6 pt-5 pb-2">
         <Link href="/vitrine">
           <button
-            className="flex items-center gap-2 text-xs font-mono text-white/35 hover:text-white/70 transition-colors"
+            className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-gray-700 transition-colors"
             data-testid="btn-back-vitrine"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -342,14 +342,13 @@ export default function VitrineDetalhePage() {
 
         {/* Bottom metadata */}
         <div
-          className="rounded-2xl border border-white/4 px-5 py-4 flex flex-wrap items-center gap-4"
-          style={{ background: "rgba(215,187,125,0.03)" }}
+          className="rounded-2xl border border-gray-100 px-5 py-4 flex flex-wrap items-center gap-4 bg-gray-50"
         >
-          <Store className="w-3.5 h-3.5 text-brand-gold/30" />
-          <span className="text-xs font-mono text-white/25">Perfil público na Vitrine BUILT</span>
+          <Store className="w-3.5 h-3.5 text-brand-gold/50" />
+          <span className="text-xs font-mono text-gray-400">Perfil público na Vitrine BUILT</span>
           <div className="flex-1" />
-          <div className="w-1.5 h-1.5 rounded-full bg-brand-gold/40 animate-pulse" />
-          <span className="text-[10px] font-mono text-white/20">Ativo</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-brand-gold/60 animate-pulse" />
+          <span className="text-[10px] font-mono text-gray-400">Ativo</span>
         </div>
       </div>
     </div>

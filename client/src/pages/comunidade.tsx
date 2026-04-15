@@ -85,10 +85,10 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
   function handleConfirm() {
     if (!selected) return;
     const addr = selected.address || {};
-    const pais = addr.country || "";
-    const siglaPais = (addr.country_code || "").toUpperCase().slice(0, 2);
-    const territorio = addr.city || addr.town || addr.village || addr.municipality ||
-      addr.county || addr.state || selected.display_name.split(",")[0].trim();
+    const pais = (addr.country || "").trim();
+    const siglaPais = (addr.country_code || "").toUpperCase().slice(0, 2).trim();
+    const territorio = (addr.city || addr.town || addr.village || addr.municipality ||
+      addr.county || addr.state || selected.display_name.split(",")[0]).trim();
     const siglaTerritorio = abbrevTerritory(territorio);
     onSelect(pais, siglaPais, territorio, siglaTerritorio);
     onClose();

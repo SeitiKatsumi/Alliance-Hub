@@ -2137,8 +2137,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // Convert frontend payload (aliado_id, membros_ids[], bias_ids[]) to Directus M2O/M2M format
   function toComunidadePayload(body: any) {
     const { aliado_id, membros_ids, bias_ids, ...rest } = body;
+    const trimmed: any = {};
+    for (const [k, v] of Object.entries(rest)) {
+      trimmed[k] = typeof v === "string" ? v.trim() : v;
+    }
     return {
-      ...rest,
+      ...trimmed,
       ...(aliado_id !== undefined ? { aliado: aliado_id || null } : {}),
       ...(membros_ids !== undefined ? { membros: (membros_ids as string[]).map(id => ({ cadastro_geral_id: id })) } : {}),
       ...(bias_ids !== undefined ? { bias: (bias_ids as string[]).map(id => ({ bias_projetos_id: id })) } : {}),
@@ -2180,8 +2184,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const col = await getComunidadeCol();
       const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
       const same = all.filter((c: any) =>
-        c.pais?.toLowerCase() === pais?.toLowerCase() &&
-        c.territorio?.toLowerCase() === territorio?.toLowerCase()
+        c.pais?.trim().toLowerCase() === pais?.trim().toLowerCase() &&
+        c.territorio?.trim().toLowerCase() === territorio?.trim().toLowerCase()
       );
       const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
       res.json({ codigo: nextComunidadeCode(codes) });
@@ -2214,8 +2218,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (payload.pais && payload.territorio) {
         const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
         const same = all.filter((c: any) =>
-          c.pais?.toLowerCase() === payload.pais?.toLowerCase() &&
-          c.territorio?.toLowerCase() === payload.territorio?.toLowerCase()
+          c.pais?.trim().toLowerCase() === payload.pais?.trim().toLowerCase() &&
+          c.territorio?.trim().toLowerCase() === payload.territorio?.trim().toLowerCase()
         );
         const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
         payload.codigo_sequencial = nextComunidadeCode(codes);

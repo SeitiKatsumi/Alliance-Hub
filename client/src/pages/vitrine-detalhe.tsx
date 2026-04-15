@@ -37,7 +37,7 @@ interface MembroDetalhe {
   nucleo_alianca?: string;
   tipo_alianca?: string;
   na_vitrine?: boolean;
-  Especialidades?: { Especialidade_id?: { nome?: string } }[];
+  Especialidades?: { especialidades_id?: { nome_especialidade?: string } }[];
   Outras_redes_as_quais_pertenco?: string[] | null;
   logo_empresa?: string | null;
   especialidade_livre?: string | null;
@@ -107,7 +107,7 @@ export default function VitrineDetalhePage() {
   const empresa = membro?.empresa || membro?.nome_fantasia || null;
   const wa = whatsappLink(membro?.whatsapp || membro?.whatsapp_e164);
   const especialidades = (membro?.Especialidades || [])
-    .map(e => e?.Especialidade_id?.nome)
+    .map(e => e?.especialidades_id?.nome_especialidade)
     .filter(Boolean) as string[];
   const redes = (membro?.Outras_redes_as_quais_pertenco || []).filter(r => REDE_BADGES[r]);
   const localidade = [membro?.cidade, membro?.estado?.toUpperCase(), membro?.pais]

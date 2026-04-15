@@ -6,7 +6,6 @@ import {
   User, Globe, MessageSquare, Store, ExternalLink, Languages
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
@@ -192,102 +191,16 @@ export default function VitrineDetalhePage() {
               )}
             </div>
 
-            {/* Name & info */}
+            {/* Nome + selos */}
             <div className="flex-1 min-w-0 text-center sm:text-left">
               <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase mb-1">
                 // Vitrine BUILT
               </p>
               <h1 className="text-2xl font-bold font-mono text-white leading-tight">{nome}</h1>
 
-              {(cargo || empresa) && (
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
-                  {cargo && (
-                    <span className="flex items-center gap-1.5 text-sm text-white/50">
-                      <Briefcase className="w-3.5 h-3.5 text-brand-gold/40" />
-                      {cargo}
-                    </span>
-                  )}
-                  {cargo && empresa && <span className="text-white/20">·</span>}
-                  {empresa && (
-                    <span className="flex items-center gap-1.5 text-sm text-white/50">
-                      {membro.logo_empresa ? (
-                        <img
-                          src={`/api/assets/${membro.logo_empresa}?width=40&height=40&fit=contain`}
-                          alt={empresa}
-                          className="h-5 w-auto object-contain rounded"
-                          style={{ maxWidth: 48 }}
-                        />
-                      ) : (
-                        <Building2 className="w-3.5 h-3.5 text-brand-gold/40" />
-                      )}
-                      {empresa}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {localidade && (
-                <p className="flex items-center justify-center sm:justify-start gap-1.5 text-xs text-white/35 mt-2 font-mono">
-                  <MapPin className="w-3 h-3 text-brand-gold/30" />
-                  {localidade}
-                </p>
-              )}
-
-              {/* Especialidades badges */}
-              {(especialidades.length > 0 || membro.especialidade_livre) && (
-                <div className="flex flex-wrap gap-1.5 mt-3 justify-center sm:justify-start">
-                  {especialidades.map(esp => (
-                    <Badge
-                      key={esp}
-                      variant="outline"
-                      className="text-[10px] font-mono border-brand-gold/20 text-brand-gold/50 bg-brand-gold/5"
-                    >
-                      {esp}
-                    </Badge>
-                  ))}
-                  {membro.especialidade_livre && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] font-mono border-brand-gold/30 text-brand-gold/70 bg-brand-gold/8"
-                      data-testid="badge-especialidade-livre"
-                    >
-                      {membro.especialidade_livre}
-                    </Badge>
-                  )}
-                </div>
-              )}
-
-              {/* Idiomas falados */}
-              {(membro.idiomas || []).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 justify-center sm:justify-start">
-                  <span className="flex items-center gap-1 text-[10px] font-mono text-white/25 mr-1">
-                    <Languages className="w-3 h-3" />
-                  </span>
-                  {(membro.idiomas || []).map(idioma => (
-                    <span
-                      key={idioma}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-mono border"
-                      style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.45)" }}
-                      data-testid={`tag-idioma-${idioma}`}
-                    >
-                      {idioma}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {membro.nucleo_alianca && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] font-mono border-white/10 text-white/30 bg-transparent mt-2"
-                >
-                  {membro.nucleo_alianca}
-                </Badge>
-              )}
-
               {/* Selos de redes de negócios */}
               {redes.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
+                <div className="flex flex-wrap gap-2 mt-4 justify-center sm:justify-start">
                   {redes.map(rede => (
                     <img
                       key={rede}

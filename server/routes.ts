@@ -517,6 +517,151 @@ async function ensureEstudosViabilidadeCollection() {
   }
 }
 
+async function directusFieldPost(collection: string, body: object): Promise<{ ok: boolean; code?: string }> {
+  try {
+    const r = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) return { ok: true };
+    const err = await r.json().catch(() => ({}));
+    return { ok: false, code: err?.errors?.[0]?.extensions?.code };
+  } catch { return { ok: false }; }
+}
+
+async function directusRelationPost(body: object): Promise<{ ok: boolean; code?: string }> {
+  try {
+    const r = await fetch(`${DIRECTUS_URL}/relations`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) return { ok: true };
+    const err = await r.json().catch(() => ({}));
+    return { ok: false, code: err?.errors?.[0]?.extensions?.code };
+  } catch { return { ok: false }; }
+}
+
+async function ensureComunidadeM2O(col: string, field: string, relatedCollection: string) {
+  const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
+  const fr = await directusFieldPost(col, {
+    field,
+    type: "uuid",
+    meta: { interface: "select-dropdown-m2o", display: "related-values", options: { template: "{{nome}}" }, hidden: false },
+    schema: { is_nullable: true },
+  });
+  if (!fr.ok && !silent.has(fr.code!)) console.warn(`[comunidade] M2O field '${field}' response: ${fr.code}`);
+
+  const rr = await directusRelationPost({
+    collection: col, field, related_collection: relatedCollection,
+    schema: { on_delete: "SET NULL" },
+    meta: { many_collection: col, many_field: field, one_collection: relatedCollection, one_field: null },
+  });
+  if (!rr.ok && !silent.has(rr.code!)) console.warn(`[comunidade] M2O relation '${field}' response: ${rr.code}`);
+}
+
+async function getDirectusFieldType(collection: string, field: string): Promise<string> {
+  try {
+    const r = await fetch(`${DIRECTUS_URL}/fields/${collection}/${field}`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!r.ok) return "uuid";
+    const d = await r.json();
+    return d?.data?.type || "uuid";
+  } catch { return "uuid"; }
+}
+
+async function ensureComunidadeM2M(col: string, aliasField: string, relatedCollection: string) {
+  const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD", "INTERNAL_SERVER_ERROR"]);
+  const junction = `${col.toLowerCase()}_${aliasField}`;
+  const fkParent = `${col.toLowerCase()}_id`;
+  const fkRelated = `${relatedCollection}_id`;
+
+  // Determine the actual id type of the parent collection to avoid FK type mismatch
+  const parentIdType = await getDirectusFieldType(col, "id");
+  const relatedIdType = await getDirectusFieldType(relatedCollection, "id");
+  console.log(`[comunidade] M2M '${aliasField}': parent_id=${parentIdType}, related_id=${relatedIdType}`);
+
+  // 1. Create junction collection if absent (with correct FK types)
+  const colCheck = await fetch(`${DIRECTUS_URL}/collections/${junction}`, {
+    headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+  });
+  if (!colCheck.ok) {
+    const colResp = await fetch(`${DIRECTUS_URL}/collections`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection: junction,
+        meta: { hidden: true, icon: "import_export" },
+        schema: {},
+        fields: [
+          { field: "id", type: "integer", meta: { hidden: true }, schema: { is_primary_key: true, has_auto_increment: true } },
+          {
+            field: fkParent, type: parentIdType, meta: { hidden: true },
+            schema: { is_nullable: true, foreign_key_table: col, foreign_key_column: "id" },
+          },
+          {
+            field: fkRelated, type: relatedIdType, meta: { hidden: true },
+            schema: { is_nullable: true, foreign_key_table: relatedCollection, foreign_key_column: "id" },
+          },
+        ],
+      }),
+    });
+    if (!colResp.ok) {
+      const e = await colResp.json().catch(() => ({}));
+      const code = e?.errors?.[0]?.extensions?.code;
+      if (!silent.has(code)) console.warn(`[comunidade] Junction '${junction}' create: ${colResp.status} ${code}`);
+      else console.log(`[comunidade] Junction '${junction}': ${code || colResp.status}`);
+    } else {
+      console.log(`[comunidade] Junction '${junction}' created`);
+    }
+  } else {
+    console.log(`[comunidade] Junction '${junction}' already exists`);
+  }
+
+  // 2. Alias M2M field on parent collection
+  const ar = await directusFieldPost(col, {
+    field: aliasField,
+    type: "alias",
+    meta: {
+      interface: "list-m2m",
+      display: "related-values",
+      special: ["m2m"],
+      junction_field: fkRelated,
+      options: { template: `{{${fkRelated}.nome}}` },
+      hidden: false,
+    },
+    schema: null,
+  });
+  if (!ar.ok && !silent.has(ar.code!)) console.warn(`[comunidade] M2M alias '${aliasField}': ${ar.code}`);
+  else if (!ar.ok) console.log(`[comunidade] M2M alias '${aliasField}': ${ar.code}`);
+
+  // 3. Relation: junction.fkParent → parent (carries one_field alias)
+  const r1 = await directusRelationPost({
+    collection: junction, field: fkParent, related_collection: col,
+    meta: {
+      many_collection: junction, many_field: fkParent,
+      one_collection: col, one_field: aliasField,
+      junction_field: fkRelated, sort_field: null,
+    },
+  });
+  if (!r1.ok && !silent.has(r1.code!)) console.warn(`[comunidade] M2M rel1 '${aliasField}': ${r1.code}`);
+  else if (!r1.ok) console.log(`[comunidade] M2M rel1 '${aliasField}': ${r1.code}`);
+
+  // 4. Relation: junction.fkRelated → related collection
+  const r2 = await directusRelationPost({
+    collection: junction, field: fkRelated, related_collection: relatedCollection,
+    meta: {
+      many_collection: junction, many_field: fkRelated,
+      one_collection: relatedCollection, one_field: null,
+      junction_field: fkParent, sort_field: null,
+    },
+  });
+  if (!r2.ok && !silent.has(r2.code!)) console.warn(`[comunidade] M2M rel2 '${aliasField}': ${r2.code}`);
+  else if (!r2.ok) console.log(`[comunidade] M2M rel2 '${aliasField}': ${r2.code}`);
+}
+
 async function ensureComunidadeFields() {
   // Try common naming variants (Directus is case-sensitive)
   const candidates = ["Comunidade", "comunidade", "comunidades", "Comunidades"];
@@ -536,38 +681,34 @@ async function ensureComunidadeFields() {
     console.log(`[comunidade] Found collection as '${COL}'`);
   } catch { return; }
 
-  const fields = [
-    { field: "nome", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome completo: BUILT País | Território | Comunidade A01" }, schema: { is_nullable: true } },
-    { field: "sigla", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código sistêmico: BR-BHZ-COM-A01" }, schema: { is_nullable: true } },
-    { field: "pais", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome completo do país" }, schema: { is_nullable: true } },
-    { field: "sigla_pais", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código do país (ex: BR, PT, US)" }, schema: { is_nullable: true } },
-    { field: "territorio", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Cidade ou região" }, schema: { is_nullable: true } },
-    { field: "sigla_territorio", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código do território (ex: BHZ, SPO, LIS)" }, schema: { is_nullable: true } },
-    { field: "codigo_sequencial", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Código sequencial: A01, A02, ..., B01" }, schema: { is_nullable: true } },
-    { field: "aliado_id", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "UUID do Aliado-Líder em cadastro_geral" }, schema: { is_nullable: true } },
-    { field: "membros_ids", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Array de UUIDs de membros (cadastro_geral)" }, schema: { is_nullable: true } },
-    { field: "bias_ids", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Array de UUIDs de BIAs (bias_projetos)" }, schema: { is_nullable: true } },
-    { field: "status", type: "string", meta: { interface: "select-dropdown", display: "raw", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Inativa", value: "inativa" }] }, default_value: "ativa" }, schema: { is_nullable: true, default_value: "ativa" } },
+  // Scalar fields (INVALID_PAYLOAD can occur when field already exists with different meta)
+  const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
+  const scalarFields = [
+    { field: "nome", type: "string", meta: { interface: "input", hidden: false, note: "BUILT País | Território | Comunidade A01" }, schema: { is_nullable: true } },
+    { field: "sigla", type: "string", meta: { interface: "input", hidden: false, note: "Código sistêmico: BR-BHZ-COM-A01" }, schema: { is_nullable: true } },
+    { field: "pais", type: "string", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
+    { field: "sigla_pais", type: "string", meta: { interface: "input", hidden: false, note: "Ex: BR, PT, US" }, schema: { is_nullable: true } },
+    { field: "territorio", type: "string", meta: { interface: "input", hidden: false, note: "Cidade ou região" }, schema: { is_nullable: true } },
+    { field: "sigla_territorio", type: "string", meta: { interface: "input", hidden: false, note: "Ex: BHZ, SPO" }, schema: { is_nullable: true } },
+    { field: "codigo_sequencial", type: "string", meta: { interface: "input", hidden: false, note: "A01, A02…B01" }, schema: { is_nullable: true } },
+    { field: "status", type: "string", meta: { interface: "select-dropdown", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Inativa", value: "inativa" }] }, default_value: "ativa" }, schema: { is_nullable: true, default_value: "ativa" } },
     { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
   ];
-
-  for (const f of fields) {
-    try {
-      const r = await fetch(`${DIRECTUS_URL}/fields/${COL}`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify(f),
-      });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        const code = err?.errors?.[0]?.extensions?.code;
-        if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
-          console.warn(`[comunidade] Field ${f.field} response: ${r.status}`);
-        }
-      }
-    } catch {}
+  for (const f of scalarFields) {
+    const r = await directusFieldPost(COL, f);
+    if (!r.ok && !silent.has(r.code!)) console.warn(`[comunidade] Scalar field '${f.field}': ${r.code}`);
   }
-  console.log("[comunidade] Fields ensured");
+
+  // M2O: aliado → cadastro_geral
+  await ensureComunidadeM2O(COL, "aliado", "cadastro_geral");
+
+  // M2M: membros ↔ cadastro_geral (junction: ${COL}_membros)
+  await ensureComunidadeM2M(COL, "membros", "cadastro_geral");
+
+  // M2M: bias ↔ bias_projetos (junction: ${COL}_bias)
+  await ensureComunidadeM2M(COL, "bias", "bias_projetos");
+
+  console.log("[comunidade] Fields ensured (M2O/M2M)");
 }
 
 function nextComunidadeCode(codes: string[]): string {
@@ -1974,38 +2115,46 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== COMUNIDADES ==========
+  // Explicit fields list — excludes legacy aliado_id/membros_ids/bias_ids; expands M2O (aliado) and M2M (membros, bias)
+  const COMUNIDADE_FIELDS =
+    "fields=id,nome,sigla,pais,sigla_pais,territorio,sigla_territorio,codigo_sequencial,status,date_created," +
+    "aliado.id,aliado.nome,aliado.foto_perfil,aliado.cargo,aliado.empresa," +
+    "membros.cadastro_geral_id.id,membros.cadastro_geral_id.nome,membros.cadastro_geral_id.foto_perfil,membros.cadastro_geral_id.cargo,membros.cadastro_geral_id.empresa," +
+    "bias.bias_projetos_id.id,bias.bias_projetos_id.nome_bia";
+
+  // Convert frontend payload (aliado_id, membros_ids[], bias_ids[]) to Directus M2O/M2M format
+  function toComunidadePayload(body: any) {
+    const { aliado_id, membros_ids, bias_ids, ...rest } = body;
+    return {
+      ...rest,
+      ...(aliado_id !== undefined ? { aliado: aliado_id || null } : {}),
+      ...(membros_ids !== undefined ? { membros: (membros_ids as string[]).map(id => ({ cadastro_geral_id: id })) } : {}),
+      ...(bias_ids !== undefined ? { bias: (bias_ids as string[]).map(id => ({ bias_projetos_id: id })) } : {}),
+    };
+  }
+
   app.get("/api/comunidades", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const all: any[] = await directusFetch(COMUNIDADE_COL);
+      const all: any[] = await directusFetch(COMUNIDADE_COL, COMUNIDADE_FIELDS);
       const membroId = req.query.membro_id as string | undefined;
 
       let items = all;
       if (membroId) {
         items = all.filter((c: any) => {
-          const ids: string[] = Array.isArray(c.membros_ids) ? c.membros_ids : [];
-          return ids.includes(membroId) || c.aliado_id === membroId;
+          // M2O aliado
+          const aId = typeof c.aliado === "string" ? c.aliado : c.aliado?.id;
+          if (aId === membroId) return true;
+          // M2M membros
+          const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+          return membros.some((m: any) => {
+            const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+            return id === membroId;
+          });
         });
       }
 
-      // Resolve aliado names
-      const membrosAll: any[] = await directusFetch("cadastro_geral", "fields=id,nome,foto_perfil,cargo,empresa");
-      const membrosMap: Record<string, any> = {};
-      for (const m of membrosAll) membrosMap[m.id] = m;
-
-      // Resolve BIA names
-      const biasAll: any[] = await directusFetch("bias_projetos", "fields=id,nome_bia");
-      const biasMap: Record<string, any> = {};
-      for (const b of biasAll) biasMap[b.id] = b;
-
-      const enriched = items.map((c: any) => ({
-        ...c,
-        aliado: c.aliado_id ? membrosMap[c.aliado_id] || null : null,
-        membros: (Array.isArray(c.membros_ids) ? c.membros_ids : []).map((id: string) => membrosMap[id]).filter(Boolean),
-        bias: (Array.isArray(c.bias_ids) ? c.bias_ids : []).map((id: string) => biasMap[id]).filter(Boolean),
-      }));
-
-      res.json(enriched);
+      res.json(items);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2015,7 +2164,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     const { pais, territorio } = req.query as { pais?: string; territorio?: string };
     try {
-      const all: any[] = await directusFetch(COMUNIDADE_COL);
+      const all: any[] = await directusFetch(COMUNIDADE_COL, "fields=pais,territorio,codigo_sequencial");
       const same = all.filter((c: any) =>
         c.pais?.toLowerCase() === pais?.toLowerCase() &&
         c.territorio?.toLowerCase() === territorio?.toLowerCase()
@@ -2030,20 +2179,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/comunidades/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const c: any = await directusFetchOne(COMUNIDADE_COL, req.params.id);
-      if (!c) return res.status(404).json({ error: "Não encontrado" });
-      const membrosAll: any[] = await directusFetch("cadastro_geral", "fields=id,nome,foto_perfil,cargo,empresa");
-      const membrosMap: Record<string, any> = {};
-      for (const m of membrosAll) membrosMap[m.id] = m;
-      const biasAll: any[] = await directusFetch("bias_projetos", "fields=id,nome_bia");
-      const biasMap: Record<string, any> = {};
-      for (const b of biasAll) biasMap[b.id] = b;
-      res.json({
-        ...c,
-        aliado: c.aliado_id ? membrosMap[c.aliado_id] || null : null,
-        membros: (Array.isArray(c.membros_ids) ? c.membros_ids : []).map((id: string) => membrosMap[id]).filter(Boolean),
-        bias: (Array.isArray(c.bias_ids) ? c.bias_ids : []).map((id: string) => biasMap[id]).filter(Boolean),
-      });
+      const url = `${DIRECTUS_URL}/items/${COMUNIDADE_COL}/${req.params.id}?${COMUNIDADE_FIELDS}`;
+      const r = await fetch(url, { headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!r.ok) return res.status(404).json({ error: "Não encontrado" });
+      const d = await r.json();
+      res.json(d.data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2052,8 +2192,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.post("/api/comunidades", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const data = req.body;
-      const created = await directusCreate(COMUNIDADE_COL, data);
+      const created = await directusCreate(COMUNIDADE_COL, toComunidadePayload(req.body));
       res.json(created);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2063,7 +2202,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.patch("/api/comunidades/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const updated = await directusUpdate(COMUNIDADE_COL, req.params.id, req.body);
+      const updated = await directusUpdate(COMUNIDADE_COL, req.params.id, toComunidadePayload(req.body));
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

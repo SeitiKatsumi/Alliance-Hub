@@ -23,6 +23,11 @@ import { Badge } from "@/components/ui/badge";
 
 interface Membro { id: string; nome?: string; cargo?: string; empresa?: string; foto_perfil?: string | null; }
 interface Bia { id: string; nome_bia?: string; }
+
+// M2M junction shapes returned by Directus
+interface MembroJunction { cadastro_geral_id: Membro | string | null; }
+interface BiaJunction { bias_projetos_id: Bia | string | null; }
+
 interface Comunidade {
   id: string;
   nome?: string;
@@ -32,17 +37,72 @@ interface Comunidade {
   territorio?: string;
   sigla_territorio?: string;
   codigo_sequencial?: string;
-  aliado_id?: string;
-  aliado?: Membro | null;
-  membros_ids?: string[];
-  membros?: Membro[];
-  bias_ids?: string[];
-  bias?: Bia[];
+  // M2O
+  aliado?: Membro | string | null;
+  // M2M
+  membros?: MembroJunction[];
+  bias?: BiaJunction[];
   status?: string;
   date_created?: string;
 }
 
-const emptyForm = (): Partial<Comunidade> & { sigla_pais: string; sigla_territorio: string } => ({
+// Helpers to extract objects from M2O/M2M fields
+function resolveAliado(c: Comunidade): Membro | null {
+  if (!c.aliado) return null;
+  if (typeof c.aliado === "string") return null;
+  return c.aliado as Membro;
+}
+function resolveMembros(c: Comunidade): Membro[] {
+  return (c.membros || []).map(j => {
+    const m = j.cadastro_geral_id;
+    if (!m || typeof m === "string") return null;
+    return m as Membro;
+  }).filter(Boolean) as Membro[];
+}
+function resolveBias(c: Comunidade): Bia[] {
+  return (c.bias || []).map(j => {
+    const b = j.bias_projetos_id;
+    if (!b || typeof b === "string") return null;
+    return b as Bia;
+  }).filter(Boolean) as Bia[];
+}
+function resolveAliadoId(c: Comunidade): string {
+  if (!c.aliado) return "";
+  if (typeof c.aliado === "string") return c.aliado;
+  return (c.aliado as Membro).id || "";
+}
+function resolveMembrosIds(c: Comunidade): string[] {
+  return (c.membros || []).map(j => {
+    const m = j.cadastro_geral_id;
+    if (!m) return null;
+    if (typeof m === "string") return m;
+    return (m as Membro).id || null;
+  }).filter(Boolean) as string[];
+}
+function resolveBiasIds(c: Comunidade): string[] {
+  return (c.bias || []).map(j => {
+    const b = j.bias_projetos_id;
+    if (!b) return null;
+    if (typeof b === "string") return b;
+    return (b as Bia).id || null;
+  }).filter(Boolean) as string[];
+}
+
+interface ComunidadeForm {
+  pais: string;
+  sigla_pais: string;
+  territorio: string;
+  sigla_territorio: string;
+  codigo_sequencial: string;
+  nome: string;
+  sigla: string;
+  aliado_id: string;
+  membros_ids: string[];
+  bias_ids: string[];
+  status: string;
+}
+
+const emptyForm = (): ComunidadeForm => ({
   pais: "",
   sigla_pais: "",
   territorio: "",
@@ -71,7 +131,7 @@ export default function ComunidadePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
-  const [form, setForm] = useState(emptyForm());
+  const [form, setForm] = useState<ComunidadeForm>(emptyForm());
   const [codigoLoading, setCodigoLoading] = useState(false);
 
   const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
@@ -159,9 +219,9 @@ export default function ComunidadePage() {
       codigo_sequencial: c.codigo_sequencial || "",
       nome: c.nome || "",
       sigla: c.sigla || "",
-      aliado_id: c.aliado_id || "",
-      membros_ids: c.membros_ids || [],
-      bias_ids: c.bias_ids || [],
+      aliado_id: resolveAliadoId(c),
+      membros_ids: resolveMembrosIds(c),
+      bias_ids: resolveBiasIds(c),
       status: c.status || "ativa",
     });
     setDialogOpen(true);
@@ -207,7 +267,7 @@ export default function ComunidadePage() {
     const q = search.toLowerCase();
     return c.nome?.toLowerCase().includes(q) || c.sigla?.toLowerCase().includes(q) ||
       c.pais?.toLowerCase().includes(q) || c.territorio?.toLowerCase().includes(q) ||
-      c.aliado?.nome?.toLowerCase().includes(q);
+      resolveAliado(c)?.nome?.toLowerCase().includes(q);
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -502,7 +562,10 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const foto = fotoUrl(c.aliado?.foto_perfil);
+  const aliado = resolveAliado(c);
+  const membros = resolveMembros(c);
+  const bias = resolveBias(c);
+  const foto = fotoUrl(aliado?.foto_perfil);
   return (
     <div
       className="relative rounded-2xl overflow-hidden border transition-all duration-200 hover:border-brand-gold/25"
@@ -540,19 +603,19 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
         </div>
 
         {/* Aliado */}
-        {c.aliado && (
+        {aliado && (
           <div className="flex items-center gap-2.5 py-2 border-t border-white/5">
             <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-brand-gold/20"
               style={{ background: foto ? "transparent" : "rgba(215,187,125,0.08)" }}>
               {foto ? (
-                <img src={foto} alt={c.aliado.nome} className="w-full h-full object-cover" />
+                <img src={foto} alt={aliado.nome} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-[9px] font-bold text-brand-gold/60">{getInitials(c.aliado.nome)}</span>
+                <span className="text-[9px] font-bold text-brand-gold/60">{getInitials(aliado.nome)}</span>
               )}
             </div>
             <div className="min-w-0">
               <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Aliado-Líder</p>
-              <p className="text-xs text-white/70 font-mono truncate">{c.aliado.nome}</p>
+              <p className="text-xs text-white/70 font-mono truncate">{aliado.nome}</p>
             </div>
           </div>
         )}
@@ -561,11 +624,11 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
         <div className="flex items-center gap-4 text-xs text-white/30 font-mono">
           <span className="flex items-center gap-1">
             <Users className="w-3 h-3 text-brand-gold/30" />
-            {(c.membros || []).length} membro{(c.membros || []).length !== 1 ? "s" : ""}
+            {membros.length} membro{membros.length !== 1 ? "s" : ""}
           </span>
           <span className="flex items-center gap-1">
             <Briefcase className="w-3 h-3 text-brand-gold/30" />
-            {(c.bias || []).length} BIA{(c.bias || []).length !== 1 ? "s" : ""}
+            {bias.length} BIA{bias.length !== 1 ? "s" : ""}
           </span>
         </div>
       </div>

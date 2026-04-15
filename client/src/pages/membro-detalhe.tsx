@@ -98,9 +98,23 @@ interface Comunidade {
   pais?: string;
   territorio?: string;
   status?: string;
-  aliado?: { id: string; nome?: string } | null;
-  membros?: { id: string }[];
-  bias?: { id: string; nome_bia?: string }[];
+  // M2O — Directus expands aliado as an object when fields are requested
+  aliado?: { id: string; nome?: string } | string | null;
+  // M2M — junction arrays from Directus
+  membros?: Array<{ cadastro_geral_id: { id: string; nome?: string } | string | null }>;
+  bias?: Array<{ bias_projetos_id: { id: string; nome_bia?: string } | string | null }>;
+}
+
+function getAliadoNome(c: Comunidade): string | null {
+  if (!c.aliado) return null;
+  if (typeof c.aliado === "string") return null;
+  return (c.aliado as { id: string; nome?: string }).nome || null;
+}
+function getMembrosCount(c: Comunidade): number {
+  return Array.isArray(c.membros) ? c.membros.length : 0;
+}
+function getBiasCount(c: Comunidade): number {
+  return Array.isArray(c.bias) ? c.bias.length : 0;
 }
 
 export default function MembroDetalhePage() {
@@ -407,17 +421,17 @@ export default function MembroDetalhePage() {
                     <p className="text-[10px] font-mono text-brand-gold/60 tracking-widest uppercase mb-0.5">{c.sigla}</p>
                   )}
                   <p className="text-sm font-mono text-gray-800 font-medium leading-snug">{c.nome || "—"}</p>
-                  {c.aliado && (
+                  {getAliadoNome(c) && (
                     <p className="text-xs text-gray-400 font-mono mt-1">
-                      Aliado-Líder: <span className="text-gray-600">{c.aliado.nome}</span>
+                      Aliado-Líder: <span className="text-gray-600">{getAliadoNome(c)}</span>
                     </p>
                   )}
                   <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-gray-400 font-mono">
-                    {(c.membros || []).length > 0 && (
-                      <span>{(c.membros || []).length} membro{(c.membros || []).length !== 1 ? "s" : ""}</span>
+                    {getMembrosCount(c) > 0 && (
+                      <span>{getMembrosCount(c)} membro{getMembrosCount(c) !== 1 ? "s" : ""}</span>
                     )}
-                    {(c.bias || []).length > 0 && (
-                      <span>{(c.bias || []).length} BIA{(c.bias || []).length !== 1 ? "s" : ""}</span>
+                    {getBiasCount(c) > 0 && (
+                      <span>{getBiasCount(c)} BIA{getBiasCount(c) !== 1 ? "s" : ""}</span>
                     )}
                     {c.status && (
                       <span className={c.status === "ativa" ? "text-emerald-500" : "text-gray-400"}>{c.status}</span>

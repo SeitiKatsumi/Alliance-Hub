@@ -340,16 +340,6 @@ export default function VitrineDetalhePage() {
           )}
         </div>
 
-        {/* Bottom metadata */}
-        <div
-          className="rounded-2xl border border-gray-100 px-5 py-4 flex flex-wrap items-center gap-4 bg-gray-50"
-        >
-          <Store className="w-3.5 h-3.5 text-brand-gold/50" />
-          <span className="text-xs font-mono text-gray-400">Perfil público na Vitrine BUILT</span>
-          <div className="flex-1" />
-          <div className="w-1.5 h-1.5 rounded-full bg-brand-gold/60 animate-pulse" />
-          <span className="text-[10px] font-mono text-gray-400">Ativo</span>
-        </div>
       </div>
     </div>
   );

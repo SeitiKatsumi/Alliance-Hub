@@ -62,25 +62,24 @@ function InfoRow({ icon: Icon, label, value, href }: {
 }) {
   if (!value) return null;
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
-      <div className="w-8 h-8 rounded-lg border border-white/8 flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background: "rgba(215,187,125,0.06)" }}>
-        <Icon className="w-3.5 h-3.5 text-brand-gold/50" />
+    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+      <div className="w-8 h-8 rounded-lg border border-gray-100 flex items-center justify-center shrink-0 mt-0.5 bg-amber-50">
+        <Icon className="w-3.5 h-3.5 text-brand-gold" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{label}</p>
+        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">{label}</p>
         {href ? (
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-brand-gold/80 hover:text-brand-gold transition-colors flex items-center gap-1 mt-0.5 font-mono break-all"
+            className="text-sm text-brand-gold hover:text-amber-600 transition-colors flex items-center gap-1 mt-0.5 font-mono break-all"
           >
             {value}
             <ExternalLink className="w-3 h-3 shrink-0" />
           </a>
         ) : (
-          <p className="text-sm text-white/70 mt-0.5 font-mono break-all">{value}</p>
+          <p className="text-sm text-gray-800 mt-0.5 font-mono break-all">{value}</p>
         )}
       </div>
     </div>
@@ -298,12 +297,9 @@ export default function VitrineDetalhePage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Contact / info panel */}
-          <div
-            className="rounded-2xl border border-white/6 p-5"
-            style={{ background: "linear-gradient(145deg, #071626, #040e1c)" }}
-          >
-            <p className="text-[10px] font-mono text-white/25 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <User className="w-3 h-3 text-brand-gold/40" />
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <User className="w-3 h-3 text-brand-gold" />
               Contato & Localização
             </p>
             <div>
@@ -327,15 +323,12 @@ export default function VitrineDetalhePage() {
 
           {/* Perfil / bio panel */}
           {membro.perfil_aliado && (
-            <div
-              className="rounded-2xl border border-white/6 p-5"
-              style={{ background: "linear-gradient(145deg, #071626, #040e1c)" }}
-            >
-              <p className="text-[10px] font-mono text-white/25 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <MessageSquare className="w-3 h-3 text-brand-gold/40" />
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <MessageSquare className="w-3 h-3 text-brand-gold" />
                 Perfil / Descrição
               </p>
-              <p className="text-sm text-white/55 leading-relaxed font-mono whitespace-pre-wrap">
+              <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap">
                 {membro.perfil_aliado}
               </p>
             </div>

@@ -26,13 +26,15 @@ import {
 
 const WORLD_GEO = "/world-countries-50m.json";
 
-const NUCLEOS_TIPOS: Record<string, string[]> = {
-  "Diretoria da Aliança": ["Diretor de Aliança", "Aliado BUILT", "Diretor de Execução", "Diretor Comercial", "Diretor de Capital"],
-  "Núcleo Técnico": ["Alianças de Projeto", "Alianças Jurídicas", "Alianças de Inteligência", "Alianças de Governança"],
-  "Núcleo de Obra": ["Alianças de Execução", "Construtoras", "Alianças de Fornecimento"],
-  "Núcleo Comercial": ["Alianças Comerciais", "Alianças de Vendas e Locação", "Alianças de Marketing", "Alianças de Operações e Facilities", "Alianças de Gestão de Relacionamento com Cliente"],
-  "Núcleo de Capital": ["Alianças de Investimento", "Alianças Contábeis e Tributárias", "Alianças de Gestão Financeira"],
-};
+const NUCLEOS = [
+  "Diretoria da Aliança",
+  "Núcleo Técnico",
+  "Núcleo de Obra",
+  "Núcleo Comercial",
+  "Núcleo de Capital",
+];
+
+interface TipoOpa { text: string; value: string; }
 
 interface MembroVitrine {
   id: string;
@@ -416,6 +418,11 @@ export default function VitrinePage() {
   const { data: especialidadesOptions = [] } = useQuery<EspecialidadeOption[]>({
     queryKey: ["/api/especialidades"],
     queryFn: () => fetch("/api/especialidades").then(r => r.json()),
+  });
+
+  const { data: tiposOpa = [] } = useQuery<TipoOpa[]>({
+    queryKey: ["/api/oportunidades/tipos"],
+    staleTime: 1000 * 60 * 10,
   });
 
   const myCardExists = !!myMembro?.na_vitrine;
@@ -866,14 +873,14 @@ export default function VitrinePage() {
                   <SelectValue placeholder="Selecionar núcleo..." />
                 </SelectTrigger>
                 <SelectContent className="bg-[#001428] border-white/10 text-white">
-                  {Object.keys(NUCLEOS_TIPOS).map(n => (
+                  {NUCLEOS.map(n => (
                     <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
 
-            {form.nucleo_alianca && NUCLEOS_TIPOS[form.nucleo_alianca] && (
+            {form.nucleo_alianca && (
               <Field label="Tipo / Área">
                 <Select
                   value={form.tipo_alianca || undefined}
@@ -886,8 +893,8 @@ export default function VitrinePage() {
                     <SelectValue placeholder="Selecionar tipo..." />
                   </SelectTrigger>
                   <SelectContent className="bg-[#001428] border-white/10 text-white">
-                    {NUCLEOS_TIPOS[form.nucleo_alianca].map(t => (
-                      <SelectItem key={t} value={t} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{t}</SelectItem>
+                    {tiposOpa.map(t => (
+                      <SelectItem key={t.value} value={t.value} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{t.text}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

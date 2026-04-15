@@ -710,7 +710,9 @@ export async function registerRoutes(
   }
 
   app.get("/api/membros", async (req, res) => {
-    if (!requireCadastroAccess(req, res)) return;
+    if (!(req.session as any).userId) {
+      return res.status(401).json({ error: "Não autenticado" });
+    }
     try {
       const items = await directusFetch("cadastro_geral", "fields=*,Especialidades.*.*");
       const mapped = items.map((m: any) => {

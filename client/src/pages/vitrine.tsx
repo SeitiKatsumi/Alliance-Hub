@@ -54,6 +54,7 @@ interface MembroVitrine {
   link_site?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  Outras_redes_as_quais_pertenco?: string[] | null;
 }
 
 // ===== WORLD MAP COMPONENT =====
@@ -1006,6 +1007,18 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
         {/* Corner decorations */}
         <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
         <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
+
+        {/* BUILT Proud Member badge — canto superior direito */}
+        {(m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER") && (
+          <img
+            src="/built-proud-member.png"
+            alt="BUILT Proud Member"
+            title="BUILT Proud Member"
+            className="absolute top-2 right-2 w-auto object-contain z-10"
+            style={{ height: 48 }}
+            data-testid="badge-proud-member"
+          />
+        )}
 
         <div className="p-4 space-y-3">
           {/* Avatar */}

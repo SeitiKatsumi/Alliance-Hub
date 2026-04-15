@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
-  User, Globe, MessageSquare, Store, ExternalLink
+  User, Globe, MessageSquare, Store, ExternalLink, Languages
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,9 @@ interface MembroDetalhe {
   na_vitrine?: boolean;
   Especialidades?: { Especialidade_id?: { nome?: string } }[];
   Outras_redes_as_quais_pertenco?: string[] | null;
+  logo_empresa?: string | null;
+  especialidade_livre?: string | null;
+  idiomas?: string[] | null;
 }
 
 function getInitials(nome?: string): string {
@@ -206,7 +209,16 @@ export default function VitrineDetalhePage() {
                   {cargo && empresa && <span className="text-white/20">·</span>}
                   {empresa && (
                     <span className="flex items-center gap-1.5 text-sm text-white/50">
-                      <Building2 className="w-3.5 h-3.5 text-brand-gold/40" />
+                      {membro.logo_empresa ? (
+                        <img
+                          src={`/api/assets/${membro.logo_empresa}?width=40&height=40&fit=contain`}
+                          alt={empresa}
+                          className="h-5 w-auto object-contain rounded"
+                          style={{ maxWidth: 48 }}
+                        />
+                      ) : (
+                        <Building2 className="w-3.5 h-3.5 text-brand-gold/40" />
+                      )}
                       {empresa}
                     </span>
                   )}
@@ -221,7 +233,7 @@ export default function VitrineDetalhePage() {
               )}
 
               {/* Especialidades badges */}
-              {especialidades.length > 0 && (
+              {(especialidades.length > 0 || membro.especialidade_livre) && (
                 <div className="flex flex-wrap gap-1.5 mt-3 justify-center sm:justify-start">
                   {especialidades.map(esp => (
                     <Badge
@@ -231,6 +243,34 @@ export default function VitrineDetalhePage() {
                     >
                       {esp}
                     </Badge>
+                  ))}
+                  {membro.especialidade_livre && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-mono border-brand-gold/30 text-brand-gold/70 bg-brand-gold/8"
+                      data-testid="badge-especialidade-livre"
+                    >
+                      {membro.especialidade_livre}
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Idiomas falados */}
+              {(membro.idiomas || []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2 justify-center sm:justify-start">
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-white/25 mr-1">
+                    <Languages className="w-3 h-3" />
+                  </span>
+                  {(membro.idiomas || []).map(idioma => (
+                    <span
+                      key={idioma}
+                      className="px-2 py-0.5 rounded-full text-[10px] font-mono border"
+                      style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.45)" }}
+                      data-testid={`tag-idioma-${idioma}`}
+                    >
+                      {idioma}
+                    </span>
                   ))}
                 </div>
               )}
@@ -334,6 +374,57 @@ export default function VitrineDetalhePage() {
             </div>
           )}
         </div>
+
+        {/* Profissional card — logo + especialidade + idiomas */}
+        {(membro.logo_empresa || membro.especialidade_livre || (membro.idiomas || []).length > 0) && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Briefcase className="w-3 h-3 text-brand-gold" />
+              Perfil Profissional
+            </p>
+            <div className="flex items-start gap-5">
+              {membro.logo_empresa && (
+                <div
+                  className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden"
+                  data-testid="img-logo-empresa"
+                >
+                  <img
+                    src={`/api/assets/${membro.logo_empresa}?width=128&height=128&fit=contain`}
+                    alt={empresa || "Logo"}
+                    className="w-full h-full object-contain p-1.5"
+                  />
+                </div>
+              )}
+              <div className="space-y-3 flex-1">
+                {membro.especialidade_livre && (
+                  <div>
+                    <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Especialidade</p>
+                    <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
+                  </div>
+                )}
+                {(membro.idiomas || []).length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Languages className="w-3 h-3 text-brand-gold" />
+                      Idiomas Falados
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(membro.idiomas || []).map(idioma => (
+                        <span
+                          key={idioma}
+                          className="px-2.5 py-1 rounded-full text-xs font-mono border border-gray-200 text-gray-600 bg-gray-50"
+                          data-testid={`card-idioma-${idioma}`}
+                        >
+                          {idioma}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

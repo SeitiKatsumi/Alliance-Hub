@@ -13,12 +13,137 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2, Plus, Globe
+  Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search
 } from "lucide-react";
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    city?: string;
+    town?: string;
+    municipality?: string;
+    village?: string;
+    state?: string;
+    country?: string;
+    country_code?: string;
+  };
+}
+
+function LocationPickerModal({ open, onClose, onSelect }: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (cidade: string, estado: string, pais: string, lat: number, lng: number) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<NominatimResult | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) { setSearch(""); setResults([]); setSelected(null); setError(""); }
+  }, [open]);
+
+  async function handleSearch() {
+    if (!search.trim()) return;
+    setLoading(true); setError(""); setResults([]); setSelected(null);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(search)}&format=json&limit=8&addressdetails=1&accept-language=pt-BR,pt`;
+      const res = await fetch(url, { headers: { "Accept-Language": "pt-BR,pt;q=0.9" } });
+      if (!res.ok) throw new Error();
+      const data: NominatimResult[] = await res.json();
+      if (data.length === 0) setError("Nenhum resultado encontrado. Tente um nome mais específico.");
+      setResults(data);
+    } catch {
+      setError("Falha ao buscar localização. Verifique sua conexão.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleConfirm() {
+    if (!selected) return;
+    const addr = selected.address || {};
+    const cidade = addr.city || addr.town || addr.municipality || addr.village || selected.display_name.split(",")[0];
+    const estado = addr.state || "";
+    const pais = addr.country || "";
+    onSelect(cidade, estado, pais, parseFloat(selected.lat), parseFloat(selected.lon));
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Navigation className="w-5 h-5 text-brand-gold" />
+            Selecionar Localização
+          </DialogTitle>
+          <DialogDescription>
+            Pesquise uma cidade, endereço ou ponto de referência para obter a localização exata com coordenadas GPS.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            placeholder="Ex: São Paulo, SP — Copacabana, RJ..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-gold/40"
+            data-testid="input-location-search"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={loading || !search.trim()}
+            className="px-3 py-2 rounded-md bg-brand-gold text-brand-navy hover:bg-brand-gold/90 disabled:opacity-50 shrink-0"
+            data-testid="btn-search-location"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          </button>
+        </div>
+        {error && <p className="text-sm text-muted-foreground text-center py-2">{error}</p>}
+        {results.length > 0 && (
+          <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+            {results.map((r) => (
+              <button
+                key={r.place_id}
+                onClick={() => setSelected(r)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors border ${
+                  selected?.place_id === r.place_id
+                    ? "bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
+                    : "hover:bg-muted border-transparent"
+                }`}
+                data-testid={`location-result-${r.place_id}`}
+              >
+                <p className="font-medium leading-tight">{r.display_name}</p>
+              </button>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <button onClick={onClose} className="px-4 py-2 rounded-md text-sm border border-input hover:bg-muted">Cancelar</button>
+          <button
+            onClick={handleConfirm}
+            disabled={!selected}
+            className="px-4 py-2 rounded-md text-sm bg-brand-gold text-brand-navy hover:bg-brand-gold/90 disabled:opacity-50 flex items-center gap-2"
+            data-testid="btn-confirm-location"
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            Confirmar localização
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface EspecialidadeOption {
   id: string;
@@ -49,6 +174,9 @@ interface Membro {
   whatsapp?: string;
   cidade?: string;
   estado?: string;
+  pais?: string;
+  latitude?: string | null;
+  longitude?: string | null;
   empresa?: string;
   cargo?: string;
   especialidade?: string;
@@ -91,7 +219,12 @@ export default function MeuPerfilPage() {
   const [newEspOpen, setNewEspOpen] = useState(false);
   const [newEspNome, setNewEspNome] = useState("");
   const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const fotoInputRef = useRef<HTMLInputElement>(null);
+
+  function handleLocationSelect(cidade: string, estado: string, pais: string, lat: number, lng: number) {
+    setForm(f => ({ ...f, cidade, estado, pais, latitude: String(lat), longitude: String(lng) }));
+  }
 
   useEffect(() => {
     if (membro) setForm(membro);
@@ -319,25 +452,29 @@ export default function MeuPerfilPage() {
             <Card className="border-white/5" style={{ background: "#050f1c" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={MapPin} label="Localização" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Cidade">
-                    <Input
-                      value={form.cidade || ""}
-                      onChange={e => set("cidade", e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                      data-testid="input-perfil-cidade"
-                    />
-                  </Field>
-                  <Field label="Estado (UF)">
-                    <Input
-                      value={form.estado || ""}
-                      onChange={e => set("estado", e.target.value)}
-                      maxLength={2}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 uppercase"
-                      data-testid="input-perfil-estado"
-                    />
-                  </Field>
+                <div
+                  className="flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all hover:border-brand-gold/30"
+                  style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => setLocationPickerOpen(true)}
+                  data-testid="btn-pick-location"
+                >
+                  <MapPin className="w-4 h-4 text-brand-gold/50 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    {form.cidade ? (
+                      <p className="text-sm text-white truncate">
+                        {[form.cidade, form.estado, form.pais].filter(Boolean).join(", ")}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-white/25">Selecionar localização…</p>
+                    )}
+                  </div>
+                  <Navigation className="w-3.5 h-3.5 text-brand-gold/40 shrink-0" />
                 </div>
+                {form.latitude && form.longitude && (
+                  <p className="text-[10px] text-white/20 font-mono px-1">
+                    GPS: {parseFloat(form.latitude as string).toFixed(5)}, {parseFloat(form.longitude as string).toFixed(5)}
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -596,6 +733,12 @@ export default function MeuPerfilPage() {
           </>
         )}
       </div>
+
+      <LocationPickerModal
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={handleLocationSelect}
+      />
     </div>
   );
 }

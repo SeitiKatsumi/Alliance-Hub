@@ -231,8 +231,6 @@ export default function MeuPerfilPage() {
   });
 
   const [form, setForm] = useState<Partial<Membro>>({});
-  const [newEspOpen, setNewEspOpen] = useState(false);
-  const [newEspNome, setNewEspNome] = useState("");
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -273,18 +271,6 @@ export default function MeuPerfilPage() {
     },
   });
 
-  const createEspMutation = useMutation({
-    mutationFn: (nome: string) =>
-      apiRequest("POST", "/api/especialidades", { nome_especialidade: nome }),
-    onSuccess: async (data: any) => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/especialidades"] });
-      setForm(f => ({ ...f, especialidade_id: data.id, especialidade: data.nome_especialidade }));
-      setNewEspNome("");
-      setNewEspOpen(false);
-      toast({ title: "Especialidade criada e selecionada!" });
-    },
-    onError: () => toast({ title: "Erro ao criar especialidade", variant: "destructive" }),
-  });
 
   async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -630,71 +616,7 @@ export default function MeuPerfilPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {!form.especialidade_id && (
-                      <button
-                        type="button"
-                        onClick={() => { setNewEspNome(""); setNewEspOpen(true); }}
-                        className="mt-1.5 flex items-center gap-1.5 text-xs font-mono text-brand-gold/60 hover:text-brand-gold transition-colors"
-                        data-testid="btn-perfil-criar-especialidade"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Não encontrou? Criar nova especialidade
-                      </button>
-                    )}
                   </Field>
-
-                  {/* Sub-dialog: criar nova especialidade */}
-                  <Dialog open={newEspOpen} onOpenChange={setNewEspOpen}>
-                    <DialogContent
-                      className="border-brand-gold/20 text-white max-w-sm"
-                      style={{ background: "#001428" }}
-                    >
-                      <DialogHeader>
-                        <DialogTitle className="font-mono text-brand-gold">Novo Ramo de Atuação</DialogTitle>
-                      </DialogHeader>
-                      <div className="py-2">
-                        <Label className="text-xs font-mono text-white/50 mb-1.5 block">Nome *</Label>
-                        <Input
-                          value={newEspNome}
-                          onChange={e => setNewEspNome(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" && newEspNome.trim()) {
-                              createEspMutation.mutate(newEspNome.trim());
-                            }
-                          }}
-                          className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                          placeholder="Ex: Gestão de contratos"
-                          autoFocus
-                          data-testid="input-perfil-nova-especialidade"
-                        />
-                      </div>
-                      <DialogFooter className="gap-2">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setNewEspOpen(false)}
-                          className="text-white/50 hover:text-white"
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          onClick={() => createEspMutation.mutate(newEspNome.trim())}
-                          disabled={!newEspNome.trim() || createEspMutation.isPending}
-                          className="font-mono"
-                          style={{ background: "#D7BB7D", color: "#001D34" }}
-                          data-testid="btn-perfil-confirmar-nova-especialidade"
-                        >
-                          {createEspMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4 mr-1" />
-                              Criar e selecionar
-                            </>
-                          )}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
                   <Field label="Cargo">
                     <Input
                       value={form.cargo || ""}

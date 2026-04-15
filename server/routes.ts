@@ -214,6 +214,8 @@ async function ensureVitrineFields() {
     { field: "logo_empresa", type: "uuid", meta: { interface: "file-image", display: "image", hidden: false, note: "Logo ou marca da empresa" }, schema: { is_nullable: true } },
     { field: "especialidade_livre", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Especialidade em texto livre" }, schema: { is_nullable: true } },
     { field: "idiomas", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Idiomas falados" }, schema: { is_nullable: true } },
+    { field: "nucleos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos núcleos de aliança" }, schema: { is_nullable: true } },
+    { field: "tipos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos tipos de aliança" }, schema: { is_nullable: true } },
   ];
   for (const fieldDef of fields) {
     try {

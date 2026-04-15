@@ -195,6 +195,8 @@ interface Membro {
   perfil_aliado?: string;
   nucleo_alianca?: string;
   tipo_alianca?: string;
+  nucleos_alianca?: string[] | null;
+  tipos_alianca?: string[] | null;
   tipo_de_cadastro?: string;
   na_vitrine?: boolean;
   em_membros_built?: boolean;
@@ -710,45 +712,102 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-especialidade-livre"
                     />
                   </Field>
-                  <Field label="Núcleo de Aliança">
-                    <Select
-                      value={form.nucleo_alianca || undefined}
-                      onValueChange={v => setForm(f => ({ ...f, nucleo_alianca: v, tipo_alianca: "" }))}
-                    >
-                      <SelectTrigger
-                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                        data-testid="select-perfil-nucleo"
-                      >
-                        <SelectValue placeholder="Selecionar núcleo..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                        {NUCLEOS.map(n => (
-                          <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
+                </div>
 
-                  {form.nucleo_alianca && (
-                    <Field label="Tipo">
-                      <Select
-                        value={form.tipo_alianca || undefined}
-                        onValueChange={v => setForm(f => ({ ...f, tipo_alianca: v }))}
-                      >
-                        <SelectTrigger
-                          className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                          data-testid="select-perfil-tipo-alianca"
+                {/* Núcleos de Aliança — multi-select */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/40 font-mono">Núcleos de Aliança</Label>
+                  {(form.nucleos_alianca || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(form.nucleos_alianca || []).map(n => (
+                        <span
+                          key={n}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono border"
+                          style={{ background: "rgba(215,187,125,0.1)", borderColor: "rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+                          data-testid={`chip-nucleo-${n}`}
                         >
-                          <SelectValue placeholder="Selecionar tipo..." />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                          {tiposOpa.map(t => (
-                            <SelectItem key={t.value} value={t.value} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{t.text}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
+                          {n}
+                          <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, nucleos_alianca: (f.nucleos_alianca || []).filter(x => x !== n) }))}
+                            className="ml-0.5 hover:text-white transition-colors"
+                            data-testid={`btn-remover-nucleo-${n}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   )}
+                  <Select
+                    value=""
+                    onValueChange={v => {
+                      if (v && !(form.nucleos_alianca || []).includes(v)) {
+                        setForm(f => ({ ...f, nucleos_alianca: [...(f.nucleos_alianca || []), v] }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      className="bg-white/5 border-white/10 text-white/50 focus:border-brand-gold/40 w-auto"
+                      data-testid="select-add-nucleo"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="text-xs font-mono">Adicionar Núcleo</span>
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                      {NUCLEOS.filter(n => !(form.nucleos_alianca || []).includes(n)).map(n => (
+                        <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tipos de Aliança — multi-select */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/40 font-mono">Tipos</Label>
+                  {(form.tipos_alianca || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(form.tipos_alianca || []).map(t => (
+                        <span
+                          key={t}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono border"
+                          style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}
+                          data-testid={`chip-tipo-${t}`}
+                        >
+                          {t}
+                          <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, tipos_alianca: (f.tipos_alianca || []).filter(x => x !== t) }))}
+                            className="ml-0.5 hover:text-white transition-colors"
+                            data-testid={`btn-remover-tipo-${t}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <Select
+                    value=""
+                    onValueChange={v => {
+                      if (v && !(form.tipos_alianca || []).includes(v)) {
+                        setForm(f => ({ ...f, tipos_alianca: [...(f.tipos_alianca || []), v] }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      className="bg-white/5 border-white/10 text-white/50 focus:border-brand-gold/40 w-auto"
+                      data-testid="select-add-tipo"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="text-xs font-mono">Adicionar Tipo</span>
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                      {tiposOpa.filter(t => !(form.tipos_alianca || []).includes(t.value)).map(t => (
+                        <SelectItem key={t.value} value={t.value} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{t.text}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Idiomas Falados */}

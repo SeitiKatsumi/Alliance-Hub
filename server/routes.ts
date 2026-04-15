@@ -211,6 +211,7 @@ async function ensureVitrineFields() {
     { field: "link_site", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "latitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
     { field: "longitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
+    { field: "logo_empresa", type: "uuid", meta: { interface: "file-image", display: "image", hidden: false, note: "Logo ou marca da empresa" }, schema: { is_nullable: true } },
   ];
   for (const fieldDef of fields) {
     try {

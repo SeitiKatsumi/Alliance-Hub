@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search
+  Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
+  Upload, ImageIcon, X
 } from "lucide-react";
 
 interface NominatimResult {
@@ -190,6 +191,7 @@ interface Membro {
   em_membros_built?: boolean;
   em_built_capital?: boolean;
   link_site?: string;
+  logo_empresa?: string | null;
   Outras_redes_as_quais_pertenco?: string[] | null;
 }
 
@@ -219,8 +221,10 @@ export default function MeuPerfilPage() {
   const [newEspOpen, setNewEspOpen] = useState(false);
   const [newEspNome, setNewEspNome] = useState("");
   const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const fotoInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   function handleLocationSelect(cidade: string, estado: string, pais: string, lat: number, lng: number) {
     setForm(f => ({ ...f, cidade, estado, pais, latitude: String(lat), longitude: String(lng) }));
@@ -288,6 +292,30 @@ export default function MeuPerfilPage() {
     } finally {
       setUploadingFoto(false);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
+    }
+  }
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !membroId) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.fileIds?.[0]) throw new Error(json.error || "Upload falhou");
+      const uuid = json.fileIds[0];
+      await apiRequest("PATCH", `/api/membros/${membroId}`, { logo_empresa: uuid });
+      setForm(f => ({ ...f, logo_empresa: uuid }));
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
+      toast({ title: "Logo da empresa atualizado!" });
+    } catch {
+      toast({ title: "Erro ao enviar logo", variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
     }
   }
 
@@ -482,6 +510,77 @@ export default function MeuPerfilPage() {
             <Card className="border-white/5" style={{ background: "#050f1c" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Briefcase} label="Perfil Profissional" />
+
+                {/* Logo da empresa */}
+                <div className="flex items-center gap-4">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                    data-testid="input-logo-empresa"
+                  />
+                  <div
+                    className="relative w-20 h-20 rounded-xl border-2 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer group/logo"
+                    style={{
+                      borderColor: form.logo_empresa ? "rgba(215,187,125,0.35)" : "rgba(255,255,255,0.1)",
+                      background: form.logo_empresa ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
+                    }}
+                    onClick={() => !uploadingLogo && logoInputRef.current?.click()}
+                    title="Clique para enviar a logo"
+                    data-testid="btn-upload-logo-empresa"
+                  >
+                    {uploadingLogo ? (
+                      <Loader2 className="w-6 h-6 text-brand-gold animate-spin" />
+                    ) : form.logo_empresa ? (
+                      <>
+                        <img
+                          src={`/api/assets/${form.logo_empresa}?width=160&height=160&fit=contain`}
+                          alt="Logo da empresa"
+                          className="w-full h-full object-contain p-1"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center">
+                          <Upload className="w-5 h-5 text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 text-white/20">
+                        <ImageIcon className="w-6 h-6" />
+                        <span className="text-[9px] font-mono text-center leading-tight">LOGO</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-mono text-white/60">Marca / Logo da Empresa</p>
+                    <p className="text-[11px] text-white/25">PNG, JPG ou SVG recomendado</p>
+                    <button
+                      type="button"
+                      onClick={() => !uploadingLogo && logoInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="mt-1.5 flex items-center gap-1.5 text-xs font-mono text-brand-gold/60 hover:text-brand-gold transition-colors disabled:opacity-40"
+                      data-testid="btn-trocar-logo-empresa"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {form.logo_empresa ? "Trocar logo" : "Enviar logo"}
+                    </button>
+                    {form.logo_empresa && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm(f => ({ ...f, logo_empresa: null }));
+                          apiRequest("PATCH", `/api/membros/${membroId}`, { logo_empresa: null });
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-mono text-red-400/50 hover:text-red-400/80 transition-colors"
+                        data-testid="btn-remover-logo-empresa"
+                      >
+                        <X className="w-3 h-3" />
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Empresa">
                     <Input

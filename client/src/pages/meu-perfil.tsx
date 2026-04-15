@@ -871,7 +871,7 @@ export default function MeuPerfilPage() {
                     />
                   </div>
                 </Field>
-                <Field label="Perfil como aliado">
+                <Field label="Biografia">
                   <Textarea
                     value={form.perfil_aliado || ""}
                     onChange={e => set("perfil_aliado", e.target.value)}

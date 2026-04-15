@@ -36,6 +36,7 @@ interface MembroDetalhe {
   foto_perfil?: string | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
+  tipo_alianca?: string;
   na_vitrine?: boolean;
   Especialidades?: { Especialidade_id?: { nome?: string } }[];
   Outras_redes_as_quais_pertenco?: string[] | null;
@@ -361,12 +362,12 @@ export default function VitrineDetalhePage() {
             </div>
           </div>
 
-          {/* Perfil / bio panel */}
+          {/* Biografia panel */}
           {membro.perfil_aliado && (
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                 <MessageSquare className="w-3 h-3 text-brand-gold" />
-                Perfil / Descrição
+                Biografia
               </p>
               <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap">
                 {membro.perfil_aliado}
@@ -375,14 +376,15 @@ export default function VitrineDetalhePage() {
           )}
         </div>
 
-        {/* Profissional card — logo + especialidade + idiomas */}
-        {(membro.logo_empresa || membro.especialidade_livre || (membro.idiomas || []).length > 0) && (
+        {/* Profissional card */}
+        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.idiomas || []).length > 0) && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Briefcase className="w-3 h-3 text-brand-gold" />
               Perfil Profissional
             </p>
             <div className="flex items-start gap-5">
+              {/* Logo */}
               {membro.logo_empresa && (
                 <div
                   className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden"
@@ -395,13 +397,56 @@ export default function VitrineDetalhePage() {
                   />
                 </div>
               )}
-              <div className="space-y-3 flex-1">
-                {membro.especialidade_livre && (
+              <div className="space-y-3 flex-1 min-w-0">
+                {/* Empresa + Cargo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {empresa && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Empresa</p>
+                      <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
+                        {empresa}
+                      </p>
+                    </div>
+                  )}
+                  {cargo && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Cargo</p>
+                      <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
+                        {cargo}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Especialidade */}
+                {(membro.especialidade_livre || especialidades.length > 0) && (
                   <div>
                     <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Especialidade</p>
-                    <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
+                    <p className="text-sm text-gray-800 font-mono">
+                      {membro.especialidade_livre || especialidades[0]}
+                    </p>
                   </div>
                 )}
+
+                {/* Núcleo + Tipo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {membro.nucleo_alianca && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Núcleo</p>
+                      <p className="text-sm text-gray-800 font-mono">{membro.nucleo_alianca}</p>
+                    </div>
+                  )}
+                  {membro.tipo_alianca && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Tipo / Área</p>
+                      <p className="text-sm text-gray-800 font-mono">{membro.tipo_alianca}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Idiomas */}
                 {(membro.idiomas || []).length > 0 && (
                   <div>
                     <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">

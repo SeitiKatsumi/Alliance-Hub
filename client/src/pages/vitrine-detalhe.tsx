@@ -44,6 +44,7 @@ interface MembroDetalhe {
   idiomas?: string[] | null;
   nucleos_alianca?: string[] | null;
   tipos_alianca?: string[] | null;
+  ramo_atuacao?: string | null;
 }
 
 function getInitials(nome?: string): string {
@@ -293,7 +294,7 @@ export default function VitrineDetalhePage() {
         </div>
 
         {/* Profissional card */}
-        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.idiomas || []).length > 0) && (
+        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || membro.ramo_atuacao || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.idiomas || []).length > 0) && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Briefcase className="w-3 h-3 text-brand-gold" />
@@ -336,15 +337,23 @@ export default function VitrineDetalhePage() {
                   )}
                 </div>
 
-                {/* Especialidade */}
-                {(membro.especialidade_livre || especialidades.length > 0) && (
-                  <div>
-                    <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Especialidade</p>
-                    <p className="text-sm text-gray-800 font-mono">
-                      {membro.especialidade_livre || especialidades[0]}
-                    </p>
-                  </div>
-                )}
+                {/* Especialidade + Ramo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(membro.especialidade_livre || especialidades.length > 0) && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Especialidade</p>
+                      <p className="text-sm text-gray-800 font-mono">
+                        {membro.especialidade_livre || especialidades[0]}
+                      </p>
+                    </div>
+                  )}
+                  {membro.ramo_atuacao && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Ramo de Atuação</p>
+                      <p className="text-sm text-gray-800 font-mono">{membro.ramo_atuacao}</p>
+                    </div>
+                  )}
+                </div>
 
                 {/* Núcleos + Tipos */}
                 {(() => {

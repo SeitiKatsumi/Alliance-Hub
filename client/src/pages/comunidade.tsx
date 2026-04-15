@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
-  Navigation, Globe, RefreshCw
+  Navigation, Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -542,13 +542,12 @@ export default function ComunidadePage() {
                 />
               </div>
               <div>
-                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Sigla do País *</Label>
+                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Sigla do País</Label>
                 <Input
                   value={form.sigla_pais || ""}
-                  onChange={e => setForm(f => ({ ...f, sigla_pais: e.target.value.toUpperCase().slice(0, 3) }))}
-                  placeholder="Ex: BR"
-                  maxLength={3}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 font-mono"
+                  readOnly
+                  placeholder="Preenchido automaticamente"
+                  className="bg-white/5 border-white/10 text-brand-gold font-mono placeholder:text-white/20 cursor-default select-none"
                   data-testid="input-comunidade-sigla-pais"
                 />
               </div>
@@ -567,57 +566,18 @@ export default function ComunidadePage() {
                 />
               </div>
               <div>
-                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Sigla do Território *</Label>
+                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Sigla do Território</Label>
                 <Input
                   value={form.sigla_territorio || ""}
-                  onChange={e => setForm(f => ({ ...f, sigla_territorio: e.target.value.toUpperCase().slice(0, 5) }))}
-                  placeholder="Ex: BHZ"
-                  maxLength={5}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 font-mono"
+                  readOnly
+                  placeholder="Preenchido automaticamente"
+                  className="bg-white/5 border-white/10 text-brand-gold font-mono placeholder:text-white/20 cursor-default select-none"
                   data-testid="input-comunidade-sigla-territorio"
                 />
               </div>
             </div>
 
-            {/* Código Sequencial — readonly, auto-filled */}
-            <div>
-              <Label className="text-xs font-mono text-white/50 mb-1.5 block flex items-center gap-2">
-                Código Sequencial
-                {codigoLoading && <Loader2 className="w-3 h-3 animate-spin text-brand-gold/50" />}
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={form.codigo_sequencial || ""}
-                  readOnly
-                  placeholder={codigoLoading ? "Calculando..." : "Preenchido automaticamente"}
-                  className="bg-white/5 border-white/10 text-brand-gold font-mono placeholder:text-white/20 cursor-default select-none"
-                  data-testid="input-comunidade-codigo"
-                />
-                {!editing && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={codigoLoading || !form.pais?.trim() || !form.territorio?.trim()}
-                    onClick={() => {
-                      if (!form.pais?.trim() || !form.territorio?.trim()) return;
-                      setCodigoLoading(true);
-                      fetch(`/api/comunidades/proximo-codigo?pais=${encodeURIComponent(form.pais)}&territorio=${encodeURIComponent(form.territorio)}`)
-                        .then(r => r.json())
-                        .then(d => setForm(f => ({ ...f, codigo_sequencial: d.codigo })))
-                        .catch(() => {})
-                        .finally(() => setCodigoLoading(false));
-                    }}
-                    className="border-white/10 text-white/40 hover:text-brand-gold hover:border-brand-gold/40 shrink-0"
-                    title="Atualizar código"
-                    data-testid="btn-refresh-codigo"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-              <p className="text-[10px] text-white/30 font-mono mt-1">Calculado automaticamente. Sequência: A01…A99, B01…B99</p>
-            </div>
+            {/* Código Sequencial — hidden, calculated automatically on backend */}
 
             {/* Auto-generated preview */}
             {(form.nome || form.sigla) && (

@@ -332,17 +332,16 @@ export default function ComunidadePage() {
     }
   }, [form.pais, form.territorio, form.sigla_pais, form.sigla_territorio, form.codigo_sequencial]);
 
-  // Auto-suggest next code when pais+territorio change
+  // Fetch global next code when create dialog opens
   useEffect(() => {
-    const { pais, territorio } = form;
-    if (!pais?.trim() || !territorio?.trim() || editing) return;
+    if (!dialogOpen || editing) return;
     setCodigoLoading(true);
-    fetch(`/api/comunidades/proximo-codigo?pais=${encodeURIComponent(pais)}&territorio=${encodeURIComponent(territorio)}`)
+    fetch("/api/comunidades/proximo-codigo")
       .then(r => r.json())
       .then(d => setForm(f => ({ ...f, codigo_sequencial: d.codigo })))
       .catch(() => {})
       .finally(() => setCodigoLoading(false));
-  }, [form.pais, form.territorio]);
+  }, [dialogOpen, editing]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/comunidades", data),

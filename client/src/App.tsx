@@ -27,6 +27,7 @@ import NucleoCapitalPage from "@/pages/nucleo-capital";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
 import AreMembroPage from "@/pages/area-membros";
+import MembroDetalhePage from "@/pages/membro-detalhe";
 import BuiltCapitalPage from "@/pages/built-capital";
 import LoginPage from "@/pages/login";
 import { useAuth } from "@/hooks/use-auth";
@@ -107,6 +108,7 @@ function ProtectedApp() {
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
               <Route path="/area-membros" component={AreMembroPage} />
+              <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura" component={AuraPage} />

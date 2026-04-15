@@ -308,7 +308,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
         <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
           style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)", padding: "32px 24px 18px" }}>
           <div className="absolute top-3 right-4 flex items-center gap-3">
-            <button onClick={() => navigate(`/vitrine/${selectedMembro.id}`)}
+            <button onClick={() => navigate(`/membro/${selectedMembro.id}`)}
               className="text-brand-gold/70 hover:text-brand-gold transition-colors font-mono text-xs tracking-widest border border-brand-gold/20 hover:border-brand-gold/50 px-2 py-0.5 rounded">
               VER PERFIL →
             </button>
@@ -388,7 +388,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
           boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
           borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
         }}
-        onClick={() => navigate(`/vitrine/${m.id}`)}
+        onClick={() => navigate(`/membro/${m.id}`)}
         data-testid={`card-membro-${m.id}`}
       >
         {/* Top accent */}

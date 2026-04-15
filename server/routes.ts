@@ -21,7 +21,7 @@ const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 const biasBlockedFields = new Set<string>();
 
 // Resolved at startup: actual collection name for comunidade
-let COMUNIDADE_COL = "comunidade";
+let COMUNIDADE_COL = "Comunidade";
 
 async function ensureBiasExtraFields() {
   const fields = [
@@ -518,26 +518,22 @@ async function ensureEstudosViabilidadeCollection() {
 }
 
 async function ensureComunidadeFields() {
-  // Try both singular and plural collection names
-  let COL = "comunidade";
+  // Try common naming variants (Directus is case-sensitive)
+  const candidates = ["Comunidade", "comunidade", "comunidades", "Comunidades"];
+  let COL = "";
   try {
-    const check = await fetch(`${DIRECTUS_URL}/collections/${COL}`, {
-      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
-    });
-    if (!check.ok) {
-      // Try plural
-      const check2 = await fetch(`${DIRECTUS_URL}/collections/comunidades`, {
+    for (const name of candidates) {
+      const check = await fetch(`${DIRECTUS_URL}/collections/${name}`, {
         headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
       });
-      if (check2.ok) {
-        COL = "comunidades";
-        COMUNIDADE_COL = "comunidades";
-        console.log("[comunidade] Found collection as 'comunidades'");
-      } else {
-        console.warn("[comunidade] Collection not found in Directus — skipping field creation");
-        return;
-      }
+      if (check.ok) { COL = name; break; }
     }
+    if (!COL) {
+      console.warn("[comunidade] Collection not found in Directus — skipping field creation");
+      return;
+    }
+    COMUNIDADE_COL = COL;
+    console.log(`[comunidade] Found collection as '${COL}'`);
   } catch { return; }
 
   const fields = [

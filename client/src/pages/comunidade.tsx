@@ -4,13 +4,14 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
-  Briefcase, MapPin, Shield, ChevronRight, Loader2, X
+  Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
+  Navigation, Globe, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -20,6 +21,162 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  type: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+    country_code?: string;
+  };
+}
+
+function abbrevTerritory(nome: string): string {
+  const words = nome.replace(/[^\w\s]/g, "").split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.map(w => w[0]).join("").slice(0, 4).toUpperCase();
+  }
+  return nome.replace(/[aeiouAEIOU\s]/g, "").slice(0, 3).toUpperCase() ||
+    nome.slice(0, 3).toUpperCase();
+}
+
+function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (pais: string, siglaPais: string, territorio: string, siglaTerritorio: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<NominatimResult | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) { setSearch(""); setResults([]); setSelected(null); setError(""); }
+  }, [open]);
+
+  async function handleSearch() {
+    if (!search.trim()) return;
+    setLoading(true); setError(""); setResults([]); setSelected(null);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(search)}&format=json&limit=8&addressdetails=1&accept-language=pt-BR,pt`;
+      const res = await fetch(url, { headers: { "Accept-Language": "pt-BR,pt;q=0.9" } });
+      if (!res.ok) throw new Error("Erro na busca");
+      const data: NominatimResult[] = await res.json();
+      if (data.length === 0) setError("Nenhum resultado encontrado. Tente um nome mais específico.");
+      setResults(data);
+    } catch {
+      setError("Falha ao buscar localização. Verifique sua conexão.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleConfirm() {
+    if (!selected) return;
+    const addr = selected.address || {};
+    const pais = addr.country || "";
+    const siglaPais = (addr.country_code || "").toUpperCase().slice(0, 2);
+    const territorio = addr.city || addr.town || addr.village || addr.municipality ||
+      addr.county || addr.state || selected.display_name.split(",")[0].trim();
+    const siglaTerritorio = abbrevTerritory(territorio);
+    onSelect(pais, siglaPais, territorio, siglaTerritorio);
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg" style={{ background: "#001428", border: "1px solid rgba(215,187,125,0.2)" }}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 font-mono text-brand-gold">
+            <Navigation className="w-5 h-5 text-brand-gold" />
+            Selecionar Território
+          </DialogTitle>
+          <DialogDescription className="text-white/40 text-xs">
+            Pesquise uma cidade ou região — os campos País e Território serão preenchidos automaticamente.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="Ex: Belo Horizonte, São Paulo, Lisboa..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/20"
+            data-testid="input-comunidade-location-search"
+            autoFocus
+          />
+          <Button
+            onClick={handleSearch}
+            disabled={loading || !search.trim()}
+            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 shrink-0"
+            data-testid="btn-comunidade-search-location"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          </Button>
+        </div>
+
+        {error && <p className="text-red-400 text-xs">{error}</p>}
+
+        {results.length > 0 && (
+          <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-white/10 p-2" style={{ background: "rgba(255,255,255,0.03)" }}>
+            {results.map((r) => {
+              const addr = r.address || {};
+              const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || r.display_name.split(",")[0];
+              return (
+                <button
+                  key={r.place_id}
+                  onClick={() => setSelected(r)}
+                  className={`w-full text-left p-2.5 rounded-lg text-sm transition-colors ${selected?.place_id === r.place_id ? "bg-brand-gold/20 border border-brand-gold/40" : "hover:bg-white/5 border border-transparent"}`}
+                  data-testid={`comunidade-location-result-${r.place_id}`}
+                >
+                  <p className="font-medium text-white leading-tight">{city}</p>
+                  <p className="text-xs text-white/40 mt-0.5 truncate">{r.display_name}</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {selected && (
+          <div className="rounded-xl border border-brand-gold/30 p-3" style={{ background: "rgba(215,187,125,0.07)" }}>
+            <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest mb-1.5">Localização selecionada</p>
+            <p className="text-sm text-white font-medium">{selected.display_name}</p>
+            <div className="flex gap-4 mt-2 text-xs text-white/50 font-mono">
+              {selected.address?.country && <span>🌎 {selected.address.country}</span>}
+              {(selected.address?.city || selected.address?.town) && (
+                <span>📍 {selected.address.city || selected.address.town}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">Cancelar</Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={!selected}
+            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+            data-testid="btn-comunidade-confirm-location"
+          >
+            <Globe className="w-4 h-4 mr-1.5" />
+            Usar esta localização
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface Membro { id: string; nome?: string; cargo?: string; empresa?: string; foto_perfil?: string | null; }
 interface Bia { id: string; nome_bia?: string; }
@@ -133,6 +290,7 @@ export default function ComunidadePage() {
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
   const [form, setForm] = useState<ComunidadeForm>(emptyForm());
   const [codigoLoading, setCodigoLoading] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
   const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades"],
@@ -354,6 +512,23 @@ export default function ComunidadePage() {
           </DialogHeader>
 
           <div className="space-y-5 py-2">
+            {/* Location Picker Button */}
+            <Button
+              type="button"
+              onClick={() => setLocationPickerOpen(true)}
+              variant="outline"
+              className="w-full border-brand-gold/30 text-brand-gold hover:bg-brand-gold/10 hover:border-brand-gold/50 font-mono text-sm gap-2"
+              data-testid="btn-comunidade-pick-location"
+            >
+              <Navigation className="w-4 h-4" />
+              Selecionar Localização no Mapa
+              {form.pais && form.territorio && (
+                <span className="ml-auto text-xs text-white/40 font-mono">
+                  {form.sigla_pais} · {form.sigla_territorio}
+                </span>
+              )}
+            </Button>
+
             {/* País + Sigla País */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -404,20 +579,44 @@ export default function ComunidadePage() {
               </div>
             </div>
 
-            {/* Código Sequencial */}
+            {/* Código Sequencial — readonly, auto-filled */}
             <div>
               <Label className="text-xs font-mono text-white/50 mb-1.5 block flex items-center gap-2">
-                Código Sequencial *
+                Código Sequencial
                 {codigoLoading && <Loader2 className="w-3 h-3 animate-spin text-brand-gold/50" />}
               </Label>
-              <Input
-                value={form.codigo_sequencial || ""}
-                onChange={e => setForm(f => ({ ...f, codigo_sequencial: e.target.value.toUpperCase() }))}
-                placeholder="Ex: A01"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 font-mono"
-                data-testid="input-comunidade-codigo"
-              />
-              <p className="text-[10px] text-white/30 font-mono mt-1">Sugerido automaticamente. Sequência: A01…A99, B01…B99</p>
+              <div className="flex gap-2">
+                <Input
+                  value={form.codigo_sequencial || ""}
+                  readOnly
+                  placeholder={codigoLoading ? "Calculando..." : "Preenchido automaticamente"}
+                  className="bg-white/5 border-white/10 text-brand-gold font-mono placeholder:text-white/20 cursor-default select-none"
+                  data-testid="input-comunidade-codigo"
+                />
+                {!editing && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={codigoLoading || !form.pais?.trim() || !form.territorio?.trim()}
+                    onClick={() => {
+                      if (!form.pais?.trim() || !form.territorio?.trim()) return;
+                      setCodigoLoading(true);
+                      fetch(`/api/comunidades/proximo-codigo?pais=${encodeURIComponent(form.pais)}&territorio=${encodeURIComponent(form.territorio)}`)
+                        .then(r => r.json())
+                        .then(d => setForm(f => ({ ...f, codigo_sequencial: d.codigo })))
+                        .catch(() => {})
+                        .finally(() => setCodigoLoading(false));
+                    }}
+                    className="border-white/10 text-white/40 hover:text-brand-gold hover:border-brand-gold/40 shrink-0"
+                    title="Atualizar código"
+                    data-testid="btn-refresh-codigo"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] text-white/30 font-mono mt-1">Calculado automaticamente. Sequência: A01…A99, B01…B99</p>
             </div>
 
             {/* Auto-generated preview */}
@@ -534,6 +733,14 @@ export default function ComunidadePage() {
       </Dialog>
 
       {/* Delete Dialog */}
+      <ComunidadeLocationPickerModal
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={(pais, siglaPais, territorio, siglaTerritorio) => {
+          setForm(f => ({ ...f, pais, sigla_pais: siglaPais, territorio, sigla_territorio: siglaTerritorio }));
+        }}
+      />
+
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="border-red-900/30 text-white" style={{ background: "#001428" }}>
           <AlertDialogHeader>

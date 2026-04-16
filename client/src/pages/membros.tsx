@@ -66,6 +66,10 @@ interface Membro {
   observacoes?: string;
   foto?: string | null;
   ativo?: boolean;
+  na_vitrine?: boolean;
+  em_membros_built?: boolean;
+  em_built_capital?: boolean;
+  Outras_redes_as_quais_pertenco?: string[];
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -137,6 +141,18 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     setForm(f => ({ ...f, [field]: value }));
   }
 
+  function setBool(field: keyof Membro, value: boolean) {
+    setForm(f => ({ ...f, [field]: value }));
+  }
+
+  function toggleSelo(selo: string) {
+    setForm(f => {
+      const current: string[] = (f as any).Outras_redes_as_quais_pertenco || [];
+      const next = current.includes(selo) ? current.filter(s => s !== selo) : [...current, selo];
+      return { ...f, Outras_redes_as_quais_pertenco: next };
+    });
+  }
+
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -168,7 +184,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       const { _nome, ...cleanRest } = rest as any;
       const payload: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(cleanRest)) {
-        if (value !== "" && value !== null && value !== undefined) {
+        if (typeof value === "boolean") {
+          payload[key] = value;
+        } else if (Array.isArray(value)) {
+          payload[key] = value;
+        } else if (value !== "" && value !== null && value !== undefined) {
           payload[key] = value;
         }
       }
@@ -489,6 +509,90 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Presença na Rede */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Wifi className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Presença na Rede</span>
+              </div>
+              <div className="space-y-2">
+                {[
+                  { field: "na_vitrine" as keyof Membro, label: "Vitrine BUILT", desc: "Aparece na página de Vitrine pública" },
+                  { field: "em_membros_built" as keyof Membro, label: "Membros BUILT", desc: "Aparece na área de Membros BUILT" },
+                  { field: "em_built_capital" as keyof Membro, label: "BUILT Capital", desc: "Aparece na seção de capital" },
+                ].map(({ field, label, desc }) => {
+                  const active = !!(form as any)[field];
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      onClick={() => setBool(field, !active)}
+                      data-testid={`toggle-${field}`}
+                      className="w-full flex items-center justify-between rounded-lg border px-4 py-2.5 text-left transition-all"
+                      style={{
+                        borderColor: active ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.07)",
+                        background: active ? "rgba(215,187,125,0.06)" : "rgba(255,255,255,0.02)",
+                      }}
+                    >
+                      <div>
+                        <div className="text-xs font-semibold text-white/70">{label}</div>
+                        <div className="text-[10px] text-white/25">{desc}</div>
+                      </div>
+                      <div
+                        className="w-9 h-5 rounded-full relative transition-all flex-shrink-0"
+                        style={{ background: active ? "#D7BB7D" : "rgba(255,255,255,0.1)" }}
+                      >
+                        <div
+                          className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+                          style={{ left: active ? "calc(100% - 18px)" : "2px" }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Selos */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Briefcase className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Selos</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "BUILT_PROUD_MEMBER", label: "Proud Member", img: "/built-proud-member.png" },
+                  { value: "BUILT_FOUNDING_MEMBER", label: "Founding Member", img: "/built-founding-member.png" },
+                  { value: "BNI", label: "BNI", img: "/bni-badge.png" },
+                ].map(selo => {
+                  const selosAtivos: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
+                  const active = selosAtivos.includes(selo.value);
+                  return (
+                    <button
+                      key={selo.value}
+                      type="button"
+                      onClick={() => toggleSelo(selo.value)}
+                      data-testid={`toggle-selo-${selo.value}`}
+                      className="flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-all"
+                      style={{
+                        borderColor: active ? "rgba(215,187,125,0.4)" : "rgba(255,255,255,0.07)",
+                        background: active ? "rgba(215,187,125,0.08)" : "rgba(255,255,255,0.02)",
+                      }}
+                    >
+                      <img src={selo.img} alt={selo.label} className={`h-10 object-contain transition-all ${active ? "opacity-100" : "opacity-25 grayscale"}`} />
+                      <span className="text-[10px] font-mono text-center" style={{ color: active ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.2)" }}>
+                        {selo.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -1798,15 +1798,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         console.error("[login] cadastro_geral lookup error:", err.message);
       }
 
-      // Check local users table for admin role by email
+      // Check local users table for admin role + permissions by email
       let role = "user";
+      let permissions: Record<string, string> = {};
       try {
         const localUser = await storage.getUserByEmail(email);
         if (localUser && localUser.ativo) {
           role = localUser.role || "user";
+          permissions = (localUser.permissions as Record<string, string>) || {};
         }
-      } catch {
-        // ignore — local user lookup is optional
+      } catch (e: any) {
+        console.warn("[login] local user lookup error:", e.message);
+      }
+      // Admins always get full permissions regardless of stored value
+      if (role === "admin" || role === "manager") {
+        permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
       }
 
       // Store session
@@ -1815,6 +1821,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       (req.session as any).nome = nome;
       (req.session as any).email = email;
       (req.session as any).role = role;
+      (req.session as any).permissions = permissions;
 
       res.json({
         id: directusUser.id,
@@ -1822,6 +1829,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         email,
         membro_directus_id: membroId,
         role,
+        permissions,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1837,12 +1845,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/me", (req, res) => {
     const directusUserId = (req.session as any).directusUserId;
     if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const role = (req.session as any).role || "user";
+    let permissions = (req.session as any).permissions || {};
+    if ((role === "admin" || role === "manager") && Object.keys(permissions).length === 0) {
+      permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
+    }
     res.json({
       id: directusUserId,
       nome: (req.session as any).nome || "",
       email: (req.session as any).email || "",
       membro_directus_id: (req.session as any).membroId || null,
-      role: (req.session as any).role || "user",
+      role,
+      permissions,
     });
   });
 

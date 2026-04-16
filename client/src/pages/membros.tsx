@@ -748,32 +748,6 @@ export default function MembrosPage() {
 
   const hasFilters = search || filterEspecialidade || filterEstado || filterTipoCadastro;
 
-  if (user && user.role === "user") {
-    return (
-      <div className="min-h-screen relative flex flex-col items-center justify-center gap-6 p-8"
-        style={{ background: "radial-gradient(ellipse at 50% 40%, #001428 0%, #000c1f 60%, #000408 100%)" }}>
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: "linear-gradient(rgba(215,187,125,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.04) 1px, transparent 1px)",
-          backgroundSize: "50px 50px",
-        }} />
-        <div className="relative z-10 text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl border border-red-500/20 flex items-center justify-center mx-auto"
-            style={{ background: "rgba(239,68,68,0.06)" }}>
-            <Users className="w-8 h-8 text-red-400/60" />
-          </div>
-          <p className="text-[11px] text-brand-gold/40 tracking-[0.4em] uppercase font-mono">// Acesso Restrito</p>
-          <h2 className="text-xl font-bold font-mono text-white/60">Cadastro Geral</h2>
-          <div className="w-16 h-px mx-auto" style={{ background: "linear-gradient(to right, transparent, #D7BB7D40, transparent)" }} />
-          <p className="text-sm text-white/30 font-mono max-w-xs">
-            Esta área é acessível apenas para administradores e gestores da plataforma.
-          </p>
-          <p className="text-xs text-white/15 font-mono mt-1">
-            Contate o administrador para solicitar acesso.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen" style={{ background: "#020b16" }}>

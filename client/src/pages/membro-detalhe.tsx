@@ -432,7 +432,7 @@ export default function MembroDetalhePage() {
                   <p className="text-sm font-mono text-gray-800 font-medium leading-snug">{c.nome || "—"}</p>
                   {getAliadoNome(c) && (
                     <p className="text-xs text-gray-400 font-mono mt-1">
-                      Aliado-Líder: <span className="text-gray-600">{getAliadoNome(c)}</span>
+                      Aliado BUILT: <span className="text-gray-600">{getAliadoNome(c)}</span>
                     </p>
                   )}
                   <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-gray-400 font-mono">

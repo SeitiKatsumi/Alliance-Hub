@@ -220,7 +220,7 @@ export default function ComunidadeDetalhePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Aliado-Líder */}
+        {/* Aliado BUILT */}
         <div
           className="rounded-2xl p-5 space-y-4"
           style={{
@@ -230,7 +230,7 @@ export default function ComunidadeDetalhePage() {
         >
           <div className="flex items-center gap-2 mb-1">
             <Shield className="w-4 h-4 text-brand-gold/60" />
-            <h2 className="text-xs font-mono text-white/50 uppercase tracking-widest">Aliado-Líder</h2>
+            <h2 className="text-xs font-mono text-white/50 uppercase tracking-widest">Aliado BUILT</h2>
           </div>
 
           {aliado ? (
@@ -255,7 +255,7 @@ export default function ComunidadeDetalhePage() {
               </div>
             </button>
           ) : (
-            <p className="text-xs text-white/25 font-mono italic">Nenhum aliado-líder definido</p>
+            <p className="text-xs text-white/25 font-mono italic">Nenhum Aliado BUILT definido</p>
           )}
         </div>
 

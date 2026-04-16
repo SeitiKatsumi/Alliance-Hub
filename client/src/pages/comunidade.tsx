@@ -577,12 +577,12 @@ export default function ComunidadePage() {
               </div>
             )}
 
-            {/* Aliado-Líder */}
+            {/* Aliado BUILT */}
             <div>
-              <Label className="text-xs font-mono text-white/50 mb-1.5 block">Aliado-Líder</Label>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">Aliado BUILT</Label>
               <Select value={form.aliado_id || ""} onValueChange={v => setForm(f => ({ ...f, aliado_id: v === "_none" ? "" : v }))}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-comunidade-aliado">
-                  <SelectValue placeholder="Selecione o Aliado-Líder" />
+                  <SelectValue placeholder="Selecione o Aliado BUILT" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#001428] border-white/10 text-white">
                   <SelectItem value="_none">— Nenhum —</SelectItem>
@@ -772,7 +772,7 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Aliado-Líder</p>
+              <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Aliado BUILT</p>
               <p className="text-xs text-white/70 font-mono truncate">{aliado.nome}</p>
             </div>
           </div>

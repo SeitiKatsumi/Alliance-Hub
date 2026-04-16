@@ -660,9 +660,9 @@ export default function MeuPerfilPage() {
                   />
                 </Field>
 
-                {/* Tipos de Aliança — selecionar tipo já preenche o núcleo automaticamente */}
+                {/* Área de Contribuição — selecionar tipo já preenche o núcleo automaticamente */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-white/40 font-mono">Tipos de Aliança</Label>
+                  <Label className="text-xs text-white/40 font-mono">Área de Contribuição</Label>
                   {(form.tipos_alianca || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {(form.tipos_alianca || []).map(t => (
@@ -711,7 +711,7 @@ export default function MeuPerfilPage() {
                         data-testid="select-add-tipo"
                       >
                         <Plus className="w-3.5 h-3.5 mr-1.5" />
-                        <span className="text-xs font-mono">Adicionar Tipo</span>
+                        <span className="text-xs font-mono">Adicionar Área</span>
                       </SelectTrigger>
                       <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
                         {getAllTipos().filter(t => !(form.tipos_alianca || []).includes(t.nome)).map(t => (

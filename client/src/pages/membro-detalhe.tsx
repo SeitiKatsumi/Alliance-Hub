@@ -383,7 +383,7 @@ export default function MembroDetalhePage() {
                       )}
                       {tipos.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{tipos.length > 1 ? "Tipos" : "Tipo"}</p>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Área de Contribuição</p>
                           <p className="text-sm text-gray-800 font-mono">{tipos.join(", ")}</p>
                         </div>
                       )}

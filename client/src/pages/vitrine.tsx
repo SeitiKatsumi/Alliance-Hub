@@ -863,7 +863,7 @@ export default function VitrinePage() {
               </Field>
             </div>
 
-            <Field label="Tipo de Aliança">
+            <Field label="Área de Contribuição">
               <Select
                 value={form.tipo_alianca || undefined}
                 onValueChange={v => setForm(f => ({

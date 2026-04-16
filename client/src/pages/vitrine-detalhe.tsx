@@ -286,7 +286,7 @@ export default function VitrineDetalhePage() {
                 <MessageSquare className="w-3 h-3 text-brand-gold" />
                 Biografia
               </p>
-              <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap">
+              <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap break-words">
                 {membro.perfil_aliado}
               </p>
             </div>

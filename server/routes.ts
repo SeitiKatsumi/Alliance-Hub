@@ -1744,23 +1744,59 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // ── Self-registration ──────────────────────────────────────────────
   app.post("/api/register", async (req, res) => {
     try {
-      const { nome, email, username, password } = req.body;
-      if (!nome || !email || !username || !password)
-        return res.status(400).json({ error: "Todos os campos são obrigatórios" });
+      const { nome, email, username, password, telefone, empresa, cidade, estado } = req.body;
+      if (!nome || !email || !password)
+        return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
       if (password.length < 4)
         return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
 
-      const existingByUsername = await storage.getUserByUsername(username);
+      const finalUsername = username || email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
+
+      const existingByUsername = await storage.getUserByUsername(finalUsername);
       if (existingByUsername) return res.status(409).json({ error: "Nome de usuário já em uso" });
       const existingByEmail = await storage.getUserByEmail(email);
       if (existingByEmail) return res.status(409).json({ error: "E-mail já cadastrado" });
 
+      // 1. Create entry in Directus cadastro_geral
+      let membroDirectusId: string | null = null;
+      try {
+        const directusPayload: Record<string, any> = {
+          Nome_de_usuario: nome,
+          nome,
+          email,
+        };
+        if (telefone) directusPayload.telefone = telefone;
+        if (empresa) directusPayload.empresa = empresa;
+        if (cidade) directusPayload.cidade = cidade;
+        if (estado) directusPayload.estado = estado;
+
+        const directusRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+          },
+          body: JSON.stringify(directusPayload),
+        });
+        if (directusRes.ok) {
+          const directusData = await directusRes.json();
+          membroDirectusId = directusData.data?.id || null;
+          console.log("[register] Directus cadastro_geral created:", membroDirectusId);
+        } else {
+          const errText = await directusRes.text();
+          console.warn("[register] Directus cadastro_geral creation failed:", directusRes.status, errText.slice(0, 200));
+        }
+      } catch (directusErr) {
+        console.warn("[register] Directus error (non-fatal):", directusErr);
+      }
+
+      // 2. Create local platform user
       const user = await storage.createUser({
-        username,
+        username: finalUsername,
         password,
         nome,
         email,
-        membro_directus_id: null,
+        membro_directus_id: membroDirectusId,
         role: "user",
         permissions: {},
         ativo: true,

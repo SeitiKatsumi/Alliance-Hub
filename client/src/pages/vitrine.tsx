@@ -1140,14 +1140,30 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-mono text-white/50">Descreva sua necessidade</Label>
-              <Textarea
+              <label className="text-xs font-mono text-white/50">Descreva sua necessidade</label>
+              <textarea
                 value={mensagem}
                 onChange={e => setMensagem(e.target.value)}
-                className="bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[100px]"
                 placeholder="Ex: Preciso de orçamento para instalação elétrica em imóvel comercial de 200m²..."
                 autoFocus
+                rows={4}
                 data-testid={`textarea-orcamento-${m.id}`}
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  color: "white",
+                  padding: "10px 12px",
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                  resize: "none",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                }}
+                onFocus={e => { e.target.style.borderColor = "rgba(215,187,125,0.4)"; }}
+                onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; }}
               />
             </div>
           </div>

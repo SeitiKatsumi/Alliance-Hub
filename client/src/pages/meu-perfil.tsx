@@ -20,7 +20,7 @@ import {
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
   Upload, ImageIcon, X, Languages, ChevronDown
 } from "lucide-react";
-import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos } from "@/lib/ramos-segmentos";
+import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 interface NominatimResult {
   place_id: number;
@@ -672,7 +672,7 @@ export default function MeuPerfilPage() {
                           style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}
                           data-testid={`chip-tipo-${t}`}
                         >
-                          {t}
+                          {getTipoDisplayName(t)}
                           <button
                             type="button"
                             onClick={() => {
@@ -716,7 +716,7 @@ export default function MeuPerfilPage() {
                       <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
                         {getAllTipos().filter(t => !(form.tipos_alianca || []).includes(t.nome)).map(t => (
                           <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                            {t.nome}
+                            {getTipoDisplayName(t.nome)}
                           </SelectItem>
                         ))}
                       </SelectContent>

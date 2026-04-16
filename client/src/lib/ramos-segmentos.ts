@@ -312,6 +312,13 @@ export function getNucleoForTipo(tipoNome: string): string | null {
   return null;
 }
 
+export function getTipoDisplayName(nome: string): string {
+  return nome
+    .replace(/^Aliança de /i, "")
+    .replace(/^Alianças de /i, "")
+    .replace(/^Alianças /i, "");
+}
+
 export function getNucleosForTipos(tiposNomes: string[]): string[] {
   const seen = new Set<string>();
   for (const nome of tiposNomes) {

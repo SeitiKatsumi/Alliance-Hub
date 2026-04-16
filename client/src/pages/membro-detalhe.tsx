@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { getNucleosForTipos } from "@/lib/ramos-segmentos";
+import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
   BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
@@ -389,7 +389,7 @@ export default function MembroDetalhePage() {
                       {tipos.length > 0 && (
                         <div>
                           <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Área de Contribuição</p>
-                          <p className="text-sm text-gray-800 font-mono">{tipos.join(", ")}</p>
+                          <p className="text-sm text-gray-800 font-mono">{tipos.map(getTipoDisplayName).join(", ")}</p>
                         </div>
                       )}
                     </div>

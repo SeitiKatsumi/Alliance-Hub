@@ -23,7 +23,7 @@ import {
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
-import { getAllTipos, getNucleoForTipo } from "@/lib/ramos-segmentos";
+import { getAllTipos, getNucleoForTipo, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -880,7 +880,7 @@ export default function VitrinePage() {
                 <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
                   {getAllTipos().map(t => (
                     <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                      {t.nome}
+                      {getTipoDisplayName(t.nome)}
                     </SelectItem>
                   ))}
                 </SelectContent>

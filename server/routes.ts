@@ -1886,6 +1886,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  app.get("/api/users/by-membro/:membroId", async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const user = allUsers.find(u => u.membro_directus_id === req.params.membroId);
+      if (!user) return res.json(null);
+      const { password, ...safe } = user;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);

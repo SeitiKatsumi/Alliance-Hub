@@ -75,7 +75,7 @@ export const createUserSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   membro_directus_id: z.string().optional().or(z.literal("")),
-  role: z.enum(["admin", "manager", "user", "investidor"]).default("user"),
+  role: z.enum(["admin", "manager", "user", "membro", "investidor"]).default("user"),
   permissions: z.record(z.enum(["none", "view", "edit"])).optional(),
   ativo: z.boolean().default(true),
 });

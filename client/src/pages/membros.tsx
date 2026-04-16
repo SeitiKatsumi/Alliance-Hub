@@ -18,7 +18,7 @@ import { RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
-  Pencil, Camera, Loader2, Save, User, Plus
+  Pencil, Camera, Loader2, Save, User, Plus, Shield
 } from "lucide-react";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -100,6 +100,13 @@ function hashColor(str: string): string {
 }
 
 // ---- Membro Edit Sheet ----
+const ROLE_OPTIONS = [
+  { value: "user", label: "Usuário (Padrão)", desc: "Acesso básico à plataforma", color: "#6b7280" },
+  { value: "membro", label: "Membro", desc: "Acesso a módulos de membro ativo", color: "#3b82f6" },
+  { value: "investidor", label: "Investidor", desc: "Acesso a módulos de capital e resultados", color: "#10b981" },
+  { value: "admin", label: "Super Admin", desc: "Acesso total à plataforma", color: "#D7BB7D" },
+];
+
 function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => void }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +119,19 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(currentFoto);
   const [uploading, setUploading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+
+  const { data: linkedUser } = useQuery<{ id: string; role: string; username: string } | null>({
+    queryKey: ["/api/users/by-membro", membro.id],
+    queryFn: () => membro.id ? fetch(`/api/users/by-membro/${membro.id}`).then(r => r.json()) : Promise.resolve(null),
+    enabled: !!membro.id,
+    staleTime: 30000,
+  });
+
+  // Set initial role when linkedUser loads
+  if (linkedUser && selectedRole === null) {
+    setSelectedRole(linkedUser.role);
+  }
 
   function setField(field: keyof Membro, value: string) {
     setForm(f => ({ ...f, [field]: value }));
@@ -154,10 +174,26 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       }
       if (fotoId) payload.foto_perfil = fotoId;
 
+      // Save membro
       if (membro.id) {
-        return apiRequest("PATCH", `/api/membros/${membro.id}`, payload);
+        await apiRequest("PATCH", `/api/membros/${membro.id}`, payload);
       } else {
-        return apiRequest("POST", "/api/membros", payload);
+        await apiRequest("POST", "/api/membros", payload);
+      }
+
+      // Update user role if linked user exists and role changed
+      if (linkedUser && selectedRole && selectedRole !== linkedUser.role) {
+        const rolePerms: Record<string, Record<string, string>> = {
+          admin: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
+          membro: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "view" },
+          investidor: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "view", oportunidades: "view", cadastro_geral: "view" },
+          user: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
+        };
+        await apiRequest("PATCH", `/api/users/${linkedUser.id}`, {
+          role: selectedRole,
+          permissions: rolePerms[selectedRole] || rolePerms.user,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       }
     },
     onSuccess: () => {
@@ -454,6 +490,59 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   </Select>
                 </div>
               </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Permissões da Plataforma */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Permissões da Plataforma</span>
+              </div>
+              {linkedUser ? (
+                <div className="space-y-3">
+                  <div className="text-xs text-white/30 font-mono mb-2">
+                    Conta vinculada: <span className="text-white/50">@{linkedUser.username}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ROLE_OPTIONS.map(opt => {
+                      const isSelected = (selectedRole ?? linkedUser.role) === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSelectedRole(opt.value)}
+                          data-testid={`btn-role-${opt.value}`}
+                          className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
+                          style={{
+                            borderColor: isSelected ? opt.color : "rgba(255,255,255,0.07)",
+                            background: isSelected ? `${opt.color}12` : "rgba(255,255,255,0.02)",
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full" style={{ background: isSelected ? opt.color : "rgba(255,255,255,0.15)" }} />
+                            <span className="text-xs font-semibold font-mono" style={{ color: isSelected ? opt.color : "rgba(255,255,255,0.5)" }}>
+                              {opt.label}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-white/25 pl-3.5">{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedRole && selectedRole !== linkedUser.role && (
+                    <div className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/5 px-3 py-2">
+                      <Shield className="w-3 h-3 text-brand-gold/60 shrink-0" />
+                      <span className="text-xs text-brand-gold/70">Papel será alterado ao salvar</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3 text-center">
+                  <span className="text-xs text-white/25 font-mono">Nenhuma conta vinculada a este membro</span>
+                </div>
+              )}
             </div>
 
             <Separator className="bg-white/5" />

@@ -1174,28 +1174,11 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
             </div>
           </div>
 
-          <DialogFooter className="gap-2 flex-col sm:flex-row">
-            <Button
-              variant="ghost"
-              onClick={() => setOrcamentoOpen(false)}
-              className="text-white/40 hover:text-white/70 text-sm"
-            >
-              Cancelar
-            </Button>
-            {m.email && (
-              <Button
-                onClick={handleEnviarEmail}
-                variant="outline"
-                className="border-white/15 text-white/60 hover:text-white hover:border-white/30 font-mono text-xs gap-1.5"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                Enviar por E-mail
-              </Button>
-            )}
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
             {waLink() && (
               <Button
                 onClick={handleEnviarWa}
-                className="font-mono text-xs gap-1.5"
+                className="w-full font-mono text-xs gap-1.5"
                 style={{ background: "#25D366", color: "#fff" }}
                 data-testid={`btn-enviar-orcamento-wa-${m.id}`}
               >
@@ -1203,6 +1186,23 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
                 Enviar via WhatsApp
               </Button>
             )}
+            {m.email && (
+              <Button
+                onClick={handleEnviarEmail}
+                variant="outline"
+                className="w-full border-white/15 text-white/60 hover:text-white hover:border-white/30 font-mono text-xs gap-1.5"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Enviar por E-mail
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              onClick={() => setOrcamentoOpen(false)}
+              className="w-full text-white/40 hover:text-white/70 text-sm"
+            >
+              Cancelar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

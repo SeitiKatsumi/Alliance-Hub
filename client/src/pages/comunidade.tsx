@@ -315,7 +315,7 @@ export default function ComunidadePage() {
     const params = new URLSearchParams(searchParams);
     const editId = params.get("edit");
     if (editId && comunidades.length > 0 && !dialogOpen) {
-      const c = comunidades.find(x => x.id === editId);
+      const c = comunidades.find(x => String(x.id) === editId);
       if (c) { openEdit(c); navigate("/comunidade", { replace: true }); }
     }
   }, [searchParams, comunidades]);

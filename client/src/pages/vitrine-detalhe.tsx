@@ -96,8 +96,8 @@ export default function VitrineDetalhePage() {
   const { id } = useParams<{ id: string }>();
 
   const { data: membro, isLoading } = useQuery<MembroDetalhe>({
-    queryKey: ["/api/membros", id],
-    queryFn: () => fetch(`/api/membros/${id}`).then(r => r.json()),
+    queryKey: ["/api/vitrine", id],
+    queryFn: () => fetch(`/api/vitrine/${id}`).then(r => r.json()),
     enabled: !!id,
   });
 

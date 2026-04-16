@@ -907,6 +907,31 @@ export async function registerRoutes(
     }
   });
 
+  // Single vitrine member — accessible to all authenticated users
+  app.get("/api/vitrine/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) {
+      return res.status(401).json({ error: "Não autenticado" });
+    }
+    try {
+      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
+      const m = await directusFetchOne("cadastro_geral", req.params.id, `fields=${fields}`);
+      if (!m) return res.status(404).json({ error: "Membro não encontrado" });
+      const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
+      const firstEsp = espArr[0]?.especialidades_id;
+      res.json({
+        ...m,
+        cargo: m.cargo || m.responsavel_cargo || null,
+        foto: m.foto_perfil || null,
+        especialidade_id: (typeof firstEsp === "object" ? firstEsp?.id : null) ?? null,
+        especialidade: (typeof firstEsp === "object" ? firstEsp?.nome_especialidade : null) ?? null,
+        latitude: m.latitude ? parseFloat(m.latitude) : null,
+        longitude: m.longitude ? parseFloat(m.longitude) : null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== MEMBROS BUILT (PROUD MEMBER only) ==========
   app.get("/api/membros-built", async (req, res) => {
     if (!(req.session as any).directusUserId) {

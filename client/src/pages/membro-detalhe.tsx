@@ -298,12 +298,12 @@ export default function MembroDetalhePage() {
             </div>
           </div>
 
-          {/* Biografia */}
+          {/* Perfil Profissional */}
           {membro.perfil_aliado && (
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                 <MessageSquare className="w-3 h-3 text-brand-gold" />
-                Biografia
+                Perfil Profissional
               </p>
               <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap break-words">
                 {membro.perfil_aliado}

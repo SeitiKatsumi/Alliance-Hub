@@ -1144,7 +1144,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
               <Textarea
                 value={mensagem}
                 onChange={e => setMensagem(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 resize-none min-h-[100px]"
+                className="bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[100px]"
                 placeholder="Ex: Preciso de orçamento para instalação elétrica em imóvel comercial de 200m²..."
                 autoFocus
                 data-testid={`textarea-orcamento-${m.id}`}

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { getNucleosForTipos } from "@/lib/ramos-segmentos";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
   BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
@@ -371,8 +372,12 @@ export default function MembroDetalhePage() {
                 )}
 
                 {(() => {
-                  const nucleos = (membro.nucleos_alianca || []).length > 0 ? membro.nucleos_alianca! : membro.nucleo_alianca ? [membro.nucleo_alianca] : [];
                   const tipos = (membro.tipos_alianca || []).length > 0 ? membro.tipos_alianca! : membro.tipo_alianca ? [membro.tipo_alianca] : [];
+                  const nucleos = (membro.nucleos_alianca || []).length > 0
+                    ? membro.nucleos_alianca!
+                    : membro.nucleo_alianca
+                      ? [membro.nucleo_alianca]
+                      : getNucleosForTipos(tipos);
                   return (nucleos.length > 0 || tipos.length > 0) ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {nucleos.length > 0 && (

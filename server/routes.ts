@@ -1033,17 +1033,31 @@ export async function registerRoutes(
   });
 
   // ========== MEMBROS (from Directus: cadastro_geral) ==========
+  // Helper: resolve effective role by checking session + local users DB
+  async function getEffectiveRole(req: any): Promise<string> {
+    const sessionRole = (req.session as any).role || "user";
+    if (sessionRole === "admin" || sessionRole === "manager") return sessionRole;
+    const email = (req.session as any).email || "";
+    if (email) {
+      try {
+        const localUser = await storage.getUserByEmail(email);
+        if (localUser && localUser.ativo) return localUser.role || sessionRole;
+      } catch (_) {}
+    }
+    return sessionRole;
+  }
+
   // Helper: check if the session role allows full Cadastro Geral access
-  function requireCadastroAccess(req: any, res: any): boolean {
-    const role = (req.session as any).role || "user";
+  async function requireCadastroAccess(req: any, res: any): Promise<boolean> {
+    const role = await getEffectiveRole(req);
     if (role === "admin" || role === "manager") return true;
     res.status(403).json({ error: "Acesso restrito a administradores e gestores." });
     return false;
   }
 
   // Helper: allow if admin/manager OR if user is accessing their own membro record
-  function requireCadastroOrOwn(req: any, res: any): boolean {
-    const role = (req.session as any).role || "user";
+  async function requireCadastroOrOwn(req: any, res: any): Promise<boolean> {
+    const role = await getEffectiveRole(req);
     if (role === "admin" || role === "manager") return true;
     const sessionMembroId = (req.session as any).membroId as string | null;
     if (sessionMembroId && req.params.id === sessionMembroId) return true;
@@ -1117,7 +1131,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/membros", async (req, res) => {
-    if (!requireCadastroAccess(req, res)) return;
+    if (!await requireCadastroAccess(req, res)) return;
     try {
       const item = await directusCreate("cadastro_geral", req.body);
       res.json(item);
@@ -1127,7 +1141,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/membros/:id", async (req, res) => {
-    if (!requireCadastroOrOwn(req, res)) return;
+    if (!await requireCadastroOrOwn(req, res)) return;
     try {
       const item = await directusUpdate("cadastro_geral", req.params.id, req.body);
       res.json(item);
@@ -1137,7 +1151,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/membros/:id", async (req, res) => {
-    if (!requireCadastroAccess(req, res)) return;
+    if (!await requireCadastroAccess(req, res)) return;
     try {
       await directusDelete("cadastro_geral", req.params.id);
       res.json({ success: true });

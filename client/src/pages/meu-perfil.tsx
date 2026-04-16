@@ -20,7 +20,7 @@ import {
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
   Upload, ImageIcon, X, Languages, ChevronDown
 } from "lucide-react";
-import { RAMOS_SEGMENTOS, getSegmentosForRamo, getTiposForNucleos } from "@/lib/ramos-segmentos";
+import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos } from "@/lib/ramos-segmentos";
 
 interface NominatimResult {
   place_id: number;
@@ -660,24 +660,31 @@ export default function MeuPerfilPage() {
                   />
                 </Field>
 
-                {/* Núcleos de Aliança — multi-select */}
+                {/* Tipos de Aliança — selecionar tipo já preenche o núcleo automaticamente */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-white/40 font-mono">Núcleos de Aliança</Label>
-                  {(form.nucleos_alianca || []).length > 0 && (
+                  <Label className="text-xs text-white/40 font-mono">Tipos de Aliança</Label>
+                  {(form.tipos_alianca || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {(form.nucleos_alianca || []).map(n => (
+                      {(form.tipos_alianca || []).map(t => (
                         <span
-                          key={n}
+                          key={t}
                           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono border"
-                          style={{ background: "rgba(215,187,125,0.1)", borderColor: "rgba(215,187,125,0.3)", color: "#D7BB7D" }}
-                          data-testid={`chip-nucleo-${n}`}
+                          style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}
+                          data-testid={`chip-tipo-${t}`}
                         >
-                          {n}
+                          {t}
                           <button
                             type="button"
-                            onClick={() => setForm(f => ({ ...f, nucleos_alianca: (f.nucleos_alianca || []).filter(x => x !== n) }))}
+                            onClick={() => {
+                              const novos = (form.tipos_alianca || []).filter(x => x !== t);
+                              setForm(f => ({
+                                ...f,
+                                tipos_alianca: novos,
+                                nucleos_alianca: getNucleosForTipos(novos),
+                              }));
+                            }}
                             className="ml-0.5 hover:text-white transition-colors"
-                            data-testid={`btn-remover-nucleo-${n}`}
+                            data-testid={`btn-remover-tipo-${t}`}
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -685,87 +692,37 @@ export default function MeuPerfilPage() {
                       ))}
                     </div>
                   )}
-                  <Select
-                    value=""
-                    onValueChange={v => {
-                      if (v && !(form.nucleos_alianca || []).includes(v)) {
-                        setForm(f => ({ ...f, nucleos_alianca: [...(f.nucleos_alianca || []), v] }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger
-                      className="bg-white/5 border-white/10 text-white/50 focus:border-brand-gold/40 w-auto"
-                      data-testid="select-add-nucleo"
+                  {getAllTipos().filter(t => !(form.tipos_alianca || []).includes(t.nome)).length > 0 && (
+                    <Select
+                      value=""
+                      onValueChange={v => {
+                        if (v && !(form.tipos_alianca || []).includes(v)) {
+                          const novos = [...(form.tipos_alianca || []), v];
+                          setForm(f => ({
+                            ...f,
+                            tipos_alianca: novos,
+                            nucleos_alianca: getNucleosForTipos(novos),
+                          }));
+                        }
+                      }}
                     >
-                      <Plus className="w-3.5 h-3.5 mr-1.5" />
-                      <span className="text-xs font-mono">Adicionar Núcleo</span>
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                      {NUCLEOS.filter(n => !(form.nucleos_alianca || []).includes(n)).map(n => (
-                        <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Tipos de Aliança — filtrados pelos núcleos selecionados */}
-                {(form.nucleos_alianca || []).length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-white/40 font-mono">Tipos de Aliança</Label>
-                    {(form.tipos_alianca || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {(form.tipos_alianca || []).map(t => (
-                          <span
-                            key={t}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono border"
-                            style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}
-                            data-testid={`chip-tipo-${t}`}
-                          >
-                            {t}
-                            <button
-                              type="button"
-                              onClick={() => setForm(f => ({ ...f, tipos_alianca: (f.tipos_alianca || []).filter(x => x !== t) }))}
-                              className="ml-0.5 hover:text-white transition-colors"
-                              data-testid={`btn-remover-tipo-${t}`}
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
+                      <SelectTrigger
+                        className="bg-white/5 border-white/10 text-white/50 focus:border-brand-gold/40 w-auto"
+                        data-testid="select-add-tipo"
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1.5" />
+                        <span className="text-xs font-mono">Adicionar Tipo</span>
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                        {getAllTipos().filter(t => !(form.tipos_alianca || []).includes(t.nome)).map(t => (
+                          <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                            {t.nome}
+                          </SelectItem>
                         ))}
-                      </div>
-                    )}
-                    {(() => {
-                      const tiposDisponiveis = getTiposForNucleos(form.nucleos_alianca || []);
-                      const tiposNaoSelecionados = tiposDisponiveis.filter(t => !(form.tipos_alianca || []).includes(t.nome));
-                      if (tiposNaoSelecionados.length === 0) return null;
-                      return (
-                        <Select
-                          value=""
-                          onValueChange={v => {
-                            if (v && !(form.tipos_alianca || []).includes(v)) {
-                              setForm(f => ({ ...f, tipos_alianca: [...(f.tipos_alianca || []), v] }));
-                            }
-                          }}
-                        >
-                          <SelectTrigger
-                            className="bg-white/5 border-white/10 text-white/50 focus:border-brand-gold/40 w-auto"
-                            data-testid="select-add-tipo"
-                          >
-                            <Plus className="w-3.5 h-3.5 mr-1.5" />
-                            <span className="text-xs font-mono">Adicionar Tipo</span>
-                          </SelectTrigger>
-                          <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                            {tiposNaoSelecionados.map(t => (
-                              <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                                {t.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      );
-                    })()}
-                  </div>
-                )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
 
                 {/* Idiomas Falados */}
                 <div className="space-y-2">

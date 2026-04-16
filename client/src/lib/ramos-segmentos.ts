@@ -288,6 +288,36 @@ export function getTiposForNucleo(nucleo: string): TipoAliancaItem[] {
   return NUCLEOS_TIPOS[nucleo] || [];
 }
 
+export function getAllTipos(): TipoAliancaItem[] {
+  const seen = new Set<string>();
+  const result: TipoAliancaItem[] = [];
+  for (const tipos of Object.values(NUCLEOS_TIPOS)) {
+    for (const tipo of tipos) {
+      if (!seen.has(tipo.nome)) {
+        seen.add(tipo.nome);
+        result.push(tipo);
+      }
+    }
+  }
+  return result;
+}
+
+export function getNucleoForTipo(tipoNome: string): string | null {
+  for (const [nucleo, tipos] of Object.entries(NUCLEOS_TIPOS)) {
+    if (tipos.some(t => t.nome === tipoNome)) return nucleo;
+  }
+  return null;
+}
+
+export function getNucleosForTipos(tiposNomes: string[]): string[] {
+  const seen = new Set<string>();
+  for (const nome of tiposNomes) {
+    const nucleo = getNucleoForTipo(nome);
+    if (nucleo) seen.add(nucleo);
+  }
+  return Array.from(seen);
+}
+
 export function getRamoNome(ramo_atuacao: string): string {
   return RAMOS_SEGMENTOS.find(r => r.nome === ramo_atuacao)?.nome ?? ramo_atuacao;
 }

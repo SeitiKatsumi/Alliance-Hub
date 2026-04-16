@@ -23,7 +23,7 @@ import {
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
-import { getTiposForNucleo } from "@/lib/ramos-segmentos";
+import { getAllTipos, getNucleoForTipo } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -863,47 +863,30 @@ export default function VitrinePage() {
               </Field>
             </div>
 
-            <Field label="Núcleo de Aliança">
+            <Field label="Tipo de Aliança">
               <Select
-                value={form.nucleo_alianca || undefined}
-                onValueChange={v => setForm(f => ({ ...f, nucleo_alianca: v, tipo_alianca: "" }))}
+                value={form.tipo_alianca || undefined}
+                onValueChange={v => setForm(f => ({
+                  ...f,
+                  tipo_alianca: v,
+                  nucleo_alianca: getNucleoForTipo(v) || f.nucleo_alianca,
+                }))}
               >
                 <SelectTrigger
                   className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                  data-testid="select-card-nucleo"
+                  data-testid="select-card-tipo-alianca"
                 >
-                  <SelectValue placeholder="Selecionar núcleo..." />
+                  <SelectValue placeholder="Selecionar tipo..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#001428] border-white/10 text-white">
-                  {NUCLEOS.map(n => (
-                    <SelectItem key={n} value={n} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{n}</SelectItem>
+                <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                  {getAllTipos().map(t => (
+                    <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                      {t.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
-
-            {form.nucleo_alianca && getTiposForNucleo(form.nucleo_alianca).length > 0 && (
-              <Field label="Tipo / Área">
-                <Select
-                  value={form.tipo_alianca || undefined}
-                  onValueChange={v => setForm(f => ({ ...f, tipo_alianca: v }))}
-                >
-                  <SelectTrigger
-                    className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                    data-testid="select-card-tipo-alianca"
-                  >
-                    <SelectValue placeholder="Selecionar tipo..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                    {getTiposForNucleo(form.nucleo_alianca).map(t => (
-                      <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                        {t.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
 
             <Field label="Site / Portfólio">
               <Input

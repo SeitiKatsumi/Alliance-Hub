@@ -157,6 +157,24 @@ async function ensureNomeBiaLength() {
   }
 }
 
+async function ensureCadastroGeralNomeLength() {
+  try {
+    const patchRes = await fetch(`${DIRECTUS_URL}/fields/cadastro_geral/nome`, {
+      method: "PATCH",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "string", schema: { data_type: "varchar", max_length: 500, is_nullable: true } }),
+    });
+    const body = await patchRes.json().catch(() => ({}));
+    if (patchRes.ok) {
+      console.log("[cadastro_geral] nome expanded to varchar(500)");
+    } else {
+      console.warn("[cadastro_geral] nome PATCH failed:", patchRes.status, JSON.stringify(body?.errors?.[0]?.message ?? body));
+    }
+  } catch (e) {
+    console.warn("[cadastro_geral] ensureCadastroGeralNomeLength error:", e);
+  }
+}
+
 async function clearBiasFieldValidations() {
   try {
     const res = await fetch(`${DIRECTUS_URL}/fields/bias_projetos`, {
@@ -771,6 +789,7 @@ export async function registerRoutes(
   ensureBiasExtraFields().catch(console.error);
   ensureComunidadeFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
+  ensureCadastroGeralNomeLength().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);
   ensureNucleoTecnicoCollection().catch(console.error);
   // Update observacoes field label in Directus admin

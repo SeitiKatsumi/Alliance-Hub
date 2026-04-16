@@ -18,7 +18,7 @@ import { RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
-  Pencil, Camera, Loader2, Save, User, Plus, Shield
+  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus
 } from "lucide-react";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -124,8 +124,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [photoPreview, setPhotoPreview] = useState<string | null>(currentFoto);
   const [uploading, setUploading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [newAccEmail, setNewAccEmail] = useState(membro.email || "");
+  const [newAccUsername, setNewAccUsername] = useState("");
+  const [newAccPassword, setNewAccPassword] = useState("");
+  const [newAccPassword2, setNewAccPassword2] = useState("");
+  const [changePassword, setChangePassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [showPass2, setShowPass2] = useState(false);
 
-  const { data: linkedUser } = useQuery<{ id: string; role: string; username: string } | null>({
+  const { data: linkedUser, refetch: refetchLinkedUser } = useQuery<{ id: string; role: string; username: string; email?: string } | null>({
     queryKey: ["/api/users/by-membro", membro.id],
     queryFn: () => membro.id ? fetch(`/api/users/by-membro/${membro.id}`).then(r => r.json()) : Promise.resolve(null),
     enabled: !!membro.id,
@@ -201,19 +208,45 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         await apiRequest("POST", "/api/membros", payload);
       }
 
-      // Update user role if linked user exists and role changed
-      if (linkedUser && selectedRole && selectedRole !== linkedUser.role) {
-        const rolePerms: Record<string, Record<string, string>> = {
-          admin: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
-          membro: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "view" },
-          investidor: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "view", oportunidades: "view", cadastro_geral: "view" },
-          user: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
-        };
-        await apiRequest("PATCH", `/api/users/${linkedUser.id}`, {
-          role: selectedRole,
-          permissions: rolePerms[selectedRole] || rolePerms.user,
+      const rolePerms: Record<string, Record<string, string>> = {
+        admin: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
+        membro: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "view" },
+        investidor: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "view", oportunidades: "view", cadastro_geral: "view" },
+        user: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
+      };
+
+      if (linkedUser) {
+        // Update role if changed
+        const roleUpdate: Record<string, any> = {};
+        if (selectedRole && selectedRole !== linkedUser.role) {
+          roleUpdate.role = selectedRole;
+          roleUpdate.permissions = rolePerms[selectedRole] || rolePerms.user;
+        }
+        // Update password if filled
+        if (changePassword.length >= 4) {
+          roleUpdate.password = changePassword;
+        }
+        if (Object.keys(roleUpdate).length > 0) {
+          await apiRequest("PATCH", `/api/users/${linkedUser.id}`, roleUpdate);
+        }
+        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      } else if (newAccEmail && newAccPassword.length >= 4) {
+        // Create new user account linked to this membro
+        if (newAccPassword !== newAccPassword2) throw new Error("As senhas não coincidem");
+        const username = newAccUsername || newAccEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
+        const role = selectedRole || "user";
+        await apiRequest("POST", "/api/users", {
+          username,
+          password: newAccPassword,
+          nome: (form as any).nome || (form as any).Nome_de_usuario || nome,
+          email: newAccEmail,
+          membro_directus_id: membro.id,
+          role,
+          permissions: rolePerms[role] || rolePerms.user,
+          ativo: true,
         });
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        refetchLinkedUser();
       }
     },
     onSuccess: () => {
@@ -606,10 +639,37 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
               {linkedUser ? (
                 <div className="space-y-3">
-                  <div className="text-xs text-white/30 font-mono mb-2">
-                    Conta vinculada: <span className="text-white/50">@{linkedUser.username}</span>
+                  {/* Account info */}
+                  <div className="rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-brand-gold/60" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-white/70">@{linkedUser.username}</div>
+                      {linkedUser.email && <div className="text-[11px] text-white/30">{linkedUser.email}</div>}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+
+                  {/* Change password */}
+                  <div>
+                    <label className={labelCls}>Nova Senha (deixe em branco para manter)</label>
+                    <div className="relative">
+                      <input
+                        type={showPass ? "text" : "password"}
+                        value={changePassword}
+                        onChange={e => setChangePassword(e.target.value)}
+                        placeholder="Nova senha..."
+                        className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm rounded-md px-3 pr-9 outline-none"
+                        data-testid="input-change-password"
+                      />
+                      <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Role selector */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
                     {ROLE_OPTIONS.map(opt => {
                       const isSelected = (selectedRole ?? linkedUser.role) === opt.value;
                       return (
@@ -635,16 +695,115 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       );
                     })}
                   </div>
-                  {selectedRole && selectedRole !== linkedUser.role && (
+                  {((selectedRole && selectedRole !== linkedUser.role) || changePassword.length >= 4) && (
                     <div className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/5 px-3 py-2">
                       <Shield className="w-3 h-3 text-brand-gold/60 shrink-0" />
-                      <span className="text-xs text-brand-gold/70">Papel será alterado ao salvar</span>
+                      <span className="text-xs text-brand-gold/70">Alterações serão aplicadas ao salvar</span>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3 text-center">
-                  <span className="text-xs text-white/25 font-mono">Nenhuma conta vinculada a este membro</span>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.01] px-4 py-3 flex items-center gap-3">
+                    <UserPlus className="w-4 h-4 text-white/20 flex-shrink-0" />
+                    <span className="text-xs text-white/25 font-mono">Sem conta. Preencha abaixo para criar acesso.</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className={labelCls}>E-mail de acesso</label>
+                      <Input
+                        type="email"
+                        value={newAccEmail}
+                        onChange={e => setNewAccEmail(e.target.value)}
+                        placeholder="email@exemplo.com"
+                        className={inputCls}
+                        data-testid="input-new-acc-email"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={labelCls}>Nome de usuário (login)</label>
+                      <Input
+                        value={newAccUsername}
+                        onChange={e => setNewAccUsername(e.target.value)}
+                        placeholder={newAccEmail ? newAccEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "usuario"}
+                        className={inputCls}
+                        data-testid="input-new-acc-username"
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Senha</label>
+                      <div className="relative">
+                        <input
+                          type={showPass ? "text" : "password"}
+                          value={newAccPassword}
+                          onChange={e => setNewAccPassword(e.target.value)}
+                          placeholder="Mín. 4 caracteres"
+                          className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm rounded-md px-3 pr-9 outline-none"
+                          data-testid="input-new-acc-password"
+                        />
+                        <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
+                          {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Confirmar senha</label>
+                      <div className="relative">
+                        <input
+                          type={showPass2 ? "text" : "password"}
+                          value={newAccPassword2}
+                          onChange={e => setNewAccPassword2(e.target.value)}
+                          placeholder="Repita a senha"
+                          className={`w-full bg-white/5 border h-9 text-sm rounded-md px-3 pr-9 outline-none text-white placeholder:text-white/20 focus:border-brand-gold/40 ${newAccPassword2 && newAccPassword !== newAccPassword2 ? "border-red-500/40" : "border-white/10"}`}
+                          data-testid="input-new-acc-password2"
+                        />
+                        <button type="button" onClick={() => setShowPass2(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
+                          {showPass2 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {newAccPassword2 && newAccPassword !== newAccPassword2 && (
+                        <p className="text-[10px] text-red-400/70 mt-1">As senhas não coincidem</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Role selector for new account */}
+                  {newAccEmail && newAccPassword.length >= 4 && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {ROLE_OPTIONS.map(opt => {
+                        const isSelected = (selectedRole || "user") === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setSelectedRole(opt.value)}
+                            data-testid={`btn-role-new-${opt.value}`}
+                            className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
+                            style={{
+                              borderColor: isSelected ? opt.color : "rgba(255,255,255,0.07)",
+                              background: isSelected ? `${opt.color}12` : "rgba(255,255,255,0.02)",
+                            }}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ background: isSelected ? opt.color : "rgba(255,255,255,0.15)" }} />
+                              <span className="text-xs font-semibold font-mono" style={{ color: isSelected ? opt.color : "rgba(255,255,255,0.5)" }}>
+                                {opt.label}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-white/25 pl-3.5">{opt.desc}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {newAccEmail && newAccPassword.length >= 4 && newAccPassword === newAccPassword2 && (
+                    <div className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
+                      <KeyRound className="w-3 h-3 text-green-400/60 shrink-0" />
+                      <span className="text-xs text-green-400/70">Conta será criada ao salvar</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -93,7 +93,7 @@ export function AppSidebar() {
                         <SidebarMenuSubButton asChild isActive={location === "/comunidade"} className="text-xs" data-testid="nav-comunidade">
                           <Link href="/comunidade">
                             <MessageCircle className="w-3 h-3" />
-                            <span>Comunidade</span>
+                            <span>Comunidades</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

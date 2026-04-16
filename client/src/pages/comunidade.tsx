@@ -452,7 +452,7 @@ export default function ComunidadePage() {
             <MessageCircle className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">Comunidade</h1>
+            <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">Comunidades</h1>
             <p className="text-sm text-white/40 font-mono mt-0.5">{comunidades.length} comunidade{comunidades.length !== 1 ? "s" : ""} ativa{comunidades.length !== 1 ? "s" : ""}</p>
           </div>
         </div>

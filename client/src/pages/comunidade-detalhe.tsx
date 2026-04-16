@@ -122,11 +122,11 @@ export default function ComunidadeDetalhePage() {
       {/* Back */}
       <button
         onClick={() => navigate("/comunidade")}
-        className="flex items-center gap-2 text-sm text-white/40 hover:text-brand-gold font-mono transition-colors"
+        className="inline-flex items-center gap-2 text-sm font-mono px-3 py-1.5 rounded-lg transition-colors text-brand-gold/70 hover:text-brand-gold hover:bg-brand-gold/10 border border-brand-gold/20 hover:border-brand-gold/40"
         data-testid="btn-back-comunidade"
       >
         <ArrowLeft className="w-4 h-4" />
-        Comunidades
+        Voltar para Comunidades
       </button>
 
       {/* Hero */}

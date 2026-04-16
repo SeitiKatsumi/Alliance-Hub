@@ -9,10 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
-  BNI: { img: "/bni-badge.png", label: "Membro BNI" },
   BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
   BUILT_FOUNDING_MEMBER: { img: "/built-founding-member.png", label: "BUILT Founding Member" },
+  BNI: { img: "/bni-badge.png", label: "Membro BNI" },
 };
+const REDE_ORDER = ["BUILT_PROUD_MEMBER", "BUILT_FOUNDING_MEMBER", "BNI"];
 
 interface MembroDetalhe {
   id: string;
@@ -109,7 +110,7 @@ export default function VitrineDetalhePage() {
   const especialidades = (membro?.Especialidades || [])
     .map(e => e?.especialidades_id?.nome_especialidade)
     .filter(Boolean) as string[];
-  const redes = (membro?.Outras_redes_as_quais_pertenco || []).filter(r => REDE_BADGES[r]);
+  const redes = REDE_ORDER.filter(r => (membro?.Outras_redes_as_quais_pertenco || []).includes(r) && REDE_BADGES[r]);
   const localidade = [membro?.cidade, membro?.estado?.toUpperCase(), membro?.pais]
     .filter(Boolean).join(", ");
 

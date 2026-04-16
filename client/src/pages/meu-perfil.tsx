@@ -324,7 +324,7 @@ export default function MeuPerfilPage() {
   }
 
   function handleSave() {
-    const { id, especialidade_id, especialidade, ...rest } = form as Membro;
+    const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
     const payload: Record<string, any> = { ...rest };
     // Send Especialidades as Directus M2M array
     payload.Especialidades = especialidade_id

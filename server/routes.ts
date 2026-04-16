@@ -157,21 +157,52 @@ async function ensureNomeBiaLength() {
   }
 }
 
-async function ensureCadastroGeralNomeLength() {
+async function ensureCadastroGeralFields() {
+  // Fields to expand: [field, type, schema]
+  const fieldsToExpand = [
+    { field: "nome",          type: "string", schema: { data_type: "varchar", max_length: 500, is_nullable: true } },
+    { field: "perfil_aliado", type: "text",   schema: { data_type: "text",    is_nullable: true } },
+    { field: "nucleo_alianca",type: "text",   schema: { data_type: "text",    is_nullable: true } },
+    { field: "empresa",       type: "string", schema: { data_type: "varchar", max_length: 500, is_nullable: true } },
+    { field: "cargo",         type: "string", schema: { data_type: "varchar", max_length: 500, is_nullable: true } },
+  ];
+
+  // Get schema snapshot to compare current lengths
+  let snapshotFields: any[] = [];
   try {
-    const patchRes = await fetch(`${DIRECTUS_URL}/fields/cadastro_geral/nome`, {
-      method: "PATCH",
-      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "string", schema: { data_type: "varchar", max_length: 500, is_nullable: true } }),
+    const snapshotRes = await fetch(`${DIRECTUS_URL}/schema/snapshot`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
     });
-    const body = await patchRes.json().catch(() => ({}));
-    if (patchRes.ok) {
-      console.log("[cadastro_geral] nome expanded to varchar(500)");
-    } else {
-      console.warn("[cadastro_geral] nome PATCH failed:", patchRes.status, JSON.stringify(body?.errors?.[0]?.message ?? body));
+    if (snapshotRes.ok) {
+      const snap = await snapshotRes.json();
+      snapshotFields = snap?.data?.fields ?? [];
     }
-  } catch (e) {
-    console.warn("[cadastro_geral] ensureCadastroGeralNomeLength error:", e);
+  } catch (_) {}
+
+  for (const { field, type, schema } of fieldsToExpand) {
+    try {
+      const current = snapshotFields.find((f: any) => f.collection === "cadastro_geral" && f.field === field);
+      const currentType = current?.schema?.data_type;
+      const currentLen  = current?.schema?.max_length;
+      // Skip if already text (unlimited) or already >= 500 varchar
+      if (currentType === "text" || (currentType === "varchar" && currentLen != null && currentLen >= 500 && schema.data_type === "varchar")) {
+        console.log(`[cadastro_geral] ${field} already OK (${currentType}/${currentLen}), skipping`);
+        continue;
+      }
+      const patchRes = await fetch(`${DIRECTUS_URL}/fields/cadastro_geral/${field}`, {
+        method: "PATCH",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ type, schema }),
+      });
+      const body = await patchRes.json().catch(() => ({}));
+      if (patchRes.ok) {
+        console.log(`[cadastro_geral] ${field} expanded to ${schema.data_type}${schema.max_length ? `(${schema.max_length})` : ""}`);
+      } else {
+        console.warn(`[cadastro_geral] ${field} PATCH failed:`, patchRes.status, JSON.stringify(body?.errors?.[0]?.message ?? body));
+      }
+    } catch (e) {
+      console.warn(`[cadastro_geral] ${field} error:`, e);
+    }
   }
 }
 
@@ -789,7 +820,7 @@ export async function registerRoutes(
   ensureBiasExtraFields().catch(console.error);
   ensureComunidadeFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
-  ensureCadastroGeralNomeLength().catch(console.error);
+  ensureCadastroGeralFields().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);
   ensureNucleoTecnicoCollection().catch(console.error);
   // Update observacoes field label in Directus admin

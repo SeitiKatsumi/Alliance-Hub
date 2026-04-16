@@ -279,17 +279,15 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Cadastro Geral — somente admin e manager */}
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
-                    <Link href="/membros">
-                      <Users className="w-3.5 h-3.5" />
-                      <span>Cadastro Geral</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+              {/* Cadastro Geral */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
+                  <Link href="/membros">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Cadastro Geral</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* Aura */}
               <SidebarMenuItem>

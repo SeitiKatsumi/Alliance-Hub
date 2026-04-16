@@ -1740,6 +1740,39 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== AUTH (Directus-based) ==========
+
+  // ── Self-registration ──────────────────────────────────────────────
+  app.post("/api/register", async (req, res) => {
+    try {
+      const { nome, email, username, password } = req.body;
+      if (!nome || !email || !username || !password)
+        return res.status(400).json({ error: "Todos os campos são obrigatórios" });
+      if (password.length < 4)
+        return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
+
+      const existingByUsername = await storage.getUserByUsername(username);
+      if (existingByUsername) return res.status(409).json({ error: "Nome de usuário já em uso" });
+      const existingByEmail = await storage.getUserByEmail(email);
+      if (existingByEmail) return res.status(409).json({ error: "E-mail já cadastrado" });
+
+      const user = await storage.createUser({
+        username,
+        password,
+        nome,
+        email,
+        membro_directus_id: null,
+        role: "user",
+        permissions: {},
+        ativo: true,
+      });
+
+      const { password: _pw, ...safe } = user;
+      res.json({ success: true, user: safe });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/login", async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -1753,6 +1786,36 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
 
       if (!authRes.ok) {
+        // Directus auth failed — try local-only user auth (for self-registered users)
+        try {
+          const localUser = await storage.getUserByEmail(email);
+          if (localUser && localUser.ativo) {
+            const { comparePasswords } = await import("./storage");
+            const valid = await comparePasswords(password, localUser.password);
+            if (valid) {
+              const role = localUser.role || "user";
+              const permissions = (Object.keys(localUser.permissions as any || {}).length > 0
+                ? localUser.permissions
+                : (role === "admin" || role === "manager")
+                  ? { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" }
+                  : {}) as Record<string, string>;
+              (req.session as any).directusUserId = localUser.id;
+              (req.session as any).membroId = localUser.membro_directus_id || null;
+              (req.session as any).nome = localUser.nome;
+              (req.session as any).email = localUser.email;
+              (req.session as any).role = role;
+              (req.session as any).permissions = permissions;
+              return res.json({
+                id: localUser.id,
+                nome: localUser.nome,
+                email: localUser.email,
+                membro_directus_id: localUser.membro_directus_id,
+                role,
+                permissions,
+              });
+            }
+          }
+        } catch (_) {}
         return res.status(401).json({ error: "Credenciais inválidas" });
       }
 

@@ -233,6 +233,61 @@ export const RAMOS_SEGMENTOS: RamoItem[] = [
   },
 ];
 
+// ========== NÚCLEOS DE ALIANÇA → TIPOS ==========
+
+export interface TipoAliancaItem {
+  nome: string;
+  descricao?: string;
+}
+
+export interface NucleoTiposItem {
+  nucleo: string;
+  tipos: TipoAliancaItem[];
+}
+
+export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = {
+  "Núcleo Técnico": [
+    { nome: "Alianças de Projeto", descricao: "Arquitetos, engenheiros, projetistas, designers urbanistas" },
+    { nome: "Alianças Jurídicas", descricao: "Especialistas em direito imobiliário, societário, contratual e compliance" },
+    { nome: "Alianças de Inteligência", descricao: "Inteligência de mercado, viabilidade de produto, marketing" },
+    { nome: "Alianças de Governança", descricao: "Compliance, segurança, qualidade, rastreamento, auditoria, ambiental, ESG" },
+  ],
+  "Núcleo de Obra": [
+    { nome: "Alianças de Execução", descricao: "Profissionais independentes, engenheiros de obra, supervisores, construtoras, empreiteiras" },
+    { nome: "Alianças de Fornecimento", descricao: "Materiais, equipamentos e logística" },
+  ],
+  "Núcleo Comercial": [
+    { nome: "Alianças Comerciais", descricao: "Captadores, executivos de negócios, articuladores" },
+    { nome: "Alianças de Vendas e Locação", descricao: "Corretores, consultores e administradores de imóveis" },
+    { nome: "Alianças de Marketing", descricao: "Marketing estratégico, conteúdo e criação, performance e relacionamento" },
+    { nome: "Alianças de Operações e Facilities", descricao: "Manutenção, terceirização" },
+    { nome: "Alianças de Gestão de Relacionamento com Cliente", descricao: "Pós-venda, SAC, garantias, suporte técnico" },
+  ],
+  "Núcleo de Capital": [
+    { nome: "Alianças de Investimento", descricao: "Captação de recursos, relacionamento com investidores, estruturação de investimentos" },
+    { nome: "Alianças Contábeis e Tributárias", descricao: "Contabilidade, tributos e conciliação" },
+    { nome: "Alianças de Gestão Financeira", descricao: "Orçamento, caixa, controle" },
+  ],
+};
+
+export function getTiposForNucleos(nucleos: string[]): TipoAliancaItem[] {
+  const seen = new Set<string>();
+  const result: TipoAliancaItem[] = [];
+  for (const nucleo of nucleos) {
+    for (const tipo of NUCLEOS_TIPOS[nucleo] || []) {
+      if (!seen.has(tipo.nome)) {
+        seen.add(tipo.nome);
+        result.push(tipo);
+      }
+    }
+  }
+  return result;
+}
+
+export function getTiposForNucleo(nucleo: string): TipoAliancaItem[] {
+  return NUCLEOS_TIPOS[nucleo] || [];
+}
+
 export function getRamoNome(ramo_atuacao: string): string {
   return RAMOS_SEGMENTOS.find(r => r.nome === ramo_atuacao)?.nome ?? ramo_atuacao;
 }

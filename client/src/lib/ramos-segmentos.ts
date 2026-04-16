@@ -246,6 +246,9 @@ export interface NucleoTiposItem {
 }
 
 export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = {
+  "Diretoria da Aliança": [
+    { nome: "Aliança de Liderança", descricao: "Liderança estratégica e governança da aliança" },
+  ],
   "Núcleo Técnico": [
     { nome: "Alianças de Projeto", descricao: "Arquitetos, engenheiros, projetistas, designers urbanistas" },
     { nome: "Alianças Jurídicas", descricao: "Especialistas em direito imobiliário, societário, contratual e compliance" },

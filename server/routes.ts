@@ -1095,7 +1095,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/membros/:id", async (req, res) => {
-    if (!requireCadastroOrOwn(req, res)) return;
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const m = await directusFetchOne("cadastro_geral", req.params.id, "fields=*,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade");
       if (!m) return res.status(404).json({ error: "Membro não encontrado" });

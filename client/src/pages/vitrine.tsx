@@ -549,8 +549,7 @@ export default function VitrinePage() {
             Vitrine BUILT
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Encontre fornecedores, prestadores e empresas da rede BUILT —{" "}
-            {isLoading ? "..." : `${membros.length} membro${membros.length !== 1 ? "s" : ""} na vitrine`}
+            Encontre fornecedores, prestadores e empresas da rede BUILT
             {hasFilters && ` · ${filtered.length} exibindo`}
           </p>
         </div>

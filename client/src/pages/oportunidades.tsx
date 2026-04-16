@@ -366,6 +366,12 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
         </ZoomableGroup>
       </ComposableMap>
 
+      {/* Decorative scan line */}
+      <div className="absolute left-0 right-0 h-px pointer-events-none z-10"
+        style={{ background: "linear-gradient(to right, transparent, #D7BB7D40 20%, #D7BB7D60 50%, #D7BB7D40 80%, transparent)", animation: "scanLineOpas 6s linear infinite", top: 0 }}
+      />
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes scanLineOpas { 0% { top: 0%; opacity: 0; } 5% { opacity: 1; } 95% { opacity: 1; } 100% { top: 100%; opacity: 0; } }` }} />
+
       {/* Hover tooltip */}
       {!selectedOpa && !clusterOpas && (
         <div className="absolute bottom-0 left-0 right-0 z-20 transition-all duration-200 pointer-events-none"

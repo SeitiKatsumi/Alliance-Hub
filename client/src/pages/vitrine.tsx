@@ -141,7 +141,7 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
       {/* Top-right stats */}
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-2">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Membros</p>
+          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Usuários</p>
           <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{membros.length}</p>
         </div>
         <div className="mb-1">
@@ -299,6 +299,12 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
           </div>
         </div>
       )}
+
+      {/* Decorative scan line */}
+      <div className="absolute left-0 right-0 h-px pointer-events-none z-10"
+        style={{ background: "linear-gradient(to right, transparent, #D7BB7D40 20%, #D7BB7D60 50%, #D7BB7D40 80%, transparent)", animation: "scanLineVitrine 6s linear infinite", top: 0 }}
+      />
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes scanLineVitrine { 0% { top: 0%; opacity: 0; } 5% { opacity: 1; } 95% { opacity: 1; } 100% { top: 100%; opacity: 0; } }` }} />
 
       {/* Selected member info panel */}
       {selectedMembro && (

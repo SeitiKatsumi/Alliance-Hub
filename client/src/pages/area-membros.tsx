@@ -501,16 +501,16 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
       {/* Orçamento dialog */}
       <Dialog open={orcamentoOpen} onOpenChange={setOrcamentoOpen}>
         <DialogContent
-          className="border-brand-gold/20 text-white max-w-md"
+          className="border-brand-gold/20 text-white max-w-md p-0 overflow-hidden"
           style={{ background: "#001428" }}
         >
-          <DialogHeader>
-            <DialogTitle className="font-mono text-brand-gold flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Solicitar Orçamento
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-1">
+          <div className="p-6 space-y-4">
+            <DialogHeader>
+              <DialogTitle className="font-mono text-brand-gold flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Solicitar Orçamento
+              </DialogTitle>
+            </DialogHeader>
             <div className="flex items-center gap-3 p-3 rounded-lg border border-white/8"
               style={{ background: "rgba(255,255,255,0.03)" }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-brand-gold/20"
@@ -536,27 +536,27 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
                 data-testid={`textarea-orcamento-membro-${m.id}`}
               />
             </div>
+            <div className="flex flex-col sm:flex-row gap-2 justify-end pt-1">
+              <Button variant="ghost" onClick={() => setOrcamentoOpen(false)} className="text-white/40 hover:text-white/70 text-sm">
+                Cancelar
+              </Button>
+              {m.email && (
+                <Button onClick={handleEnviarEmail} variant="outline"
+                  className="border-white/15 text-white/60 hover:text-white hover:border-white/30 font-mono text-xs gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Enviar por E-mail
+                </Button>
+              )}
+              {waLink() && (
+                <Button onClick={handleEnviarWa} className="font-mono text-xs gap-1.5"
+                  style={{ background: "#25D366", color: "#fff" }}
+                  data-testid={`btn-enviar-orcamento-wa-membro-${m.id}`}>
+                  <Phone className="w-3.5 h-3.5" />
+                  Enviar via WhatsApp
+                </Button>
+              )}
+            </div>
           </div>
-          <DialogFooter className="gap-2 flex-col sm:flex-row">
-            <Button variant="ghost" onClick={() => setOrcamentoOpen(false)} className="text-white/40 hover:text-white/70 text-sm">
-              Cancelar
-            </Button>
-            {m.email && (
-              <Button onClick={handleEnviarEmail} variant="outline"
-                className="border-white/15 text-white/60 hover:text-white hover:border-white/30 font-mono text-xs gap-1.5">
-                <MessageSquare className="w-3.5 h-3.5" />
-                Enviar por E-mail
-              </Button>
-            )}
-            {waLink() && (
-              <Button onClick={handleEnviarWa} className="font-mono text-xs gap-1.5"
-                style={{ background: "#25D366", color: "#fff" }}
-                data-testid={`btn-enviar-orcamento-wa-membro-${m.id}`}>
-                <Phone className="w-3.5 h-3.5" />
-                Enviar via WhatsApp
-              </Button>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

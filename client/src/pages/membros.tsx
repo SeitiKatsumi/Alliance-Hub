@@ -691,7 +691,7 @@ export default function MembrosPage() {
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
-    enabled: user?.role !== "user",
+    enabled: !!user,
   });
 
   const membros = useMemo(

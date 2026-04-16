@@ -1844,18 +1844,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     });
   });
 
-  app.get("/api/me", (req, res) => {
+  app.get("/api/me", async (req, res) => {
     const directusUserId = (req.session as any).directusUserId;
     if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
-    const role = (req.session as any).role || "user";
+    let role = (req.session as any).role || "user";
     let permissions = (req.session as any).permissions || {};
+    const email = (req.session as any).email || "";
+    // Always re-check local users table to ensure correct role
+    try {
+      if (email) {
+        const localUser = await storage.getUserByEmail(email);
+        if (localUser && localUser.ativo) {
+          role = localUser.role || role;
+          if ((localUser.permissions as any) && Object.keys(localUser.permissions as any).length > 0) {
+            permissions = localUser.permissions as Record<string, string>;
+          }
+        }
+      }
+    } catch (_) {}
     if ((role === "admin" || role === "manager") && Object.keys(permissions).length === 0) {
       permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
     }
     res.json({
       id: directusUserId,
       nome: (req.session as any).nome || "",
-      email: (req.session as any).email || "",
+      email,
       membro_directus_id: (req.session as any).membroId || null,
       role,
       permissions,

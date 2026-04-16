@@ -41,6 +41,8 @@ interface MembroDetalhe {
   Outras_redes_as_quais_pertenco?: string[] | null;
   logo_empresa?: string | null;
   especialidade_livre?: string | null;
+  ramo_atuacao?: string | null;
+  segmento?: string | null;
   idiomas?: string[] | null;
   nucleos_alianca?: string[] | null;
   tipos_alianca?: string[] | null;
@@ -345,16 +347,22 @@ export default function MembroDetalhePage() {
                   )}
                 </div>
 
-                {(especialidades.length > 0 || membro.especialidade_livre) && (
+                {(membro.ramo_atuacao || especialidades.length > 0 || membro.segmento || membro.especialidade_livre) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {especialidades.length > 0 && (
+                    {(membro.ramo_atuacao || especialidades.length > 0) && (
                       <div>
                         <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
-                        <p className="text-sm text-gray-800 font-mono">{especialidades[0]}</p>
+                        <p className="text-sm text-gray-800 font-mono">{membro.ramo_atuacao || especialidades[0]}</p>
+                      </div>
+                    )}
+                    {membro.segmento && (
+                      <div>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
+                        <p className="text-sm text-gray-800 font-mono">{membro.segmento}</p>
                       </div>
                     )}
                     {membro.especialidade_livre && (
-                      <div>
+                      <div className={(!membro.ramo_atuacao && especialidades.length === 0 && !membro.segmento) ? "" : "sm:col-span-2"}>
                         <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
                         <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
                       </div>

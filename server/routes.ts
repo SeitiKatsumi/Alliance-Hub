@@ -272,6 +272,8 @@ async function ensureVitrineFields() {
     { field: "longitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
     { field: "logo_empresa", type: "uuid", meta: { interface: "file-image", display: "image", hidden: false, note: "Logo ou marca da empresa" }, schema: { is_nullable: true } },
     { field: "especialidade_livre", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Especialidade em texto livre" }, schema: { is_nullable: true } },
+    { field: "ramo_atuacao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Ramo de atuação (cascata)" }, schema: { is_nullable: true } },
+    { field: "segmento", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Segmento dentro do ramo de atuação" }, schema: { is_nullable: true } },
     { field: "idiomas", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Idiomas falados" }, schema: { is_nullable: true } },
     { field: "nucleos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos núcleos de aliança" }, schema: { is_nullable: true } },
     { field: "tipos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos tipos de aliança" }, schema: { is_nullable: true } },
@@ -907,7 +909,7 @@ export async function registerRoutes(
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
       // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
@@ -944,7 +946,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
+      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
       const m = await directusFetchOne("cadastro_geral", req.params.id, `fields=${fields}`);
       if (!m) return res.status(404).json({ error: "Membro não encontrado" });
       const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
@@ -969,7 +971,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
       const json = await response.json();

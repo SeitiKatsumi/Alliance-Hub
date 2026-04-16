@@ -14,6 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import { RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
@@ -58,6 +59,8 @@ interface Membro {
   categoria?: string;
   especialidade?: string;
   especialidades?: string[];
+  ramo_atuacao?: string | null;
+  segmento?: string | null;
   nucleo_alianca?: string;
   perfil_aliado?: string;
   observacoes?: string;
@@ -414,8 +417,41 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <Input value={form.perfil_aliado || ""} onChange={e => setField("perfil_aliado", e.target.value)} className={inputCls} data-testid="input-edit-perfil" />
                 </div>
                 <div>
-                  <label className={labelCls}>Especialidade</label>
-                  <Input value={form.especialidade || ""} onChange={e => setField("especialidade", e.target.value)} className={inputCls} data-testid="input-edit-especialidade" />
+                  <label className={labelCls}>Ramo de Atuação</label>
+                  <Select
+                    value={form.ramo_atuacao || ""}
+                    onValueChange={v => setForm((f: any) => ({ ...f, ramo_atuacao: v, segmento: null }))}
+                  >
+                    <SelectTrigger className={inputCls} data-testid="select-edit-ramo">
+                      <SelectValue placeholder="Selecione o ramo" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
+                      {RAMOS_SEGMENTOS.map(r => (
+                        <SelectItem key={r.codigo} value={r.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                          {r.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className={labelCls}>Segmento</label>
+                  <Select
+                    value={form.segmento || ""}
+                    onValueChange={v => setForm((f: any) => ({ ...f, segmento: v }))}
+                    disabled={!form.ramo_atuacao}
+                  >
+                    <SelectTrigger className={`${inputCls} disabled:opacity-40`} data-testid="select-edit-segmento">
+                      <SelectValue placeholder={form.ramo_atuacao ? "Selecione o segmento" : "Selecione o ramo primeiro"} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
+                      {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
+                        <SelectItem key={s.codigo} value={s.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                          {s.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

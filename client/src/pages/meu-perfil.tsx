@@ -18,8 +18,9 @@ import {
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
-  Upload, ImageIcon, X, Languages
+  Upload, ImageIcon, X, Languages, ChevronDown
 } from "lucide-react";
+import { RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 
 interface NominatimResult {
   place_id: number;
@@ -204,6 +205,8 @@ interface Membro {
   link_site?: string;
   logo_empresa?: string | null;
   especialidade_livre?: string;
+  ramo_atuacao?: string | null;
+  segmento?: string | null;
   idiomas?: string[] | null;
   Outras_redes_as_quais_pertenco?: string[] | null;
 }
@@ -590,28 +593,27 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-empresa"
                     />
                   </Field>
-                  <Field label="Ramo de atuação">
+                  <Field label="Ramo de Atuação">
                     <Select
-                      value={form.especialidade_id || ""}
+                      value={form.ramo_atuacao || ""}
                       onValueChange={v => {
-                        const found = especialidadesOptions.find(e => e.id === v);
-                        setForm(f => ({ ...f, especialidade_id: v, especialidade: found?.nome_especialidade || "" }));
+                        setForm(f => ({ ...f, ramo_atuacao: v, segmento: null }));
                       }}
                     >
                       <SelectTrigger
                         className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                        data-testid="select-perfil-especialidade"
+                        data-testid="select-perfil-ramo"
                       >
-                        <SelectValue placeholder="Selecione uma especialidade" />
+                        <SelectValue placeholder="Selecione o ramo" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                        {especialidadesOptions.map(e => (
+                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
+                        {RAMOS_SEGMENTOS.map(r => (
                           <SelectItem
-                            key={e.id}
-                            value={e.id}
+                            key={r.codigo}
+                            value={r.nome}
                             className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
                           >
-                            {e.nome_especialidade}
+                            {r.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -625,16 +627,43 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-cargo"
                     />
                   </Field>
-                  <Field label="Especialidade">
-                    <Input
-                      value={form.especialidade_livre || ""}
-                      onChange={e => set("especialidade_livre", e.target.value)}
-                      placeholder="Ex: Gestão de contratos, Retrofit, BIM..."
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                      data-testid="input-perfil-especialidade-livre"
-                    />
+                  <Field label="Segmento">
+                    <Select
+                      value={form.segmento || ""}
+                      onValueChange={v => setForm(f => ({ ...f, segmento: v }))}
+                      disabled={!form.ramo_atuacao}
+                    >
+                      <SelectTrigger
+                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40 disabled:opacity-40"
+                        data-testid="select-perfil-segmento"
+                      >
+                        <SelectValue placeholder={form.ramo_atuacao ? "Selecione o segmento" : "Selecione o ramo primeiro"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
+                        {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
+                          <SelectItem
+                            key={s.codigo}
+                            value={s.nome}
+                            className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
+                          >
+                            {s.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Field>
                 </div>
+
+                {/* Especialidade livre */}
+                <Field label="Especialidade (texto livre)">
+                  <Input
+                    value={form.especialidade_livre || ""}
+                    onChange={e => set("especialidade_livre", e.target.value)}
+                    placeholder="Ex: Gestão de contratos, Retrofit, BIM..."
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                    data-testid="input-perfil-especialidade-livre"
+                  />
+                </Field>
 
                 {/* Núcleos de Aliança — multi-select */}
                 <div className="space-y-2">

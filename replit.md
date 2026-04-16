@@ -127,6 +127,16 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 - `DIRECTUS_TOKEN`: Bearer token for Directus CMS API access
 - `DIRECTUS_URL`: Directus base URL (defaults to https://app.builtalliances.com)
 
+## Ramo de Atuação & Segmento
+- `ramo_atuacao` (varchar) and `segmento` (varchar) stored as direct Directus fields in `cadastro_geral`
+- 8 ramos fixos with 173 total segments defined in `client/src/lib/ramos-segmentos.ts`
+- Cascade selects: choose Ramo first → Segmento list filters to that ramo's options
+- Meu Perfil: `select-perfil-ramo` + `select-perfil-segmento` (disabled until ramo chosen)
+- Admin Membros: same cascade selects in `MembroEditSheet`
+- Display: `vitrine-detalhe.tsx` and `membro-detalhe.tsx` show Ramo / Segmento (fallback to M2M Especialidade if no ramo set)
+- Card subtitle in `area-membros.tsx`: shows `segmento` with fallback to `especialidade`
+- `especialidade_livre` free-text field preserved as separate "Especialidade (texto livre)" input
+
 ## Currency Support
 - Each BIA has a `moeda` field (ISO 4217 currency code, e.g. BRL, USD, EUR) stored in Directus
 - `CurrencyCombobox` component in `bias.tsx` uses Popover + Command with search across 80+ world currencies

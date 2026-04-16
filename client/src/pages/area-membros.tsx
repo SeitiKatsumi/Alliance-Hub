@@ -28,6 +28,7 @@ interface MembroBuilt {
   nome?: string;
   cargo?: string;
   especialidade?: string;
+  segmento?: string | null;
   empresa?: string;
   cidade?: string;
   estado?: string;
@@ -433,8 +434,8 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
           {/* Name + info */}
           <div className="text-center space-y-1.5">
             <p className="text-sm font-semibold text-white font-mono leading-tight">{nome}</p>
-            {m.especialidade && (
-              <p className="text-xs text-brand-gold/60 font-mono truncate">{m.especialidade}</p>
+            {(m.segmento || m.especialidade) && (
+              <p className="text-xs text-brand-gold/60 font-mono truncate">{m.segmento || m.especialidade}</p>
             )}
             {m.empresa && (
               <div className="flex items-center justify-center gap-1">

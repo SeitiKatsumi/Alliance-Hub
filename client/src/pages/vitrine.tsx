@@ -1124,8 +1124,8 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
           </DialogHeader>
 
           <div className="space-y-4 py-1">
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-white/8"
-              style={{ background: "rgba(255,255,255,0.03)" }}>
+            <div className="flex items-center gap-3 p-3 rounded-lg"
+              style={{ background: "rgba(255,255,255,0.06)" }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border border-brand-gold/20"
                 style={{ background: "rgba(215,187,125,0.08)" }}>
                 <span className="text-[10px] font-mono font-bold text-brand-gold/70">{getInitials(nome)}</span>

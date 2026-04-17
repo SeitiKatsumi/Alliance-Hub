@@ -380,7 +380,7 @@ export default function ComunidadePage() {
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm());
+    setForm({ ...emptyForm(), aliado_id: user?.membro_directus_id || "" });
     setDialogOpen(true);
   }
 

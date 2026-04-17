@@ -43,9 +43,9 @@ waitForPort = 5000
 
 [userenv.shared]
 DIRECTUS_URL = "https://app.builtalliances.com"
+GOOGLE_CALLBACK_URL = "https://app.builtalliances.11mind.com.br/auth/google/callback"
 
 [userenv.production]
-GOOGLE_CALLBACK_URL = "https://app.builtalliances.11mind.com.br/auth/google/callback"
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0"]

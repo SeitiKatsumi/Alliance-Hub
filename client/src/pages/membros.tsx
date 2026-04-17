@@ -14,7 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
+import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getTipoDisplayName, getNucleoForTipo } from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
@@ -62,6 +62,7 @@ interface Membro {
   ramo_atuacao?: string | null;
   segmento?: string | null;
   nucleo_alianca?: string;
+  tipo_alianca?: string;
   perfil_aliado?: string;
   observacoes?: string;
   foto?: string | null;
@@ -500,8 +501,26 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Núcleo de Aliança</label>
-                  <Input value={form.nucleo_alianca || ""} onChange={e => setField("nucleo_alianca", e.target.value)} className={inputCls} data-testid="input-edit-nucleo" />
+                  <label className={labelCls}>Área de Contribuição</label>
+                  <Select
+                    value={(form as any).tipo_alianca || undefined}
+                    onValueChange={v => setForm((f: any) => ({
+                      ...f,
+                      tipo_alianca: v,
+                      nucleo_alianca: getNucleoForTipo(v) || f.nucleo_alianca,
+                    }))}
+                  >
+                    <SelectTrigger className={inputCls} data-testid="select-edit-tipo-alianca">
+                      <SelectValue placeholder="Selecionar tipo..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                      {getAllTipos().map(t => (
+                        <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                          {getTipoDisplayName(t.nome)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls}>Perfil de Aliado</label>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -286,6 +287,8 @@ function getInitials(nome?: string): string {
 
 export default function ComunidadePage() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
   const searchParams = useSearch();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
@@ -506,6 +509,7 @@ export default function ComunidadePage() {
             <ComunidadeCard
               key={c.id}
               comunidade={c}
+              canEdit={isAdmin || user?.membro_directus_id === resolveAliadoId(c)}
               onEdit={() => openEdit(c)}
               onDelete={() => setDeleteTarget(c)}
             />
@@ -714,8 +718,9 @@ export default function ComunidadePage() {
   );
 }
 
-function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
+function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
   comunidade: Comunidade;
+  canEdit?: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -792,26 +797,28 @@ function ComunidadeCard({ comunidade: c, onEdit, onDelete }: {
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex border-t border-white/5">
-        <button
-          onClick={e => { e.stopPropagation(); onEdit(); }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono text-white/40 hover:text-brand-gold hover:bg-white/5 transition-colors"
-          data-testid={`btn-edit-comunidade-${c.id}`}
-        >
-          <Pencil className="w-3 h-3" />
-          Editar
-        </button>
-        <div className="w-px bg-white/5" />
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono text-white/40 hover:text-red-400 hover:bg-red-950/20 transition-colors"
-          data-testid={`btn-delete-comunidade-${c.id}`}
-        >
-          <Trash2 className="w-3 h-3" />
-          Remover
-        </button>
-      </div>
+      {/* Actions — only visible to the Aliado Built or admin */}
+      {canEdit && (
+        <div className="flex border-t border-white/5">
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono text-white/40 hover:text-brand-gold hover:bg-white/5 transition-colors"
+            data-testid={`btn-edit-comunidade-${c.id}`}
+          >
+            <Pencil className="w-3 h-3" />
+            Editar
+          </button>
+          <div className="w-px bg-white/5" />
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono text-white/40 hover:text-red-400 hover:bg-red-950/20 transition-colors"
+            data-testid={`btn-delete-comunidade-${c.id}`}
+          >
+            <Trash2 className="w-3 h-3" />
+            Remover
+          </button>
+        </div>
+      )}
     </div>
   );
 }

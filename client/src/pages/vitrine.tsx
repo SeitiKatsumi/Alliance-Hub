@@ -23,7 +23,7 @@ import {
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
-import { getAllTipos, getNucleoForTipo, getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { getAllTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -352,7 +352,8 @@ interface CardForm {
   nome: string;
   cargo: string;
   empresa: string;
-  especialidade_id: string;
+  ramo_atuacao: string;
+  segmento: string;
   cidade: string;
   estado: string;
   whatsapp: string;
@@ -394,10 +395,8 @@ export default function VitrinePage() {
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterEstado, setFilterEstado] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newEspOpen, setNewEspOpen] = useState(false);
-  const [newEspNome, setNewEspNome] = useState("");
   const [form, setForm] = useState<CardForm>({
-    nome: "", cargo: "", empresa: "", especialidade_id: "",
+    nome: "", cargo: "", empresa: "", ramo_atuacao: "", segmento: "",
     cidade: "", estado: "", whatsapp: "", email: "",
     perfil_aliado: "", nucleo_alianca: "", tipo_alianca: "", link_site: ""
   });
@@ -422,13 +421,6 @@ export default function VitrinePage() {
     enabled: !!membroId,
   });
 
-  // Fetch especialidades options from Directus
-  const { data: especialidadesOptions = [] } = useQuery<EspecialidadeOption[]>({
-    queryKey: ["/api/especialidades"],
-    queryFn: () => fetch("/api/especialidades").then(r => r.json()),
-  });
-
-
   const myCardExists = !!myMembro?.na_vitrine;
 
   // Auto-open edit dialog when navigated from detail page with ?edit=true
@@ -444,16 +436,12 @@ export default function VitrinePage() {
   // Pre-fill form when dialog opens
   function openDialog() {
     if (myMembro) {
-      // Match specialty by name from the vitrine card (fields=* returns junction IDs, not nested UUIDs)
-      const myCard = membros.find(m => m.id === membroId);
-      const matchedEsp = especialidadesOptions.find(
-        e => e.nome_especialidade === myCard?.especialidade
-      );
       setForm({
         nome: myMembro.nome || "",
         cargo: myMembro.cargo || myMembro.responsavel_cargo || "",
         empresa: myMembro.empresa || myMembro.nome_fantasia || "",
-        especialidade_id: matchedEsp?.id ?? "",
+        ramo_atuacao: (myMembro as any).ramo_atuacao || "",
+        segmento: (myMembro as any).segmento || "",
         cidade: myMembro.cidade || "",
         estado: myMembro.estado || "",
         whatsapp: myMembro.whatsapp || myMembro.whatsapp_e164 || "",
@@ -492,27 +480,8 @@ export default function VitrinePage() {
     onError: () => toast({ title: "Erro ao remover card", variant: "destructive" }),
   });
 
-  // Create new especialidade in Directus and auto-select it
-  const createEspMutation = useMutation({
-    mutationFn: (nome: string) =>
-      apiRequest("POST", "/api/especialidades", { nome_especialidade: nome }),
-    onSuccess: async (data: any) => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/especialidades"] });
-      setForm(f => ({ ...f, especialidade_id: data.id }));
-      setNewEspNome("");
-      setNewEspOpen(false);
-      toast({ title: "Especialidade criada e selecionada!" });
-    },
-    onError: () => toast({ title: "Erro ao criar especialidade", variant: "destructive" }),
-  });
-
   function handleSubmit() {
-    const { especialidade_id, ...rest } = form;
-    const payload: Record<string, any> = { ...rest, na_vitrine: true };
-    // Send Especialidades as Directus M2M array (replaces existing)
-    payload.Especialidades = especialidade_id
-      ? [{ especialidades_id: especialidade_id }]
-      : [];
+    const payload: Record<string, any> = { ...form, na_vitrine: true };
     saveMutation.mutate(payload as any);
   }
 
@@ -734,96 +703,49 @@ export default function VitrinePage() {
                   data-testid="input-card-empresa"
                 />
               </Field>
-              <Field label="Ramo de atuação">
+              <Field label="Ramo de Atuação">
                 <Select
-                  value={form.especialidade_id}
-                  onValueChange={v => setForm(f => ({ ...f, especialidade_id: v }))}
+                  value={form.ramo_atuacao || undefined}
+                  onValueChange={v => setForm(f => ({ ...f, ramo_atuacao: v, segmento: "" }))}
                 >
                   <SelectTrigger
                     className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                    data-testid="select-card-especialidade"
+                    data-testid="select-card-ramo"
                   >
-                    <SelectValue placeholder="Selecione uma especialidade" />
+                    <SelectValue placeholder="Selecione o ramo..." />
                   </SelectTrigger>
                   <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                    {especialidadesOptions.map(e => (
-                      <SelectItem
-                        key={e.id}
-                        value={e.id}
-                        className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
-                      >
-                        {e.nome_especialidade}
+                    {RAMOS_SEGMENTOS.map(r => (
+                      <SelectItem key={r.ramo} value={r.ramo} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                        {r.ramo}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {!form.especialidade_id && (
-                  <button
-                    type="button"
-                    onClick={() => { setNewEspNome(""); setNewEspOpen(true); }}
-                    className="mt-1.5 flex items-center gap-1.5 text-xs font-mono text-brand-gold/60 hover:text-brand-gold transition-colors"
-                    data-testid="btn-criar-especialidade"
-                  >
-                    <Plus className="w-3 h-3" />
-                    Não encontrou? Criar nova especialidade
-                  </button>
-                )}
               </Field>
-
-              {/* Sub-dialog: criar nova especialidade */}
-              <Dialog open={newEspOpen} onOpenChange={setNewEspOpen}>
-                <DialogContent
-                  className="border-brand-gold/20 text-white max-w-sm"
-                  style={{ background: "#001428" }}
-                >
-                  <DialogHeader>
-                    <DialogTitle className="font-mono text-brand-gold">Novo Ramo de Atuação</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3 py-2">
-                    <div>
-                      <Label className="text-xs font-mono text-white/50 mb-1.5 block">Nome *</Label>
-                      <Input
-                        value={newEspNome}
-                        onChange={e => setNewEspNome(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && newEspNome.trim()) {
-                            createEspMutation.mutate(newEspNome.trim());
-                          }
-                        }}
-                        className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                        placeholder="Ex: Gestão de contratos"
-                        autoFocus
-                        data-testid="input-nova-especialidade"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter className="gap-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setNewEspOpen(false)}
-                      className="text-white/50 hover:text-white"
+              <div className="sm:col-span-2">
+                <Field label="Segmento">
+                  <Select
+                    value={form.segmento || undefined}
+                    onValueChange={v => setForm(f => ({ ...f, segmento: v }))}
+                    disabled={!form.ramo_atuacao}
+                  >
+                    <SelectTrigger
+                      className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40 disabled:opacity-40"
+                      data-testid="select-card-segmento"
                     >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={() => createEspMutation.mutate(newEspNome.trim())}
-                      disabled={!newEspNome.trim() || createEspMutation.isPending}
-                      className="font-mono"
-                      style={{ background: "#D7BB7D", color: "#001D34" }}
-                      data-testid="btn-confirmar-nova-especialidade"
-                    >
-                      {createEspMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Plus className="w-4 h-4 mr-1" />
-                          Criar e selecionar
-                        </>
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                      <SelectValue placeholder={form.ramo_atuacao ? "Selecione o segmento..." : "Selecione o ramo primeiro"} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
+                      {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
+                        <SelectItem key={s.nome} value={s.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                          {s.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

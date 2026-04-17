@@ -251,6 +251,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/area-membros"] });
       toast({ title: membro.id ? "Membro atualizado com sucesso!" : "Membro criado com sucesso!" });
       onClose();
     },

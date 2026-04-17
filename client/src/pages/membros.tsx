@@ -18,7 +18,7 @@ import { RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
-  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus
+  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock
 } from "lucide-react";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -1102,6 +1102,22 @@ export default function MembrosPage() {
 
   const hasFilters = search || filterEspecialidade || filterEstado || filterTipoCadastro;
 
+  // Restrict to Super Admin only
+  if (user && user.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#020b16" }}>
+        <div className="flex flex-col items-center gap-4 text-center px-6">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <Lock className="w-7 h-7 text-red-400" />
+          </div>
+          <h2 className="text-white text-xl font-bold">Acesso Restrito</h2>
+          <p className="text-white/40 text-sm max-w-xs">
+            O módulo <strong className="text-white/70">Cadastro Geral</strong> é exclusivo para Super Administradores da plataforma.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: "#020b16" }}>

@@ -1047,21 +1047,21 @@ export async function registerRoutes(
     return sessionRole;
   }
 
-  // Helper: check if the session role allows full Cadastro Geral access
+  // Helper: check if the session role allows full Cadastro Geral access (Super Admin only)
   async function requireCadastroAccess(req: any, res: any): Promise<boolean> {
     const role = await getEffectiveRole(req);
-    if (role === "admin" || role === "manager") return true;
-    res.status(403).json({ error: "Acesso restrito a administradores e gestores." });
+    if (role === "admin") return true;
+    res.status(403).json({ error: "Acesso restrito a Super Administradores." });
     return false;
   }
 
-  // Helper: allow if admin/manager OR if user is accessing their own membro record
+  // Helper: allow if Super Admin OR if user is accessing their own membro record
   async function requireCadastroOrOwn(req: any, res: any): Promise<boolean> {
     const role = await getEffectiveRole(req);
-    if (role === "admin" || role === "manager") return true;
+    if (role === "admin") return true;
     const sessionMembroId = (req.session as any).membroId as string | null;
     if (sessionMembroId && req.params.id === sessionMembroId) return true;
-    res.status(403).json({ error: "Acesso restrito a administradores e gestores." });
+    res.status(403).json({ error: "Acesso restrito a Super Administradores." });
     return false;
   }
 

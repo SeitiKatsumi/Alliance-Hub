@@ -13,12 +13,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {
   Store, Search, MapPin, Building2,
   Users, X, Plus, Pencil, Trash2, Loader2,
-  FileText, Mail, MessageSquare, Globe, Phone
+  FileText, Mail, MessageSquare, Globe, Phone, Navigation
 } from "lucide-react";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -356,6 +356,8 @@ interface CardForm {
   segmento: string;
   cidade: string;
   estado: string;
+  latitude: string;
+  longitude: string;
   whatsapp: string;
   email: string;
   perfil_aliado: string;
@@ -386,6 +388,122 @@ const ESTADOS_BR = [
   "PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"
 ];
 
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    city?: string; town?: string; municipality?: string; village?: string;
+    state?: string; country?: string; country_code?: string;
+  };
+}
+
+function LocationPickerModal({ open, onClose, onSelect }: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (cidade: string, estado: string, lat: number, lng: number) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<NominatimResult | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) { setSearch(""); setResults([]); setSelected(null); setError(""); }
+  }, [open]);
+
+  async function handleSearch() {
+    if (!search.trim()) return;
+    setLoading(true); setError(""); setResults([]); setSelected(null);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(search)}&format=json&limit=8&addressdetails=1&accept-language=pt-BR,pt`;
+      const res = await fetch(url, { headers: { "Accept-Language": "pt-BR,pt;q=0.9" } });
+      if (!res.ok) throw new Error();
+      const data: NominatimResult[] = await res.json();
+      if (data.length === 0) setError("Nenhum resultado encontrado. Tente um nome mais específico.");
+      setResults(data);
+    } catch { setError("Falha ao buscar localização. Verifique sua conexão."); }
+    finally { setLoading(false); }
+  }
+
+  function handleConfirm() {
+    if (!selected) return;
+    const addr = selected.address || {};
+    const cidade = addr.city || addr.town || addr.municipality || addr.village || selected.display_name.split(",")[0];
+    const estado = addr.state || "";
+    onSelect(cidade, estado, parseFloat(selected.lat), parseFloat(selected.lon));
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Navigation className="w-5 h-5 text-brand-gold" />
+            Selecionar Localização
+          </DialogTitle>
+          <DialogDescription>
+            Pesquise uma cidade ou endereço para obter a localização com coordenadas GPS.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            placeholder="Ex: São Paulo, SP — Copacabana, RJ..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSearch()}
+            className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-gold/40"
+            data-testid="input-location-search"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={loading || !search.trim()}
+            className="px-3 py-2 rounded-md bg-brand-gold text-brand-navy hover:bg-brand-gold/90 disabled:opacity-50 shrink-0"
+            data-testid="btn-search-location"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          </button>
+        </div>
+        {error && <p className="text-sm text-muted-foreground text-center py-2">{error}</p>}
+        {results.length > 0 && (
+          <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+            {results.map(r => (
+              <button
+                key={r.place_id}
+                onClick={() => setSelected(r)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors border ${
+                  selected?.place_id === r.place_id
+                    ? "bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
+                    : "hover:bg-muted border-transparent"
+                }`}
+                data-testid={`location-result-${r.place_id}`}
+              >
+                <p className="font-medium leading-tight">{r.display_name}</p>
+              </button>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <button onClick={onClose} className="px-4 py-2 rounded-md text-sm border border-input hover:bg-muted">Cancelar</button>
+          <button
+            onClick={handleConfirm}
+            disabled={!selected}
+            className="px-4 py-2 rounded-md text-sm bg-brand-gold text-brand-navy hover:bg-brand-gold/90 disabled:opacity-50 flex items-center gap-2"
+            data-testid="btn-confirm-location"
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            Confirmar localização
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function VitrinePage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -395,9 +513,11 @@ export default function VitrinePage() {
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterEstado, setFilterEstado] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [form, setForm] = useState<CardForm>({
     nome: "", cargo: "", empresa: "", ramo_atuacao: "", segmento: "",
-    cidade: "", estado: "", whatsapp: "", email: "",
+    cidade: "", estado: "", latitude: "", longitude: "",
+    whatsapp: "", email: "",
     perfil_aliado: "", nucleo_alianca: "", tipo_alianca: "", link_site: ""
   });
 
@@ -444,6 +564,8 @@ export default function VitrinePage() {
         segmento: (myMembro as any).segmento || "",
         cidade: myMembro.cidade || "",
         estado: myMembro.estado || "",
+        latitude: myMembro.latitude != null ? String(myMembro.latitude) : "",
+        longitude: myMembro.longitude != null ? String(myMembro.longitude) : "",
         whatsapp: myMembro.whatsapp || myMembro.whatsapp_e164 || "",
         email: myMembro.email || "",
         perfil_aliado: myMembro.perfil_aliado || "",
@@ -453,6 +575,10 @@ export default function VitrinePage() {
       });
     }
     setDialogOpen(true);
+  }
+
+  function handleLocationSelect(cidade: string, estado: string, lat: number, lng: number) {
+    setForm(f => ({ ...f, cidade, estado, latitude: String(lat), longitude: String(lng) }));
   }
 
   // Save card mutation
@@ -748,31 +874,31 @@ export default function VitrinePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2">
-                <Field label="Cidade">
-                  <Input
-                    value={form.cidade}
-                    onChange={e => setForm(f => ({ ...f, cidade: e.target.value }))}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                    placeholder="Sua cidade"
-                    data-testid="input-card-cidade"
-                  />
-                </Field>
-              </div>
-              <Field label="Estado">
-                <Select value={form.estado} onValueChange={v => setForm(f => ({ ...f, estado: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-card-estado">
-                    <SelectValue placeholder="UF" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#050f1c] border-white/10">
-                    {ESTADOS_BR.map(uf => (
-                      <SelectItem key={uf} value={uf} className="text-white">{uf}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+            <Field label="Localização">
+              <button
+                type="button"
+                onClick={() => setLocationPickerOpen(true)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-md bg-white/5 border border-white/10 text-left hover:bg-white/10 hover:border-brand-gold/30 transition-colors"
+                data-testid="btn-card-location-picker"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="w-4 h-4 text-brand-gold/50 shrink-0" />
+                  {form.cidade || form.estado ? (
+                    <span className="text-sm text-white truncate">
+                      {[form.cidade, form.estado].filter(Boolean).join(", ")}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-white/25">Selecionar localização…</span>
+                  )}
+                </div>
+                <Navigation className="w-3.5 h-3.5 text-brand-gold/40 shrink-0" />
+              </button>
+              {form.latitude && form.longitude && (
+                <p className="text-[10px] text-white/20 font-mono px-1 mt-1">
+                  GPS: {parseFloat(form.latitude).toFixed(5)}, {parseFloat(form.longitude).toFixed(5)}
+                </p>
+              )}
+            </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="WhatsApp">
@@ -868,6 +994,12 @@ export default function VitrinePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LocationPickerModal
+        open={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onSelect={handleLocationSelect}
+      />
     </div>
   );
 }

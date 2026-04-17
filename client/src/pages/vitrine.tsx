@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -388,6 +388,8 @@ const ESTADOS_BR = [
 export default function VitrinePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const searchParams = useSearch();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterEstado, setFilterEstado] = useState("all");
@@ -428,6 +430,16 @@ export default function VitrinePage() {
 
 
   const myCardExists = !!myMembro?.na_vitrine;
+
+  // Auto-open edit dialog when navigated from detail page with ?edit=true
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (params.get("edit") === "true" && myMembro && !dialogOpen) {
+      openDialog();
+      navigate("/vitrine", { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, myMembro]);
 
   // Pre-fill form when dialog opens
   function openDialog() {

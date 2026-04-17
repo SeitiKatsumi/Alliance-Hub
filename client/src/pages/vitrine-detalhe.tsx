@@ -1,13 +1,14 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
-  User, Globe, MessageSquare, Store, ExternalLink, Languages
+  User, Globe, MessageSquare, Store, ExternalLink, Languages, Pencil
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { useAuth } from "@/hooks/use-auth";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
   BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
@@ -98,6 +99,8 @@ function InfoRow({ icon: Icon, label, value, href }: {
 
 export default function VitrineDetalhePage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   const { data: membro, isLoading } = useQuery<MembroDetalhe>({
     queryKey: ["/api/vitrine", id],
@@ -146,10 +149,12 @@ export default function VitrineDetalhePage() {
     );
   }
 
+  const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Back nav */}
-      <div className="px-6 pt-5 pb-2">
+      <div className="px-6 pt-5 pb-2 flex items-center justify-between">
         <Link href="/vitrine">
           <button
             className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-gray-700 transition-colors"
@@ -159,6 +164,17 @@ export default function VitrineDetalhePage() {
             Voltar à Vitrine
           </button>
         </Link>
+        {isMyCard && (
+          <button
+            onClick={() => navigate("/vitrine?edit=true")}
+            className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-all"
+            style={{ background: "rgba(215,187,125,0.12)", color: "#D7BB7D", border: "1px solid rgba(215,187,125,0.25)" }}
+            data-testid="btn-editar-meu-card-detalhe"
+          >
+            <Pencil className="w-3 h-3" />
+            Editar meu card
+          </button>
+        )}
       </div>
 
       <div className="max-w-3xl mx-auto px-6 pb-10 space-y-5">

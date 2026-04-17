@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -478,7 +479,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>Cidade</label>
-                  <Input value={form.cidade || ""} onChange={e => setField("cidade", e.target.value)} className={inputCls} data-testid="input-edit-cidade" />
+                  <Input value={form.cidade || ""} onChange={e => setField("cidade", capitalizeWords(e.target.value))} className={inputCls} data-testid="input-edit-cidade" />
                 </div>
                 <div>
                   <label className={labelCls}>Estado (UF)</label>
@@ -486,7 +487,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>País</label>
-                  <Input value={form.pais || ""} onChange={e => setField("pais", e.target.value)} className={inputCls} placeholder="Brasil" data-testid="input-edit-pais" />
+                  <Input value={form.pais || ""} onChange={e => setField("pais", capitalizeWords(e.target.value))} className={inputCls} placeholder="Brasil" data-testid="input-edit-pais" />
                 </div>
               </div>
             </div>

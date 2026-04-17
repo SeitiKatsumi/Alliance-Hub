@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { capitalizeWords } from "@/lib/utils";
 import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
 
 const WORLD_GEO = "/world-countries-50m.json";
@@ -1022,7 +1023,7 @@ function OpaFormDialog({
             <div className="flex gap-2">
               <Input
                 value={form.localizacao}
-                onChange={e => setForm(f => ({ ...f, localizacao: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, localizacao: capitalizeWords(e.target.value) }))}
                 placeholder="Cidade, País..."
                 className="h-8 text-sm flex-1"
                 data-testid="input-opa-localizacao"

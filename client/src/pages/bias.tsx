@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { capitalizeWords } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -669,7 +670,7 @@ function LocationField({ form, setForm, onPickerOpen }: {
         <Input
           placeholder="Cidade, Estado ou País"
           value={form.localizacao}
-          onChange={(e) => setForm({ ...form, localizacao: e.target.value })}
+          onChange={(e) => setForm({ ...form, localizacao: capitalizeWords(e.target.value) })}
           className="h-8 text-sm flex-1"
           data-testid="input-localizacao"
         />

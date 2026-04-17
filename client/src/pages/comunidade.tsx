@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { capitalizeWords } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -547,7 +548,7 @@ export default function ComunidadePage() {
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">País *</Label>
               <Input
                 value={form.pais || ""}
-                onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, pais: capitalizeWords(e.target.value) }))}
                 placeholder="Ex: Brasil"
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                 data-testid="input-comunidade-pais"
@@ -559,7 +560,7 @@ export default function ComunidadePage() {
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">Território *</Label>
               <Input
                 value={form.territorio || ""}
-                onChange={e => setForm(f => ({ ...f, territorio: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, territorio: capitalizeWords(e.target.value) }))}
                 placeholder="Ex: Belo Horizonte"
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                 data-testid="input-comunidade-territorio"

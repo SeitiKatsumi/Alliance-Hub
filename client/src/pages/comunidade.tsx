@@ -288,7 +288,7 @@ function getInitials(nome?: string): string {
 export default function ComunidadePage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "manager";
+  const isAdmin = user?.role === "admin";
   const searchParams = useSearch();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");

@@ -257,6 +257,7 @@ export default function VitrineDetalhePage() {
           </div>
         </div>
 
+        {/* Contato + Perfil Profissional lado a lado */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Contact / info panel */}
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -273,152 +274,119 @@ export default function VitrineDetalhePage() {
                 return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ? site : `https://${site}`} />;
               })()}
               {membro.instagram && (
-                <InfoRow
-                  icon={ExternalLink}
-                  label="Instagram"
-                  value={membro.instagram}
-                  href={`https://instagram.com/${membro.instagram.replace("@", "")}`}
-                />
+                <InfoRow icon={ExternalLink} label="Instagram" value={membro.instagram}
+                  href={`https://instagram.com/${membro.instagram.replace("@", "")}`} />
               )}
             </div>
           </div>
 
-          {/* Perfil Profissional panel */}
-          {membro.perfil_aliado && (
+          {/* Perfil Profissional (empresa, cargo, ramo, etc.) */}
+          {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-              <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <MessageSquare className="w-3 h-3 text-brand-gold" />
+              <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Briefcase className="w-3 h-3 text-brand-gold" />
                 Perfil Profissional
               </p>
-              <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap break-words">
-                {membro.perfil_aliado}
-              </p>
+              <div className="flex items-start gap-4">
+                {membro.logo_empresa && (
+                  <div className="w-14 h-14 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden" data-testid="img-logo-empresa">
+                    <img src={`/api/assets/${membro.logo_empresa}?width=128&height=128&fit=contain`} alt={empresa || "Logo"} className="w-full h-full object-contain p-1.5" />
+                  </div>
+                )}
+                <div className="space-y-3 flex-1 min-w-0">
+                  <div className="grid grid-cols-1 gap-3">
+                    {empresa && (
+                      <div>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Empresa</p>
+                        <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />{empresa}
+                        </p>
+                      </div>
+                    )}
+                    {cargo && (
+                      <div>
+                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Cargo</p>
+                        <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />{cargo}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {(membro.ramo_atuacao || especialidades.length > 0 || membro.segmento || membro.especialidade_livre) && (
+                    <div className="grid grid-cols-1 gap-3">
+                      {(membro.ramo_atuacao || especialidades.length > 0) && (
+                        <div>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
+                          <p className="text-sm text-gray-800 font-mono">{membro.ramo_atuacao || especialidades[0]}</p>
+                        </div>
+                      )}
+                      {membro.segmento && (
+                        <div>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
+                          <p className="text-sm text-gray-800 font-mono">{membro.segmento}</p>
+                        </div>
+                      )}
+                      {membro.especialidade_livre && (
+                        <div>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
+                          <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {(() => {
+                    const tipos = (membro.tipos_alianca || []).length > 0 ? membro.tipos_alianca! : membro.tipo_alianca ? [membro.tipo_alianca] : [];
+                    const nucleos = (membro.nucleos_alianca || []).length > 0
+                      ? membro.nucleos_alianca!
+                      : membro.nucleo_alianca ? [membro.nucleo_alianca] : getNucleosForTipos(tipos);
+                    return (nucleos.length > 0 || tipos.length > 0) ? (
+                      <div className="grid grid-cols-1 gap-3">
+                        {nucleos.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ? "Núcleos" : "Núcleo"}</p>
+                            <p className="text-sm text-gray-800 font-mono">{nucleos.join(", ")}</p>
+                          </div>
+                        )}
+                        {tipos.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Área de Contribuição</p>
+                            <p className="text-sm text-gray-800 font-mono">{tipos.map(getTipoDisplayName).join(", ")}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
+                  {(membro.idiomas || []).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <Languages className="w-3 h-3 text-brand-gold" />
+                        Idiomas Falados
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(membro.idiomas || []).map(idioma => (
+                          <span key={idioma} className="px-2.5 py-1 rounded-full text-xs font-mono border border-gray-200 text-gray-600 bg-gray-50" data-testid={`card-idioma-${idioma}`}>
+                            {idioma}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Profissional card */}
-        {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
+        {/* Biografia */}
+        {membro.perfil_aliado && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Briefcase className="w-3 h-3 text-brand-gold" />
-              Perfil Profissional
+            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <MessageSquare className="w-3 h-3 text-brand-gold" />
+              Biografia
             </p>
-            <div className="flex items-start gap-5">
-              {/* Logo */}
-              {membro.logo_empresa && (
-                <div
-                  className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden"
-                  data-testid="img-logo-empresa"
-                >
-                  <img
-                    src={`/api/assets/${membro.logo_empresa}?width=128&height=128&fit=contain`}
-                    alt={empresa || "Logo"}
-                    className="w-full h-full object-contain p-1.5"
-                  />
-                </div>
-              )}
-              <div className="space-y-3 flex-1 min-w-0">
-                {/* Empresa + Cargo */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {empresa && (
-                    <div>
-                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Empresa</p>
-                      <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
-                        {empresa}
-                      </p>
-                    </div>
-                  )}
-                  {cargo && (
-                    <div>
-                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Cargo</p>
-                      <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
-                        {cargo}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Ramo de Atuação + Segmento + Especialidade */}
-                {(membro.ramo_atuacao || especialidades.length > 0 || membro.segmento || membro.especialidade_livre) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(membro.ramo_atuacao || especialidades.length > 0) && (
-                      <div>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
-                        <p className="text-sm text-gray-800 font-mono">{membro.ramo_atuacao || especialidades[0]}</p>
-                      </div>
-                    )}
-                    {membro.segmento && (
-                      <div>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
-                        <p className="text-sm text-gray-800 font-mono">{membro.segmento}</p>
-                      </div>
-                    )}
-                    {membro.especialidade_livre && (
-                      <div className={(!membro.ramo_atuacao && especialidades.length === 0 && !membro.segmento) ? "" : "sm:col-span-2"}>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
-                        <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Núcleos + Tipos — texto simples */}
-                {(() => {
-                  const tipos = (membro.tipos_alianca || []).length > 0
-                    ? membro.tipos_alianca!
-                    : membro.tipo_alianca ? [membro.tipo_alianca] : [];
-                  const nucleos = (membro.nucleos_alianca || []).length > 0
-                    ? membro.nucleos_alianca!
-                    : membro.nucleo_alianca
-                      ? [membro.nucleo_alianca]
-                      : getNucleosForTipos(tipos);
-                  return (nucleos.length > 0 || tipos.length > 0) ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {nucleos.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">
-                            {nucleos.length > 1 ? "Núcleos" : "Núcleo"}
-                          </p>
-                          <p className="text-sm text-gray-800 font-mono">{nucleos.join(", ")}</p>
-                        </div>
-                      )}
-                      {tipos.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">
-                            Área de Contribuição
-                          </p>
-                          <p className="text-sm text-gray-800 font-mono">{tipos.map(getTipoDisplayName).join(", ")}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : null;
-                })()}
-
-                {/* Idiomas */}
-                {(membro.idiomas || []).length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                      <Languages className="w-3 h-3 text-brand-gold" />
-                      Idiomas Falados
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(membro.idiomas || []).map(idioma => (
-                        <span
-                          key={idioma}
-                          className="px-2.5 py-1 rounded-full text-xs font-mono border border-gray-200 text-gray-600 bg-gray-50"
-                          data-testid={`card-idioma-${idioma}`}
-                        >
-                          {idioma}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap break-words">
+              {membro.perfil_aliado}
+            </p>
           </div>
         )}
 

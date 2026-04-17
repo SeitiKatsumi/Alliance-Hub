@@ -101,8 +101,8 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
     return s.size;
   }, [membros]);
 
-  const estados = useMemo(() => {
-    const s = new Set(membros.map(m => m.estado).filter(Boolean));
+  const territoriosCount = useMemo(() => {
+    const s = new Set(membros.map(m => m.cidade).filter(Boolean));
     return s.size;
   }, [membros]);
 
@@ -147,7 +147,7 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
           <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Especialidades</p>
           <p className="text-xs font-semibold" style={{ color: "#D7BB7D99" }}>{especialidades}</p>
         </div>
-        <p className="text-[9px] text-brand-gold/30">{estados} estados · {withCoords.length} geolocalizados</p>
+        <p className="text-[9px] text-brand-gold/30">{territoriosCount} territórios · {withCoords.length} geolocalizados</p>
       </div>
 
       {/* Zoom controls */}
@@ -511,7 +511,7 @@ export default function VitrinePage() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
-  const [filterEstado, setFilterEstado] = useState("all");
+  const [filterTerritorio, setFilterTerritorio] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [form, setForm] = useState<CardForm>({
@@ -617,10 +617,10 @@ export default function VitrinePage() {
     return Array.from(set).sort();
   }, [membros]);
 
-  const estados = useMemo(() => {
+  const territorios = useMemo(() => {
     const set = new Set<string>();
-    membros.forEach(m => { if (m.estado) set.add(m.estado.toUpperCase()); });
-    return Array.from(set).sort();
+    membros.forEach(m => { if (m.cidade) set.add(m.cidade); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [membros]);
 
   const filtered = useMemo(() => {
@@ -631,17 +631,17 @@ export default function VitrinePage() {
       const q = search.toLowerCase();
       const matchSearch = !q || nome.includes(q) || empresa.includes(q) || esp.includes(q);
       const matchEsp = filterEspecialidade === "all" || m.especialidade === filterEspecialidade;
-      const matchEstado = filterEstado === "all" || (m.estado || "").toUpperCase() === filterEstado;
-      return matchSearch && matchEsp && matchEstado;
+      const matchTerritorio = filterTerritorio === "all" || (m.cidade || "") === filterTerritorio;
+      return matchSearch && matchEsp && matchTerritorio;
     });
-  }, [membros, search, filterEspecialidade, filterEstado]);
+  }, [membros, search, filterEspecialidade, filterTerritorio]);
 
-  const hasFilters = search || filterEspecialidade !== "all" || filterEstado !== "all";
+  const hasFilters = search || filterEspecialidade !== "all" || filterTerritorio !== "all";
 
   function clearFilters() {
     setSearch("");
     setFilterEspecialidade("all");
-    setFilterEstado("all");
+    setFilterTerritorio("all");
   }
 
   return (
@@ -734,14 +734,14 @@ export default function VitrinePage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterEstado} onValueChange={setFilterEstado}>
-          <SelectTrigger className="w-32 h-9 text-sm" data-testid="select-vitrine-estado">
-            <SelectValue placeholder="Estado" />
+        <Select value={filterTerritorio} onValueChange={setFilterTerritorio}>
+          <SelectTrigger className="w-40 h-9 text-sm" data-testid="select-vitrine-territorio">
+            <SelectValue placeholder="Território" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos estados</SelectItem>
-            {estados.map(e => (
-              <SelectItem key={e} value={e}>{e}</SelectItem>
+            <SelectItem value="all">Todos os territórios</SelectItem>
+            {territorios.map(t => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
             ))}
           </SelectContent>
         </Select>

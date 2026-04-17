@@ -799,7 +799,7 @@ export default function VitrinePage() {
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Nome / Razão Social">
+              <Field label="Nome">
                 <Input
                   value={form.nome}
                   onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}

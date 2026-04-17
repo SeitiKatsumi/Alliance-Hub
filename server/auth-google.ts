@@ -62,7 +62,7 @@ export function setupGoogleAuth(app: Express) {
 
         // 3. Create new user if not found
         if (!user) {
-          // Try to find matching Directus member
+          // Try to find matching Directus member by email
           let membroId: string | null = null;
           let memberNome = nome;
           if (email) {
@@ -82,6 +82,37 @@ export function setupGoogleAuth(app: Express) {
             } catch {}
           }
 
+          // If still no Directus member, create one automatically
+          if (!membroId) {
+            try {
+              const payload: Record<string, any> = {
+                nome: nome,
+                email: email || null,
+                tipo_de_cadastro: "Membro",
+                na_vitrine: false,
+              };
+              if (foto) payload.foto_perfil = foto;
+              const cr = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+              });
+              if (cr.ok) {
+                const cd = await cr.json();
+                membroId = cd.data?.id || null;
+                memberNome = nome;
+                console.log(`[google-auth] Created Directus member for ${email} → id=${membroId}`);
+              } else {
+                console.warn(`[google-auth] Failed to create Directus member: ${cr.status}`);
+              }
+            } catch (e) {
+              console.warn("[google-auth] Error creating Directus member:", e);
+            }
+          }
+
           const username = email
             ? email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() + "_" + Date.now().toString(36)
             : `google_${googleId.slice(0, 8)}`;
@@ -96,6 +127,56 @@ export function setupGoogleAuth(app: Express) {
             role: "user",
             ativo: true,
           } as any);
+        }
+
+        // If existing user has no membro_directus_id, try to link or create now
+        if (user && !user.membro_directus_id) {
+          let membroId: string | null = null;
+          const userEmail = user.email || email;
+          if (userEmail) {
+            try {
+              const qs = new URLSearchParams();
+              qs.set("filter[email][_eq]", userEmail);
+              qs.set("fields", "id,nome");
+              qs.set("limit", "1");
+              const r = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?${qs}`, {
+                headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+              });
+              if (r.ok) {
+                const d = await r.json();
+                const m = d.data?.[0];
+                if (m) membroId = m.id;
+              }
+            } catch {}
+          }
+          if (!membroId) {
+            try {
+              const payload: Record<string, any> = {
+                nome: user.nome || nome,
+                email: userEmail || null,
+                tipo_de_cadastro: "Membro",
+                na_vitrine: false,
+              };
+              if (foto) payload.foto_perfil = foto;
+              const cr = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+              });
+              if (cr.ok) {
+                const cd = await cr.json();
+                membroId = cd.data?.id || null;
+                console.log(`[google-auth] Created Directus member (retroactive) for ${userEmail} → id=${membroId}`);
+              }
+            } catch {}
+          }
+          if (membroId) {
+            await storage.updateUser(user.id, { membro_directus_id: membroId } as any);
+            user = { ...user, membro_directus_id: membroId };
+          }
         }
 
         // Set session (same structure as /api/login)

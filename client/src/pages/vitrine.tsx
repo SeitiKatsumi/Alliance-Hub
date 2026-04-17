@@ -842,8 +842,8 @@ export default function VitrinePage() {
                   </SelectTrigger>
                   <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
                     {RAMOS_SEGMENTOS.map(r => (
-                      <SelectItem key={r.ramo} value={r.ramo} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                        {r.ramo}
+                      <SelectItem key={r.codigo} value={r.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
+                        {r.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>

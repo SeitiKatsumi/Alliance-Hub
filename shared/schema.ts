@@ -57,6 +57,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   nome: text("nome").notNull(),
   email: text("email"),
+  google_id: text("google_id"),
   membro_directus_id: text("membro_directus_id"),
   role: text("role").notNull().default("user"),
   permissions: jsonb("permissions").$type<ModulePermissions>().notNull().default(DEFAULT_PERMISSIONS),

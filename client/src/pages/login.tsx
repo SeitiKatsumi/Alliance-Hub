@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Eye, EyeOff, LogIn, Shield, UserPlus } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
-  const { login, loginPending } = useAuth();
+  const { login, loginPending, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -20,6 +21,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  // Handle Google OAuth errors from redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "google_failed") {
+      setError("Falha ao autenticar com Google. Tente novamente.");
+      window.history.replaceState({}, "", "/login");
+    }
+  }, []);
+
+  // After Google OAuth redirect, session is set server-side — just refresh
+  useEffect(() => {
+    if (isAuthenticated) navigate("/");
+  }, [isAuthenticated]);
 
   // Register state
   const [regNome, setRegNome] = useState("");
@@ -182,6 +197,23 @@ export default function LoginPage() {
                     )}
                   </Button>
                 </form>
+                <div className="flex items-center gap-3 my-4 px-6">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-white/30 text-xs">ou</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+                <div className="px-6 pb-6">
+                  <Button
+                    type="button"
+                    data-testid="button-google-login"
+                    onClick={() => { window.location.href = "/auth/google"; }}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium h-10 gap-2"
+                    variant="ghost"
+                  >
+                    <SiGoogle className="w-4 h-4 text-[#EA4335]" />
+                    Entrar com Google
+                  </Button>
+                </div>
               </CardContent>
             </>
           ) : (

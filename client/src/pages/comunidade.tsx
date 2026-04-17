@@ -52,6 +52,41 @@ function abbrevTerritory(nome: string): string {
     nome.slice(0, 3).toUpperCase();
 }
 
+const COUNTRY_CODES: Record<string, string> = {
+  "brasil": "BR", "brazil": "BR",
+  "portugal": "PT",
+  "estados unidos": "US", "eua": "US", "usa": "US",
+  "argentina": "AR",
+  "chile": "CL",
+  "colombia": "CO",
+  "mexico": "MX", "méxico": "MX",
+  "peru": "PE",
+  "uruguai": "UY",
+  "paraguai": "PY",
+  "bolívia": "BO", "bolivia": "BO",
+  "espanha": "ES",
+  "alemanha": "DE",
+  "frança": "FR", "franca": "FR",
+  "itália": "IT", "italia": "IT",
+  "reino unido": "GB",
+  "canada": "CA", "canadá": "CA",
+  "austrália": "AU", "australia": "AU",
+  "japão": "JP", "japao": "JP",
+  "china": "CN",
+  "angola": "AO",
+  "moçambique": "MZ", "mocambique": "MZ",
+  "cabo verde": "CV",
+};
+
+function abbrevCountry(nome: string): string {
+  const key = nome.toLowerCase().trim();
+  if (COUNTRY_CODES[key]) return COUNTRY_CODES[key];
+  const words = nome.replace(/[^\w\s]/g, "").split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return words.map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  return nome.replace(/[aeiouAEIOU\s]/g, "").slice(0, 2).toUpperCase() ||
+    nome.slice(0, 2).toUpperCase();
+}
+
 function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
   open: boolean;
   onClose: () => void;
@@ -552,7 +587,11 @@ export default function ComunidadePage() {
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">País *</Label>
               <Input
                 value={form.pais || ""}
-                onChange={e => setForm(f => ({ ...f, pais: capitalizeWords(e.target.value) }))}
+                onChange={e => {
+                  const pais = capitalizeWords(e.target.value);
+                  const sigla_pais = pais.trim() ? abbrevCountry(pais) : "";
+                  setForm(f => ({ ...f, pais, sigla_pais }));
+                }}
                 placeholder="Ex: Brasil"
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                 data-testid="input-comunidade-pais"
@@ -564,7 +603,11 @@ export default function ComunidadePage() {
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">Território *</Label>
               <Input
                 value={form.territorio || ""}
-                onChange={e => setForm(f => ({ ...f, territorio: capitalizeWords(e.target.value) }))}
+                onChange={e => {
+                  const territorio = capitalizeWords(e.target.value);
+                  const sigla_territorio = territorio.trim() ? abbrevTerritory(territorio) : "";
+                  setForm(f => ({ ...f, territorio, sigla_territorio }));
+                }}
                 placeholder="Ex: Belo Horizonte"
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                 data-testid="input-comunidade-territorio"

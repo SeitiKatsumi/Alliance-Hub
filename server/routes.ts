@@ -2773,6 +2773,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
       if (!["termos_aceitos", "pagamento_pendente"].includes(convite.status)) return res.status(400).json({ error: "Termos ainda não foram aceitos" });
 
+      // Enforce payment window expiry
+      if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
+        return res.status(410).json({ error: "O prazo de 24h para confirmação de pagamento expirou. Reenvie o lembrete para reabrir o prazo." });
+      }
+
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?${COMUNIDADE_FIELDS}`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
@@ -2783,11 +2788,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode confirmar pagamentos" });
       }
 
-      await storage.updateConvite(convite.id, { status: "membro" });
-
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
 
-      // 1. Add BUILT_PROUD_MEMBER to Directus member field
+      // 1. Add BUILT_PROUD_MEMBER to Directus member field (must succeed before marking membro)
       const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
       if (candidatoData) {
         const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
@@ -2795,15 +2798,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           : [];
         if (!redesAtuais.includes("BUILT_PROUD_MEMBER")) {
           const patchUrl = `${DIRECTUS_URL}/items/cadastro_geral/${convite.candidato_membro_id}`;
-          await fetch(patchUrl, {
+          const badgePatch = await fetch(patchUrl, {
             method: "PATCH",
             headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({ Outras_redes_as_quais_pertenco: [...redesAtuais, "BUILT_PROUD_MEMBER"] }),
           });
+          if (!badgePatch.ok) {
+            const err = await badgePatch.text().catch(() => "");
+            console.error("[pagamento] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
+            return res.status(502).json({ error: "Falha ao atualizar badge no Directus. Tente novamente." });
+          }
         }
       }
 
-      // 2. Add member to community M2M in Directus
+      // 2. Add member to community M2M in Directus (must succeed before marking membro)
       const membrosPatch = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}`;
       const currentMembros = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
       const currentIds = currentMembros.map((m: any) => {
@@ -2813,11 +2821,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!currentIds.some((m: any) => m.cadastro_geral_id === convite.candidato_membro_id)) {
         currentIds.push({ cadastro_geral_id: convite.candidato_membro_id });
       }
-      await fetch(membrosPatch, {
+      const m2mPatch = await fetch(membrosPatch, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ membros: currentIds }),
       });
+      if (!m2mPatch.ok) {
+        const err = await m2mPatch.text().catch(() => "");
+        console.error("[pagamento] M2M membership update failed:", m2mPatch.status, err);
+        return res.status(502).json({ error: "Falha ao adicionar membro à comunidade no Directus. Tente novamente." });
+      }
+
+      // Only mark membro after both Directus updates succeed
+      await storage.updateConvite(convite.id, { status: "membro" });
 
       // 3. Send emails to all community members + aliado + BUILT admin
       const notifyEmails: string[] = [];

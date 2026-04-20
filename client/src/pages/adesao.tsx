@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, FileText, CheckCircle2, AlertCircle, Shield } from "lucide-react";
@@ -57,6 +57,7 @@ Ao aceitar estes termos, o Candidato declara ter lido, compreendido e concordado
 
 export default function AdesaoPage() {
   const { token } = useParams<{ token: string }>();
+  const [, navigate] = useLocation();
   const [accepted, setAccepted] = useState(false);
   const [checked, setChecked] = useState(false);
 
@@ -80,7 +81,11 @@ export default function AdesaoPage() {
       if (!r.ok) throw new Error("Erro ao registrar aceite");
       return r.json();
     },
-    onSuccess: () => setAccepted(true),
+    onSuccess: () => {
+      setAccepted(true);
+      // Redirect directly to payment page after terms acceptance
+      setTimeout(() => navigate(`/pagamento/${token}`), 1500);
+    },
   });
 
   if (isLoading) {

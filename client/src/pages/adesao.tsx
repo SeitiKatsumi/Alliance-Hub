@@ -82,9 +82,7 @@ export default function AdesaoPage() {
       return r.json();
     },
     onSuccess: () => {
-      setAccepted(true);
-      // Redirect directly to payment page after terms acceptance
-      setTimeout(() => navigate(`/pagamento/${token}`), 1500);
+      navigate(`/pagamento/${token}`);
     },
   });
 
@@ -112,16 +110,10 @@ export default function AdesaoPage() {
   const jaAceito = convite.status === "termos_aceitos" || convite.status === "pagamento_pendente" || convite.status === "membro";
 
   if (accepted || jaAceito) {
+    navigate(`/pagamento/${token}`);
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
-        <div className="text-center space-y-4 p-8 max-w-md">
-          <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto" />
-          <h2 className="text-xl font-bold font-mono text-white">Termos aceitos!</h2>
-          <p className="text-white/60 text-sm font-mono leading-relaxed">
-            Você aceitou os termos de adesão da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong>.
-            Verifique seu e-mail para as instruções de pagamento.
-          </p>
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
       </div>
     );
   }

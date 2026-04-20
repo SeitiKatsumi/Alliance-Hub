@@ -2359,8 +2359,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // Explicit fields list — excludes legacy aliado_id/membros_ids/bias_ids; expands M2O (aliado) and M2M (membros, bias)
   const COMUNIDADE_FIELDS =
     "fields=id,nome,sigla,pais,sigla_pais,territorio,sigla_territorio,codigo_sequencial,status,date_created," +
-    "aliado.id,aliado.nome,aliado.foto_perfil,aliado.cargo,aliado.empresa," +
-    "membros.cadastro_geral_id.id,membros.cadastro_geral_id.nome,membros.cadastro_geral_id.foto_perfil,membros.cadastro_geral_id.cargo,membros.cadastro_geral_id.empresa," +
+    "aliado.id,aliado.nome,aliado.email,aliado.foto_perfil,aliado.cargo,aliado.empresa," +
+    "membros.cadastro_geral_id.id,membros.cadastro_geral_id.nome,membros.cadastro_geral_id.email,membros.cadastro_geral_id.foto_perfil,membros.cadastro_geral_id.cargo,membros.cadastro_geral_id.empresa," +
     "bias.bias_projetos_id.id,bias.bias_projetos_id.nome_bia";
 
   // Convert frontend payload (aliado_id, membros_ids[], bias_ids[]) to Directus M2O/M2M format
@@ -2511,7 +2511,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     } catch { return null; }
   }
 
-  // POST /api/convites — create invite (authenticated)
+  // Helper: verify that the session user is the aliado of a community (or admin/manager)
+  function isCommunityManager(req: any, comunidade: any): boolean {
+    const sessionRole = (req.session as any).role || "user";
+    if (sessionRole === "admin" || sessionRole === "manager") return true;
+    const sessionMembroId = (req.session as any).membroId as string | null;
+    if (!sessionMembroId || !comunidade) return false;
+    const aliadoId = typeof comunidade.aliado === "object" && comunidade.aliado !== null
+      ? comunidade.aliado.id
+      : comunidade.aliado;
+    return aliadoId === sessionMembroId;
+  }
+
+  // POST /api/convites — create invite (authenticated, community aliado or admin)
   app.post("/api/convites", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
@@ -2530,6 +2542,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!cr.ok) return res.status(404).json({ error: "Comunidade não encontrada" });
       const comunidade = (await cr.json()).data;
+
+      // Authorization: only the aliado or admin can create invites for this community
+      if (!isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode enviar convites" });
+      }
 
       const invitadorMembro = invitadorId ? await getDirectusMembro(invitadorId) : null;
 
@@ -2566,6 +2583,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const { comunidade_id, candidato_membro_id } = req.query as any;
       let items;
       if (comunidade_id) {
+        // Authorization: only community aliado or admin can list candidates
+        const col = await getComunidadeCol();
+        const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,aliado.id`;
+        const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+        const comunidade = cr.ok ? (await cr.json()).data : null;
+        if (!isCommunityManager(req, comunidade)) {
+          return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode ver candidatos" });
+        }
         items = await storage.getConvitesByComunidade(comunidade_id);
       } else if (candidato_membro_id) {
         items = await storage.getConvitesByCandidato(candidato_membro_id);
@@ -2642,13 +2667,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const { decisao } = req.body; // "aprovado" | "rejeitado"
       if (!["aprovado", "rejeitado"].includes(decisao)) return res.status(400).json({ error: "decisao deve ser 'aprovado' ou 'rejeitado'" });
 
-      const updated = await storage.updateConvite(convite.id, { status: decisao });
-
-      // Get comunidade info for emails
+      // Get comunidade info for auth + emails
       const col = await getComunidadeCol();
-      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      // Authorization: only aliado or admin can approve/reject
+      if (!isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode aprovar ou rejeitar candidatos" });
+      }
+
+      const updated = await storage.updateConvite(convite.id, { status: decisao });
+
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
 
       if (decisao === "aprovado" && convite.candidato_email) {
@@ -2714,14 +2745,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     try {
       const convite = await storage.getConviteByToken(req.params.token);
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.status !== "termos_aceitos") return res.status(400).json({ error: "Termos ainda não foram aceitos" });
-
-      await storage.updateConvite(convite.id, { status: "membro" });
+      if (!["termos_aceitos", "pagamento_pendente"].includes(convite.status)) return res.status(400).json({ error: "Termos ainda não foram aceitos" });
 
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?${COMUNIDADE_FIELDS}`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      // Authorization: only aliado or admin can confirm payment
+      if (!isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode confirmar pagamentos" });
+      }
+
+      await storage.updateConvite(convite.id, { status: "membro" });
+
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
 
       // 1. Add BUILT_PROUD_MEMBER to Directus member field
@@ -2756,7 +2793,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         body: JSON.stringify({ membros: currentIds }),
       });
 
-      // 3. Send emails to all community members + aliado + admin
+      // 3. Send emails to all community members + aliado + BUILT admin
       const notifyEmails: string[] = [];
       if (candidatoData?.email) notifyEmails.push(candidatoData.email);
       const aliado = typeof comunidade?.aliado === "object" ? comunidade.aliado : null;
@@ -2766,6 +2803,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const mInfo = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id : null;
         if (mInfo?.email) notifyEmails.push(mInfo.email);
       }
+      // Include BUILT admin (SMTP_FROM address or ADMIN_EMAIL env var)
+      const adminEmail = process.env.ADMIN_EMAIL || (process.env.SMTP_FROM ? process.env.SMTP_FROM.replace(/.*<(.+)>/, "$1") : null);
+      if (adminEmail) notifyEmails.push(adminEmail);
       const uniqueEmails = [...new Set(notifyEmails)].filter(Boolean);
       if (uniqueEmails.length > 0) {
         await enviarNovoMembro({
@@ -2781,7 +2821,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites/:token/lembrete — send reminder email (authenticated)
+  // POST /api/convites/:token/lembrete — send reminder email (authenticated, aliado/admin)
   app.post("/api/convites/:token/lembrete", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
@@ -2789,9 +2829,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
 
       const col = await getComunidadeCol();
-      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      // Authorization: only aliado or admin can send reminders
+      if (!isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode enviar lembretes" });
+      }
 
       if (convite.candidato_email && ["aprovado", "termos_enviados"].includes(convite.status)) {
         await storage.updateConvite(convite.id, { status: "termos_enviados" });

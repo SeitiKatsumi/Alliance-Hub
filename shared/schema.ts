@@ -319,6 +319,7 @@ export const convitesComunidade = pgTable("convites_comunidade", {
   invitador_membro_id: text("invitador_membro_id"),
   status: text("status").notNull().default("convidado"),
   dados_contratuais: jsonb("dados_contratuais"),
+  expires_at: timestamp("expires_at"),
   criado_em: timestamp("criado_em").defaultNow(),
   atualizado_em: timestamp("atualizado_em").defaultNow(),
 });

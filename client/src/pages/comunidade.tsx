@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
@@ -536,6 +536,45 @@ export default function ComunidadePage() {
   const candidatosPendentes = todosCandidatos.filter(c => c.status === "candidato");
   const outrosConvites = todosCandidatos.filter(c => c.status !== "candidato" && c.status !== "convidado");
 
+  // ── Notificações de novos candidatos ──────────────────────────────
+  const prevCandidatosRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (minhasComunidadesComoAliado.length === 0) return;
+
+    // Request browser notification permission once
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, [minhasComunidadesComoAliado.length]);
+
+  useEffect(() => {
+    if (!convitesPorComunidade) return;
+    const novosIds = candidatosPendentes.map((c: any) => c.id as string);
+    const novos = novosIds.filter(id => !prevCandidatosRef.current.has(id));
+
+    if (prevCandidatosRef.current.size > 0 && novos.length > 0) {
+      // In-app toast
+      const nomes = novos.map(id => candidatosPendentes.find((c: any) => c.id === id)?.candidato_nome || "Novo candidato").join(", ");
+      toast({
+        title: `📋 ${novos.length === 1 ? "Novo candidato" : `${novos.length} novos candidatos`}`,
+        description: nomes,
+      });
+
+      // Browser notification (works even when tab is not focused)
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("BUILT Alliances — Novo candidato", {
+          body: `${nomes} aguarda sua decisão.`,
+          icon: "/favicon.ico",
+          tag: "built-candidato",
+        });
+      }
+    }
+
+    prevCandidatosRef.current = new Set(novosIds);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convitesPorComunidade]);
+
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     convidado: { label: "Convidado", color: "text-blue-400" },
     candidato: { label: "Aguardando decisão", color: "text-amber-400" },
@@ -916,16 +955,9 @@ export default function ComunidadePage() {
             <DialogContent className="max-w-lg border-brand-gold/15 text-white p-0 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
               {/* Header */}
               <div className="px-6 py-5 border-b border-white/5" style={{ background: "rgba(215,187,125,0.04)" }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest mb-1">Candidato</p>
-                    <h2 className="text-lg font-bold text-white font-mono">{sc.candidato_nome || dados?.nome_completo || "—"}</h2>
-                    <span className={`text-xs font-mono ${statusInfo.color}`}>{statusInfo.label}</span>
-                  </div>
-                  <button onClick={() => setSelectedConvite(null)} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors mt-0.5">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+                <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest mb-1">Candidato</p>
+                <h2 className="text-lg font-bold text-white font-mono">{sc.candidato_nome || dados?.nome_completo || "—"}</h2>
+                <span className={`text-xs font-mono ${statusInfo.color}`}>{statusInfo.label}</span>
               </div>
 
               <div className="px-6 py-5 space-y-5 max-h-[65vh] overflow-y-auto">

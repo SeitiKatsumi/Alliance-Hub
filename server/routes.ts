@@ -2550,6 +2550,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       const invitadorMembro = invitadorId ? await getDirectusMembro(invitadorId) : null;
 
+      // Convite expires in 7 days if candidate doesn't apply
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
       const convite = await storage.createConvite({
         comunidade_id,
         candidato_membro_id,
@@ -2558,6 +2562,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         invitador_membro_id: invitadorId || null,
         status: "convidado",
         dados_contratuais: null,
+        expires_at: expiresAt,
       });
 
       if (candidato.email) {
@@ -2593,7 +2598,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
         items = await storage.getConvitesByComunidade(comunidade_id);
       } else if (candidato_membro_id) {
-        items = await storage.getConvitesByCandidato(candidato_membro_id);
+        // Authorization: only the candidato themselves or admin can see their own invites
+        const sessionRole = (req.session as any).role || "user";
+        const sessionMembroId = (req.session as any).membroId as string | null;
+        if (sessionRole !== "admin" && sessionRole !== "manager" && sessionMembroId !== candidato_membro_id) {
+          return res.status(403).json({ error: "Não autorizado a ver convites de outro membro" });
+        }
+        // Return invites without dados_contratuais (PII) when querying own invites
+        const raw = await storage.getConvitesByCandidato(candidato_membro_id);
+        items = raw.map(({ dados_contratuais: _dc, ...rest }) => rest);
       } else {
         return res.status(400).json({ error: "Informe comunidade_id ou candidato_membro_id" });
       }
@@ -2627,6 +2640,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const convite = await storage.getConviteByToken(req.params.token);
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
       if (!["convidado"].includes(convite.status)) return res.status(400).json({ error: "Este convite não está mais disponível para candidatura" });
+      // Check expiration
+      if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
+        return res.status(410).json({ error: "Este convite expirou. Solicite um novo convite ao Aliado da comunidade." });
+      }
 
       const updated = await storage.updateConvite(convite.id, {
         status: "candidato",
@@ -2678,7 +2695,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode aprovar ou rejeitar candidatos" });
       }
 
-      const updated = await storage.updateConvite(convite.id, { status: decisao });
+      // When approving, give 72h for terms acceptance
+      const newExpiresAt = decisao === "aprovado" ? (() => { const d = new Date(); d.setHours(d.getHours() + 72); return d; })() : undefined;
+      const updated = await storage.updateConvite(convite.id, { status: decisao, ...(newExpiresAt ? { expires_at: newExpiresAt } : {}) });
 
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
 
@@ -2714,8 +2733,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const convite = await storage.getConviteByToken(req.params.token);
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
       if (!["aprovado", "termos_enviados"].includes(convite.status)) return res.status(400).json({ error: "Termos não disponíveis para aceite neste momento" });
+      // Check expiration
+      if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
+        return res.status(410).json({ error: "O prazo para aceitar os termos expirou. Entre em contato com o Aliado da comunidade." });
+      }
 
-      const updated = await storage.updateConvite(convite.id, { status: "termos_aceitos" });
+      // Give 24h for payment after accepting terms
+      const paymentExpiry = new Date();
+      paymentExpiry.setHours(paymentExpiry.getHours() + 24);
+      const updated = await storage.updateConvite(convite.id, { status: "termos_aceitos", expires_at: paymentExpiry });
 
       // Notify about payment
       const col = await getComunidadeCol();

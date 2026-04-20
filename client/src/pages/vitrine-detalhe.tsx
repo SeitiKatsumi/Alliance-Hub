@@ -160,7 +160,12 @@ export default function VitrineDetalhePage() {
 
   const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
   const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
-  const canInvite = !isMyCard && !isProudMember && minhasComunidades.length > 0 && !!membro?.id;
+  // Only communities where the current user is the aliado (can create invites)
+  const minhasComunidadesComoAliado = minhasComunidades.filter(c => {
+    const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
+    return aliadoId === user?.membro_directus_id;
+  });
+  const canInvite = !isMyCard && !isProudMember && minhasComunidadesComoAliado.length > 0 && !!membro?.id;
 
   if (isLoading) {
     return (
@@ -312,7 +317,7 @@ export default function VitrineDetalhePage() {
             )}
             {canInvite && (
               <button
-                onClick={() => { setConvidarOpen(true); setConviteEnviado(false); setComunidadeSelectedId(minhasComunidades.length === 1 ? minhasComunidades[0].id : ""); }}
+                onClick={() => { setConvidarOpen(true); setConviteEnviado(false); setComunidadeSelectedId(minhasComunidadesComoAliado.length === 1 ? minhasComunidadesComoAliado[0].id : ""); }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-mono border border-brand-gold/25 text-brand-gold hover:bg-brand-gold/10 transition-all"
                 style={{ background: "rgba(215,187,125,0.05)" }}
                 data-testid="btn-convidar-comunidade"
@@ -480,7 +485,7 @@ export default function VitrineDetalhePage() {
             </div>
           ) : (
             <>
-              {minhasComunidades.length > 1 && (
+              {minhasComunidadesComoAliado.length > 1 && (
                 <div className="space-y-2">
                   <p className="text-xs font-mono text-white/50">Selecione a comunidade para o convite:</p>
                   <Select value={comunidadeSelectedId} onValueChange={setComunidadeSelectedId}>
@@ -488,17 +493,17 @@ export default function VitrineDetalhePage() {
                       <SelectValue placeholder="Escolha uma comunidade..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {minhasComunidades.map(c => (
+                      {minhasComunidadesComoAliado.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.nome || c.id}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
-              {minhasComunidades.length === 1 && (
+              {minhasComunidadesComoAliado.length === 1 && (
                 <div className="rounded-lg border border-brand-gold/20 p-3" style={{ background: "rgba(215,187,125,0.05)" }}>
                   <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Comunidade</p>
-                  <p className="text-sm font-mono text-white mt-0.5">{minhasComunidades[0].nome}</p>
+                  <p className="text-sm font-mono text-white mt-0.5">{minhasComunidadesComoAliado[0].nome}</p>
                 </div>
               )}
               <DialogFooter>
@@ -507,11 +512,11 @@ export default function VitrineDetalhePage() {
                 </Button>
                 <Button
                   onClick={() => {
-                    const cId = comunidadeSelectedId || (minhasComunidades[0]?.id ?? "");
+                    const cId = comunidadeSelectedId || (minhasComunidadesComoAliado[0]?.id ?? "");
                     if (!cId || !membro?.id) return;
                     convidarMutation.mutate({ comunidade_id: cId, candidato_membro_id: membro.id });
                   }}
-                  disabled={convidarMutation.isPending || (!comunidadeSelectedId && minhasComunidades.length > 1)}
+                  disabled={convidarMutation.isPending || (!comunidadeSelectedId && minhasComunidadesComoAliado.length > 1)}
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
                   data-testid="btn-confirmar-convite"
                 >

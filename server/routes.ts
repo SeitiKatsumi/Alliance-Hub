@@ -1144,9 +1144,17 @@ export async function registerRoutes(
   app.patch("/api/membros/:id", async (req, res) => {
     if (!await requireCadastroOrOwn(req, res)) return;
     try {
-      const item = await directusUpdate("cadastro_geral", req.params.id, req.body);
+      // Strip client-side computed and relational fields that must not be sent to Directus as plain PATCH
+      // Especialidades is a M2M junction — sending the full junction object array breaks the update silently
+      const STRIP_FIELDS = ["Especialidades", "especialidades", "especialidade", "foto", "_nome", "cargo_computed"];
+      const payload = Object.fromEntries(
+        Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key))
+      );
+      console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(payload));
+      const item = await directusUpdate("cadastro_geral", req.params.id, payload);
       res.json(item);
     } catch (error: any) {
+      console.error(`[membros PATCH ${req.params.id}] error:`, error.message);
       res.status(500).json({ error: error.message });
     }
   });

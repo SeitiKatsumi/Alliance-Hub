@@ -8,6 +8,7 @@ import path from "path";
 import express from "express";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
+import { getStripeClient } from "./stripe";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -2926,6 +2927,219 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ========== STRIPE PAGAMENTO ==========
+
+  // POST /api/convites/:token/checkout — create Stripe Checkout Session (public, token is the auth)
+  app.post("/api/convites/:token/checkout", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (!["termos_aceitos", "pagamento_pendente"].includes(convite.status)) {
+        return res.status(400).json({ error: "Aceite os termos de adesão antes de pagar" });
+      }
+
+      // Enforce payment window expiry (same rule as the manual confirmation endpoint)
+      if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
+        return res.status(410).json({ error: "O prazo de pagamento expirou. Solicite um novo lembrete ao seu Aliado BUILT para reabrir o prazo." });
+      }
+
+      const stripe = getStripeClient();
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : null);
+      if (!rawDomain) {
+        console.error("[stripe/checkout] APP_URL and REPLIT_DOMAINS are both unset — cannot build redirect URLs");
+        return res.status(500).json({ error: "Configuração de URL ausente. Contate o suporte técnico." });
+      }
+      const baseUrl = rawDomain.replace(/\/$/, "");
+      const successUrl = `${baseUrl}/pagamento/${convite.token}?payment_success=true`;
+      const cancelUrl = `${baseUrl}/pagamento/${convite.token}`;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "brl",
+              unit_amount: 50000,
+              product_data: {
+                name: "Taxa de Adesão BUILT Alliances",
+                description: `Adesão à comunidade ${convite.candidato_nome ? "- " + convite.candidato_nome : ""}`.trim(),
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        customer_email: convite.candidato_email || undefined,
+        metadata: {
+          convite_token: convite.token,
+          convite_id: String(convite.id),
+          candidato_nome: convite.candidato_nome || "",
+          comunidade_id: convite.comunidade_id || "",
+        },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+
+      // Mark as pagamento_pendente if not already
+      if (convite.status === "termos_aceitos") {
+        await storage.updateConvite(convite.id, { status: "pagamento_pendente" });
+      }
+
+      if (!session.url) {
+        console.error("[stripe/checkout] Stripe session created but no URL returned for token:", convite.token);
+        return res.status(502).json({ error: "Erro ao obter link de pagamento. Tente novamente." });
+      }
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("[stripe/checkout] error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/stripe/webhook — handle Stripe webhook events
+  app.post("/api/stripe/webhook", async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!sig || !webhookSecret) {
+      console.error("[stripe/webhook] missing signature or webhook secret");
+      return res.status(400).json({ error: "Missing stripe signature or webhook secret" });
+    }
+
+    let event: any;
+    try {
+      const stripe = getStripeClient();
+      const rawBody = (req as any).rawBody as Buffer;
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    } catch (err: any) {
+      console.error("[stripe/webhook] signature verification failed:", err.message);
+      return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const token = session.metadata?.convite_token;
+
+      if (!token) {
+        console.error("[stripe/webhook] missing convite_token in metadata");
+        return res.status(200).json({ received: true });
+      }
+
+      // Validate payment is actually settled — guard against async payment methods
+      if (session.payment_status !== "paid") {
+        console.log("[stripe/webhook] session not yet paid (payment_status=%s), skipping activation for token: %s", session.payment_status, token);
+        return res.status(200).json({ received: true });
+      }
+
+      // Reconciliation guard: verify amount and currency match membership fee
+      if (session.amount_total !== 50000 || session.currency !== "brl") {
+        console.error("[stripe/webhook] amount/currency mismatch: amount_total=%s currency=%s token=%s", session.amount_total, session.currency, token);
+        return res.status(200).json({ received: true });
+      }
+
+      try {
+        const convite = await storage.getConviteByToken(token);
+        if (!convite) {
+          console.error("[stripe/webhook] convite not found for token:", token);
+          return res.status(200).json({ received: true });
+        }
+
+        // Idempotency: skip if already activated
+        if (convite.status === "membro") {
+          console.log("[stripe/webhook] convite already activated, skipping:", token);
+          return res.status(200).json({ received: true });
+        }
+
+        const col = await getComunidadeCol();
+
+        // 1. Add BUILT_PROUD_MEMBER badge in Directus (must succeed before marking membro)
+        const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
+        if (!candidatoData) {
+          console.error("[stripe/webhook] candidato not found in Directus:", convite.candidato_membro_id);
+          return res.status(500).json({ error: "Candidato não encontrado no Directus — webhook será re-tentado" });
+        }
+        const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
+          ? candidatoData.Outras_redes_as_quais_pertenco
+          : [];
+        if (!redesAtuais.includes("BUILT_PROUD_MEMBER")) {
+          const patchUrl = `${DIRECTUS_URL}/items/cadastro_geral/${convite.candidato_membro_id}`;
+          const badgePatch = await fetch(patchUrl, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ Outras_redes_as_quais_pertenco: [...redesAtuais, "BUILT_PROUD_MEMBER"] }),
+          });
+          if (!badgePatch.ok) {
+            const err = await badgePatch.text().catch(() => "");
+            console.error("[stripe/webhook] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
+            return res.status(502).json({ error: "Falha ao atualizar badge no Directus — webhook será re-tentado" });
+          }
+        }
+
+        // 2. Add member to community M2M in Directus (must succeed before marking membro)
+        const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?${COMUNIDADE_FIELDS}`;
+        const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+        if (!cr.ok) {
+          console.error("[stripe/webhook] failed to fetch comunidade:", cr.status);
+          return res.status(502).json({ error: "Falha ao buscar comunidade no Directus — webhook será re-tentado" });
+        }
+        const comunidade = (await cr.json()).data;
+        const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+        const membrosPatchUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}`;
+        const currentMembros = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+        const currentIds = currentMembros.map((m: any) => {
+          const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+          return id ? { cadastro_geral_id: id } : null;
+        }).filter(Boolean);
+        if (!currentIds.some((m: any) => m.cadastro_geral_id === convite.candidato_membro_id)) {
+          currentIds.push({ cadastro_geral_id: convite.candidato_membro_id });
+        }
+        const m2mPatch = await fetch(membrosPatchUrl, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ membros: currentIds }),
+        });
+        if (!m2mPatch.ok) {
+          const err = await m2mPatch.text().catch(() => "");
+          console.error("[stripe/webhook] M2M membership update failed:", m2mPatch.status, err);
+          return res.status(502).json({ error: "Falha ao adicionar membro à comunidade no Directus — webhook será re-tentado" });
+        }
+
+        // 3. Only mark as membro after both Directus updates succeed
+        await storage.updateConvite(convite.id, { status: "membro" });
+        console.log("[stripe/webhook] convite activated:", token);
+
+        // 4. Send welcome emails (non-blocking — failure does not abort activation)
+        const notifyEmails: string[] = [];
+        if (candidatoData?.email) notifyEmails.push(candidatoData.email);
+        const aliado = typeof comunidade?.aliado === "object" ? comunidade?.aliado : null;
+        if (aliado?.email) notifyEmails.push(aliado.email);
+        const allMembrosComunidade: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+        for (const m of allMembrosComunidade) {
+          const mInfo = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id : null;
+          if (mInfo?.email) notifyEmails.push(mInfo.email);
+        }
+        const adminEmail = process.env.ADMIN_EMAIL || (process.env.SMTP_FROM ? process.env.SMTP_FROM.replace(/.*<(.+)>/, "$1") : null);
+        if (adminEmail) notifyEmails.push(adminEmail);
+        const uniqueEmails = [...new Set(notifyEmails)].filter(Boolean);
+        if (uniqueEmails.length > 0) {
+          enviarNovoMembro({
+            emails: uniqueEmails,
+            novoMembroNome: convite.candidato_nome || "Novo Membro",
+            comunidadeNome,
+          }).catch((emailErr: any) => {
+            console.error("[stripe/webhook] email send failed (non-fatal):", emailErr.message);
+          });
+        }
+      } catch (err: any) {
+        console.error("[stripe/webhook] processing error:", err.message);
+        return res.status(500).json({ error: "Erro interno ao processar webhook — será re-tentado" });
+      }
+    }
+
+    res.status(200).json({ received: true });
   });
 
   return httpServer;

@@ -32,6 +32,9 @@ import ComunidadePage from "@/pages/comunidade";
 import ComunidadeDetalhePage from "@/pages/comunidade-detalhe";
 import BuiltCapitalPage from "@/pages/built-capital";
 import LoginPage from "@/pages/login";
+import ConvitePage from "@/pages/convite";
+import AdesaoPage from "@/pages/adesao";
+import PagamentoPage from "@/pages/pagamento";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,7 +136,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <ProtectedApp />
+        <Switch>
+          <Route path="/convite/:token" component={ConvitePage} />
+          <Route path="/adesao/:token" component={AdesaoPage} />
+          <Route path="/pagamento/:token" component={PagamentoPage} />
+          <Route component={ProtectedApp} />
+        </Switch>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

@@ -8,7 +8,7 @@ import { useLocation, useSearch } from "wouter";
 import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
-  Navigation, Globe
+  Navigation, Globe, UserCheck, UserX, Bell, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -482,6 +482,69 @@ export default function ComunidadePage() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Communities where the current user is the Aliado BUILT
+  const minhasComunidadesComoAliado = comunidades.filter(c => {
+    const aId = typeof c.aliado === "string" ? c.aliado : (c.aliado as any)?.id;
+    return aId && aId === user?.membro_directus_id;
+  });
+
+  // Fetch convites for all communities where user is Aliado BUILT
+  const { data: convitesPorComunidade } = useQuery<Record<string, any[]>>({
+    queryKey: ["/api/convites/aliado", user?.membro_directus_id, minhasComunidadesComoAliado.map(c => c.id).join(",")],
+    queryFn: async () => {
+      const result: Record<string, any[]> = {};
+      for (const com of minhasComunidadesComoAliado) {
+        const r = await fetch(`/api/convites?comunidade_id=${com.id}`);
+        if (r.ok) result[com.id] = await r.json();
+      }
+      return result;
+    },
+    enabled: minhasComunidadesComoAliado.length > 0,
+    refetchInterval: 30000,
+  });
+
+  const decisaoMutation = useMutation({
+    mutationFn: ({ token, decisao }: { token: string; decisao: string }) =>
+      apiRequest("PATCH", `/api/convites/${token}/decisao`, { decisao }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
+      toast({ title: "Decisão registrada com sucesso!" });
+    },
+    onError: () => toast({ title: "Erro ao processar decisão", variant: "destructive" }),
+  });
+
+  const confirmarPagamentoMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest("PATCH", `/api/convites/${token}/pagamento`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
+      toast({ title: "Pagamento confirmado! Membro ativado." });
+    },
+    onError: () => toast({ title: "Erro ao confirmar pagamento", variant: "destructive" }),
+  });
+
+  const lembretesMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest("POST", `/api/convites/${token}/lembrete`, {}),
+    onSuccess: () => toast({ title: "Lembrete enviado!" }),
+    onError: () => toast({ title: "Erro ao enviar lembrete", variant: "destructive" }),
+  });
+
+  const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
+  const candidatosPendentes = todosCandidatos.filter(c => c.status === "candidato");
+  const outrosConvites = todosCandidatos.filter(c => c.status !== "candidato" && c.status !== "convidado");
+
+  const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    convidado: { label: "Convidado", color: "text-blue-400" },
+    candidato: { label: "Aguardando decisão", color: "text-amber-400" },
+    aprovado: { label: "Aprovado", color: "text-green-400" },
+    rejeitado: { label: "Rejeitado", color: "text-red-400" },
+    termos_enviados: { label: "Termos enviados", color: "text-purple-400" },
+    termos_aceitos: { label: "Termos aceitos", color: "text-cyan-400" },
+    pagamento_pendente: { label: "Pagamento pendente", color: "text-amber-400" },
+    membro: { label: "Membro ativo", color: "text-emerald-400" },
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -517,6 +580,100 @@ export default function ComunidadePage() {
           data-testid="input-busca-comunidade"
         />
       </div>
+
+      {/* Candidatos Panel — visible only to Aliados BUILT */}
+      {minhasComunidadesComoAliado.length > 0 && todosCandidatos.length > 0 && (
+        <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
+            <Bell className="w-4 h-4 text-brand-gold" />
+            <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Candidatos & Convites</span>
+            {candidatosPendentes.length > 0 && (
+              <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                {candidatosPendentes.length} pendente{candidatosPendentes.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <div className="divide-y divide-white/5">
+            {todosCandidatos.map(convite => {
+              const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/50" };
+              const dados = convite.dados_contratuais as any;
+              return (
+                <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-mono font-bold text-white">
+                        {convite.candidato_nome || dados?.nome_completo || "—"}
+                      </p>
+                      <span className={`text-[10px] font-mono ${statusInfo.color}`}>
+                        • {statusInfo.label}
+                      </span>
+                    </div>
+                    {convite.candidato_email && (
+                      <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
+                    )}
+                    {dados && (
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {dados.cpf_cnpj && <span className="text-[10px] font-mono text-white/30">CPF/CNPJ: {dados.cpf_cnpj}</span>}
+                        {dados.telefone && <span className="text-[10px] font-mono text-white/30">Tel: {dados.telefone}</span>}
+                        {dados.cidade && <span className="text-[10px] font-mono text-white/30">📍 {dados.cidade}, {dados.estado}</span>}
+                      </div>
+                    )}
+                    {dados?.mensagem && (
+                      <p className="text-[11px] font-mono text-white/50 italic mt-1 leading-relaxed">"{dados.mensagem}"</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    {convite.status === "candidato" && (
+                      <>
+                        <button
+                          onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "aprovado" })}
+                          disabled={decisaoMutation.isPending}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                          data-testid={`btn-aprovar-${convite.id}`}
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Aprovar
+                        </button>
+                        <button
+                          onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "rejeitado" })}
+                          disabled={decisaoMutation.isPending}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                          data-testid={`btn-rejeitar-${convite.id}`}
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                          Rejeitar
+                        </button>
+                      </>
+                    )}
+                    {["aprovado", "termos_enviados"].includes(convite.status) && (
+                      <button
+                        onClick={() => lembretesMutation.mutate(convite.token)}
+                        disabled={lembretesMutation.isPending}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
+                        data-testid={`btn-lembrete-${convite.id}`}
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        Reenviar Termos
+                      </button>
+                    )}
+                    {convite.status === "termos_aceitos" && (
+                      <button
+                        onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
+                        disabled={confirmarPagamentoMutation.isPending}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                        data-testid={`btn-confirmar-pagamento-${convite.id}`}
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        Confirmar Pagamento
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* List */}
       {isLoading ? (

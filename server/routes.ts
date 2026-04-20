@@ -2489,5 +2489,333 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // ========== CONVITES COMUNIDADE ==========
+  const {
+    enviarConvite,
+    notificarAliadoCandidatura,
+    enviarAprovacao,
+    enviarRejeicao,
+    enviarTermos,
+    enviarPagamento,
+    enviarNovoMembro,
+  } = await import("./mailer");
+
+  // Helper: get Directus member info by membro_id
+  async function getDirectusMembro(membroId: string) {
+    try {
+      const url = `${DIRECTUS_URL}/items/cadastro_geral/${membroId}?fields=id,nome,email,Outras_redes_as_quais_pertenco`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!r.ok) return null;
+      const d = await r.json();
+      return d.data || null;
+    } catch { return null; }
+  }
+
+  // POST /api/convites — create invite (authenticated)
+  app.post("/api/convites", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { comunidade_id, candidato_membro_id } = req.body;
+      if (!comunidade_id || !candidato_membro_id) return res.status(400).json({ error: "Campos obrigatórios: comunidade_id, candidato_membro_id" });
+
+      const invitadorId = (req.session as any).membroId;
+
+      // Get candidato info from Directus
+      const candidato = await getDirectusMembro(candidato_membro_id);
+      if (!candidato) return res.status(404).json({ error: "Membro candidato não encontrado" });
+
+      // Get comunidade info
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!cr.ok) return res.status(404).json({ error: "Comunidade não encontrada" });
+      const comunidade = (await cr.json()).data;
+
+      const invitadorMembro = invitadorId ? await getDirectusMembro(invitadorId) : null;
+
+      const convite = await storage.createConvite({
+        comunidade_id,
+        candidato_membro_id,
+        candidato_nome: candidato.nome || null,
+        candidato_email: candidato.email || null,
+        invitador_membro_id: invitadorId || null,
+        status: "convidado",
+        dados_contratuais: null,
+      });
+
+      if (candidato.email) {
+        await enviarConvite({
+          candidatoEmail: candidato.email,
+          candidatoNome: candidato.nome || "Candidato",
+          comunidadeNome: comunidade.nome || "Comunidade BUILT",
+          invitadorNome: invitadorMembro?.nome || "Membro BUILT",
+          token: convite.token,
+        });
+      }
+
+      res.json(convite);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/convites — list (by comunidade_id or candidato) (authenticated)
+  app.get("/api/convites", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { comunidade_id, candidato_membro_id } = req.query as any;
+      let items;
+      if (comunidade_id) {
+        items = await storage.getConvitesByComunidade(comunidade_id);
+      } else if (candidato_membro_id) {
+        items = await storage.getConvitesByCandidato(candidato_membro_id);
+      } else {
+        return res.status(400).json({ error: "Informe comunidade_id ou candidato_membro_id" });
+      }
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/convites/:token — get convite (public)
+  app.get("/api/convites/:token", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+
+      // Get comunidade info
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,sigla,pais,territorio,aliado.id,aliado.nome,aliado.foto_perfil`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      res.json({ ...convite, comunidade });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/convites/:token/candidatura — submit form (public)
+  app.post("/api/convites/:token/candidatura", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (!["convidado"].includes(convite.status)) return res.status(400).json({ error: "Este convite não está mais disponível para candidatura" });
+
+      const updated = await storage.updateConvite(convite.id, {
+        status: "candidato",
+        dados_contratuais: req.body as any,
+      });
+
+      // Get comunidade + aliado info to notify
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+      const aliado = comunidade?.aliado;
+
+      if (aliado?.email) {
+        await notificarAliadoCandidatura({
+          aliadoEmail: aliado.email,
+          aliadoNome: aliado.nome || "Aliado",
+          candidatoNome: convite.candidato_nome || req.body.nome_completo || "Candidato",
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          comunidadeId: convite.comunidade_id,
+        });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/convites/:token/decisao — approve/reject (authenticated, aliado/admin)
+  app.patch("/api/convites/:token/decisao", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
+
+      const { decisao } = req.body; // "aprovado" | "rejeitado"
+      if (!["aprovado", "rejeitado"].includes(decisao)) return res.status(400).json({ error: "decisao deve ser 'aprovado' ou 'rejeitado'" });
+
+      const updated = await storage.updateConvite(convite.id, { status: decisao });
+
+      // Get comunidade info for emails
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+      const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+
+      if (decisao === "aprovado" && convite.candidato_email) {
+        await enviarAprovacao({
+          candidatoEmail: convite.candidato_email,
+          candidatoNome: convite.candidato_nome || "Candidato",
+          comunidadeNome,
+          token: convite.token,
+        });
+      } else if (decisao === "rejeitado") {
+        if (convite.candidato_email) {
+          const invitador = convite.invitador_membro_id ? await getDirectusMembro(convite.invitador_membro_id) : null;
+          await enviarRejeicao({
+            candidatoEmail: convite.candidato_email,
+            candidatoNome: convite.candidato_nome || "Candidato",
+            comunidadeNome,
+            invitadorEmail: invitador?.email,
+            invitadorNome: invitador?.nome,
+          });
+        }
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/convites/:token/adesao — accept terms (public)
+  app.patch("/api/convites/:token/adesao", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (!["aprovado", "termos_enviados"].includes(convite.status)) return res.status(400).json({ error: "Termos não disponíveis para aceite neste momento" });
+
+      const updated = await storage.updateConvite(convite.id, { status: "termos_aceitos" });
+
+      // Notify about payment
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      if (convite.candidato_email) {
+        await enviarPagamento({
+          candidatoEmail: convite.candidato_email,
+          candidatoNome: convite.candidato_nome || "Candidato",
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          token: convite.token,
+          valor: "R$ 500,00",
+        });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/convites/:token/pagamento — confirm payment & activate member (authenticated, aliado/admin)
+  app.patch("/api/convites/:token/pagamento", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.status !== "termos_aceitos") return res.status(400).json({ error: "Termos ainda não foram aceitos" });
+
+      await storage.updateConvite(convite.id, { status: "membro" });
+
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?${COMUNIDADE_FIELDS}`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+      const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+
+      // 1. Add BUILT_PROUD_MEMBER to Directus member field
+      const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
+      if (candidatoData) {
+        const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
+          ? candidatoData.Outras_redes_as_quais_pertenco
+          : [];
+        if (!redesAtuais.includes("BUILT_PROUD_MEMBER")) {
+          const patchUrl = `${DIRECTUS_URL}/items/cadastro_geral/${convite.candidato_membro_id}`;
+          await fetch(patchUrl, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ Outras_redes_as_quais_pertenco: [...redesAtuais, "BUILT_PROUD_MEMBER"] }),
+          });
+        }
+      }
+
+      // 2. Add member to community M2M in Directus
+      const membrosPatch = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}`;
+      const currentMembros = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+      const currentIds = currentMembros.map((m: any) => {
+        const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+        return id ? { cadastro_geral_id: id } : null;
+      }).filter(Boolean);
+      if (!currentIds.some((m: any) => m.cadastro_geral_id === convite.candidato_membro_id)) {
+        currentIds.push({ cadastro_geral_id: convite.candidato_membro_id });
+      }
+      await fetch(membrosPatch, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ membros: currentIds }),
+      });
+
+      // 3. Send emails to all community members + aliado + admin
+      const notifyEmails: string[] = [];
+      if (candidatoData?.email) notifyEmails.push(candidatoData.email);
+      const aliado = typeof comunidade?.aliado === "object" ? comunidade.aliado : null;
+      if (aliado?.email) notifyEmails.push(aliado.email);
+      const allMembrosComunidade: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+      for (const m of allMembrosComunidade) {
+        const mInfo = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id : null;
+        if (mInfo?.email) notifyEmails.push(mInfo.email);
+      }
+      const uniqueEmails = [...new Set(notifyEmails)].filter(Boolean);
+      if (uniqueEmails.length > 0) {
+        await enviarNovoMembro({
+          emails: uniqueEmails,
+          novoMembroNome: convite.candidato_nome || "Novo Membro",
+          comunidadeNome,
+        });
+      }
+
+      res.json({ success: true, comunidadeNome, candidatoNome: convite.candidato_nome });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/convites/:token/lembrete — send reminder email (authenticated)
+  app.post("/api/convites/:token/lembrete", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      if (convite.candidato_email && ["aprovado", "termos_enviados"].includes(convite.status)) {
+        await storage.updateConvite(convite.id, { status: "termos_enviados" });
+        await enviarTermos({
+          candidatoEmail: convite.candidato_email,
+          candidatoNome: convite.candidato_nome || "Candidato",
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          token: convite.token,
+        });
+      } else if (convite.candidato_email && convite.status === "termos_aceitos") {
+        await enviarPagamento({
+          candidatoEmail: convite.candidato_email,
+          candidatoNome: convite.candidato_nome || "Candidato",
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          token: convite.token,
+          valor: "R$ 500,00",
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

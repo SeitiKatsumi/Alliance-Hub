@@ -1,14 +1,24 @@
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useState } from "react";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
-  User, Globe, MessageSquare, Store, ExternalLink, Languages, Pencil
+  User, Globe, MessageSquare, Store, ExternalLink, Languages, Pencil,
+  UserPlus, Loader2, CheckCircle2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
 import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
   BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
@@ -97,15 +107,43 @@ function InfoRow({ icon: Icon, label, value, href }: {
   );
 }
 
+interface MinhasComunidades {
+  id: string;
+  nome?: string;
+  aliado?: { id: string } | string | null;
+  membros?: { cadastro_geral_id: { id: string } | string | null }[];
+}
+
 export default function VitrineDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [convidarOpen, setConvidarOpen] = useState(false);
+  const [comunidadeSelectedId, setComunidadeSelectedId] = useState("");
+  const [conviteEnviado, setConviteEnviado] = useState(false);
 
   const { data: membro, isLoading } = useQuery<MembroDetalhe>({
     queryKey: ["/api/vitrine", id],
     queryFn: () => fetch(`/api/vitrine/${id}`).then(r => r.json()),
     enabled: !!id,
+  });
+
+  const membroDirectusId = user?.membro_directus_id;
+  const { data: minhasComunidades = [] } = useQuery<MinhasComunidades[]>({
+    queryKey: ["/api/comunidades", { membro_id: membroDirectusId }],
+    queryFn: () => fetch(`/api/comunidades?membro_id=${membroDirectusId}`).then(r => r.json()),
+    enabled: !!membroDirectusId,
+  });
+
+  const convidarMutation = useMutation({
+    mutationFn: (data: { comunidade_id: string; candidato_membro_id: string }) =>
+      apiRequest("POST", "/api/convites", data),
+    onSuccess: () => {
+      setConviteEnviado(true);
+      toast({ title: "Convite enviado com sucesso!" });
+    },
+    onError: () => toast({ title: "Erro ao enviar convite", variant: "destructive" }),
   });
 
   const foto = fotoUrl(membro?.foto_perfil);
@@ -119,6 +157,10 @@ export default function VitrineDetalhePage() {
   const redes = REDE_ORDER.filter(r => (membro?.Outras_redes_as_quais_pertenco || []).includes(r) && REDE_BADGES[r]);
   const localidade = [membro?.cidade, membro?.estado?.toUpperCase(), membro?.pais]
     .filter(Boolean).join(", ");
+
+  const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
+  const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
+  const canInvite = !isMyCard && !isProudMember && minhasComunidades.length > 0 && !!membro?.id;
 
   if (isLoading) {
     return (
@@ -148,8 +190,6 @@ export default function VitrineDetalhePage() {
       </div>
     );
   }
-
-  const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
 
   return (
     <div className="min-h-screen bg-white">
@@ -269,6 +309,17 @@ export default function VitrineDetalhePage() {
                 <Mail className="w-4 h-4" />
                 Enviar e-mail
               </a>
+            )}
+            {canInvite && (
+              <button
+                onClick={() => { setConvidarOpen(true); setConviteEnviado(false); setComunidadeSelectedId(minhasComunidades.length === 1 ? minhasComunidades[0].id : ""); }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-mono border border-brand-gold/25 text-brand-gold hover:bg-brand-gold/10 transition-all"
+                style={{ background: "rgba(215,187,125,0.05)" }}
+                data-testid="btn-convidar-comunidade"
+              >
+                <UserPlus className="w-4 h-4" />
+                Convidar para Comunidade
+              </button>
             )}
           </div>
         </div>
@@ -407,6 +458,71 @@ export default function VitrineDetalhePage() {
         )}
 
       </div>
+
+      {/* Invite Dialog */}
+      <Dialog open={convidarOpen} onOpenChange={o => { if (!o) setConvidarOpen(false); }}>
+        <DialogContent className="max-w-md" style={{ background: "#001428", border: "1px solid rgba(215,187,125,0.2)" }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-mono text-brand-gold">
+              <UserPlus className="w-5 h-5" />
+              Convidar para Comunidade
+            </DialogTitle>
+            <DialogDescription className="text-white/40 text-xs">
+              Envie um convite para <strong className="text-white/60">{nome}</strong> entrar em uma Comunidade BUILT.
+            </DialogDescription>
+          </DialogHeader>
+
+          {conviteEnviado ? (
+            <div className="py-6 text-center space-y-3">
+              <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto" />
+              <p className="text-sm font-mono text-white">Convite enviado com sucesso!</p>
+              <p className="text-xs font-mono text-white/50">{nome} receberá um e-mail com o link de candidatura.</p>
+            </div>
+          ) : (
+            <>
+              {minhasComunidades.length > 1 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-mono text-white/50">Selecione a comunidade para o convite:</p>
+                  <Select value={comunidadeSelectedId} onValueChange={setComunidadeSelectedId}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-comunidade-convite">
+                      <SelectValue placeholder="Escolha uma comunidade..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {minhasComunidades.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome || c.id}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {minhasComunidades.length === 1 && (
+                <div className="rounded-lg border border-brand-gold/20 p-3" style={{ background: "rgba(215,187,125,0.05)" }}>
+                  <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Comunidade</p>
+                  <p className="text-sm font-mono text-white mt-0.5">{minhasComunidades[0].nome}</p>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setConvidarOpen(false)} className="text-white/50 hover:text-white">
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => {
+                    const cId = comunidadeSelectedId || (minhasComunidades[0]?.id ?? "");
+                    if (!cId || !membro?.id) return;
+                    convidarMutation.mutate({ comunidade_id: cId, candidato_membro_id: membro.id });
+                  }}
+                  disabled={convidarMutation.isPending || (!comunidadeSelectedId && minhasComunidades.length > 1)}
+                  className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+                  data-testid="btn-confirmar-convite"
+                >
+                  {convidarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  Enviar Convite
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

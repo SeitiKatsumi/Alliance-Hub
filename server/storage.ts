@@ -9,6 +9,7 @@ import {
   oportunidades, type Oportunidade, type InsertOportunidade,
   transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
   opaInteresses, type OpaInteresse, type InsertOpaInteresse,
+  convitesComunidade, type ConviteComunidade, type InsertConviteComunidade,
 } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -76,6 +77,12 @@ export interface IStorage {
   getUserInteresseByOpa(opaId: string, userId: string): Promise<OpaInteresse | undefined>;
   createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse>;
   deleteOpaInteresse(opaId: string, userId: string): Promise<boolean>;
+
+  createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade>;
+  getConviteByToken(token: string): Promise<ConviteComunidade | undefined>;
+  getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]>;
+  getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]>;
+  updateConvite(id: string, data: Partial<ConviteComunidade>): Promise<ConviteComunidade | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -330,6 +337,44 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(opaInteresses.opa_id, opaId), eq(opaInteresses.user_id, userId)))
       .returning();
     return result.length > 0;
+  }
+
+  async createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade> {
+    const [item] = await db.insert(convitesComunidade).values(data).returning();
+    return item;
+  }
+
+  async getConviteByToken(token: string): Promise<ConviteComunidade | undefined> {
+    const [item] = await db
+      .select()
+      .from(convitesComunidade)
+      .where(eq(convitesComunidade.token, token));
+    return item;
+  }
+
+  async getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]> {
+    return db
+      .select()
+      .from(convitesComunidade)
+      .where(eq(convitesComunidade.comunidade_id, comunidadeId))
+      .orderBy(desc(convitesComunidade.criado_em));
+  }
+
+  async getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]> {
+    return db
+      .select()
+      .from(convitesComunidade)
+      .where(eq(convitesComunidade.candidato_membro_id, candidatoMembroId))
+      .orderBy(desc(convitesComunidade.criado_em));
+  }
+
+  async updateConvite(id: string, data: Partial<ConviteComunidade>): Promise<ConviteComunidade | undefined> {
+    const [item] = await db
+      .update(convitesComunidade)
+      .set({ ...data, atualizado_em: new Date() })
+      .where(eq(convitesComunidade.id, id))
+      .returning();
+    return item;
   }
 }
 

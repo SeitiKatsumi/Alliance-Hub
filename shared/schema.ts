@@ -309,3 +309,27 @@ export const insertTransferenciaCotasSchema = createInsertSchema(transferenciasC
 export type InsertTransferenciaCotas = z.infer<typeof insertTransferenciaCotasSchema>;
 export type TransferenciaCotas = typeof transferenciasCotas.$inferSelect;
 
+export const convitesComunidade = pgTable("convites_comunidade", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique().default(sql`gen_random_uuid()`),
+  comunidade_id: text("comunidade_id").notNull(),
+  candidato_membro_id: text("candidato_membro_id").notNull(),
+  candidato_nome: text("candidato_nome"),
+  candidato_email: text("candidato_email"),
+  invitador_membro_id: text("invitador_membro_id"),
+  status: text("status").notNull().default("convidado"),
+  dados_contratuais: jsonb("dados_contratuais"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  atualizado_em: timestamp("atualizado_em").defaultNow(),
+});
+
+export const insertConviteComunidadeSchema = createInsertSchema(convitesComunidade).omit({
+  id: true,
+  token: true,
+  criado_em: true,
+  atualizado_em: true,
+});
+
+export type InsertConviteComunidade = z.infer<typeof insertConviteComunidadeSchema>;
+export type ConviteComunidade = typeof convitesComunidade.$inferSelect;
+

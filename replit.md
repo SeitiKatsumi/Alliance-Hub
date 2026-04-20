@@ -47,6 +47,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Tables
 - **users**: id (uuid), username, password (hashed), nome, email, membro_directus_id, role, permissions (jsonb), ativo, created_at
+- **convites_comunidade**: id (uuid PK), token (uuid unique), comunidade_id (text), candidato_membro_id (text), candidato_nome, candidato_email, invitador_membro_id, status (convidado/candidato/aprovado/rejeitado/termos_enviados/termos_aceitos/membro), dados_contratuais (jsonb), criado_em, atualizado_em
 - **membros**: id (uuid), nome, email, telefone, whatsapp, cidade, estado, empresa, cargo, created_at
 - **bias_projetos**: id (uuid), nome_bia, objetivo_alianca, observacoes, localizacao, role FKs (autor_bia, aliado_built, diretor_alianca, diretor_execucao, diretor_comercial, diretor_capital), financial fields (valor_origem, divisor_multiplicador, perc_*/cpp_* pairs, custo_origem_bia, custo_final_previsto, valor_realizado_venda, comissao_prevista_corretor, ir_previsto, resultado_liquido, lucro_previsto), created_at
 - **fluxo_caixa**: id (uuid), bia_id (FK), tipo (entrada/saida), valor (decimal), data (date), descricao, membro_responsavel_id (FK→membros), categoria_id (FK→categorias), tipo_cpp_id (FK→tipos_cpp), favorecido_id (FK→membros), anexos (text[]), created_at
@@ -93,6 +94,15 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
   "Favorecido": [{ "id": "uuid", "nome": "..." }]
 }
 ```
+
+## Convites & Adesão às Comunidades
+- Fluxo de adesão: convidado → candidato → aprovado/rejeitado → termos_enviados → termos_aceitos → membro
+- **Backend**: `server/mailer.ts` com 7 funções de e-mail via nodemailer (SMTP env vars); storage methods em `server/storage.ts`; 7 endpoints REST em `server/routes.ts`
+- **Endpoints**: `POST /api/convites`, `GET /api/convites?comunidade_id=X`, `POST /api/convites/:token/candidatura` (público), `PATCH /api/convites/:token/decisao`, `POST /api/convites/:token/termos`, `PATCH /api/convites/:token/pagamento` (ativa BUILT_PROUD_MEMBER no Directus + M2M), `POST /api/convites/:token/lembrete`
+- **Páginas públicas** (sem auth): `/convite/:token` (form candidatura), `/adesao/:token` (termos c/ checkbox), `/pagamento/:token` (PIX R$ 500 manual)
+- **Vitrine**: botão "Convidar para Comunidade" em `vitrine-detalhe.tsx` (visível quando user tem comunidade E perfil visitado não é BUILT_PROUD_MEMBER)
+- **Comunidade**: painel "Candidatos" em `comunidade.tsx` para Aliado BUILT com ações Aprovar/Rejeitar/Reenviar Termos/Confirmar Pagamento
+- Pagamento: PIX manual (chave `financeiro@builtalliances.com`), confirmação manual pelo Aliado no painel
 
 ## Geolocation (BIAs)
 - `latitude` and `longitude` fields are created in Directus `bias_projetos` at server startup via `ensureBiasGeoFields()`

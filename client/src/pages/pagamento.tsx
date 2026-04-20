@@ -96,9 +96,10 @@ export default function PagamentoPage() {
           className="rounded-2xl p-6 border border-brand-gold/20 text-center"
           style={{ background: "rgba(215,187,125,0.05)" }}
         >
-          <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Taxa de Adesão</p>
-          <p className="text-4xl font-bold font-mono text-brand-gold mt-2">R$ 500,00</p>
-          <p className="text-white/50 text-sm font-mono mt-1">{convite.comunidade?.nome}</p>
+          <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Assinatura Anual</p>
+          <p className="text-4xl font-bold font-mono text-brand-gold mt-2">R$ 3.197,00</p>
+          <p className="text-white/40 text-xs font-mono mt-1">R$ 266,42/mês · cobrado anualmente</p>
+          <p className="text-white/50 text-sm font-mono mt-2">{convite.comunidade?.nome}</p>
           {convite.candidato_nome && (
             <p className="text-white/30 text-xs font-mono mt-0.5">{convite.candidato_nome}</p>
           )}
@@ -112,7 +113,7 @@ export default function PagamentoPage() {
           </div>
           <div className="p-5 space-y-4">
             <p className="text-sm font-mono text-white/70">
-              Pague com segurança via Stripe. Seu acesso será ativado <strong className="text-brand-gold">automaticamente</strong> após a confirmação do pagamento.
+              Assine com segurança via Stripe. Seu acesso será ativado <strong className="text-brand-gold">automaticamente</strong> após a confirmação do pagamento.
             </p>
             <Button
               className="w-full font-mono bg-brand-gold hover:bg-brand-gold/90 text-[#001D34] font-bold"
@@ -120,10 +121,10 @@ export default function PagamentoPage() {
               data-testid="btn-stripe-checkout"
             >
               <ExternalLink className="w-4 h-4 mr-2" />
-              Pagar R$ 500,00 — Cartão ou Pix
+              Assinar por R$ 3.197,00/ano
             </Button>
             <p className="text-[10px] font-mono text-white/30 text-center">
-              Você será redirecionado para o ambiente seguro do Stripe. Aceitamos cartão de crédito, débito e Pix.
+              Você será redirecionado para o ambiente seguro do Stripe. Aceitamos cartão, Apple Pay e Boleto.
             </p>
           </div>
         </div>

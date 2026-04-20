@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
@@ -164,13 +164,13 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     onError: () => toast({ title: "Erro ao vincular conta", variant: "destructive" }),
   });
 
-  // Set initial role and email when linkedUser loads
-  if (linkedUser && selectedRole === null) {
-    setSelectedRole(linkedUser.role);
-  }
-  if (linkedUser && linkedUser.email && newAccEmail === (membro.email || "")) {
-    setNewAccEmail(linkedUser.email);
-  }
+  // Set initial role and email when linkedUser first loads (must be useEffect, not render body)
+  useEffect(() => {
+    if (!linkedUser) return;
+    if (selectedRole === null) setSelectedRole(linkedUser.role);
+    if (linkedUser.email) setNewAccEmail(prev => prev === (membro.email || "") ? linkedUser.email! : prev);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedUser?.id]);
 
   function setField(field: keyof Membro, value: string) {
     setForm(f => ({ ...f, [field]: value }));

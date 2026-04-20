@@ -8,7 +8,8 @@ import { useLocation, useSearch } from "wouter";
 import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
-  Navigation, Globe, UserCheck, UserX, Bell, Clock
+  Navigation, Globe, UserCheck, UserX, Bell, Clock,
+  Eye, FileText, Phone, Mail, Building, Calendar, Hash
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,6 +334,7 @@ export default function ComunidadePage() {
   const [form, setForm] = useState<ComunidadeForm>(emptyForm());
   const [codigoLoading, setCodigoLoading] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [selectedConvite, setSelectedConvite] = useState<any | null>(null);
 
   const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades"],
@@ -597,6 +599,7 @@ export default function ComunidadePage() {
             {todosCandidatos.map(convite => {
               const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/50" };
               const dados = convite.dados_contratuais as any;
+              const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || `Comunidade #${convite.comunidade_id}`;
               return (
                 <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1 min-w-0 space-y-1">
@@ -623,6 +626,14 @@ export default function ComunidadePage() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    <button
+                      onClick={() => setSelectedConvite({ ...convite, comNome })}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-white/50 border border-white/10 hover:bg-white/5 transition-colors"
+                      data-testid={`btn-ver-candidato-${convite.id}`}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Ver detalhes
+                    </button>
                     {convite.status === "candidato" && (
                       <>
                         <button
@@ -894,6 +905,165 @@ export default function ComunidadePage() {
           setForm(f => ({ ...f, pais, sigla_pais: siglaPais, territorio, sigla_territorio: siglaTerritorio }));
         }}
       />
+
+      {/* Candidate Details Dialog */}
+      {selectedConvite && (() => {
+        const sc = selectedConvite;
+        const dados = sc.dados_contratuais as any;
+        const statusInfo = STATUS_LABELS[sc.status] || { label: sc.status, color: "text-white/50" };
+        return (
+          <Dialog open={!!selectedConvite} onOpenChange={open => !open && setSelectedConvite(null)}>
+            <DialogContent className="max-w-lg border-brand-gold/15 text-white p-0 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-white/5" style={{ background: "rgba(215,187,125,0.04)" }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest mb-1">Candidato</p>
+                    <h2 className="text-lg font-bold text-white font-mono">{sc.candidato_nome || dados?.nome_completo || "—"}</h2>
+                    <span className={`text-xs font-mono ${statusInfo.color}`}>{statusInfo.label}</span>
+                  </div>
+                  <button onClick={() => setSelectedConvite(null)} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors mt-0.5">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-6 py-5 space-y-5 max-h-[65vh] overflow-y-auto">
+                {/* Community */}
+                <div className="rounded-lg border border-brand-gold/15 bg-brand-gold/5 px-4 py-3">
+                  <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest mb-1">Comunidade pretendida</p>
+                  <p className="text-sm font-mono font-bold text-brand-gold/90">{sc.comNome}</p>
+                </div>
+
+                {/* Contact */}
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Contato</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {sc.candidato_email && (
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <Mail className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        <span className="font-mono text-white/70">{sc.candidato_email}</span>
+                      </div>
+                    )}
+                    {dados?.telefone && (
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <Phone className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        <span className="font-mono text-white/70">{dados.telefone}</span>
+                      </div>
+                    )}
+                    {(dados?.cidade || dados?.estado) && (
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <MapPin className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        <span className="font-mono text-white/70">{[dados?.cidade, dados?.estado, dados?.pais].filter(Boolean).join(", ")}</span>
+                      </div>
+                    )}
+                    {dados?.endereco && (
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <Building className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        <span className="font-mono text-white/70">{dados.endereco}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Document */}
+                {dados?.cpf_cnpj && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Documento</p>
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Hash className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                      <span className="font-mono text-white/70">{dados.cpf_cnpj}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message */}
+                {dados?.mensagem && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Mensagem do candidato</p>
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3">
+                      <p className="text-sm font-mono text-white/60 italic leading-relaxed">"{dados.mensagem}"</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dates */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Datas</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-start gap-2 text-xs">
+                      <Calendar className="w-3 h-3 text-white/20 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-white/30 font-mono">Candidatura</p>
+                        <p className="text-white/60 font-mono">{sc.criado_em ? new Date(sc.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</p>
+                      </div>
+                    </div>
+                    {sc.expires_at && (
+                      <div className="flex items-start gap-2 text-xs">
+                        <Clock className="w-3 h-3 text-white/20 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-white/30 font-mono">Expira em</p>
+                          <p className="text-white/60 font-mono">{new Date(sc.expires_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer actions */}
+              <div className="px-6 py-4 border-t border-white/5 flex flex-wrap gap-2">
+                {sc.status === "candidato" && (
+                  <>
+                    <button
+                      onClick={() => { decisaoMutation.mutate({ token: sc.token, decisao: "aprovado" }); setSelectedConvite(null); }}
+                      disabled={decisaoMutation.isPending}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Aprovar candidatura
+                    </button>
+                    <button
+                      onClick={() => { decisaoMutation.mutate({ token: sc.token, decisao: "rejeitado" }); setSelectedConvite(null); }}
+                      disabled={decisaoMutation.isPending}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                    >
+                      <UserX className="w-3.5 h-3.5" />
+                      Rejeitar
+                    </button>
+                  </>
+                )}
+                {["aprovado", "termos_enviados"].includes(sc.status) && (
+                  <button
+                    onClick={() => { lembretesMutation.mutate(sc.token); setSelectedConvite(null); }}
+                    disabled={lembretesMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Reenviar Termos
+                  </button>
+                )}
+                {["termos_aceitos", "pagamento_pendente"].includes(sc.status) && (
+                  <button
+                    onClick={() => { confirmarPagamentoMutation.mutate(sc.token); setSelectedConvite(null); }}
+                    disabled={confirmarPagamentoMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    Confirmar Pagamento
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedConvite(null)}
+                  className="ml-auto px-4 py-2 rounded-lg text-xs font-mono text-white/40 hover:text-white/60 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="border-red-900/30 text-white" style={{ background: "#001428" }}>

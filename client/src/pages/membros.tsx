@@ -141,9 +141,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     staleTime: 30000,
   });
 
-  // Set initial role when linkedUser loads
+  // Set initial role and email when linkedUser loads
   if (linkedUser && selectedRole === null) {
     setSelectedRole(linkedUser.role);
+  }
+  if (linkedUser && linkedUser.email && newAccEmail === (membro.email || "")) {
+    setNewAccEmail(linkedUser.email);
   }
 
   function setField(field: keyof Membro, value: string) {
@@ -218,11 +221,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       };
 
       if (linkedUser) {
-        // Update role if changed
+        // Update role, email and/or password if changed
         const roleUpdate: Record<string, any> = {};
         if (selectedRole && selectedRole !== linkedUser.role) {
           roleUpdate.role = selectedRole;
           roleUpdate.permissions = rolePerms[selectedRole] || rolePerms.user;
+        }
+        // Update email if it changed
+        if (newAccEmail && newAccEmail !== linkedUser.email) {
+          roleUpdate.email = newAccEmail;
         }
         // Update password if filled
         if (changePassword.length >= 4) {
@@ -232,6 +239,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
           await apiRequest("PATCH", `/api/users/${linkedUser.id}`, roleUpdate);
         }
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        refetchLinkedUser();
       } else if (newAccEmail && newAccPassword.length >= 4) {
         // Create new user account linked to this membro
         if (newAccPassword !== newAccPassword2) throw new Error("As senhas não coincidem");
@@ -672,6 +680,19 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     </div>
                   </div>
 
+                  {/* Change email */}
+                  <div>
+                    <label className={labelCls}>E-mail de acesso</label>
+                    <Input
+                      type="email"
+                      value={newAccEmail}
+                      onChange={e => setNewAccEmail(e.target.value)}
+                      placeholder="email@exemplo.com"
+                      className={inputCls}
+                      data-testid="input-change-email"
+                    />
+                  </div>
+
                   {/* Change password */}
                   <div>
                     <label className={labelCls}>Nova Senha (deixe em branco para manter)</label>
@@ -824,6 +845,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     <div className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-3 py-2">
                       <KeyRound className="w-3 h-3 text-green-400/60 shrink-0" />
                       <span className="text-xs text-green-400/70">Conta será criada ao salvar</span>
+                    </div>
+                  )}
+                  {newAccEmail && newAccPassword.length < 4 && (
+                    <div className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                      <Lock className="w-3 h-3 text-amber-400/70 shrink-0" />
+                      <span className="text-xs text-amber-400/80">Defina uma senha (mín. 4 caracteres) para criar a conta</span>
                     </div>
                   )}
                 </div>

@@ -2738,10 +2738,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(410).json({ error: "O prazo para aceitar os termos expirou. Entre em contato com o Aliado da comunidade." });
       }
 
-      // Give 24h for payment after accepting terms
+      // Give 24h for payment after accepting terms; move to explicit pagamento_pendente state
       const paymentExpiry = new Date();
       paymentExpiry.setHours(paymentExpiry.getHours() + 24);
-      const updated = await storage.updateConvite(convite.id, { status: "termos_aceitos", expires_at: paymentExpiry });
+      const updated = await storage.updateConvite(convite.id, { status: "pagamento_pendente", expires_at: paymentExpiry });
 
       // Notify about payment
       const col = await getComunidadeCol();
@@ -2869,10 +2869,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         await enviarTermos({
           candidatoEmail: convite.candidato_email,
           candidatoNome: convite.candidato_nome || "Candidato",
-          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          comunidadeNome: comunidade?.nome || comunidade?.nome || "Comunidade BUILT",
           token: convite.token,
         });
-      } else if (convite.candidato_email && convite.status === "termos_aceitos") {
+      } else if (convite.candidato_email && ["termos_aceitos", "pagamento_pendente"].includes(convite.status)) {
         await enviarPagamento({
           candidatoEmail: convite.candidato_email,
           candidatoNome: convite.candidato_nome || "Candidato",

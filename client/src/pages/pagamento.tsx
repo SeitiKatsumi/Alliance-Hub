@@ -76,7 +76,7 @@ export default function PagamentoPage() {
     );
   }
 
-  const statusInvalid = convite.status !== "termos_aceitos";
+  const statusInvalid = !["termos_aceitos", "pagamento_pendente"].includes(convite.status);
 
   if (statusInvalid) {
     return (

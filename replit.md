@@ -96,7 +96,7 @@ The GET /api/fluxo-caixa endpoint returns enriched items with joined data:
 ```
 
 ## Convites & Adesão às Comunidades
-- Fluxo de adesão: convidado → candidato → aprovado/rejeitado → termos_enviados → termos_aceitos → membro
+- Fluxo de adesão: convidado → candidato → aprovado/rejeitado → termos_enviados → pagamento_pendente → membro
 - **Backend**: `server/mailer.ts` com 7 funções de e-mail via nodemailer (SMTP env vars); storage methods em `server/storage.ts`; 7 endpoints REST em `server/routes.ts`
 - **Endpoints**: `POST /api/convites`, `GET /api/convites?comunidade_id=X`, `POST /api/convites/:token/candidatura` (público), `PATCH /api/convites/:token/decisao`, `POST /api/convites/:token/termos`, `PATCH /api/convites/:token/pagamento` (ativa BUILT_PROUD_MEMBER no Directus + M2M), `POST /api/convites/:token/lembrete`
 - **Páginas públicas** (sem auth): `/convite/:token` (form candidatura), `/adesao/:token` (termos c/ checkbox), `/pagamento/:token` (PIX R$ 500 manual)

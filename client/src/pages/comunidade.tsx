@@ -656,7 +656,7 @@ export default function ComunidadePage() {
                         Reenviar Termos
                       </button>
                     )}
-                    {convite.status === "termos_aceitos" && (
+                    {["termos_aceitos", "pagamento_pendente"].includes(convite.status) && (
                       <button
                         onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
                         disabled={confirmarPagamentoMutation.isPending}

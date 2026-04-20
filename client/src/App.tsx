@@ -35,6 +35,7 @@ import LoginPage from "@/pages/login";
 import ConvitePage from "@/pages/convite";
 import AdesaoPage from "@/pages/adesao";
 import PagamentoPage from "@/pages/pagamento";
+import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,7 @@ function App() {
         <Switch>
           <Route path="/convite/:token" component={ConvitePage} />
           <Route path="/adesao/:token" component={AdesaoPage} />
+          <Route path="/pagamento/sucesso" component={PagamentoSucessoPage} />
           <Route path="/pagamento/:token" component={PagamentoPage} />
           <Route component={ProtectedApp} />
         </Switch>

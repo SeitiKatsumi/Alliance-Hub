@@ -3043,22 +3043,17 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const token = session.metadata?.convite_token;
+      // Support both dynamic checkout sessions (metadata) and Payment Links (client_reference_id)
+      const token: string | undefined = session.metadata?.convite_token || session.client_reference_id || undefined;
 
       if (!token) {
-        console.error("[stripe/webhook] missing convite_token in metadata");
+        console.error("[stripe/webhook] missing convite_token in metadata and client_reference_id");
         return res.status(200).json({ received: true });
       }
 
       // Validate payment is actually settled — guard against async payment methods
       if (session.payment_status !== "paid") {
         console.log("[stripe/webhook] session not yet paid (payment_status=%s), skipping activation for token: %s", session.payment_status, token);
-        return res.status(200).json({ received: true });
-      }
-
-      // Reconciliation guard: verify amount and currency match membership fee
-      if (session.amount_total !== 50000 || session.currency !== "brl") {
-        console.error("[stripe/webhook] amount/currency mismatch: amount_total=%s currency=%s token=%s", session.amount_total, session.currency, token);
         return res.status(200).json({ received: true });
       }
 

@@ -102,7 +102,7 @@ export async function enviarAprovacao(opts: {
       <div style="text-align:center;margin:32px 0">
         <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
       </div>
-      <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é válido por 72 horas. Após aceitar os termos, você receberá as instruções de pagamento.</p>
+      <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é válido por 12 horas. Após aceitar os termos, você receberá as instruções de pagamento.</p>
     `)
   );
 }

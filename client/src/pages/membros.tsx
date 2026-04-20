@@ -134,11 +134,34 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
 
-  const { data: linkedUser, refetch: refetchLinkedUser } = useQuery<{ id: string; role: string; username: string; email?: string } | null>({
+  const { data: linkedUser, refetch: refetchLinkedUser } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
     queryKey: ["/api/users/by-membro", membro.id],
     queryFn: () => membro.id ? fetch(`/api/users/by-membro/${membro.id}`).then(r => r.json()) : Promise.resolve(null),
     enabled: !!membro.id,
     staleTime: 30000,
+  });
+
+  // When there's no linked account, search for an unlinked user by the membro's email
+  const membroEmail = (membro as any).email || "";
+  const { data: matchedByEmail } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
+    queryKey: ["/api/users/by-email", membroEmail],
+    queryFn: () => membroEmail ? fetch(`/api/users/by-email?email=${encodeURIComponent(membroEmail)}`).then(r => r.json()) : Promise.resolve(null),
+    enabled: !linkedUser && !!membroEmail,
+    staleTime: 30000,
+  });
+
+  // Only show the match suggestion if the found user is not linked to another membro
+  const suggestedLink = !linkedUser && matchedByEmail && !matchedByEmail.membro_directus_id ? matchedByEmail : null;
+
+  const linkAccountMutation = useMutation({
+    mutationFn: (userId: string) => apiRequest("PATCH", `/api/users/${userId}`, { membro_directus_id: membro.id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/by-membro", membro.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/by-email", membroEmail] });
+      refetchLinkedUser();
+      toast({ title: "Conta vinculada com sucesso!" });
+    },
+    onError: () => toast({ title: "Erro ao vincular conta", variant: "destructive" }),
   });
 
   // Set initial role and email when linkedUser loads
@@ -747,10 +770,31 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.01] px-4 py-3 flex items-center gap-3">
-                    <UserPlus className="w-4 h-4 text-white/20 flex-shrink-0" />
-                    <span className="text-xs text-white/25 font-mono">Sem conta. Preencha abaixo para criar acesso.</span>
-                  </div>
+                  {suggestedLink ? (
+                    <div className="rounded-lg border border-brand-gold/30 bg-brand-gold/5 px-4 py-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-brand-gold/70 shrink-0" />
+                        <span className="text-xs text-brand-gold/80 font-mono font-semibold">Conta existente encontrada</span>
+                      </div>
+                      <div className="text-xs text-white/60 pl-6">
+                        @{suggestedLink.username}{suggestedLink.email ? ` · ${suggestedLink.email}` : ""}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => linkAccountMutation.mutate(suggestedLink.id)}
+                        disabled={linkAccountMutation.isPending}
+                        className="ml-6 text-xs font-semibold text-brand-gold hover:text-brand-gold/80 underline underline-offset-2 transition-colors disabled:opacity-50"
+                        data-testid="btn-link-account"
+                      >
+                        {linkAccountMutation.isPending ? "Vinculando..." : "Vincular esta conta ao membro"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.01] px-4 py-3 flex items-center gap-3">
+                      <UserPlus className="w-4 h-4 text-white/20 flex-shrink-0" />
+                      <span className="text-xs text-white/25 font-mono">Sem conta. Preencha abaixo para criar acesso.</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">

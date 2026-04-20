@@ -2020,6 +2020,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // GET /api/users/by-email?email=xxx — find unlinked user by email (admin only, for linking)
+  app.get("/api/users/by-email", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      if (!email) return res.json(null);
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.json(null);
+      const { password, ...safe } = user;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);

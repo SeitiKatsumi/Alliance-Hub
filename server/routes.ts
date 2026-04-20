@@ -2523,6 +2523,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     return aliadoId === sessionMembroId;
   }
 
+  /** Returns true if the current session user is the aliado OR an active member of this community */
+  function isCommunityMember(req: any, comunidade: any): boolean {
+    if (isCommunityManager(req, comunidade)) return true;
+    const sessionMembroId = (req.session as any).membroId as string | null;
+    if (!sessionMembroId || !comunidade) return false;
+    const membros: any[] = Array.isArray(comunidade.membros) ? comunidade.membros : [];
+    return membros.some((m: any) => {
+      const id = typeof m.cadastro_geral_id === "object" && m.cadastro_geral_id !== null
+        ? m.cadastro_geral_id.id
+        : m.cadastro_geral_id;
+      return id === sessionMembroId;
+    });
+  }
+
   // POST /api/convites — create invite (authenticated, community aliado or admin)
   app.post("/api/convites", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
@@ -2536,16 +2550,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const candidato = await getDirectusMembro(candidato_membro_id);
       if (!candidato) return res.status(404).json({ error: "Membro candidato não encontrado" });
 
-      // Get comunidade info
+      // Get comunidade info (including membros so isCommunityMember can check membership)
       const col = await getComunidadeCol();
-      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`;
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!cr.ok) return res.status(404).json({ error: "Comunidade não encontrada" });
       const comunidade = (await cr.json()).data;
 
-      // Authorization: only the aliado or admin can create invites for this community
-      if (!isCommunityManager(req, comunidade)) {
-        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode enviar convites" });
+      // Authorization: aliado, current community members, or admin can create invites
+      if (!isCommunityMember(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas membros ou o Aliado BUILT da comunidade podem enviar convites" });
       }
 
       const invitadorMembro = invitadorId ? await getDirectusMembro(invitadorId) : null;
@@ -2695,8 +2709,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode aprovar ou rejeitar candidatos" });
       }
 
-      // When approving, give 72h for terms acceptance
-      const newExpiresAt = decisao === "aprovado" ? (() => { const d = new Date(); d.setHours(d.getHours() + 72); return d; })() : undefined;
+      // When approving, give 12h for terms acceptance
+      const newExpiresAt = decisao === "aprovado" ? (() => { const d = new Date(); d.setHours(d.getHours() + 12); return d; })() : undefined;
       const updated = await storage.updateConvite(convite.id, { status: decisao, ...(newExpiresAt ? { expires_at: newExpiresAt } : {}) });
 
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
@@ -2792,22 +2806,25 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       // 1. Add BUILT_PROUD_MEMBER to Directus member field (must succeed before marking membro)
       const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
-      if (candidatoData) {
-        const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
-          ? candidatoData.Outras_redes_as_quais_pertenco
-          : [];
-        if (!redesAtuais.includes("BUILT_PROUD_MEMBER")) {
-          const patchUrl = `${DIRECTUS_URL}/items/cadastro_geral/${convite.candidato_membro_id}`;
-          const badgePatch = await fetch(patchUrl, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ Outras_redes_as_quais_pertenco: [...redesAtuais, "BUILT_PROUD_MEMBER"] }),
-          });
-          if (!badgePatch.ok) {
-            const err = await badgePatch.text().catch(() => "");
-            console.error("[pagamento] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
-            return res.status(502).json({ error: "Falha ao atualizar badge no Directus. Tente novamente." });
-          }
+      if (!candidatoData) {
+        // Cannot activate without verifying/updating badge — fail atomically
+        console.error("[pagamento] candidato not found in Directus:", convite.candidato_membro_id);
+        return res.status(502).json({ error: "Dados do candidato não encontrados no Directus. Verifique o cadastro e tente novamente." });
+      }
+      const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
+        ? candidatoData.Outras_redes_as_quais_pertenco
+        : [];
+      if (!redesAtuais.includes("BUILT_PROUD_MEMBER")) {
+        const patchUrl = `${DIRECTUS_URL}/items/cadastro_geral/${convite.candidato_membro_id}`;
+        const badgePatch = await fetch(patchUrl, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ Outras_redes_as_quais_pertenco: [...redesAtuais, "BUILT_PROUD_MEMBER"] }),
+        });
+        if (!badgePatch.ok) {
+          const err = await badgePatch.text().catch(() => "");
+          console.error("[pagamento] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
+          return res.status(502).json({ error: "Falha ao atualizar badge no Directus. Tente novamente." });
         }
       }
 
@@ -2881,14 +2898,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       if (convite.candidato_email && ["aprovado", "termos_enviados"].includes(convite.status)) {
-        await storage.updateConvite(convite.id, { status: "termos_enviados" });
+        // Renew 12h window for terms acceptance
+        const newExpiry = new Date();
+        newExpiry.setHours(newExpiry.getHours() + 12);
+        await storage.updateConvite(convite.id, { status: "termos_enviados", expires_at: newExpiry });
         await enviarTermos({
           candidatoEmail: convite.candidato_email,
           candidatoNome: convite.candidato_nome || "Candidato",
-          comunidadeNome: comunidade?.nome || comunidade?.nome || "Comunidade BUILT",
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
           token: convite.token,
         });
       } else if (convite.candidato_email && ["termos_aceitos", "pagamento_pendente"].includes(convite.status)) {
+        // Renew 24h window for payment confirmation
+        const newExpiry = new Date();
+        newExpiry.setHours(newExpiry.getHours() + 24);
+        await storage.updateConvite(convite.id, { status: "pagamento_pendente", expires_at: newExpiry });
         await enviarPagamento({
           candidatoEmail: convite.candidato_email,
           candidatoNome: convite.candidato_nome || "Candidato",

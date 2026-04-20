@@ -160,10 +160,18 @@ export default function VitrineDetalhePage() {
 
   const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
   const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
-  // Only communities where the current user is the aliado (can create invites)
+  // Communities where the current user is the aliado OR an active member (both can create invites)
   const minhasComunidadesComoAliado = minhasComunidades.filter(c => {
     const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
-    return aliadoId === user?.membro_directus_id;
+    if (aliadoId === user?.membro_directus_id) return true;
+    // Check if user is a member of this community
+    const membros = Array.isArray(c.membros) ? c.membros : [];
+    return membros.some(m => {
+      const mid = typeof m.cadastro_geral_id === "object" && m.cadastro_geral_id !== null
+        ? m.cadastro_geral_id.id
+        : m.cadastro_geral_id;
+      return mid === user?.membro_directus_id;
+    });
   });
   const canInvite = !isMyCard && !isProudMember && minhasComunidadesComoAliado.length > 0 && !!membro?.id;
 

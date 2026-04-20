@@ -49,3 +49,7 @@ GOOGLE_CALLBACK_URL = "https://app.builtalliances.11mind.com.br/auth/google/call
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000

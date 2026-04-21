@@ -968,6 +968,32 @@ export default function ComunidadePage() {
                   <p className="text-sm font-mono font-bold text-brand-gold/90">{sc.comNome}</p>
                 </div>
 
+                {/* Convidado por */}
+                {(() => {
+                  const invitadorId = sc.invitador_membro_id;
+                  if (!invitadorId) return null;
+                  const comunidadeDoConvite = comunidades.find(c => String(c.id) === String(sc.comunidade_id));
+                  const aliadoId = typeof comunidadeDoConvite?.aliado === "object"
+                    ? comunidadeDoConvite?.aliado?.id
+                    : comunidadeDoConvite?.aliado;
+                  const ehOProprioAliado = aliadoId && String(aliadoId) === String(invitadorId);
+                  const invitadorMembro = membros.find(m => String(m.id) === String(invitadorId));
+                  const nomeInvitador = ehOProprioAliado
+                    ? (invitadorMembro?.nome || "Aliado BUILT")
+                    : (invitadorMembro?.nome || invitadorId);
+                  const labelInvitador = ehOProprioAliado ? "Aliado BUILT (próprio)" : "Membro";
+                  return (
+                    <div className="rounded-lg border border-white/8 px-4 py-3 flex items-center gap-3" style={{ background: "rgba(255,255,255,0.03)" }}>
+                      <UserCheck className="w-4 h-4 text-brand-gold/50 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mb-0.5">Convidado por</p>
+                        <p className="text-sm font-mono font-semibold text-white">{nomeInvitador}</p>
+                        <p className="text-[10px] font-mono text-white/30">{labelInvitador}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Contact */}
                 <div className="space-y-2.5">
                   <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Contato</p>

@@ -38,7 +38,8 @@ export default function ConvitePage() {
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
     nome_completo: "",
-    cpf_cnpj: "",
+    cpf: "",
+    cnpj: "",
     telefone: "",
     email: "",
     endereco: "",
@@ -179,10 +180,10 @@ export default function ConvitePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-mono text-white/60">CPF / CNPJ *</Label>
+                <Label className="text-xs font-mono text-white/60">CPF</Label>
                 <Input
-                  value={form.cpf_cnpj}
-                  onChange={e => setForm(f => ({ ...f, cpf_cnpj: e.target.value }))}
+                  value={form.cpf}
+                  onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))}
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/20 font-mono text-sm"
                   placeholder="000.000.000-00"
                   data-testid="input-convite-cpf"
@@ -190,6 +191,16 @@ export default function ConvitePage() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-white/60">CNPJ</Label>
+                <Input
+                  value={form.cnpj}
+                  onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 font-mono text-sm"
+                  placeholder="00.000.000/0000-00"
+                  data-testid="input-convite-cnpj"
+                />
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-mono text-white/60">Telefone *</Label>
                 <Input
@@ -200,17 +211,17 @@ export default function ConvitePage() {
                   data-testid="input-convite-telefone"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-mono text-white/60">E-mail *</Label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 font-mono text-sm"
-                  placeholder="seu@email.com"
-                  data-testid="input-convite-email"
-                />
-              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-white/60">E-mail *</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 font-mono text-sm"
+                placeholder="seu@email.com"
+                data-testid="input-convite-email"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-mono text-white/60">Endereço</Label>
@@ -269,8 +280,8 @@ export default function ConvitePage() {
 
         <Button
           onClick={() => {
-            if (!form.nome_completo || !form.cpf_cnpj || !form.telefone || !form.email) {
-              alert("Preencha os campos obrigatórios: Nome, CPF/CNPJ, Telefone e E-mail.");
+            if (!form.nome_completo || !form.telefone || !form.email) {
+              alert("Preencha os campos obrigatórios: Nome, Telefone e E-mail.");
               return;
             }
             candidaturaMutation.mutate(form);

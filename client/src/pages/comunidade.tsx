@@ -655,7 +655,8 @@ export default function ComunidadePage() {
                     )}
                     {dados && (
                       <div className="flex flex-wrap gap-3 mt-1">
-                        {dados.cpf_cnpj && <span className="text-[10px] font-mono text-white/30">CPF/CNPJ: {dados.cpf_cnpj}</span>}
+                        {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-white/30">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
+                        {dados.cnpj && <span className="text-[10px] font-mono text-white/30">CNPJ: {dados.cnpj}</span>}
                         {dados.telefone && <span className="text-[10px] font-mono text-white/30">Tel: {dados.telefone}</span>}
                         {dados.cidade && <span className="text-[10px] font-mono text-white/30">📍 {dados.cidade}, {dados.estado}</span>}
                       </div>
@@ -999,13 +1000,23 @@ export default function ComunidadePage() {
                 </div>
 
                 {/* Document */}
-                {dados?.cpf_cnpj && (
+                {(dados?.cpf || dados?.cnpj || dados?.cpf_cnpj) && (
                   <div className="space-y-2">
-                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Documento</p>
-                    <div className="flex items-center gap-2.5 text-sm">
-                      <Hash className="w-3.5 h-3.5 text-white/25 shrink-0" />
-                      <span className="font-mono text-white/70">{dados.cpf_cnpj}</span>
-                    </div>
+                    <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Documentos</p>
+                    {(dados.cpf || dados.cpf_cnpj) && (
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <Hash className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        <span className="text-[10px] font-mono text-white/40 uppercase w-10">CPF</span>
+                        <span className="font-mono text-white/70">{dados.cpf || dados.cpf_cnpj}</span>
+                      </div>
+                    )}
+                    {dados.cnpj && (
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <Hash className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        <span className="text-[10px] font-mono text-white/40 uppercase w-10">CNPJ</span>
+                        <span className="font-mono text-white/70">{dados.cnpj}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 

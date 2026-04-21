@@ -102,8 +102,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src={builtLogo} alt="BUILT Alliances" className="w-56 mb-3" />
-          <p className="text-white/50 text-sm">Plataforma de Gestão</p>
+          <img src={builtLogo} alt="BUILT Alliances" className="w-56" />
         </div>
 
         {/* Tab toggle */}

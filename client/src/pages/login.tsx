@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Eye, EyeOff, LogIn, Shield, UserPlus } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1776814652666.png";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -101,11 +102,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-full bg-[#D7BB7D]/20 flex items-center justify-center mb-4 border border-[#D7BB7D]/40">
-            <Shield className="w-7 h-7 text-[#D7BB7D]" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">BUILT Alliances</h1>
-          <p className="text-white/50 text-sm mt-1">Plataforma de Gestão</p>
+          <img src={builtLogo} alt="BUILT Alliances" className="w-56 mb-3" />
+          <p className="text-white/50 text-sm">Plataforma de Gestão</p>
         </div>
 
         {/* Tab toggle */}

@@ -380,7 +380,11 @@ export default function ComunidadePage() {
     setCodigoLoading(true);
     fetch(`/api/comunidades/proximo-codigo?pais=${encodeURIComponent(pais)}&territorio=${encodeURIComponent(territorio)}`)
       .then(r => r.json())
-      .then(d => setForm(f => ({ ...f, codigo_sequencial: d.codigo })))
+      .then(d => setForm(f => ({
+        ...f,
+        codigo_sequencial: d.codigo,
+        ...(d.sigla_territorio ? { sigla_territorio: d.sigla_territorio } : {}),
+      })))
       .catch(() => {})
       .finally(() => setCodigoLoading(false));
   }, [form.pais, form.territorio]);

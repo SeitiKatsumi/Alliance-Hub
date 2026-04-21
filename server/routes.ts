@@ -791,6 +791,74 @@ function nextComunidadeCode(codes: string[]): string {
   return `${nextLetter}01`;
 }
 
+function abbrevTerritoryServer(nome: string): string {
+  const words = nome.replace(/[^\w\s]/g, "").split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.map((w: string) => w[0]).join("").slice(0, 4).toUpperCase();
+  }
+  return nome.replace(/[aeiouAEIOU\s]/g, "").slice(0, 3).toUpperCase() ||
+    nome.slice(0, 3).toUpperCase();
+}
+
+function uniqueSiglaTerritorio(territorio: string, pais: string, allCommunities: any[]): string {
+  const paisLower = pais.trim().toLowerCase();
+  const territorioLower = territorio.trim().toLowerCase();
+
+  const usedByOthers = new Set(
+    allCommunities
+      .filter((c: any) =>
+        c.pais?.trim().toLowerCase() === paisLower &&
+        c.territorio?.trim().toLowerCase() !== territorioLower
+      )
+      .map((c: any) => c.sigla_territorio?.toUpperCase())
+      .filter(Boolean)
+  );
+
+  const words = territorio.replace(/[^\w\s]/g, "").split(/\s+/).filter(Boolean);
+
+  const candidates: string[] = [];
+
+  // 1) initials
+  if (words.length >= 2) {
+    candidates.push(words.map((w: string) => w[0]).join("").slice(0, 4).toUpperCase());
+  } else {
+    candidates.push(
+      territorio.replace(/[aeiouAEIOU\s]/g, "").slice(0, 3).toUpperCase() ||
+      territorio.slice(0, 3).toUpperCase()
+    );
+  }
+
+  // 2) first 2 chars of each word
+  if (words.length >= 2) {
+    candidates.push(words.map((w: string) => w.slice(0, 2)).join("").slice(0, 4).toUpperCase());
+  }
+
+  // 3) first 3 chars of each word
+  if (words.length >= 2) {
+    candidates.push(words.map((w: string) => w.slice(0, 3)).join("").slice(0, 6).toUpperCase());
+  }
+
+  // 4) consonants of first word
+  const consonants = words[0]?.replace(/[aeiouAEIOU]/g, "").slice(0, 4).toUpperCase() || "";
+  if (consonants.length >= 2) candidates.push(consonants);
+
+  // 5) first 4 chars of first word
+  if (words[0]) candidates.push(words[0].slice(0, 4).toUpperCase());
+
+  for (const c of candidates) {
+    if (!usedByOthers.has(c)) return c;
+  }
+
+  // fallback: numeric suffix on base
+  const base = candidates[0] || abbrevTerritoryServer(territorio);
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${base}${i}`;
+    if (!usedByOthers.has(candidate)) return candidate;
+  }
+
+  return base;
+}
+
 async function resolveFileIds(ids: string[]): Promise<any[]> {
   if (!ids || ids.length === 0) return [];
   const results = [];
@@ -2501,13 +2569,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     const { pais, territorio } = req.query as { pais?: string; territorio?: string };
     try {
       const col = await getComunidadeCol();
-      const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
+      const all: any[] = await directusFetch(col, "fields=pais,territorio,sigla_territorio,codigo_sequencial");
       const same = all.filter((c: any) =>
         c.pais?.trim().toLowerCase() === pais?.trim().toLowerCase() &&
         c.territorio?.trim().toLowerCase() === territorio?.trim().toLowerCase()
       );
       const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
-      res.json({ codigo: nextComunidadeCode(codes) });
+      const sigla_territorio = pais && territorio
+        ? uniqueSiglaTerritorio(territorio, pais, all)
+        : undefined;
+      res.json({ codigo: nextComunidadeCode(codes), sigla_territorio });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2533,19 +2604,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const col = await getComunidadeCol();
       const payload = toComunidadePayload(req.body);
 
-      // Server-side uniqueness: recalculate codigo_sequencial to avoid race conditions on concurrent creation
+      // Server-side uniqueness: recalculate codigo_sequencial and sigla_territorio to avoid race conditions
       if (payload.pais && payload.territorio) {
-        const all: any[] = await directusFetch(col, "fields=pais,territorio,codigo_sequencial");
+        const all: any[] = await directusFetch(col, "fields=pais,territorio,sigla_territorio,codigo_sequencial");
         const same = all.filter((c: any) =>
           c.pais?.trim().toLowerCase() === payload.pais?.trim().toLowerCase() &&
           c.territorio?.trim().toLowerCase() === payload.territorio?.trim().toLowerCase()
         );
         const codes = same.map((c: any) => c.codigo_sequencial).filter(Boolean);
         payload.codigo_sequencial = nextComunidadeCode(codes);
-        // Regenerate nome and sigla with guaranteed code
-        const { sigla_pais, sigla_territorio } = payload;
-        if (sigla_pais && sigla_territorio) {
-          payload.sigla = `${sigla_pais.toUpperCase()}-${sigla_territorio.toUpperCase()}-COM-${payload.codigo_sequencial}`;
+        // Deduplicate sigla_territorio across all communities in the same country
+        payload.sigla_territorio = uniqueSiglaTerritorio(payload.territorio, payload.pais, all);
+        const { sigla_pais } = payload;
+        if (sigla_pais && payload.sigla_territorio) {
+          payload.sigla = `${sigla_pais.toUpperCase()}-${payload.sigla_territorio.toUpperCase()}-COM-${payload.codigo_sequencial}`;
         }
         payload.nome = `BUILT ${payload.pais} | ${payload.territorio} | Comunidade ${payload.codigo_sequencial}`;
       }

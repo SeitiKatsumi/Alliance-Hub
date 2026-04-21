@@ -1242,12 +1242,19 @@ export async function registerRoutes(
     if (!await requireAuth(req, res)) return;
     try {
       const col = await getComunidadeCol();
-      const url = `${DIRECTUS_URL}/items/${col}?filter[membros][cadastro_geral_id][_eq]=${req.params.id}&fields=id,nome,sigla&limit=1`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!r.ok) return res.json(null);
-      const data = await r.json();
-      const items: any[] = data.data || [];
-      res.json(items[0] || null);
+      const junctionTable = `${col.toLowerCase()}_membros`;
+      const junctionUrl = `${DIRECTUS_URL}/items/${junctionTable}?filter[cadastro_geral_id][_eq]=${req.params.id}&fields=comunidade_id&limit=1`;
+      const jr = await fetch(junctionUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!jr.ok) return res.json(null);
+      const jData = await jr.json();
+      const jItems: any[] = jData.data || [];
+      if (!jItems.length || !jItems[0].comunidade_id) return res.json(null);
+      const comunidadeId = jItems[0].comunidade_id;
+      const comunUrl = `${DIRECTUS_URL}/items/${col}/${comunidadeId}?fields=id,nome,sigla`;
+      const cr = await fetch(comunUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!cr.ok) return res.json(null);
+      const cData = await cr.json();
+      res.json(cData.data || null);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

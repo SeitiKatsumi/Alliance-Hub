@@ -133,6 +133,28 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [changePassword, setChangePassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
+  const [selectedComunidadeId, setSelectedComunidadeId] = useState<string>("");
+  const [originalComunidadeId, setOriginalComunidadeId] = useState<string>("");
+
+  const { data: comunidades = [] } = useQuery<{ id: string; nome?: string; sigla?: string }[]>({
+    queryKey: ["/api/comunidades"],
+    queryFn: () => fetch("/api/comunidades").then(r => r.json()),
+    staleTime: 60000,
+  });
+
+  const { data: membroComunidade } = useQuery<{ id: string; nome?: string; sigla?: string } | null>({
+    queryKey: ["/api/membros", membro.id, "comunidade"],
+    queryFn: () => membro.id ? fetch(`/api/membros/${membro.id}/comunidade`).then(r => r.json()) : Promise.resolve(null),
+    enabled: !!membro.id,
+    staleTime: 30000,
+  });
+
+  useEffect(() => {
+    if (membroComunidade?.id) {
+      setSelectedComunidadeId(String(membroComunidade.id));
+      setOriginalComunidadeId(String(membroComunidade.id));
+    }
+  }, [membroComunidade?.id]);
 
   const { data: linkedUser, refetch: refetchLinkedUser } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
     queryKey: ["/api/users/by-membro", membro.id],
@@ -282,7 +304,21 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         refetchLinkedUser();
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Save community link if changed
+      if (membro.id && selectedComunidadeId !== originalComunidadeId) {
+        try {
+          await apiRequest("POST", `/api/membros/${membro.id}/comunidade`, {
+            comunidade_id: selectedComunidadeId || null,
+            old_comunidade_id: originalComunidadeId || null,
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidade"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+        } catch {
+          // Non-fatal: warn but don't block
+          toast({ title: "Dados salvos, mas erro ao vincular comunidade", variant: "destructive" });
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/area-membros"] });
@@ -400,6 +436,40 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <label className={labelCls}>Data de Nascimento</label>
                   <Input value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} type="date" className={inputCls} data-testid="input-edit-data-nascimento" />
                 </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/5" />
+
+            {/* Vínculo à Comunidade */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Vínculo à Comunidade</span>
+              </div>
+              <div>
+                <label className={labelCls}>Comunidade</label>
+                <Select
+                  value={selectedComunidadeId}
+                  onValueChange={v => setSelectedComunidadeId(v === "none" ? "" : v)}
+                >
+                  <SelectTrigger className={inputCls} data-testid="select-edit-comunidade">
+                    <SelectValue placeholder="Selecione uma comunidade..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem comunidade</SelectItem>
+                    {comunidades.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.nome || c.sigla || `Comunidade #${c.id}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedComunidadeId && selectedComunidadeId !== originalComunidadeId && (
+                  <p className="text-[10px] font-mono text-amber-400/70 mt-1.5">
+                    ⚠ Ao salvar, o membro será transferido para esta comunidade.
+                  </p>
+                )}
               </div>
             </div>
 

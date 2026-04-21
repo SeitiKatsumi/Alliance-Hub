@@ -1169,6 +1169,73 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/membros/:id/comunidade — find which community this member belongs to
+  app.get("/api/membros/:id/comunidade", async (req, res) => {
+    if (!await requireAuth(req, res)) return;
+    try {
+      const col = await getComunidadeCol();
+      const url = `${DIRECTUS_URL}/items/${col}?filter[membros][cadastro_geral_id][_eq]=${req.params.id}&fields=id,nome,sigla&limit=1`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!r.ok) return res.json(null);
+      const data = await r.json();
+      const items: any[] = data.data || [];
+      res.json(items[0] || null);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/membros/:id/comunidade — assign member to a community (and remove from old one)
+  app.post("/api/membros/:id/comunidade", async (req, res) => {
+    if (!await requireCadastroAccess(req, res)) return;
+    try {
+      const membroId = req.params.id;
+      const { comunidade_id, old_comunidade_id } = req.body;
+      const col = await getComunidadeCol();
+
+      // Remove from old community if different
+      if (old_comunidade_id && old_comunidade_id !== comunidade_id) {
+        const oldUrl = `${DIRECTUS_URL}/items/${col}/${old_comunidade_id}?fields=id,membros.cadastro_geral_id`;
+        const oldR = await fetch(oldUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+        if (oldR.ok) {
+          const oldData = await oldR.json();
+          const filtered = (oldData.data?.membros || [])
+            .map((m: any) => typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id)
+            .filter((id: any) => id && id !== membroId)
+            .map((id: string) => ({ cadastro_geral_id: id }));
+          await fetch(`${DIRECTUS_URL}/items/${col}/${old_comunidade_id}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ membros: filtered }),
+          });
+        }
+      }
+
+      // Add to new community
+      if (comunidade_id) {
+        const newUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,membros.cadastro_geral_id`;
+        const newR = await fetch(newUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+        const newData = newR.ok ? await newR.json() : { data: { membros: [] } };
+        const currentIds: { cadastro_geral_id: string }[] = (newData.data?.membros || [])
+          .map((m: any) => typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id)
+          .filter(Boolean)
+          .map((id: string) => ({ cadastro_geral_id: id }));
+        if (!currentIds.some((m) => m.cadastro_geral_id === membroId)) {
+          currentIds.push({ cadastro_geral_id: membroId });
+        }
+        await fetch(`${DIRECTUS_URL}/items/${col}/${comunidade_id}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ membros: currentIds }),
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== BIAS PROJETOS (from Directus) ==========
   function resolveAnexosBia(items: any[]): any[] {
     return items.map((b: any) => ({

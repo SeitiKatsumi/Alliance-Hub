@@ -623,7 +623,7 @@ function AnuncioCard({
     if (href) window.open(href, "_blank", "noopener,noreferrer");
   };
 
-  const [hovered, setHovered] = React.useState(false);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <div

@@ -290,9 +290,13 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
                   onMouseLeave={e => (e.currentTarget.style.background = "rgba(215,187,125,0.06)")}>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-brand-gold truncate">{m.nome || "—"}</p>
-                    {m.especialidade && <p className="text-[10px] text-brand-gold/40 truncate">{m.especialidade}</p>}
+                    {m.empresa && <p className="text-[10px] text-brand-gold/40 truncate">{m.empresa}</p>}
                   </div>
-                  {m.empresa && <p className="text-[10px] text-brand-gold/70 shrink-0 truncate max-w-[120px]">{m.empresa}</p>}
+                  {m.especialidade && (
+                    <p className="text-[10px] text-brand-gold/80 shrink-0 truncate max-w-[140px] font-mono">
+                      {m.especialidade}
+                    </p>
+                  )}
                 </button>
               ))}
             </div>

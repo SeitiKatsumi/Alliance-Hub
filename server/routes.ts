@@ -3070,6 +3070,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           emails: uniqueEmails,
           novoMembroNome: convite.candidato_nome || "Novo Membro",
           comunidadeNome,
+          novoMembroId: convite.candidato_membro_id || undefined,
         });
       }
 
@@ -3322,6 +3323,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
             emails: uniqueEmails,
             novoMembroNome: convite.candidato_nome || "Novo Membro",
             comunidadeNome,
+            novoMembroId: convite.candidato_membro_id || undefined,
           }).catch((emailErr: any) => {
             console.error("[stripe/webhook] email send failed (non-fatal):", emailErr.message);
           });

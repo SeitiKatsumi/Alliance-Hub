@@ -188,13 +188,15 @@ export async function enviarNovoMembro(opts: {
   emails: string[];
   novoMembroNome: string;
   comunidadeNome: string;
+  novoMembroId?: string;
 }) {
+  const link = opts.novoMembroId ? `${BASE_URL}/vitrine/${opts.novoMembroId}` : `${BASE_URL}/comunidade`;
   const html = baseTemplate(`
     <h2 style="color:#D7BB7D;margin-top:0">🎉 Novo Membro na Comunidade!</h2>
     <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.novoMembroNome}</strong> acabou de se tornar membro oficial da <strong>${opts.comunidadeNome}</strong>!</p>
     <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para conhecer o novo membro e ampliar sua rede de alianças:</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${BASE_URL}/comunidade" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Comunidade</a>
+      <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Perfil do Membro</a>
     </div>
   `);
   for (const email of opts.emails) {

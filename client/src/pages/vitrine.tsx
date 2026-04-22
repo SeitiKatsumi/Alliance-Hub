@@ -1096,25 +1096,28 @@ export default function VitrinePage() {
             <div
               key={`slot-${i}`}
               onClick={!meuAnuncio && membroId ? openAnuncioCreate : undefined}
-              className="relative rounded-xl overflow-hidden flex flex-col items-center justify-center gap-2 transition-all duration-200"
+              className="relative rounded-xl overflow-hidden flex flex-col items-center justify-center gap-3 group transition-all duration-200"
               style={{
                 aspectRatio: "2/1",
-                border: "1px dashed rgba(215,187,125,0.2)",
-                background: "rgba(0,29,52,0.4)",
+                border: "1.5px solid rgba(215,187,125,0.5)",
+                background: "rgba(255,255,255,0.97)",
                 cursor: !meuAnuncio && membroId ? "pointer" : "default",
+                boxShadow: "0 2px 12px rgba(215,187,125,0.12)",
               }}
               data-testid={`slot-anuncio-vazio-${i}`}
             >
-              <div
-                className="flex flex-col items-center gap-2 transition-opacity duration-200 hover:opacity-100"
-                style={{ opacity: 0.45 }}
-              >
-                <Megaphone className="w-5 h-5 text-brand-gold/60" />
-                <p className="text-[11px] font-mono text-brand-gold/70 uppercase tracking-wider text-center leading-snug px-4">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(215,187,125,0.12)", border: "1px solid rgba(215,187,125,0.3)" }}>
+                  <Megaphone className="w-4 h-4" style={{ color: "#D7BB7D" }} />
+                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-center"
+                  style={{ color: "#D7BB7D", letterSpacing: "0.12em" }}>
                   Espaço disponível
                 </p>
                 {!meuAnuncio && membroId && (
-                  <span className="text-[10px] font-mono text-white/40 text-center">
+                  <span className="text-[10px] font-mono text-center transition-colors duration-200"
+                    style={{ color: "rgba(0,29,52,0.5)" }}>
                     Clique para anunciar
                   </span>
                 )}

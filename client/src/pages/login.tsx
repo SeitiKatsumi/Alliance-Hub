@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
-import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_1776814652666.png";
+import builtLogo from "@assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930.png";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();

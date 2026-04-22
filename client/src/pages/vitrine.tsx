@@ -634,7 +634,7 @@ function AnuncioCard({
       style={{
         border: isOwn ? "1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
         boxShadow: isOwn ? "0 0 16px rgba(215,187,125,0.08)" : "0 2px 8px rgba(0,0,0,0.4)",
-        minHeight: 200,
+        aspectRatio: "16/7",
         cursor: href ? "pointer" : "default",
         background: "rgba(0,29,52,0.9)",
       }}
@@ -646,10 +646,10 @@ function AnuncioCard({
           src={anuncio.imagem_url}
           alt={anuncio.titulo}
           className="w-full h-full object-cover"
-          style={{ display: "block", minHeight: 200 }}
+          style={{ display: "block" }}
         />
       ) : (
-        <div className="w-full flex items-center justify-center" style={{ minHeight: 200 }}>
+        <div className="w-full h-full flex items-center justify-center">
           <Megaphone className="w-10 h-10 text-brand-gold/20" />
         </div>
       )}
@@ -1081,10 +1081,10 @@ export default function VitrinePage() {
               <h2 className="text-sm font-semibold font-mono text-white/70 uppercase tracking-wider">Anúncios em Destaque</h2>
             </div>
             <div className="flex-1 h-px bg-brand-gold/10" />
-            <span className="text-[10px] font-mono text-white/25">{anunciosAtivos.length}/4 ativos</span>
+            <span className="text-[10px] font-mono text-white/25">{anunciosAtivos.length}/6 ativos</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {anunciosAtivos.map(a => (
+          <div className="grid grid-cols-3 gap-4">
+            {anunciosAtivos.slice(0, 6).map(a => (
               <AnuncioCard
                 key={a.id}
                 anuncio={a}

@@ -458,7 +458,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnunciosDisponibilidade(meses: number): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number }>> {
-    const MAX_SIMULTANEOUS = 4;
+    const MAX_SIMULTANEOUS = 6;
     const periodos: Array<{ inicio: string; fim: string; count: number; vagas: number }> = [];
     const hoje = new Date();
     for (let m = 0; m < meses; m++) {

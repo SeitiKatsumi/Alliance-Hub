@@ -1199,7 +1199,7 @@ export async function registerRoutes(
       if (existing) return res.status(409).json({ error: "Você já tem um anúncio ativo ou agendado" });
 
       const count = await storage.countAnunciosByPeriod(data_inicio, data_fim);
-      if (count >= 4) return res.status(409).json({ error: "Período lotado — escolha outro período" });
+      if (count >= 6) return res.status(409).json({ error: "Período lotado — escolha outro período" });
 
       const anuncio = await storage.createAnuncio({
         membro_id: membroId,

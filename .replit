@@ -15,8 +15,8 @@ PORT = "5000"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["node", "./dist/index.cjs"]
-build = ["bash", "-c", "npx drizzle-kit push && npm run build"]
+run = ["node", "dist/index.cjs"]
+build = ["npm", "run", "build"]
 
 [workflows]
 runButton = "Project"

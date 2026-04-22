@@ -87,6 +87,8 @@ export interface IStorage {
 
   getAnunciosAtivos(today: string): Promise<Anuncio[]>;
   getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined>;
+  getAnunciosByMembro(membroId: string): Promise<Anuncio[]>;
+  hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string): Promise<boolean>;
   getAnuncioById(id: string): Promise<Anuncio | undefined>;
   countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string): Promise<number>;
   createAnuncio(data: InsertAnuncio): Promise<Anuncio>;
@@ -416,6 +418,37 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(anuncios.data_inicio))
       .limit(1);
     return item;
+  }
+
+  async getAnunciosByMembro(membroId: string): Promise<Anuncio[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    return db
+      .select()
+      .from(anuncios)
+      .where(
+        and(
+          eq(anuncios.membro_id, membroId),
+          eq(anuncios.ativo, true),
+          gte(anuncios.data_fim, today),
+        )
+      )
+      .orderBy(anuncios.data_inicio);
+  }
+
+  async hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string): Promise<boolean> {
+    const items = await db
+      .select()
+      .from(anuncios)
+      .where(
+        and(
+          eq(anuncios.membro_id, membroId),
+          eq(anuncios.ativo, true),
+          lte(anuncios.data_inicio, dataFim),
+          gte(anuncios.data_fim, dataInicio),
+        )
+      );
+    const filtered = excludeId ? items.filter(a => a.id !== excludeId) : items;
+    return filtered.length > 0;
   }
 
   async getAnuncioById(id: string): Promise<Anuncio | undefined> {

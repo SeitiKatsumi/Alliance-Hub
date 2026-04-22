@@ -1168,10 +1168,10 @@ export async function registerRoutes(
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const membroId = (req.session as any).membroId;
-      if (!membroId) return res.json(null);
-      const anuncio = await storage.getAnuncioByMembro(membroId);
-      if (!anuncio) return res.json(null);
-      res.json(await enrichAnuncio(anuncio));
+      if (!membroId) return res.json([]);
+      const lista = await storage.getAnunciosByMembro(membroId);
+      const enriched = await Promise.all(lista.map(enrichAnuncio));
+      res.json(enriched);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1195,8 +1195,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "O período selecionado já passou. Escolha uma quinzena futura." });
       }
 
-      const existing = await storage.getAnuncioByMembro(membroId);
-      if (existing) return res.status(409).json({ error: "Você já tem um anúncio ativo ou agendado" });
+      const hasConflito = await storage.hasAnuncioByMembroInPeriod(membroId, data_inicio, data_fim);
+      if (hasConflito) return res.status(409).json({ error: "Você já tem um anúncio neste período. Escolha outra quinzena." });
 
       const count = await storage.countAnunciosByPeriod(data_inicio, data_fim);
       if (count >= 6) return res.status(409).json({ error: "Período lotado — escolha outro período" });

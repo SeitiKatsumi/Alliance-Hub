@@ -539,10 +539,12 @@ function PeriodoPickerGrid({
   periodos,
   selected,
   onSelect,
+  reservados = [],
 }: {
   periodos: PeriodoDisponivel[];
   selected: { inicio: string; fim: string } | null;
   onSelect: (p: { inicio: string; fim: string }) => void;
+  reservados?: string[];
 }) {
   const MESES_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const today = new Date().toISOString().slice(0, 10);
@@ -576,7 +578,8 @@ function PeriodoPickerGrid({
             {qs.map(q => {
               const isPast = q.fim < today;
               const isFull = q.vagas === 0;
-              const isDisabled = isPast || isFull;
+              const isReservado = reservados.includes(q.inicio);
+              const isDisabled = isPast || isFull || isReservado;
               const isSelected = selected?.inicio === q.inicio;
               return (
                 <button
@@ -587,6 +590,8 @@ function PeriodoPickerGrid({
                   className={`w-full text-left px-3 py-2 rounded-lg border text-xs font-mono transition-all ${
                     isSelected
                       ? "border-brand-gold bg-brand-gold/10 text-brand-gold"
+                      : isReservado
+                      ? "border-brand-gold/30 bg-brand-gold/5 text-brand-gold/40 cursor-not-allowed"
                       : isFull
                       ? "border-red-500/20 bg-red-500/5 text-red-400/50 cursor-not-allowed"
                       : isPast
@@ -595,8 +600,8 @@ function PeriodoPickerGrid({
                   }`}
                 >
                   <span className="block">{quinzenaLabel(q.inicio, q.fim)}</span>
-                  <span className={`text-[10px] ${isFull ? "text-red-400/50" : "text-white/30"}`}>
-                    {isFull ? "Lotado" : `${q.vagas}/6 vagas`}
+                  <span className={`text-[10px] ${isReservado ? "text-brand-gold/40" : isFull ? "text-red-400/50" : "text-white/30"}`}>
+                    {isReservado ? "Já reservado" : isFull ? "Lotado" : `${q.vagas}/6 vagas`}
                   </span>
                 </button>
               );
@@ -617,7 +622,7 @@ function AnuncioCard({
 }: {
   anuncio: AnuncioVitrine;
   isOwn: boolean;
-  onEdit: () => void;
+  onEdit: (a: AnuncioVitrine) => void;
   onCancel: () => void;
 }) {
   const href = anuncio.link
@@ -680,7 +685,7 @@ function AnuncioCard({
           style={{ opacity: hovered ? 1 : 0 }}
         >
           <button
-            onClick={e => { e.stopPropagation(); onEdit(); }}
+            onClick={e => { e.stopPropagation(); onEdit(anuncio); }}
             className="w-6 h-6 rounded flex items-center justify-center transition-colors"
             style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(215,187,125,0.3)", backdropFilter: "blur(4px)" }}
             data-testid={`btn-edit-anuncio-${anuncio.id}`}
@@ -728,6 +733,7 @@ export default function VitrinePage() {
   const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
   const [anuncioTerms, setAnuncioTerms] = useState({ t1: false, t2: false, t3: false });
   const anuncioTermsAllAccepted = anuncioTerms.t1 && anuncioTerms.t2 && anuncioTerms.t3;
+  const [anuncioEditTarget, setAnuncioEditTarget] = useState<AnuncioVitrine | null>(null);
 
   const membroId = user?.membro_directus_id;
 
@@ -761,17 +767,18 @@ export default function VitrinePage() {
     },
   });
 
-  const { data: meuAnuncio, refetch: refetchMeuAnuncio } = useQuery<AnuncioVitrine | null>({
+  const { data: meusAnuncios = [], refetch: refetchMeuAnuncio } = useQuery<AnuncioVitrine[]>({
     queryKey: ["/api/anuncios/mine"],
     queryFn: async () => {
-      if (!user) return null;
+      if (!user) return [];
       const r = await fetch("/api/anuncios/mine");
-      if (!r.ok) return null;
-      const data = await r.json();
-      return data;
+      if (!r.ok) return [];
+      return r.json();
     },
     enabled: !!user,
   });
+  // períodos já reservados pelo membro (para bloquear no picker)
+  const periodosReservados = meusAnuncios.map(a => a.data_inicio);
 
   const { data: disponibilidade = [] } = useQuery<PeriodoDisponivel[]>({
     queryKey: ["/api/anuncios/disponibilidade"],
@@ -826,17 +833,17 @@ export default function VitrinePage() {
     setAnuncioDialogOpen(true);
   }
 
-  function openAnuncioEdit() {
-    if (!meuAnuncio) return;
+  function openAnuncioEdit(alvo: AnuncioVitrine) {
     setAnuncioEditMode(true);
+    setAnuncioEditTarget(alvo);
     setAnuncioForm({
-      titulo: meuAnuncio.titulo || "",
-      descricao: meuAnuncio.descricao || "",
-      link: meuAnuncio.link || "",
+      titulo: alvo.titulo || "",
+      descricao: alvo.descricao || "",
+      link: alvo.link || "",
     });
-    setAnuncioPeriodo({ inicio: meuAnuncio.data_inicio, fim: meuAnuncio.data_fim });
-    setAnuncioImagemId(meuAnuncio.imagem_directus_id || null);
-    setAnuncioImagemPreview(meuAnuncio.imagem_url || null);
+    setAnuncioPeriodo({ inicio: alvo.data_inicio, fim: alvo.data_fim });
+    setAnuncioImagemId(alvo.imagem_directus_id || null);
+    setAnuncioImagemPreview(alvo.imagem_url || null);
     setAnuncioDialogOpen(true);
   }
 
@@ -859,9 +866,9 @@ export default function VitrinePage() {
   }
 
   function handleAnuncioSubmit() {
-    if (anuncioEditMode && meuAnuncio) {
+    if (anuncioEditMode && anuncioEditTarget) {
       editarAnuncioMutation.mutate({
-        id: meuAnuncio.id,
+        id: anuncioEditTarget.id,
         data: {
           titulo: anuncioForm.titulo,
           descricao: anuncioForm.descricao || null,
@@ -1046,29 +1053,16 @@ export default function VitrinePage() {
             <div className="h-5 w-px bg-white/10" />
 
             {/* Anunciar button */}
-            {meuAnuncio ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openAnuncioEdit}
-                className="gap-2 border-brand-gold/20 text-brand-gold/70 hover:bg-brand-gold/10 hover:text-brand-gold font-mono text-xs"
-                data-testid="btn-meu-anuncio"
-              >
-                <Megaphone className="w-3.5 h-3.5" />
-                Meu anúncio
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={openAnuncioCreate}
-                variant="outline"
-                className="gap-2 font-mono text-xs border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
-                data-testid="btn-anunciar"
-              >
-                <Megaphone className="w-3.5 h-3.5" />
-                Anunciar
-              </Button>
-            )}
+            <Button
+              size="sm"
+              onClick={openAnuncioCreate}
+              variant="outline"
+              className="gap-2 font-mono text-xs border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
+              data-testid="btn-anunciar"
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              {meusAnuncios.length > 0 ? `+ Novo anúncio` : "Anunciar"}
+            </Button>
           </div>
         )}
       </div>
@@ -1103,13 +1097,13 @@ export default function VitrinePage() {
           {Array.from({ length: Math.max(0, 6 - anunciosAtivos.length) }).map((_, i) => (
             <div
               key={`slot-${i}`}
-              onClick={!meuAnuncio && membroId ? openAnuncioCreate : undefined}
+              onClick={membroId ? openAnuncioCreate : undefined}
               className="relative rounded-xl overflow-hidden flex flex-col items-center justify-center gap-3 group transition-all duration-200"
               style={{
                 aspectRatio: "2/1",
                 border: "1.5px solid rgba(215,187,125,0.5)",
                 background: "rgba(255,255,255,0.97)",
-                cursor: !meuAnuncio && membroId ? "pointer" : "default",
+                cursor: membroId ? "pointer" : "default",
                 boxShadow: "0 2px 12px rgba(215,187,125,0.12)",
               }}
               data-testid={`slot-anuncio-vazio-${i}`}
@@ -1123,7 +1117,7 @@ export default function VitrinePage() {
                   style={{ color: "#D7BB7D", letterSpacing: "0.12em" }}>
                   Espaço disponível
                 </p>
-                {!meuAnuncio && membroId && (
+                {membroId && (
                   <span className="text-[10px] font-mono text-center transition-colors duration-200"
                     style={{ color: "rgba(0,29,52,0.5)" }}>
                     Clique para anunciar
@@ -1134,6 +1128,63 @@ export default function VitrinePage() {
           ))}
         </div>
       </div>
+
+      {/* Meus agendamentos — só visível para o próprio membro */}
+      {membroId && meusAnuncios.length > 0 && (
+        <div className="rounded-xl p-4 space-y-3"
+          style={{ background: "rgba(215,187,125,0.03)", border: "1px solid rgba(215,187,125,0.12)" }}>
+          <div className="flex items-center gap-2">
+            <CalendarDays className="w-3.5 h-3.5 text-brand-gold/50" />
+            <span className="text-xs font-mono text-brand-gold/60 uppercase tracking-wider">
+              Meus agendamentos ({meusAnuncios.length})
+            </span>
+          </div>
+          <div className="space-y-2">
+            {meusAnuncios.map(a => {
+              const today = new Date().toISOString().slice(0, 10);
+              const isAtivo = a.data_inicio <= today && a.data_fim >= today;
+              const isFuturo = a.data_inicio > today;
+              return (
+                <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  {a.imagem_url ? (
+                    <img src={a.imagem_url} alt="" className="w-10 h-7 rounded object-cover shrink-0" />
+                  ) : (
+                    <div className="w-10 h-7 rounded shrink-0 flex items-center justify-center"
+                      style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.15)" }}>
+                      <Megaphone className="w-3 h-3 text-brand-gold/40" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-mono text-white/60">
+                      {a.data_inicio} → {a.data_fim}
+                    </p>
+                    {a.link && (
+                      <p className="text-[10px] text-white/30 font-mono truncate">{a.link}</p>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full shrink-0"
+                    style={{
+                      background: isAtivo ? "rgba(74,222,128,0.1)" : "rgba(215,187,125,0.08)",
+                      border: `1px solid ${isAtivo ? "rgba(74,222,128,0.3)" : "rgba(215,187,125,0.2)"}`,
+                      color: isAtivo ? "rgba(74,222,128,0.8)" : "rgba(215,187,125,0.6)",
+                    }}>
+                    {isAtivo ? "Ativo" : isFuturo ? "Agendado" : "Encerrado"}
+                  </span>
+                  <button
+                    onClick={() => openAnuncioEdit(a)}
+                    className="w-6 h-6 rounded flex items-center justify-center shrink-0 transition-colors hover:bg-brand-gold/10"
+                    style={{ border: "1px solid rgba(215,187,125,0.2)" }}
+                    data-testid={`btn-edit-agenda-${a.id}`}
+                  >
+                    <Pencil className="w-3 h-3 text-brand-gold/50" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -1522,6 +1573,7 @@ export default function VitrinePage() {
                     periodos={disponibilidade}
                     selected={anuncioPeriodo}
                     onSelect={setAnuncioPeriodo}
+                    reservados={periodosReservados}
                   />
                 )}
                 {anuncioPeriodo && (
@@ -1536,12 +1588,12 @@ export default function VitrinePage() {
               </div>
             )}
 
-            {anuncioEditMode && meuAnuncio && (
+            {anuncioEditMode && anuncioEditTarget && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <CalendarDays className="w-3.5 h-3.5 text-white/30" />
                 <span className="text-xs font-mono text-white/30">
-                  Período: {meuAnuncio.data_inicio} → {meuAnuncio.data_fim}
+                  Período: {anuncioEditTarget.data_inicio} → {anuncioEditTarget.data_fim}
                 </span>
               </div>
             )}
@@ -1589,12 +1641,12 @@ export default function VitrinePage() {
           </div>
 
           <DialogFooter className="gap-2 flex-col sm:flex-row">
-            {anuncioEditMode && meuAnuncio && (
+            {anuncioEditMode && anuncioEditTarget && (
               <Button
                 variant="ghost"
                 onClick={() => {
                   if (confirm("Cancelar este anúncio?")) {
-                    cancelarAnuncioMutation.mutate(meuAnuncio.id);
+                    cancelarAnuncioMutation.mutate(anuncioEditTarget.id);
                     setAnuncioDialogOpen(false);
                   }
                 }}

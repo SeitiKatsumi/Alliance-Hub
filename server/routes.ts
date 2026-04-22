@@ -1103,6 +1103,137 @@ export async function registerRoutes(
     }
   });
 
+  // ========== ANÚNCIOS ==========
+  const DIRECTUS_FILE_BASE = `${DIRECTUS_URL}/assets`;
+
+  async function enrichAnuncio(a: any) {
+    let membro: any = null;
+    try {
+      const r = await fetch(
+        `${DIRECTUS_URL}/items/cadastro_geral/${a.membro_id}?fields=id,nome,empresa,foto_perfil,cargo`,
+        { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } }
+      );
+      if (r.ok) {
+        const j = await r.json();
+        membro = j.data || null;
+      }
+    } catch {}
+    return {
+      ...a,
+      membro_nome: membro?.nome || null,
+      membro_empresa: membro?.empresa || null,
+      membro_foto: membro?.foto_perfil ? `${DIRECTUS_FILE_BASE}/${membro.foto_perfil}` : null,
+      imagem_url: a.imagem_directus_id ? `${DIRECTUS_FILE_BASE}/${a.imagem_directus_id}` : null,
+    };
+  }
+
+  app.get("/api/anuncios", async (req, res) => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const ativos = await storage.getAnunciosAtivos(today);
+      const enriched = await Promise.all(ativos.map(enrichAnuncio));
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/anuncios/disponibilidade", async (req, res) => {
+    try {
+      const meses = Math.min(6, Math.max(1, parseInt(String(req.query.meses || "3"))));
+      const data = await storage.getAnunciosDisponibilidade(meses);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/anuncios/mine", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user?.membro_directus_id) return res.json(null);
+      const anuncio = await storage.getAnuncioByMembro(user.membro_directus_id);
+      if (!anuncio) return res.json(null);
+      res.json(await enrichAnuncio(anuncio));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/anuncios", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user?.membro_directus_id) return res.status(400).json({ error: "Perfil de membro não vinculado" });
+
+      const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
+      if (!titulo || !data_inicio || !data_fim) return res.status(400).json({ error: "Título, data_inicio e data_fim são obrigatórios" });
+
+      const existing = await storage.getAnuncioByMembro(user.membro_directus_id);
+      if (existing) return res.status(409).json({ error: "Você já tem um anúncio ativo ou agendado" });
+
+      const count = await storage.countAnunciosByPeriod(data_inicio, data_fim);
+      if (count >= 4) return res.status(409).json({ error: "Período lotado — escolha outro período" });
+
+      const anuncio = await storage.createAnuncio({
+        membro_id: user.membro_directus_id,
+        titulo,
+        descricao: descricao || null,
+        link: link || null,
+        imagem_directus_id: imagem_directus_id || null,
+        data_inicio,
+        data_fim,
+        ativo: true,
+      });
+      res.json(await enrichAnuncio(anuncio));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/anuncios/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      const anuncio = await storage.getAnuncioById(req.params.id);
+      if (!anuncio) return res.status(404).json({ error: "Anúncio não encontrado" });
+      if (anuncio.membro_id !== user?.membro_directus_id && user?.role !== "admin") {
+        return res.status(403).json({ error: "Sem permissão" });
+      }
+      const { titulo, descricao, link, imagem_directus_id } = req.body;
+      const updated = await storage.updateAnuncio(req.params.id, {
+        ...(titulo !== undefined && { titulo }),
+        ...(descricao !== undefined && { descricao }),
+        ...(link !== undefined && { link }),
+        ...(imagem_directus_id !== undefined && { imagem_directus_id }),
+      });
+      res.json(await enrichAnuncio(updated));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/anuncios/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      const anuncio = await storage.getAnuncioById(req.params.id);
+      if (!anuncio) return res.status(404).json({ error: "Anúncio não encontrado" });
+      if (anuncio.membro_id !== user?.membro_directus_id && user?.role !== "admin") {
+        return res.status(403).json({ error: "Sem permissão" });
+      }
+      await storage.deleteAnuncio(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== ESPECIALIDADES (from Directus) ==========
   app.get("/api/especialidades", async (req, res) => {
     try {

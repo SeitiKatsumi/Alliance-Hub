@@ -10,8 +10,9 @@ import {
   transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
   opaInteresses, type OpaInteresse, type InsertOpaInteresse,
   convitesComunidade, type ConviteComunidade, type InsertConviteComunidade,
+  anuncios, type Anuncio, type InsertAnuncio,
 } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -83,6 +84,15 @@ export interface IStorage {
   getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]>;
   updateConvite(id: string, data: Partial<ConviteComunidade>): Promise<ConviteComunidade | undefined>;
+
+  getAnunciosAtivos(today: string): Promise<Anuncio[]>;
+  getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined>;
+  getAnuncioById(id: string): Promise<Anuncio | undefined>;
+  countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string): Promise<number>;
+  createAnuncio(data: InsertAnuncio): Promise<Anuncio>;
+  updateAnuncio(id: string, data: Partial<InsertAnuncio>): Promise<Anuncio | undefined>;
+  deleteAnuncio(id: string): Promise<boolean>;
+  getAnunciosDisponibilidade(meses: number): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -375,6 +385,96 @@ export class DatabaseStorage implements IStorage {
       .where(eq(convitesComunidade.id, id))
       .returning();
     return item;
+  }
+
+  async getAnunciosAtivos(today: string): Promise<Anuncio[]> {
+    return db
+      .select()
+      .from(anuncios)
+      .where(
+        and(
+          eq(anuncios.ativo, true),
+          lte(anuncios.data_inicio, today),
+          gte(anuncios.data_fim, today),
+        )
+      )
+      .orderBy(desc(anuncios.created_at));
+  }
+
+  async getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined> {
+    const today = new Date().toISOString().slice(0, 10);
+    const [item] = await db
+      .select()
+      .from(anuncios)
+      .where(
+        and(
+          eq(anuncios.membro_id, membroId),
+          eq(anuncios.ativo, true),
+          gte(anuncios.data_fim, today),
+        )
+      )
+      .orderBy(desc(anuncios.data_inicio))
+      .limit(1);
+    return item;
+  }
+
+  async getAnuncioById(id: string): Promise<Anuncio | undefined> {
+    const [item] = await db.select().from(anuncios).where(eq(anuncios.id, id));
+    return item;
+  }
+
+  async countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string): Promise<number> {
+    const items = await db
+      .select()
+      .from(anuncios)
+      .where(
+        and(
+          eq(anuncios.ativo, true),
+          lte(anuncios.data_inicio, dataFim),
+          gte(anuncios.data_fim, dataInicio),
+        )
+      );
+    const filtered = excludeId ? items.filter(a => a.id !== excludeId) : items;
+    return filtered.length;
+  }
+
+  async createAnuncio(data: InsertAnuncio): Promise<Anuncio> {
+    const [item] = await db.insert(anuncios).values(data).returning();
+    return item;
+  }
+
+  async updateAnuncio(id: string, data: Partial<InsertAnuncio>): Promise<Anuncio | undefined> {
+    const [item] = await db.update(anuncios).set(data).where(eq(anuncios.id, id)).returning();
+    return item;
+  }
+
+  async deleteAnuncio(id: string): Promise<boolean> {
+    const result = await db
+      .update(anuncios)
+      .set({ ativo: false })
+      .where(eq(anuncios.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getAnunciosDisponibilidade(meses: number): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number }>> {
+    const MAX_SIMULTANEOUS = 4;
+    const periodos: Array<{ inicio: string; fim: string; count: number; vagas: number }> = [];
+    const hoje = new Date();
+    for (let m = 0; m < meses; m++) {
+      const ano = hoje.getFullYear() + Math.floor((hoje.getMonth() + m) / 12);
+      const mes = (hoje.getMonth() + m) % 12;
+      const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+      const quinzenas = [
+        { inicio: `${ano}-${String(mes + 1).padStart(2, "0")}-01`, fim: `${ano}-${String(mes + 1).padStart(2, "0")}-15` },
+        { inicio: `${ano}-${String(mes + 1).padStart(2, "0")}-16`, fim: `${ano}-${String(mes + 1).padStart(2, "0")}-${ultimoDia}` },
+      ];
+      for (const q of quinzenas) {
+        const count = await this.countAnunciosByPeriod(q.inicio, q.fim);
+        periodos.push({ ...q, count, vagas: Math.max(0, MAX_SIMULTANEOUS - count) });
+      }
+    }
+    return periodos;
   }
 }
 

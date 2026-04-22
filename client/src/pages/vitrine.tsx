@@ -18,7 +18,8 @@ import {
 import {
   Store, Search, MapPin, Building2,
   Users, X, Plus, Pencil, Trash2, Loader2,
-  FileText, Mail, MessageSquare, Globe, Phone, Navigation
+  FileText, Mail, MessageSquare, Globe, Phone, Navigation,
+  Megaphone, CalendarDays, ExternalLink, ImageIcon, Tag, CheckCircle2, XCircle, Upload,
 } from "lucide-react";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -504,6 +505,225 @@ function LocationPickerModal({ open, onClose, onSelect }: {
   );
 }
 
+// ===== ANÚNCIOS INTERFACES =====
+interface AnuncioVitrine {
+  id: string;
+  membro_id: string;
+  titulo: string;
+  descricao?: string | null;
+  link?: string | null;
+  imagem_url?: string | null;
+  imagem_directus_id?: string | null;
+  membro_nome?: string | null;
+  membro_empresa?: string | null;
+  membro_foto?: string | null;
+  data_inicio: string;
+  data_fim: string;
+  ativo: boolean;
+}
+
+interface PeriodoDisponivel {
+  inicio: string;
+  fim: string;
+  count: number;
+  vagas: number;
+}
+
+// ===== PERIODO PICKER GRID =====
+function PeriodoPickerGrid({
+  periodos,
+  selected,
+  onSelect,
+}: {
+  periodos: PeriodoDisponivel[];
+  selected: { inicio: string; fim: string } | null;
+  onSelect: (p: { inicio: string; fim: string }) => void;
+}) {
+  const MESES_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const today = new Date().toISOString().slice(0, 10);
+
+  function mesLabel(inicio: string) {
+    const [, m] = inicio.split("-");
+    return MESES_PT[parseInt(m) - 1];
+  }
+  function quinzenaLabel(inicio: string, fim: string) {
+    const d = parseInt(inicio.split("-")[2]);
+    const df = parseInt(fim.split("-")[2]);
+    return `${d}–${df}`;
+  }
+
+  const grouped: Record<string, PeriodoDisponivel[]> = {};
+  for (const p of periodos) {
+    const key = p.inicio.slice(0, 7);
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(p);
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-white/40 font-mono">Selecione um período disponível:</p>
+      <div className="grid grid-cols-2 gap-2">
+        {Object.entries(grouped).map(([mesKey, qs]) => (
+          <div key={mesKey} className="space-y-1.5">
+            <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-wider">
+              {mesLabel(qs[0].inicio)} {mesKey.slice(0, 4)}
+            </p>
+            {qs.map(q => {
+              const isPast = q.fim < today;
+              const isFull = q.vagas === 0;
+              const isDisabled = isPast || isFull;
+              const isSelected = selected?.inicio === q.inicio;
+              return (
+                <button
+                  key={q.inicio}
+                  disabled={isDisabled}
+                  onClick={() => onSelect({ inicio: q.inicio, fim: q.fim })}
+                  data-testid={`btn-periodo-${q.inicio}`}
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs font-mono transition-all ${
+                    isSelected
+                      ? "border-brand-gold bg-brand-gold/10 text-brand-gold"
+                      : isFull
+                      ? "border-red-500/20 bg-red-500/5 text-red-400/50 cursor-not-allowed"
+                      : isPast
+                      ? "border-white/5 bg-white/3 text-white/20 cursor-not-allowed"
+                      : "border-white/10 hover:border-brand-gold/30 hover:bg-brand-gold/5 text-white/70 cursor-pointer"
+                  }`}
+                >
+                  <span className="block">{quinzenaLabel(q.inicio, q.fim)}</span>
+                  <span className={`text-[10px] ${isFull ? "text-red-400/50" : "text-white/30"}`}>
+                    {isFull ? "Lotado" : `${q.vagas}/4 vagas`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== ANUNCIO CARD =====
+function AnuncioCard({
+  anuncio,
+  isOwn,
+  onEdit,
+  onCancel,
+}: {
+  anuncio: AnuncioVitrine;
+  isOwn: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+}) {
+  const MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  function fmtDate(d: string) {
+    const [y, m, day] = d.split("-");
+    return `${parseInt(day)} ${MESES_PT[parseInt(m)-1]} ${y}`;
+  }
+
+  return (
+    <div
+      className="relative rounded-xl overflow-hidden flex flex-col"
+      style={{
+        background: "linear-gradient(135deg, rgba(3,8,18,0.95) 0%, rgba(0,29,52,0.95) 100%)",
+        border: isOwn ? "1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
+        boxShadow: isOwn ? "0 0 16px rgba(215,187,125,0.08)" : "0 2px 8px rgba(0,0,0,0.4)",
+        minHeight: 200,
+      }}
+    >
+      {/* Top accent */}
+      <div className="absolute top-0 left-0 right-0 h-px"
+        style={{ background: "linear-gradient(90deg, transparent, rgba(215,187,125,0.5), transparent)" }} />
+
+      {/* ANÚNCIO badge */}
+      <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full"
+        style={{ background: "rgba(215,187,125,0.15)", border: "1px solid rgba(215,187,125,0.25)" }}>
+        <Megaphone className="w-2.5 h-2.5 text-brand-gold/70" />
+        <span className="text-[9px] font-mono text-brand-gold/70 uppercase tracking-wider">Anúncio</span>
+      </div>
+
+      {/* Own actions */}
+      {isOwn && (
+        <div className="absolute top-2 right-2 flex gap-1">
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="w-6 h-6 rounded flex items-center justify-center transition-colors"
+            style={{ background: "rgba(215,187,125,0.1)", border: "1px solid rgba(215,187,125,0.2)" }}
+            data-testid={`btn-edit-anuncio-${anuncio.id}`}
+          >
+            <Pencil className="w-3 h-3 text-brand-gold/70" />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onCancel(); }}
+            className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-red-500/20"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+            data-testid={`btn-cancel-anuncio-${anuncio.id}`}
+          >
+            <XCircle className="w-3 h-3 text-white/40 hover:text-red-400" />
+          </button>
+        </div>
+      )}
+
+      {/* Image or placeholder */}
+      <div className="mx-4 mt-8 mb-3 rounded-lg overflow-hidden flex items-center justify-center"
+        style={{
+          height: 80,
+          background: anuncio.imagem_url ? "transparent" : "rgba(215,187,125,0.04)",
+          border: anuncio.imagem_url ? "none" : "1px dashed rgba(215,187,125,0.1)",
+        }}>
+        {anuncio.imagem_url ? (
+          <img src={anuncio.imagem_url} alt={anuncio.titulo} className="w-full h-full object-cover rounded-lg" />
+        ) : (
+          <Megaphone className="w-8 h-8 text-brand-gold/20" />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="px-4 pb-3 flex-1 flex flex-col justify-between space-y-2">
+        <div>
+          <p className="text-sm font-semibold text-white font-mono leading-tight line-clamp-2">{anuncio.titulo}</p>
+          {anuncio.descricao && (
+            <p className="text-xs text-white/40 mt-1 line-clamp-2 font-mono leading-relaxed">{anuncio.descricao}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          {/* Member */}
+          {anuncio.membro_nome && (
+            <div className="flex items-center gap-1">
+              <Building2 className="w-3 h-3 text-white/20 shrink-0" />
+              <span className="text-[10px] text-white/35 font-mono truncate">{anuncio.membro_empresa || anuncio.membro_nome}</span>
+            </div>
+          )}
+          {/* Period */}
+          <div className="flex items-center gap-1">
+            <CalendarDays className="w-3 h-3 text-brand-gold/30 shrink-0" />
+            <span className="text-[10px] text-brand-gold/40 font-mono">{fmtDate(anuncio.data_inicio)} → {fmtDate(anuncio.data_fim)}</span>
+          </div>
+          {/* Link */}
+          {anuncio.link && (
+            <a
+              href={anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-[10px] text-brand-gold/50 hover:text-brand-gold transition-colors font-mono"
+              data-testid={`link-anuncio-${anuncio.id}`}
+            >
+              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+              Saiba mais
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom accent */}
+      <div className="absolute bottom-0 left-0 right-0 h-px"
+        style={{ background: "linear-gradient(90deg, transparent, rgba(215,187,125,0.15), transparent)" }} />
+    </div>
+  );
+}
+
 export default function VitrinePage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -520,6 +740,15 @@ export default function VitrinePage() {
     whatsapp: "", email: "",
     perfil_aliado: "", nucleo_alianca: "", tipo_alianca: "", link_site: ""
   });
+
+  // Anúncios state
+  const [anuncioDialogOpen, setAnuncioDialogOpen] = useState(false);
+  const [anuncioEditMode, setAnuncioEditMode] = useState(false);
+  const [anuncioForm, setAnuncioForm] = useState({ titulo: "", descricao: "", link: "" });
+  const [anuncioPeriodo, setAnuncioPeriodo] = useState<{ inicio: string; fim: string } | null>(null);
+  const [anuncioImagemId, setAnuncioImagemId] = useState<string | null>(null);
+  const [anuncioImagemPreview, setAnuncioImagemPreview] = useState<string | null>(null);
+  const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
 
   const membroId = user?.membro_directus_id;
 
@@ -542,6 +771,139 @@ export default function VitrinePage() {
   });
 
   const myCardExists = !!myMembro?.na_vitrine;
+
+  // Anúncios queries
+  const { data: anunciosAtivos = [], refetch: refetchAnuncios } = useQuery<AnuncioVitrine[]>({
+    queryKey: ["/api/anuncios"],
+    queryFn: async () => {
+      const r = await fetch("/api/anuncios");
+      if (!r.ok) return [];
+      return r.json();
+    },
+  });
+
+  const { data: meuAnuncio, refetch: refetchMeuAnuncio } = useQuery<AnuncioVitrine | null>({
+    queryKey: ["/api/anuncios/mine"],
+    queryFn: async () => {
+      if (!user) return null;
+      const r = await fetch("/api/anuncios/mine");
+      if (!r.ok) return null;
+      const data = await r.json();
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: disponibilidade = [] } = useQuery<PeriodoDisponivel[]>({
+    queryKey: ["/api/anuncios/disponibilidade"],
+    queryFn: async () => {
+      const r = await fetch("/api/anuncios/disponibilidade?meses=3");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: anuncioDialogOpen,
+  });
+
+  // Anúncio mutations
+  const criarAnuncioMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/anuncios", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      setAnuncioDialogOpen(false);
+      toast({ title: "Anúncio criado com sucesso!" });
+    },
+    onError: (err: any) => toast({ title: err?.message || "Erro ao criar anúncio", variant: "destructive" }),
+  });
+
+  const editarAnuncioMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/anuncios/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      setAnuncioDialogOpen(false);
+      toast({ title: "Anúncio atualizado!" });
+    },
+    onError: (err: any) => toast({ title: err?.message || "Erro ao atualizar anúncio", variant: "destructive" }),
+  });
+
+  const cancelarAnuncioMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/anuncios/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      toast({ title: "Anúncio cancelado." });
+    },
+    onError: () => toast({ title: "Erro ao cancelar anúncio", variant: "destructive" }),
+  });
+
+  function openAnuncioCreate() {
+    setAnuncioEditMode(false);
+    setAnuncioForm({ titulo: "", descricao: "", link: "" });
+    setAnuncioPeriodo(null);
+    setAnuncioImagemId(null);
+    setAnuncioImagemPreview(null);
+    setAnuncioDialogOpen(true);
+  }
+
+  function openAnuncioEdit() {
+    if (!meuAnuncio) return;
+    setAnuncioEditMode(true);
+    setAnuncioForm({
+      titulo: meuAnuncio.titulo || "",
+      descricao: meuAnuncio.descricao || "",
+      link: meuAnuncio.link || "",
+    });
+    setAnuncioPeriodo({ inicio: meuAnuncio.data_inicio, fim: meuAnuncio.data_fim });
+    setAnuncioImagemId(meuAnuncio.imagem_directus_id || null);
+    setAnuncioImagemPreview(meuAnuncio.imagem_url || null);
+    setAnuncioDialogOpen(true);
+  }
+
+  async function handleAnuncioImageUpload(file: File) {
+    setAnuncioUploadLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const r = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await r.json();
+      if (json.fileIds?.[0]) {
+        setAnuncioImagemId(json.fileIds[0]);
+        setAnuncioImagemPreview(URL.createObjectURL(file));
+      }
+    } catch {
+      toast({ title: "Erro ao fazer upload da imagem", variant: "destructive" });
+    } finally {
+      setAnuncioUploadLoading(false);
+    }
+  }
+
+  function handleAnuncioSubmit() {
+    if (anuncioEditMode && meuAnuncio) {
+      editarAnuncioMutation.mutate({
+        id: meuAnuncio.id,
+        data: {
+          titulo: anuncioForm.titulo,
+          descricao: anuncioForm.descricao || null,
+          link: anuncioForm.link || null,
+          imagem_directus_id: anuncioImagemId || null,
+        },
+      });
+    } else {
+      if (!anuncioPeriodo) {
+        toast({ title: "Selecione um período", variant: "destructive" });
+        return;
+      }
+      criarAnuncioMutation.mutate({
+        titulo: anuncioForm.titulo,
+        descricao: anuncioForm.descricao || null,
+        link: anuncioForm.link || null,
+        imagem_directus_id: anuncioImagemId || null,
+        data_inicio: anuncioPeriodo.inicio,
+        data_fim: anuncioPeriodo.fim,
+      });
+    }
+  }
 
   // Auto-open edit dialog when navigated from detail page with ?edit=true
   useEffect(() => {
@@ -662,7 +1024,8 @@ export default function VitrinePage() {
         </div>
 
         {membroId && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Card buttons */}
             {myCardExists ? (
               <>
                 <Button
@@ -698,6 +1061,34 @@ export default function VitrinePage() {
                 Criar meu card
               </Button>
             )}
+
+            {/* Divider */}
+            <div className="h-5 w-px bg-white/10" />
+
+            {/* Anunciar button */}
+            {meuAnuncio ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openAnuncioEdit}
+                className="gap-2 border-brand-gold/20 text-brand-gold/70 hover:bg-brand-gold/10 hover:text-brand-gold font-mono text-xs"
+                data-testid="btn-meu-anuncio"
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                Meu anúncio
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={openAnuncioCreate}
+                variant="outline"
+                className="gap-2 font-mono text-xs border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
+                data-testid="btn-anunciar"
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                Anunciar
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -707,6 +1098,31 @@ export default function VitrinePage() {
         <Skeleton className="h-[440px] rounded-2xl" />
       ) : (
         <WorldMapHeader membros={membros} />
+      )}
+
+      {/* ===== ANÚNCIOS EM DESTAQUE ===== */}
+      {anunciosAtivos.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-brand-gold/70" />
+              <h2 className="text-sm font-semibold font-mono text-white/70 uppercase tracking-wider">Anúncios em Destaque</h2>
+            </div>
+            <div className="flex-1 h-px bg-brand-gold/10" />
+            <span className="text-[10px] font-mono text-white/25">{anunciosAtivos.length}/4 ativos</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {anunciosAtivos.map(a => (
+              <AnuncioCard
+                key={a.id}
+                anuncio={a}
+                isOwn={a.membro_id === membroId}
+                onEdit={openAnuncioEdit}
+                onCancel={() => cancelarAnuncioMutation.mutate(a.id)}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Filters */}
@@ -1000,6 +1416,196 @@ export default function VitrinePage() {
         onClose={() => setLocationPickerOpen(false)}
         onSelect={handleLocationSelect}
       />
+
+      {/* ===== ANÚNCIO DIALOG ===== */}
+      <Dialog open={anuncioDialogOpen} onOpenChange={setAnuncioDialogOpen}>
+        <DialogContent
+          className="max-w-xl border-brand-gold/20 text-white"
+          style={{ background: "#050f1c" }}
+        >
+          <DialogHeader>
+            <DialogTitle className="font-mono text-brand-gold text-base flex items-center gap-2">
+              <Megaphone className="w-4 h-4" />
+              {anuncioEditMode ? "Editar anúncio" : "Criar anúncio"}
+            </DialogTitle>
+            <p className="text-xs text-white/40 font-mono mt-1">
+              {anuncioEditMode
+                ? "Atualize as informações do seu anúncio. O período não pode ser alterado."
+                : "Preencha os dados e escolha um período quinzenal disponível."}
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+            {/* Imagem */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/40 font-mono">Imagem (opcional)</label>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-20 h-14 rounded-lg flex items-center justify-center overflow-hidden border border-white/10"
+                  style={{ background: anuncioImagemPreview ? "transparent" : "rgba(255,255,255,0.04)" }}
+                >
+                  {anuncioImagemPreview ? (
+                    <img src={anuncioImagemPreview} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-white/20" />
+                  )}
+                </div>
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpg,image/jpeg,image/webp"
+                    className="sr-only"
+                    data-testid="input-anuncio-imagem"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAnuncioImageUpload(file);
+                    }}
+                  />
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono cursor-pointer transition-colors"
+                    style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}>
+                    {anuncioUploadLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                    {anuncioUploadLoading ? "Enviando..." : "Escolher imagem"}
+                  </div>
+                </label>
+                {anuncioImagemId && (
+                  <button
+                    onClick={() => { setAnuncioImagemId(null); setAnuncioImagemPreview(null); }}
+                    className="text-xs text-white/25 hover:text-white/50 font-mono"
+                  >
+                    remover
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Título */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/40 font-mono">Título *</label>
+              <Input
+                value={anuncioForm.titulo}
+                onChange={e => setAnuncioForm(f => ({ ...f, titulo: e.target.value }))}
+                placeholder="Ex: Consultoria estrutural para projetos industriais"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                maxLength={200}
+                data-testid="input-anuncio-titulo"
+              />
+            </div>
+
+            {/* Descrição */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/40 font-mono">Descrição (opcional)</label>
+              <Textarea
+                value={anuncioForm.descricao}
+                onChange={e => setAnuncioForm(f => ({ ...f, descricao: e.target.value }))}
+                placeholder="Descreva brevemente sua oferta, diferencial ou chamada de ação..."
+                rows={3}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 resize-none"
+                data-testid="input-anuncio-descricao"
+              />
+            </div>
+
+            {/* Link */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/40 font-mono">Link (opcional)</label>
+              <Input
+                value={anuncioForm.link}
+                onChange={e => setAnuncioForm(f => ({ ...f, link: e.target.value }))}
+                placeholder="https://www.seusite.com.br/servico"
+                type="url"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                data-testid="input-anuncio-link"
+              />
+            </div>
+
+            {/* Período — só em criação */}
+            {!anuncioEditMode && (
+              <div className="rounded-xl p-4 space-y-3"
+                style={{ background: "rgba(215,187,125,0.04)", border: "1px solid rgba(215,187,125,0.1)" }}>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="w-3.5 h-3.5 text-brand-gold/50" />
+                  <span className="text-xs font-mono text-brand-gold/60">Período do anúncio</span>
+                </div>
+                {disponibilidade.length === 0 ? (
+                  <div className="flex items-center gap-2 text-xs text-white/30 font-mono py-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Carregando disponibilidade...
+                  </div>
+                ) : (
+                  <PeriodoPickerGrid
+                    periodos={disponibilidade}
+                    selected={anuncioPeriodo}
+                    onSelect={setAnuncioPeriodo}
+                  />
+                )}
+                {anuncioPeriodo && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                    style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.2)" }}>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-gold/70" />
+                    <span className="text-xs font-mono text-brand-gold/70">
+                      {anuncioPeriodo.inicio} → {anuncioPeriodo.fim}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {anuncioEditMode && meuAnuncio && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <CalendarDays className="w-3.5 h-3.5 text-white/30" />
+                <span className="text-xs font-mono text-white/30">
+                  Período: {meuAnuncio.data_inicio} → {meuAnuncio.data_fim}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            {anuncioEditMode && meuAnuncio && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (confirm("Cancelar este anúncio?")) {
+                    cancelarAnuncioMutation.mutate(meuAnuncio.id);
+                    setAnuncioDialogOpen(false);
+                  }
+                }}
+                className="text-red-400/60 hover:text-red-400 hover:bg-red-400/10 font-mono text-xs mr-auto"
+                data-testid="btn-cancelar-anuncio"
+              >
+                <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                Cancelar anúncio
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              onClick={() => setAnuncioDialogOpen(false)}
+              className="text-white/40 hover:text-white/70 font-mono text-xs"
+            >
+              Fechar
+            </Button>
+            <Button
+              onClick={handleAnuncioSubmit}
+              disabled={
+                !anuncioForm.titulo.trim() ||
+                criarAnuncioMutation.isPending ||
+                editarAnuncioMutation.isPending ||
+                anuncioUploadLoading
+              }
+              className="gap-2 font-mono text-xs"
+              style={{ background: "linear-gradient(135deg, #D7BB7D, #b89a50)", color: "#001D34" }}
+              data-testid="btn-salvar-anuncio"
+            >
+              {(criarAnuncioMutation.isPending || editarAnuncioMutation.isPending) ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Megaphone className="w-4 h-4" />
+              )}
+              {anuncioEditMode ? "Salvar alterações" : "Publicar anúncio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

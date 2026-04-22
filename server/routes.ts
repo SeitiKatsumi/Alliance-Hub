@@ -1553,6 +1553,23 @@ export async function registerRoutes(
 
   app.post("/api/bias", async (req, res) => {
     try {
+      const sessionRole = (req.session as any).role || "user";
+      if (sessionRole !== "admin" && sessionRole !== "manager") {
+        const sessionMembroId = (req.session as any).membroId as string | null;
+        let canCreate = false;
+        if (sessionMembroId) {
+          try {
+            const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=perfil_aliado,tipos_alianca");
+            if (membro) {
+              if (membro.perfil_aliado === "Aliado BUILT") canCreate = true;
+              if (Array.isArray(membro.tipos_alianca) && membro.tipos_alianca.includes("Liderança")) canCreate = true;
+            }
+          } catch (_) {}
+        }
+        if (!canCreate) {
+          return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição Liderança ou administradores podem criar BIAs." });
+        }
+      }
       const item = await directusCreate("bias_projetos", prepareBiaPayload(req.body));
       const valorOrigem = parseFloat(req.body.valor_origem) || 0;
       if (valorOrigem > 0) {
@@ -2320,13 +2337,27 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if ((role === "admin" || role === "manager") && Object.keys(permissions).length === 0) {
       permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
     }
+    const membroId = (req.session as any).membroId as string | null;
+    let perfil_aliado: string | null = null;
+    let tipos_alianca: string[] = [];
+    if (membroId) {
+      try {
+        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=perfil_aliado,tipos_alianca");
+        if (membro) {
+          perfil_aliado = membro.perfil_aliado || null;
+          tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
+        }
+      } catch (_) {}
+    }
     res.json({
       id: directusUserId,
       nome: (req.session as any).nome || "",
       email,
-      membro_directus_id: (req.session as any).membroId || null,
+      membro_directus_id: membroId || null,
       role,
       permissions,
+      perfil_aliado,
+      tipos_alianca,
     });
   });
 

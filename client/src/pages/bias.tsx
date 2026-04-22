@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1767,6 +1768,15 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 // ---- Main Page ----
 export default function BiasPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const canCreateBia = !!user && (
+    user.role === "admin" ||
+    user.role === "manager" ||
+    user.perfil_aliado === "Aliado BUILT" ||
+    (Array.isArray(user.tipos_alianca) && user.tipos_alianca.includes("Liderança"))
+  );
+
   const [search, setSearch] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingBia, setEditingBia] = useState<BiasProjeto | null>(null);
@@ -1854,13 +1864,15 @@ export default function BiasPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Alianças Integradas BUILT — {total} BIA{total !== 1 ? "s" : ""} cadastrada{total !== 1 ? "s" : ""}</p>
         </div>
-        <Button
-          className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
-          onClick={openCreate}
-          data-testid="btn-create-bia"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Nova BIA
-        </Button>
+        {canCreateBia && (
+          <Button
+            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
+            onClick={openCreate}
+            data-testid="btn-create-bia"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Nova BIA
+          </Button>
+        )}
       </div>
 
       {/* Futuristic Brazil Map */}
@@ -1933,12 +1945,14 @@ export default function BiasPage() {
                 <Briefcase className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">Nenhuma BIA cadastrada</h3>
                 <p className="text-sm text-muted-foreground/70 mb-4">Comece criando a primeira aliança BUILT</p>
-                <Button
-                  className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
-                  onClick={openCreate}
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Criar primeira BIA
-                </Button>
+                {canCreateBia && (
+                  <Button
+                    className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+                    onClick={openCreate}
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Criar primeira BIA
+                  </Button>
+                )}
               </>
             )}
           </CardContent>

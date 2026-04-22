@@ -634,7 +634,7 @@ function AnuncioCard({
       style={{
         border: isOwn ? "1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
         boxShadow: isOwn ? "0 0 16px rgba(215,187,125,0.08)" : "0 2px 8px rgba(0,0,0,0.4)",
-        aspectRatio: "16/9",
+        aspectRatio: "2/1",
         cursor: href ? "pointer" : "default",
         background: "rgba(0,29,52,0.9)",
       }}

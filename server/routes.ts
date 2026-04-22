@@ -1239,7 +1239,7 @@ export async function registerRoutes(
 
   // GET /api/membros/:id/comunidade — find which community this member belongs to
   app.get("/api/membros/:id/comunidade", async (req, res) => {
-    if (!await requireAuth(req, res)) return;
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const col = await getComunidadeCol();
       const memberId = req.params.id;

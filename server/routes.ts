@@ -1103,9 +1103,25 @@ export async function registerRoutes(
     }
   });
 
-  // ========== ANÚNCIOS ==========
-  const DIRECTUS_FILE_BASE = `${DIRECTUS_URL}/assets`;
+  // ========== ASSETS PROXY (Directus images with auth) ==========
+  app.get("/api/assets/:id", async (req, res) => {
+    try {
+      const assetUrl = `${DIRECTUS_URL}/assets/${req.params.id}`;
+      const upstream = await fetch(assetUrl, {
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      });
+      if (!upstream.ok) return res.status(upstream.status).end();
+      const contentType = upstream.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const buf = await upstream.arrayBuffer();
+      res.send(Buffer.from(buf));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
+  // ========== ANÚNCIOS ==========
   async function enrichAnuncio(a: any) {
     let membro: any = null;
     try {
@@ -1122,8 +1138,8 @@ export async function registerRoutes(
       ...a,
       membro_nome: membro?.nome || null,
       membro_empresa: membro?.empresa || null,
-      membro_foto: membro?.foto_perfil ? `${DIRECTUS_FILE_BASE}/${membro.foto_perfil}` : null,
-      imagem_url: a.imagem_directus_id ? `${DIRECTUS_FILE_BASE}/${a.imagem_directus_id}` : null,
+      membro_foto: membro?.foto_perfil ? `/api/assets/${membro.foto_perfil}` : null,
+      imagem_url: a.imagem_directus_id ? `/api/assets/${a.imagem_directus_id}` : null,
     };
   }
 

@@ -1,6 +1,4 @@
 import nodemailer from "nodemailer";
-import fs from "fs";
-import path from "path";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
@@ -15,18 +13,6 @@ const transporter = nodemailer.createTransport({
 const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.com>";
 const BASE_URL = process.env.APP_URL || "https://app.builtalliances.11mind.com.br";
 
-function loadLogoDataUri(): string {
-  try {
-    const logoPath = path.join(process.cwd(), "client", "public", "built-alliances-logo.png");
-    const data = fs.readFileSync(logoPath);
-    return `data:image/png;base64,${data.toString("base64")}`;
-  } catch {
-    return "";
-  }
-}
-
-const LOGO_DATA_URI = loadLogoDataUri();
-
 async function send(to: string, subject: string, html: string) {
   try {
     await transporter.sendMail({ from: FROM, to, subject, html });
@@ -39,7 +25,7 @@ function baseTemplate(content: string): string {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#001D34;color:#fff;border-radius:12px;overflow:hidden">
       <div style="background:linear-gradient(135deg,#001D34,#0a2a4a);padding:28px 24px;text-align:center;border-bottom:1px solid rgba(215,187,125,0.2)">
-        ${LOGO_DATA_URI ? `<img src="${LOGO_DATA_URI}" alt="BUILT Alliances" style="height:40px;width:auto;display:inline-block" />` : `<span style="color:#D7BB7D;font-size:20px;font-weight:bold;letter-spacing:2px">BUILT ALLIANCES</span>`}
+        <img src="${BASE_URL}/built-alliances-logo.png" alt="BUILT Alliances" style="height:40px;width:auto;display:inline-block" />
       </div>
       <div style="padding:32px">
         ${content}

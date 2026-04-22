@@ -480,20 +480,25 @@ function PercField({ label, field, form, setForm, baseValue }: {
   );
 }
 
-function MembroSelect({ label, field, form, setForm, membros, icon: Icon }: {
+function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required }: {
   label: string; field: keyof FormState; form: FormState;
-  setForm: (f: FormState) => void; membros: Membro[]; icon?: any;
+  setForm: (f: FormState) => void; membros: Membro[]; icon?: any; required?: boolean;
 }) {
+  const isEmpty = required && !form[field];
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground flex items-center gap-1">
         {Icon && <Icon className="w-3 h-3" />} {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
       </Label>
       <Select
         value={(form[field] as string) || "none"}
         onValueChange={(v) => setForm({ ...form, [field]: v === "none" ? "" : v })}
       >
-        <SelectTrigger className="h-8 text-sm" data-testid={`select-${field}`}>
+        <SelectTrigger
+          className={`h-8 text-sm ${isEmpty ? "border-red-400/50 focus:border-red-400" : ""}`}
+          data-testid={`select-${field}`}
+        >
           <SelectValue placeholder="Selecionar..." />
         </SelectTrigger>
         <SelectContent>
@@ -503,6 +508,9 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon }: {
           ))}
         </SelectContent>
       </Select>
+      {isEmpty && (
+        <p className="text-[10px] text-red-400/70 font-mono">Campo obrigatório</p>
+      )}
     </div>
   );
 }
@@ -1456,7 +1464,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     form.destinacao.trim().length > 0 &&
     form.localizacao.trim().length > 0 &&
     form.objetivo_alianca.trim().length > 0 &&
-    form.observacoes.trim().length > 0;
+    form.observacoes.trim().length > 0 &&
+    !!form.aliado_built &&
+    !!form.diretor_alianca;
 
   function handleLocationSelect(localizacao: string, lat: number, lng: number) {
     setForm({ ...form, localizacao, latitude: String(lat), longitude: String(lng) });
@@ -1683,10 +1693,10 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4">
-              <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} />
+              <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} required />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
-              <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} />
+              <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} required />
               <MembroSelect label="Diretor de Núcleo Técnico" field="diretor_nucleo_tecnico" form={form} setForm={setForm} membros={membros} icon={Shield} />
               <MembroSelect label="Diretor de Núcleo de Obra" field="diretor_execucao" form={form} setForm={setForm} membros={membros} icon={Hammer} />
               <MembroSelect label="Diretor Comercial" field="diretor_comercial" form={form} setForm={setForm} membros={membros} icon={Building2} />

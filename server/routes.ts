@@ -1151,10 +1151,9 @@ export async function registerRoutes(
   app.get("/api/anuncios/mine", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const userId = (req.session as any).userId;
-      const user = await storage.getUser(userId);
-      if (!user?.membro_directus_id) return res.json(null);
-      const anuncio = await storage.getAnuncioByMembro(user.membro_directus_id);
+      const membroId = (req.session as any).membroId;
+      if (!membroId) return res.json(null);
+      const anuncio = await storage.getAnuncioByMembro(membroId);
       if (!anuncio) return res.json(null);
       res.json(await enrichAnuncio(anuncio));
     } catch (error: any) {
@@ -1165,9 +1164,8 @@ export async function registerRoutes(
   app.post("/api/anuncios", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const userId = (req.session as any).userId;
-      const user = await storage.getUser(userId);
-      if (!user?.membro_directus_id) return res.status(400).json({ error: "Perfil de membro não vinculado" });
+      const membroId = (req.session as any).membroId;
+      if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado" });
 
       const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
       if (!titulo || !data_inicio || !data_fim) return res.status(400).json({ error: "Título, data_inicio e data_fim são obrigatórios" });
@@ -1181,14 +1179,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: "O período selecionado já passou. Escolha uma quinzena futura." });
       }
 
-      const existing = await storage.getAnuncioByMembro(user.membro_directus_id);
+      const existing = await storage.getAnuncioByMembro(membroId);
       if (existing) return res.status(409).json({ error: "Você já tem um anúncio ativo ou agendado" });
 
       const count = await storage.countAnunciosByPeriod(data_inicio, data_fim);
       if (count >= 4) return res.status(409).json({ error: "Período lotado — escolha outro período" });
 
       const anuncio = await storage.createAnuncio({
-        membro_id: user.membro_directus_id,
+        membro_id: membroId,
         titulo,
         descricao: descricao || null,
         link: link || null,
@@ -1206,11 +1204,11 @@ export async function registerRoutes(
   app.patch("/api/anuncios/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const userId = (req.session as any).userId;
-      const user = await storage.getUser(userId);
+      const membroId = (req.session as any).membroId;
+      const role = (req.session as any).role;
       const anuncio = await storage.getAnuncioById(req.params.id);
       if (!anuncio) return res.status(404).json({ error: "Anúncio não encontrado" });
-      if (anuncio.membro_id !== user?.membro_directus_id && user?.role !== "admin") {
+      if (anuncio.membro_id !== membroId && role !== "admin") {
         return res.status(403).json({ error: "Sem permissão" });
       }
       const { titulo, descricao, link, imagem_directus_id } = req.body;
@@ -1229,11 +1227,11 @@ export async function registerRoutes(
   app.delete("/api/anuncios/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const userId = (req.session as any).userId;
-      const user = await storage.getUser(userId);
+      const membroId = (req.session as any).membroId;
+      const role = (req.session as any).role;
       const anuncio = await storage.getAnuncioById(req.params.id);
       if (!anuncio) return res.status(404).json({ error: "Anúncio não encontrado" });
-      if (anuncio.membro_id !== user?.membro_directus_id && user?.role !== "admin") {
+      if (anuncio.membro_id !== membroId && role !== "admin") {
         return res.status(403).json({ error: "Sem permissão" });
       }
       await storage.deleteAnuncio(req.params.id);

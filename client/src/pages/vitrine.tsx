@@ -595,7 +595,7 @@ function PeriodoPickerGrid({
                 >
                   <span className="block">{quinzenaLabel(q.inicio, q.fim)}</span>
                   <span className={`text-[10px] ${isFull ? "text-red-400/50" : "text-white/30"}`}>
-                    {isFull ? "Lotado" : `${q.vagas}/4 vagas`}
+                    {isFull ? "Lotado" : `${q.vagas}/6 vagas`}
                   </span>
                 </button>
               );
@@ -1482,32 +1482,6 @@ export default function VitrinePage() {
                   </button>
                 )}
               </div>
-            </div>
-
-            {/* Título */}
-            <div className="space-y-1.5">
-              <label className="text-xs text-white/40 font-mono">Título *</label>
-              <Input
-                value={anuncioForm.titulo}
-                onChange={e => setAnuncioForm(f => ({ ...f, titulo: e.target.value }))}
-                placeholder="Ex: Consultoria estrutural para projetos industriais"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                maxLength={200}
-                data-testid="input-anuncio-titulo"
-              />
-            </div>
-
-            {/* Descrição */}
-            <div className="space-y-1.5">
-              <label className="text-xs text-white/40 font-mono">Descrição (opcional)</label>
-              <Textarea
-                value={anuncioForm.descricao}
-                onChange={e => setAnuncioForm(f => ({ ...f, descricao: e.target.value }))}
-                placeholder="Descreva brevemente sua oferta, diferencial ou chamada de ação..."
-                rows={3}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 resize-none"
-                data-testid="input-anuncio-descricao"
-              />
             </div>
 
             {/* Link */}

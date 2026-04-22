@@ -1184,7 +1184,7 @@ export async function registerRoutes(
       if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado" });
 
       const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
-      if (!titulo || !data_inicio || !data_fim) return res.status(400).json({ error: "Título, data_inicio e data_fim são obrigatórios" });
+      if (!data_inicio || !data_fim) return res.status(400).json({ error: "data_inicio e data_fim são obrigatórios" });
 
       if (!isValidQuinzena(data_inicio, data_fim)) {
         return res.status(400).json({ error: "O período deve ser uma quinzena válida: dias 1–15 ou 16–último dia do mês" });
@@ -1203,7 +1203,7 @@ export async function registerRoutes(
 
       const anuncio = await storage.createAnuncio({
         membro_id: membroId,
-        titulo,
+        titulo: titulo || "",
         descricao: descricao || null,
         link: link || null,
         imagem_directus_id: imagem_directus_id || null,

@@ -54,7 +54,7 @@ export async function enviarConvite(opts: {
       <p style="color:rgba(255,255,255,0.7)">${opts.invitadorNome} te convidou para fazer parte da <strong style="color:#D7BB7D">${opts.comunidadeNome}</strong>, uma comunidade de negócios da rede BUILT Alliances.</p>
       <p style="color:rgba(255,255,255,0.7)">Clique no botão abaixo para conhecer a comunidade e preencher seu formulário de candidatura:</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Convite e Candidatar-se</a>
+        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Demonstre interesse</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Se não reconhece este convite, pode ignorar este e-mail com segurança.</p>
     `)

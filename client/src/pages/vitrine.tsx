@@ -623,9 +623,13 @@ function AnuncioCard({
     if (href) window.open(href, "_blank", "noopener,noreferrer");
   };
 
+  const [hovered, setHovered] = React.useState(false);
+
   return (
     <div
       onClick={handleClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className="relative rounded-xl overflow-hidden"
       style={{
         border: isOwn ? "1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
@@ -650,16 +654,26 @@ function AnuncioCard({
         </div>
       )}
 
-      {/* ANÚNCIO badge overlay */}
-      <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full"
-        style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(215,187,125,0.3)", backdropFilter: "blur(4px)" }}>
+      {/* ANÚNCIO badge overlay — only on hover */}
+      <div
+        className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity duration-200"
+        style={{
+          background: "rgba(0,0,0,0.55)",
+          border: "1px solid rgba(215,187,125,0.3)",
+          backdropFilter: "blur(4px)",
+          opacity: hovered ? 1 : 0,
+        }}
+      >
         <Megaphone className="w-2.5 h-2.5 text-brand-gold/80" />
         <span className="text-[9px] font-mono text-brand-gold/80 uppercase tracking-wider">Anúncio</span>
       </div>
 
-      {/* Owner action buttons overlay */}
+      {/* Owner action buttons overlay — only on hover */}
       {isOwn && (
-        <div className="absolute top-2 right-2 flex gap-1">
+        <div
+          className="absolute top-2 right-2 flex gap-1 transition-opacity duration-200"
+          style={{ opacity: hovered ? 1 : 0 }}
+        >
           <button
             onClick={e => { e.stopPropagation(); onEdit(); }}
             className="w-6 h-6 rounded flex items-center justify-center transition-colors"

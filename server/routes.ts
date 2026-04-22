@@ -433,11 +433,14 @@ async function syncValorOrigemLancamento(biaId: string, valorOrigem: number): Pr
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = [
       ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif",
       ".doc", ".docx", ".xls", ".xlsx", ".heic", ".heif",
+      ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
+      ".zip", ".rar", ".7z",
+      ".ppt", ".pptx",
     ];
     const allowedMime = [
       "image/jpeg", "image/png", "image/webp", "image/gif",
@@ -447,6 +450,10 @@ const upload = multer({
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska", "video/webm", "video/x-m4v",
+      "application/zip", "application/x-rar-compressed", "application/x-7z-compressed",
     ];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext) || allowedMime.includes(file.mimetype)) {

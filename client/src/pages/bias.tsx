@@ -1657,7 +1657,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp4,.mov,.avi,.mkv,.webm,.zip,.rar"
                   style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
                   tabIndex={-1}
                   onChange={(e) => {

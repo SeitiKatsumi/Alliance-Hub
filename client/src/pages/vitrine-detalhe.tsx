@@ -277,15 +277,15 @@ export default function VitrineDetalhePage() {
 
               {/* Selos de redes de negócios — abaixo do nome */}
               {redes.length > 0 && (
-                <div className="flex flex-wrap gap-2 items-end justify-center sm:justify-start mt-4">
+                <div className="flex flex-wrap gap-2 items-center justify-center sm:justify-start mt-4">
                   {redes.map(rede => (
                     <img
                       key={rede}
                       src={REDE_BADGES[rede].img}
                       alt={REDE_BADGES[rede].label}
                       title={REDE_BADGES[rede].label}
-                      className="w-auto object-contain rounded"
-                      style={{ height: rede === "BUILT_PROUD_MEMBER" ? 64 : 40 }}
+                      className="object-contain rounded"
+                      style={{ height: 48, width: "auto", maxWidth: 120 }}
                       data-testid={`badge-rede-${rede.toLowerCase()}`}
                     />
                   ))}

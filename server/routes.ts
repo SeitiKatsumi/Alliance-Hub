@@ -1068,6 +1068,34 @@ export async function registerRoutes(
     }
   });
 
+  // ========== PARCEIROS CAPITAL ==========
+  app.get("/api/parceiros-capital", async (req, res) => {
+    if (!(req.session as any).directusUserId) {
+      return res.status(401).json({ error: "Não autenticado" });
+    }
+    try {
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!response.ok) throw new Error(`Directus error: ${response.status}`);
+      const json = await response.json();
+      const items = (json.data || []).map((m: any) => {
+        const especialidades = (m.Especialidades || [])
+          .map((e: any) => e?.especialidades_id?.nome_especialidade)
+          .filter(Boolean);
+        return {
+          ...m,
+          foto: m.foto_perfil || null,
+          especialidade: especialidades[0] || null,
+          latitude: m.latitude ? parseFloat(m.latitude) : null,
+          longitude: m.longitude ? parseFloat(m.longitude) : null,
+        };
+      });
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== ESPECIALIDADES (from Directus) ==========
   app.get("/api/especialidades", async (req, res) => {
     try {

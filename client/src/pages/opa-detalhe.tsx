@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AnexoFile {
@@ -103,9 +104,15 @@ export default function OpaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [interesseDialog, setInteresseDialog] = useState(false);
+  const [semSeloDialog, setSemSeloDialog] = useState(false);
   const [mensagem, setMensagem] = useState("");
+
+  const redes = user?.Outras_redes_as_quais_pertenco ?? [];
+  const hasSeal = !!(user?.role === "admin" || user?.role === "manager" ||
+    redes.some(r => r.startsWith("BUILT_")));
 
   const { data: opasRaw = [], isLoading } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -480,7 +487,7 @@ export default function OpaDetalhePage() {
                     </p>
                     <Button
                       className="w-full gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
-                      onClick={() => setInteresseDialog(true)}
+                      onClick={() => hasSeal ? setInteresseDialog(true) : setSemSeloDialog(true)}
                       data-testid="btn-manifestar-interesse"
                     >
                       <HandHeart className="w-4 h-4" />
@@ -568,6 +575,31 @@ export default function OpaDetalhePage() {
                 <HandHeart className="w-4 h-4" />
               )}
               {interesseMutation.isPending ? "Registrando..." : "Confirmar Interesse"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: usuário sem selo tentando manifestar interesse */}
+      <Dialog open={semSeloDialog} onOpenChange={setSemSeloDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HandHeart className="w-5 h-5 text-brand-gold" />
+              Torne-se um Membro
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Para manifestar interesse em OPAs, você precisa ser um membro ativo da Rede BUILT com o selo <strong className="text-foreground">Proud Member</strong>.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Entre em contato com o Aliado BUILT da sua aliança ou acesse a seção de Comunidades para iniciar o processo de adesão.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSemSeloDialog(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

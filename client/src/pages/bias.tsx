@@ -1770,10 +1770,11 @@ export default function BiasPage() {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const canCreateBia = !!user && (
     user.role === "admin" ||
     user.role === "manager" ||
-    user.perfil_aliado === "Aliado BUILT" ||
+    redes.includes("BUILT_FOUNDING_MEMBER") ||
     (Array.isArray(user.tipos_alianca) && user.tipos_alianca.includes("Liderança"))
   );
 

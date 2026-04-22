@@ -1559,12 +1559,29 @@ export async function registerRoutes(
         let canCreate = false;
         if (sessionMembroId) {
           try {
-            const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=perfil_aliado,tipos_alianca");
+            const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco");
             if (membro) {
-              if (membro.perfil_aliado === "Aliado BUILT") canCreate = true;
-              if (Array.isArray(membro.tipos_alianca) && membro.tipos_alianca.includes("Liderança")) canCreate = true;
+              const redes: string[] = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
+              const tiposAlianca: string[] = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
+              // Founding Member = Aliado BUILT seal
+              if (redes.includes("BUILT_FOUNDING_MEMBER")) canCreate = true;
+              // Área de Contribuição = Liderança
+              if (tiposAlianca.includes("Liderança")) canCreate = true;
             }
           } catch (_) {}
+          if (!canCreate) {
+            // Check if member is aliado_built in any BIA or community
+            try {
+              const biaCheck = await directusFetch("bias_projetos", `filter[aliado_built][_eq]=${sessionMembroId}&limit=1&fields=id`);
+              if (biaCheck.length > 0) canCreate = true;
+            } catch (_) {}
+          }
+          if (!canCreate) {
+            try {
+              const comunidadeCheck = await directusFetch("Comunidade", `filter[aliado_built][_eq]=${sessionMembroId}&limit=1&fields=id`);
+              if (comunidadeCheck.length > 0) canCreate = true;
+            } catch (_) {}
+          }
         }
         if (!canCreate) {
           return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição Liderança ou administradores podem criar BIAs." });
@@ -2338,14 +2355,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
     }
     const membroId = (req.session as any).membroId as string | null;
-    let perfil_aliado: string | null = null;
     let tipos_alianca: string[] = [];
+    let Outras_redes_as_quais_pertenco: string[] = [];
     if (membroId) {
       try {
-        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=perfil_aliado,tipos_alianca");
+        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco");
         if (membro) {
-          perfil_aliado = membro.perfil_aliado || null;
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
+          Outras_redes_as_quais_pertenco = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
         }
       } catch (_) {}
     }
@@ -2356,8 +2373,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       membro_directus_id: membroId || null,
       role,
       permissions,
-      perfil_aliado,
       tipos_alianca,
+      Outras_redes_as_quais_pertenco,
     });
   });
 

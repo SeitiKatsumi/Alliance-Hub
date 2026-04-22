@@ -10,8 +10,8 @@ export interface AppUser {
   role: string;
   permissions: Record<string, string>;
   ativo: boolean;
-  perfil_aliado?: string | null;
   tipos_alianca?: string[];
+  Outras_redes_as_quais_pertenco?: string[];
 }
 
 export function useAuth() {

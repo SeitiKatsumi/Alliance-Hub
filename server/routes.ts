@@ -1563,8 +1563,8 @@ export async function registerRoutes(
             if (membro) {
               const redes: string[] = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
               const tiposAlianca: string[] = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
-              // Founding Member = Aliado BUILT seal
-              if (redes.includes("BUILT_FOUNDING_MEMBER")) canCreate = true;
+              // Founding Member ou Alliance Partner = Aliado BUILT seal
+              if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) canCreate = true;
               // Área de Contribuição = Liderança
               if (tiposAlianca.includes("Liderança")) canCreate = true;
             }

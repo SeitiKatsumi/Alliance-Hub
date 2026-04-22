@@ -1775,6 +1775,7 @@ export default function BiasPage() {
     user.role === "admin" ||
     user.role === "manager" ||
     redes.includes("BUILT_FOUNDING_MEMBER") ||
+    redes.includes("BUILT_ALLIANCE_PARTNER") ||
     (Array.isArray(user.tipos_alianca) && user.tipos_alianca.includes("Liderança"))
   );
 

@@ -28,8 +28,8 @@ export function AppSidebar() {
   // Seal-based permissions (stored in Outras_redes_as_quais_pertenco)
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const hasSeal = isAdmin || redes.some(r => r.startsWith("BUILT_"));
-  const hasProudMemberSeal = isAdmin || redes.includes("BUILT_PROUD_MEMBER") || redes.includes("BUILT_FOUNDING_MEMBER");
-  const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER");
+  const hasProudMemberSeal = isAdmin || redes.includes("BUILT_PROUD_MEMBER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
+  const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
 
   const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
   const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital" || location === "/comunidade";

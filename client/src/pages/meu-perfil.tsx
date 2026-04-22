@@ -155,6 +155,7 @@ interface EspecialidadeOption {
 const REDES_DISPONIVEIS = [
   { value: "BUILT_PROUD_MEMBER", label: "BUILT Proud Member", badge: "/built-proud-member.png" },
   { value: "BUILT_FOUNDING_MEMBER", label: "BUILT Founding Member", badge: "/built-founding-member.png" },
+  { value: "BUILT_ALLIANCE_PARTNER", label: "BUILT Alliance Partner", badge: "/built-alliance-partner.png" },
   { value: "BUILT_CAPITAL_PARTNER", label: "BUILT Capital Partner", badge: "/built-capital-partner.png" },
   { value: "BNI", label: "BNI", badge: "/bni-badge.png" },
 ];

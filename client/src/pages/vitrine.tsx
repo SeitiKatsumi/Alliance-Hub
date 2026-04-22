@@ -1486,6 +1486,9 @@ export default function VitrinePage() {
                   </button>
                 )}
               </div>
+              <p className="text-[10px] text-white/25 font-mono px-0.5">
+                Proporção recomendada: <span className="text-brand-gold/40">2:1</span> — ex: 1200 × 600 px &nbsp;·&nbsp; PNG, JPG ou WebP &nbsp;·&nbsp; máx. 5 MB
+              </p>
             </div>
 
             {/* Link */}

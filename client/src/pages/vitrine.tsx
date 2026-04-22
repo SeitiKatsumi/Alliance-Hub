@@ -20,6 +20,7 @@ import {
   Users, X, Plus, Pencil, Trash2, Loader2,
   FileText, Mail, MessageSquare, Globe, Phone, Navigation,
   Megaphone, CalendarDays, ExternalLink, ImageIcon, Tag, CheckCircle2, XCircle, Upload,
+  ShieldCheck, Check,
 } from "lucide-react";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -725,6 +726,8 @@ export default function VitrinePage() {
   const [anuncioImagemId, setAnuncioImagemId] = useState<string | null>(null);
   const [anuncioImagemPreview, setAnuncioImagemPreview] = useState<string | null>(null);
   const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
+  const [anuncioTerms, setAnuncioTerms] = useState({ t1: false, t2: false, t3: false });
+  const anuncioTermsAllAccepted = anuncioTerms.t1 && anuncioTerms.t2 && anuncioTerms.t3;
 
   const membroId = user?.membro_directus_id;
 
@@ -819,6 +822,7 @@ export default function VitrinePage() {
     setAnuncioPeriodo(null);
     setAnuncioImagemId(null);
     setAnuncioImagemPreview(null);
+    setAnuncioTerms({ t1: false, t2: false, t3: false });
     setAnuncioDialogOpen(true);
   }
 
@@ -1538,6 +1542,47 @@ export default function VitrinePage() {
                 </span>
               </div>
             )}
+
+            {/* Termos — somente em criação */}
+            {!anuncioEditMode && (
+              <div className="rounded-xl p-4 space-y-4"
+                style={{ background: "rgba(215,187,125,0.03)", border: "1px solid rgba(215,187,125,0.15)" }}>
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-gold/50 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-white/40 font-mono leading-relaxed">
+                    Declaro, sob minha exclusiva responsabilidade, que o anúncio publicado no BUILT Vitrine Ads é lícito, verdadeiro, verificável e não viola direitos de terceiros, assumindo integral responsabilidade civil, comercial, regulatória e autoral pelo seu conteúdo, bem como por quaisquer reclamações, danos ou sanções dele decorrentes. Reconheço que a BUILT atua apenas como plataforma de veiculação e conexão, não sendo responsável pela oferta anunciada nem pelas relações comerciais dela resultantes.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {[
+                    { key: "t1" as const, label: "Tenho autorização para usar todas as imagens, marcas e conteúdos do anúncio." },
+                    { key: "t2" as const, label: "As informações do anúncio são verdadeiras e podem ser comprovadas." },
+                    { key: "t3" as const, label: "Reconheço que a BUILT não garante nem responde pela oferta anunciada." },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-start gap-3 cursor-pointer group" data-testid={`checkbox-termo-${key}`}>
+                      <div
+                        onClick={() => setAnuncioTerms(t => ({ ...t, [key]: !t[key] }))}
+                        className="mt-0.5 w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-all cursor-pointer"
+                        style={{
+                          background: anuncioTerms[key] ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.04)",
+                          borderColor: anuncioTerms[key] ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.15)",
+                        }}
+                      >
+                        {anuncioTerms[key] && <Check className="w-2.5 h-2.5 text-[#001D34]" />}
+                      </div>
+                      <span
+                        className="text-[11px] font-mono leading-relaxed select-none transition-colors"
+                        style={{ color: anuncioTerms[key] ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
+                        onClick={() => setAnuncioTerms(t => ({ ...t, [key]: !t[key] }))}
+                      >
+                        {label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2 flex-col sm:flex-row">
@@ -1567,7 +1612,7 @@ export default function VitrinePage() {
             <Button
               onClick={handleAnuncioSubmit}
               disabled={
-                !anuncioForm.titulo.trim() ||
+                (!anuncioEditMode && !anuncioTermsAllAccepted) ||
                 criarAnuncioMutation.isPending ||
                 editarAnuncioMutation.isPending ||
                 anuncioUploadLoading

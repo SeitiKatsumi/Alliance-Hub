@@ -615,111 +615,69 @@ function AnuncioCard({
   onEdit: () => void;
   onCancel: () => void;
 }) {
-  const MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  function fmtDate(d: string) {
-    const [y, m, day] = d.split("-");
-    return `${parseInt(day)} ${MESES_PT[parseInt(m)-1]} ${y}`;
-  }
+  const href = anuncio.link
+    ? (anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`)
+    : undefined;
+
+  const handleClick = () => {
+    if (href) window.open(href, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden flex flex-col"
+      onClick={handleClick}
+      className="relative rounded-xl overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, rgba(3,8,18,0.95) 0%, rgba(0,29,52,0.95) 100%)",
         border: isOwn ? "1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
         boxShadow: isOwn ? "0 0 16px rgba(215,187,125,0.08)" : "0 2px 8px rgba(0,0,0,0.4)",
         minHeight: 200,
+        cursor: href ? "pointer" : "default",
+        background: "rgba(0,29,52,0.9)",
       }}
+      data-testid={`card-anuncio-${anuncio.id}`}
     >
-      {/* Top accent */}
-      <div className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(215,187,125,0.5), transparent)" }} />
+      {/* Full image */}
+      {anuncio.imagem_url ? (
+        <img
+          src={anuncio.imagem_url}
+          alt={anuncio.titulo}
+          className="w-full h-full object-cover"
+          style={{ display: "block", minHeight: 200 }}
+        />
+      ) : (
+        <div className="w-full flex items-center justify-center" style={{ minHeight: 200 }}>
+          <Megaphone className="w-10 h-10 text-brand-gold/20" />
+        </div>
+      )}
 
-      {/* ANÚNCIO badge */}
+      {/* ANÚNCIO badge overlay */}
       <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full"
-        style={{ background: "rgba(215,187,125,0.15)", border: "1px solid rgba(215,187,125,0.25)" }}>
-        <Megaphone className="w-2.5 h-2.5 text-brand-gold/70" />
-        <span className="text-[9px] font-mono text-brand-gold/70 uppercase tracking-wider">Anúncio</span>
+        style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(215,187,125,0.3)", backdropFilter: "blur(4px)" }}>
+        <Megaphone className="w-2.5 h-2.5 text-brand-gold/80" />
+        <span className="text-[9px] font-mono text-brand-gold/80 uppercase tracking-wider">Anúncio</span>
       </div>
 
-      {/* Own actions */}
+      {/* Owner action buttons overlay */}
       {isOwn && (
         <div className="absolute top-2 right-2 flex gap-1">
           <button
             onClick={e => { e.stopPropagation(); onEdit(); }}
             className="w-6 h-6 rounded flex items-center justify-center transition-colors"
-            style={{ background: "rgba(215,187,125,0.1)", border: "1px solid rgba(215,187,125,0.2)" }}
+            style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(215,187,125,0.3)", backdropFilter: "blur(4px)" }}
             data-testid={`btn-edit-anuncio-${anuncio.id}`}
           >
-            <Pencil className="w-3 h-3 text-brand-gold/70" />
+            <Pencil className="w-3 h-3 text-brand-gold/80" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onCancel(); }}
-            className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-red-500/20"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+            className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:bg-red-500/40"
+            style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}
             data-testid={`btn-cancel-anuncio-${anuncio.id}`}
           >
-            <XCircle className="w-3 h-3 text-white/40 hover:text-red-400" />
+            <XCircle className="w-3 h-3 text-white/60" />
           </button>
         </div>
       )}
-
-      {/* Image or placeholder */}
-      <div className="mx-4 mt-8 mb-3 rounded-lg overflow-hidden flex items-center justify-center"
-        style={{
-          height: 80,
-          background: anuncio.imagem_url ? "transparent" : "rgba(215,187,125,0.04)",
-          border: anuncio.imagem_url ? "none" : "1px dashed rgba(215,187,125,0.1)",
-        }}>
-        {anuncio.imagem_url ? (
-          <img src={anuncio.imagem_url} alt={anuncio.titulo} className="w-full h-full object-cover rounded-lg" />
-        ) : (
-          <Megaphone className="w-8 h-8 text-brand-gold/20" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="px-4 pb-3 flex-1 flex flex-col justify-between space-y-2">
-        <div>
-          <p className="text-sm font-semibold text-white font-mono leading-tight line-clamp-2">{anuncio.titulo}</p>
-          {anuncio.descricao && (
-            <p className="text-xs text-white/40 mt-1 line-clamp-2 font-mono leading-relaxed">{anuncio.descricao}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          {/* Member */}
-          {anuncio.membro_nome && (
-            <div className="flex items-center gap-1">
-              <Building2 className="w-3 h-3 text-white/20 shrink-0" />
-              <span className="text-[10px] text-white/35 font-mono truncate">{anuncio.membro_empresa || anuncio.membro_nome}</span>
-            </div>
-          )}
-          {/* Period */}
-          <div className="flex items-center gap-1">
-            <CalendarDays className="w-3 h-3 text-brand-gold/30 shrink-0" />
-            <span className="text-[10px] text-brand-gold/40 font-mono">{fmtDate(anuncio.data_inicio)} → {fmtDate(anuncio.data_fim)}</span>
-          </div>
-          {/* Link */}
-          {anuncio.link && (
-            <a
-              href={anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-[10px] text-brand-gold/50 hover:text-brand-gold transition-colors font-mono"
-              data-testid={`link-anuncio-${anuncio.id}`}
-            >
-              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-              Saiba mais
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom accent */}
-      <div className="absolute bottom-0 left-0 right-0 h-px"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(215,187,125,0.15), transparent)" }} />
     </div>
   );
 }

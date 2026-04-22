@@ -1553,7 +1553,7 @@ export default function VitrinePage() {
                 <div className="flex items-start gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-brand-gold/50 mt-0.5 shrink-0" />
                   <p className="text-[11px] text-white/40 font-mono leading-relaxed">
-                    Declaro, sob minha exclusiva responsabilidade, que o anúncio publicado no BUILT Vitrine Ads é lícito, verdadeiro, verificável e não viola direitos de terceiros, assumindo integral responsabilidade civil, comercial, regulatória e autoral pelo seu conteúdo, bem como por quaisquer reclamações, danos ou sanções dele decorrentes. Reconheço que a BUILT atua apenas como plataforma de veiculação e conexão, não sendo responsável pela oferta anunciada nem pelas relações comerciais dela resultantes.
+                    Declaro, sob minha exclusiva responsabilidade, que o anúncio publicado no BUILT Vitrine Ads está associado ao meu negócio, é lícito, verdadeiro, verificável e não viola direitos de terceiros, assumindo integral responsabilidade civil, comercial, regulatória e autoral pelo seu conteúdo, bem como por quaisquer reclamações, danos ou sanções dele decorrentes. Reconheço que a BUILT atua apenas como plataforma de veiculação e conexão, não sendo responsável pela oferta anunciada nem pelas relações comerciais dela resultantes.
                   </p>
                 </div>
 

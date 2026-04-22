@@ -1073,29 +1073,56 @@ export default function VitrinePage() {
       )}
 
       {/* ===== ANÚNCIOS EM DESTAQUE ===== */}
-      {anunciosAtivos.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Megaphone className="w-4 h-4 text-brand-gold/70" />
-              <h2 className="text-sm font-semibold font-mono text-white/70 uppercase tracking-wider">Anúncios em Destaque</h2>
-            </div>
-            <div className="flex-1 h-px bg-brand-gold/10" />
-            <span className="text-[10px] font-mono text-white/25">{anunciosAtivos.length}/6 ativos</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Megaphone className="w-4 h-4 text-brand-gold/70" />
+            <h2 className="text-sm font-semibold font-mono text-white/70 uppercase tracking-wider">Anúncios em Destaque</h2>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {anunciosAtivos.slice(0, 6).map(a => (
-              <AnuncioCard
-                key={a.id}
-                anuncio={a}
-                isOwn={a.membro_id === membroId}
-                onEdit={openAnuncioEdit}
-                onCancel={() => cancelarAnuncioMutation.mutate(a.id)}
-              />
-            ))}
-          </div>
+          <div className="flex-1 h-px bg-brand-gold/10" />
+          <span className="text-[10px] font-mono text-white/25">{anunciosAtivos.length}/6 ativos</span>
         </div>
-      )}
+        <div className="grid grid-cols-3 gap-4">
+          {anunciosAtivos.slice(0, 6).map(a => (
+            <AnuncioCard
+              key={a.id}
+              anuncio={a}
+              isOwn={a.membro_id === membroId}
+              onEdit={openAnuncioEdit}
+              onCancel={() => cancelarAnuncioMutation.mutate(a.id)}
+            />
+          ))}
+          {Array.from({ length: Math.max(0, 6 - anunciosAtivos.length) }).map((_, i) => (
+            <div
+              key={`slot-${i}`}
+              onClick={!meuAnuncio && membroId ? openAnuncioCreate : undefined}
+              className="relative rounded-xl overflow-hidden flex flex-col items-center justify-center gap-2 transition-all duration-200"
+              style={{
+                aspectRatio: "2/1",
+                border: "1px dashed rgba(215,187,125,0.2)",
+                background: "rgba(0,29,52,0.4)",
+                cursor: !meuAnuncio && membroId ? "pointer" : "default",
+              }}
+              data-testid={`slot-anuncio-vazio-${i}`}
+            >
+              <div
+                className="flex flex-col items-center gap-2 transition-opacity duration-200 hover:opacity-100"
+                style={{ opacity: 0.45 }}
+              >
+                <Megaphone className="w-5 h-5 text-brand-gold/60" />
+                <p className="text-[11px] font-mono text-brand-gold/70 uppercase tracking-wider text-center leading-snug px-4">
+                  Espaço disponível
+                </p>
+                {!meuAnuncio && membroId && (
+                  <span className="text-[10px] font-mono text-white/40 text-center">
+                    Clique para anunciar
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

@@ -145,15 +145,32 @@ function StatBox({ label, value, color }: { label: string; value: string; color?
 
 function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; icon: any }) {
   const unassigned = !nome;
+  const isAliadoBuilt = role === "Aliado BUILT";
   return (
-    <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${unassigned ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-muted/20"}`}>
-      <div className="w-7 h-7 rounded-full bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0">
+    <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 relative overflow-hidden ${
+      isAliadoBuilt && !unassigned
+        ? "border-brand-gold/30 bg-brand-gold/[0.04]"
+        : unassigned
+        ? "border-border/30 bg-muted/10 opacity-60"
+        : "border-border/60 bg-muted/20"
+    }`}>
+      <div className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 ${
+        isAliadoBuilt && !unassigned ? "bg-brand-gold/15 border-brand-gold/30" : "bg-brand-gold/10 border-brand-gold/20"
+      }`}>
         <Icon className="w-3.5 h-3.5 text-brand-gold/70" />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider leading-none">{role}</p>
         <p className={`text-xs font-medium truncate mt-0.5 ${unassigned ? "text-muted-foreground/50 italic" : ""}`}>{nome || "Não atribuído"}</p>
       </div>
+      {isAliadoBuilt && !unassigned && (
+        <img
+          src="/built-alliance-partner.png"
+          alt="Alliance Partner"
+          className="shrink-0 opacity-30"
+          style={{ height: 32, width: "auto" }}
+        />
+      )}
     </div>
   );
 }

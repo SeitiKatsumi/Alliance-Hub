@@ -222,7 +222,7 @@ export default function ComunidadeDetalhePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Aliado BUILT */}
         <div
-          className="rounded-2xl p-5 space-y-4"
+          className="rounded-2xl p-5 space-y-4 relative overflow-hidden"
           style={{
             background: "linear-gradient(145deg, #071626, #040e1c)",
             border: "1px solid rgba(255,255,255,0.06)",
@@ -232,6 +232,13 @@ export default function ComunidadeDetalhePage() {
             <Shield className="w-4 h-4 text-brand-gold/60" />
             <h2 className="text-xs font-mono text-white/50 uppercase tracking-widest">Aliado BUILT</h2>
           </div>
+          {/* Selo Alliance Partner */}
+          <img
+            src="/built-alliance-partner.png"
+            alt="BUILT Alliance Partner"
+            className="absolute top-3 right-3 opacity-20 select-none pointer-events-none"
+            style={{ height: 56, width: "auto" }}
+          />
 
           {aliado ? (
             <button

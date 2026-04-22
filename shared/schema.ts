@@ -330,6 +330,33 @@ export const insertAnuncioSchema = createInsertSchema(anuncios).omit({
 export type InsertAnuncio = z.infer<typeof insertAnuncioSchema>;
 export type Anuncio = typeof anuncios.$inferSelect;
 
+export function getQuinzena(dateStr: string): { inicio: string; fim: string } {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const ultimoDia = new Date(y, m, 0).getDate();
+  if (d <= 15) {
+    return {
+      inicio: `${String(y)}-${String(m).padStart(2, "0")}-01`,
+      fim: `${String(y)}-${String(m).padStart(2, "0")}-15`,
+    };
+  }
+  return {
+    inicio: `${String(y)}-${String(m).padStart(2, "0")}-16`,
+    fim: `${String(y)}-${String(m).padStart(2, "0")}-${ultimoDia}`,
+  };
+}
+
+export function isValidQuinzena(inicio: string, fim: string): boolean {
+  const [iy, im, id] = inicio.split("-").map(Number);
+  const [fy, fm, fd] = fim.split("-").map(Number);
+  if (iy !== fy || im !== fm) return false;
+  if (id === 1 && fd === 15) return true;
+  if (id === 16) {
+    const ultimoDia = new Date(iy, im, 0).getDate();
+    return fd === ultimoDia;
+  }
+  return false;
+}
+
 export const convitesComunidade = pgTable("convites_comunidade", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: varchar("token").notNull().unique().default(sql`gen_random_uuid()`),

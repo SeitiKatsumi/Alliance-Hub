@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs } from "@shared/schema";
+import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -1171,6 +1171,15 @@ export async function registerRoutes(
 
       const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
       if (!titulo || !data_inicio || !data_fim) return res.status(400).json({ error: "Título, data_inicio e data_fim são obrigatórios" });
+
+      if (!isValidQuinzena(data_inicio, data_fim)) {
+        return res.status(400).json({ error: "O período deve ser uma quinzena válida: dias 1–15 ou 16–último dia do mês" });
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      if (data_fim < today) {
+        return res.status(400).json({ error: "O período selecionado já passou. Escolha uma quinzena futura." });
+      }
 
       const existing = await storage.getAnuncioByMembro(user.membro_directus_id);
       if (existing) return res.status(409).json({ error: "Você já tem um anúncio ativo ou agendado" });

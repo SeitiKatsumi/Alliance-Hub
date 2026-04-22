@@ -1242,19 +1242,21 @@ export async function registerRoutes(
     if (!await requireAuth(req, res)) return;
     try {
       const col = await getComunidadeCol();
-      const junctionTable = `${col.toLowerCase()}_membros`;
-      const junctionUrl = `${DIRECTUS_URL}/items/${junctionTable}?filter[cadastro_geral_id][_eq]=${req.params.id}&fields=comunidade_id&limit=1`;
-      const jr = await fetch(junctionUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!jr.ok) return res.json(null);
-      const jData = await jr.json();
-      const jItems: any[] = jData.data || [];
-      if (!jItems.length || !jItems[0].comunidade_id) return res.json(null);
-      const comunidadeId = jItems[0].comunidade_id;
-      const comunUrl = `${DIRECTUS_URL}/items/${col}/${comunidadeId}?fields=id,nome,sigla`;
-      const cr = await fetch(comunUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!cr.ok) return res.json(null);
-      const cData = await cr.json();
-      res.json(cData.data || null);
+      const memberId = req.params.id;
+      // Fetch all communities with their members (uses the working M2M alias)
+      const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,membros.cadastro_geral_id&limit=200`;
+      const ar = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!ar.ok) return res.json(null);
+      const aData = await ar.json();
+      const comunidades: any[] = aData.data || [];
+      const found = comunidades.find((c: any) => {
+        const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+        return membros.some((m: any) => {
+          const cgId = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id;
+          return cgId === memberId;
+        });
+      });
+      res.json(found ? { id: found.id, nome: found.nome, sigla: found.sigla } : null);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

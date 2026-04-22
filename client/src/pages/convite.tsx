@@ -38,6 +38,7 @@ export default function ConvitePage() {
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
     nome_completo: "",
+    nome_empresa: "",
     cpf: "",
     cnpj: "",
     telefone: "",
@@ -190,6 +191,16 @@ export default function ConvitePage() {
                 />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-white/60">Nome da Empresa *</Label>
+              <Input
+                value={form.nome_empresa}
+                onChange={e => setForm(f => ({ ...f, nome_empresa: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 font-mono text-sm"
+                placeholder="Razão social ou nome fantasia"
+                data-testid="input-convite-nome-empresa"
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-mono text-white/60">CNPJ</Label>
@@ -280,8 +291,8 @@ export default function ConvitePage() {
 
         <Button
           onClick={() => {
-            if (!form.nome_completo || !form.telefone || !form.email) {
-              alert("Preencha os campos obrigatórios: Nome, Telefone e E-mail.");
+            if (!form.nome_completo || !form.nome_empresa || !form.telefone || !form.email) {
+              alert("Preencha os campos obrigatórios: Nome Completo, Nome da Empresa, Telefone e E-mail.");
               return;
             }
             candidaturaMutation.mutate(form);

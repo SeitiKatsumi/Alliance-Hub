@@ -1090,7 +1090,7 @@ export default function VitrinePage() {
           <div className="flex-1 h-px bg-brand-gold/10" />
           <span className="text-[10px] font-mono text-white/25">{anunciosAtivos.length}/6 ativos</span>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {anunciosAtivos.slice(0, 6).map(a => (
             <AnuncioCard
               key={a.id}

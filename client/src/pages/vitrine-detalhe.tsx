@@ -23,9 +23,10 @@ import { apiRequest } from "@/lib/queryClient";
 const REDE_BADGES: Record<string, { img: string; label: string }> = {
   BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
   BUILT_FOUNDING_MEMBER: { img: "/built-founding-member.png", label: "BUILT Founding Member" },
+  BUILT_CAPITAL_PARTNER: { img: "/built-capital-partner.png", label: "BUILT Capital Partner" },
   BNI: { img: "/bni-badge.png", label: "Membro BNI" },
 };
-const REDE_ORDER = ["BUILT_PROUD_MEMBER", "BUILT_FOUNDING_MEMBER", "BNI"];
+const REDE_ORDER = ["BUILT_PROUD_MEMBER", "BUILT_FOUNDING_MEMBER", "BUILT_CAPITAL_PARTNER", "BNI"];
 
 interface MembroDetalhe {
   id: string;

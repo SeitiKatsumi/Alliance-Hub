@@ -299,6 +299,7 @@ export default function BiasCalculadoraPage() {
   // CPP fields
   const [valorOrigem, setValorOrigem] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState<string>("");
+  const [numeroParcelas, setNumeroParcelas] = useState<string>("");
   const [percAutor, setPercAutor] = useState(0);
   const [percAliado, setPercAliado] = useState(0);
   const [percBuilt, setPercBuilt] = useState(0);
@@ -506,25 +507,31 @@ export default function BiasCalculadoraPage() {
                     testId="input-valor-origem"
                   />
                   <p className="text-xs text-muted-foreground">Valor base do projeto</p>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
-                    <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                    <Select value={formaPagamento} onValueChange={(v) => { setFormaPagamento(v); if (v !== "parcelado") setNumeroParcelas(""); }}>
                       <SelectTrigger className="h-8 text-sm" data-testid="select-forma-pagamento">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="a_vista">À Vista</SelectItem>
-                        <SelectItem value="parcelado_2x">Parcelado (2x)</SelectItem>
-                        <SelectItem value="parcelado_3x">Parcelado (3x)</SelectItem>
-                        <SelectItem value="parcelado_4x">Parcelado (4x)</SelectItem>
-                        <SelectItem value="parcelado_6x">Parcelado (6x)</SelectItem>
-                        <SelectItem value="parcelado_12x">Parcelado (12x)</SelectItem>
-                        <SelectItem value="parcelado_24x">Parcelado (24x)</SelectItem>
-                        <SelectItem value="financiado">Financiado</SelectItem>
-                        <SelectItem value="permuta">Permuta</SelectItem>
-                        <SelectItem value="misto">Misto</SelectItem>
+                        <SelectItem value="parcelado">Parcelado</SelectItem>
                       </SelectContent>
                     </Select>
+                    {formaPagamento === "parcelado" && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={2}
+                          placeholder="Nº de parcelas"
+                          value={numeroParcelas}
+                          onChange={e => setNumeroParcelas(e.target.value)}
+                          className="h-8 text-sm"
+                          data-testid="input-numero-parcelas"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">vezes</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

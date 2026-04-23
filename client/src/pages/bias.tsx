@@ -35,8 +35,9 @@ import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
-  X, ExternalLink, ChevronsUpDown, Check, DollarSign
+  X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard
 } from "lucide-react";
+import { PagamentoModal } from "@/components/PagamentoModal";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -1368,6 +1369,15 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Forma de pagamento do ativo de origem
+  const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [numeroParcelas, setNumeroParcelas] = useState("");
+  const [vencimento, setVencimento] = useState("");
+  const [vencimentosParcelas, setVencimentosParcelas] = useState<string[]>([]);
+  const [valoresParcelas, setValoresParcelas] = useState<number[]>([]);
+  const [valorAVista, setValorAVista] = useState(0);
+
   useEffect(() => {
     if (open) {
       setForm(bia ? biaToForm(bia) : EMPTY_FORM);
@@ -1375,6 +1385,13 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       setExistingAnexos(bia?.Anexos ?? []);
       setPendingFiles([]);
       setUploading(false);
+      // Reset payment form when modal opens
+      setFormaPagamento("");
+      setNumeroParcelas("");
+      setVencimento("");
+      setVencimentosParcelas([]);
+      setValoresParcelas([]);
+      setValorAVista(0);
     }
   }, [open, bia]);
 
@@ -1392,7 +1409,13 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   }
 
   const valorRealizado = parseBRLToNumber(form.valor_realizado_venda);
-  const valorOrigem = parseBRLToNumber(form.valor_origem);
+  // valorOrigem é derivado da forma de pagamento (se definida) ou do campo manual
+  const numParcelasInt = parseInt(numeroParcelas) || 0;
+  const valorOrigem = (() => {
+    if (formaPagamento === "parcelado") return valoresParcelas.reduce((s, v) => s + (v || 0), 0);
+    if (formaPagamento === "a_vista") return valorAVista;
+    return parseBRLToNumber(form.valor_origem);
+  })();
 
   const percTotal = ["perc_aliado_built","perc_built","perc_dir_tecnico",
     "perc_dir_obras","perc_dir_comercial","perc_dir_capital"].reduce(
@@ -1428,7 +1451,12 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         diretor_execucao: form.diretor_execucao || null,
         diretor_comercial: form.diretor_comercial || null,
         diretor_capital: form.diretor_capital || null,
-        valor_origem: form.valor_origem ? parseBRLToNumber(form.valor_origem) : null,
+        valor_origem: valorOrigem || null,
+        _forma_pagamento: formaPagamento || null,
+        _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
+        _vencimento_origem: formaPagamento === "a_vista" ? (vencimento || null) : null,
+        _vencimentos_parcelas: formaPagamento === "parcelado" ? vencimentosParcelas : [],
+        _valores_parcelas: formaPagamento === "parcelado" ? valoresParcelas : [],
         perc_aliado_built: form.perc_aliado_built || null,
         perc_built: form.perc_built || null,
         perc_dir_tecnico: form.perc_dir_tecnico || null,
@@ -1709,7 +1737,54 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
             {/* Tab CPP */}
             <TabsContent value="cpp" className="space-y-4 mt-4">
-              <BRLInput label="Valor de Origem (R$)" field="valor_origem" form={form} setForm={setForm} />
+              {/* Forma de Pagamento do Ativo de Origem */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setPagamentoModalOpen(true)}
+                  className="w-full rounded-lg border border-dashed border-brand-gold/40 bg-brand-gold/5 hover:bg-brand-gold/10 transition-colors p-3 text-left space-y-1"
+                  data-testid="button-open-pagamento-bia"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1.5 text-brand-gold">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      Forma de Pagamento do Ativo de Origem
+                    </span>
+                    {formaPagamento && <span className="text-[10px] text-muted-foreground">✎ editar</span>}
+                  </div>
+                  {formaPagamento ? (
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <div>{formaPagamento === "a_vista" ? "À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
+                      {formaPagamento === "parcelado" && numParcelasInt > 0 && (
+                        <div>{vencimentosParcelas.filter(v => v).length}/{numParcelasInt} datas · {valoresParcelas.filter(v => v > 0).length}/{numParcelasInt} valores</div>
+                      )}
+                      {formaPagamento === "a_vista" && vencimento && (
+                        <div>Vence: {new Date(vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground/60">Clique para definir forma de pagamento e valores</p>
+                  )}
+                </button>
+
+                {/* Valor de Origem derivado */}
+                <div className="rounded-lg bg-muted/30 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    Valor de Origem
+                    {formaPagamento === "parcelado" && " (soma das parcelas)"}
+                    {formaPagamento === "a_vista" && " (valor à vista)"}
+                    {!formaPagamento && " (manual)"}
+                  </span>
+                  <span className="font-semibold tabular-nums text-brand-gold" data-testid="text-valor-origem-bia">
+                    {brl(valorOrigem)}
+                  </span>
+                </div>
+
+                {/* Campo manual — visível só quando não há forma de pagamento definida */}
+                {!formaPagamento && (
+                  <BRLInput label="Valor de Origem (R$)" field="valor_origem" form={form} setForm={setForm} />
+                )}
+              </div>
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais CPP (% sobre Valor de Origem)</p>
               <div className="grid grid-cols-1 gap-3">
@@ -1763,6 +1838,25 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         open={locationPickerOpen}
         onClose={() => setLocationPickerOpen(false)}
         onSelect={handleLocationSelect}
+      />
+
+      <PagamentoModal
+        open={pagamentoModalOpen}
+        onClose={() => setPagamentoModalOpen(false)}
+        initialFormaPagamento={formaPagamento}
+        initialNumeroParcelas={numeroParcelas}
+        initialVencimento={vencimento}
+        initialVencimentosParcelas={vencimentosParcelas}
+        initialValoresParcelas={valoresParcelas}
+        initialValorAVista={valorAVista}
+        onConfirm={(d) => {
+          setFormaPagamento(d.formaPagamento);
+          setNumeroParcelas(d.numeroParcelas);
+          setVencimento(d.vencimento);
+          setVencimentosParcelas(d.vencimentosParcelas);
+          setValoresParcelas(d.valoresParcelas);
+          setValorAVista(d.valorAVista);
+        }}
       />
     </>
   );

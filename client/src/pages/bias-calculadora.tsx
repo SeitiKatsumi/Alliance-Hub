@@ -281,12 +281,12 @@ function PercInput({
 }
 
 // ---- PagamentoModal ----
-function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroParcelas, initialVencimento, initialVencimentosParcelas, initialValoresParcelas, onConfirm }: {
+function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroParcelas, initialVencimento, initialVencimentosParcelas, initialValoresParcelas, initialValorAVista, onConfirm }: {
   open: boolean; onClose: () => void;
   initialFormaPagamento: string; initialNumeroParcelas: string;
   initialVencimento: string; initialVencimentosParcelas: string[];
-  initialValoresParcelas: number[];
-  onConfirm: (d: { formaPagamento: string; numeroParcelas: string; vencimento: string; vencimentosParcelas: string[]; valoresParcelas: number[] }) => void;
+  initialValoresParcelas: number[]; initialValorAVista: number;
+  onConfirm: (d: { formaPagamento: string; numeroParcelas: string; vencimento: string; vencimentosParcelas: string[]; valoresParcelas: number[]; valorAVista: number }) => void;
 }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -295,6 +295,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
   const [venc, setVenc] = useState(initialVencimento);
   const [vencs, setVencs] = useState<string[]>(initialVencimentosParcelas);
   const [vals, setVals] = useState<number[]>(initialValoresParcelas);
+  const [valorAVista, setValorAVista] = useState(initialValorAVista);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiObs, setAiObs] = useState("");
 
@@ -307,6 +308,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
       setVenc(initialVencimento);
       setVencs(initialVencimentosParcelas);
       setVals(initialValoresParcelas);
+      setValorAVista(initialValorAVista);
       setAiObs("");
     }
   }, [open]);
@@ -365,7 +367,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
   }
 
   function handleConfirm() {
-    onConfirm({ formaPagamento: forma, numeroParcelas: nParcelas, vencimento: venc, vencimentosParcelas: vencs, valoresParcelas: vals });
+    onConfirm({ formaPagamento: forma, numeroParcelas: nParcelas, vencimento: venc, vencimentosParcelas: vencs, valoresParcelas: vals, valorAVista });
     onClose();
   }
 
@@ -433,6 +435,22 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
             </Button>
             {aiObs && <p className="text-xs text-brand-gold/80 italic">IA: {aiObs}</p>}
           </div>
+
+          {/* Valor total à vista */}
+          {forma === "a_vista" && (
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Valor Total</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground shrink-0">R$</span>
+                <Input
+                  type="number" min={0} step={0.01} placeholder="0,00"
+                  value={valorAVista || ""}
+                  onChange={e => setValorAVista(parseFloat(e.target.value) || 0)}
+                  className="flex-1" data-testid="modal-input-valor-avista"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Vencimentos */}
           {forma === "a_vista" && (
@@ -547,8 +565,9 @@ export default function BiasCalculadoraPage() {
   const bias = useMemo(() => biasRaw || [], [biasRaw]);
   const selectedBia = useMemo(() => bias.find(b => b.id === selectedBiaId), [bias, selectedBiaId]);
 
-  // CPP fields
-  const [valorOrigem, setValorOrigem] = useState(0);
+  // Forma de pagamento
+  const [biaValorOrigem, setBiaValorOrigem] = useState(0); // valor salvo no Directus (fallback)
+  const [valorAVista, setValorAVista] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState<string>("");
   const [numeroParcelas, setNumeroParcelas] = useState<string>("");
   const [vencimento, setVencimento] = useState<string>("");
@@ -557,6 +576,14 @@ export default function BiasCalculadoraPage() {
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
 
   const numParcelasInt = parseInt(numeroParcelas) || 0;
+
+  // valorOrigem é derivado da forma de pagamento
+  const valorOrigem = useMemo(() => {
+    if (formaPagamento === "parcelado") return valoresParcelas.reduce((s, v) => s + (v || 0), 0);
+    if (formaPagamento === "a_vista") return valorAVista;
+    return biaValorOrigem;
+  }, [formaPagamento, valoresParcelas, valorAVista, biaValorOrigem]);
+
   const [percAutor, setPercAutor] = useState(0);
   const [percAliado, setPercAliado] = useState(0);
   const [percBuilt, setPercBuilt] = useState(0);
@@ -580,7 +607,14 @@ export default function BiasCalculadoraPage() {
 
   useEffect(() => {
     if (selectedBia) {
-      setValorOrigem(toNum(selectedBia.valor_origem));
+      setBiaValorOrigem(toNum(selectedBia.valor_origem));
+      // Reset payment form when BIA changes — each BIA has its own forma de pagamento
+      setFormaPagamento("");
+      setNumeroParcelas("");
+      setVencimento("");
+      setVencimentosParcelas([]);
+      setValoresParcelas([]);
+      setValorAVista(0);
       setPercAutor(toNum(selectedBia.perc_autor_opa));
       setPercAliado(toNum(selectedBia.perc_aliado_built));
       setPercBuilt(Math.max(toNum(selectedBia.perc_built), 1));
@@ -760,20 +794,12 @@ export default function BiasCalculadoraPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-brand-gold/30" data-testid="panel-valor-origem">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Valor de Origem</CardTitle>
-                <DollarSign className="w-4 h-4 text-brand-gold" />
+                <CardTitle className="text-sm font-medium">Forma de Pagamento</CardTitle>
+                <CreditCard className="w-4 h-4 text-brand-gold" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <NumInput
-                    label=""
-                    value={valorOrigem}
-                    onChange={setValorOrigem}
-                    testId="input-valor-origem"
-                  />
-                  <p className="text-xs text-muted-foreground">Valor base do projeto</p>
-
-                  {/* Pagamento summary + button */}
+                  {/* Pagamento button — sempre no topo */}
                   <button
                     type="button"
                     onClick={() => setPagamentoModalOpen(true)}
@@ -791,16 +817,27 @@ export default function BiasCalculadoraPage() {
                       <div className="text-xs text-muted-foreground space-y-0.5">
                         <div>{formaPagamento === "a_vista" ? "À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
                         {formaPagamento === "parcelado" && numParcelasInt > 0 && (
-                          <div>{vencimentosParcelas.filter(v => v).length}/{numParcelasInt} datas definidas</div>
+                          <div>{vencimentosParcelas.filter(v => v).length}/{numParcelasInt} datas · {valoresParcelas.filter(v => v > 0).length}/{numParcelasInt} valores</div>
                         )}
                         {formaPagamento === "a_vista" && vencimento && (
                           <div>Vence: {new Date(vencimento + "T12:00:00").toLocaleDateString("pt-BR")}</div>
                         )}
                       </div>
                     ) : (
-                      <p className="text-[11px] text-muted-foreground/60">Clique para definir forma de pagamento e vencimentos</p>
+                      <p className="text-[11px] text-muted-foreground/60">Clique para definir forma de pagamento e valores</p>
                     )}
                   </button>
+
+                  {/* Valor de Origem — calculado pela forma de pagamento */}
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-[11px] text-muted-foreground mb-1">Valor de Origem</p>
+                    <p className="text-2xl font-bold text-brand-gold tabular-nums" data-testid="text-valor-origem">
+                      {valorOrigem.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                      {formaPagamento === "parcelado" ? "Soma das parcelas" : formaPagamento === "a_vista" ? "Valor à vista" : "Valor salvo no projeto"}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1077,12 +1114,14 @@ export default function BiasCalculadoraPage() {
         initialVencimento={vencimento}
         initialVencimentosParcelas={vencimentosParcelas}
         initialValoresParcelas={valoresParcelas}
+        initialValorAVista={valorAVista}
         onConfirm={(d) => {
           setFormaPagamento(d.formaPagamento);
           setNumeroParcelas(d.numeroParcelas);
           setVencimento(d.vencimento);
           setVencimentosParcelas(d.vencimentosParcelas);
           setValoresParcelas(d.valoresParcelas);
+          setValorAVista(d.valorAVista);
         }}
       />
     </div>

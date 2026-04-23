@@ -383,10 +383,10 @@ export default function ResultadosPage() {
               <CardContent>
                 <RowItem label="Valor de Origem" value={valorOrigem} positive={false} currency={bia?.moeda || "BRL"} />
                 <RowItem label="Custo de Origem da BIA" sub="Origem + Divisor" value={custoOrigem} positive={false} currency={bia?.moeda || "BRL"} />
-                <RowItem label="CPP Total (Custo Final)" sub="Soma dos percentuais" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} />
+                <RowItem label="Divisor Multiplicador" sub="Soma dos percentuais" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} />
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-sm font-semibold">Total Custos</span>
+                  <span className="text-sm font-semibold">Total DM</span>
                   <span className="text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoCPP, bia?.moeda || "BRL")}</span>
                 </div>
               </CardContent>

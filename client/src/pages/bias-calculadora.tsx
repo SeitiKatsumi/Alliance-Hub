@@ -281,11 +281,12 @@ function PercInput({
 }
 
 // ---- PagamentoModal ----
-function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroParcelas, initialVencimento, initialVencimentosParcelas, onConfirm }: {
+function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroParcelas, initialVencimento, initialVencimentosParcelas, initialValoresParcelas, onConfirm }: {
   open: boolean; onClose: () => void;
   initialFormaPagamento: string; initialNumeroParcelas: string;
   initialVencimento: string; initialVencimentosParcelas: string[];
-  onConfirm: (d: { formaPagamento: string; numeroParcelas: string; vencimento: string; vencimentosParcelas: string[] }) => void;
+  initialValoresParcelas: number[];
+  onConfirm: (d: { formaPagamento: string; numeroParcelas: string; vencimento: string; vencimentosParcelas: string[]; valoresParcelas: number[] }) => void;
 }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -293,6 +294,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
   const [nParcelas, setNParcelas] = useState(initialNumeroParcelas);
   const [venc, setVenc] = useState(initialVencimento);
   const [vencs, setVencs] = useState<string[]>(initialVencimentosParcelas);
+  const [vals, setVals] = useState<number[]>(initialValoresParcelas);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiObs, setAiObs] = useState("");
 
@@ -304,6 +306,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
       setNParcelas(initialNumeroParcelas);
       setVenc(initialVencimento);
       setVencs(initialVencimentosParcelas);
+      setVals(initialValoresParcelas);
       setAiObs("");
     }
   }, [open]);
@@ -316,10 +319,19 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
       while (next.length < nn) next.push("");
       return next.slice(0, nn);
     });
+    setVals(prev => {
+      const next = [...prev];
+      while (next.length < nn) next.push(0);
+      return next.slice(0, nn);
+    });
   }
 
   function setVencParcela(idx: number, date: string) {
     setVencs(prev => { const next = [...prev]; next[idx] = date; return next; });
+  }
+
+  function setValParcela(idx: number, val: number) {
+    setVals(prev => { const next = [...prev]; next[idx] = val; return next; });
   }
 
   async function handleAiParse(e: React.ChangeEvent<HTMLInputElement>) {
@@ -335,11 +347,12 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
       if (!res.ok) throw new Error(data.error || "Erro ao processar arquivo");
       const parsedN: number = data.numeroParcelas || 0;
       const parsedDates: string[] = Array.isArray(data.vencimentos) ? data.vencimentos : [];
+      const parsedValues: number[] = Array.isArray(data.valores) ? data.valores : [];
       if (parsedN > 0) {
         setForma("parcelado");
         setNParcelas(String(parsedN));
-        const filled: string[] = Array.from({ length: parsedN }, (_, i) => parsedDates[i] || "");
-        setVencs(filled);
+        setVencs(Array.from({ length: parsedN }, (_, i) => parsedDates[i] || ""));
+        setVals(Array.from({ length: parsedN }, (_, i) => parsedValues[i] || 0));
       }
       if (data.observacao) setAiObs(data.observacao);
       toast({ title: `IA extraiu ${parsedN} parcela(s) com ${parsedDates.length} data(s)` });
@@ -352,7 +365,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
   }
 
   function handleConfirm() {
-    onConfirm({ formaPagamento: forma, numeroParcelas: nParcelas, vencimento: venc, vencimentosParcelas: vencs });
+    onConfirm({ formaPagamento: forma, numeroParcelas: nParcelas, vencimento: venc, vencimentosParcelas: vencs, valoresParcelas: vals });
     onClose();
   }
 
@@ -448,35 +461,53 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
           {forma === "parcelado" && n > 0 && (
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center gap-1">
-                <CalendarClock className="w-4 h-4" /> Vencimentos das Parcelas <span className="text-muted-foreground text-xs">(opcional)</span>
+                <CalendarClock className="w-4 h-4" /> Parcelas <span className="text-muted-foreground text-xs">(data e valor opcionais)</span>
               </Label>
-              <ScrollArea className="h-64 rounded border p-2">
+              <ScrollArea className="h-72 rounded border p-2">
                 <div className="space-y-2 pr-2">
                   {vencs.map((v, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-20 shrink-0 font-mono">Parcela {idx + 1}/{n}</span>
-                      {v ? (
-                        <div className="flex items-center gap-1 flex-1">
-                          <Input type="date" value={v} onChange={e => setVencParcela(idx, e.target.value)} className="h-8 text-xs flex-1" />
-                          <button type="button" onClick={() => setVencParcela(idx, "")} className="p-1 text-muted-foreground hover:text-foreground">
-                            <X className="w-3 h-3" />
+                    <div key={idx} className="space-y-1 rounded-md bg-muted/30 p-2">
+                      <span className="text-[11px] font-mono text-muted-foreground">Parcela {idx + 1}/{n}</span>
+                      <div className="flex items-center gap-1.5">
+                        {/* Data */}
+                        {v ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <Input type="date" value={v} onChange={e => setVencParcela(idx, e.target.value)} className="h-7 text-xs flex-1" />
+                            <button type="button" onClick={() => setVencParcela(idx, "")} className="p-1 text-muted-foreground hover:text-foreground shrink-0">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button" onClick={() => setVencParcela(idx, today)}
+                            className="flex-1 h-7 text-left px-2 text-xs text-muted-foreground border border-dashed rounded hover:border-muted-foreground/60 transition-colors"
+                          >
+                            + Data
                           </button>
+                        )}
+                        {/* Valor */}
+                        <div className="flex items-center gap-1 w-32 shrink-0">
+                          <span className="text-xs text-muted-foreground shrink-0">R$</span>
+                          <Input
+                            type="number" min={0} step={0.01}
+                            placeholder="0,00"
+                            value={vals[idx] || ""}
+                            onChange={e => setValParcela(idx, parseFloat(e.target.value) || 0)}
+                            className="h-7 text-xs"
+                            data-testid={`input-valor-parcela-${idx}`}
+                          />
                         </div>
-                      ) : (
-                        <button
-                          type="button" onClick={() => setVencParcela(idx, today)}
-                          className="flex-1 h-8 text-left px-2 text-xs text-muted-foreground border border-dashed rounded hover:border-muted-foreground/60 transition-colors"
-                        >
-                          + Adicionar data
-                        </button>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
               </ScrollArea>
-              <p className="text-xs text-muted-foreground">
-                {vencs.filter(v => v).length}/{n} parcelas com data · sem data = pendente no financeiro
-              </p>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{vencs.filter(v => v).length}/{n} datas · {vals.filter(v => v > 0).length}/{n} valores definidos</span>
+                {vals.some(v => v > 0) && (
+                  <span className="font-mono">Total: R$ {vals.reduce((s, v) => s + (v || 0), 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -522,6 +553,7 @@ export default function BiasCalculadoraPage() {
   const [numeroParcelas, setNumeroParcelas] = useState<string>("");
   const [vencimento, setVencimento] = useState<string>("");
   const [vencimentosParcelas, setVencimentosParcelas] = useState<string[]>([]);
+  const [valoresParcelas, setValoresParcelas] = useState<number[]>([]);
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
 
   const numParcelasInt = parseInt(numeroParcelas) || 0;
@@ -638,6 +670,7 @@ export default function BiasCalculadoraPage() {
         _forma_pagamento: formaPagamento || null,
         _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
         _vencimentos_parcelas: formaPagamento === "parcelado" ? vencimentosParcelas : [],
+        _valores_parcelas: formaPagamento === "parcelado" ? valoresParcelas : [],
       });
     },
     onSuccess: () => {
@@ -1042,11 +1075,13 @@ export default function BiasCalculadoraPage() {
         initialNumeroParcelas={numeroParcelas}
         initialVencimento={vencimento}
         initialVencimentosParcelas={vencimentosParcelas}
+        initialValoresParcelas={valoresParcelas}
         onConfirm={(d) => {
           setFormaPagamento(d.formaPagamento);
           setNumeroParcelas(d.numeroParcelas);
           setVencimento(d.vencimento);
           setVencimentosParcelas(d.vencimentosParcelas);
+          setValoresParcelas(d.valoresParcelas);
         }}
       />
     </div>

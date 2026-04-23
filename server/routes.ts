@@ -403,7 +403,8 @@ async function syncValorOrigemLancamento(
   valorOrigem: number,
   vencimento?: string | null,
   numeroParcelas?: number | null,
-  vencimentosParcelas?: string[]
+  vencimentosParcelas?: string[],
+  valoresParcelas?: number[]
 ): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
@@ -424,9 +425,12 @@ async function syncValorOrigemLancamento(
   const isParcelado = numeroParcelas && numeroParcelas > 1;
 
   if (isParcelado) {
-    const valorParcela = parseFloat((valorOrigem / numeroParcelas).toFixed(2));
+    const valorParcelaDefault = parseFloat((valorOrigem / numeroParcelas).toFixed(2));
     for (let i = 0; i < numeroParcelas; i++) {
       const dataVencimento = (vencimentosParcelas && vencimentosParcelas[i]) ? vencimentosParcelas[i] : null;
+      const valorParcela = (valoresParcelas && valoresParcelas[i] && valoresParcelas[i] > 0)
+        ? valoresParcelas[i]
+        : valorParcelaDefault;
       await directusCreate("fluxo_caixa", {
         bia: biaId,
         tipo: "saida",
@@ -1670,7 +1674,8 @@ export async function registerRoutes(
             const vencimentoOrigem = req.body._vencimento_origem || null;
             const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
             const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
-            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas).catch(console.error);
+            const valoresParcelas: number[] = Array.isArray(req.body._valores_parcelas) ? req.body._valores_parcelas.map(Number) : [];
+            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas).catch(console.error);
           }
           return res.json(item);
         } catch (err: any) {

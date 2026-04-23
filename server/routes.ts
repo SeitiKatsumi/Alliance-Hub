@@ -373,8 +373,15 @@ async function directusUpdate(collection: string, id: string, data: Record<strin
     const text = await res.text();
     throw new Error(`Directus update error ${res.status}: ${text}`);
   }
-  const json = await res.json();
-  return json.data;
+  // Directus may return 204 No Content or an empty body in some edge cases
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    const json = JSON.parse(text);
+    return json.data ?? json;
+  } catch {
+    return {};
+  }
 }
 
 async function directusDelete(collection: string, id: string) {
@@ -409,22 +416,25 @@ async function syncValorOrigemLancamento(
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
 
-  console.log(`[syncValorOrigem] START biaId=${biaId} valor=${valorOrigem} parcelas=${numeroParcelas} vencimentos=${vencimentosParcelas?.length} valores=${valoresParcelas?.length}`);
+  // Fetch all fluxo_caixa entries and filter in code (Directus filter params conflict with URL template)
+  let existing: any[] = [];
+  try {
+    const all = await directusFetch("fluxo_caixa", "fields=id,bia,descricao");
+    existing = all.filter((e: any) => e.bia === biaId && (e.descricao || "").includes(MARCA_BASE));
+  } catch (fetchErr: any) {
+    console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} — skipping cleanup`);
+  }
 
-  // Fetch all existing "Valor de Origem" lancamentos for this BIA
-  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_starts_with]=${encodeURIComponent(MARCA_BASE)}&fields=id,descricao&limit=50`;
-  const existing: any[] = await directusFetch("fluxo_caixa", params);
-  console.log(`[syncValorOrigem] found ${existing.length} existing entries to delete`);
-
-  // Delete all existing entries — we'll recreate fresh
+  // Delete all existing entries — clear M2M relations first to avoid FK constraint errors
   for (const e of existing) {
+    try {
+      // Clear Categoria M2M before delete (otherwise fluxo_caixa_categorias FK blocks delete)
+      await directusUpdate("fluxo_caixa", e.id, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
+    } catch (_clearErr) { /* ignore — best effort */ }
     await directusDelete("fluxo_caixa", e.id);
   }
 
-  if (valorOrigem <= 0) {
-    console.log(`[syncValorOrigem] valorOrigem=${valorOrigem} <= 0, skipping creation`);
-    return;
-  }
+  if (valorOrigem <= 0) return;
 
   const catId = await findOrCreateValorOrigemCategoria();
 
@@ -1681,10 +1691,7 @@ export async function registerRoutes(
             const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
             const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
             const valoresParcelas: number[] = Array.isArray(req.body._valores_parcelas) ? req.body._valores_parcelas.map(Number) : [];
-            console.log(`[sync] valor_origem=${valorOrigem} numeroParcelas=${numeroParcelas} vencimentos=${vencimentosParcelas.length} valores=${valoresParcelas.length}`);
-            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas).catch(e => console.error("[sync] error:", e.message));
-          } else {
-            console.log("[sync] valor_origem missing from body — skipping sync");
+            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas).catch(e => console.error("[sync fluxo_caixa] error:", e.message));
           }
           return res.json(item);
         } catch (err: any) {

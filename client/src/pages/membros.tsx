@@ -726,6 +726,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 {[
                   { value: "BUILT_PROUD_MEMBER", label: "Proud Member", img: "/built-proud-member.png" },
                   { value: "BUILT_FOUNDING_MEMBER", label: "Founding Member", img: "/built-founding-member.png" },
+                  { value: "BUILT_ALLIANCE_PARTNER", label: "Alliance Partner", img: "/built-alliance-partner.png" },
                   { value: "BUILT_CAPITAL_PARTNER", label: "Capital Partner", img: "/built-capital-partner.png" },
                   { value: "BNI", label: "BNI", img: "/bni-badge.png" },
                 ].map(selo => {

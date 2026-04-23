@@ -398,34 +398,41 @@ async function findOrCreateValorOrigemCategoria(): Promise<number> {
   return created.id;
 }
 
-async function syncValorOrigemLancamento(biaId: string, valorOrigem: number, vencimento?: string | null): Promise<void> {
+async function syncValorOrigemLancamento(
+  biaId: string,
+  valorOrigem: number,
+  vencimento?: string | null,
+  numeroParcelas?: number | null,
+  vencimentosParcelas?: string[]
+): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
-  const dataVencimento = vencimento || null;
-  const descricaoMarca = "Valor de Origem da BIA";
-  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_eq]=${encodeURIComponent(descricaoMarca)}&fields=id,valor,data_vencimento,status`;
-  const existing = await directusFetch("fluxo_caixa", params);
+  const MARCA_BASE = "Valor de Origem da BIA";
 
-  if (valorOrigem > 0) {
-    const catId = await findOrCreateValorOrigemCategoria();
-    if (existing.length > 0) {
-      const existingValor = parseFloat(existing[0].valor) || 0;
-      const valorChanged = Math.abs(existingValor - valorOrigem) > 0.001;
-      const vencimentoChanged = existing[0].data_vencimento !== dataVencimento;
-      const statusChanged = existing[0].status !== "pendente";
-      if (valorChanged || vencimentoChanged || statusChanged) {
-        await directusUpdate("fluxo_caixa", existing[0].id, {
-          ...(valorChanged ? { valor: String(valorOrigem) } : {}),
-          data_vencimento: dataVencimento,
-          status: "pendente",
-        });
-      }
-    } else {
+  // Fetch all existing "Valor de Origem" lancamentos for this BIA
+  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_starts_with]=${encodeURIComponent(MARCA_BASE)}&fields=id,descricao&limit=50`;
+  const existing: any[] = await directusFetch("fluxo_caixa", params);
+
+  // Delete all existing entries — we'll recreate fresh
+  for (const e of existing) {
+    await directusDelete("fluxo_caixa", e.id);
+  }
+
+  if (valorOrigem <= 0) return;
+
+  const catId = await findOrCreateValorOrigemCategoria();
+
+  const isParcelado = numeroParcelas && numeroParcelas > 1;
+
+  if (isParcelado) {
+    const valorParcela = parseFloat((valorOrigem / numeroParcelas).toFixed(2));
+    for (let i = 0; i < numeroParcelas; i++) {
+      const dataVencimento = (vencimentosParcelas && vencimentosParcelas[i]) ? vencimentosParcelas[i] : null;
       await directusCreate("fluxo_caixa", {
         bia: biaId,
         tipo: "saida",
-        valor: String(valorOrigem),
+        valor: String(valorParcela),
         data: today,
-        descricao: descricaoMarca,
+        descricao: `${MARCA_BASE} - Parcela ${i + 1}/${numeroParcelas}`,
         data_vencimento: dataVencimento,
         status: "pendente",
         Categoria: [{ categorias_id: catId }],
@@ -434,8 +441,21 @@ async function syncValorOrigemLancamento(biaId: string, valorOrigem: number, ven
         Anexos: [],
       });
     }
-  } else if (existing.length > 0) {
-    await directusDelete("fluxo_caixa", existing[0].id);
+  } else {
+    const dataVencimento = vencimento || null;
+    await directusCreate("fluxo_caixa", {
+      bia: biaId,
+      tipo: "saida",
+      valor: String(valorOrigem),
+      data: today,
+      descricao: MARCA_BASE,
+      data_vencimento: dataVencimento,
+      status: "pendente",
+      Categoria: [{ categorias_id: catId }],
+      tipo_de_cpp: [],
+      Favorecido: [],
+      Anexos: [],
+    });
   }
 }
 
@@ -1648,7 +1668,9 @@ export async function registerRoutes(
           if (req.body.valor_origem !== undefined) {
             const valorOrigem = parseFloat(req.body.valor_origem) || 0;
             const vencimentoOrigem = req.body._vencimento_origem || null;
-            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem).catch(console.error);
+            const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
+            const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
+            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas).catch(console.error);
           }
           return res.json(item);
         } catch (err: any) {

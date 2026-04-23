@@ -302,6 +302,27 @@ export default function BiasCalculadoraPage() {
   const [formaPagamento, setFormaPagamento] = useState<string>("");
   const [numeroParcelas, setNumeroParcelas] = useState<string>("");
   const [vencimento, setVencimento] = useState<string>("");
+  const [vencimentosParcelas, setVencimentosParcelas] = useState<string[]>([]);
+
+  const numParcelasInt = parseInt(numeroParcelas) || 0;
+
+  function handleNumParcelasChange(val: string) {
+    setNumeroParcelas(val);
+    const n = parseInt(val) || 0;
+    setVencimentosParcelas(prev => {
+      const next = [...prev];
+      while (next.length < n) next.push("");
+      return next.slice(0, n);
+    });
+  }
+
+  function setVencimentoParcela(idx: number, date: string) {
+    setVencimentosParcelas(prev => {
+      const next = [...prev];
+      next[idx] = date;
+      return next;
+    });
+  }
   const [percAutor, setPercAutor] = useState(0);
   const [percAliado, setPercAliado] = useState(0);
   const [percBuilt, setPercBuilt] = useState(0);
@@ -411,7 +432,10 @@ export default function BiasCalculadoraPage() {
       };
       await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,
-        _vencimento_origem: vencimento || null,
+        _vencimento_origem: formaPagamento === "parcelado" ? null : (vencimento || null),
+        _forma_pagamento: formaPagamento || null,
+        _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
+        _vencimentos_parcelas: formaPagamento === "parcelado" ? vencimentosParcelas : [],
       });
     },
     onSuccess: () => {
@@ -530,7 +554,7 @@ export default function BiasCalculadoraPage() {
                           min={2}
                           placeholder="Nº de parcelas"
                           value={numeroParcelas}
-                          onChange={e => setNumeroParcelas(e.target.value)}
+                          onChange={e => handleNumParcelasChange(e.target.value)}
                           className="h-8 text-sm"
                           data-testid="input-numero-parcelas"
                         />
@@ -538,41 +562,80 @@ export default function BiasCalculadoraPage() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Vencimento <span className="text-muted-foreground/50">(opcional)</span></Label>
-                    {vencimento ? (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="date"
-                          value={vencimento}
-                          onChange={e => setVencimento(e.target.value)}
-                          className="h-8 text-sm flex-1"
-                          data-testid="input-vencimento"
-                        />
+
+                  {/* Vencimento(s) */}
+                  {formaPagamento === "parcelado" && numParcelasInt > 0 ? (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Vencimentos das Parcelas <span className="text-muted-foreground/50">(opcional)</span></Label>
+                      {vencimentosParcelas.map((v, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-16 shrink-0">Parcela {idx + 1}</span>
+                          {v ? (
+                            <div className="flex items-center gap-1 flex-1">
+                              <Input
+                                type="date"
+                                value={v}
+                                onChange={e => setVencimentoParcela(idx, e.target.value)}
+                                className="h-7 text-xs flex-1"
+                                data-testid={`input-vencimento-parcela-${idx}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setVencimentoParcela(idx, "")}
+                                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setVencimentoParcela(idx, new Date().toISOString().split("T")[0])}
+                              className="flex-1 h-7 text-left px-2 text-xs text-muted-foreground border border-dashed border-muted-foreground/30 rounded hover:border-muted-foreground/60 transition-colors"
+                              data-testid={`button-add-vencimento-parcela-${idx}`}
+                            >
+                              + Adicionar data
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Vencimento <span className="text-muted-foreground/50">(opcional)</span></Label>
+                      {vencimento ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="date"
+                            value={vencimento}
+                            onChange={e => setVencimento(e.target.value)}
+                            className="h-8 text-sm flex-1"
+                            data-testid="input-vencimento"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setVencimento("")}
+                            className="h-8 w-8 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title="Remover vencimento"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => setVencimento("")}
-                          className="h-8 w-8 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          data-testid="button-clear-vencimento"
-                          title="Remover vencimento"
+                          onClick={() => setVencimento(new Date().toISOString().split("T")[0])}
+                          className="h-8 w-full text-left px-3 text-xs text-muted-foreground border border-dashed border-muted-foreground/30 rounded hover:border-muted-foreground/60 hover:text-foreground transition-colors"
+                          data-testid="button-add-vencimento"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          + Adicionar vencimento
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setVencimento(new Date().toISOString().split("T")[0])}
-                        className="h-8 w-full text-left px-3 text-xs text-muted-foreground border border-dashed border-muted-foreground/30 rounded hover:border-muted-foreground/60 hover:text-foreground transition-colors"
-                        data-testid="button-add-vencimento"
-                      >
-                        + Adicionar vencimento
-                      </button>
-                    )}
-                    {!vencimento && (
-                      <p className="text-[10px] text-muted-foreground/50">Sem vencimento → pendente no financeiro</p>
-                    )}
-                  </div>
+                      )}
+                      {!vencimento && (
+                        <p className="text-[10px] text-muted-foreground/50">Sem vencimento → pendente no financeiro</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

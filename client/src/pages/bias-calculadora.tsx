@@ -666,6 +666,7 @@ export default function BiasCalculadoraPage() {
       };
       await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,
+        valor_origem: r(valorOrigem),
         _vencimento_origem: formaPagamento === "parcelado" ? null : (vencimento || null),
         _forma_pagamento: formaPagamento || null,
         _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,

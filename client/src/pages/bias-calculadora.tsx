@@ -298,6 +298,7 @@ export default function BiasCalculadoraPage() {
 
   // CPP fields
   const [valorOrigem, setValorOrigem] = useState(0);
+  const [formaPagamento, setFormaPagamento] = useState<string>("");
   const [percAutor, setPercAutor] = useState(0);
   const [percAliado, setPercAliado] = useState(0);
   const [percBuilt, setPercBuilt] = useState(0);
@@ -497,7 +498,7 @@ export default function BiasCalculadoraPage() {
                 <DollarSign className="w-4 h-4 text-brand-gold" />
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <NumInput
                     label=""
                     value={valorOrigem}
@@ -505,6 +506,26 @@ export default function BiasCalculadoraPage() {
                     testId="input-valor-origem"
                   />
                   <p className="text-xs text-muted-foreground">Valor base do projeto</p>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
+                    <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                      <SelectTrigger className="h-8 text-sm" data-testid="select-forma-pagamento">
+                        <SelectValue placeholder="Selecionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="a_vista">À Vista</SelectItem>
+                        <SelectItem value="parcelado_2x">Parcelado (2x)</SelectItem>
+                        <SelectItem value="parcelado_3x">Parcelado (3x)</SelectItem>
+                        <SelectItem value="parcelado_4x">Parcelado (4x)</SelectItem>
+                        <SelectItem value="parcelado_6x">Parcelado (6x)</SelectItem>
+                        <SelectItem value="parcelado_12x">Parcelado (12x)</SelectItem>
+                        <SelectItem value="parcelado_24x">Parcelado (24x)</SelectItem>
+                        <SelectItem value="financiado">Financiado</SelectItem>
+                        <SelectItem value="permuta">Permuta</SelectItem>
+                        <SelectItem value="misto">Misto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -539,7 +560,7 @@ export default function BiasCalculadoraPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Percent className="w-5 h-5 text-brand-gold" />
-                Percentuais e CPPs de Origem/Liderança
+                Fatores de Multiplicação
               </CardTitle>
             </CardHeader>
             <CardContent>

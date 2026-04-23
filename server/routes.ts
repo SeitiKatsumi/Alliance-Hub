@@ -409,16 +409,22 @@ async function syncValorOrigemLancamento(
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
 
+  console.log(`[syncValorOrigem] START biaId=${biaId} valor=${valorOrigem} parcelas=${numeroParcelas} vencimentos=${vencimentosParcelas?.length} valores=${valoresParcelas?.length}`);
+
   // Fetch all existing "Valor de Origem" lancamentos for this BIA
   const params = `filter[bia][_eq]=${biaId}&filter[descricao][_starts_with]=${encodeURIComponent(MARCA_BASE)}&fields=id,descricao&limit=50`;
   const existing: any[] = await directusFetch("fluxo_caixa", params);
+  console.log(`[syncValorOrigem] found ${existing.length} existing entries to delete`);
 
   // Delete all existing entries — we'll recreate fresh
   for (const e of existing) {
     await directusDelete("fluxo_caixa", e.id);
   }
 
-  if (valorOrigem <= 0) return;
+  if (valorOrigem <= 0) {
+    console.log(`[syncValorOrigem] valorOrigem=${valorOrigem} <= 0, skipping creation`);
+    return;
+  }
 
   const catId = await findOrCreateValorOrigemCategoria();
 
@@ -1675,7 +1681,10 @@ export async function registerRoutes(
             const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
             const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
             const valoresParcelas: number[] = Array.isArray(req.body._valores_parcelas) ? req.body._valores_parcelas.map(Number) : [];
-            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas).catch(console.error);
+            console.log(`[sync] valor_origem=${valorOrigem} numeroParcelas=${numeroParcelas} vencimentos=${vencimentosParcelas.length} valores=${valoresParcelas.length}`);
+            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas).catch(e => console.error("[sync] error:", e.message));
+          } else {
+            console.log("[sync] valor_origem missing from body — skipping sync");
           }
           return res.json(item);
         } catch (err: any) {

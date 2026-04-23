@@ -1391,6 +1391,17 @@ export async function registerRoutes(
   app.post("/api/membros", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;
     try {
+      // Check for duplicate email before creating
+      const emailInput: string = (req.body.email || "").trim().toLowerCase();
+      if (emailInput) {
+        const existing = await directusFetch(
+          "cadastro_geral",
+          `filter[email][_eq]=${encodeURIComponent(emailInput)}&limit=1&fields=id,email`
+        );
+        if (existing && existing.length > 0) {
+          return res.status(409).json({ error: "Já existe um membro cadastrado com este e-mail." });
+        }
+      }
       const item = await directusCreate("cadastro_geral", req.body);
       res.json(item);
     } catch (error: any) {

@@ -1779,11 +1779,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                     {brl(valorOrigem)}
                   </span>
                 </div>
-
-                {/* Campo manual — visível só quando não há forma de pagamento definida */}
-                {!formaPagamento && (
-                  <BRLInput label="Valor de Origem (R$)" field="valor_origem" form={form} setForm={setForm} />
-                )}
               </div>
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais DM (% sobre Valor de Origem)</p>

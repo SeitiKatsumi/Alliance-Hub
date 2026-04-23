@@ -1521,7 +1521,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             <TabsList className="grid grid-cols-4">
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
-              <TabsTrigger value="cpp" data-testid="tab-cpp">CPP</TabsTrigger>
+              <TabsTrigger value="cpp" data-testid="tab-cpp">DM</TabsTrigger>
               <TabsTrigger value="receita" data-testid="tab-receita">Receita</TabsTrigger>
             </TabsList>
 
@@ -1786,7 +1786,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                 )}
               </div>
               <Separator />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais CPP (% sobre Valor de Origem)</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais DM (% sobre Valor de Origem)</p>
               <div className="grid grid-cols-1 gap-3">
                 <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="BUILT" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
@@ -1797,7 +1797,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               </div>
               {valorOrigem > 0 && (
                 <div className="rounded-lg bg-muted/40 p-3 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Total CPP (Σ percentuais = {percTotal.toFixed(2)}%)</span>
+                  <span className="text-muted-foreground">Total DM (Σ percentuais = {percTotal.toFixed(2)}%)</span>
                   <span className="font-semibold text-orange-600 tabular-nums">{brl(custoOrigemPreview - valorOrigem)}</span>
                 </div>
               )}

@@ -1002,7 +1002,7 @@ export default function VitrinePage() {
             <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
               <Store className="w-6 h-6" />
             </div>
-            Vitrine BUILT
+            BUILT Vitrine
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Encontre fornecedores, prestadores e empresas da rede BUILT

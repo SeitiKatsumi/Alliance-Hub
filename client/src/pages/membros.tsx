@@ -678,7 +678,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
               <div className="space-y-2">
                 {[
-                  { field: "na_vitrine" as keyof Membro, label: "Vitrine BUILT", desc: "Aparece na página de Vitrine pública" },
+                  { field: "na_vitrine" as keyof Membro, label: "BUILT Vitrine", desc: "Aparece na página de Vitrine pública" },
                   { field: "em_membros_built" as keyof Membro, label: "Membros BUILT", desc: "Aparece na área de Membros BUILT" },
                   { field: "em_built_capital" as keyof Membro, label: "BUILT Capital", desc: "Aparece na seção de capital" },
                 ].map(({ field, label, desc }) => {

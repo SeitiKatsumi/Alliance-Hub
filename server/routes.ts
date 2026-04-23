@@ -402,7 +402,7 @@ async function syncValorOrigemLancamento(biaId: string, valorOrigem: number, ven
   const today = new Date().toISOString().split("T")[0];
   const dataVencimento = vencimento || null;
   const descricaoMarca = "Valor de Origem da BIA";
-  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_eq]=${encodeURIComponent(descricaoMarca)}&fields=id,valor,data_vencimento`;
+  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_eq]=${encodeURIComponent(descricaoMarca)}&fields=id,valor,data_vencimento,status`;
   const existing = await directusFetch("fluxo_caixa", params);
 
   if (valorOrigem > 0) {
@@ -411,10 +411,12 @@ async function syncValorOrigemLancamento(biaId: string, valorOrigem: number, ven
       const existingValor = parseFloat(existing[0].valor) || 0;
       const valorChanged = Math.abs(existingValor - valorOrigem) > 0.001;
       const vencimentoChanged = existing[0].data_vencimento !== dataVencimento;
-      if (valorChanged || vencimentoChanged) {
+      const statusChanged = existing[0].status !== "pendente";
+      if (valorChanged || vencimentoChanged || statusChanged) {
         await directusUpdate("fluxo_caixa", existing[0].id, {
           ...(valorChanged ? { valor: String(valorOrigem) } : {}),
-          ...(vencimentoChanged ? { data_vencimento: dataVencimento } : {}),
+          data_vencimento: dataVencimento,
+          status: "pendente",
         });
       }
     } else {

@@ -60,6 +60,7 @@ interface Membro {
   primeiro_nome?: string;
   sobrenome?: string;
   empresa?: string;
+  Outras_redes_as_quais_pertenco?: string[];
 }
 
 interface BiasProjeto {
@@ -481,11 +482,13 @@ function PercField({ label, field, form, setForm, baseValue }: {
   );
 }
 
-function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required }: {
+function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required, filterFn }: {
   label: string; field: keyof FormState; form: FormState;
   setForm: (f: FormState) => void; membros: Membro[]; icon?: any; required?: boolean;
+  filterFn?: (m: Membro) => boolean;
 }) {
   const isEmpty = required && !form[field];
+  const options = filterFn ? membros.filter(filterFn) : membros;
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -504,7 +507,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="none">— Nenhum —</SelectItem>
-          {membros.map((m) => (
+          {options.map((m) => (
             <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}{m.empresa ? ` · ${m.empresa}` : ""}</SelectItem>
           ))}
         </SelectContent>
@@ -1694,7 +1697,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
 
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4">
-              <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} required />
+              <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} required filterFn={(m) => !!(m.Outras_redes_as_quais_pertenco?.includes("BUILT_ALLIANCE_PARTNER")) || m.id === form.aliado_built} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
               <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} required />

@@ -2075,10 +2075,13 @@ export async function registerRoutes(
         textContent = file.buffer.toString("utf-8");
       } else if (ext === "pdf" || mime.includes("pdf")) {
         try {
-          const pdfParse = (await import("pdf-parse")).default;
-          const data = await pdfParse(file.buffer);
-          textContent = data.text;
-        } catch {
+          // pdf-parse v2 API: PDFParse class with { data: Buffer }
+          const { PDFParse } = await import("pdf-parse");
+          const parser = new PDFParse({ data: file.buffer });
+          const result = await parser.getText();
+          textContent = result.text;
+        } catch (pdfErr: any) {
+          console.error("[parse-pagamento-file] pdf error:", pdfErr?.message || pdfErr);
           return res.status(422).json({ error: "Não foi possível ler o PDF. Tente um Excel ou CSV." });
         }
       } else {
@@ -2097,10 +2100,12 @@ Retorne SOMENTE um JSON válido com este formato exato (sem markdown, sem explic
 {
   "numeroParcelas": <número inteiro>,
   "vencimentos": ["YYYY-MM-DD", "YYYY-MM-DD", ...],
+  "valores": [<número decimal>, <número decimal>, ...],
   "observacao": "<resumo breve opcional>"
 }
 Se não houver datas claras, retorne vencimentos como array vazio mas estime numeroParcelas se possível.
-Datas devem estar no formato ISO 8601 (YYYY-MM-DD).
+Se não houver valores por parcela, retorne valores como array vazio.
+Datas devem estar no formato ISO 8601 (YYYY-MM-DD). Valores devem ser números decimais (ex: 1500.00).
 
 DOCUMENTO:
 ${textContent}`;

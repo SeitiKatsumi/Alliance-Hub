@@ -18,7 +18,7 @@ import {
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
-  Upload, ImageIcon, X, Languages, ChevronDown
+  Upload, ImageIcon, X, Languages, ChevronDown, Lock
 } from "lucide-react";
 import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
@@ -225,6 +225,7 @@ function getInitials(nome: string): string {
 export default function MeuPerfilPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isSuperAdmin = user?.role === "admin";
   const [saved, setSaved] = useState(false);
 
   const membroId = user?.membro_directus_id;
@@ -863,11 +864,15 @@ export default function MeuPerfilPage() {
                     {REDES_DISPONIVEIS.map(rede => {
                       const redes = form.Outras_redes_as_quais_pertenco || [];
                       const selected = redes.includes(rede.value);
+                      const isBuiltSeal = rede.value.startsWith("BUILT_");
+                      const locked = isBuiltSeal && !isSuperAdmin;
                       return (
                         <button
                           key={rede.value}
                           type="button"
+                          disabled={locked}
                           onClick={() => {
+                            if (locked) return;
                             const current = form.Outras_redes_as_quais_pertenco || [];
                             setForm(f => ({
                               ...f,
@@ -882,6 +887,8 @@ export default function MeuPerfilPage() {
                             background: selected ? "rgba(215,187,125,0.1)" : "rgba(255,255,255,0.03)",
                             borderColor: selected ? "rgba(215,187,125,0.4)" : "rgba(255,255,255,0.08)",
                             boxShadow: selected ? "0 0 12px rgba(215,187,125,0.1)" : "none",
+                            cursor: locked ? "not-allowed" : "pointer",
+                            opacity: locked && !selected ? 0.4 : 1,
                           }}
                         >
                           <img
@@ -890,12 +897,18 @@ export default function MeuPerfilPage() {
                             className="h-10 w-auto object-contain rounded"
                             style={{ opacity: selected ? 1 : 0.4, filter: selected ? "none" : "grayscale(0.5)" }}
                           />
-                          {selected && (
+                          {/* Badge de estado */}
+                          {selected ? (
                             <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
                               style={{ background: "#D7BB7D" }}>
                               <CheckCircle2 className="w-3 h-3 text-[#001D34]" />
                             </span>
-                          )}
+                          ) : locked ? (
+                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                              <Lock className="w-2.5 h-2.5 text-white/50" />
+                            </span>
+                          ) : null}
                           <span className="text-[10px] font-mono" style={{ color: selected ? "#D7BB7D" : "rgba(255,255,255,0.3)" }}>
                             {rede.label}
                           </span>

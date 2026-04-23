@@ -1407,6 +1407,19 @@ export async function registerRoutes(
       const payload = Object.fromEntries(
         Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key))
       );
+
+      // Non-superadmins cannot modify BUILT_ seals
+      const sessionRole = (req.session as any).role || "user";
+      if (sessionRole !== "admin" && payload.Outras_redes_as_quais_pertenco !== undefined) {
+        // Fetch current BUILT_ seals and preserve them
+        const current = await directusFetchOne("cadastro_geral", req.params.id, "fields=Outras_redes_as_quais_pertenco");
+        const currentRedes: string[] = Array.isArray(current?.Outras_redes_as_quais_pertenco) ? current.Outras_redes_as_quais_pertenco : [];
+        const currentBuilt = currentRedes.filter((r: string) => r.startsWith("BUILT_"));
+        const incomingNonBuilt = (Array.isArray(payload.Outras_redes_as_quais_pertenco) ? payload.Outras_redes_as_quais_pertenco as string[] : [])
+          .filter((r: string) => !r.startsWith("BUILT_"));
+        payload.Outras_redes_as_quais_pertenco = [...currentBuilt, ...incomingNonBuilt];
+      }
+
       console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(payload));
       const item = await directusUpdate("cadastro_geral", req.params.id, payload);
       res.json(item);

@@ -408,7 +408,10 @@ export default function BiasCalculadoraPage() {
         total_aportes: r(totalAportes),
         inicio_aportes: inicioAportes || null,
       };
-      await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, payload);
+      await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
+        ...payload,
+        _vencimento_origem: vencimento || null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });

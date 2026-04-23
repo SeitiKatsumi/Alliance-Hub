@@ -398,18 +398,24 @@ async function findOrCreateValorOrigemCategoria(): Promise<number> {
   return created.id;
 }
 
-async function syncValorOrigemLancamento(biaId: string, valorOrigem: number): Promise<void> {
+async function syncValorOrigemLancamento(biaId: string, valorOrigem: number, vencimento?: string | null): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
+  const dataVencimento = vencimento || null;
   const descricaoMarca = "Valor de Origem da BIA";
-  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_eq]=${encodeURIComponent(descricaoMarca)}&fields=id,valor`;
+  const params = `filter[bia][_eq]=${biaId}&filter[descricao][_eq]=${encodeURIComponent(descricaoMarca)}&fields=id,valor,data_vencimento`;
   const existing = await directusFetch("fluxo_caixa", params);
 
   if (valorOrigem > 0) {
     const catId = await findOrCreateValorOrigemCategoria();
     if (existing.length > 0) {
       const existingValor = parseFloat(existing[0].valor) || 0;
-      if (Math.abs(existingValor - valorOrigem) > 0.001) {
-        await directusUpdate("fluxo_caixa", existing[0].id, { valor: String(valorOrigem) });
+      const valorChanged = Math.abs(existingValor - valorOrigem) > 0.001;
+      const vencimentoChanged = existing[0].data_vencimento !== dataVencimento;
+      if (valorChanged || vencimentoChanged) {
+        await directusUpdate("fluxo_caixa", existing[0].id, {
+          ...(valorChanged ? { valor: String(valorOrigem) } : {}),
+          ...(vencimentoChanged ? { data_vencimento: dataVencimento } : {}),
+        });
       }
     } else {
       await directusCreate("fluxo_caixa", {
@@ -418,7 +424,7 @@ async function syncValorOrigemLancamento(biaId: string, valorOrigem: number): Pr
         valor: String(valorOrigem),
         data: today,
         descricao: descricaoMarca,
-        data_vencimento: today,
+        data_vencimento: dataVencimento,
         status: "pendente",
         Categoria: [{ categorias_id: catId }],
         tipo_de_cpp: [],
@@ -1564,7 +1570,8 @@ export async function registerRoutes(
   });
 
   function prepareBiaPayload(body: Record<string, any>): Record<string, any> {
-    const data = { ...body };
+    // Strip private side-channel fields (prefixed with _) before sending to Directus
+    const data = Object.fromEntries(Object.entries(body).filter(([k]) => !k.startsWith("_")));
     if (data.Anexos !== undefined) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (Array.isArray(data.Anexos) && data.Anexos.every((a: any) => typeof a === "string")) {
@@ -1638,7 +1645,8 @@ export async function registerRoutes(
           if (newlySkipped.length > 0) console.log(`[bias patch] discovered blocked fields: ${newlySkipped.join(", ")}`);
           if (req.body.valor_origem !== undefined) {
             const valorOrigem = parseFloat(req.body.valor_origem) || 0;
-            syncValorOrigemLancamento(req.params.id, valorOrigem).catch(console.error);
+            const vencimentoOrigem = req.body._vencimento_origem || null;
+            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem).catch(console.error);
           }
           return res.json(item);
         } catch (err: any) {

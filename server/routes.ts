@@ -2046,6 +2046,77 @@ export async function registerRoutes(
     }
   });
 
+  // ========== AI PARSE PAYMENT SCHEDULE ==========
+  app.post("/api/parse-pagamento-file", upload.single("file"), async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
+
+      let textContent = "";
+      const mime = file.mimetype;
+      const ext = (file.originalname || "").toLowerCase().split(".").pop() || "";
+
+      if (ext === "xlsx" || ext === "xls" || mime.includes("spreadsheet") || mime.includes("excel")) {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(file.buffer, { type: "buffer" });
+        const lines: string[] = [];
+        for (const sheetName of wb.SheetNames) {
+          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
+          lines.push(`[Planilha: ${sheetName}]\n${csv}`);
+        }
+        textContent = lines.join("\n\n");
+      } else if (ext === "csv" || mime.includes("csv") || mime.includes("text/plain")) {
+        textContent = file.buffer.toString("utf-8");
+      } else if (ext === "pdf" || mime.includes("pdf")) {
+        try {
+          const pdfParse = (await import("pdf-parse")).default;
+          const data = await pdfParse(file.buffer);
+          textContent = data.text;
+        } catch {
+          return res.status(422).json({ error: "Não foi possível ler o PDF. Tente um Excel ou CSV." });
+        }
+      } else {
+        textContent = file.buffer.toString("utf-8");
+      }
+
+      if (!textContent.trim()) {
+        return res.status(422).json({ error: "Não foi possível extrair texto do arquivo." });
+      }
+
+      // Truncate to avoid token limits
+      if (textContent.length > 12000) textContent = textContent.slice(0, 12000) + "\n[... truncado ...]";
+
+      const prompt = `Analise o documento abaixo e extraia o cronograma de pagamentos/parcelas.
+Retorne SOMENTE um JSON válido com este formato exato (sem markdown, sem explicações):
+{
+  "numeroParcelas": <número inteiro>,
+  "vencimentos": ["YYYY-MM-DD", "YYYY-MM-DD", ...],
+  "observacao": "<resumo breve opcional>"
+}
+Se não houver datas claras, retorne vencimentos como array vazio mas estime numeroParcelas se possível.
+Datas devem estar no formato ISO 8601 (YYYY-MM-DD).
+
+DOCUMENTO:
+${textContent}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0,
+        max_tokens: 1000,
+      });
+
+      const raw = (response.choices[0].message.content || "").trim();
+      const jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+      const parsed = JSON.parse(jsonStr);
+      res.json({ success: true, ...parsed });
+    } catch (error: any) {
+      console.error("[parse-pagamento-file]", error.message);
+      res.status(500).json({ error: "Erro ao processar arquivo: " + error.message });
+    }
+  });
+
   // ========== AI ANALYZE (per-item) ==========
   app.post("/api/analyze/bia/:id", async (req, res) => {
     try {

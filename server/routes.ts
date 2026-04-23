@@ -2093,19 +2093,17 @@ export async function registerRoutes(
       }
 
       // Truncate to avoid token limits
-      if (textContent.length > 12000) textContent = textContent.slice(0, 12000) + "\n[... truncado ...]";
+      if (textContent.length > 15000) textContent = textContent.slice(0, 15000) + "\n[... truncado ...]";
 
       const prompt = `Analise o documento abaixo e extraia o cronograma de pagamentos/parcelas.
-Retorne SOMENTE um JSON válido com este formato exato (sem markdown, sem explicações):
-{
-  "numeroParcelas": <número inteiro>,
-  "vencimentos": ["YYYY-MM-DD", "YYYY-MM-DD", ...],
-  "valores": [<número decimal>, <número decimal>, ...],
-  "observacao": "<resumo breve opcional>"
-}
-Se não houver datas claras, retorne vencimentos como array vazio mas estime numeroParcelas se possível.
-Se não houver valores por parcela, retorne valores como array vazio.
-Datas devem estar no formato ISO 8601 (YYYY-MM-DD). Valores devem ser números decimais (ex: 1500.00).
+Retorne SOMENTE um JSON minificado (sem espaços extras, sem quebras de linha) com este formato:
+{"numeroParcelas":<int>,"vencimentos":["YYYY-MM-DD",...],"valores":[<float>,...],"observacao":"<texto breve>"}
+Regras:
+- Valores: máximo 2 casas decimais (ex: 1500.50). Use 0 se não houver valor para a parcela.
+- Datas: formato YYYY-MM-DD. Array vazio se não houver datas.
+- Limite de parcelas: máximo 360. Se houver mais, inclua apenas as primeiras 360.
+- observacao: máximo 80 caracteres resumindo o tipo de cronograma.
+- Sem markdown, sem texto fora do JSON.
 
 DOCUMENTO:
 ${textContent}`;
@@ -2114,12 +2112,32 @@ ${textContent}`;
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
-        max_tokens: 1000,
+        max_tokens: 4000,
       });
 
       const raw = (response.choices[0].message.content || "").trim();
-      const jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-      const parsed = JSON.parse(jsonStr);
+      let jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+
+      // Robust JSON parse: if truncated, try to close arrays/objects and re-parse
+      let parsed: any;
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch {
+        // Attempt to salvage truncated JSON by closing unclosed structures
+        const open = (s: string, ch: string) => (s.match(new RegExp(`\\${ch}`, "g")) || []).length;
+        const squareDiff = open(jsonStr, "[") - open(jsonStr, "]");
+        const curlyDiff = open(jsonStr, "{") - open(jsonStr, "}");
+        // Remove trailing incomplete token (partial number/string)
+        let fixed = jsonStr.replace(/,?\s*[\d.]*$/, "").replace(/,?\s*"[^"]*$/, "");
+        for (let i = 0; i < squareDiff; i++) fixed += "]";
+        for (let i = 0; i < curlyDiff; i++) fixed += "}";
+        try {
+          parsed = JSON.parse(fixed);
+          console.log("[parse-pagamento-file] recovered truncated JSON");
+        } catch {
+          throw new Error("Não foi possível interpretar a resposta da IA. Tente com um arquivo menor ou em formato Excel.");
+        }
+      }
       res.json({ success: true, ...parsed });
     } catch (error: any) {
       console.error("[parse-pagamento-file]", error.message);

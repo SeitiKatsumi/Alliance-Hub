@@ -300,6 +300,7 @@ export default function BiasCalculadoraPage() {
   const [valorOrigem, setValorOrigem] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState<string>("");
   const [numeroParcelas, setNumeroParcelas] = useState<string>("");
+  const [vencimento, setVencimento] = useState<string>("");
   const [percAutor, setPercAutor] = useState(0);
   const [percAliado, setPercAliado] = useState(0);
   const [percBuilt, setPercBuilt] = useState(0);
@@ -532,6 +533,16 @@ export default function BiasCalculadoraPage() {
                         <span className="text-xs text-muted-foreground whitespace-nowrap">vezes</span>
                       </div>
                     )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Vencimento</Label>
+                    <Input
+                      type="date"
+                      value={vencimento}
+                      onChange={e => setVencimento(e.target.value)}
+                      className="h-8 text-sm"
+                      data-testid="input-vencimento"
+                    />
                   </div>
                 </div>
               </CardContent>

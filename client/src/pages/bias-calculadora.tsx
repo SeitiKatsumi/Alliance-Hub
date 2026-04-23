@@ -35,6 +35,7 @@ import {
   ChevronsUpDown,
   Check,
   UserCircle,
+  X,
 } from "lucide-react";
 
 interface Membro {
@@ -538,14 +539,39 @@ export default function BiasCalculadoraPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Vencimento</Label>
-                    <Input
-                      type="date"
-                      value={vencimento}
-                      onChange={e => setVencimento(e.target.value)}
-                      className="h-8 text-sm"
-                      data-testid="input-vencimento"
-                    />
+                    <Label className="text-xs text-muted-foreground">Vencimento <span className="text-muted-foreground/50">(opcional)</span></Label>
+                    {vencimento ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="date"
+                          value={vencimento}
+                          onChange={e => setVencimento(e.target.value)}
+                          className="h-8 text-sm flex-1"
+                          data-testid="input-vencimento"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setVencimento("")}
+                          className="h-8 w-8 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          data-testid="button-clear-vencimento"
+                          title="Remover vencimento"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setVencimento(new Date().toISOString().split("T")[0])}
+                        className="h-8 w-full text-left px-3 text-xs text-muted-foreground border border-dashed border-muted-foreground/30 rounded hover:border-muted-foreground/60 hover:text-foreground transition-colors"
+                        data-testid="button-add-vencimento"
+                      >
+                        + Adicionar vencimento
+                      </button>
+                    )}
+                    {!vencimento && (
+                      <p className="text-[10px] text-muted-foreground/50">Sem vencimento → pendente no financeiro</p>
+                    )}
                   </div>
                 </div>
               </CardContent>

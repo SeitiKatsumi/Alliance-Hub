@@ -379,7 +379,7 @@ function PagamentoModal({ open, onClose, initialFormaPagamento, initialNumeroPar
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-brand-gold" />
-            Forma de Pagamento
+            Forma de Pagamento do Ativo de Origem
           </DialogTitle>
         </DialogHeader>
 
@@ -794,7 +794,7 @@ export default function BiasCalculadoraPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-brand-gold/30" data-testid="panel-valor-origem">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Forma de Pagamento</CardTitle>
+                <CardTitle className="text-sm font-medium">Forma de Pagamento do Ativo de Origem</CardTitle>
                 <CreditCard className="w-4 h-4 text-brand-gold" />
               </CardHeader>
               <CardContent>
@@ -809,7 +809,7 @@ export default function BiasCalculadoraPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium flex items-center gap-1.5 text-brand-gold">
                         <CreditCard className="w-3.5 h-3.5" />
-                        Lançar Forma de Pagamento
+                        Lançar Forma de Pagamento do Ativo de Origem
                       </span>
                       {formaPagamento && <span className="text-[10px] text-muted-foreground">✎ editar</span>}
                     </div>

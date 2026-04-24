@@ -667,14 +667,14 @@ export default function ComunidadePage() {
 
       {/* Tab switcher */}
       {showConvitesTab && (
-        <div className="flex rounded-xl bg-white/5 border border-white/10 p-1 gap-1 w-fit">
+        <div className="flex rounded-xl p-1 gap-1 w-fit" style={{ background: "#001D34", border: "1px solid rgba(215,187,125,0.2)" }}>
           <button
             onClick={() => setActiveTab("comunidades")}
             data-testid="tab-comunidades"
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
               background: activeTab === "comunidades" ? "rgba(215,187,125,0.18)" : "transparent",
-              color: activeTab === "comunidades" ? "#D7BB7D" : "rgba(255,255,255,0.75)",
+              color: activeTab === "comunidades" ? "#D7BB7D" : "rgba(255,255,255,0.7)",
               border: activeTab === "comunidades" ? "1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
             }}
           >
@@ -687,7 +687,7 @@ export default function ComunidadePage() {
             className="relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
               background: activeTab === "convites" ? "rgba(215,187,125,0.18)" : "transparent",
-              color: activeTab === "convites" ? "#D7BB7D" : "rgba(255,255,255,0.75)",
+              color: activeTab === "convites" ? "#D7BB7D" : "rgba(255,255,255,0.7)",
               border: activeTab === "convites" ? "1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
             }}
           >

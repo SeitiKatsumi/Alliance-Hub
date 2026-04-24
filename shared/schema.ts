@@ -408,3 +408,14 @@ export const insertConviteLinkSchema = createInsertSchema(convitesLink).omit({
 export type InsertConviteLink = z.infer<typeof insertConviteLinkSchema>;
 export type ConviteLink = typeof convitesLink.$inferSelect;
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique().default(sql`gen_random_uuid()`),
+  user_id: varchar("user_id").notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  criado_em: timestamp("criado_em").defaultNow(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, hashPassword } from "./storage";
 import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
@@ -2414,6 +2414,44 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       const { password: _pw, ...safe } = user;
       res.json({ success: true, user: safe });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/forgot-password — send a password reset email
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "E-mail obrigatório" });
+      // Always return 200 to avoid user enumeration
+      const user = await storage.getUserByEmail(email.trim().toLowerCase());
+      if (user) {
+        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        const resetToken = await storage.createPasswordResetToken(user.id, expires);
+        const { enviarResetSenha } = await import("./mailer");
+        await enviarResetSenha({ email: user.email || email, nome: user.nome || user.username || "", token: resetToken.token });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/reset-password — verify token and set new password
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) return res.status(400).json({ error: "Token e senha são obrigatórios" });
+      if (password.length < 4) return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) return res.status(400).json({ error: "Token inválido ou expirado" });
+      if (resetToken.used) return res.status(400).json({ error: "Este link já foi utilizado" });
+      if (new Date() > new Date(resetToken.expires_at)) return res.status(400).json({ error: "Link expirado. Solicite um novo." });
+      const hashed = await hashPassword(password);
+      await storage.updateUser(resetToken.user_id, { password: hashed });
+      await storage.markPasswordResetTokenUsed(resetToken.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

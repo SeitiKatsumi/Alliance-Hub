@@ -204,6 +204,28 @@ export async function enviarNovoMembro(opts: {
   }
 }
 
+export async function enviarResetSenha(opts: {
+  email: string;
+  nome: string;
+  token: string;
+}) {
+  const link = `${BASE_URL}/login?reset=${opts.token}`;
+  await send(
+    opts.email,
+    "Redefinição de senha — BUILT Alliances",
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Redefinição de Senha</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.nome || "membro"}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Recebemos uma solicitação de redefinição de senha para sua conta na plataforma BUILT Alliances.</p>
+      <p style="color:rgba(255,255,255,0.7)">Clique no botão abaixo para criar uma nova senha. O link é válido por <strong>1 hora</strong>.</p>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Redefinir minha senha</a>
+      </div>
+      <p style="color:rgba(255,255,255,0.4);font-size:12px">Se você não solicitou esta redefinição, ignore este e-mail — sua senha permanece a mesma.</p>
+    `)
+  );
+}
+
 export async function enviarAprovacaoVitrine(opts: {
   candidatoEmail: string;
   candidatoNome: string;

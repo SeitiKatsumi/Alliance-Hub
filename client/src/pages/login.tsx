@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930.png";
@@ -21,13 +21,25 @@ export default function LoginPage() {
   const { login, loginPending, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">("login");
 
   // Login state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  // Forgot / reset password state
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPassword2, setResetPassword2] = useState("");
+  const [showResetPass, setShowResetPass] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   // Handle Google OAuth errors from redirect
   useEffect(() => {
@@ -41,6 +53,13 @@ export default function LoginPage() {
     if (conviteParam) {
       setMode("register");
       setRegConviteToken(conviteParam);
+    }
+    // Auto-switch to reset mode if a reset token is in the URL
+    const resetParam = params.get("reset");
+    if (resetParam) {
+      setMode("reset");
+      setResetToken(resetParam);
+      window.history.replaceState({}, "", "/login");
     }
   }, []);
 
@@ -149,6 +168,45 @@ export default function LoginPage() {
     }
   }
 
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      setForgotSent(true);
+    } catch {
+      // silently fail — user still sees success message
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError("");
+    if (resetPassword !== resetPassword2) { setResetError("As senhas não coincidem"); return; }
+    if (resetPassword.length < 4) { setResetError("Senha deve ter pelo menos 4 caracteres"); return; }
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, password: resetPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao redefinir senha");
+      setResetDone(true);
+    } catch (err: any) {
+      setResetError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   const inputCls = "bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-[#D7BB7D] focus:ring-[#D7BB7D]/20";
 
   return (
@@ -159,32 +217,104 @@ export default function LoginPage() {
           <img src={builtLogo} alt="BUILT Alliances" className="w-56" />
         </div>
 
-        {/* Tab toggle */}
-        <div className="flex rounded-xl bg-white/5 border border-white/10 p-1 mb-4 gap-1">
-          <button
-            onClick={() => setMode("login")}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{
-              background: mode === "login" ? "#D7BB7D" : "transparent",
-              color: mode === "login" ? "#001D34" : "rgba(255,255,255,0.4)",
-            }}
-          >
-            Entrar
-          </button>
-          <button
-            onClick={() => setMode("register")}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{
-              background: mode === "register" ? "#D7BB7D" : "transparent",
-              color: mode === "register" ? "#001D34" : "rgba(255,255,255,0.4)",
-            }}
-          >
-            Novo Cadastro
-          </button>
-        </div>
+        {/* Tab toggle — hidden in forgot/reset mode */}
+        {(mode === "login" || mode === "register") && (
+          <div className="flex rounded-xl bg-white/5 border border-white/10 p-1 mb-4 gap-1">
+            <button
+              onClick={() => setMode("login")}
+              className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={{
+                background: mode === "login" ? "#D7BB7D" : "transparent",
+                color: mode === "login" ? "#001D34" : "rgba(255,255,255,0.4)",
+              }}
+            >
+              Entrar
+            </button>
+            <button
+              onClick={() => setMode("register")}
+              className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={{
+                background: mode === "register" ? "#D7BB7D" : "transparent",
+                color: mode === "register" ? "#001D34" : "rgba(255,255,255,0.4)",
+              }}
+            >
+              Novo Cadastro
+            </button>
+          </div>
+        )}
 
         <Card className="bg-white/5 border-white/10 backdrop-blur">
-          {mode === "login" ? (
+          {mode === "forgot" ? (
+            <>
+              <CardHeader className="pb-2 pt-6 px-6">
+                <button onClick={() => setMode("login")} className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs mb-3 transition-colors">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
+                </button>
+                <h2 className="text-white text-lg font-semibold">Esqueci minha senha</h2>
+                <p className="text-white/40 text-xs mt-0.5">Informe seu e-mail e enviaremos um link para redefinir a senha.</p>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                {forgotSent ? (
+                  <div className="text-center py-4 space-y-3">
+                    <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
+                    <p className="text-white/80 text-sm">Se existe uma conta com este e-mail, você receberá um link em instantes.</p>
+                    <button onClick={() => { setMode("login"); setForgotSent(false); setForgotEmail(""); }} className="text-[#D7BB7D] text-xs hover:underline">Voltar ao login</button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgot} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-sm">E-mail da conta</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <Input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="seu@email.com" className={`${inputCls} pl-9`} required data-testid="input-forgot-email" />
+                      </div>
+                    </div>
+                    <Button type="submit" disabled={forgotLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-forgot-submit">
+                      {forgotLoading ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Enviando...</span> : <span className="flex items-center gap-2"><Mail className="w-4 h-4" />Enviar link de redefinição</span>}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </>
+          ) : mode === "reset" ? (
+            <>
+              <CardHeader className="pb-2 pt-6 px-6">
+                <h2 className="text-white text-lg font-semibold flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#D7BB7D]" />Nova senha</h2>
+                <p className="text-white/40 text-xs mt-0.5">Defina sua nova senha de acesso à plataforma.</p>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                {resetDone ? (
+                  <div className="text-center py-4 space-y-3">
+                    <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
+                    <p className="text-white/80 text-sm">Senha redefinida com sucesso!</p>
+                    <button onClick={() => { setMode("login"); setResetDone(false); }} className="text-[#D7BB7D] text-xs hover:underline">Fazer login</button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleResetPassword} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-white/70 text-sm">Nova senha</Label>
+                        <div className="relative">
+                          <Input type={showResetPass ? "text" : "password"} value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Mín. 4 chars" className={`${inputCls} pr-8`} required data-testid="input-reset-password" />
+                          <button type="button" onClick={() => setShowResetPass(v => !v)} className="absolute right-2.5 top-2.5 text-white/30 hover:text-white/60">
+                            {showResetPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/70 text-sm">Confirmar</Label>
+                        <Input type="password" value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${resetPassword2 && resetPassword !== resetPassword2 ? "border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
+                      </div>
+                    </div>
+                    {resetError && <p className="text-red-400 text-sm text-center">{resetError}</p>}
+                    <Button type="submit" disabled={resetLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-reset-submit">
+                      {resetLoading ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Salvando...</span> : <span className="flex items-center gap-2"><KeyRound className="w-4 h-4" />Salvar nova senha</span>}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </>
+          ) : mode === "login" ? (
             <>
               <CardHeader className="pb-2 pt-6 px-6">
                 <h2 className="text-white text-lg font-semibold">Entrar na plataforma</h2>
@@ -227,6 +357,11 @@ export default function LoginPage() {
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                  </div>
+                  <div className="flex justify-end -mt-1">
+                    <button type="button" onClick={() => setMode("forgot")} className="text-xs text-white/40 hover:text-[#D7BB7D] transition-colors" data-testid="link-forgot-password">
+                      Esqueci minha senha
+                    </button>
                   </div>
                   {error && <p className="text-red-400 text-sm text-center">{error}</p>}
                   <Button

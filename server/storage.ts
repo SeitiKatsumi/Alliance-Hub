@@ -12,6 +12,7 @@ import {
   convitesComunidade, type ConviteComunidade, type InsertConviteComunidade,
   convitesLink, type ConviteLink, type InsertConviteLink,
   anuncios, type Anuncio, type InsertAnuncio,
+  passwordResetTokens, type PasswordResetToken,
 } from "@shared/schema";
 import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -92,6 +93,10 @@ export interface IStorage {
   getActiveConviteLinkByUserId(userId: string): Promise<ConviteLink | undefined>;
   getConvitesLinkByComunidade(comunidadeId: string): Promise<ConviteLink[]>;
   updateConviteLink(id: string, data: Partial<ConviteLink>): Promise<ConviteLink | undefined>;
+
+  createPasswordResetToken(userId: string, expiresAt: Date): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(id: string): Promise<void>;
 
   getAnunciosAtivos(today: string): Promise<Anuncio[]>;
   getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined>;
@@ -440,6 +445,19 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
+  async createPasswordResetToken(userId: string, expiresAt: Date): Promise<PasswordResetToken> {
+    const [item] = await db.insert(passwordResetTokens).values({ user_id: userId, expires_at: expiresAt }).returning();
+    return item;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [item] = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.token, token));
+    return item;
+  }
+
+  async markPasswordResetTokenUsed(id: string): Promise<void> {
+    await db.update(passwordResetTokens).set({ used: true }).where(eq(passwordResetTokens.id, id));
+  }
 
   async getAnunciosAtivos(today: string): Promise<Anuncio[]> {
     return db

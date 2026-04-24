@@ -59,8 +59,8 @@ function ProtectedApp() {
     return <LoginPage />;
   }
 
-  // Redirect pending vitrine users to the waiting page
-  if (user?.pending_vitrine && location !== "/aguardando-aprovacao") {
+  // Block pending vitrine users — always show the waiting page without the full layout
+  if (user?.pending_vitrine) {
     return <AguardandoAprovacaoPage />;
   }
 

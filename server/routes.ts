@@ -412,16 +412,16 @@ async function findCppCategoriaId(categoryName: string): Promise<number | null> 
     const cats = await directusFetch("Categorias", "fields=id,Nome_da_categoria");
     _catCache = {};
     for (const c of cats) {
-      if (c.Nome_da_categoria) _catCache[c.Nome_da_categoria] = c.id;
+      if (c.Nome_da_categoria) _catCache[c.Nome_da_categoria.trim()] = c.id;
     }
   }
-  return _catCache[categoryName] ?? null;
+  return _catCache[categoryName.trim()] ?? null;
 }
 
 const CPP_CONTRIBUTOR_CATEGORY: Record<string, string> = {
   "BUILT":               "Direito Econômico Institucional BUILT (DEI-B)",
   "Aliado BUILT":        "Direito Econômico Institucional do Aliado (DEI-A)",
-  "Dir. de Aliança":     "Direito Econômico de Originação de Oportunidade (DEOO)",
+  "Dir. de Aliança":     "Direito Econômico por Liderança de Aliança (DE-LA)",
   "Dir. Núcleo Técnico": "Direito Econômico por Liderança Técnica (DE-LTec)",
   "Dir. Núcleo de Obra": "Direito Econômico por Liderança de Obra (DE-LObr)",
   "Dir. Núcleo Comercial":"Direito Econômico por Liderança Comercial (DE-LCom)",

@@ -54,6 +54,8 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "google_failed") {
       setError("Falha ao autenticar com Google. Tente novamente.");
+    } else if (params.get("error") === "google_no_invite") {
+      setError("Para acessar a plataforma é necessário um convite de um membro da rede BUILT. Acesse via e-mail e senha ou solicite seu convite.");
     }
     // Remove query string from URL bar so tokens aren't visible / bookmarked
     if (window.location.search) {

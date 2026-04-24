@@ -60,78 +60,14 @@ export function setupGoogleAuth(app: Express) {
           }
         }
 
-        // 3. Create new user if not found
+        // 3. If no existing account found, block — new accounts must be created via the invite flow.
         if (!user) {
-          // Try to find matching Directus member by email
-          let membroId: string | null = null;
-          let memberNome = nome;
-          if (email) {
-            try {
-              const qs = new URLSearchParams();
-              qs.set("filter[email][_eq]", email);
-              qs.set("fields", "id,nome");
-              qs.set("limit", "1");
-              const r = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?${qs}`, {
-                headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-              });
-              if (r.ok) {
-                const d = await r.json();
-                const m = d.data?.[0];
-                if (m) { membroId = m.id; memberNome = m.nome || nome; }
-              }
-            } catch {}
-          }
-
-          // If still no Directus member, create one automatically
-          if (!membroId) {
-            try {
-              const payload: Record<string, any> = {
-                nome: nome,
-                email: email || null,
-                tipo_de_cadastro: "Membro",
-                na_vitrine: false,
-              };
-              if (foto) payload.foto_perfil = foto;
-              const cr = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${DIRECTUS_TOKEN}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-              });
-              if (cr.ok) {
-                const cd = await cr.json();
-                membroId = cd.data?.id || null;
-                memberNome = nome;
-                console.log(`[google-auth] Created Directus member for ${email} → id=${membroId}`);
-              } else {
-                console.warn(`[google-auth] Failed to create Directus member: ${cr.status}`);
-              }
-            } catch (e) {
-              console.warn("[google-auth] Error creating Directus member:", e);
-            }
-          }
-
-          const username = email
-            ? email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() + "_" + Date.now().toString(36)
-            : `google_${googleId.slice(0, 8)}`;
-
-          user = await storage.createUser({
-            username,
-            password: `google:${googleId}`,
-            nome: memberNome,
-            email: email || null,
-            google_id: googleId,
-            membro_directus_id: membroId,
-            role: "user",
-            ativo: true,
-          } as any);
+          console.log(`[google-auth] No existing account for Google ID ${googleId} / email ${email} — blocking new account creation (invite required)`);
+          return res.redirect("/login?error=google_no_invite");
         }
 
-        // If existing user has no membro_directus_id, try to link or create now
-        if (user && !user.membro_directus_id) {
-          let membroId: string | null = null;
+        // 4. For existing users without a membro_directus_id, attempt to FIND (not create) their Directus member by email.
+        if (!user.membro_directus_id) {
           const userEmail = user.email || email;
           if (userEmail) {
             try {
@@ -145,38 +81,25 @@ export function setupGoogleAuth(app: Express) {
               if (r.ok) {
                 const d = await r.json();
                 const m = d.data?.[0];
-                if (m) membroId = m.id;
+                if (m) {
+                  await storage.updateUser(user.id, { membro_directus_id: m.id } as any);
+                  user = { ...user, membro_directus_id: m.id };
+                  console.log(`[google-auth] Linked existing Directus member ${m.id} to user ${user.id}`);
+                }
               }
-            } catch {}
+            } catch (e) {
+              console.warn("[google-auth] Failed to look up Directus member for linking:", e);
+            }
           }
-          if (!membroId) {
-            try {
-              const payload: Record<string, any> = {
-                nome: user.nome || nome,
-                email: userEmail || null,
-                tipo_de_cadastro: "Membro",
-                na_vitrine: false,
-              };
-              if (foto) payload.foto_perfil = foto;
-              const cr = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${DIRECTUS_TOKEN}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-              });
-              if (cr.ok) {
-                const cd = await cr.json();
-                membroId = cd.data?.id || null;
-                console.log(`[google-auth] Created Directus member (retroactive) for ${userEmail} → id=${membroId}`);
-              }
-            } catch {}
-          }
-          if (membroId) {
-            await storage.updateUser(user.id, { membro_directus_id: membroId } as any);
-            user = { ...user, membro_directus_id: membroId };
-          }
+        }
+
+        // Update foto_perfil if we have it (fire and forget)
+        if (foto && user.membro_directus_id) {
+          fetch(`${DIRECTUS_URL}/items/cadastro_geral/${user.membro_directus_id}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ foto_perfil: foto }),
+          }).catch(() => {});
         }
 
         // Set session (same structure as /api/login)

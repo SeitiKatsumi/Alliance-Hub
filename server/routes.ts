@@ -1479,6 +1479,20 @@ export async function registerRoutes(
         payload.Outras_redes_as_quais_pertenco = [...currentBuilt, ...incomingNonBuilt];
       }
 
+      // Sanitize numeric fields: convert empty strings to null so Directus doesn't reject them
+      const NUMERIC_FIELDS = ["latitude", "longitude"];
+      for (const f of NUMERIC_FIELDS) {
+        if (f in payload) {
+          const v = payload[f];
+          if (v === "" || v === null || v === undefined) {
+            payload[f] = null;
+          } else {
+            const n = parseFloat(v);
+            payload[f] = isNaN(n) ? null : n;
+          }
+        }
+      }
+
       console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(payload));
       const item = await directusUpdate("cadastro_geral", req.params.id, payload);
       res.json(item);

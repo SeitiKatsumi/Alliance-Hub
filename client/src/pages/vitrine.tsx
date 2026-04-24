@@ -940,7 +940,26 @@ export default function VitrinePage() {
       setDialogOpen(false);
       toast({ title: myCardExists ? "Card atualizado na Vitrine!" : "Card criado na Vitrine!" });
     },
-    onError: () => toast({ title: "Erro ao salvar card", variant: "destructive" }),
+    onError: (err: any) => {
+      let msg = "Erro ao salvar card";
+      try {
+        const raw = err?.message || "";
+        const jsonPart = raw.slice(raw.indexOf("{"));
+        const parsed = JSON.parse(jsonPart);
+        // Directus wraps the real message in errors[]
+        const directusMsg = parsed?.error || parsed?.errors?.[0]?.message;
+        if (directusMsg) {
+          if (directusMsg.includes("invalid input syntax for type real")) {
+            msg = "Erro: valor inválido no campo de localização. Selecione um local válido ou deixe em branco.";
+          } else if (directusMsg.includes("NOT NULL")) {
+            msg = "Erro: um campo obrigatório está vazio.";
+          } else {
+            msg = `Erro: ${directusMsg.slice(0, 120)}`;
+          }
+        }
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
+    },
   });
 
   // Remove card mutation

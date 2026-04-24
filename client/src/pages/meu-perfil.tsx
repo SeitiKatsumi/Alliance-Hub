@@ -275,8 +275,13 @@ export default function MeuPerfilPage() {
   });
 
   const gerarConviteMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/meu-convite", { method: "POST", credentials: "include" });
+    mutationFn: async (force?: boolean) => {
+      const res = await fetch("/api/meu-convite", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: !!force }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao gerar convite");
       return data;
@@ -954,7 +959,7 @@ export default function MeuPerfilPage() {
             </Card>
 
             {/* Meu Convite */}
-            <Card className="border-white/8" style={{ background: "linear-gradient(145deg,rgba(215,187,125,0.04),rgba(7,22,38,0.8))" }}>
+            <Card className="border-transparent" style={{ background: "linear-gradient(145deg,rgba(215,187,125,0.04),rgba(7,22,38,0.8))" }}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Ticket className="w-3.5 h-3.5 text-brand-gold/50" />
@@ -994,7 +999,7 @@ export default function MeuPerfilPage() {
                       </p>
                     )}
                     <button
-                      onClick={() => gerarConviteMutation.mutate()}
+                      onClick={() => gerarConviteMutation.mutate(true)}
                       disabled={gerarConviteMutation.isPending}
                       className="flex items-center gap-1.5 text-xs font-mono text-white/30 hover:text-white/50 transition-colors"
                       data-testid="btn-renovar-convite"

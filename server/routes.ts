@@ -3620,11 +3620,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      // Check if there's already an active invite
-      const existing = await storage.getActiveConviteLinkByUserId(userId);
-      if (existing && new Date() < new Date(existing.expires_at)) {
-        const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
-        return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
+      const forceNew = req.body?.force === true;
+
+      // Check if there's already an active invite (skip if force=true)
+      if (!forceNew) {
+        const existing = await storage.getActiveConviteLinkByUserId(userId);
+        if (existing && new Date() < new Date(existing.expires_at)) {
+          const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+          return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
+        }
       }
 
       // Find the member's community in Directus

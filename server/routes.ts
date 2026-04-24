@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage, hashPassword } from "./storage";
+import { storage } from "./storage";
 import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
@@ -2424,16 +2424,26 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     try {
       const { email } = req.body;
       if (!email) return res.status(400).json({ error: "E-mail obrigatório" });
-      // Always return 200 to avoid user enumeration
-      const user = await storage.getUserByEmail(email.trim().toLowerCase());
+      const trimmed = email.trim();
+      // Always return 200 to avoid user enumeration — but log internally
+      const user = await storage.getUserByEmail(trimmed);
       if (user) {
         const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
         const resetToken = await storage.createPasswordResetToken(user.id, expires);
         const { enviarResetSenha } = await import("./mailer");
-        await enviarResetSenha({ email: user.email || email, nome: user.nome || user.username || "", token: resetToken.token });
+        try {
+          await enviarResetSenha({ email: user.email || trimmed, nome: user.nome || user.username || "", token: resetToken.token });
+          console.log("[forgot-password] Reset email sent to:", user.email || trimmed);
+        } catch (mailErr: any) {
+          console.error("[forgot-password] Failed to send email:", mailErr.message);
+          // Still return success to avoid user enumeration, but log the failure
+        }
+      } else {
+        console.log("[forgot-password] No local account found for email:", trimmed);
       }
       res.json({ success: true });
     } catch (error: any) {
+      console.error("[forgot-password] Error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });
@@ -2448,8 +2458,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!resetToken) return res.status(400).json({ error: "Token inválido ou expirado" });
       if (resetToken.used) return res.status(400).json({ error: "Este link já foi utilizado" });
       if (new Date() > new Date(resetToken.expires_at)) return res.status(400).json({ error: "Link expirado. Solicite um novo." });
-      const hashed = await hashPassword(password);
-      await storage.updateUser(resetToken.user_id, { password: hashed });
+      // Pass plain password — updateUser handles hashing internally
+      await storage.updateUser(resetToken.user_id, { password });
       await storage.markPasswordResetTokenUsed(resetToken.id);
       res.json({ success: true });
     } catch (error: any) {

@@ -14,11 +14,7 @@ const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.c
 const BASE_URL = process.env.APP_URL || "https://app.builtalliances.11mind.com.br";
 
 async function send(to: string, subject: string, html: string) {
-  try {
-    await transporter.sendMail({ from: FROM, to, subject, html });
-  } catch (err) {
-    console.error("[mailer] Erro ao enviar e-mail:", err);
-  }
+  await transporter.sendMail({ from: FROM, to, subject, html });
 }
 
 function baseTemplate(content: string): string {

@@ -21,7 +21,13 @@ export default function LoginPage() {
   const { login, loginPending, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">("login");
+  // Initialize mode immediately from URL — avoids flash of wrong mode
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("reset")) return "reset";
+    if (p.get("convite")) return "register";
+    return "login";
+  });
 
   // Login state
   const [email, setEmail] = useState("");
@@ -33,7 +39,7 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
-  const [resetToken, setResetToken] = useState("");
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get("reset") || "");
   const [resetPassword, setResetPassword] = useState("");
   const [resetPassword2, setResetPassword2] = useState("");
   const [showResetPass, setShowResetPass] = useState(false);
@@ -41,24 +47,14 @@ export default function LoginPage() {
   const [resetDone, setResetDone] = useState(false);
   const [resetError, setResetError] = useState("");
 
-  // Handle Google OAuth errors from redirect
+  // Clean up URL params after reading them and handle Google errors
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "google_failed") {
       setError("Falha ao autenticar com Google. Tente novamente.");
-      window.history.replaceState({}, "", "/login");
     }
-    // Auto-switch to register if a convite token is in the URL
-    const conviteParam = params.get("convite");
-    if (conviteParam) {
-      setMode("register");
-      setRegConviteToken(conviteParam);
-    }
-    // Auto-switch to reset mode if a reset token is in the URL
-    const resetParam = params.get("reset");
-    if (resetParam) {
-      setMode("reset");
-      setResetToken(resetParam);
+    // Remove query string from URL bar so tokens aren't visible / bookmarked
+    if (window.location.search) {
       window.history.replaceState({}, "", "/login");
     }
   }, []);
@@ -77,7 +73,7 @@ export default function LoginPage() {
   const [showRegPass, setShowRegPass] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
-  const [regConviteToken, setRegConviteToken] = useState("");
+  const [regConviteToken, setRegConviteToken] = useState(() => new URLSearchParams(window.location.search).get("convite") || "");
   const [conviteInfo, setConviteInfo] = useState<ConviteInfo | null>(null);
   const [conviteStatus, setConviteStatus] = useState<"idle" | "valid" | "invalid">("idle");
   const [conviteChecking, setConviteChecking] = useState(false);

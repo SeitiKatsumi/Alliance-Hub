@@ -2346,38 +2346,36 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const existingByEmail = await storage.getUserByEmail(email);
       if (existingByEmail) return res.status(409).json({ error: "E-mail já cadastrado" });
 
-      // 1. Create entry in Directus cadastro_geral
-      let membroDirectusId: string | null = null;
-      try {
-        const directusPayload: Record<string, any> = {
-          Nome_de_usuario: nome,
-          nome,
-          email,
-        };
-        if (telefone) directusPayload.telefone = telefone;
-        if (empresa) directusPayload.empresa = empresa;
-        if (cidade) directusPayload.cidade = cidade;
-        if (estado) directusPayload.estado = estado;
+      // 1. Create entry in Directus cadastro_geral (mandatory — registration fails if this fails)
+      const directusPayload: Record<string, any> = {
+        Nome_de_usuario: nome,
+        nome,
+        email,
+      };
+      if (telefone) directusPayload.telefone = telefone;
+      if (empresa) directusPayload.empresa = empresa;
+      if (cidade) directusPayload.cidade = cidade;
+      if (estado) directusPayload.estado = estado;
 
-        const directusRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${DIRECTUS_TOKEN}`,
-          },
-          body: JSON.stringify(directusPayload),
-        });
-        if (directusRes.ok) {
-          const directusData = await directusRes.json();
-          membroDirectusId = directusData.data?.id || null;
-          console.log("[register] Directus cadastro_geral created:", membroDirectusId);
-        } else {
-          const errText = await directusRes.text();
-          console.warn("[register] Directus cadastro_geral creation failed:", directusRes.status, errText.slice(0, 200));
-        }
-      } catch (directusErr) {
-        console.warn("[register] Directus error (non-fatal):", directusErr);
+      const directusRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+        },
+        body: JSON.stringify(directusPayload),
+      });
+      if (!directusRes.ok) {
+        const errText = await directusRes.text();
+        console.error("[register] Directus cadastro_geral creation failed:", directusRes.status, errText.slice(0, 200));
+        return res.status(500).json({ error: "Erro ao criar perfil de membro. Tente novamente." });
       }
+      const directusData = await directusRes.json();
+      const membroDirectusId: string = directusData.data?.id;
+      if (!membroDirectusId) {
+        return res.status(500).json({ error: "Erro ao criar perfil de membro (id ausente). Tente novamente." });
+      }
+      console.log("[register] Directus cadastro_geral created:", membroDirectusId);
 
       // 2. Create local platform user
       const user = await storage.createUser({
@@ -2401,19 +2399,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           usado_em: new Date(),
         });
 
-        if (membroDirectusId && conviteLink.comunidade_id) {
-          await storage.createConvite({
-            comunidade_id: conviteLink.comunidade_id,
-            candidato_membro_id: membroDirectusId,
-            candidato_nome: nome,
-            candidato_email: email,
-            invitador_membro_id: conviteLink.gerador_membro_id || null,
-            status: "candidato",
-            tipo: "vitrine",
-            dados_contratuais: null,
-            expires_at: null,
-          });
-        }
+        // Always create candidatura — community may be null if invite generator has none
+        await storage.createConvite({
+          comunidade_id: conviteLink.comunidade_id || null,
+          candidato_membro_id: membroDirectusId,
+          candidato_nome: nome,
+          candidato_email: email,
+          invitador_membro_id: conviteLink.gerador_membro_id || null,
+          status: "candidato",
+          tipo: "vitrine",
+          dados_contratuais: null,
+          expires_at: null,
+        });
       } catch (postUserErr: any) {
         // Roll back: delete the newly created user so they cannot log in
         // in an unapproved state, then surface the error.
@@ -2662,14 +2659,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       } catch (_) {}
     }
-    // Check for pending vitrine approval (only for "user" role)
+    // Check for pending or rejected vitrine approval (only for "user" role)
     let pending_vitrine = false;
     if (role === "user" && email) {
       try {
         const localUser = await storage.getUserByEmail(email);
         if (localUser?.membro_directus_id) {
           const vitrineConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "vitrine");
-          pending_vitrine = vitrineConvites.some(c => c.status === "candidato");
+          // Block if awaiting approval OR if rejected — platform access is not granted until approved
+          pending_vitrine = vitrineConvites.some(c => c.status === "candidato" || c.status === "rejeitado");
         }
       } catch (_) {}
     }

@@ -39,6 +39,8 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [forgotResending, setForgotResending] = useState(false);
+  const [forgotResentOk, setForgotResentOk] = useState(false);
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get("reset") || "");
   const [resetPassword, setResetPassword] = useState("");
   const [resetPassword2, setResetPassword2] = useState("");
@@ -181,6 +183,25 @@ export default function LoginPage() {
     }
   }
 
+  async function handleResend() {
+    if (forgotResending) return;
+    setForgotResending(true);
+    setForgotResentOk(false);
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      setForgotResentOk(true);
+      setTimeout(() => setForgotResentOk(false), 4000);
+    } catch {
+      // silently ignore
+    } finally {
+      setForgotResending(false);
+    }
+  }
+
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     setResetError("");
@@ -254,7 +275,31 @@ export default function LoginPage() {
                   <div className="text-center py-4 space-y-3">
                     <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
                     <p className="text-white/80 text-sm">Se existe uma conta com este e-mail, você receberá um link em instantes.</p>
-                    <button onClick={() => { setMode("login"); setForgotSent(false); setForgotEmail(""); }} className="text-[#D7BB7D] text-xs hover:underline">Voltar ao login</button>
+                    <p className="text-white/40 text-xs">Não recebeu? Verifique sua caixa de spam ou reenvie abaixo.</p>
+                    <button
+                      onClick={handleResend}
+                      disabled={forgotResending}
+                      data-testid="btn-reenviar-email"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-[#D7BB7D]/30 text-[#D7BB7D] text-sm font-semibold hover:bg-[#D7BB7D]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {forgotResending ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-[#D7BB7D]/40 border-t-[#D7BB7D] rounded-full animate-spin" />
+                          Reenviando…
+                        </>
+                      ) : forgotResentOk ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-green-400" />
+                          E-mail reenviado!
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" />
+                          Reenviar e-mail
+                        </>
+                      )}
+                    </button>
+                    <button onClick={() => { setMode("login"); setForgotSent(false); setForgotEmail(""); setForgotResentOk(false); }} className="text-white/30 text-xs hover:text-white/60 transition-colors">Voltar ao login</button>
                   </div>
                 ) : (
                   <form onSubmit={handleForgot} className="space-y-4">

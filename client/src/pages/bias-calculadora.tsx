@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -296,6 +297,7 @@ export default function BiasCalculadoraPage() {
   const [cppSummary, setCppSummary] = useState<CppSummary | null>(null);
   const [cppError, setCppError] = useState<string | null>(null);
   const [showCppDetails, setShowCppDetails] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -328,6 +330,22 @@ export default function BiasCalculadoraPage() {
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
 
   const numParcelasInt = parseInt(numeroParcelas) || 0;
+
+  // Estimate how many Directus entries will be created/deleted during sync
+  const activeContributors = 1 // BUILT always
+    + (membroAliadoBuilt && percAliado > 0 ? 1 : 0)
+    + (membroDirTecnico && percAlianca > 0 ? 1 : 0)
+    + (membroDirNucleoTecnico && percTecnico > 0 ? 1 : 0)
+    + (membroDirObras && percObras > 0 ? 1 : 0)
+    + (membroDirComercial && percComercial > 0 ? 1 : 0)
+    + (membroDirCapital && percCapital > 0 ? 1 : 0);
+  const estimatedEntries = (formaPagamento === "parcelado" ? numParcelasInt : 1) * (1 + activeContributors);
+  // ~0.5s per entry (create + amortised cleanup): conservative estimate
+  const estimatedSeconds = Math.round(estimatedEntries * 0.5);
+  const needsWarning = formaPagamento === "parcelado" && numParcelasInt > 10;
+  const estimatedLabel = estimatedSeconds >= 60
+    ? `~${Math.ceil(estimatedSeconds / 60)} min`
+    : `~${estimatedSeconds}s`;
 
   // valorOrigem é derivado da forma de pagamento
   const valorOrigem = useMemo(() => {
@@ -585,7 +603,7 @@ export default function BiasCalculadoraPage() {
           </Select>
 
           <Button
-            onClick={() => saveMutation.mutate()}
+            onClick={() => needsWarning ? setShowSaveConfirm(true) : saveMutation.mutate()}
             disabled={!selectedBiaId || saveMutation.isPending}
             data-testid="button-save"
           >
@@ -598,6 +616,38 @@ export default function BiasCalculadoraPage() {
           </Button>
         </div>
       </div>
+
+      {/* Loading banner — shown while sync is running */}
+      {saveMutation.isPending && needsWarning && (
+        <div className="rounded-lg border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-3" data-testid="banner-saving">
+          <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
+          <div>
+            <span className="font-medium">Gerando {estimatedEntries} lançamentos…</span>
+            <span className="ml-2 text-amber-700 dark:text-amber-400">Tempo estimado: <strong>{estimatedLabel}</strong>. Não feche ou recarregue esta página.</span>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation dialog for large syncs */}
+      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar geração de lançamentos</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta operação vai gerar <strong>{estimatedEntries} lançamentos</strong> no Directus
+              ({numParcelasInt} parcelas × {1 + activeContributors} entradas por parcela).
+              <br /><br />
+              Tempo estimado: <strong>{estimatedLabel}</strong>. A página ficará em carregamento durante este tempo — não a feche nem recarregue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => saveMutation.mutate()}>
+              Confirmar e gerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* CPP Lançamentos status panel */}
       {(cppSummary || cppError) && (

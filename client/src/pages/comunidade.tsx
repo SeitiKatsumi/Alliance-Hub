@@ -331,6 +331,7 @@ export default function ComunidadePage() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"comunidades" | "convites">("comunidades");
+  const [filtroConvitesComunidade, setFiltroConvitesComunidade] = useState<string>("todas");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
@@ -581,8 +582,15 @@ export default function ComunidadePage() {
   });
 
   const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
-  const candidatosPendentes = todosCandidatos.filter(c => c.status === "candidato");
-  const outrosConvites = todosCandidatos.filter(c => c.status !== "candidato" && c.status !== "convidado");
+  const vitrineCandidatosFiltrados = filtroConvitesComunidade === "todas"
+    ? vitrineCandidatos
+    : vitrineCandidatos.filter(c => String(c.comunidade_id) === filtroConvitesComunidade);
+  const todosCandidatosFiltrados = filtroConvitesComunidade === "todas"
+    ? todosCandidatos
+    : todosCandidatos.filter(c => String(c.comunidade_id) === filtroConvitesComunidade);
+  const candidatosPendentes = todosCandidatosFiltrados.filter(c => c.status === "candidato");
+  const vitrinePendentes = vitrineCandidatosFiltrados.filter(c => c.status === "candidato");
+  const outrosConvites = todosCandidatosFiltrados.filter(c => c.status !== "candidato" && c.status !== "convidado");
 
   // ── Notificações de novos candidatos ──────────────────────────────
   const prevCandidatosRef = useRef<Set<string>>(new Set());
@@ -635,9 +643,10 @@ export default function ComunidadePage() {
   };
 
   const showConvitesTab = isAdmin || isManager || minhasComunidadesComoAliado.length > 0;
-  const vitrinePendentes = vitrineCandidatos.filter((c: any) => c.status === "candidato");
-  const todosCandidatosCompleto = todosCandidatos.filter(c => c.tipo !== "vitrine");
-  const convitesBadgeCount = vitrinePendentes.length + todosCandidatos.filter((c: any) => c.status === "candidato").length;
+  const todosCandidatosCompleto = todosCandidatosFiltrados.filter(c => c.tipo !== "vitrine");
+  const convitesBadgeCount =
+    vitrineCandidatos.filter((c: any) => c.status === "candidato").length +
+    todosCandidatos.filter((c: any) => c.status === "candidato").length;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -760,6 +769,23 @@ export default function ComunidadePage() {
       {/* Convites Tab */}
       {activeTab === "convites" && (
         <div className="space-y-6">
+          {/* Community filter — only shown when admin/manager sees multiple communities */}
+          {(isAdmin || isManager) && comunidadesParaConvites.length > 1 && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-white/40 uppercase tracking-widest">Filtrar por comunidade:</span>
+              <select
+                className="text-xs font-mono bg-background border border-border rounded-md px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand-gold/50"
+                value={filtroConvitesComunidade}
+                onChange={(e) => setFiltroConvitesComunidade(e.target.value)}
+                data-testid="select-filtro-comunidade-convites"
+              >
+                <option value="todas">Todas as comunidades</option>
+                {comunidadesParaConvites.map(c => (
+                  <option key={String(c.id)} value={String(c.id)}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* Acesso à Vitrine */}
           <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
             <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
@@ -771,14 +797,14 @@ export default function ComunidadePage() {
                 </span>
               )}
             </div>
-            {vitrineCandidatos.length === 0 ? (
+            {vitrineCandidatosFiltrados.length === 0 ? (
               <div className="p-8 flex flex-col items-center text-center gap-2">
                 <Link2 className="w-8 h-8 text-white/10" />
                 <p className="text-white/30 text-xs font-mono">Nenhum candidato via link de convite</p>
               </div>
             ) : (
               <div className="divide-y divide-white/5">
-                {vitrineCandidatos.map((convite: any) => {
+                {vitrineCandidatosFiltrados.map((convite: any) => {
                   const isP = convite.status === "candidato";
                   const isAprovado = convite.status === "vitrine_ativo";
                   const isRejeitado = convite.status === "rejeitado";

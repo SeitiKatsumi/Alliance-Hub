@@ -3851,7 +3851,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const membroId = (req.session as any).membroId as string | null;
       const nome = (req.session as any).nome as string;
 
-      // Any authenticated member may generate a personal invite link
+      // Any authenticated member may generate a personal invite link (requires community membership)
 
       const forceNew = req.body?.force === true;
 
@@ -3894,6 +3894,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         } catch (e) {
           console.warn("[meu-convite] community lookup failed:", e);
         }
+      }
+
+      // Block invite generation if the member has no community — the registration
+      // flow requires a valid comunidade_id to create the vitrine candidatura record.
+      if (!comunidadeId) {
+        return res.status(400).json({
+          error: "Você precisa estar associado a uma comunidade para gerar um convite. Entre em contato com seu Aliado BUILT."
+        });
       }
 
       const expires = new Date();

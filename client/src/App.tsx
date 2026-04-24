@@ -130,6 +130,7 @@ function ProtectedApp() {
               <Route path="/meu-perfil" component={MeuPerfilPage} />
               <Route path="/documentacao" component={DocumentacaoPage} />
               <Route path="/admin" component={AdminPage} />
+              <Route path="/aguardando-aprovacao" component={AguardandoAprovacaoPage} />
               <Route component={NotFound} />
             </Switch>
           </main>

@@ -504,7 +504,7 @@ async function syncValorOrigemLancamento(
             status: dataVencimento ? "agendado" : "pendente",
             Categoria: [],
             tipo_de_cpp: [],
-            Favorecido: contrib.memberId ? [{ cadastro_geral_id: contrib.memberId }] : [],
+            favorecido_id: contrib.memberId || null,
             Anexos: [],
           });
           summary.cppCount++;
@@ -546,7 +546,7 @@ async function syncValorOrigemLancamento(
           status: statusEntry,
           Categoria: [],
           tipo_de_cpp: [],
-          Favorecido: contrib.memberId ? [{ cadastro_geral_id: contrib.memberId }] : [],
+          favorecido_id: contrib.memberId || null,
           Anexos: [],
         });
         summary.cppCount++;

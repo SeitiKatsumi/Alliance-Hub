@@ -833,11 +833,11 @@ export default function ComunidadePage() {
             )}
           </div>
 
-          {/* Associação Completa */}
+          {/* Acesso à Comunidade */}
           <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
             <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
               <Bell className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Associação Completa</span>
+              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Acesso à Comunidade</span>
               {todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length > 0 && (
                 <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   {todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length} pendente{todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length !== 1 ? "s" : ""}

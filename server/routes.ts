@@ -3750,40 +3750,6 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/convites-vitrine — list vitrine candidates for a community (aliado/admin)
-  app.get("/api/convites-vitrine", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
-    try {
-      const { comunidade_id } = req.query as any;
-      const sessionRole = (req.session as any).role || "user";
-      const isAdmin = sessionRole === "admin" || sessionRole === "manager";
-
-      if (comunidade_id) {
-        const col = await getComunidadeCol();
-        const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,aliado.id`;
-        const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-        const comunidade = cr.ok ? (await cr.json()).data : null;
-        if (!isAdmin && !isCommunityManager(req, comunidade)) {
-          return res.status(403).json({ error: "Apenas o Aliado BUILT ou admin pode ver candidatos de vitrine" });
-        }
-      } else if (!isAdmin) {
-        return res.status(403).json({ error: "Informe comunidade_id ou seja admin" });
-      }
-
-      const all = await storage.getAllUsers();
-      const conviteLinks: any[] = [];
-
-      if (comunidade_id) {
-        const links = await storage.getConvitesLinkByComunidade(comunidade_id);
-        conviteLinks.push(...links);
-      }
-
-      res.json(conviteLinks);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // ========== STRIPE PAGAMENTO ==========
 
   // POST /api/convites/:token/checkout — create Stripe Checkout Session (public, token is the auth)

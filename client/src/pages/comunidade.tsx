@@ -497,18 +497,21 @@ export default function ComunidadePage() {
     return aId && aId === user?.membro_directus_id;
   });
 
-  // Fetch convites for all communities where user is Aliado BUILT
+  // Admins/managers see all communities; aliados see only their own
+  const comunidadesParaConvites = (isAdmin || isManager) ? comunidades : minhasComunidadesComoAliado;
+
+  // Fetch convites for relevant communities
   const { data: convitesPorComunidade } = useQuery<Record<string, any[]>>({
-    queryKey: ["/api/convites/aliado", user?.membro_directus_id, minhasComunidadesComoAliado.map(c => c.id).join(",")],
+    queryKey: ["/api/convites/aliado", user?.membro_directus_id, isAdmin, isManager, comunidadesParaConvites.map(c => c.id).join(",")],
     queryFn: async () => {
       const result: Record<string, any[]> = {};
-      for (const com of minhasComunidadesComoAliado) {
+      for (const com of comunidadesParaConvites) {
         const r = await fetch(`/api/convites?comunidade_id=${com.id}`);
         if (r.ok) result[com.id] = await r.json();
       }
       return result;
     },
-    enabled: minhasComunidadesComoAliado.length > 0,
+    enabled: comunidadesParaConvites.length > 0,
     refetchInterval: 30000,
   });
 
@@ -541,10 +544,10 @@ export default function ComunidadePage() {
 
   // Query for vitrine candidates (tipo=vitrine from convitesComunidade)
   const { data: vitrineCandidatos = [] } = useQuery<any[]>({
-    queryKey: ["/api/convites/vitrine", minhasComunidadesComoAliado.map(c => c.id).join(",")],
+    queryKey: ["/api/convites/vitrine", isAdmin, isManager, comunidadesParaConvites.map(c => c.id).join(",")],
     queryFn: async () => {
       const results: any[] = [];
-      for (const com of minhasComunidadesComoAliado) {
+      for (const com of comunidadesParaConvites) {
         const r = await fetch(`/api/convites?comunidade_id=${com.id}&tipo=vitrine`);
         if (r.ok) {
           const data = await r.json();
@@ -553,7 +556,7 @@ export default function ComunidadePage() {
       }
       return results;
     },
-    enabled: minhasComunidadesComoAliado.length > 0 || isAdmin || isManager,
+    enabled: comunidadesParaConvites.length > 0,
     refetchInterval: 30000,
   });
 

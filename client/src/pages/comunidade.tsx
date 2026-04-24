@@ -778,6 +778,8 @@ export default function ComunidadePage() {
                   const isAprovado = convite.status === "vitrine_ativo";
                   const isRejeitado = convite.status === "rejeitado";
                   const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || "—";
+                  const invitador = membros.find(m => String(m.id) === String(convite.invitador_membro_id));
+                  const nomeConvidador = invitador?.nome || null;
                   return (
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0 space-y-0.5">
@@ -789,6 +791,11 @@ export default function ComunidadePage() {
                         </div>
                         {convite.candidato_email && (
                           <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
+                        )}
+                        {nomeConvidador && (
+                          <p className="text-[10px] font-mono text-brand-gold/50">
+                            Convidado por {nomeConvidador}
+                          </p>
                         )}
                         <p className="text-[10px] font-mono text-white/25">{comNome}</p>
                       </div>

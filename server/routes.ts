@@ -2291,11 +2291,23 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // ── Self-registration ──────────────────────────────────────────────
   app.post("/api/register", async (req, res) => {
     try {
-      const { nome, email, username, password, telefone, empresa, cidade, estado } = req.body;
+      const { nome, email, username, password, telefone, empresa, cidade, estado, convite_token } = req.body;
       if (!nome || !email || !password)
         return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
       if (password.length < 4)
         return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
+
+      // Require a convite_token to register
+      if (!convite_token) {
+        return res.status(403).json({ error: "É necessário um código de convite para se cadastrar. Solicite um convite a um membro da rede BUILT." });
+      }
+      const conviteLink = await storage.getConviteLinkByToken(convite_token);
+      if (!conviteLink || conviteLink.status !== "ativo") {
+        return res.status(400).json({ error: "Código de convite inválido ou já utilizado." });
+      }
+      if (conviteLink.expires_at && new Date() > new Date(conviteLink.expires_at)) {
+        return res.status(400).json({ error: "Este código de convite expirou. Solicite um novo convite ao membro da rede." });
+      }
 
       const finalUsername = username || email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
 
@@ -2348,6 +2360,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         permissions: {},
         ativo: true,
       });
+
+      // 3. Mark convite_link as used and create vitrine candidatura
+      try {
+        await storage.updateConviteLink(conviteLink.id, {
+          status: "usado",
+          usado_por_user_id: user.id,
+          usado_em: new Date(),
+        });
+
+        if (membroDirectusId && conviteLink.comunidade_id) {
+          await storage.createConvite({
+            comunidade_id: conviteLink.comunidade_id,
+            candidato_membro_id: membroDirectusId,
+            candidato_nome: nome,
+            candidato_email: email,
+            invitador_membro_id: conviteLink.gerador_membro_id || null,
+            status: "candidato",
+            tipo: "vitrine",
+            dados_contratuais: null,
+            expires_at: null,
+          });
+        }
+      } catch (conviteErr) {
+        console.warn("[register] convite_link marking failed (non-fatal):", conviteErr);
+      }
 
       const { password: _pw, ...safe } = user;
       res.json({ success: true, user: safe });
@@ -2537,6 +2574,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       } catch (_) {}
     }
+    // Check for pending vitrine approval (only for "user" role)
+    let pending_vitrine = false;
+    if (role === "user" && email) {
+      try {
+        const localUser = await storage.getUserByEmail(email);
+        if (localUser?.membro_directus_id) {
+          const vitrineConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "vitrine");
+          pending_vitrine = vitrineConvites.some(c => c.status === "candidato");
+        }
+      } catch (_) {}
+    }
+
     res.json({
       id: directusUserId,
       nome: (req.session as any).nome || "",
@@ -2546,6 +2595,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       permissions,
       tipos_alianca,
       Outras_redes_as_quais_pertenco,
+      pending_vitrine,
     });
   });
 
@@ -3077,6 +3127,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     enviarTermos,
     enviarPagamento,
     enviarNovoMembro,
+    enviarAprovacaoVitrine,
   } = await import("./mailer");
 
   // Helper: get Directus member info by membro_id
@@ -3178,18 +3229,24 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/convites", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const { comunidade_id, candidato_membro_id } = req.query as any;
+      const { comunidade_id, candidato_membro_id, tipo } = req.query as any;
       let items;
       if (comunidade_id) {
         // Authorization: only community aliado or admin can list candidates
+        const sessionRole = (req.session as any).role || "user";
+        const isAdminRoute = sessionRole === "admin" || sessionRole === "manager";
         const col = await getComunidadeCol();
         const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,aliado.id`;
         const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
         const comunidade = cr.ok ? (await cr.json()).data : null;
-        if (!isCommunityManager(req, comunidade)) {
+        if (!isAdminRoute && !isCommunityManager(req, comunidade)) {
           return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode ver candidatos" });
         }
         items = await storage.getConvitesByComunidade(comunidade_id);
+        // Filter by tipo if specified
+        if (tipo) {
+          items = items.filter((c: any) => c.tipo === tipo);
+        }
       } else if (candidato_membro_id) {
         // Authorization: only the candidato themselves or admin can see their own invites
         const sessionRole = (req.session as any).role || "user";
@@ -3503,6 +3560,225 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== CONVITES LINK (vitrine invite links) ==========
+
+  // POST /api/meu-convite — generate a vitrine invite link for the current authenticated member
+  app.post("/api/meu-convite", async (req, res) => {
+    const sessionUserId = (req.session as any).directusUserId;
+    if (!sessionUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const email = (req.session as any).email;
+      const localUser = email ? await storage.getUserByEmail(email) : null;
+      const userId = localUser?.id || sessionUserId;
+      const membroId = (req.session as any).membroId as string | null;
+      const nome = (req.session as any).nome as string;
+
+      // Check if there's already an active invite
+      const existing = await storage.getActiveConviteLinkByUserId(userId);
+      if (existing && new Date() < new Date(existing.expires_at)) {
+        const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+        return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
+      }
+
+      // Find the member's community in Directus
+      let comunidadeId: string | null = null;
+      let comunidadeNome: string | null = null;
+      if (membroId) {
+        try {
+          const col = await getComunidadeCol();
+          const url = `${DIRECTUS_URL}/items/${col}?fields=id,nome&filter[membros][cadastro_geral_id][_eq]=${membroId}&limit=1`;
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+          if (r.ok) {
+            const data = await r.json();
+            if (data.data?.[0]) {
+              comunidadeId = data.data[0].id;
+              comunidadeNome = data.data[0].nome;
+            }
+          }
+          // Also check if they're an aliado
+          if (!comunidadeId) {
+            const url2 = `${DIRECTUS_URL}/items/${col}?fields=id,nome&filter[aliado][_eq]=${membroId}&limit=1`;
+            const r2 = await fetch(url2, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+            if (r2.ok) {
+              const data2 = await r2.json();
+              if (data2.data?.[0]) {
+                comunidadeId = data2.data[0].id;
+                comunidadeNome = data2.data[0].nome;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[meu-convite] community lookup failed:", e);
+        }
+      }
+
+      const expires = new Date();
+      expires.setDate(expires.getDate() + 30);
+
+      const convite = await storage.createConviteLink({
+        gerador_user_id: userId,
+        gerador_membro_id: membroId || null,
+        gerador_nome: nome || null,
+        comunidade_id: comunidadeId || null,
+        comunidade_nome: comunidadeNome || null,
+        status: "ativo",
+        usado_por_user_id: null,
+        expires_at: expires,
+      });
+
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+      res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/meu-convite — get the active convite link for the current user
+  app.get("/api/meu-convite", async (req, res) => {
+    const sessionUserId = (req.session as any).directusUserId;
+    if (!sessionUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const email = (req.session as any).email;
+      const localUser = email ? await storage.getUserByEmail(email) : null;
+      const userId = localUser?.id || sessionUserId;
+      const convite = await storage.getActiveConviteLinkByUserId(userId);
+      if (!convite) return res.json(null);
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+      res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/convite-publico/:token — public: validate token and return minimal info
+  app.get("/api/convite-publico/:token", async (req, res) => {
+    try {
+      const convite = await storage.getConviteLinkByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.status !== "ativo") return res.status(400).json({ error: "Este convite já foi utilizado ou expirou." });
+      if (new Date() > new Date(convite.expires_at)) return res.status(400).json({ error: "Este convite expirou." });
+      res.json({
+        gerador_nome: convite.gerador_nome,
+        comunidade_nome: convite.comunidade_nome,
+        expires_at: convite.expires_at,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/convites/:token/aprovar-vitrine — approve vitrine access (aliado or admin only)
+  app.patch("/api/convites/:token/aprovar-vitrine", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.tipo !== "vitrine") return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine" });
+      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
+
+      // Get comunidade for authorization
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      const sessionRole = (req.session as any).role || "user";
+      const isAdmin = sessionRole === "admin" || sessionRole === "manager";
+      if (!isAdmin && !isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade ou admin pode aprovar acesso" });
+      }
+
+      // Update convite status
+      await storage.updateConvite(convite.id, { status: "vitrine_ativo" });
+
+      // Upgrade the user's role to "membro" so they can access the platform
+      const allUsers = await storage.getAllUsers();
+      const candidatoUser = allUsers.find(u => u.membro_directus_id === convite.candidato_membro_id);
+      if (candidatoUser) {
+        await storage.updateUser(candidatoUser.id, { role: "membro" });
+      }
+
+      // Send approval email
+      if (convite.candidato_email) {
+        try {
+          const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+          await enviarAprovacaoVitrine({
+            candidatoEmail: convite.candidato_email,
+            candidatoNome: convite.candidato_nome || "Candidato",
+            comunidadeNome,
+          });
+        } catch (emailErr) {
+          console.warn("[aprovar-vitrine] email failed (non-fatal):", emailErr);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/convites/:token/rejeitar-vitrine — reject vitrine access (aliado or admin only)
+  app.patch("/api/convites/:token/rejeitar-vitrine", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.tipo !== "vitrine") return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine" });
+      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
+
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      const sessionRole = (req.session as any).role || "user";
+      const isAdmin = sessionRole === "admin" || sessionRole === "manager";
+      if (!isAdmin && !isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade ou admin pode rejeitar acesso" });
+      }
+
+      await storage.updateConvite(convite.id, { status: "rejeitado" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/convites-vitrine — list vitrine candidates for a community (aliado/admin)
+  app.get("/api/convites-vitrine", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { comunidade_id } = req.query as any;
+      const sessionRole = (req.session as any).role || "user";
+      const isAdmin = sessionRole === "admin" || sessionRole === "manager";
+
+      if (comunidade_id) {
+        const col = await getComunidadeCol();
+        const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,aliado.id`;
+        const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+        const comunidade = cr.ok ? (await cr.json()).data : null;
+        if (!isAdmin && !isCommunityManager(req, comunidade)) {
+          return res.status(403).json({ error: "Apenas o Aliado BUILT ou admin pode ver candidatos de vitrine" });
+        }
+      } else if (!isAdmin) {
+        return res.status(403).json({ error: "Informe comunidade_id ou seja admin" });
+      }
+
+      const all = await storage.getAllUsers();
+      const conviteLinks: any[] = [];
+
+      if (comunidade_id) {
+        const links = await storage.getConvitesLinkByComunidade(comunidade_id);
+        conviteLinks.push(...links);
+      }
+
+      res.json(conviteLinks);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

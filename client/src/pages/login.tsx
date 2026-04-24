@@ -5,10 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930.png";
+
+interface ConviteInfo {
+  gerador_nome: string | null;
+  comunidade_nome: string | null;
+  expires_at: string | null;
+}
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -30,6 +36,12 @@ export default function LoginPage() {
       setError("Falha ao autenticar com Google. Tente novamente.");
       window.history.replaceState({}, "", "/login");
     }
+    // Auto-switch to register if a convite token is in the URL
+    const conviteParam = params.get("convite");
+    if (conviteParam) {
+      setMode("register");
+      setRegConviteToken(conviteParam);
+    }
   }, []);
 
   // After Google OAuth redirect, session is set server-side — just refresh
@@ -46,6 +58,39 @@ export default function LoginPage() {
   const [showRegPass, setShowRegPass] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
+  const [regConviteToken, setRegConviteToken] = useState("");
+  const [conviteInfo, setConviteInfo] = useState<ConviteInfo | null>(null);
+  const [conviteStatus, setConviteStatus] = useState<"idle" | "valid" | "invalid">("idle");
+  const [conviteChecking, setConviteChecking] = useState(false);
+
+  // Validate convite token when it changes
+  useEffect(() => {
+    if (!regConviteToken || regConviteToken.length < 10) {
+      setConviteInfo(null);
+      setConviteStatus("idle");
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      setConviteChecking(true);
+      try {
+        const res = await fetch(`/api/convite-publico/${regConviteToken}`);
+        if (res.ok) {
+          const data = await res.json();
+          setConviteInfo(data);
+          setConviteStatus("valid");
+        } else {
+          setConviteInfo(null);
+          setConviteStatus("invalid");
+        }
+      } catch {
+        setConviteInfo(null);
+        setConviteStatus("invalid");
+      } finally {
+        setConviteChecking(false);
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [regConviteToken]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +108,14 @@ export default function LoginPage() {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setRegError("");
+    if (!regConviteToken) {
+      setRegError("Informe o código de convite para se cadastrar.");
+      return;
+    }
+    if (conviteStatus === "invalid") {
+      setRegError("Código de convite inválido ou expirado.");
+      return;
+    }
     if (regPassword !== regPassword2) {
       setRegError("As senhas não coincidem");
       return;
@@ -81,11 +134,12 @@ export default function LoginPage() {
           email: regEmail,
           username: regUsername || regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase(),
           password: regPassword,
+          convite_token: regConviteToken,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
-      toast({ title: "Conta criada com sucesso!", description: "Agora faça login com suas credenciais." });
+      toast({ title: "Conta criada com sucesso!", description: "Agora faça login para acessar a plataforma." });
       setEmail(regEmail);
       setMode("login");
     } catch (err: any) {
@@ -221,6 +275,43 @@ export default function LoginPage() {
               </CardHeader>
               <CardContent className="px-6 pb-6">
                 <form onSubmit={handleRegister} className="space-y-3">
+                  {/* Convite token field */}
+                  <div className="space-y-1.5">
+                    <Label className="text-white/70 text-sm flex items-center gap-1.5">
+                      <Ticket className="w-3.5 h-3.5 text-[#D7BB7D]" />
+                      Código de convite <span className="text-red-400">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        value={regConviteToken}
+                        onChange={e => setRegConviteToken(e.target.value.trim())}
+                        placeholder="Cole o código do seu convite"
+                        className={`${inputCls} pr-8 ${conviteStatus === "valid" ? "border-green-500/50" : conviteStatus === "invalid" ? "border-red-500/50" : ""}`}
+                        data-testid="input-reg-convite"
+                      />
+                      {conviteChecking && (
+                        <span className="absolute right-2.5 top-2.5">
+                          <span className="w-3.5 h-3.5 border border-white/30 border-t-white/70 rounded-full animate-spin block" />
+                        </span>
+                      )}
+                      {!conviteChecking && conviteStatus === "valid" && (
+                        <CheckCircle className="absolute right-2.5 top-2.5 w-3.5 h-3.5 text-green-400" />
+                      )}
+                      {!conviteChecking && conviteStatus === "invalid" && (
+                        <XCircle className="absolute right-2.5 top-2.5 w-3.5 h-3.5 text-red-400" />
+                      )}
+                    </div>
+                    {conviteStatus === "valid" && conviteInfo && (
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs text-green-300">
+                        Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>
+                        {conviteInfo.comunidade_nome ? ` · ${conviteInfo.comunidade_nome}` : ""}
+                      </div>
+                    )}
+                    {conviteStatus === "invalid" && (
+                      <p className="text-red-400 text-xs">Código inválido ou já utilizado.</p>
+                    )}
+                  </div>
+
                   <div className="space-y-1.5">
                     <Label className="text-white/70 text-sm">Nome completo</Label>
                     <Input
@@ -289,7 +380,7 @@ export default function LoginPage() {
                   <Button
                     type="submit"
                     data-testid="button-register"
-                    disabled={regLoading}
+                    disabled={regLoading || conviteStatus === "invalid"}
                     className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10 mt-1"
                   >
                     {regLoading ? (

@@ -366,6 +366,7 @@ export const convitesComunidade = pgTable("convites_comunidade", {
   candidato_email: text("candidato_email"),
   invitador_membro_id: text("invitador_membro_id"),
   status: text("status").notNull().default("convidado"),
+  tipo: text("tipo").notNull().default("completo"),
   dados_contratuais: jsonb("dados_contratuais"),
   expires_at: timestamp("expires_at"),
   criado_em: timestamp("criado_em").defaultNow(),
@@ -381,4 +382,29 @@ export const insertConviteComunidadeSchema = createInsertSchema(convitesComunida
 
 export type InsertConviteComunidade = z.infer<typeof insertConviteComunidadeSchema>;
 export type ConviteComunidade = typeof convitesComunidade.$inferSelect;
+
+export const convitesLink = pgTable("convites_link", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique().default(sql`gen_random_uuid()`),
+  gerador_user_id: varchar("gerador_user_id").notNull(),
+  gerador_membro_id: text("gerador_membro_id"),
+  gerador_nome: text("gerador_nome"),
+  comunidade_id: text("comunidade_id"),
+  comunidade_nome: text("comunidade_nome"),
+  status: text("status").notNull().default("ativo"),
+  usado_por_user_id: varchar("usado_por_user_id"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  expires_at: timestamp("expires_at").notNull(),
+  usado_em: timestamp("usado_em"),
+});
+
+export const insertConviteLinkSchema = createInsertSchema(convitesLink).omit({
+  id: true,
+  token: true,
+  criado_em: true,
+  usado_em: true,
+});
+
+export type InsertConviteLink = z.infer<typeof insertConviteLinkSchema>;
+export type ConviteLink = typeof convitesLink.$inferSelect;
 

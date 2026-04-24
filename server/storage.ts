@@ -10,6 +10,7 @@ import {
   transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
   opaInteresses, type OpaInteresse, type InsertOpaInteresse,
   convitesComunidade, type ConviteComunidade, type InsertConviteComunidade,
+  convitesLink, type ConviteLink, type InsertConviteLink,
   anuncios, type Anuncio, type InsertAnuncio,
 } from "@shared/schema";
 import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
@@ -83,7 +84,14 @@ export interface IStorage {
   getConviteByToken(token: string): Promise<ConviteComunidade | undefined>;
   getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]>;
+  getConvitesByCandidatoMembro(membroId: string, tipo?: string): Promise<ConviteComunidade[]>;
   updateConvite(id: string, data: Partial<ConviteComunidade>): Promise<ConviteComunidade | undefined>;
+
+  createConviteLink(data: InsertConviteLink): Promise<ConviteLink>;
+  getConviteLinkByToken(token: string): Promise<ConviteLink | undefined>;
+  getActiveConviteLinkByUserId(userId: string): Promise<ConviteLink | undefined>;
+  getConvitesLinkByComunidade(comunidadeId: string): Promise<ConviteLink[]>;
+  updateConviteLink(id: string, data: Partial<ConviteLink>): Promise<ConviteLink | undefined>;
 
   getAnunciosAtivos(today: string): Promise<Anuncio[]>;
   getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined>;
@@ -388,6 +396,50 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return item;
   }
+
+  async getConvitesByCandidatoMembro(membroId: string, tipo?: string): Promise<ConviteComunidade[]> {
+    const conditions = [eq(convitesComunidade.candidato_membro_id, membroId)];
+    if (tipo) conditions.push(eq(convitesComunidade.tipo, tipo));
+    return db
+      .select()
+      .from(convitesComunidade)
+      .where(and(...conditions))
+      .orderBy(desc(convitesComunidade.criado_em));
+  }
+
+  async createConviteLink(data: InsertConviteLink): Promise<ConviteLink> {
+    const [item] = await db.insert(convitesLink).values(data).returning();
+    return item;
+  }
+
+  async getConviteLinkByToken(token: string): Promise<ConviteLink | undefined> {
+    const [item] = await db.select().from(convitesLink).where(eq(convitesLink.token, token));
+    return item;
+  }
+
+  async getActiveConviteLinkByUserId(userId: string): Promise<ConviteLink | undefined> {
+    const [item] = await db
+      .select()
+      .from(convitesLink)
+      .where(and(eq(convitesLink.gerador_user_id, userId), eq(convitesLink.status, "ativo")))
+      .orderBy(desc(convitesLink.criado_em))
+      .limit(1);
+    return item;
+  }
+
+  async getConvitesLinkByComunidade(comunidadeId: string): Promise<ConviteLink[]> {
+    return db
+      .select()
+      .from(convitesLink)
+      .where(eq(convitesLink.comunidade_id, comunidadeId))
+      .orderBy(desc(convitesLink.criado_em));
+  }
+
+  async updateConviteLink(id: string, data: Partial<ConviteLink>): Promise<ConviteLink | undefined> {
+    const [item] = await db.update(convitesLink).set(data).where(eq(convitesLink.id, id)).returning();
+    return item;
+  }
+
 
   async getAnunciosAtivos(today: string): Promise<Anuncio[]> {
     return db

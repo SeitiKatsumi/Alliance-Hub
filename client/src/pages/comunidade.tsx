@@ -9,7 +9,8 @@ import {
   MessageCircle, Plus, Pencil, Trash2, Search, Users,
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
   Navigation, Globe, UserCheck, UserX, Bell, Clock,
-  Eye, FileText, Phone, Mail, Building, Calendar, Hash
+  Eye, FileText, Phone, Mail, Building, Calendar, Hash,
+  Ticket, Link2, CheckCircle, XCircle, Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -325,9 +326,11 @@ export default function ComunidadePage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
   const searchParams = useSearch();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<"comunidades" | "convites">("comunidades");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
@@ -536,6 +539,44 @@ export default function ComunidadePage() {
     onError: () => toast({ title: "Erro ao enviar lembrete", variant: "destructive" }),
   });
 
+  // Query for vitrine candidates (tipo=vitrine from convitesComunidade)
+  const { data: vitrineCandidatos = [] } = useQuery<any[]>({
+    queryKey: ["/api/convites/vitrine", minhasComunidadesComoAliado.map(c => c.id).join(",")],
+    queryFn: async () => {
+      const results: any[] = [];
+      for (const com of minhasComunidadesComoAliado) {
+        const r = await fetch(`/api/convites?comunidade_id=${com.id}&tipo=vitrine`);
+        if (r.ok) {
+          const data = await r.json();
+          results.push(...(data || []));
+        }
+      }
+      return results;
+    },
+    enabled: minhasComunidadesComoAliado.length > 0 || isAdmin || isManager,
+    refetchInterval: 30000,
+  });
+
+  const aprovarVitrineMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest("PATCH", `/api/convites/${token}/aprovar-vitrine`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      toast({ title: "Acesso à vitrine aprovado! Candidato receberá e-mail." });
+    },
+    onError: () => toast({ title: "Erro ao aprovar acesso", variant: "destructive" }),
+  });
+
+  const rejeitarVitrineMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest("PATCH", `/api/convites/${token}/rejeitar-vitrine`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      toast({ title: "Candidato rejeitado." });
+    },
+    onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
+  });
+
   const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
   const candidatosPendentes = todosCandidatos.filter(c => c.status === "candidato");
   const outrosConvites = todosCandidatos.filter(c => c.status !== "candidato" && c.status !== "convidado");
@@ -590,6 +631,11 @@ export default function ComunidadePage() {
     membro: { label: "Membro ativo", color: "text-emerald-400" },
   };
 
+  const showConvitesTab = isAdmin || isManager || minhasComunidadesComoAliado.length > 0;
+  const vitrinePendentes = vitrineCandidatos.filter((c: any) => c.status === "candidato");
+  const todosCandidatosCompleto = todosCandidatos.filter(c => c.tipo !== "vitrine");
+  const convitesBadgeCount = vitrinePendentes.length + todosCandidatos.filter((c: any) => c.status === "candidato").length;
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -603,17 +649,58 @@ export default function ComunidadePage() {
             <p className="text-sm text-white/40 font-mono mt-0.5">{comunidades.length} comunidade{comunidades.length !== 1 ? "s" : ""} ativa{comunidades.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        <Button
-          onClick={openCreate}
-          className="font-mono"
-          style={{ background: "linear-gradient(135deg, #D7BB7D, #b89a50)", color: "#001D34" }}
-          data-testid="btn-nova-comunidade"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Comunidade
-        </Button>
+        {activeTab === "comunidades" && (
+          <Button
+            onClick={openCreate}
+            className="font-mono"
+            style={{ background: "linear-gradient(135deg, #D7BB7D, #b89a50)", color: "#001D34" }}
+            data-testid="btn-nova-comunidade"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Comunidade
+          </Button>
+        )}
       </div>
 
+      {/* Tab switcher */}
+      {showConvitesTab && (
+        <div className="flex rounded-xl bg-white/5 border border-white/10 p-1 gap-1 w-fit">
+          <button
+            onClick={() => setActiveTab("comunidades")}
+            data-testid="tab-comunidades"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+            style={{
+              background: activeTab === "comunidades" ? "rgba(215,187,125,0.15)" : "transparent",
+              color: activeTab === "comunidades" ? "#D7BB7D" : "rgba(255,255,255,0.4)",
+              border: activeTab === "comunidades" ? "1px solid rgba(215,187,125,0.3)" : "1px solid transparent",
+            }}
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            Comunidades
+          </button>
+          <button
+            onClick={() => setActiveTab("convites")}
+            data-testid="tab-convites"
+            className="relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+            style={{
+              background: activeTab === "convites" ? "rgba(215,187,125,0.15)" : "transparent",
+              color: activeTab === "convites" ? "#D7BB7D" : "rgba(255,255,255,0.4)",
+              border: activeTab === "convites" ? "1px solid rgba(215,187,125,0.3)" : "1px solid transparent",
+            }}
+          >
+            <Ticket className="w-3.5 h-3.5" />
+            Convites
+            {convitesBadgeCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                {convitesBadgeCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {activeTab === "comunidades" && (
+        <>
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
@@ -626,7 +713,7 @@ export default function ComunidadePage() {
         />
       </div>
 
-      {/* Candidatos Panel — visible only to Aliados BUILT */}
+      {/* Candidatos Panel — visible only to Aliados BUILT (legacy, completo only) */}
       {minhasComunidadesComoAliado.length > 0 && todosCandidatos.length > 0 && (
         <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
           <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
@@ -761,6 +848,188 @@ export default function ComunidadePage() {
               onDelete={() => setDeleteTarget(c)}
             />
           ))}
+        </div>
+      )}
+        </>
+      )}
+
+      {/* Convites Tab */}
+      {activeTab === "convites" && (
+        <div className="space-y-6">
+          {/* Acesso à Vitrine */}
+          <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
+              <Link2 className="w-4 h-4 text-brand-gold" />
+              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Acesso à Vitrine</span>
+              {vitrinePendentes.length > 0 && (
+                <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  {vitrinePendentes.length} aguardando
+                </span>
+              )}
+            </div>
+            {vitrineCandidatos.length === 0 ? (
+              <div className="p-8 flex flex-col items-center text-center gap-2">
+                <Link2 className="w-8 h-8 text-white/10" />
+                <p className="text-white/30 text-xs font-mono">Nenhum candidato via link de convite</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {vitrineCandidatos.map((convite: any) => {
+                  const isP = convite.status === "candidato";
+                  const isAprovado = convite.status === "vitrine_ativo";
+                  const isRejeitado = convite.status === "rejeitado";
+                  const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || "—";
+                  return (
+                    <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-mono font-bold text-white">{convite.candidato_nome || "—"}</p>
+                          <span className={`text-[10px] font-mono ${isP ? "text-amber-400" : isAprovado ? "text-emerald-400" : isRejeitado ? "text-red-400" : "text-white/40"}`}>
+                            • {isP ? "Aguardando aprovação" : isAprovado ? "Vitrine ativa" : isRejeitado ? "Rejeitado" : convite.status}
+                          </span>
+                        </div>
+                        {convite.candidato_email && (
+                          <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
+                        )}
+                        <p className="text-[10px] font-mono text-white/25">{comNome}</p>
+                      </div>
+                      {isP && (
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => aprovarVitrineMutation.mutate(convite.token)}
+                            disabled={aprovarVitrineMutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                            data-testid={`btn-aprovar-vitrine-${convite.id}`}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Aprovar acesso
+                          </button>
+                          <button
+                            onClick={() => rejeitarVitrineMutation.mutate(convite.token)}
+                            disabled={rejeitarVitrineMutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                            data-testid={`btn-rejeitar-vitrine-${convite.id}`}
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Rejeitar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Associação Completa */}
+          <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
+              <Bell className="w-4 h-4 text-brand-gold" />
+              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Associação Completa</span>
+              {todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length > 0 && (
+                <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  {todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length} pendente{todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {todosCandidatosCompleto.length === 0 ? (
+              <div className="p-8 flex flex-col items-center text-center gap-2">
+                <Bell className="w-8 h-8 text-white/10" />
+                <p className="text-white/30 text-xs font-mono">Nenhum convite de associação enviado</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {todosCandidatosCompleto.map(convite => {
+                  const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/50" };
+                  const dados = convite.dados_contratuais as any;
+                  const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || `Comunidade #${convite.comunidade_id}`;
+                  return (
+                    <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-mono font-bold text-white">
+                            {convite.candidato_nome || dados?.nome_completo || "—"}
+                          </p>
+                          <span className={`text-[10px] font-mono ${statusInfo.color}`}>
+                            • {statusInfo.label}
+                          </span>
+                        </div>
+                        {convite.candidato_email && (
+                          <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
+                        )}
+                        {dados && (
+                          <div className="flex flex-wrap gap-3 mt-1">
+                            {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-white/30">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
+                            {dados.cnpj && <span className="text-[10px] font-mono text-white/30">CNPJ: {dados.cnpj}</span>}
+                            {dados.telefone && <span className="text-[10px] font-mono text-white/30">Tel: {dados.telefone}</span>}
+                            {dados.cidade && <span className="text-[10px] font-mono text-white/30">📍 {dados.cidade}, {dados.estado}</span>}
+                          </div>
+                        )}
+                        {dados?.mensagem && (
+                          <p className="text-[11px] font-mono text-white/50 italic mt-1 leading-relaxed">"{dados.mensagem}"</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        <button
+                          onClick={() => setSelectedConvite({ ...convite, comNome })}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-white/50 border border-white/10 hover:bg-white/5 transition-colors"
+                          data-testid={`btn-ver-candidato-tab-${convite.id}`}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Ver detalhes
+                        </button>
+                        {convite.status === "candidato" && (
+                          <>
+                            <button
+                              onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "aprovado" })}
+                              disabled={decisaoMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                              data-testid={`btn-aprovar-tab-${convite.id}`}
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              Aprovar
+                            </button>
+                            <button
+                              onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "rejeitado" })}
+                              disabled={decisaoMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                              data-testid={`btn-rejeitar-tab-${convite.id}`}
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                              Rejeitar
+                            </button>
+                          </>
+                        )}
+                        {["aprovado", "termos_enviados"].includes(convite.status) && (
+                          <button
+                            onClick={() => lembretesMutation.mutate(convite.token)}
+                            disabled={lembretesMutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
+                            data-testid={`btn-lembrete-tab-${convite.id}`}
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                            Reenviar Termos
+                          </button>
+                        )}
+                        {["termos_aceitos", "pagamento_pendente"].includes(convite.status) && (
+                          <button
+                            onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
+                            disabled={confirmarPagamentoMutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                            data-testid={`btn-confirmar-pagamento-tab-${convite.id}`}
+                          >
+                            <Shield className="w-3.5 h-3.5" />
+                            Confirmar Pagamento
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

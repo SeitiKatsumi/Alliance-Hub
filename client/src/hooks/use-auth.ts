@@ -12,6 +12,7 @@ export interface AppUser {
   ativo: boolean;
   tipos_alianca?: string[];
   Outras_redes_as_quais_pertenco?: string[];
+  pending_vitrine?: boolean;
 }
 
 export function useAuth() {

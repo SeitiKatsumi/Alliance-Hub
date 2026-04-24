@@ -18,7 +18,7 @@ import {
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
-  Upload, ImageIcon, X, Languages, ChevronDown, Lock
+  Upload, ImageIcon, X, Languages, ChevronDown, Lock, Ticket, Copy, RefreshCw
 } from "lucide-react";
 import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
@@ -255,6 +255,29 @@ export default function MeuPerfilPage() {
   const { data: especialidadesOptions = [] } = useQuery<EspecialidadeOption[]>({
     queryKey: ["/api/especialidades"],
     queryFn: () => fetch("/api/especialidades").then(r => r.json()),
+  });
+
+  const { data: meuConvite, refetch: refetchConvite } = useQuery<any>({
+    queryKey: ["/api/meu-convite"],
+    queryFn: async () => {
+      const res = await fetch("/api/meu-convite", { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const gerarConviteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/meu-convite", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao gerar convite");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meu-convite"] });
+    },
+    onError: (err: any) => toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -920,6 +943,69 @@ export default function MeuPerfilPage() {
                     Selecione as redes de negócios das quais você é membro. Os selos aparecerão no seu perfil.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Meu Convite */}
+            <Card className="border-white/8" style={{ background: "linear-gradient(145deg,rgba(215,187,125,0.04),rgba(7,22,38,0.8))" }}>
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Ticket className="w-3.5 h-3.5 text-brand-gold/50" />
+                  <span className="text-xs font-mono uppercase tracking-widest text-white/30">Meu Convite</span>
+                  <div className="flex-1 h-px bg-white/5" />
+                </div>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 30 dias.
+                </p>
+                {meuConvite?.link ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                      <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConvite.link}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(meuConvite.link);
+                          toast({ title: "Link copiado!", description: "Compartilhe com quem quiser convidar." });
+                        }}
+                        className="text-brand-gold hover:text-brand-gold/70 transition-colors"
+                        data-testid="btn-copiar-convite"
+                        title="Copiar link"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {meuConvite.expires_at && (
+                      <p className="text-[10px] font-mono text-white/25">
+                        Expira em: {new Date(meuConvite.expires_at).toLocaleDateString("pt-BR")}
+                        {meuConvite.status === "usado" && <span className="ml-2 text-amber-400/60">· utilizado</span>}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => gerarConviteMutation.mutate()}
+                      disabled={gerarConviteMutation.isPending}
+                      className="flex items-center gap-1.5 text-xs font-mono text-white/30 hover:text-white/50 transition-colors"
+                      data-testid="btn-renovar-convite"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${gerarConviteMutation.isPending ? "animate-spin" : ""}`} />
+                      Gerar novo link
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => gerarConviteMutation.mutate()}
+                    disabled={gerarConviteMutation.isPending}
+                    size="sm"
+                    className="gap-2 font-mono text-xs"
+                    style={{ background: "rgba(215,187,125,0.15)", color: "#D7BB7D", border: "1px solid rgba(215,187,125,0.3)" }}
+                    data-testid="btn-gerar-convite"
+                  >
+                    {gerarConviteMutation.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Ticket className="w-3.5 h-3.5" />
+                    )}
+                    Gerar link de convite
+                  </Button>
+                )}
               </CardContent>
             </Card>
 

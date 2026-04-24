@@ -32,6 +32,7 @@ import ComunidadePage from "@/pages/comunidade";
 import ComunidadeDetalhePage from "@/pages/comunidade-detalhe";
 import BuiltCapitalPage from "@/pages/built-capital";
 import LoginPage from "@/pages/login";
+import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
 import ConvitePage from "@/pages/convite";
 import AdesaoPage from "@/pages/adesao";
 import PagamentoPage from "@/pages/pagamento";
@@ -43,7 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 
 function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
 
   if (isLoading) {
@@ -56,6 +57,11 @@ function ProtectedApp() {
 
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  // Redirect pending vitrine users to the waiting page
+  if (user?.pending_vitrine && location !== "/aguardando-aprovacao") {
+    return <AguardandoAprovacaoPage />;
   }
 
   async function handleLogout() {

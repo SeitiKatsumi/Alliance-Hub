@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Currency Support**: BIAs support multiple currencies with dynamic formatting using `Intl.NumberFormat`.
 - **Nucleo Técnico Module**: Manages documents with CRUD functionality, storing data in local PostgreSQL.
 - **Convites & Adesão às Comunidades**: Implements a multi-step invitation and membership process with email notifications and public-facing pages for application, terms acceptance, and manual payment confirmation.
+- **Sistema de Convite-Gated Registration**: Any authenticated member can generate a personal invite link (valid 30 days). New users must provide a valid invite token to register. After registration, they enter "vitrine candidato" status (tipo="vitrine") and await approval by the community's Aliado BUILT. Approved users get role="membro"; pending users see an "Aguardando aprovação" blocking page. The Comunidades page has a "Convites" tab for Aliados/admins to manage both Vitrine (link-based) and Associação Completa (full membership) candidates.
 
 ### Navigation Structure
 A collapsible sidebar provides access to:

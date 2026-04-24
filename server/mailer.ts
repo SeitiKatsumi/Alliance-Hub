@@ -203,3 +203,21 @@ export async function enviarNovoMembro(opts: {
     await send(email, `Novo membro na ${opts.comunidadeNome}!`, html);
   }
 }
+
+export async function enviarAprovacaoVitrine(opts: {
+  candidatoEmail: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+}) {
+  const link = `${BASE_URL}/`;
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">✅ Acesso à vitrine liberado!</h2>
+    <p style="color:rgba(255,255,255,0.7)">Olá, <strong style="color:#D7BB7D">${opts.candidatoNome}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">Seu acesso à plataforma BUILT Alliances foi aprovado pelo Aliado da comunidade <strong>${opts.comunidadeNome}</strong>.</p>
+    <p style="color:rgba(255,255,255,0.7)">Agora você já pode acessar a vitrine e explorar a rede de alianças BUILT!</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar a Plataforma</a>
+    </div>
+  `);
+  await send(opts.candidatoEmail, "Seu acesso à BUILT Alliances foi aprovado!", html);
+}

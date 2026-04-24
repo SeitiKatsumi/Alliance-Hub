@@ -673,9 +673,9 @@ export default function ComunidadePage() {
             data-testid="tab-comunidades"
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: activeTab === "comunidades" ? "rgba(215,187,125,0.15)" : "transparent",
-              color: activeTab === "comunidades" ? "#D7BB7D" : "rgba(255,255,255,0.4)",
-              border: activeTab === "comunidades" ? "1px solid rgba(215,187,125,0.3)" : "1px solid transparent",
+              background: activeTab === "comunidades" ? "rgba(215,187,125,0.18)" : "transparent",
+              color: activeTab === "comunidades" ? "#D7BB7D" : "rgba(255,255,255,0.75)",
+              border: activeTab === "comunidades" ? "1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
             }}
           >
             <MessageCircle className="w-3.5 h-3.5" />
@@ -686,9 +686,9 @@ export default function ComunidadePage() {
             data-testid="tab-convites"
             className="relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: activeTab === "convites" ? "rgba(215,187,125,0.15)" : "transparent",
-              color: activeTab === "convites" ? "#D7BB7D" : "rgba(255,255,255,0.4)",
-              border: activeTab === "convites" ? "1px solid rgba(215,187,125,0.3)" : "1px solid transparent",
+              background: activeTab === "convites" ? "rgba(215,187,125,0.18)" : "transparent",
+              color: activeTab === "convites" ? "#D7BB7D" : "rgba(255,255,255,0.75)",
+              border: activeTab === "convites" ? "1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
             }}
           >
             <Ticket className="w-3.5 h-3.5" />
@@ -715,110 +715,6 @@ export default function ComunidadePage() {
           data-testid="input-busca-comunidade"
         />
       </div>
-
-      {/* Candidatos Panel — visible only to Aliados BUILT (legacy, completo only) */}
-      {minhasComunidadesComoAliado.length > 0 && todosCandidatos.length > 0 && (
-        <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
-            <Bell className="w-4 h-4 text-brand-gold" />
-            <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Candidatos & Convites</span>
-            {candidatosPendentes.length > 0 && (
-              <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                {candidatosPendentes.length} pendente{candidatosPendentes.length !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-          <div className="divide-y divide-white/5">
-            {todosCandidatos.map(convite => {
-              const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/50" };
-              const dados = convite.dados_contratuais as any;
-              const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || `Comunidade #${convite.comunidade_id}`;
-              return (
-                <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-mono font-bold text-white">
-                        {convite.candidato_nome || dados?.nome_completo || "—"}
-                      </p>
-                      <span className={`text-[10px] font-mono ${statusInfo.color}`}>
-                        • {statusInfo.label}
-                      </span>
-                    </div>
-                    {convite.candidato_email && (
-                      <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
-                    )}
-                    {dados && (
-                      <div className="flex flex-wrap gap-3 mt-1">
-                        {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-white/30">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
-                        {dados.cnpj && <span className="text-[10px] font-mono text-white/30">CNPJ: {dados.cnpj}</span>}
-                        {dados.telefone && <span className="text-[10px] font-mono text-white/30">Tel: {dados.telefone}</span>}
-                        {dados.cidade && <span className="text-[10px] font-mono text-white/30">📍 {dados.cidade}, {dados.estado}</span>}
-                      </div>
-                    )}
-                    {dados?.mensagem && (
-                      <p className="text-[11px] font-mono text-white/50 italic mt-1 leading-relaxed">"{dados.mensagem}"</p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <button
-                      onClick={() => setSelectedConvite({ ...convite, comNome })}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-white/50 border border-white/10 hover:bg-white/5 transition-colors"
-                      data-testid={`btn-ver-candidato-${convite.id}`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Ver detalhes
-                    </button>
-                    {convite.status === "candidato" && (
-                      <>
-                        <button
-                          onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "aprovado" })}
-                          disabled={decisaoMutation.isPending}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
-                          data-testid={`btn-aprovar-${convite.id}`}
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          Aprovar
-                        </button>
-                        <button
-                          onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "rejeitado" })}
-                          disabled={decisaoMutation.isPending}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
-                          data-testid={`btn-rejeitar-${convite.id}`}
-                        >
-                          <UserX className="w-3.5 h-3.5" />
-                          Rejeitar
-                        </button>
-                      </>
-                    )}
-                    {["aprovado", "termos_enviados"].includes(convite.status) && (
-                      <button
-                        onClick={() => lembretesMutation.mutate(convite.token)}
-                        disabled={lembretesMutation.isPending}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
-                        data-testid={`btn-lembrete-${convite.id}`}
-                      >
-                        <Clock className="w-3.5 h-3.5" />
-                        Reenviar Termos
-                      </button>
-                    )}
-                    {["termos_aceitos", "pagamento_pendente"].includes(convite.status) && (
-                      <button
-                        onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
-                        disabled={confirmarPagamentoMutation.isPending}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
-                        data-testid={`btn-confirmar-pagamento-${convite.id}`}
-                      >
-                        <Shield className="w-3.5 h-3.5" />
-                        Confirmar Pagamento
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* List */}
       {isLoading ? (

@@ -2391,25 +2391,35 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         ativo: true,
       });
 
-      // 3. Mark convite_link as used and create vitrine candidatura (mandatory — fail registration if this fails)
-      await storage.updateConviteLink(conviteLink.id, {
-        status: "usado",
-        usado_por_user_id: user.id,
-        usado_em: new Date(),
-      });
-
-      if (membroDirectusId && conviteLink.comunidade_id) {
-        await storage.createConvite({
-          comunidade_id: conviteLink.comunidade_id,
-          candidato_membro_id: membroDirectusId,
-          candidato_nome: nome,
-          candidato_email: email,
-          invitador_membro_id: conviteLink.gerador_membro_id || null,
-          status: "candidato",
-          tipo: "vitrine",
-          dados_contratuais: null,
-          expires_at: null,
+      // 3. Mark convite_link as used and create vitrine candidatura.
+      // These steps are mandatory — if they fail we roll back the user creation
+      // so the applicant cannot access the platform without entering the approval queue.
+      try {
+        await storage.updateConviteLink(conviteLink.id, {
+          status: "usado",
+          usado_por_user_id: user.id,
+          usado_em: new Date(),
         });
+
+        if (membroDirectusId && conviteLink.comunidade_id) {
+          await storage.createConvite({
+            comunidade_id: conviteLink.comunidade_id,
+            candidato_membro_id: membroDirectusId,
+            candidato_nome: nome,
+            candidato_email: email,
+            invitador_membro_id: conviteLink.gerador_membro_id || null,
+            status: "candidato",
+            tipo: "vitrine",
+            dados_contratuais: null,
+            expires_at: null,
+          });
+        }
+      } catch (postUserErr: any) {
+        // Roll back: delete the newly created user so they cannot log in
+        // in an unapproved state, then surface the error.
+        console.error("[register] Post-user creation steps failed, rolling back user:", postUserErr.message);
+        await storage.deleteUser(user.id).catch((e) => console.error("[register] Rollback deleteUser failed:", e.message));
+        throw postUserErr;
       }
 
       const { password: _pw, ...safe } = user;
@@ -3663,22 +3673,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const userId = localUser?.id || sessionUserId;
       const membroId = (req.session as any).membroId as string | null;
       const nome = (req.session as any).nome as string;
-      const localRole = localUser?.role || "user";
 
-      // Only allow admins/managers or members with the BUILT_PROUD_MEMBER seal
-      if (localRole !== "admin" && localRole !== "manager") {
-        let hasSeal = false;
-        if (membroId) {
-          const membroData = await getDirectusMembro(membroId).catch(() => null);
-          const redes: string[] = Array.isArray(membroData?.Outras_redes_as_quais_pertenco)
-            ? membroData.Outras_redes_as_quais_pertenco
-            : [];
-          hasSeal = redes.includes("BUILT_PROUD_MEMBER");
-        }
-        if (!hasSeal) {
-          return res.status(403).json({ error: "Apenas membros com o selo BUILT Proud Member podem gerar convites." });
-        }
-      }
+      // Any authenticated member may generate a personal invite link
 
       const forceNew = req.body?.force === true;
 
@@ -3724,7 +3720,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       const expires = new Date();
-      expires.setDate(expires.getDate() + 1);
+      expires.setDate(expires.getDate() + 30); // Valid for 30 days
 
       const convite = await storage.createConviteLink({
         gerador_user_id: userId,

@@ -706,12 +706,17 @@ export default function ComunidadePage() {
         <>
       {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(215,187,125,0.5)" }} />
         <Input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar por nome, sigla, país, território..."
-          className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+          className="pl-9 focus:outline-none focus:ring-0"
+          style={{
+            background: "#001D34",
+            border: "1px solid rgba(215,187,125,0.2)",
+            color: "rgba(255,255,255,0.85)",
+          }}
           data-testid="input-busca-comunidade"
         />
       </div>

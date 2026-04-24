@@ -14,7 +14,13 @@ const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.c
 const BASE_URL = process.env.APP_URL || "https://app.builtalliances.11mind.com.br";
 
 async function send(to: string, subject: string, html: string) {
-  await transporter.sendMail({ from: FROM, to, subject, html });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject, html });
+  } catch (err: any) {
+    // Email failures are logged but not re-thrown so SMTP errors never break
+    // API routes that have already committed a DB change.
+    console.error(`[mailer] Failed to send email to ${to} ("${subject}"): ${err.message}`);
+  }
 }
 
 function baseTemplate(content: string): string {

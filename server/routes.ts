@@ -3925,7 +3925,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/meu-convite — get the active convite link for the current user
+  // GET /api/meu-convite — get the active, non-expired convite link for the current user
   app.get("/api/meu-convite", async (req, res) => {
     const sessionUserId = (req.session as any).directusUserId;
     if (!sessionUserId) return res.status(401).json({ error: "Não autenticado" });
@@ -3935,6 +3935,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const userId = localUser?.id || sessionUserId;
       const convite = await storage.getActiveConviteLinkByUserId(userId);
       if (!convite) return res.json(null);
+      // Validate expiry — mark as expirado if past expires_at
+      if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
+        await storage.updateConviteLink(convite.id, { status: "expirado" }).catch(() => {});
+        return res.json(null);
+      }
       const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {

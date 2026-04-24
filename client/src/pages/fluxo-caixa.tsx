@@ -152,6 +152,7 @@ interface FluxoCaixaItem {
 }
 
 const STATUS_OPTIONS: { value: StatusPagamento; label: string }[] = [
+  { value: "pendente",  label: "Pendente" },
   { value: "agendado",  label: "Agendado" },
   { value: "pago",      label: "Pago" },
   { value: "parcial",   label: "Parcialmente Pago" },

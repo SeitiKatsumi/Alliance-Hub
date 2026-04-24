@@ -405,6 +405,29 @@ async function findOrCreateValorOrigemCategoria(): Promise<number> {
   return created.id;
 }
 
+// Cache of category name → id to avoid repeated Directus calls within a sync
+let _catCache: Record<string, number> | null = null;
+async function findCppCategoriaId(categoryName: string): Promise<number | null> {
+  if (!_catCache) {
+    const cats = await directusFetch("Categorias", "fields=id,Nome_da_categoria");
+    _catCache = {};
+    for (const c of cats) {
+      if (c.Nome_da_categoria) _catCache[c.Nome_da_categoria] = c.id;
+    }
+  }
+  return _catCache[categoryName] ?? null;
+}
+
+const CPP_CONTRIBUTOR_CATEGORY: Record<string, string> = {
+  "BUILT":               "Direito Econômico Institucional BUILT (DEI-B)",
+  "Aliado BUILT":        "Direito Econômico Institucional do Aliado (DEI-A)",
+  "Dir. de Aliança":     "Direito Econômico de Originação de Oportunidade (DEOO)",
+  "Dir. Núcleo Técnico": "Direito Econômico por Liderança Técnica (DE-LTec)",
+  "Dir. Núcleo de Obra": "Direito Econômico por Liderança de Obra (DE-LObr)",
+  "Dir. Núcleo Comercial":"Direito Econômico por Liderança Comercial (DE-LCom)",
+  "Dir. Núcleo de Capital":"Direito Econômico por Liderança de Capital (DE-LCap)",
+};
+
 interface CppContributor {
   label: string;
   memberId: string | null;
@@ -431,6 +454,8 @@ async function syncValorOrigemLancamento(
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
   const CPP_MARCA = "CPP";
+  const DIVISOR_MARCA = "Divisor Multiplicador";
+  _catCache = null; // reset per-sync so stale IDs are never used
 
   // Fetch all fluxo_caixa entries and filter in code (Directus filter params conflict with URL template)
   let existing: any[] = [];
@@ -440,7 +465,7 @@ async function syncValorOrigemLancamento(
     existing = all.filter((e: any) => {
       if (e.bia !== biaId) return false;
       const desc = e.descricao || "";
-      return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId));
+      return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId)) || desc.startsWith(DIVISOR_MARCA);
     });
   } catch (fetchErr: any) {
     console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} — skipping cleanup`);
@@ -494,15 +519,17 @@ async function syncValorOrigemLancamento(
           if (!contrib.alwaysCreate && !contrib.memberId) continue;
           const valorCpp = parseFloat(((contrib.percentual / 100) * valorParcela).toFixed(2));
           if (valorCpp <= 0) continue;
+          const cppCatName = CPP_CONTRIBUTOR_CATEGORY[contrib.label];
+          const cppCatId = cppCatName ? await findCppCategoriaId(cppCatName) : null;
           await directusCreate("fluxo_caixa", {
             bia: biaId,
             tipo: "saida",
             valor: String(valorCpp),
             data: today,
-            descricao: `CPP ${contrib.label} - BIA ${biaId} - Parcela ${i + 1}/${numeroParcelas}`,
+            descricao: `Divisor Multiplicador - Parcela ${i + 1}/${numeroParcelas}`,
             data_vencimento: dataVencimento,
             status: dataVencimento ? "agendado" : "pendente",
-            Categoria: [],
+            Categoria: cppCatId ? [{ categorias_id: cppCatId }] : [],
             tipo_de_cpp: [],
             favorecido_id: contrib.memberId || null,
             Anexos: [],
@@ -536,15 +563,17 @@ async function syncValorOrigemLancamento(
         if (!contrib.alwaysCreate && !contrib.memberId) continue;
         const valorCpp = parseFloat(((contrib.percentual / 100) * valorOrigem).toFixed(2));
         if (valorCpp <= 0) continue;
+        const cppCatName = CPP_CONTRIBUTOR_CATEGORY[contrib.label];
+        const cppCatId = cppCatName ? await findCppCategoriaId(cppCatName) : null;
         await directusCreate("fluxo_caixa", {
           bia: biaId,
           tipo: "saida",
           valor: String(valorCpp),
           data: today,
-          descricao: `CPP ${contrib.label} - BIA ${biaId} - Parcela 1/1`,
+          descricao: `Divisor Multiplicador - Parcela 1/1`,
           data_vencimento: dataVencimento,
           status: statusEntry,
-          Categoria: [],
+          Categoria: cppCatId ? [{ categorias_id: cppCatId }] : [],
           tipo_de_cpp: [],
           favorecido_id: contrib.memberId || null,
           Anexos: [],

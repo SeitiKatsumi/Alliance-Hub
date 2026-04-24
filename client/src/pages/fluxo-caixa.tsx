@@ -958,8 +958,26 @@ export default function FluxoCaixaPage() {
   const [filterTipoCpp, setFilterTipoCpp] = useState<string>("todos");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterDescricao, setFilterDescricao] = useState<string>("");
-  const [filterDataDe, setFilterDataDe] = useState<string>("");
-  const [filterDataAte, setFilterDataAte] = useState<string>("");
+  const [filterDataDe, setFilterDataDe] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [filterDataAte, setFilterDataAte] = useState<string>(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  });
+
+  // Defaults used to detect when filters differ from initial state
+  const defaultDataDe = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  })();
+  const defaultDataAte = (() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  })();
 
   const { data: bias = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -2102,7 +2120,7 @@ export default function FluxoCaixaPage() {
                   <FileText className="w-5 h-5 text-brand-gold" />
                   Lançamentos — {selectedBia?.nome_bia}
                 </CardTitle>
-                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterStatus !== "todos" || filterDescricao || filterDataDe || filterDataAte) && (
+                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterStatus !== "todos" || filterDescricao || filterDataDe !== defaultDataDe || filterDataAte !== defaultDataAte) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -2114,8 +2132,10 @@ export default function FluxoCaixaPage() {
                       setFilterTipoCpp("todos");
                       setFilterStatus("todos");
                       setFilterDescricao("");
-                      setFilterDataDe("");
-                      setFilterDataAte("");
+                      const _now = new Date();
+                      const _lastDay = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate();
+                      setFilterDataDe(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-01`);
+                      setFilterDataAte(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_lastDay).padStart(2, "0")}`);
                     }}
                     className="text-muted-foreground hover:text-foreground gap-1"
                     data-testid="button-limpar-filtros"

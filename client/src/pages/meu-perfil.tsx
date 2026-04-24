@@ -955,7 +955,7 @@ export default function MeuPerfilPage() {
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 30 dias.
+                  Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 1 dia.
                 </p>
                 {meuConvite?.link ? (
                   <div className="space-y-2">

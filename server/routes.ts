@@ -3618,7 +3618,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       const expires = new Date();
-      expires.setDate(expires.getDate() + 30);
+      expires.setDate(expires.getDate() + 1);
 
       const convite = await storage.createConviteLink({
         gerador_user_id: userId,

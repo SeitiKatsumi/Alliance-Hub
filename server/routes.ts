@@ -2361,29 +2361,25 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         ativo: true,
       });
 
-      // 3. Mark convite_link as used and create vitrine candidatura
-      try {
-        await storage.updateConviteLink(conviteLink.id, {
-          status: "usado",
-          usado_por_user_id: user.id,
-          usado_em: new Date(),
-        });
+      // 3. Mark convite_link as used and create vitrine candidatura (mandatory — fail registration if this fails)
+      await storage.updateConviteLink(conviteLink.id, {
+        status: "usado",
+        usado_por_user_id: user.id,
+        usado_em: new Date(),
+      });
 
-        if (membroDirectusId && conviteLink.comunidade_id) {
-          await storage.createConvite({
-            comunidade_id: conviteLink.comunidade_id,
-            candidato_membro_id: membroDirectusId,
-            candidato_nome: nome,
-            candidato_email: email,
-            invitador_membro_id: conviteLink.gerador_membro_id || null,
-            status: "candidato",
-            tipo: "vitrine",
-            dados_contratuais: null,
-            expires_at: null,
-          });
-        }
-      } catch (conviteErr) {
-        console.warn("[register] convite_link marking failed (non-fatal):", conviteErr);
+      if (membroDirectusId && conviteLink.comunidade_id) {
+        await storage.createConvite({
+          comunidade_id: conviteLink.comunidade_id,
+          candidato_membro_id: membroDirectusId,
+          candidato_nome: nome,
+          candidato_email: email,
+          invitador_membro_id: conviteLink.gerador_membro_id || null,
+          status: "candidato",
+          tipo: "vitrine",
+          dados_contratuais: null,
+          expires_at: null,
+        });
       }
 
       const { password: _pw, ...safe } = user;

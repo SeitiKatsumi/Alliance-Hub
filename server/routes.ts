@@ -2512,10 +2512,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
       const conviteLink = await storage.getConviteLinkByToken(convite_token);
       if (!conviteLink || conviteLink.status !== "ativo") {
-        return res.status(400).json({ error: "Código de convite inválido ou já utilizado." });
+        return res.status(403).json({ error: "Código de convite inválido ou já utilizado." });
       }
       if (conviteLink.expires_at && new Date() > new Date(conviteLink.expires_at)) {
-        return res.status(400).json({ error: "Este código de convite expirou. Solicite um novo convite ao membro da rede." });
+        return res.status(403).json({ error: "Este código de convite expirou. Solicite um novo convite ao membro da rede." });
       }
 
       const finalUsername = username || email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
@@ -2569,18 +2569,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
 
       // 3. Mark convite_link as used and create vitrine candidatura.
-      // These steps are mandatory — if they fail we roll back the user creation
-      // so the applicant cannot access the platform without entering the approval queue.
+      // These steps are mandatory — if they fail we roll back both the user creation
+      // AND the token consumption so the invite can still be used on retry.
+      let tokenConsumed = false;
       try {
         await storage.updateConviteLink(conviteLink.id, {
           status: "usado",
           usado_por_user_id: user.id,
           usado_em: new Date(),
         });
+        tokenConsumed = true;
 
-        // Always create candidatura — community may be null if invite generator has none
         await storage.createConvite({
-          comunidade_id: conviteLink.comunidade_id || null,
+          comunidade_id: conviteLink.comunidade_id!,
           candidato_membro_id: membroDirectusId,
           candidato_nome: nome,
           candidato_email: email,
@@ -2592,9 +2593,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         });
       } catch (postUserErr: any) {
         // Roll back: delete the newly created user so they cannot log in
-        // in an unapproved state, then surface the error.
-        console.error("[register] Post-user creation steps failed, rolling back user:", postUserErr.message);
+        // in an unapproved state, and restore the token to "ativo" if it was already consumed.
+        console.error("[register] Post-user creation steps failed, rolling back:", postUserErr.message);
         await storage.deleteUser(user.id).catch((e) => console.error("[register] Rollback deleteUser failed:", e.message));
+        if (tokenConsumed) {
+          await storage.updateConviteLink(conviteLink.id, { status: "ativo", usado_por_user_id: null, usado_em: null })
+            .catch((e) => console.error("[register] Rollback updateConviteLink failed:", e.message));
+        }
         throw postUserErr;
       }
 

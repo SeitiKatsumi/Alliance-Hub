@@ -1861,7 +1861,7 @@ export async function registerRoutes(
             // Build contributors list for CPP entries
             const contributors: CppContributor[] = [
               { label: "Aliado BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
-              { label: "BUILT", memberId: null, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
+              { label: "BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
               { label: "Dir. de Aliança", memberId: req.body.diretor_alianca || null, percentual: parseFloat(req.body.perc_dir_alianca) || 0 },
               { label: "Dir. Núcleo Técnico", memberId: req.body.diretor_nucleo_tecnico || null, percentual: parseFloat(req.body.perc_dir_tecnico) || 0 },
               { label: "Dir. Núcleo de Obra", memberId: req.body.diretor_execucao || null, percentual: parseFloat(req.body.perc_dir_obras) || 0 },

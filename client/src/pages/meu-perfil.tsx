@@ -226,6 +226,7 @@ export default function MeuPerfilPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isSuperAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
   const [saved, setSaved] = useState(false);
 
   const membroId = user?.membro_directus_id;
@@ -235,6 +236,12 @@ export default function MeuPerfilPage() {
     queryFn: () => fetch(`/api/membros/${membroId}`).then(r => r.json()),
     enabled: !!membroId,
   });
+
+  const hasConvitePermission =
+    isSuperAdmin ||
+    isManager ||
+    (Array.isArray(membro?.Outras_redes_as_quais_pertenco) &&
+      membro!.Outras_redes_as_quais_pertenco!.includes("BUILT_PROUD_MEMBER"));
 
   const [form, setForm] = useState<Partial<Membro>>({});
   const [uploadingFoto, setUploadingFoto] = useState(false);
@@ -957,7 +964,14 @@ export default function MeuPerfilPage() {
                 <p className="text-xs text-white/40 leading-relaxed">
                   Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 1 dia.
                 </p>
-                {meuConvite?.link ? (
+                {!hasConvitePermission ? (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2.5" data-testid="text-convite-bloqueado">
+                    <Lock className="w-3.5 h-3.5 text-white/25 mt-0.5 shrink-0" />
+                    <p className="text-xs text-white/30 leading-relaxed">
+                      Somente membros com o selo <span className="text-brand-gold/50 font-semibold">BUILT Proud Member</span> podem gerar convites.
+                    </p>
+                  </div>
+                ) : meuConvite?.link ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
                       <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConvite.link}</span>

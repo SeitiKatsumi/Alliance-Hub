@@ -3603,6 +3603,22 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const userId = localUser?.id || sessionUserId;
       const membroId = (req.session as any).membroId as string | null;
       const nome = (req.session as any).nome as string;
+      const localRole = localUser?.role || "user";
+
+      // Only allow admins/managers or members with the BUILT_PROUD_MEMBER seal
+      if (localRole !== "admin" && localRole !== "manager") {
+        let hasSeal = false;
+        if (membroId) {
+          const membroData = await getDirectusMembro(membroId).catch(() => null);
+          const redes: string[] = Array.isArray(membroData?.Outras_redes_as_quais_pertenco)
+            ? membroData.Outras_redes_as_quais_pertenco
+            : [];
+          hasSeal = redes.includes("BUILT_PROUD_MEMBER");
+        }
+        if (!hasSeal) {
+          return res.status(403).json({ error: "Apenas membros com o selo BUILT Proud Member podem gerar convites." });
+        }
+      }
 
       // Check if there's already an active invite
       const existing = await storage.getActiveConviteLinkByUserId(userId);

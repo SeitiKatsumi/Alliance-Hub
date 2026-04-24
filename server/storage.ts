@@ -27,16 +27,27 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  if (!stored || !stored.includes(".")) return false;
+  const dotIdx = stored.lastIndexOf(".");
+  const hashed = stored.slice(0, dotIdx);
+  const salt = stored.slice(dotIdx + 1);
+  if (!hashed || !salt) return false;
+  try {
+    const hashedBuf = Buffer.from(hashed, "hex");
+    if (hashedBuf.length === 0) return false;
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    if (hashedBuf.length !== suppliedBuf.length) return false;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch {
+    return false;
+  }
 }
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUsersByEmail(email: string): Promise<User[]>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
@@ -122,8 +133,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db.select().from(users).where(eq(users.email, email)).orderBy(desc(users.created_at));
     return user;
+  }
+
+  async getUsersByEmail(email: string): Promise<User[]> {
+    return db.select().from(users).where(eq(users.email, email)).orderBy(desc(users.created_at));
   }
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {

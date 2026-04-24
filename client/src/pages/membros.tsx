@@ -19,7 +19,7 @@ import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getTipoDisplayName, 
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
-  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock
+  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle
 } from "lucide-react";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -870,6 +870,14 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       >
                         {linkAccountMutation.isPending ? "Vinculando..." : "Vincular esta conta ao membro"}
                       </button>
+                    </div>
+                  ) : matchedByEmail && matchedByEmail.membro_directus_id ? (
+                    <div className="rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 px-4 py-3 space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-amber-400/80 font-semibold">
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        E-mail já vinculado a outra conta (@{matchedByEmail.username})
+                      </div>
+                      <p className="text-[11px] text-white/30 pl-5">Use um e-mail diferente ou desvincule primeiro a outra conta.</p>
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.01] px-4 py-3 flex items-center gap-3">

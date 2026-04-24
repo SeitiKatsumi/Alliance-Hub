@@ -2470,11 +2470,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
 
       if (!authRes.ok) {
-        // Directus auth failed — try local-only user auth (for self-registered users)
+        // Directus auth failed — try local-only user auth (for admin-created users)
         try {
-          const localUser = await storage.getUserByEmail(email);
-          if (localUser && localUser.ativo) {
-            const { comparePasswords } = await import("./storage");
+          const { comparePasswords } = await import("./storage");
+          // Try all users with this email (newest first) — handles edge case of duplicate emails
+          const localUsers = await storage.getUsersByEmail(email);
+          for (const localUser of localUsers) {
+            if (!localUser.ativo) continue;
             const valid = await comparePasswords(password, localUser.password);
             if (valid) {
               const role = localUser.role || "user";
@@ -2499,7 +2501,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
               });
             }
           }
-        } catch (_) {}
+        } catch (e: any) {
+          console.error("[login] local auth error:", e.message);
+        }
         return res.status(401).json({ error: "Credenciais inválidas" });
       }
 
@@ -2717,6 +2721,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const existing = await storage.getUserByUsername(parsed.username);
       if (existing) return res.status(409).json({ error: "Username já existe" });
 
+      if (parsed.email) {
+        const existingEmail = await storage.getUserByEmail(parsed.email);
+        if (existingEmail) return res.status(409).json({ error: "E-mail já cadastrado em outra conta. Use um e-mail diferente ou edite a conta existente." });
+      }
+
       const user = await storage.createUser({
         ...parsed,
         email: parsed.email || null,
@@ -2887,7 +2896,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.patch("/api/users/:id", async (req, res) => {
     try {
       const parsed = updateUserSchema.parse(req.body);
-      const updateData: any = { ...parsed };
+      // Strip undefined values — only include explicitly provided fields
+      const updateData: any = Object.fromEntries(
+        Object.entries(parsed).filter(([, v]) => v !== undefined)
+      );
       if (parsed.email === "") updateData.email = null;
       if (parsed.membro_directus_id === "") updateData.membro_directus_id = null;
       if (parsed.password === "") delete updateData.password;

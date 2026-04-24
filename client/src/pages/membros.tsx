@@ -221,6 +221,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const selosForm: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
+      if (selosForm.includes("BUILT_PROUD_MEMBER") && (!selectedComunidadeId || selectedComunidadeId === "none")) {
+        throw new Error("Todo membro com o selo BUILT Proud Member deve estar vinculado a uma comunidade. Selecione uma comunidade antes de salvar.");
+      }
+
       let fotoId: string | undefined;
 
       if (pendingPhoto) {
@@ -468,6 +473,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 {selectedComunidadeId && selectedComunidadeId !== originalComunidadeId && (
                   <p className="text-[10px] font-mono text-amber-400/70 mt-1.5">
                     ⚠ Ao salvar, o membro será transferido para esta comunidade.
+                  </p>
+                )}
+                {((form as any).Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER") && (!selectedComunidadeId || selectedComunidadeId === "none") && (
+                  <p className="text-[10px] font-mono text-red-400/80 mt-1.5">
+                    ✕ Obrigatório: membros com o selo BUILT Proud Member devem pertencer a uma comunidade.
                   </p>
                 )}
               </div>

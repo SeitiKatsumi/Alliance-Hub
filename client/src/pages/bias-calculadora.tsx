@@ -375,6 +375,47 @@ export default function BiasCalculadoraPage() {
     }
   }, [selectedBia]);
 
+  // Auto-zero percentage when member is cleared for member-dependent roles
+  useEffect(() => {
+    if (!membroAliadoBuilt) {
+      setPercAliado(0);
+    } else if (percAliado === 0) {
+      setPercAliado(1);
+    }
+  }, [membroAliadoBuilt]);
+
+  useEffect(() => {
+    if (!membroDirNucleoTecnico) {
+      setPercTecnico(0);
+    } else if (percTecnico === 0) {
+      setPercTecnico(2);
+    }
+  }, [membroDirNucleoTecnico]);
+
+  useEffect(() => {
+    if (!membroDirObras) {
+      setPercObras(0);
+    } else if (percObras === 0) {
+      setPercObras(2);
+    }
+  }, [membroDirObras]);
+
+  useEffect(() => {
+    if (!membroDirComercial) {
+      setPercComercial(0);
+    } else if (percComercial === 0) {
+      setPercComercial(2);
+    }
+  }, [membroDirComercial]);
+
+  useEffect(() => {
+    if (!membroDirCapital) {
+      setPercCapital(0);
+    } else if (percCapital === 0) {
+      setPercCapital(2);
+    }
+  }, [membroDirCapital]);
+
   // Calculations
   const divisorMultiplicador = percAliado + percBuilt + percTecnico + percAlianca + percObras + percComercial + percCapital;
   const custoOrigemBia = valorOrigem + (valorOrigem * divisorMultiplicador / 100);
@@ -439,6 +480,13 @@ export default function BiasCalculadoraPage() {
         _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
         _vencimentos_parcelas: formaPagamento === "parcelado" ? vencimentosParcelas : [],
         _valores_parcelas: formaPagamento === "parcelado" ? valoresParcelas : [],
+        // Member selections needed for CPP lançamentos generation
+        aliado_built: membroAliadoBuilt || null,
+        diretor_alianca: membroDirTecnico || null,
+        diretor_nucleo_tecnico: membroDirNucleoTecnico || null,
+        diretor_execucao: membroDirObras || null,
+        diretor_comercial: membroDirComercial || null,
+        diretor_capital: membroDirCapital || null,
       });
     },
     onSuccess: () => {
@@ -641,12 +689,13 @@ export default function BiasCalculadoraPage() {
                               step="0.01"
                               min={(field as any).min ?? 0}
                               value={field.value || ""}
+                              disabled={field.memberSetter !== null && !(field as any).min && !field.memberId}
                               onChange={(e) => {
                                 const raw = parseFloat(e.target.value) || 0;
                                 const minVal = (field as any).min ?? 0;
                                 field.setter(Math.max(raw, minVal));
                               }}
-                              className="h-8 text-sm"
+                              className="h-8 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                               placeholder="0,00"
                               data-testid={`input-perc-${idx}`}
                             />

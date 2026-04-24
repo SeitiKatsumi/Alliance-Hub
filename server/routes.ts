@@ -405,22 +405,36 @@ async function findOrCreateValorOrigemCategoria(): Promise<number> {
   return created.id;
 }
 
+interface CppContributor {
+  label: string;
+  memberId: string | null;
+  percentual: number;
+  alwaysCreate?: boolean;
+}
+
 async function syncValorOrigemLancamento(
   biaId: string,
   valorOrigem: number,
   vencimento?: string | null,
   numeroParcelas?: number | null,
   vencimentosParcelas?: string[],
-  valoresParcelas?: number[]
+  valoresParcelas?: number[],
+  contributors?: CppContributor[]
 ): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
+  const CPP_MARCA = "CPP";
 
   // Fetch all fluxo_caixa entries and filter in code (Directus filter params conflict with URL template)
   let existing: any[] = [];
   try {
     const all = await directusFetch("fluxo_caixa", "fields=id,bia,descricao");
-    existing = all.filter((e: any) => e.bia === biaId && (e.descricao || "").includes(MARCA_BASE));
+    // Delete both "Valor de Origem da BIA" entries and CPP entries for this BIA
+    existing = all.filter((e: any) => {
+      if (e.bia !== biaId) return false;
+      const desc = e.descricao || "";
+      return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId));
+    });
   } catch (fetchErr: any) {
     console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} — skipping cleanup`);
   }
@@ -460,9 +474,35 @@ async function syncValorOrigemLancamento(
         Favorecido: [],
         Anexos: [],
       });
+
+      // Generate CPP entries for each contributor
+      if (contributors && contributors.length > 0) {
+        for (const contrib of contributors) {
+          if (contrib.percentual <= 0) continue;
+          // alwaysCreate = true for BUILT (platform fee) — no member required
+          // For all others, a member must be selected
+          if (!contrib.alwaysCreate && !contrib.memberId) continue;
+          const valorCpp = parseFloat(((contrib.percentual / 100) * valorParcela).toFixed(2));
+          if (valorCpp <= 0) continue;
+          await directusCreate("fluxo_caixa", {
+            bia: biaId,
+            tipo: "saida",
+            valor: String(valorCpp),
+            data: today,
+            descricao: `CPP ${contrib.label} - BIA ${biaId} - Parcela ${i + 1}/${numeroParcelas}`,
+            data_vencimento: dataVencimento,
+            status: dataVencimento ? "agendado" : "pendente",
+            Categoria: [],
+            tipo_de_cpp: [],
+            Favorecido: contrib.memberId ? [{ cadastro_geral_id: contrib.memberId }] : [],
+            Anexos: [],
+          });
+        }
+      }
     }
   } else {
     const dataVencimento = vencimento || null;
+    const statusEntry = dataVencimento ? "agendado" : "pendente";
     await directusCreate("fluxo_caixa", {
       bia: biaId,
       tipo: "saida",
@@ -470,12 +510,35 @@ async function syncValorOrigemLancamento(
       data: today,
       descricao: MARCA_BASE,
       data_vencimento: dataVencimento,
-      status: dataVencimento ? "agendado" : "pendente",
+      status: statusEntry,
       Categoria: [{ categorias_id: catId }],
       tipo_de_cpp: [],
       Favorecido: [],
       Anexos: [],
     });
+
+    // Generate CPP entries for each contributor (single installment treated as 1/1)
+    if (contributors && contributors.length > 0) {
+      for (const contrib of contributors) {
+        if (contrib.percentual <= 0) continue;
+        if (!contrib.alwaysCreate && !contrib.memberId) continue;
+        const valorCpp = parseFloat(((contrib.percentual / 100) * valorOrigem).toFixed(2));
+        if (valorCpp <= 0) continue;
+        await directusCreate("fluxo_caixa", {
+          bia: biaId,
+          tipo: "saida",
+          valor: String(valorCpp),
+          data: today,
+          descricao: `CPP ${contrib.label} - BIA ${biaId} - Parcela 1/1`,
+          data_vencimento: dataVencimento,
+          status: statusEntry,
+          Categoria: [],
+          tipo_de_cpp: [],
+          Favorecido: contrib.memberId ? [{ cadastro_geral_id: contrib.memberId }] : [],
+          Anexos: [],
+        });
+      }
+    }
   }
 }
 
@@ -1795,7 +1858,17 @@ export async function registerRoutes(
             const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
             const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
             const valoresParcelas: number[] = Array.isArray(req.body._valores_parcelas) ? req.body._valores_parcelas.map(Number) : [];
-            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas).catch(e => console.error("[sync fluxo_caixa] error:", e.message));
+            // Build contributors list for CPP entries
+            const contributors: CppContributor[] = [
+              { label: "Aliado BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
+              { label: "BUILT", memberId: null, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
+              { label: "Dir. de Aliança", memberId: req.body.diretor_alianca || null, percentual: parseFloat(req.body.perc_dir_alianca) || 0 },
+              { label: "Dir. Núcleo Técnico", memberId: req.body.diretor_nucleo_tecnico || null, percentual: parseFloat(req.body.perc_dir_tecnico) || 0 },
+              { label: "Dir. Núcleo de Obra", memberId: req.body.diretor_execucao || null, percentual: parseFloat(req.body.perc_dir_obras) || 0 },
+              { label: "Dir. Núcleo Comercial", memberId: req.body.diretor_comercial || null, percentual: parseFloat(req.body.perc_dir_comercial) || 0 },
+              { label: "Dir. Núcleo de Capital", memberId: req.body.diretor_capital || null, percentual: parseFloat(req.body.perc_dir_capital) || 0 },
+            ];
+            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors).catch(e => console.error("[sync fluxo_caixa] error:", e.message));
           }
           return res.json(item);
         } catch (err: any) {

@@ -1537,6 +1537,22 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/membros/:id/convidador — who invited this member (via vitrine invite link)
+  app.get("/api/membros/:id/convidador", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const candidatoId = req.params.id;
+      const convites = await storage.getConvitesByCandidato(candidatoId);
+      const vitrineConvite = convites.find((c: any) => c.tipo === "vitrine" && c.invitador_membro_id);
+      if (!vitrineConvite?.invitador_membro_id) return res.json(null);
+      const invitador = await getDirectusMembro(vitrineConvite.invitador_membro_id).catch(() => null);
+      if (!invitador) return res.json(null);
+      res.json({ id: invitador.id, nome: invitador.nome || invitador.Nome_de_usuario || "Membro BUILT" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/membros/:id/comunidade — assign member to a community (and remove from old one)
   app.post("/api/membros/:id/comunidade", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;

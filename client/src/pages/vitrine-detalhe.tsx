@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
   User, Globe, MessageSquare, Store, ExternalLink, Languages, Pencil,
-  UserPlus, Loader2, CheckCircle2
+  UserPlus, Loader2, CheckCircle2, UserCheck
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -135,6 +135,12 @@ export default function VitrineDetalhePage() {
     queryKey: ["/api/comunidades", { membro_id: membroDirectusId }],
     queryFn: () => fetch(`/api/comunidades?membro_id=${membroDirectusId}`).then(r => r.json()),
     enabled: !!membroDirectusId,
+  });
+
+  const { data: convidador } = useQuery<{ id: string; nome: string } | null>({
+    queryKey: ["/api/membros", membro?.id, "convidador"],
+    queryFn: () => fetch(`/api/membros/${membro!.id}/convidador`).then(r => r.ok ? r.json() : null),
+    enabled: !!membro?.id,
   });
 
   const convidarMutation = useMutation({
@@ -350,6 +356,9 @@ export default function VitrineDetalhePage() {
               <InfoRow icon={Phone} label="WhatsApp" value={membro.whatsapp || membro.whatsapp_e164} href={wa || undefined} />
               <InfoRow icon={Mail} label="E-mail" value={membro.email} href={membro.email ? `mailto:${membro.email}` : undefined} />
               <InfoRow icon={MapPin} label="Localização" value={localidade || null} />
+              {convidador && (
+                <InfoRow icon={UserCheck} label="Convidado por" value={convidador.nome} href={`/vitrine/${convidador.id}`} />
+              )}
               {(membro.link_site || membro.site) && (() => {
                 const site = membro.link_site || membro.site!;
                 return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ? site : `https://${site}`} />;

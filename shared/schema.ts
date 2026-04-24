@@ -408,6 +408,28 @@ export const insertConviteLinkSchema = createInsertSchema(convitesLink).omit({
 export type InsertConviteLink = z.infer<typeof insertConviteLinkSchema>;
 export type ConviteLink = typeof convitesLink.$inferSelect;
 
+export const biaAprovacoes = pgTable("bia_aprovacoes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  bia_nome: text("bia_nome"),
+  status: text("status").notNull().default("pendente"), // pendente | aprovado | rejeitado
+  solicitante_membro_id: text("solicitante_membro_id").notNull(),
+  solicitante_nome: text("solicitante_nome"),
+  solicitante_email: text("solicitante_email"),
+  aliado_built_membro_id: text("aliado_built_membro_id"),
+  aliado_built_email: text("aliado_built_email"),
+  aliado_built_nome: text("aliado_built_nome"),
+  comunidade_id: text("comunidade_id"),
+  comunidade_nome: text("comunidade_nome"),
+  motivo_rejeicao: text("motivo_rejeicao"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  revisado_em: timestamp("revisado_em"),
+});
+
+export type BiaAprovacao = typeof biaAprovacoes.$inferSelect;
+export const insertBiaAprovacaoSchema = createInsertSchema(biaAprovacoes).omit({ id: true, criado_em: true, revisado_em: true });
+export type InsertBiaAprovacao = z.infer<typeof insertBiaAprovacaoSchema>;
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: varchar("token").notNull().unique().default(sql`gen_random_uuid()`),

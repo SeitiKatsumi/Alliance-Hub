@@ -222,6 +222,61 @@ export async function enviarResetSenha(opts: {
   );
 }
 
+export async function enviarSolicitacaoBiaParaAliado(opts: {
+  aliadoEmail: string;
+  aliadoNome: string;
+  diretorNome: string;
+  biaNome: string;
+  comunidadeNome: string;
+  aprovacaoId: string;
+}) {
+  const link = `${BASE_URL}/bias`;
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">Nova BIA aguardando sua aprovação</h2>
+    <p style="color:rgba(255,255,255,0.8)">Olá, <strong style="color:#D7BB7D">${opts.aliadoNome}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">O Diretor de Aliança <strong>${opts.diretorNome}</strong> criou uma nova BIA que precisa da sua aprovação como Aliado BUILT da <strong>${opts.comunidadeNome}</strong>.</p>
+    <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+      <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.biaNome}</p>
+      <p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:12px">Solicitada por ${opts.diretorNome}</p>
+    </div>
+    <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para aprovar ou rejeitar esta BIA.</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver BIAs Pendentes</a>
+    </div>
+  `);
+  await send(opts.aliadoEmail, `BIA "${opts.biaNome}" aguarda sua aprovação`, html);
+}
+
+export async function enviarResultadoAprovacaoBia(opts: {
+  diretorEmail: string;
+  diretorNome: string;
+  biaNome: string;
+  aprovado: boolean;
+  motivo?: string;
+}) {
+  const html = baseTemplate(opts.aprovado
+    ? `
+      <h2 style="color:#D7BB7D;margin-top:0">✅ Sua BIA foi aprovada!</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong style="color:#D7BB7D">${opts.diretorNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">O Aliado BUILT aprovou sua BIA <strong>${opts.biaNome}</strong>. Ela já está ativa na plataforma.</p>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${BASE_URL}/bias" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver minha BIA</a>
+      </div>
+    `
+    : `
+      <h2 style="color:#D7BB7D;margin-top:0">BIA não aprovada</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong style="color:#D7BB7D">${opts.diretorNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">O Aliado BUILT não aprovou a BIA <strong>${opts.biaNome}</strong> por enquanto.</p>
+      ${opts.motivo ? `<div style="background:rgba(255,255,255,0.05);border-left:3px solid rgba(215,187,125,0.4);padding:12px 16px;margin:16px 0"><p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">${opts.motivo}</p></div>` : ""}
+      <p style="color:rgba(255,255,255,0.5);font-size:12px">Entre em contato com o Aliado BUILT da sua comunidade para mais informações.</p>
+    `
+  );
+  const subject = opts.aprovado
+    ? `✅ BIA "${opts.biaNome}" aprovada!`
+    : `BIA "${opts.biaNome}" não aprovada`;
+  await send(opts.diretorEmail, subject, html);
+}
+
 export async function enviarAprovacaoVitrine(opts: {
   candidatoEmail: string;
   candidatoNome: string;

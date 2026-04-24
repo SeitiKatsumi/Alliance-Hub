@@ -13,6 +13,7 @@ import {
   convitesLink, type ConviteLink, type InsertConviteLink,
   anuncios, type Anuncio, type InsertAnuncio,
   passwordResetTokens, type PasswordResetToken,
+  biaAprovacoes, type BiaAprovacao, type InsertBiaAprovacao,
 } from "@shared/schema";
 import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -593,6 +594,42 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return periodos;
+  }
+
+  // ── BIA Aprovações ─────────────────────────────────────────────────────────
+
+  async createBiaAprovacao(data: InsertBiaAprovacao): Promise<BiaAprovacao> {
+    const [row] = await db.insert(biaAprovacoes).values(data).returning();
+    return row;
+  }
+
+  async getBiaAprovacoesPendentes(): Promise<BiaAprovacao[]> {
+    return db.select().from(biaAprovacoes).where(eq(biaAprovacoes.status, "pendente")).orderBy(desc(biaAprovacoes.criado_em));
+  }
+
+  async getBiaAprovacoesParaAliado(aliadoMembroId: string): Promise<BiaAprovacao[]> {
+    return db.select().from(biaAprovacoes)
+      .where(and(eq(biaAprovacoes.status, "pendente"), eq(biaAprovacoes.aliado_built_membro_id, aliadoMembroId)))
+      .orderBy(desc(biaAprovacoes.criado_em));
+  }
+
+  async getBiaAprovacaoByBiaId(biaId: string): Promise<BiaAprovacao | undefined> {
+    const [row] = await db.select().from(biaAprovacoes).where(eq(biaAprovacoes.bia_id, biaId)).orderBy(desc(biaAprovacoes.criado_em));
+    return row;
+  }
+
+  async updateBiaAprovacao(id: string, data: Partial<BiaAprovacao>): Promise<BiaAprovacao | undefined> {
+    const [row] = await db.update(biaAprovacoes).set({ ...data, revisado_em: new Date() }).where(eq(biaAprovacoes.id, id)).returning();
+    return row;
+  }
+
+  async getBiaAprovacaoById(id: string): Promise<BiaAprovacao | undefined> {
+    const [row] = await db.select().from(biaAprovacoes).where(eq(biaAprovacoes.id, id));
+    return row;
+  }
+
+  async getAllBiaAprovacoes(): Promise<BiaAprovacao[]> {
+    return db.select().from(biaAprovacoes).orderBy(desc(biaAprovacoes.criado_em));
   }
 }
 

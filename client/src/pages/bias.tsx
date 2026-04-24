@@ -35,7 +35,8 @@ import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
-  X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard
+  X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard,
+  Clock, CheckCircle, XCircle, Bell
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
 import {
@@ -1194,9 +1195,9 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 }
 
 // ---- BIA Card ----
-function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
+function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
   bia: BiasProjeto; membros: Membro[]; opas: Oportunidade[];
-  onEdit: () => void; onDelete: () => void;
+  onEdit: () => void; onDelete: () => void; aprovacaoPendente?: boolean;
 }) {
   const [, navigate] = useLocation();
   const membroMap = useMemo(() => {
@@ -1227,6 +1228,11 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete }: {
               <CardTitle className="text-base font-semibold leading-tight truncate" data-testid={`text-bia-nome-${bia.id}`}>
                 {bia.nome_bia}
               </CardTitle>
+              {aprovacaoPendente && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-400/60 text-amber-600 bg-amber-400/10 shrink-0 flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5" /> Aguardando aprovação
+                </Badge>
+              )}
               {bia.situacao === "em_formacao" ? (
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 bg-amber-500/10 shrink-0">
                   Em Formação
@@ -1870,11 +1876,19 @@ export default function BiasPage() {
     redes.includes("BUILT_ALLIANCE_PARTNER") ||
     (Array.isArray(user.tipos_alianca) && user.tipos_alianca.includes("Liderança"))
   );
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
+  const isAliadoBuilt = isAdminOrManager ||
+    redes.includes("BUILT_FOUNDING_MEMBER") ||
+    redes.includes("BUILT_ALLIANCE_PARTNER");
+  const isDiretorAlianca = !isAliadoBuilt &&
+    Array.isArray(user?.tipos_alianca) && user.tipos_alianca.includes("Liderança");
 
   const [search, setSearch] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingBia, setEditingBia] = useState<BiasProjeto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BiasProjeto | null>(null);
+  const [rejeitarTarget, setRejeitarTarget] = useState<{ id: string; biaNome: string } | null>(null);
+  const [motivoRejeicao, setMotivoRejeicao] = useState("");
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -1887,6 +1901,45 @@ export default function BiasPage() {
   const { data: opasRaw = [] } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
   });
+
+  // Approval queries
+  const { data: aprovacoesPendentes = [] } = useQuery<any[]>({
+    queryKey: ["/api/bia-aprovacoes"],
+    enabled: isAliadoBuilt,
+  });
+  const { data: minhasAprovacoes = [] } = useQuery<any[]>({
+    queryKey: ["/api/bia-aprovacoes/minha"],
+    enabled: isDiretorAlianca,
+  });
+
+  const aprovarMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("PATCH", `/api/bia-aprovacoes/${id}/aprovar`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-aprovacoes"] });
+      toast({ title: "BIA aprovada com sucesso!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" }),
+  });
+
+  const rejeitarMutation = useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) =>
+      apiRequest("PATCH", `/api/bia-aprovacoes/${id}/rejeitar`, { motivo }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-aprovacoes"] });
+      setRejeitarTarget(null);
+      setMotivoRejeicao("");
+      toast({ title: "BIA rejeitada" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao rejeitar", description: e.message, variant: "destructive" }),
+  });
+
+  // Map bia_id -> approval record for quick lookup
+  const pendingBiaIds = useMemo(() => {
+    const ids = new Set<string>();
+    aprovacoesPendentes.filter(a => a.status === "pendente").forEach(a => ids.add(a.bia_id));
+    minhasAprovacoes.filter(a => a.status === "pendente").forEach(a => ids.add(a.bia_id));
+    return ids;
+  }, [aprovacoesPendentes, minhasAprovacoes]);
 
   const membros = useMemo(
     () => [...(membrosRaw as Membro[])].sort((a, b) =>
@@ -2007,6 +2060,62 @@ export default function BiasPage() {
         </div>
       )}
 
+      {/* Approval Panel — visible to Aliado BUILT / admin when there are pending BIAs */}
+      {isAliadoBuilt && aprovacoesPendentes.filter(a => a.status === "pendente").length > 0 && (
+        <Card className="border-amber-400/40 bg-amber-50/40 dark:bg-amber-900/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Bell className="w-4 h-4" />
+              BIAs aguardando sua aprovação ({aprovacoesPendentes.filter(a => a.status === "pendente").length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {aprovacoesPendentes.filter(a => a.status === "pendente").map((ap) => (
+              <div key={ap.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-background border border-amber-200/60 dark:border-amber-700/30">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{ap.bia_nome || ap.bia_id}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Solicitado por <strong>{ap.solicitante_nome || ap.solicitante_email}</strong>
+                    {ap.comunidade_nome ? ` · ${ap.comunidade_nome}` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white h-8"
+                    onClick={() => aprovarMutation.mutate(ap.id)}
+                    disabled={aprovarMutation.isPending}
+                    data-testid={`btn-aprovar-bia-${ap.id}`}
+                  >
+                    {aprovarMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1" />}
+                    Aprovar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-300 text-red-600 hover:bg-red-50 h-8"
+                    onClick={() => { setRejeitarTarget({ id: ap.id, biaNome: ap.bia_nome || ap.bia_id }); setMotivoRejeicao(""); }}
+                    data-testid={`btn-rejeitar-bia-${ap.id}`}
+                  >
+                    <XCircle className="w-3.5 h-3.5 mr-1" /> Rejeitar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Diretor: show notice about own pending BIAs */}
+      {isDiretorAlianca && minhasAprovacoes.filter(a => a.status === "pendente").length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 text-sm text-amber-800 dark:text-amber-300">
+          <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            Você tem {minhasAprovacoes.filter(a => a.status === "pendente").length} BIA(s) aguardando aprovação do Aliado BUILT da sua comunidade. Você receberá um e-mail quando a decisão for tomada.
+          </span>
+        </div>
+      )}
+
       {/* Search */}
       {total > 0 && (
         <div className="relative max-w-sm">
@@ -2061,6 +2170,7 @@ export default function BiasPage() {
               opas={opasRaw as Oportunidade[]}
               onEdit={() => openEdit(b)}
               onDelete={() => setDeleteTarget(b)}
+              aprovacaoPendente={pendingBiaIds.has(b.id)}
             />
           ))}
         </div>
@@ -2100,6 +2210,46 @@ export default function BiasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Rejection Dialog */}
+      <Dialog open={!!rejeitarTarget} onOpenChange={(o) => { if (!o) { setRejeitarTarget(null); setMotivoRejeicao(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-500" /> Rejeitar BIA
+            </DialogTitle>
+            <DialogDescription>
+              Informe o motivo da rejeição da BIA <strong>{rejeitarTarget?.biaNome}</strong>. O Diretor de Aliança será notificado por e-mail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="motivo-rejeicao">Motivo (opcional)</Label>
+            <Textarea
+              id="motivo-rejeicao"
+              placeholder="Explique o motivo da rejeição..."
+              value={motivoRejeicao}
+              onChange={(e) => setMotivoRejeicao(e.target.value)}
+              className="resize-none"
+              rows={3}
+              data-testid="textarea-motivo-rejeicao"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejeitarTarget(null); setMotivoRejeicao(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => rejeitarTarget && rejeitarMutation.mutate({ id: rejeitarTarget.id, motivo: motivoRejeicao })}
+              disabled={rejeitarMutation.isPending}
+              data-testid="btn-confirm-rejeitar"
+            >
+              {rejeitarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Confirmar rejeição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

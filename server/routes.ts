@@ -1657,44 +1657,118 @@ export async function registerRoutes(
   app.post("/api/bias", async (req, res) => {
     try {
       const sessionRole = (req.session as any).role || "user";
-      if (sessionRole !== "admin" && sessionRole !== "manager") {
-        const sessionMembroId = (req.session as any).membroId as string | null;
-        let canCreate = false;
-        if (sessionMembroId) {
-          try {
-            const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco");
-            if (membro) {
-              const redes: string[] = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
-              const tiposAlianca: string[] = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
-              // Founding Member ou Alliance Partner = Aliado BUILT seal
-              if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) canCreate = true;
-              // Área de Contribuição = Liderança
-              if (tiposAlianca.includes("Liderança")) canCreate = true;
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const sessionNome = (req.session as any).nome as string || "";
+      const sessionEmail = (req.session as any).email as string || "";
+
+      let isAliadoBuilt = sessionRole === "admin" || sessionRole === "manager";
+      let isDiretorAlianca = false;
+      let canCreate = isAliadoBuilt;
+
+      if (!canCreate && sessionMembroId) {
+        try {
+          const membro = await directusFetchOne("cadastro_geral", sessionMembroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco");
+          if (membro) {
+            const redes: string[] = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
+            const tiposAlianca: string[] = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
+            if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) {
+              isAliadoBuilt = true;
+              canCreate = true;
             }
+            if (tiposAlianca.includes("Liderança")) {
+              isDiretorAlianca = true;
+              canCreate = true;
+            }
+          }
+        } catch (_) {}
+        if (!canCreate) {
+          try {
+            const biaCheck = await directusFetch("bias_projetos", `filter[aliado_built][_eq]=${sessionMembroId}&limit=1&fields=id`);
+            if (biaCheck.length > 0) { isAliadoBuilt = true; canCreate = true; }
           } catch (_) {}
-          if (!canCreate) {
-            // Check if member is aliado_built in any BIA or community
-            try {
-              const biaCheck = await directusFetch("bias_projetos", `filter[aliado_built][_eq]=${sessionMembroId}&limit=1&fields=id`);
-              if (biaCheck.length > 0) canCreate = true;
-            } catch (_) {}
-          }
-          if (!canCreate) {
-            try {
-              const comunidadeCheck = await directusFetch("Comunidade", `filter[aliado_built][_eq]=${sessionMembroId}&limit=1&fields=id`);
-              if (comunidadeCheck.length > 0) canCreate = true;
-            } catch (_) {}
-          }
         }
         if (!canCreate) {
-          return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição Liderança ou administradores podem criar BIAs." });
+          try {
+            const col = await getComunidadeCol();
+            const comunidadeCheck = await directusFetch(col, `filter[aliado][_eq]=${sessionMembroId}&limit=1&fields=id`);
+            if (comunidadeCheck.length > 0) { isAliadoBuilt = true; canCreate = true; }
+          } catch (_) {}
         }
       }
+
+      if (!canCreate) {
+        return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição Liderança ou administradores podem criar BIAs." });
+      }
+
+      // Create the BIA in Directus
       const item = await directusCreate("bias_projetos", prepareBiaPayload(req.body));
       const valorOrigem = parseFloat(req.body.valor_origem) || 0;
       if (valorOrigem > 0) {
         syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
       }
+
+      // If Diretor de Aliança (not Aliado BUILT), create pending approval record
+      if (isDiretorAlianca && !isAliadoBuilt && sessionMembroId) {
+        try {
+          const col = await getComunidadeCol();
+
+          // Find the director's community and its Aliado BUILT
+          let comunidadeId: string | null = null;
+          let comunidadeNome: string | null = null;
+          let aliadoBuiltId: string | null = null;
+          let aliadoBuiltEmail: string | null = null;
+          let aliadoBuiltNome: string | null = null;
+
+          try {
+            const comunidades = await directusFetch(col, `filter[membros][cadastro_geral_id][_eq]=${sessionMembroId}&fields=id,nome,aliado.id,aliado.nome,aliado.email&limit=1`);
+            if (comunidades[0]) {
+              comunidadeId = String(comunidades[0].id);
+              comunidadeNome = comunidades[0].nome || null;
+              const aliado = comunidades[0].aliado;
+              if (aliado && typeof aliado === "object") {
+                aliadoBuiltId = aliado.id || null;
+                aliadoBuiltEmail = aliado.email || null;
+                aliadoBuiltNome = aliado.nome || null;
+              }
+            }
+          } catch (_) {}
+
+          const aprovacao = await storage.createBiaAprovacao({
+            bia_id: item.id,
+            bia_nome: item.nome_bia || req.body.nome_bia || null,
+            status: "pendente",
+            solicitante_membro_id: sessionMembroId,
+            solicitante_nome: sessionNome || null,
+            solicitante_email: sessionEmail || null,
+            aliado_built_membro_id: aliadoBuiltId,
+            aliado_built_email: aliadoBuiltEmail,
+            aliado_built_nome: aliadoBuiltNome,
+            comunidade_id: comunidadeId,
+            comunidade_nome: comunidadeNome,
+            motivo_rejeicao: null,
+          });
+
+          // Notify Aliado BUILT by email (fire and forget)
+          if (aliadoBuiltEmail) {
+            const { enviarSolicitacaoBiaParaAliado } = await import("./mailer");
+            enviarSolicitacaoBiaParaAliado({
+              aliadoEmail: aliadoBuiltEmail,
+              aliadoNome: aliadoBuiltNome || "Aliado BUILT",
+              diretorNome: sessionNome,
+              biaNome: aprovacao.bia_nome || item.id,
+              comunidadeNome: comunidadeNome || "sua comunidade",
+              aprovacaoId: aprovacao.id,
+            }).catch((e: any) => console.error("[bia-aprovacao] email error:", e.message));
+          }
+
+          console.log(`[bia-aprovacao] Pending approval created for BIA ${item.id}, aliado: ${aliadoBuiltEmail || "not found"}`);
+          return res.json({ ...item, _aprovacao_pendente: true, _aprovacao_id: aprovacao.id });
+        } catch (aprovErr: any) {
+          console.error("[bia-aprovacao] Failed to create approval record:", aprovErr.message);
+          // BIA was created — return it even if approval record failed
+        }
+      }
+
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1755,6 +1829,111 @@ export async function registerRoutes(
   app.delete("/api/bias/:id", async (req, res) => {
     try {
       await directusDelete("bias_projetos", req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== BIA APROVAÇÕES ==========
+
+  // GET /api/bia-aprovacoes — list pending approvals visible to the current user
+  app.get("/api/bia-aprovacoes", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      let items;
+      if (sessionRole === "admin" || sessionRole === "manager") {
+        items = await storage.getBiaAprovacoesPendentes();
+      } else if (sessionMembroId) {
+        items = await storage.getBiaAprovacoesParaAliado(sessionMembroId);
+      } else {
+        items = [];
+      }
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/bia-aprovacoes/minha — approvals created BY the current user (Diretor)
+  app.get("/api/bia-aprovacoes/minha", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      if (!sessionMembroId) return res.json([]);
+      const all = await storage.getAllBiaAprovacoes();
+      const mine = all.filter(a => a.solicitante_membro_id === sessionMembroId);
+      res.json(mine);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/bia-aprovacoes/:id/aprovar — Aliado BUILT approves the BIA
+  app.patch("/api/bia-aprovacoes/:id/aprovar", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const aprovacao = await storage.getBiaAprovacaoById(req.params.id);
+      if (!aprovacao) return res.status(404).json({ error: "Aprovação não encontrada" });
+      if (aprovacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitação já foi processada" });
+
+      // Only admin, manager, or the designated Aliado BUILT can approve
+      const isAdmin = sessionRole === "admin" || sessionRole === "manager";
+      const isAliado = sessionMembroId && aprovacao.aliado_built_membro_id === sessionMembroId;
+      if (!isAdmin && !isAliado) return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade ou admin pode aprovar" });
+
+      await storage.updateBiaAprovacao(aprovacao.id, { status: "aprovado" });
+
+      // Notify the director by email (fire and forget)
+      if (aprovacao.solicitante_email) {
+        const { enviarResultadoAprovacaoBia } = await import("./mailer");
+        enviarResultadoAprovacaoBia({
+          diretorEmail: aprovacao.solicitante_email,
+          diretorNome: aprovacao.solicitante_nome || "Diretor",
+          biaNome: aprovacao.bia_nome || aprovacao.bia_id,
+          aprovado: true,
+        }).catch((e: any) => console.error("[bia-aprovacao] email error:", e.message));
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/bia-aprovacoes/:id/rejeitar — Aliado BUILT rejects the BIA
+  app.patch("/api/bia-aprovacoes/:id/rejeitar", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const aprovacao = await storage.getBiaAprovacaoById(req.params.id);
+      if (!aprovacao) return res.status(404).json({ error: "Aprovação não encontrada" });
+      if (aprovacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitação já foi processada" });
+
+      const isAdmin = sessionRole === "admin" || sessionRole === "manager";
+      const isAliado = sessionMembroId && aprovacao.aliado_built_membro_id === sessionMembroId;
+      if (!isAdmin && !isAliado) return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade ou admin pode rejeitar" });
+
+      const motivo = req.body?.motivo || null;
+      await storage.updateBiaAprovacao(aprovacao.id, { status: "rejeitado", motivo_rejeicao: motivo });
+
+      // Notify the director
+      if (aprovacao.solicitante_email) {
+        const { enviarResultadoAprovacaoBia } = await import("./mailer");
+        enviarResultadoAprovacaoBia({
+          diretorEmail: aprovacao.solicitante_email,
+          diretorNome: aprovacao.solicitante_nome || "Diretor",
+          biaNome: aprovacao.bia_nome || aprovacao.bia_id,
+          aprovado: false,
+          motivo: motivo || undefined,
+        }).catch((e: any) => console.error("[bia-aprovacao] email error:", e.message));
+      }
+
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

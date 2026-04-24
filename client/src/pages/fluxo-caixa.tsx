@@ -2288,16 +2288,11 @@ export default function FluxoCaixaPage() {
                 {(filterDataDe || filterDataAte) && (
                   <button
                     type="button"
-                    onClick={() => {
-                      const _n = new Date();
-                      const _ld = new Date(_n.getFullYear(), _n.getMonth() + 1, 0).getDate();
-                      setFilterDataDe(`${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-01`);
-                      setFilterDataAte(`${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, "0")}-${String(_ld).padStart(2, "0")}`);
-                    }}
+                    onClick={() => { setFilterDataDe(""); setFilterDataAte(""); }}
                     className="text-xs text-muted-foreground hover:text-foreground pb-0.5"
                     data-testid="button-limpar-datas"
                   >
-                    ↺ mês atual
+                    ✕ limpar datas
                   </button>
                 )}
               </div>

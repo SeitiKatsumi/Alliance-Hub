@@ -412,6 +412,12 @@ interface CppContributor {
   alwaysCreate?: boolean;
 }
 
+interface SyncCppSummary {
+  cppCount: number;
+  contributorLabels: string[];
+  parcelas: number;
+}
+
 async function syncValorOrigemLancamento(
   biaId: string,
   valorOrigem: number,
@@ -420,7 +426,8 @@ async function syncValorOrigemLancamento(
   vencimentosParcelas?: string[],
   valoresParcelas?: number[],
   contributors?: CppContributor[]
-): Promise<void> {
+): Promise<SyncCppSummary> {
+  const summary: SyncCppSummary = { cppCount: 0, contributorLabels: [], parcelas: 0 };
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
   const CPP_MARCA = "CPP";
@@ -448,11 +455,14 @@ async function syncValorOrigemLancamento(
     await directusDelete("fluxo_caixa", e.id);
   }
 
-  if (valorOrigem <= 0) return;
+  if (valorOrigem <= 0) return summary;
 
   const catId = await findOrCreateValorOrigemCategoria();
 
   const isParcelado = numeroParcelas && numeroParcelas > 1;
+  summary.parcelas = isParcelado ? numeroParcelas : 1;
+
+  const activeContributorLabels = new Set<string>();
 
   if (isParcelado) {
     const valorParcelaDefault = parseFloat((valorOrigem / numeroParcelas).toFixed(2));
@@ -497,6 +507,8 @@ async function syncValorOrigemLancamento(
             Favorecido: contrib.memberId ? [{ cadastro_geral_id: contrib.memberId }] : [],
             Anexos: [],
           });
+          summary.cppCount++;
+          activeContributorLabels.add(contrib.label);
         }
       }
     }
@@ -537,9 +549,14 @@ async function syncValorOrigemLancamento(
           Favorecido: contrib.memberId ? [{ cadastro_geral_id: contrib.memberId }] : [],
           Anexos: [],
         });
+        summary.cppCount++;
+        activeContributorLabels.add(contrib.label);
       }
     }
   }
+
+  summary.contributorLabels = Array.from(activeContributorLabels);
+  return summary;
 }
 
 const upload = multer({
@@ -1868,7 +1885,13 @@ export async function registerRoutes(
               { label: "Dir. Núcleo Comercial", memberId: req.body.diretor_comercial || null, percentual: parseFloat(req.body.perc_dir_comercial) || 0 },
               { label: "Dir. Núcleo de Capital", memberId: req.body.diretor_capital || null, percentual: parseFloat(req.body.perc_dir_capital) || 0 },
             ];
-            syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors).catch(e => console.error("[sync fluxo_caixa] error:", e.message));
+            try {
+              const cppSummary = await syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
+              return res.json({ ...item, _cppSummary: cppSummary });
+            } catch (syncErr: any) {
+              console.error("[sync fluxo_caixa] error:", syncErr.message);
+              return res.json({ ...item, _cppSummary: null, _cppError: syncErr.message });
+            }
           }
           return res.json(item);
         } catch (err: any) {

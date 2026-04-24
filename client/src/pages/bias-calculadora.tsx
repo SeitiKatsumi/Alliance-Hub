@@ -36,6 +36,10 @@ import {
   Check,
   UserCircle,
   CreditCard,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
 
@@ -44,6 +48,18 @@ interface Membro {
   nome?: string;
   Nome_de_usuario?: string | null;
   foto?: string | null;
+}
+
+interface CppSummary {
+  cppCount: number;
+  contributorLabels: string[];
+  parcelas: number;
+}
+
+interface SaveBiaResponse {
+  _cppSummary?: CppSummary | null;
+  _cppError?: string;
+  [key: string]: unknown;
 }
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
@@ -277,6 +293,9 @@ function PercInput({
 export default function BiasCalculadoraPage() {
   const { toast } = useToast();
   const [selectedBiaId, setSelectedBiaId] = useState<string>("");
+  const [cppSummary, setCppSummary] = useState<CppSummary | null>(null);
+  const [cppError, setCppError] = useState<string | null>(null);
+  const [showCppDetails, setShowCppDetails] = useState(false);
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -472,7 +491,7 @@ export default function BiasCalculadoraPage() {
         total_aportes: r(totalAportes),
         inicio_aportes: inicioAportes || null,
       };
-      await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
+      const res = await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,
         valor_origem: r(valorOrigem),
         _vencimento_origem: formaPagamento === "parcelado" ? null : (vencimento || null),
@@ -488,10 +507,29 @@ export default function BiasCalculadoraPage() {
         diretor_comercial: membroDirComercial || null,
         diretor_capital: membroDirCapital || null,
       });
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: SaveBiaResponse) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
-      toast({ title: "Salvo com sucesso", description: "Os cálculos foram salvos no Directus." });
+      setCppError(null);
+      setShowCppDetails(false);
+      if (data?._cppError) {
+        setCppSummary(null);
+        const safeErr = typeof data._cppError === "string" ? data._cppError.slice(0, 200) : "Erro desconhecido";
+        setCppError(safeErr);
+        toast({ title: "Salvo com sucesso", description: "Os cálculos foram salvos, mas houve um erro ao gerar os lançamentos CPP.", variant: "destructive" });
+      } else if (data?._cppSummary) {
+        const s = data._cppSummary;
+        setCppSummary(s);
+        const parcelasText = s.parcelas > 1 ? `${s.parcelas} parcelas` : "1 parcela";
+        const countText = s.cppCount > 0
+          ? `${s.cppCount} lançamento${s.cppCount !== 1 ? "s" : ""} CPP gerado${s.cppCount !== 1 ? "s" : ""} para ${parcelasText}`
+          : "Nenhum lançamento CPP gerado";
+        toast({ title: "Salvo com sucesso", description: countText });
+      } else {
+        setCppSummary(null);
+        toast({ title: "Salvo com sucesso", description: "Os cálculos foram salvos no Directus." });
+      }
     },
     onError: (error: any) => {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
@@ -535,7 +573,7 @@ export default function BiasCalculadoraPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={selectedBiaId} onValueChange={setSelectedBiaId}>
+          <Select value={selectedBiaId} onValueChange={(id) => { setSelectedBiaId(id); setCppSummary(null); setCppError(null); setShowCppDetails(false); }}>
             <SelectTrigger className="w-[280px]" data-testid="select-bia">
               <SelectValue placeholder="Selecione uma BIA..." />
             </SelectTrigger>
@@ -560,6 +598,52 @@ export default function BiasCalculadoraPage() {
           </Button>
         </div>
       </div>
+
+      {/* CPP Lançamentos status panel */}
+      {(cppSummary || cppError) && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm ${cppError ? "border-destructive/50 bg-destructive/10 text-destructive" : "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400"}`}
+          data-testid="panel-cpp-status"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {cppError ? (
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              )}
+              {cppError ? (
+                <span>Erro ao gerar lançamentos CPP: {cppError}</span>
+              ) : cppSummary && cppSummary.cppCount > 0 ? (
+                <span>
+                  <strong>{cppSummary.cppCount}</strong> lançamento{cppSummary.cppCount !== 1 ? "s" : ""} CPP gerado{cppSummary.cppCount !== 1 ? "s" : ""} para{" "}
+                  <strong>{cppSummary.parcelas}</strong> parcela{cppSummary.parcelas !== 1 ? "s" : ""}
+                </span>
+              ) : (
+                <span>Nenhum lançamento CPP gerado (sem contribuidores configurados ou percentuais zerados)</span>
+              )}
+            </div>
+            {!cppError && cppSummary && cppSummary.contributorLabels.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowCppDetails(!showCppDetails)}
+                className="flex items-center gap-1 text-xs font-medium opacity-70 hover:opacity-100 transition-opacity shrink-0"
+                data-testid="button-toggle-cpp-details"
+              >
+                {showCppDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showCppDetails ? "Ocultar" : "Ver"} detalhes
+              </button>
+            )}
+          </div>
+          {showCppDetails && cppSummary && cppSummary.contributorLabels.length > 0 && (
+            <ul className="mt-2 ml-6 space-y-0.5 list-disc" data-testid="list-cpp-contributors">
+              {cppSummary.contributorLabels.map((label) => (
+                <li key={label} className="text-xs opacity-80">{label}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {!selectedBiaId ? (
         <Card>

@@ -456,7 +456,7 @@ async function directusDelete(collection: string, id: string) {
 }
 
 async function findOrCreateValorOrigemCategoria(): Promise<number> {
-  const cats = await directusFetch("Categorias", "fields=id,Nome_da_categoria");
+  const cats = await directusFetchScoped("Categorias", "fields=id,Nome_da_categoria");
   const existing = cats.find((c: any) => c.Nome_da_categoria === "Valor de Origem");
   if (existing) return existing.id;
   const created = await directusCreate("Categorias", { Nome_da_categoria: "Valor de Origem" });
@@ -467,7 +467,7 @@ async function findOrCreateValorOrigemCategoria(): Promise<number> {
 let _catCache: Record<string, number> | null = null;
 async function findCppCategoriaId(categoryName: string): Promise<number | null> {
   if (!_catCache) {
-    const cats = await directusFetch("Categorias", "fields=id,Nome_da_categoria");
+    const cats = await directusFetchScoped("Categorias", "fields=id,Nome_da_categoria");
     _catCache = {};
     for (const c of cats) {
       if (c.Nome_da_categoria) _catCache[c.Nome_da_categoria.trim()] = c.id;
@@ -479,10 +479,17 @@ async function findCppCategoriaId(categoryName: string): Promise<number | null> 
 let _tipoCppCache: Record<string, number> | null = null;
 async function findTipoCppId(nome: string): Promise<number | null> {
   if (!_tipoCppCache) {
-    const tipos = await directusFetch("tipos_cpp", "fields=id,nome");
-    _tipoCppCache = {};
-    for (const t of tipos) {
-      if (t.nome) _tipoCppCache[t.nome.trim()] = t.id;
+    try {
+      // Use scoped fetch (no fields=*) and try both field name casings
+      const tipos = await directusFetchScoped("tipos_cpp", "fields=id,Nome,nome");
+      _tipoCppCache = {};
+      for (const t of tipos) {
+        const n = t.Nome || t.nome;
+        if (n) _tipoCppCache[n.trim()] = t.id;
+      }
+    } catch (err: any) {
+      console.warn(`[findTipoCppId] Could not fetch tipos_cpp: ${err.message} — tipo_de_cpp will be empty`);
+      _tipoCppCache = {};
     }
   }
   return _tipoCppCache[nome.trim()] ?? null;

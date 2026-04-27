@@ -39,6 +39,7 @@ interface DashboardOpa {
   nome_oportunidade?: string;
   tipo?: string;
   bia_id?: string;
+  nome_bia_vinculada?: string | null;
   valor_origem_opa?: number | string | null;
   status?: string;
 }
@@ -52,6 +53,7 @@ interface DashboardData {
     custo_final_previsto: number;
     resultado_liquido: number;
   };
+  opas_abertas: number;
 }
 
 function n(v?: string | number | null): number {
@@ -98,6 +100,17 @@ function BiaCardSkeleton() {
   );
 }
 
+function deriveRole(user: any): string | null {
+  if (!user) return null;
+  const redes: string[] = Array.isArray(user.Outras_redes_as_quais_pertenco) ? user.Outras_redes_as_quais_pertenco : [];
+  if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) return "Aliado BUILT";
+  const tipos: string[] = Array.isArray(user.tipos_alianca) ? user.tipos_alianca : [];
+  if (tipos.includes("Liderança")) return "Diretor de Aliança";
+  if (user.role === "admin") return "Administrador";
+  if (user.role === "manager") return "Gestor";
+  return null;
+}
+
 export default function PainelPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -110,6 +123,7 @@ export default function PainelPage() {
   const comunidades = data?.comunidades ?? [];
   const opas = data?.opas ?? [];
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
+  const opasAbertas = data?.opas_abertas ?? opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").length;
 
   const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
 
@@ -121,11 +135,13 @@ export default function PainelPage() {
   };
 
   const nomeExibido = user?.nome || user?.username || "membro";
+  const roleLabel = deriveRole(user);
+  const comunidadeLabel = comunidades.length > 0 ? comunidades[0].nome : null;
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#D7BB7D]/15 flex items-center justify-center">
             <LayoutDashboard className="w-4 h-4 text-[#D7BB7D]" />
@@ -134,9 +150,31 @@ export default function PainelPage() {
             {greeting()}, {nomeExibido}
           </h1>
         </div>
-        <p className="text-sm text-muted-foreground pl-10">
-          Visão geral da sua atividade na plataforma Built Alliances.
-        </p>
+        <div className="pl-10 flex flex-wrap items-center gap-2">
+          {roleLabel && (
+            <Badge
+              variant="outline"
+              className="text-[11px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5"
+              data-testid="badge-role"
+            >
+              {roleLabel}
+            </Badge>
+          )}
+          {comunidadeLabel && (
+            <Badge
+              variant="outline"
+              className="text-[11px] text-muted-foreground border-border/60"
+              data-testid="badge-comunidade"
+            >
+              {comunidadeLabel}
+            </Badge>
+          )}
+          {!roleLabel && !comunidadeLabel && (
+            <p className="text-sm text-muted-foreground">
+              Visão geral da sua atividade na plataforma Built Alliances.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Stats cards */}
@@ -170,12 +208,12 @@ export default function PainelPage() {
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Target className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">OPAs</span>
+                  <span className="text-xs text-muted-foreground">OPAs abertas</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground" data-testid="stat-value-opas">
-                  {opas.length}
+                  {opasAbertas}
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">nas suas BIAs</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{opas.length} total nas suas BIAs</p>
               </CardContent>
             </Card>
 
@@ -440,11 +478,28 @@ export default function PainelPage() {
                         {o.nome_oportunidade || "OPA sem nome"}
                       </p>
                       <p className="text-[10px] text-muted-foreground truncate">
-                        {[o.tipo, n(o.valor_origem_opa) > 0 ? fmt(n(o.valor_origem_opa)) : null]
-                          .filter(Boolean).join(" · ")}
+                        {[
+                          o.tipo,
+                          n(o.valor_origem_opa) > 0 ? fmt(n(o.valor_origem_opa)) : null,
+                          o.nome_bia_vinculada ? `BIA: ${o.nome_bia_vinculada}` : null,
+                        ].filter(Boolean).join(" · ")}
                       </p>
                     </div>
-                    <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                    {o.status && o.status !== "concluida" && o.status !== "desistencia" ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] shrink-0 h-4">
+                        Aberta
+                      </Badge>
+                    ) : o.status === "concluida" ? (
+                      <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[9px] shrink-0 h-4">
+                        Concluída
+                      </Badge>
+                    ) : o.status === "desistencia" ? (
+                      <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[9px] shrink-0 h-4">
+                        Desistência
+                      </Badge>
+                    ) : (
+                      <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                    )}
                   </div>
                 ))}
                 {opas.length > 5 && (

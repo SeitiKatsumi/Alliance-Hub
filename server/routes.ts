@@ -1864,6 +1864,17 @@ export async function registerRoutes(
     try {
       const membroId = (req.session as any).membroId as string | null;
 
+      // Security: if the user has no linked Directus member profile, return empty scoped data
+      if (!membroId) {
+        return res.json({
+          bias: [],
+          comunidades: [],
+          opas: [],
+          totals: { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 },
+          opas_abertas: 0,
+        });
+      }
+
       const BIA_ROLE_FIELDS = [
         "autor_bia", "aliado_built", "diretor_alianca", "diretor_nucleo_tecnico",
         "diretor_execucao", "diretor_comercial", "diretor_capital",
@@ -1877,32 +1888,36 @@ export async function registerRoutes(
         directusFetchScoped("tipos_oportunidades",
           "fields=id,nome_oportunidade,tipo,bia_id,valor_origem_opa,status"
         ).catch(() => []),
-        membroId
-          ? directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => [])
-          : Promise.resolve([]),
+        directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => []),
       ]);
 
-      const userBias = membroId
-        ? (allBias as any[]).filter(b =>
-            BIA_ROLE_FIELDS.some(role => b[role] === membroId)
-          )
-        : (allBias as any[]);
+      const userBias = (allBias as any[]).filter(b =>
+        BIA_ROLE_FIELDS.some(role => b[role] === membroId)
+      );
 
       const userBiaIds = new Set(userBias.map((b: any) => b.id));
+      const biaNameMap: Record<string, string> = {};
+      for (const b of userBias) biaNameMap[b.id] = b.nome_bia || b.id;
 
-      const userOpas = (allOpas as any[]).filter((o: any) => userBiaIds.has(o.bia_id));
+      const userOpas = (allOpas as any[])
+        .filter((o: any) => userBiaIds.has(o.bia_id))
+        .map((o: any) => ({
+          ...o,
+          nome_bia_vinculada: biaNameMap[o.bia_id] || null,
+        }));
 
-      const userComunidades = membroId
-        ? (comunidades as any[]).filter((c: any) => {
-            const aId = typeof c.aliado === "string" ? c.aliado : c.aliado?.id;
-            if (aId === membroId) return true;
-            const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
-            return membros.some((m: any) => {
-              const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
-              return id === membroId;
-            });
-          })
-        : (comunidades as any[]);
+      const CLOSED_STATUSES = new Set(["concluida", "desistencia"]);
+      const opasAbertas = userOpas.filter((o: any) => !CLOSED_STATUSES.has(o.status)).length;
+
+      const userComunidades = (comunidades as any[]).filter((c: any) => {
+        const aId = typeof c.aliado === "string" ? c.aliado : c.aliado?.id;
+        if (aId === membroId) return true;
+        const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+        return membros.some((m: any) => {
+          const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+          return id === membroId;
+        });
+      });
 
       function n(v: any) { return parseFloat(String(v ?? "")) || 0; }
 
@@ -1935,6 +1950,7 @@ export async function registerRoutes(
         comunidades: userComunidades,
         opas: userOpas,
         totals,
+        opas_abertas: opasAbertas,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

@@ -341,6 +341,53 @@ async function directusFetchOne(collection: string, id: string, params: string =
   return json.data || null;
 }
 
+async function directusBulkCreate(collection: string, items: Record<string, any>[]) {
+  if (items.length === 0) return [];
+  const url = `${DIRECTUS_URL}/items/${collection}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(items),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Directus bulk create error ${res.status}: ${body}`);
+  }
+  const json = await res.json();
+  return json.data || [];
+}
+
+async function directusBulkPatch(collection: string, ids: (string | number)[], data: Record<string, any>) {
+  if (ids.length === 0) return;
+  const url = `${DIRECTUS_URL}/items/${collection}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ keys: ids, data }),
+  });
+  if (!res.ok) { /* best effort */ }
+}
+
+async function directusBulkDelete(collection: string, ids: (string | number)[]) {
+  if (ids.length === 0) return;
+  const url = `${DIRECTUS_URL}/items/${collection}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(ids),
+  });
+  if (!res.ok) { /* best effort */ }
+}
+
 async function directusCreate(collection: string, data: Record<string, any>) {
   const url = `${DIRECTUS_URL}/items/${collection}`;
   const res = await fetch(url, {
@@ -486,23 +533,39 @@ async function syncValorOrigemLancamento(
     console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} — skipping cleanup`);
   }
 
-  // Delete all existing entries — clear M2M relations first to avoid FK constraint errors
-  for (const e of existing) {
-    try {
-      // Clear Categoria M2M before delete (otherwise fluxo_caixa_categorias FK blocks delete)
-      await directusUpdate("fluxo_caixa", e.id, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
-    } catch (_clearErr) { /* ignore — best effort */ }
-    await directusDelete("fluxo_caixa", e.id);
+  // Bulk-clear M2M relations then bulk-delete all existing entries (2 API calls regardless of count)
+  const existingIds = existing.map((e: any) => e.id);
+  if (existingIds.length > 0) {
+    await directusBulkPatch("fluxo_caixa", existingIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
+    await directusBulkDelete("fluxo_caixa", existingIds);
   }
 
   if (valorOrigem <= 0) return summary;
 
+  // Pre-resolve all category/tipo IDs before building the batch (avoids per-entry async calls)
   const catId = await findOrCreateValorOrigemCategoria();
+  const contribCatIds: Record<string, number | null> = {};
+  let aporteCatId: number | null = null;
+  let aporteTipoCppId: number | null = null;
+  if (contributors && contributors.length > 0) {
+    for (const contrib of contributors) {
+      const cppCatName = CPP_CONTRIBUTOR_CATEGORY[contrib.label];
+      if (cppCatName && !(cppCatName in contribCatIds)) {
+        contribCatIds[cppCatName] = await findCppCategoriaId(cppCatName);
+      }
+    }
+    const hasAporte = contributors.some(c => c.isAporte && c.memberId);
+    if (hasAporte) {
+      aporteCatId = await findCppCategoriaId("Esforço multiplicador convertido em CPP");
+      aporteTipoCppId = await findTipoCppId("CPP de Liderança");
+    }
+  }
 
   const isParcelado = numeroParcelas && numeroParcelas > 1;
   summary.parcelas = isParcelado ? numeroParcelas : 1;
 
   const activeContributorLabels = new Set<string>();
+  const entriesToCreate: Record<string, any>[] = [];
 
   if (isParcelado) {
     const valorParcelaDefault = parseFloat((valorOrigem / numeroParcelas).toFixed(2));
@@ -511,7 +574,7 @@ async function syncValorOrigemLancamento(
       const valorParcela = (valoresParcelas && valoresParcelas[i] && valoresParcelas[i] > 0)
         ? valoresParcelas[i]
         : valorParcelaDefault;
-      await directusCreate("fluxo_caixa", {
+      entriesToCreate.push({
         bia: biaId,
         tipo: "saida",
         valor: String(valorParcela),
@@ -525,18 +588,15 @@ async function syncValorOrigemLancamento(
         Anexos: [],
       });
 
-      // Generate CPP entries for each contributor
       if (contributors && contributors.length > 0) {
         for (const contrib of contributors) {
           if (contrib.percentual <= 0) continue;
-          // alwaysCreate = true for BUILT (platform fee) — no member required
-          // For all others, a member must be selected
           if (!contrib.alwaysCreate && !contrib.memberId) continue;
           const valorCpp = parseFloat(((contrib.percentual / 100) * valorParcela).toFixed(2));
           if (valorCpp <= 0) continue;
           const cppCatName = CPP_CONTRIBUTOR_CATEGORY[contrib.label];
-          const cppCatId = cppCatName ? await findCppCategoriaId(cppCatName) : null;
-          await directusCreate("fluxo_caixa", {
+          const cppCatId = cppCatName ? (contribCatIds[cppCatName] ?? null) : null;
+          entriesToCreate.push({
             bia: biaId,
             tipo: "saida",
             valor: String(valorCpp),
@@ -552,11 +612,8 @@ async function syncValorOrigemLancamento(
           summary.cppCount++;
           activeContributorLabels.add(contrib.label);
 
-          // Aporte do Fator de Multiplicação — entrada for director roles only
           if (contrib.isAporte && contrib.memberId) {
-            const aporteCatId = await findCppCategoriaId("Esforço multiplicador convertido em CPP");
-            const aporteTipoCppId = await findTipoCppId("CPP de Liderança");
-            await directusCreate("fluxo_caixa", {
+            entriesToCreate.push({
               bia: biaId,
               tipo: "entrada",
               valor: String(valorCpp),
@@ -576,7 +633,7 @@ async function syncValorOrigemLancamento(
   } else {
     const dataVencimento = vencimento || null;
     const statusEntry = dataVencimento ? "agendado" : "pendente";
-    await directusCreate("fluxo_caixa", {
+    entriesToCreate.push({
       bia: biaId,
       tipo: "saida",
       valor: String(valorOrigem),
@@ -590,7 +647,6 @@ async function syncValorOrigemLancamento(
       Anexos: [],
     });
 
-    // Generate CPP entries for each contributor (single installment treated as 1/1)
     if (contributors && contributors.length > 0) {
       for (const contrib of contributors) {
         if (contrib.percentual <= 0) continue;
@@ -598,8 +654,8 @@ async function syncValorOrigemLancamento(
         const valorCpp = parseFloat(((contrib.percentual / 100) * valorOrigem).toFixed(2));
         if (valorCpp <= 0) continue;
         const cppCatName = CPP_CONTRIBUTOR_CATEGORY[contrib.label];
-        const cppCatId = cppCatName ? await findCppCategoriaId(cppCatName) : null;
-        await directusCreate("fluxo_caixa", {
+        const cppCatId = cppCatName ? (contribCatIds[cppCatName] ?? null) : null;
+        entriesToCreate.push({
           bia: biaId,
           tipo: "saida",
           valor: String(valorCpp),
@@ -615,11 +671,8 @@ async function syncValorOrigemLancamento(
         summary.cppCount++;
         activeContributorLabels.add(contrib.label);
 
-        // Aporte do Fator de Multiplicação — entrada for director roles only
         if (contrib.isAporte && contrib.memberId) {
-          const aporteCatId = await findCppCategoriaId("Esforço multiplicador convertido em CPP");
-          const aporteTipoCppId = await findTipoCppId("CPP de Liderança");
-          await directusCreate("fluxo_caixa", {
+          entriesToCreate.push({
             bia: biaId,
             tipo: "entrada",
             valor: String(valorCpp),
@@ -636,6 +689,9 @@ async function syncValorOrigemLancamento(
       }
     }
   }
+
+  // Single bulk create call for all entries
+  await directusBulkCreate("fluxo_caixa", entriesToCreate);
 
   summary.contributorLabels = Array.from(activeContributorLabels);
   return summary;

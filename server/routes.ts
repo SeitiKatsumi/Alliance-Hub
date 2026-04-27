@@ -1859,6 +1859,88 @@ export async function registerRoutes(
     }));
   }
 
+  app.get("/api/dashboard", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const membroId = (req.session as any).membroId as string | null;
+
+      const BIA_ROLE_FIELDS = [
+        "autor_bia", "aliado_built", "diretor_alianca", "diretor_nucleo_tecnico",
+        "diretor_execucao", "diretor_comercial", "diretor_capital",
+      ];
+
+      const [allBias, allOpas, comunidades] = await Promise.all([
+        directusFetchScoped("bias_projetos",
+          "fields=id,nome_bia,situacao,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
+          "autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital"
+        ),
+        directusFetchScoped("tipos_oportunidades",
+          "fields=id,nome_oportunidade,tipo,bia_id,valor_origem_opa,status"
+        ).catch(() => []),
+        membroId
+          ? directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => [])
+          : Promise.resolve([]),
+      ]);
+
+      const userBias = membroId
+        ? (allBias as any[]).filter(b =>
+            BIA_ROLE_FIELDS.some(role => b[role] === membroId)
+          )
+        : (allBias as any[]);
+
+      const userBiaIds = new Set(userBias.map((b: any) => b.id));
+
+      const userOpas = (allOpas as any[]).filter((o: any) => userBiaIds.has(o.bia_id));
+
+      const userComunidades = membroId
+        ? (comunidades as any[]).filter((c: any) => {
+            const aId = typeof c.aliado === "string" ? c.aliado : c.aliado?.id;
+            if (aId === membroId) return true;
+            const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+            return membros.some((m: any) => {
+              const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+              return id === membroId;
+            });
+          })
+        : (comunidades as any[]);
+
+      function n(v: any) { return parseFloat(String(v ?? "")) || 0; }
+
+      const totals = userBias.reduce(
+        (acc: any, b: any) => ({
+          valor_origem: acc.valor_origem + n(b.valor_origem),
+          custo_final_previsto: acc.custo_final_previsto + n(b.custo_final_previsto),
+          resultado_liquido: acc.resultado_liquido + n(b.resultado_liquido),
+        }),
+        { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 }
+      );
+
+      const biaRoleMap: Record<string, string> = {
+        aliado_built: "Aliado BUILT",
+        autor_bia: "Autor da BIA",
+        diretor_alianca: "Dir. de Aliança",
+        diretor_nucleo_tecnico: "Dir. Núcleo Técnico",
+        diretor_execucao: "Dir. de Execução",
+        diretor_comercial: "Dir. Comercial",
+        diretor_capital: "Dir. de Capital",
+      };
+
+      const biasWithRole = userBias.map((b: any) => {
+        const papel = BIA_ROLE_FIELDS.find(role => b[role] === membroId);
+        return { ...b, papel_usuario: papel ? biaRoleMap[papel] : "Membro" };
+      });
+
+      res.json({
+        bias: biasWithRole,
+        comunidades: userComunidades,
+        opas: userOpas,
+        totals,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/bias", async (req, res) => {
     try {
       const items = await directusFetch("bias_projetos", "fields=*,Anexos.directus_files_id.*");

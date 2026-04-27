@@ -465,7 +465,7 @@ export default function PainelPage() {
               </Card>
             ) : (
               <div className="space-y-1.5">
-                {opas.slice(0, 5).map(o => (
+                {opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").slice(0, 5).map(o => (
                   <div
                     key={o.id}
                     className="flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
@@ -502,13 +502,13 @@ export default function PainelPage() {
                     )}
                   </div>
                 ))}
-                {opas.length > 5 && (
+                {opasAbertas > 5 && (
                   <button
                     className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
                     onClick={() => navigate("/opas")}
                     data-testid="btn-mais-opas"
                   >
-                    +{opas.length - 5} mais
+                    +{opasAbertas - 5} mais
                   </button>
                 )}
               </div>

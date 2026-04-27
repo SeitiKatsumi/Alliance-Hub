@@ -330,6 +330,17 @@ async function directusFetch(collection: string, params: string = "") {
   return json.data || [];
 }
 
+// Like directusFetch but does NOT prepend fields=* — for targeted queries with explicit fields + filters
+async function directusFetchScoped(collection: string, params: string) {
+  const url = `${DIRECTUS_URL}/items/${collection}?limit=-1&${params}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`Directus error: ${res.status}`);
+  const json = await res.json();
+  return json.data || [];
+}
+
 async function directusFetchOne(collection: string, id: string, params: string = "") {
   const url = `${DIRECTUS_URL}/items/${collection}/${id}?fields=*${params ? "&" + params : ""}`;
   const res = await fetch(url, {
@@ -519,13 +530,14 @@ async function syncValorOrigemLancamento(
   _catCache = null;
   _tipoCppCache = null; // reset per-sync so stale IDs are never used
 
-  // Fetch all fluxo_caixa entries and filter in code (Directus filter params conflict with URL template)
+  // Fetch only this BIA's fluxo_caixa entries — server-side filtered, minimal fields
   let existing: any[] = [];
   try {
-    const all = await directusFetch("fluxo_caixa", "fields=id,bia,descricao");
-    // Delete both "Valor de Origem da BIA" entries and CPP entries for this BIA
-    existing = all.filter((e: any) => {
-      if (e.bia !== biaId) return false;
+    const biaEntries = await directusFetchScoped(
+      "fluxo_caixa",
+      `fields=id,descricao&filter[bia][_eq]=${encodeURIComponent(biaId)}`
+    );
+    existing = biaEntries.filter((e: any) => {
       const desc = e.descricao || "";
       return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId)) || desc.startsWith(DIVISOR_MARCA) || desc.startsWith(APORTE_MARCA);
     });

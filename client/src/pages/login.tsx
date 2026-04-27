@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail, Store, TrendingUp, Handshake } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930.png";
@@ -82,6 +83,10 @@ export default function LoginPage() {
   const [conviteStatus, setConviteStatus] = useState<"idle" | "valid" | "invalid">("idle");
   const [conviteChecking, setConviteChecking] = useState(false);
 
+  // Interests modal state
+  const [showInteressesModal, setShowInteressesModal] = useState(false);
+  const [interessesSelecionados, setInteressesSelecionados] = useState<string[]>([]);
+
   // Validate convite token when it changes
   useEffect(() => {
     if (!regConviteToken || regConviteToken.length < 10) {
@@ -124,7 +129,7 @@ export default function LoginPage() {
     }
   }
 
-  async function handleRegister(e: React.FormEvent) {
+  function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setRegError("");
     if (!regConviteToken) {
@@ -143,6 +148,18 @@ export default function LoginPage() {
       setRegError("Senha deve ter pelo menos 4 caracteres");
       return;
     }
+    setInteressesSelecionados([]);
+    setShowInteressesModal(true);
+  }
+
+  function toggleInteresse(valor: string) {
+    setInteressesSelecionados(prev =>
+      prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]
+    );
+  }
+
+  async function handleConfirmarCadastro() {
+    if (interessesSelecionados.length === 0) return;
     setRegLoading(true);
     try {
       const res = await fetch("/api/register", {
@@ -154,15 +171,22 @@ export default function LoginPage() {
           username: regUsername || regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase(),
           password: regPassword,
           convite_token: regConviteToken,
+          interesses: interessesSelecionados,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
-      toast({ title: "Conta criada com sucesso!", description: "Agora faça login para acessar a plataforma." });
-      setEmail(regEmail);
-      setMode("login");
+      setShowInteressesModal(false);
+      if (data.pagamento_token) {
+        navigate(`/pagamento/${data.pagamento_token}`);
+      } else {
+        toast({ title: "Conta criada!", description: "Aguarde aprovação da sua candidatura." });
+        setEmail(regEmail);
+        setMode("login");
+      }
     } catch (err: any) {
       setRegError(err.message);
+      setShowInteressesModal(false);
     } finally {
       setRegLoading(false);
     }
@@ -583,6 +607,115 @@ export default function LoginPage() {
           &copy; {new Date().getFullYear()} BUILT Alliances. Todos os direitos reservados.
         </p>
       </div>
+
+      {/* Interests modal — step 2 of registration */}
+      <Dialog open={showInteressesModal} onOpenChange={(open) => { if (!regLoading) setShowInteressesModal(open); }}>
+        <DialogContent className="bg-[#001D34] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white text-lg font-semibold">Onde você quer participar?</DialogTitle>
+            <DialogDescription className="text-white/50 text-sm">
+              Selecione uma ou mais áreas de interesse. Isso determina seu fluxo de adesão.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            {[
+              {
+                valor: "vitrine",
+                icone: <Store className="w-5 h-5" />,
+                titulo: "Vitrine BUILT",
+                descricao: "Quero oferecer ou prestar serviços",
+                gratuito: true,
+              },
+              {
+                valor: "capital",
+                icone: <TrendingUp className="w-5 h-5" />,
+                titulo: "BUILT Capital",
+                descricao: "Tenho interesse em investir",
+                gratuito: true,
+              },
+              {
+                valor: "membros",
+                icone: <Handshake className="w-5 h-5" />,
+                titulo: "Área de Alianças",
+                descricao: "Quero acessar oportunidades e alianças",
+                gratuito: false,
+              },
+            ].map(({ valor, icone, titulo, descricao, gratuito }) => {
+              const selecionado = interessesSelecionados.includes(valor);
+              return (
+                <button
+                  key={valor}
+                  type="button"
+                  data-testid={`interesse-${valor}`}
+                  onClick={() => toggleInteresse(valor)}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                    selecionado
+                      ? "border-[#D7BB7D] bg-[#D7BB7D]/10"
+                      : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  <span className={`shrink-0 ${selecionado ? "text-[#D7BB7D]" : "text-white/40"}`}>
+                    {icone}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={`font-semibold text-sm ${selecionado ? "text-[#D7BB7D]" : "text-white"}`}>{titulo}</p>
+                      {gratuito ? (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
+                          Gratuito
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#D7BB7D]/10 text-[#D7BB7D] border border-[#D7BB7D]/20">
+                          Taxa de adesão
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-white/50 text-xs mt-0.5">{descricao}</p>
+                  </div>
+                  <span className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                    selecionado ? "border-[#D7BB7D] bg-[#D7BB7D]" : "border-white/20"
+                  }`}>
+                    {selecionado && <span className="w-2 h-2 rounded-full bg-[#001D34]" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {regError && <p className="text-red-400 text-sm text-center mt-1">{regError}</p>}
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              type="button"
+              variant="ghost"
+              data-testid="button-voltar-interesses"
+              onClick={() => setShowInteressesModal(false)}
+              disabled={regLoading}
+              className="flex-1 border border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              data-testid="button-confirmar-cadastro"
+              onClick={handleConfirmarCadastro}
+              disabled={regLoading || interessesSelecionados.length === 0}
+              className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold disabled:opacity-50"
+            >
+              {regLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />
+                  Criando...
+                </span>
+              ) : (
+                "Confirmar e Criar Conta"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

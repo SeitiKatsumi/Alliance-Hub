@@ -2870,7 +2870,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // ── Self-registration ──────────────────────────────────────────────
   app.post("/api/register", async (req, res) => {
     try {
-      const { nome, email, username, password, telefone, empresa, cidade, estado, convite_token } = req.body;
+      const { nome, email, username, password, telefone, empresa, cidade, estado, convite_token, interesses } = req.body;
       if (!nome || !email || !password)
         return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
       if (password.length < 4)
@@ -2895,11 +2895,26 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const existingByEmail = await storage.getUserByEmail(email);
       if (existingByEmail) return res.status(409).json({ error: "E-mail já cadastrado" });
 
+      // Parse and validate interesses
+      const INTERESSES_VALIDOS = ["vitrine", "capital", "membros"];
+      const interessesArr: string[] = Array.isArray(interesses)
+        ? interesses.filter((v: any) => typeof v === "string" && INTERESSES_VALIDOS.includes(v))
+        : [];
+      if (interessesArr.length === 0) {
+        return res.status(400).json({ error: "Selecione pelo menos uma área de interesse para continuar." });
+      }
+      const naVitrine = interessesArr.includes("vitrine");
+      const emBuiltCapital = interessesArr.includes("capital");
+      const emMembrosBuilt = interessesArr.includes("membros");
+
       // 1. Create entry in Directus cadastro_geral (mandatory — registration fails if this fails)
       const directusPayload: Record<string, any> = {
         Nome_de_usuario: nome,
         nome,
         email,
+        na_vitrine: naVitrine,
+        em_built_capital: emBuiltCapital,
+        em_membros_built: emMembrosBuilt,
       };
       if (telefone) directusPayload.telefone = telefone;
       if (empresa) directusPayload.empresa = empresa;
@@ -2926,7 +2941,38 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
       console.log("[register] Directus cadastro_geral created:", membroDirectusId);
 
-      // 2. Create local platform user
+      // 2. Associate member with the inviter's community in Directus immediately (as candidato)
+      if (conviteLink.comunidade_id) {
+        const col = await getComunidadeCol();
+        const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${conviteLink.comunidade_id}?fields=id,membros.cadastro_geral_id`;
+        const comunidadeRes = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+        if (comunidadeRes.ok) {
+          const comunidadeData = await comunidadeRes.json();
+          const currentMembros: any[] = Array.isArray(comunidadeData.data?.membros) ? comunidadeData.data.membros : [];
+          const currentIds = currentMembros
+            .map((m: any) => typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id)
+            .filter(Boolean)
+            .map((id: string) => ({ cadastro_geral_id: id }));
+          if (!currentIds.some((m: any) => m.cadastro_geral_id === membroDirectusId)) {
+            currentIds.push({ cadastro_geral_id: membroDirectusId });
+          }
+          const patchRes = await fetch(`${DIRECTUS_URL}/items/${col}/${conviteLink.comunidade_id}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ membros: currentIds }),
+          });
+          if (!patchRes.ok) {
+            const err = await patchRes.text().catch(() => "");
+            console.warn("[register] Community M2M association failed (non-fatal):", patchRes.status, err.slice(0, 200));
+          } else {
+            console.log("[register] Member associated to community:", conviteLink.comunidade_id);
+          }
+        } else {
+          console.warn("[register] Could not fetch community for M2M association:", comunidadeRes.status);
+        }
+      }
+
+      // 3. Create local platform user
       const user = await storage.createUser({
         username: finalUsername,
         password,
@@ -2938,10 +2984,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         ativo: true,
       });
 
-      // 3. Mark convite_link as used and create vitrine candidatura.
+      // 4. Mark convite_link as used, create vitrine candidatura, and optionally associacao_completa.
       // These steps are mandatory — if they fail we roll back both the user creation
       // AND the token consumption so the invite can still be used on retry.
       let tokenConsumed = false;
+      let pagamentoToken: string | null = null;
       try {
         await storage.updateConviteLink(conviteLink.id, {
           status: "usado",
@@ -2961,6 +3008,23 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           dados_contratuais: null,
           expires_at: null,
         });
+
+        // If user chose Área de Alianças, create an associacao_completa convite for payment
+        if (emMembrosBuilt && conviteLink.comunidade_id) {
+          const assocConvite = await storage.createConvite({
+            comunidade_id: conviteLink.comunidade_id,
+            candidato_membro_id: membroDirectusId,
+            candidato_nome: nome,
+            candidato_email: email,
+            invitador_membro_id: conviteLink.gerador_membro_id || null,
+            status: "convidado",
+            tipo: "associacao_completa",
+            dados_contratuais: null,
+            expires_at: null,
+          });
+          pagamentoToken = assocConvite.token;
+          console.log("[register] associacao_completa convite created:", assocConvite.id, "token:", pagamentoToken);
+        }
       } catch (postUserErr: any) {
         // Roll back: delete the newly created user so they cannot log in
         // in an unapproved state, and restore the token to "ativo" if it was already consumed.
@@ -2974,7 +3038,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       const { password: _pw, ...safe } = user;
-      res.json({ success: true, user: safe });
+      res.json({ success: true, user: safe, ...(pagamentoToken ? { pagamento_token: pagamentoToken } : {}) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

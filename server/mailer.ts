@@ -67,16 +67,45 @@ export async function notificarAliadoCandidatura(opts: {
   aliadoEmail: string;
   aliadoNome: string;
   candidatoNome: string;
+  candidatoEmail?: string;
   comunidadeNome: string;
   comunidadeId: string;
+  interesses?: string[];
 }) {
+  const INTERESSE_LABELS: Record<string, string> = {
+    vitrine: "Vitrine",
+    capital: "Capital",
+    membros: "Área de Alianças",
+  };
+  const interessesArr = opts.interesses ?? [];
+  const interessesList = interessesArr.length > 0
+    ? interessesArr.map((i) => INTERESSE_LABELS[i] ?? i).join(", ")
+    : null;
+  const hasAliancas = interessesArr.includes("membros");
+
+  const emailLine = opts.candidatoEmail
+    ? `<p style="color:rgba(255,255,255,0.6);font-size:13px;margin:4px 0 0">E-mail: <strong>${opts.candidatoEmail}</strong></p>`
+    : "";
+  const interessesLine = interessesList
+    ? `<p style="color:rgba(255,255,255,0.6);font-size:13px;margin:4px 0 0">Áreas de interesse: <strong style="color:#D7BB7D">${interessesList}</strong></p>`
+    : "";
+  const aliancasNote = hasAliancas
+    ? `<div style="background:rgba(215,187,125,0.08);border-left:3px solid rgba(215,187,125,0.4);padding:12px 16px;margin:20px 0;border-radius:0 6px 6px 0"><p style="color:rgba(255,255,255,0.7);margin:0;font-size:13px">Este candidato selecionou <strong style="color:#D7BB7D">Área de Alianças</strong> — ele seguirá para o pagamento antes da aprovação formal.</p></div>`
+    : "";
+
   await send(
     opts.aliadoEmail,
     `Nova candidatura na ${opts.comunidadeNome}`,
     baseTemplate(`
       <h2 style="color:#D7BB7D;margin-top:0">Nova Candidatura Recebida</h2>
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.aliadoNome}</strong>!</p>
-      <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> preencheu o formulário de candidatura para a <strong>${opts.comunidadeNome}</strong>.</p>
+      <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> se cadastrou como candidato na <strong>${opts.comunidadeNome}</strong>.</p>
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+        <p style="color:rgba(255,255,255,0.8);margin:0;font-weight:bold">${opts.candidatoNome}</p>
+        ${emailLine}
+        ${interessesLine}
+      </div>
+      ${aliancasNote}
       <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para revisar a candidatura e tomar uma decisão:</p>
       <div style="text-align:center;margin:32px 0">
         <a href="${BASE_URL}/comunidade" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>

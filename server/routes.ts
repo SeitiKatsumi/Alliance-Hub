@@ -3039,6 +3039,41 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       const { password: _pw, ...safe } = user;
       res.json({ success: true, user: safe, ...(pagamentoToken ? { pagamento_token: pagamentoToken } : {}) });
+
+      // Notify community admin (aliado BUILT) about the new candidate — fire and forget
+      if (conviteLink.comunidade_id) {
+        (async () => {
+          try {
+            const { notificarAliadoCandidatura: notifyAliado } = await import("./mailer");
+            const col = await getComunidadeCol();
+            const cr = await fetch(`${DIRECTUS_URL}/items/${col}/${conviteLink.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`, {
+              headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+            });
+            if (cr.ok) {
+              const comunidade = (await cr.json()).data;
+              const aliado = comunidade?.aliado;
+              if (aliado?.email) {
+                await notifyAliado({
+                  aliadoEmail: aliado.email,
+                  aliadoNome: aliado.nome || "Aliado",
+                  candidatoNome: nome,
+                  candidatoEmail: email,
+                  comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+                  comunidadeId: conviteLink.comunidade_id,
+                  interesses: interessesArr,
+                });
+                console.log("[register] Admin notified:", aliado.email);
+              } else {
+                console.warn("[register] No aliado email found for community:", conviteLink.comunidade_id);
+              }
+            } else {
+              console.warn("[register] Could not fetch community for admin notification:", cr.status, conviteLink.comunidade_id);
+            }
+          } catch (notifyErr: any) {
+            console.error("[register] Failed to notify aliado:", notifyErr.message);
+          }
+        })();
+      }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

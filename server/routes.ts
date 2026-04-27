@@ -418,6 +418,18 @@ async function findCppCategoriaId(categoryName: string): Promise<number | null> 
   return _catCache[categoryName.trim()] ?? null;
 }
 
+let _tipoCppCache: Record<string, number> | null = null;
+async function findTipoCppId(nome: string): Promise<number | null> {
+  if (!_tipoCppCache) {
+    const tipos = await directusFetch("tipos_cpp", "fields=id,nome");
+    _tipoCppCache = {};
+    for (const t of tipos) {
+      if (t.nome) _tipoCppCache[t.nome.trim()] = t.id;
+    }
+  }
+  return _tipoCppCache[nome.trim()] ?? null;
+}
+
 const CPP_CONTRIBUTOR_CATEGORY: Record<string, string> = {
   "BUILT":               "Direito Econômico Institucional BUILT (DEI-B)",
   "Aliado BUILT":        "Direito Econômico Institucional do Aliado (DEI-A)",
@@ -433,6 +445,7 @@ interface CppContributor {
   memberId: string | null;
   percentual: number;
   alwaysCreate?: boolean;
+  isAporte?: boolean;
 }
 
 interface SyncCppSummary {
@@ -455,7 +468,9 @@ async function syncValorOrigemLancamento(
   const MARCA_BASE = "Valor de Origem da BIA";
   const CPP_MARCA = "CPP";
   const DIVISOR_MARCA = "Divisor Multiplicador";
-  _catCache = null; // reset per-sync so stale IDs are never used
+  const APORTE_MARCA = "Aporte do Fator de Multiplicação";
+  _catCache = null;
+  _tipoCppCache = null; // reset per-sync so stale IDs are never used
 
   // Fetch all fluxo_caixa entries and filter in code (Directus filter params conflict with URL template)
   let existing: any[] = [];
@@ -465,7 +480,7 @@ async function syncValorOrigemLancamento(
     existing = all.filter((e: any) => {
       if (e.bia !== biaId) return false;
       const desc = e.descricao || "";
-      return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId)) || desc.startsWith(DIVISOR_MARCA);
+      return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId)) || desc.startsWith(DIVISOR_MARCA) || desc.startsWith(APORTE_MARCA);
     });
   } catch (fetchErr: any) {
     console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} — skipping cleanup`);
@@ -536,6 +551,25 @@ async function syncValorOrigemLancamento(
           });
           summary.cppCount++;
           activeContributorLabels.add(contrib.label);
+
+          // Aporte do Fator de Multiplicação — entrada for director roles only
+          if (contrib.isAporte && contrib.memberId) {
+            const aporteCatId = await findCppCategoriaId("Esforço multiplicador convertido em CPP");
+            const aporteTipoCppId = await findTipoCppId("CPP de Liderança");
+            await directusCreate("fluxo_caixa", {
+              bia: biaId,
+              tipo: "entrada",
+              valor: String(valorCpp),
+              data: today,
+              descricao: `${APORTE_MARCA} - Parcela ${i + 1}/${numeroParcelas}`,
+              data_vencimento: dataVencimento,
+              status: dataVencimento ? "agendado" : "pendente",
+              Categoria: aporteCatId ? [{ categorias_id: aporteCatId }] : [],
+              tipo_de_cpp: aporteTipoCppId ? [{ tipos_cpp_id: aporteTipoCppId }] : [],
+              favorecido_id: contrib.memberId,
+              Anexos: [],
+            });
+          }
         }
       }
     }
@@ -580,6 +614,25 @@ async function syncValorOrigemLancamento(
         });
         summary.cppCount++;
         activeContributorLabels.add(contrib.label);
+
+        // Aporte do Fator de Multiplicação — entrada for director roles only
+        if (contrib.isAporte && contrib.memberId) {
+          const aporteCatId = await findCppCategoriaId("Esforço multiplicador convertido em CPP");
+          const aporteTipoCppId = await findTipoCppId("CPP de Liderança");
+          await directusCreate("fluxo_caixa", {
+            bia: biaId,
+            tipo: "entrada",
+            valor: String(valorCpp),
+            data: today,
+            descricao: `${APORTE_MARCA} - Parcela 1/1`,
+            data_vencimento: dataVencimento,
+            status: statusEntry,
+            Categoria: aporteCatId ? [{ categorias_id: aporteCatId }] : [],
+            tipo_de_cpp: aporteTipoCppId ? [{ tipos_cpp_id: aporteTipoCppId }] : [],
+            favorecido_id: contrib.memberId,
+            Anexos: [],
+          });
+        }
       }
     }
   }
@@ -1908,11 +1961,11 @@ export async function registerRoutes(
             const contributors: CppContributor[] = [
               { label: "Aliado BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
               { label: "BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
-              { label: "Dir. de Aliança", memberId: req.body.diretor_alianca || null, percentual: parseFloat(req.body.perc_dir_alianca) || 0 },
-              { label: "Dir. Núcleo Técnico", memberId: req.body.diretor_nucleo_tecnico || null, percentual: parseFloat(req.body.perc_dir_tecnico) || 0 },
-              { label: "Dir. Núcleo de Obra", memberId: req.body.diretor_execucao || null, percentual: parseFloat(req.body.perc_dir_obras) || 0 },
-              { label: "Dir. Núcleo Comercial", memberId: req.body.diretor_comercial || null, percentual: parseFloat(req.body.perc_dir_comercial) || 0 },
-              { label: "Dir. Núcleo de Capital", memberId: req.body.diretor_capital || null, percentual: parseFloat(req.body.perc_dir_capital) || 0 },
+              { label: "Dir. de Aliança", memberId: req.body.diretor_alianca || null, percentual: parseFloat(req.body.perc_dir_alianca) || 0, isAporte: true },
+              { label: "Dir. Núcleo Técnico", memberId: req.body.diretor_nucleo_tecnico || null, percentual: parseFloat(req.body.perc_dir_tecnico) || 0, isAporte: true },
+              { label: "Dir. Núcleo de Obra", memberId: req.body.diretor_execucao || null, percentual: parseFloat(req.body.perc_dir_obras) || 0, isAporte: true },
+              { label: "Dir. Núcleo Comercial", memberId: req.body.diretor_comercial || null, percentual: parseFloat(req.body.perc_dir_comercial) || 0, isAporte: true },
+              { label: "Dir. Núcleo de Capital", memberId: req.body.diretor_capital || null, percentual: parseFloat(req.body.perc_dir_capital) || 0, isAporte: true },
             ];
             try {
               const cppSummary = await syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);

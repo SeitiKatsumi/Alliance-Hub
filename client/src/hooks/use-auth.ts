@@ -12,6 +12,7 @@ export interface AppUser {
   ativo: boolean;
   tipos_alianca?: string[];
   Outras_redes_as_quais_pertenco?: string[];
+  foto_perfil?: string | null;
   pending_vitrine?: boolean;
 }
 

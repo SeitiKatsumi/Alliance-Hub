@@ -3204,12 +3204,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     const membroId = (req.session as any).membroId as string | null;
     let tipos_alianca: string[] = [];
     let Outras_redes_as_quais_pertenco: string[] = [];
+    let fotoPerfil: string | null = null;
     if (membroId) {
       try {
-        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco");
+        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil");
         if (membro) {
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
           Outras_redes_as_quais_pertenco = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
+          fotoPerfil = membro.foto_perfil || null;
         }
       } catch (_) {}
     }
@@ -3235,6 +3237,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       permissions,
       tipos_alianca,
       Outras_redes_as_quais_pertenco,
+      foto_perfil: fotoPerfil ? `/api/assets/${fotoPerfil}` : null,
       pending_vitrine,
     });
   });

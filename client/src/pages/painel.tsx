@@ -10,6 +10,7 @@ import {
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface DashboardBia {
   id: string;
@@ -138,19 +139,34 @@ export default function PainelPage() {
   const roleLabel = deriveRole(user);
   const comunidadeLabel = comunidades.length > 0 ? comunidades[0].nome : null;
 
+  const avatarInitials = nomeExibido
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w: string) => w[0])
+    .join("")
+    .toUpperCase();
+
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#D7BB7D]/15 flex items-center justify-center">
-            <LayoutDashboard className="w-4 h-4 text-[#D7BB7D]" />
+        <div className="flex items-center gap-3">
+          <Avatar className="w-10 h-10 ring-2 ring-[#D7BB7D]/30" data-testid="avatar-profile">
+            {user?.foto_perfil && (
+              <AvatarImage src={user.foto_perfil} alt={nomeExibido} />
+            )}
+            <AvatarFallback className="bg-[#D7BB7D]/15 text-[#D7BB7D] text-sm font-semibold">
+              {avatarInitials || <LayoutDashboard className="w-4 h-4" />}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">
+              {greeting()}, {nomeExibido}
+            </h1>
           </div>
-          <h1 className="text-xl font-semibold text-foreground">
-            {greeting()}, {nomeExibido}
-          </h1>
         </div>
-        <div className="pl-10 flex flex-wrap items-center gap-2">
+        <div className="pl-[52px] flex flex-wrap items-center gap-2">
           {roleLabel && (
             <Badge
               variant="outline"

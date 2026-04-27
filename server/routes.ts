@@ -2013,6 +2013,25 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/bias/:id/aportes — returns "Aporte do Fator de Multiplicação" fluxo_caixa entries for a BIA
+  app.get("/api/bias/:id/aportes", async (req, res) => {
+    try {
+      const biaId = req.params.id;
+      // Filter by BIA server-side to avoid loading all fluxo_caixa entries;
+      // description prefix filter applied in-memory (Directus bracket filters are BIA-scoped here)
+      const entries = await directusFetch(
+        "fluxo_caixa",
+        `filter[bia][_eq]=${encodeURIComponent(biaId)}&fields=id,bia,descricao,valor,data_vencimento,status,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario`
+      );
+      const aportes = entries.filter(
+        (e: any) => (e.descricao || "").startsWith("Aporte do Fator de Multiplicação")
+      );
+      res.json(aportes);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== BIA APROVAÇÕES ==========
 
   // GET /api/bia-aprovacoes — list pending approvals visible to the current user

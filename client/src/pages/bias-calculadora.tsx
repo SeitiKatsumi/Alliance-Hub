@@ -465,6 +465,14 @@ export default function BiasCalculadoraPage() {
   const cppCapital = valorOrigem * percCapital / 100;
   const custoFinalPrevisto = cppAliado + cppBuilt + cppTecnico + cppAlianca + cppObras + cppComercial + cppCapital;
 
+  // Total Aporte do Fator de Multiplicação — entrada entries generated per director with a member assigned
+  const totalAporteFatorMultiplicacao =
+    (membroDirTecnico ? cppAlianca : 0) +
+    (membroDirNucleoTecnico ? cppTecnico : 0) +
+    (membroDirObras ? cppObras : 0) +
+    (membroDirComercial ? cppComercial : 0) +
+    (membroDirCapital ? cppCapital : 0);
+
   // Deduções são percentuais sobre o valor realizado de venda
   const comissaoValor    = (comissaoCorretor / 100) * valorRealizadoVenda;
   const irValor          = (irPrevisto       / 100) * valorRealizadoVenda;
@@ -998,7 +1006,7 @@ export default function BiasCalculadoraPage() {
                 Resultado Final
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Custo Final Previsto</p>
@@ -1017,6 +1025,21 @@ export default function BiasCalculadoraPage() {
                   <p className={`text-lg font-bold ${lucroPrevisto >= 0 ? "text-brand-gold" : "text-red-600"}`} data-testid="text-lucro">{formatPerc(lucroPrevisto)}</p>
                 </div>
               </div>
+
+              {totalAporteFatorMultiplicacao > 0 && (
+                <div className="rounded-lg border border-blue-500/25 bg-blue-500/5 px-4 py-3 flex items-center justify-between gap-4" data-testid="panel-aporte-fm">
+                  <div className="flex items-center gap-2">
+                    <HandCoins className="w-4 h-4 text-blue-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium">Aporte do Fator de Multiplicação</p>
+                      <p className="text-xs text-muted-foreground">Total de entradas geradas para diretores com membro atribuído</p>
+                    </div>
+                  </div>
+                  <p className="text-lg font-bold text-blue-600 tabular-nums shrink-0" data-testid="text-aporte-fm">
+                    {formatBRL(totalAporteFatorMultiplicacao)}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

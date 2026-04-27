@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
   Wallet, TrendingUp, TrendingDown, Target, Building2, Globe,
-  Pencil, Layers, FileText, Users, Paperclip, ExternalLink
+  Pencil, Layers, FileText, Users, Paperclip, ExternalLink, HandCoins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +79,15 @@ interface Membro {
   primeiro_nome?: string;
   sobrenome?: string;
   empresa?: string;
+}
+
+interface AporteEntry {
+  id: string;
+  descricao: string;
+  valor: string | number;
+  data_vencimento?: string | null;
+  status?: string;
+  favorecido_id?: { id: string; nome?: string; Nome_de_usuario?: string } | null;
 }
 
 interface Oportunidade {
@@ -235,6 +244,11 @@ export default function BiaDetalhePage() {
 
   const { data: membrosRaw = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
   const { data: opasRaw = [] } = useQuery<Oportunidade[]>({ queryKey: ["/api/oportunidades"] });
+  const { data: aportesRaw = [] } = useQuery<AporteEntry[]>({
+    queryKey: ["/api/bias", id, "aportes"],
+    queryFn: () => fetch(`/api/bias/${id}/aportes`).then(r => r.json()),
+    enabled: !!id,
+  });
 
   const membros = useMemo(() => {
     const m: Record<string, string> = {};
@@ -301,6 +315,9 @@ export default function BiaDetalhePage() {
   const lucro = n(bia.lucro_previsto);
   const custoFinal = n(bia.custo_final_previsto);
   const totalAportes = n(bia.total_aportes);
+
+  const aporteFMEntries = aportesRaw as AporteEntry[];
+  const totalAporteFM = aporteFMEntries.reduce((sum, e) => sum + n(e.valor), 0);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -587,6 +604,59 @@ export default function BiaDetalhePage() {
                       <span className="font-semibold text-brand-gold/80 tabular-nums">{formatMoney(n(bia.total_aportes), bia.moeda || "BRL")}</span>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Aporte do Fator de Multiplicação */}
+          {aporteFMEntries.length > 0 && (
+            <Card data-testid="card-aporte-fator-multiplicacao">
+              <CardContent className="pt-5 pb-4">
+                <SectionTitle icon={HandCoins}>Aporte do Fator de Multiplicação</SectionTitle>
+                <div className="space-y-2.5 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Total de Aportes (DM)</span>
+                    <span className="font-bold text-blue-600 tabular-nums" data-testid="text-total-aporte-fm">
+                      {formatMoney(totalAporteFM, bia.moeda || "BRL")}
+                    </span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="space-y-2">
+                    {aporteFMEntries.map((entry) => {
+                      const favNome = entry.favorecido_id
+                        ? (entry.favorecido_id.Nome_de_usuario || entry.favorecido_id.nome || "")
+                        : "";
+                      const parcela = entry.descricao.replace("Aporte do Fator de Multiplicação - ", "");
+                      return (
+                        <div key={entry.id} className="rounded-md bg-blue-500/5 border border-blue-500/15 px-3 py-2" data-testid={`row-aporte-${entry.id}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-foreground">{parcela}</p>
+                              {favNome && (
+                                <p className="text-[11px] text-muted-foreground truncate">{favNome}</p>
+                              )}
+                              {entry.data_vencimento && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  {new Date(entry.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-semibold text-blue-600 tabular-nums">
+                                {formatMoney(n(entry.valor), bia.moeda || "BRL")}
+                              </p>
+                              {entry.status && (
+                                <Badge variant="outline" className="text-[9px] h-4 px-1 mt-0.5 border-blue-500/30 text-blue-600">
+                                  {entry.status}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </Card>

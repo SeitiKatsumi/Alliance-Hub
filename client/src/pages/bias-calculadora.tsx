@@ -331,22 +331,6 @@ export default function BiasCalculadoraPage() {
 
   const numParcelasInt = parseInt(numeroParcelas) || 0;
 
-  // Estimate how many Directus entries will be created/deleted during sync
-  const activeContributors = 1 // BUILT always
-    + (membroAliadoBuilt && percAliado > 0 ? 1 : 0)
-    + (membroDirTecnico && percAlianca > 0 ? 1 : 0)
-    + (membroDirNucleoTecnico && percTecnico > 0 ? 1 : 0)
-    + (membroDirObras && percObras > 0 ? 1 : 0)
-    + (membroDirComercial && percComercial > 0 ? 1 : 0)
-    + (membroDirCapital && percCapital > 0 ? 1 : 0);
-  const estimatedEntries = (formaPagamento === "parcelado" ? numParcelasInt : 1) * (1 + activeContributors);
-  // ~0.5s per entry (create + amortised cleanup): conservative estimate
-  const estimatedSeconds = Math.round(estimatedEntries * 0.5);
-  const needsWarning = formaPagamento === "parcelado" && numParcelasInt > 10;
-  const estimatedLabel = estimatedSeconds >= 60
-    ? `~${Math.ceil(estimatedSeconds / 60)} min`
-    : `~${estimatedSeconds}s`;
-
   // valorOrigem é derivado da forma de pagamento
   const valorOrigem = useMemo(() => {
     if (formaPagamento === "parcelado") return valoresParcelas.reduce((s, v) => s + (v || 0), 0);
@@ -374,6 +358,22 @@ export default function BiasCalculadoraPage() {
   // Aportes
   const [totalAportes, setTotalAportes] = useState(0);
   const [inicioAportes, setInicioAportes] = useState<string>("");
+
+  // Estimate how many Directus entries will be created/deleted during sync
+  const activeContributors = 1 // BUILT always
+    + (membroAliadoBuilt && percAliado > 0 ? 1 : 0)
+    + (membroDirTecnico && percAlianca > 0 ? 1 : 0)
+    + (membroDirNucleoTecnico && percTecnico > 0 ? 1 : 0)
+    + (membroDirObras && percObras > 0 ? 1 : 0)
+    + (membroDirComercial && percComercial > 0 ? 1 : 0)
+    + (membroDirCapital && percCapital > 0 ? 1 : 0);
+  const estimatedEntries = (formaPagamento === "parcelado" ? numParcelasInt : 1) * (1 + activeContributors);
+  // ~0.5s per entry (create + amortised cleanup): conservative estimate
+  const estimatedSeconds = Math.round(estimatedEntries * 0.5);
+  const needsWarning = formaPagamento === "parcelado" && numParcelasInt > 10;
+  const estimatedLabel = estimatedSeconds >= 60
+    ? `~${Math.ceil(estimatedSeconds / 60)} min`
+    : `~${estimatedSeconds}s`;
 
   useEffect(() => {
     if (selectedBia) {

@@ -312,6 +312,44 @@ export async function enviarResultadoAprovacaoBia(opts: {
   await send(opts.diretorEmail, subject, html);
 }
 
+export async function notificarInteresseOpa(opts: {
+  destinatarioEmail: string;
+  destinatarioNome: string;
+  papel: string;
+  membroNome: string;
+  opaNome: string;
+  biaNome: string;
+  mensagem?: string | null;
+  multiplicador?: string | null;
+}) {
+  const multLine = opts.multiplicador
+    ? `<tr><td style="color:rgba(255,255,255,0.5);font-size:12px;padding:4px 0">Multiplicador proposto</td><td style="color:#D7BB7D;font-size:13px;font-weight:bold;padding:4px 0">${opts.multiplicador}%</td></tr>`
+    : "";
+  const msgBlock = opts.mensagem
+    ? `<div style="background:rgba(255,255,255,0.04);border-left:3px solid rgba(215,187,125,0.35);padding:10px 14px;margin:16px 0;border-radius:0 6px 6px 0"><p style="color:rgba(255,255,255,0.65);margin:0;font-size:13px;font-style:italic">"${opts.mensagem}"</p></div>`
+    : "";
+  await send(
+    opts.destinatarioEmail,
+    `Interesse manifestado na OPA "${opts.opaNome}"`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Interesse manifestado em OPA</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.destinatarioNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">O membro <strong style="color:#D7BB7D">${opts.membroNome}</strong> manifestou interesse na seguinte OPA da BIA <strong>${opts.biaNome}</strong>:</p>
+      <div style="background:rgba(215,187,125,0.07);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+        <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.opaNome}</p>
+        <table style="width:100%;margin-top:10px;border-collapse:collapse">
+          ${multLine}
+        </table>
+      </div>
+      ${msgBlock}
+      <p style="color:rgba(255,255,255,0.6);font-size:13px">Você está recebendo esta notificação como <strong>${opts.papel}</strong> desta BIA.</p>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${BASE_URL}/opas" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver OPAs</a>
+      </div>
+    `)
+  );
+}
+
 export async function enviarAprovacaoVitrine(opts: {
   candidatoEmail: string;
   candidatoNome: string;

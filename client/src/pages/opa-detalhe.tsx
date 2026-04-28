@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -109,6 +109,7 @@ export default function OpaDetalhePage() {
   const [interesseDialog, setInteresseDialog] = useState(false);
   const [semSeloDialog, setSemSeloDialog] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const [multiplicadorInput, setMultiplicadorInput] = useState<string>("");
 
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const hasSeal = !!(user?.role === "admin" || user?.role === "manager" ||
@@ -133,16 +134,20 @@ export default function OpaDetalhePage() {
   });
 
   const interesseMutation = useMutation({
-    mutationFn: async (msg: string) => {
-      return apiRequest("POST", `/api/oportunidades/${id}/interesse`, { mensagem: msg || null });
+    mutationFn: async ({ msg, mult: multVal }: { msg: string; mult: string }) => {
+      return apiRequest("POST", `/api/oportunidades/${id}/interesse`, {
+        mensagem: msg || null,
+        multiplicador: multVal ? parseFloat(multVal) || null : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
       setInteresseDialog(false);
       setMensagem("");
+      setMultiplicadorInput("");
       toast({
         title: "Interesse registrado!",
-        description: "O autor e diretor desta OPA foram notificados sobre seu interesse.",
+        description: "O Diretor de Aliança e o Aliado BUILT da BIA foram notificados.",
       });
     },
     onError: (err: any) => {
@@ -180,6 +185,12 @@ export default function OpaDetalhePage() {
   const valor = n(opa?.valor_origem_opa);
   const mult = n(opa?.Minimo_esforco_multiplicador);
   const isClosed = opa?.status === "concluida" || opa?.status === "desistencia";
+
+  useEffect(() => {
+    if (interesseDialog && mult > 0) {
+      setMultiplicadorInput(String(mult));
+    }
+  }, [interesseDialog]);
 
   const dias = opa?.date_created
     ? Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000)
@@ -543,6 +554,31 @@ export default function OpaDetalhePage() {
                 <p className="text-xs text-muted-foreground mt-0.5">{opa.nucleo_alianca}</p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
+                Mínimo Multiplicador (%)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={multiplicadorInput}
+                  onChange={(e) => setMultiplicadorInput(e.target.value)}
+                  placeholder={mult > 0 ? String(mult) : "Ex: 1.5"}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  data-testid="input-multiplicador-interesse"
+                />
+                <span className="text-sm text-muted-foreground shrink-0">%</span>
+              </div>
+              {mult > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Mínimo definido na OPA: <span className="font-semibold text-foreground">{mult}%</span>
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
                 Mensagem (opcional)
@@ -551,13 +587,19 @@ export default function OpaDetalhePage() {
                 placeholder="Descreva brevemente seu interesse ou como pode contribuir..."
                 value={mensagem}
                 onChange={(e) => setMensagem(e.target.value)}
-                className="resize-none min-h-[90px]"
+                className="resize-none min-h-[80px]"
                 data-testid="textarea-mensagem-interesse"
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              O autor e o diretor desta OPA serão notificados sobre seu interesse.
-            </p>
+
+            <div className="rounded-lg border border-brand-gold/15 bg-brand-gold/5 px-3 py-2.5 flex gap-2.5 items-start">
+              <Sparkles className="w-3.5 h-3.5 text-brand-gold/70 shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Uma notificação será enviada por e-mail ao{" "}
+                <strong className="text-foreground">Diretor de Aliança</strong> e ao{" "}
+                <strong className="text-foreground">Aliado BUILT</strong> da BIA vinculada a esta OPA.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInteresseDialog(false)} data-testid="btn-cancel-interesse">
@@ -565,7 +607,7 @@ export default function OpaDetalhePage() {
             </Button>
             <Button
               className="gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
-              onClick={() => interesseMutation.mutate(mensagem)}
+              onClick={() => interesseMutation.mutate({ msg: mensagem, mult: multiplicadorInput })}
               disabled={interesseMutation.isPending}
               data-testid="btn-confirm-interesse"
             >

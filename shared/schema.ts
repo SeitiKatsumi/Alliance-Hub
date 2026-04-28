@@ -274,6 +274,7 @@ export const opaInteresses = pgTable("opa_interesses", {
   membro_id: text("membro_id"),
   membro_nome: text("membro_nome"),
   mensagem: text("mensagem"),
+  multiplicador: text("multiplicador"),
   criado_em: timestamp("criado_em").defaultNow(),
 });
 

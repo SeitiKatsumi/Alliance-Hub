@@ -2621,14 +2621,78 @@ export async function registerRoutes(
       const { id } = req.params;
       const existing = await storage.getUserInteresseByOpa(id, directusUserId);
       if (existing) return res.status(409).json({ error: "Interesse já registrado" });
+      const multiplicador = req.body.multiplicador != null ? String(req.body.multiplicador) : null;
       const item = await storage.createOpaInteresse({
         opa_id: id,
         user_id: directusUserId,
         membro_id: membroId || null,
         membro_nome: nome || directusUserId,
         mensagem: req.body.mensagem || null,
+        multiplicador,
       });
       res.json(item);
+
+      // Fire-and-forget: notify Diretor de Aliança and Aliado BUILT of linked BIA
+      (async () => {
+        try {
+          const { notificarInteresseOpa } = await import("./mailer");
+          // Fetch the OPA to get bia_id and name
+          const opa = await directusFetchOne("tipos_oportunidades", id, "fields=nome_oportunidade,bia_id");
+          const biaId = opa?.bia_id as string | null | undefined;
+          const opaNome = (opa?.nome_oportunidade as string) || "OPA";
+          if (!biaId) return;
+          // Fetch the BIA to get roles and name
+          const bia = await directusFetchOne("bias_projetos", biaId, "fields=nome_bia,diretor_alianca,aliado_built");
+          const biaNome = (bia?.nome_bia as string) || "BIA";
+          const diretorId = bia?.diretor_alianca as string | null | undefined;
+          const aliadoId = bia?.aliado_built as string | null | undefined;
+
+          async function fetchMemberEmail(mid: string): Promise<{ email: string; nome: string } | null> {
+            try {
+              const m = await directusFetchOne("cadastro_geral", mid, "fields=email,nome");
+              if (m?.email) return { email: m.email as string, nome: (m.nome as string) || mid };
+            } catch {}
+            return null;
+          }
+
+          const membroNome = nome || "Membro";
+          const msgBody = req.body.mensagem || null;
+
+          if (diretorId) {
+            const m = await fetchMemberEmail(diretorId);
+            if (m) {
+              await notificarInteresseOpa({
+                destinatarioEmail: m.email,
+                destinatarioNome: m.nome,
+                papel: "Diretor de Aliança",
+                membroNome,
+                opaNome,
+                biaNome,
+                mensagem: msgBody,
+                multiplicador,
+              });
+            }
+          }
+
+          if (aliadoId && aliadoId !== diretorId) {
+            const m = await fetchMemberEmail(aliadoId);
+            if (m) {
+              await notificarInteresseOpa({
+                destinatarioEmail: m.email,
+                destinatarioNome: m.nome,
+                papel: "Aliado BUILT",
+                membroNome,
+                opaNome,
+                biaNome,
+                mensagem: msgBody,
+                multiplicador,
+              });
+            }
+          }
+        } catch (notifErr: any) {
+          console.error("[interesse-opa] Notification error:", notifErr?.message || notifErr);
+        }
+      })();
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

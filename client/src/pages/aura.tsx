@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import {
   Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
-  BarChart3, Users, Zap,
+  BarChart3, Users, Zap, Bot, Tags,
 } from "lucide-react";
 
 interface AuraResult {
@@ -86,6 +87,8 @@ export default function AuraPage() {
   const [selectedPalavras, setSelectedPalavras] = useState<string[]>([]);
   const [palavraInput, setPalavraInput] = useState("");
   const [showSugestoes, setShowSugestoes] = useState(false);
+  const [evalMode, setEvalMode] = useState<"palavras" | "texto">("palavras");
+  const [textoIA, setTextoIA] = useState("");
 
   const myId = user?.membro_directus_id;
 
@@ -143,9 +146,30 @@ export default function AuraPage() {
       setSelectedMembro(null);
       setSelectedPalavras([]);
       setSearchQuery("");
+      setTextoIA("");
+      setEvalMode("palavras");
     },
     onError: (err: Error) => {
       toast({ title: "Erro", description: err.message || "Não foi possível enviar a avaliação.", variant: "destructive" });
+    },
+  });
+
+  const analisarMutation = useMutation({
+    mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
+      const res = await apiRequest("POST", "/api/aura/analisar-texto", { texto, membro_nome });
+      return res as { palavras: string[] };
+    },
+    onSuccess: (data) => {
+      if (data.palavras.length === 0) {
+        toast({ title: "Nenhuma palavra identificada", description: "Tente descrever mais detalhadamente as características do membro.", variant: "destructive" });
+        return;
+      }
+      setSelectedPalavras(data.palavras);
+      setEvalMode("palavras");
+      toast({ title: "IA identificou as palavras!", description: `Sugestão: ${data.palavras.join(", ")}. Você pode ajustar antes de enviar.` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro na análise", description: err.message || "Não foi possível analisar o texto.", variant: "destructive" });
     },
   });
 
@@ -390,7 +414,7 @@ export default function AuraPage() {
                   </div>
                   <button
                     className="p-1 rounded hover:bg-white/10 transition-colors"
-                    onClick={() => { setSelectedMembro(null); setSelectedPalavras([]); setSearchQuery(""); }}
+                    onClick={() => { setSelectedMembro(null); setSelectedPalavras([]); setSearchQuery(""); setTextoIA(""); setEvalMode("palavras"); }}
                     data-testid="btn-limpar-membro"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
@@ -407,7 +431,63 @@ export default function AuraPage() {
                   </div>
                 )}
 
-                {/* Word selection */}
+                {/* Mode toggle */}
+                <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <button
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 transition-colors font-medium"
+                    style={evalMode === "palavras" ? { background: "rgba(215,187,125,0.15)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.4)" }}
+                    onClick={() => setEvalMode("palavras")}
+                    data-testid="btn-modo-palavras"
+                  >
+                    <Tags className="w-3.5 h-3.5" />
+                    Escolher palavras
+                  </button>
+                  <button
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 transition-colors font-medium"
+                    style={evalMode === "texto" ? { background: "rgba(215,187,125,0.15)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.4)" }}
+                    onClick={() => setEvalMode("texto")}
+                    data-testid="btn-modo-texto"
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    Analisar com IA
+                  </button>
+                </div>
+
+                {/* AI text mode */}
+                {evalMode === "texto" && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Descreva as características de <strong className="text-foreground">{selectedMembro.nome}</strong> e a IA escolherá as palavras mais adequadas
+                    </label>
+                    <Textarea
+                      placeholder={`Ex: ${selectedMembro.nome?.split(" ")[0] || "Este membro"} demonstra grande liderança e sempre entrega os projetos com excelência. É muito proativo e inspira a equipe...`}
+                      value={textoIA}
+                      onChange={e => setTextoIA(e.target.value)}
+                      rows={4}
+                      className="resize-none text-sm"
+                      data-testid="textarea-descricao-ia"
+                    />
+                    <Button
+                      className="w-full gap-2"
+                      style={{ background: "#D7BB7D", color: "#001D34" }}
+                      disabled={textoIA.trim().length < 10 || analisarMutation.isPending}
+                      onClick={() => analisarMutation.mutate({ texto: textoIA, membro_nome: selectedMembro.nome || "" })}
+                      data-testid="btn-analisar-ia"
+                    >
+                      {analisarMutation.isPending ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Analisando...</>
+                      ) : (
+                        <><Sparkles className="w-4 h-4" /> Analisar com IA</>
+                      )}
+                    </Button>
+                    {textoIA.trim().length > 0 && textoIA.trim().length < 10 && (
+                      <p className="text-[11px] text-muted-foreground">Escreva pelo menos 10 caracteres para analisar.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Word selection (manual mode) */}
+                {evalMode === "palavras" && (
                 <div className="space-y-3">
                   <label className="text-xs font-medium text-muted-foreground">
                     Escolha até 3 palavras que descrevem este membro
@@ -482,6 +562,7 @@ export default function AuraPage() {
                     </div>
                   )}
                 </div>
+                )}
 
                 <Button
                   className="w-full"

@@ -4814,6 +4814,50 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     return res.json(av ?? null);
   });
 
+  // POST /api/aura/analisar-texto — AI analysis: pick up to 3 lexicon words from free text
+  app.post("/api/aura/analisar-texto", async (req: any, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const { texto, membro_nome } = req.body;
+    if (!texto || typeof texto !== "string" || texto.trim().length < 10) {
+      return res.status(400).json({ error: "Texto muito curto. Descreva o membro com pelo menos 10 caracteres." });
+    }
+    const { PALAVRAS_SUGERIDAS: lexico } = await import("./aura-lexico.js");
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `Você é um assistente de avaliação de perfil profissional. Dado um texto descritivo sobre uma pessoa, seu trabalho é selecionar as 1 a 3 palavras mais relevantes de um léxico fixo que melhor representem as características descritas no texto. Responda APENAS com um array JSON de strings, sem nenhum texto adicional. Exemplo de resposta válida: ["Liderança","Inovação","Colaboração"]. O léxico disponível é: ${lexico.join(", ")}.`,
+          },
+          {
+            role: "user",
+            content: `Pessoa avaliada: ${membro_nome || "membro"}\n\nDescrição: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do léxico que melhor descrevem esta pessoa com base no texto acima.`,
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 80,
+      });
+      const raw = completion.choices[0]?.message?.content?.trim() || "[]";
+      let palavras: string[] = [];
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          palavras = parsed
+            .filter((p: unknown) => typeof p === "string" && lexico.includes(p))
+            .slice(0, 3);
+        }
+      } catch {
+        // try to extract words from malformed response
+        palavras = lexico.filter(w => raw.includes(w)).slice(0, 3);
+      }
+      return res.json({ palavras });
+    } catch (err: any) {
+      console.error("[aura-ai]", err?.message);
+      return res.status(500).json({ error: "Erro ao analisar texto com IA. Tente novamente." });
+    }
+  });
+
   // POST /api/aura/avaliar — submit or update an evaluation
   app.post("/api/aura/avaliar", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });

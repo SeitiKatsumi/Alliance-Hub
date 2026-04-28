@@ -499,15 +499,32 @@ export default function AuraPage() {
                   </button>
                 </div>
 
-                {/* Previous evaluation notice */}
-                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg border text-xs" style={{ borderColor: "rgba(215,187,125,0.2)", background: "rgba(215,187,125,0.05)", color: "rgba(215,187,125,0.8)" }}>
-                    <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>
-                      Você já avaliou: <strong>{minhaAvaliacaoDoSelecionado.palavras.join(", ")}</strong>. Enviar uma nova avaliação substituirá a anterior.
-                    </span>
+                {/* Already evaluated — locked state */}
+                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2.5 p-3 rounded-lg border text-xs" style={{ borderColor: "rgba(215,187,125,0.25)", background: "rgba(215,187,125,0.06)", color: "rgba(215,187,125,0.85)" }}>
+                      <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                      <div className="space-y-1.5">
+                        <p className="font-semibold">Avaliação enviada</p>
+                        <p className="opacity-75">Cada membro pode ser avaliado apenas uma vez. Sua avaliação não pode ser alterada.</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {minhaAvaliacaoDoSelecionado.palavras.map(p => (
+                        <Badge
+                          key={p}
+                          variant="outline"
+                          className="text-xs h-6 px-2.5 font-medium"
+                          style={{ borderColor: "rgba(215,187,125,0.4)", color: "#D7BB7D", background: "rgba(215,187,125,0.08)" }}
+                          data-testid={`badge-ja-avaliado-${p}`}
+                        >
+                          {p}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                )}
+                ) : (
+                <>
 
                 {/* Mode toggle */}
                 <div className="flex rounded-lg border border-[#D7BB7D]/30 overflow-hidden text-xs" style={{ background: "rgba(0,29,52,0.06)" }}>
@@ -701,6 +718,8 @@ export default function AuraPage() {
                     <><CheckCircle2 className="w-4 h-4 mr-2" /> Enviar Avaliação ({selectedPalavras.length}/3)</>
                   )}
                 </Button>
+                </>
+                )}
               </div>
             )}
           </CardContent>

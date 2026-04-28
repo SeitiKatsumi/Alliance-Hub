@@ -4902,7 +4902,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/aura/avaliar — submit or update an evaluation
+  // POST /api/aura/avaliar — submit an evaluation (one per pair, no updates)
   app.post("/api/aura/avaliar", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     const membroId = (req.session as any).membroId as string | null;
@@ -4917,6 +4917,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
     if (avaliado_membro_id === membroId) {
       return res.status(400).json({ error: "Você não pode avaliar a si mesmo" });
+    }
+    // Block duplicate evaluations
+    const existing = await storage.getAuraAvaliacaoByPair(membroId, avaliado_membro_id);
+    if (existing) {
+      return res.status(409).json({ error: "Você já avaliou este membro e não pode repetir a avaliação." });
     }
     // Validate all words are in the lexicon
     for (const p of palavras) {

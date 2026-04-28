@@ -4858,6 +4858,43 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  // POST /api/aura/extrair-arquivo — extract text from uploaded file (TXT or PDF) for AI analysis
+  app.post("/api/aura/extrair-arquivo", upload.single("arquivo"), async (req: any, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+
+    const mime = file.mimetype;
+    const name = (file.originalname || "").toLowerCase();
+
+    try {
+      let texto = "";
+      if (mime === "application/pdf" || name.endsWith(".pdf")) {
+        const pdfParse = (await import("pdf-parse")).default;
+        const data = await pdfParse(file.buffer);
+        texto = data.text || "";
+      } else if (
+        mime.startsWith("text/") ||
+        name.endsWith(".txt") ||
+        name.endsWith(".md") ||
+        name.endsWith(".csv")
+      ) {
+        texto = file.buffer.toString("utf-8");
+      } else {
+        return res.status(400).json({ error: "Tipo de arquivo não suportado. Use PDF ou TXT." });
+      }
+
+      texto = texto.replace(/\s+/g, " ").trim();
+      if (texto.length > 4000) texto = texto.slice(0, 4000) + "...";
+      if (texto.length < 5) return res.status(400).json({ error: "Não foi possível extrair texto do arquivo." });
+
+      return res.json({ texto });
+    } catch (err: any) {
+      console.error("[aura-arquivo]", err?.message);
+      return res.status(500).json({ error: "Erro ao processar o arquivo." });
+    }
+  });
+
   // POST /api/aura/avaliar — submit or update an evaluation
   app.post("/api/aura/avaliar", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });

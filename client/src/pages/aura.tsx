@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import {
   Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
-  BarChart3, Users, Zap, Bot, Tags,
+  BarChart3, Users, Zap, Bot, Tags, Paperclip, FileText,
 } from "lucide-react";
 
 interface AuraResult {
@@ -89,6 +89,8 @@ export default function AuraPage() {
   const [showSugestoes, setShowSugestoes] = useState(false);
   const [evalMode, setEvalMode] = useState<"palavras" | "texto">("palavras");
   const [textoIA, setTextoIA] = useState("");
+  const [arquivoNome, setArquivoNome] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const myId = user?.membro_directus_id;
 
@@ -147,10 +149,35 @@ export default function AuraPage() {
       setSelectedPalavras([]);
       setSearchQuery("");
       setTextoIA("");
+      setArquivoNome(null);
       setEvalMode("palavras");
     },
     onError: (err: Error) => {
       toast({ title: "Erro", description: err.message || "Não foi possível enviar a avaliação.", variant: "destructive" });
+    },
+  });
+
+  const extrairArquivoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("arquivo", file);
+      const res = await fetch("/api/aura/extrair-arquivo", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao processar arquivo." }));
+        throw new Error(err.error || "Erro ao processar arquivo.");
+      }
+      return res.json() as Promise<{ texto: string }>;
+    },
+    onSuccess: (data) => {
+      setTextoIA(prev => prev ? prev + "\n\n" + data.texto : data.texto);
+      toast({ title: "Arquivo processado!", description: "O texto foi extraído e adicionado ao campo abaixo." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro no arquivo", description: err.message, variant: "destructive" });
     },
   });
 
@@ -414,7 +441,7 @@ export default function AuraPage() {
                   </div>
                   <button
                     className="p-1 rounded hover:bg-white/10 transition-colors"
-                    onClick={() => { setSelectedMembro(null); setSelectedPalavras([]); setSearchQuery(""); setTextoIA(""); setEvalMode("palavras"); }}
+                    onClick={() => { setSelectedMembro(null); setSelectedPalavras([]); setSearchQuery(""); setTextoIA(""); setArquivoNome(null); setEvalMode("palavras"); }}
                     data-testid="btn-limpar-membro"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
@@ -460,9 +487,51 @@ export default function AuraPage() {
                 {/* AI text mode */}
                 {evalMode === "texto" && (
                   <div className="space-y-3">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Descreva as características de <strong className="text-foreground">{selectedMembro.nome}</strong> e a IA escolherá as palavras mais adequadas
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Descreva as características de <strong className="text-foreground">{selectedMembro.nome}</strong> e a IA escolherá as palavras mais adequadas
+                      </label>
+                      <button
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/50 text-muted-foreground hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D] transition-colors shrink-0 ml-3"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={extrairArquivoMutation.isPending}
+                        data-testid="btn-anexar-arquivo"
+                        title="Anexar PDF ou TXT"
+                      >
+                        {extrairArquivoMutation.isPending ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Paperclip className="w-3.5 h-3.5" />
+                        )}
+                        {extrairArquivoMutation.isPending ? "Lendo..." : "Anexar arquivo"}
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.txt,.md,.csv,text/plain,application/pdf"
+                        className="hidden"
+                        data-testid="input-arquivo"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setArquivoNome(file.name);
+                            extrairArquivoMutation.mutate(file);
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+
+                    {arquivoNome && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border/40 text-xs text-muted-foreground" style={{ background: "rgba(215,187,125,0.05)" }}>
+                        <FileText className="w-3.5 h-3.5 text-[#D7BB7D] shrink-0" />
+                        <span className="truncate flex-1">{arquivoNome}</span>
+                        <button onClick={() => { setArquivoNome(null); setTextoIA(""); }} className="hover:text-foreground transition-colors shrink-0">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+
                     <Textarea
                       placeholder={`Ex: ${selectedMembro.nome?.split(" ")[0] || "Este membro"} demonstra grande liderança e sempre entrega os projetos com excelência. É muito proativo e inspira a equipe...`}
                       value={textoIA}

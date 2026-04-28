@@ -34,6 +34,20 @@ interface MembroBusca {
 
 interface MinhaAvaliacao {
   id: number;
+  avaliador_membro_id: string;
+  avaliado_membro_id: string;
+  palavras: string[];
+  created_at: string;
+}
+
+interface MinhasAvaliacoesResponse {
+  recebidas: MinhaAvaliacao[];
+  dadas: MinhaAvaliacao[];
+}
+
+interface AvaliacaoExistente {
+  id: number;
+  avaliador_membro_id: string;
   avaliado_membro_id: string;
   palavras: string[];
   created_at: string;
@@ -83,10 +97,11 @@ export default function AuraPage() {
     queryKey: ["/api/aura/lexico"],
   });
 
-  const { data: minhasAvaliacoes = [] } = useQuery<MinhaAvaliacao[]>({
+  const { data: minhasAvaliacoesData } = useQuery<MinhasAvaliacoesResponse>({
     queryKey: ["/api/aura/minhas-avaliacoes"],
     enabled: !!myId,
   });
+  const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
 
   const { data: searchResults = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
     queryKey: ["/api/aura/membros/busca", searchQuery],
@@ -100,7 +115,7 @@ export default function AuraPage() {
     enabled: searchQuery.length >= 2,
   });
 
-  const { data: minhaAvaliacaoDoSelecionado } = useQuery<{ palavras: string[] } | null>({
+  const { data: minhaAvaliacaoDoSelecionado } = useQuery<AvaliacaoExistente | null>({
     queryKey: ["/api/aura/avaliacao", selectedMembro?.id],
     enabled: !!selectedMembro?.id,
   });
@@ -117,7 +132,7 @@ export default function AuraPage() {
       setSelectedPalavras([]);
       setSearchQuery("");
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: "Erro", description: err.message || "Não foi possível enviar a avaliação.", variant: "destructive" });
     },
   });
@@ -373,11 +388,11 @@ export default function AuraPage() {
                 </div>
 
                 {/* Previous evaluation notice */}
-                {minhaAvaliacaoDoSelecionado && (minhaAvaliacaoDoSelecionado as any).palavras?.length > 0 && (
+                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 && (
                   <div className="flex items-start gap-2 p-3 rounded-lg border text-xs" style={{ borderColor: "rgba(215,187,125,0.2)", background: "rgba(215,187,125,0.05)", color: "rgba(215,187,125,0.8)" }}>
                     <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <span>
-                      Você já avaliou: <strong>{(minhaAvaliacaoDoSelecionado as any).palavras.join(", ")}</strong>. Enviar uma nova avaliação substituirá a anterior.
+                      Você já avaliou: <strong>{minhaAvaliacaoDoSelecionado.palavras.join(", ")}</strong>. Enviar uma nova avaliação substituirá a anterior.
                     </span>
                   </div>
                 )}
@@ -478,14 +493,14 @@ export default function AuraPage() {
       )}
 
       {/* My evaluations given */}
-      {myId && minhasAvaliacoes.length > 0 && (
+      {myId && minhasAvaliacoesDadas.length > 0 && (
         <div className="space-y-3" data-testid="section-minhas-avaliacoes">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-[#D7BB7D]" />
-            Avaliações que Você Deu ({minhasAvaliacoes.length})
+            Avaliações que Você Deu ({minhasAvaliacoesDadas.length})
           </h2>
           <div className="space-y-2">
-            {minhasAvaliacoes.map(av => (
+            {minhasAvaliacoesDadas.map(av => (
               <div
                 key={av.id}
                 className="flex items-center gap-3 p-3 rounded-lg border border-border/60"

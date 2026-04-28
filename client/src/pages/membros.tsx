@@ -21,6 +21,7 @@ import {
   Briefcase, Globe, Activity, Cpu, Wifi, X,
   Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle
 } from "lucide-react";
+import { AuraBadge } from "@/components/aura-score";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
 
@@ -1174,6 +1175,11 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
               <span className="text-[11px]">{location}</span>
             </div>
           )}
+        </div>
+
+        {/* Aura badge */}
+        <div className="mt-2">
+          <AuraBadge membroId={membro.id} />
         </div>
 
         {/* Tags bottom */}

@@ -4768,13 +4768,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/aura/minhas-avaliacoes — evaluations made by the logged-in member
+  // GET /api/aura/minhas-avaliacoes — evaluations received and given by the logged-in member
   app.get("/api/aura/minhas-avaliacoes", async (req: any, res) => {
     if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
     const user = await storage.getUser(req.session.userId);
-    if (!user?.membro_directus_id) return res.json([]);
-    const avaliacoes = await storage.getAuraAvaliacoesByAvaliador(user.membro_directus_id);
-    return res.json(avaliacoes);
+    if (!user?.membro_directus_id) return res.json({ recebidas: [], dadas: [] });
+    const [recebidas, dadas] = await Promise.all([
+      storage.getAuraAvaliacoesByAvaliado(user.membro_directus_id),
+      storage.getAuraAvaliacoesByAvaliador(user.membro_directus_id),
+    ]);
+    return res.json({ recebidas, dadas });
   });
 
   // GET /api/aura/avaliacao/:avaliadoId — get my evaluation of a specific member

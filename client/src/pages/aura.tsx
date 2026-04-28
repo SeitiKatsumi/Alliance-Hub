@@ -12,8 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import {
   Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
-  BarChart3, Users, Zap, Bot, Tags, Paperclip, FileText,
+  TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
 } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 
 interface AuraResult {
   score: number | null;
@@ -54,6 +57,58 @@ interface AvaliacaoExistente {
   avaliado_membro_id: string;
   palavras: string[];
   created_at: string;
+}
+
+const DIM_MAP: Record<string, "T" | "R" | "C"> = {
+  "Integridade": "C", "Responsabilidade": "T", "Excelência": "T", "Protagonismo": "C",
+  "Aliança": "R", "Empatia": "R", "Inovação": "T", "Coragem": "C", "Persistência": "C",
+  "Lealdade": "R", "Confiança": "R", "Colaboração": "R", "Visão": "T", "Comunicação": "R",
+  "Liderança": "C", "Disciplina": "T", "Humildade": "C", "Justiça": "C", "Autenticidade": "C",
+  "Comprometimento": "C", "Criatividade": "T", "Eficácia": "T", "Generosidade": "R",
+  "Resiliência": "C", "Foco": "T", "Equilíbrio": "C", "Iniciativa": "C", "Adaptabilidade": "T",
+  "Entusiasmo": "C", "Autonomia": "T", "Sabedoria": "C", "Transparência": "C", "Eficiência": "T",
+  "Organização": "T", "Aprendizado": "T", "Cuidado": "T", "Paixão": "C", "Altruísmo": "R",
+  "Gratidão": "C", "Pontualidade": "T", "Conexão": "R", "Valentia": "C", "Estabilidade": "T",
+  "Companheirismo": "R", "Honra": "C", "Sensatez": "C", "Evolução": "C",
+  "Entendimento": "R", "Inspiração": "C", "Valorização": "R",
+};
+
+interface EvolucaoPonto { label: string; score: number; n: number; }
+
+function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
+  const sorted = [...avaliacoes].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const canonAvaliadores = new Map<string, { dim: "T" | "R" | "C"; avaliadores: Set<string> }>();
+  const result: EvolucaoPonto[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const av = sorted[i];
+    const seen = new Set<string>();
+    for (const palavra of av.palavras) {
+      const dim = DIM_MAP[palavra];
+      if (!dim || seen.has(palavra)) continue;
+      seen.add(palavra);
+      if (!canonAvaliadores.has(palavra)) {
+        canonAvaliadores.set(palavra, { dim, avaliadores: new Set() });
+      }
+      canonAvaliadores.get(palavra)!.avaliadores.add(av.avaliador_membro_id);
+    }
+    const n = i + 1;
+    const pontoMax = n * 2;
+    let T = 0, R = 0, C = 0;
+    for (const [, { dim, avaliadores }] of canonAvaliadores) {
+      const count = avaliadores.size;
+      const peso = count >= 4 ? 2.0 : count >= 2 ? 1.5 : 1.0;
+      if (dim === "T") T += peso;
+      else if (dim === "R") R += peso;
+      else C += peso;
+    }
+    const score = Math.round(Math.min(T / pontoMax, 1) * 40 + Math.min(R / pontoMax, 1) * 25 + Math.min(C / pontoMax, 1) * 35);
+    const date = new Date(av.created_at);
+    const label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+    result.push({ label, score, n });
+  }
+  return result;
 }
 
 function dimColor(d: "T" | "R" | "C"): string {
@@ -110,6 +165,7 @@ export default function AuraPage() {
   });
   const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
   const minhasAvaliacoesRecebidas: MinhaAvaliacao[] = minhasAvaliacoesData?.recebidas ?? [];
+  const evolucaoDados = useMemo(() => calcularEvolucao(minhasAvaliacoesRecebidas), [minhasAvaliacoesRecebidas]);
 
   const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
     queryKey: ["/api/aura/membros/busca"],
@@ -278,56 +334,85 @@ export default function AuraPage() {
             </CardContent>
           </Card>
 
-          {/* Dimension bars */}
-          <Card className="border border-border/60 md:col-span-2" data-testid="card-dimensoes">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[#D7BB7D]" />
-                Dimensões da Aura
-              </CardTitle>
+          {/* Evolution chart */}
+          <Card className="border border-border/60 md:col-span-2" data-testid="card-evolucao">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-[#D7BB7D]" />
+                  Evolução da Aura
+                </CardTitle>
+                {evolucaoDados.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/60">
+                    {evolucaoDados.length} avaliação{evolucaoDados.length !== 1 ? "ões" : ""}
+                  </span>
+                )}
+              </div>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent>
               {loadingMyAura ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="space-y-1.5">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-3 w-full rounded-full" />
-                  </div>
-                ))
+                <Skeleton className="h-32 w-full rounded-lg" />
+              ) : evolucaoDados.length === 0 ? (
+                <div className="h-32 flex items-center justify-center">
+                  <p className="text-xs text-muted-foreground/50 text-center">
+                    Nenhuma avaliação recebida ainda.<br />O gráfico aparece conforme você recebe avaliações.
+                  </p>
+                </div>
               ) : (
-                <>
-                  {[
-                    { label: "Técnica", key: "T" as const, val: T, pct: 40, color: "#3B82F6", desc: "40% do score" },
-                    { label: "Comportamental", key: "C" as const, val: C, pct: 35, color: "#D7BB7D", desc: "35% do score" },
-                    { label: "Relacional", key: "R" as const, val: R, pct: 25, color: "#22C55E", desc: "25% do score" },
-                  ].map(d => (
-                    <div key={d.key} className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-foreground">{d.label}</span>
-                          <span className="text-[10px] text-muted-foreground">{d.desc}</span>
-                        </div>
-                        <span className="text-sm font-mono font-semibold" style={{ color: score !== null ? d.color : "#4B5563" }}>
-                          {score !== null ? d.val : "—"}
-                        </span>
-                      </div>
-                      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-1000"
-                          style={{
-                            width: score !== null ? `${d.val}%` : "0%",
-                            background: `linear-gradient(90deg, ${d.color}80, ${d.color})`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  {score === null && (
-                    <p className="text-xs text-muted-foreground pt-1">
-                      Score disponível após receber 3 avaliações.
+                <div className="space-y-2">
+                  {evolucaoDados.length < 3 && (
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Score ativo após 3 avaliações · {3 - evolucaoDados.length} restante{3 - evolucaoDados.length !== 1 ? "s" : ""}
                     </p>
                   )}
-                </>
+                  <ResponsiveContainer width="100%" height={130}>
+                    <AreaChart data={evolucaoDados} margin={{ top: 8, right: 4, left: -28, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="auraGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#D7BB7D" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#D7BB7D" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: "rgba(148,163,184,0.6)", fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fill: "rgba(148,163,184,0.6)", fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickCount={5}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#0d2035",
+                          border: "1px solid rgba(215,187,125,0.2)",
+                          borderRadius: 8,
+                          fontSize: 11,
+                          color: "#e2e8f0",
+                        }}
+                        formatter={(val: number) => [`${val} pts`, "Score"]}
+                        labelFormatter={(label: string, payload: any[]) => {
+                          const n = payload?.[0]?.payload?.n;
+                          return `${label}${n !== undefined ? ` · avaliação #${n}` : ""}`;
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#D7BB7D"
+                        strokeWidth={2}
+                        fill="url(#auraGrad)"
+                        dot={{ fill: "#D7BB7D", r: 3, strokeWidth: 0 }}
+                        activeDot={{ fill: "#D7BB7D", r: 4, stroke: "rgba(215,187,125,0.3)", strokeWidth: 4 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </CardContent>
           </Card>

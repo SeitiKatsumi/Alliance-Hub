@@ -104,17 +104,28 @@ export default function AuraPage() {
   });
   const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
 
-  const { data: searchResults = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
-    queryKey: ["/api/aura/membros/busca", searchQuery],
+  const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
+    queryKey: ["/api/aura/membros/busca"],
     queryFn: async () => {
-      if (!searchQuery || searchQuery.length < 2) return [];
-      const res = await fetch(`/api/aura/membros/busca?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" });
+      const res = await fetch("/api/aura/membros/busca", { credentials: "include" });
       if (!res.ok) return [];
       const data: MembroBusca[] = await res.json();
-      return data.filter(m => m.id !== myId).slice(0, 8);
+      return data;
     },
-    enabled: searchQuery.length >= 2,
+    enabled: !!myId,
+    staleTime: 5 * 60 * 1000,
   });
+
+  const searchResults = allMembros
+    .filter(m => m.id !== myId)
+    .filter(m => {
+      if (!searchQuery || searchQuery.length < 2) return true;
+      const q = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const nome = (m.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const empresa = (m.empresa || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nome.includes(q) || empresa.includes(q);
+    })
+    .slice(0, 12);
 
   const { data: minhaAvaliacaoDoSelecionado } = useQuery<AvaliacaoExistente | null>({
     queryKey: ["/api/aura/avaliacao", selectedMembro?.id],
@@ -327,17 +338,16 @@ export default function AuraPage() {
                     data-testid="input-buscar-membro"
                   />
                 </div>
-                {searchQuery.length >= 2 && (
-                  <div className="space-y-1">
+                <div className="space-y-1 max-h-64 overflow-y-auto">
                     {loadingSearch ? (
-                      Array.from({ length: 3 }).map((_, i) => (
+                      Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3 p-2 rounded-lg">
                           <Skeleton className="w-8 h-8 rounded-full" />
                           <Skeleton className="h-4 w-40" />
                         </div>
                       ))
                     ) : searchResults.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-2">Nenhum membro encontrado.</p>
+                      <p className="text-xs text-muted-foreground p-2">{searchQuery.length >= 2 ? "Nenhum membro encontrado." : "Carregando membros..."}</p>
                     ) : (
                       searchResults.map(m => (
                         <button
@@ -362,7 +372,6 @@ export default function AuraPage() {
                       ))
                     )}
                   </div>
-                )}
               </div>
             ) : (
               <div className="space-y-4">

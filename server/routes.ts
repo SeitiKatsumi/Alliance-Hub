@@ -4733,11 +4733,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // GET /api/aura/membros/busca — member search for evaluation form
   app.get("/api/aura/membros/busca", async (req: any, res) => {
-    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     const q = String(req.query.q || "").trim();
-    if (q.length < 2) return res.json([]);
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=10&fields=id,nome,cargo,empresa,foto_perfil&filter%5Bnome%5D%5B_icontains%5D=${encodeURIComponent(q)}`;
+      const url = q.length >= 2
+        ? `${DIRECTUS_URL}/items/cadastro_geral?limit=20&fields=id,nome,cargo,empresa,foto_perfil&filter%5Bnome%5D%5B_icontains%5D=${encodeURIComponent(q)}`
+        : `${DIRECTUS_URL}/items/cadastro_geral?limit=50&fields=id,nome,cargo,empresa,foto_perfil&sort=nome`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.json([]);
       const json = await r.json();
@@ -4770,12 +4771,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // GET /api/aura/minhas-avaliacoes — evaluations received and given by the logged-in member
   app.get("/api/aura/minhas-avaliacoes", async (req: any, res) => {
-    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
-    const user = await storage.getUser(req.session.userId);
-    if (!user?.membro_directus_id) return res.json({ recebidas: [], dadas: [] });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const membroId = (req.session as any).membroId as string | null;
+    if (!membroId) return res.json({ recebidas: [], dadas: [] });
     const [recebidas, dadas] = await Promise.all([
-      storage.getAuraAvaliacoesByAvaliado(user.membro_directus_id),
-      storage.getAuraAvaliacoesByAvaliador(user.membro_directus_id),
+      storage.getAuraAvaliacoesByAvaliado(membroId),
+      storage.getAuraAvaliacoesByAvaliador(membroId),
     ]);
 
     // Enrich "dadas" with avaliado member names from Directus
@@ -4806,18 +4807,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // GET /api/aura/avaliacao/:avaliadoId — get my evaluation of a specific member
   app.get("/api/aura/avaliacao/:avaliadoId", async (req: any, res) => {
-    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
-    const user = await storage.getUser(req.session.userId);
-    if (!user?.membro_directus_id) return res.json(null);
-    const av = await storage.getAuraAvaliacaoByPair(user.membro_directus_id, req.params.avaliadoId);
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const membroId = (req.session as any).membroId as string | null;
+    if (!membroId) return res.json(null);
+    const av = await storage.getAuraAvaliacaoByPair(membroId, req.params.avaliadoId);
     return res.json(av ?? null);
   });
 
   // POST /api/aura/avaliar — submit or update an evaluation
   app.post("/api/aura/avaliar", async (req: any, res) => {
-    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
-    const user = await storage.getUser(req.session.userId);
-    if (!user?.membro_directus_id) return res.status(400).json({ error: "Membro não encontrado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const membroId = (req.session as any).membroId as string | null;
+    if (!membroId) return res.status(400).json({ error: "Membro não encontrado" });
 
     const { avaliado_membro_id, palavras } = req.body;
     if (!avaliado_membro_id || !Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
@@ -4826,14 +4827,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
       return res.status(400).json({ error: "Todas as palavras devem ser texto não vazio" });
     }
-    if (avaliado_membro_id === user.membro_directus_id) {
+    if (avaliado_membro_id === membroId) {
       return res.status(400).json({ error: "Você não pode avaliar a si mesmo" });
     }
     // Validate all words are in the lexicon
     for (const p of palavras) {
       if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra não reconhecida: ${p}` });
     }
-    const result = await storage.upsertAuraAvaliacao(user.membro_directus_id, avaliado_membro_id, palavras);
+    const result = await storage.upsertAuraAvaliacao(membroId, avaliado_membro_id, palavras);
     return res.json(result);
   });
 

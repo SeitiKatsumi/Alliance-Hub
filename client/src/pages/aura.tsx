@@ -432,10 +432,12 @@ export default function AuraPage() {
                 )}
 
                 {/* Mode toggle */}
-                <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs" style={{ background: "rgba(255,255,255,0.02)" }}>
+                <div className="flex rounded-lg border border-[#D7BB7D]/30 overflow-hidden text-xs" style={{ background: "rgba(0,29,52,0.06)" }}>
                   <button
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 transition-colors font-medium"
-                    style={evalMode === "palavras" ? { background: "rgba(215,187,125,0.15)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.4)" }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
+                    style={evalMode === "palavras"
+                      ? { background: "rgba(215,187,125,0.18)", color: "#b8962e", borderRight: "1px solid rgba(215,187,125,0.2)" }
+                      : { color: "#64748b", borderRight: "1px solid rgba(0,0,0,0.08)" }}
                     onClick={() => setEvalMode("palavras")}
                     data-testid="btn-modo-palavras"
                   >
@@ -443,8 +445,10 @@ export default function AuraPage() {
                     Escolher palavras
                   </button>
                   <button
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 transition-colors font-medium"
-                    style={evalMode === "texto" ? { background: "rgba(215,187,125,0.15)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.4)" }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
+                    style={evalMode === "texto"
+                      ? { background: "rgba(215,187,125,0.18)", color: "#b8962e" }
+                      : { color: "#64748b" }}
                     onClick={() => setEvalMode("texto")}
                     data-testid="btn-modo-texto"
                   >

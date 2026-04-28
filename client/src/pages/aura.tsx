@@ -529,12 +529,12 @@ export default function AuraPage() {
                       {showSugestoes && sugestoesFiltradas.length > 0 && (
                         <div
                           className="absolute z-20 left-0 right-0 top-full mt-1 rounded-lg border border-border/60 overflow-hidden shadow-xl"
-                          style={{ background: "#071626" }}
+                          style={{ background: "#0d2035" }}
                         >
                           {sugestoesFiltradas.map(s => (
                             <button
                               key={s}
-                              className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/8 transition-colors"
+                              className="w-full text-left px-3 py-2.5 text-sm text-slate-100 hover:bg-white/10 transition-colors"
                               onMouseDown={() => togglePalavra(s)}
                               data-testid={`sugestao-${s}`}
                             >

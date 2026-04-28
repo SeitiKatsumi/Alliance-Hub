@@ -4737,7 +4737,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     const q = String(req.query.q || "").trim();
     if (q.length < 2) return res.json([]);
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=10&fields=id,nome,cargo,empresa,foto_perfil&filter[nome][_icontains]=${encodeURIComponent(q)}`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=10&fields=id,nome,cargo,empresa,foto_perfil&filter%5Bnome%5D%5B_icontains%5D=${encodeURIComponent(q)}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.json([]);
       const json = await r.json();
@@ -4783,7 +4783,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     let nomesMap: Record<string, string> = {};
     if (avaliadoIds.length > 0) {
       try {
-        const idsFilter = avaliadoIds.map(id => `filter[id][_in][]=${encodeURIComponent(id)}`).join("&");
+        const idsFilter = avaliadoIds.map(id => `filter%5Bid%5D%5B_in%5D%5B%5D=${encodeURIComponent(id)}`).join("&");
         const r = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?fields=id,nome&${idsFilter}`, {
           headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
         });

@@ -494,15 +494,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Razão Social</label>
-                  <Input value={form.razao_social || ""} onChange={e => setField("razao_social", e.target.value)} className={inputCls} data-testid="input-edit-razao-social" />
-                </div>
-                <div>
-                  <label className={labelCls}>Nome Fantasia</label>
-                  <Input value={form.nome_fantasia || ""} onChange={e => setField("nome_fantasia", e.target.value)} className={inputCls} data-testid="input-edit-nome-fantasia" />
-                </div>
-                <div>
-                  <label className={labelCls}>Empresa</label>
+                  <label className={labelCls}>Nome da Empresa</label>
                   <Input value={form.empresa || ""} onChange={e => setField("empresa", e.target.value)} className={inputCls} data-testid="input-edit-empresa" />
                 </div>
                 <div>

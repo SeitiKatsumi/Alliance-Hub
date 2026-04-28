@@ -37,7 +37,8 @@ interface MinhaAvaliacao {
   id: number;
   avaliador_membro_id: string;
   avaliado_membro_id: string;
-  avaliado_nome: string | null;
+  avaliado_nome?: string | null;
+  avaliador_nome?: string | null;
   palavras: string[];
   created_at: string;
 }
@@ -108,6 +109,7 @@ export default function AuraPage() {
     enabled: !!myId,
   });
   const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
+  const minhasAvaliacoesRecebidas: MinhaAvaliacao[] = minhasAvaliacoesData?.recebidas ?? [];
 
   const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
     queryKey: ["/api/aura/membros/busca"],
@@ -361,6 +363,55 @@ export default function AuraPage() {
                   </span>
                 )}
                 <span className="text-[9px] opacity-50 ml-0.5">{dimLabel(p.dimensao)[0]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Received evaluations list */}
+      {myId && minhasAvaliacoesRecebidas.length > 0 && (
+        <div className="space-y-3" data-testid="section-avaliacoes-recebidas">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#D7BB7D]" />
+            Avaliações Recebidas ({minhasAvaliacoesRecebidas.length})
+          </h2>
+          <div className="space-y-2">
+            {minhasAvaliacoesRecebidas.map((av, i) => (
+              <div
+                key={av.id}
+                className="p-3 rounded-lg border border-border/60 space-y-2"
+                style={{ background: "rgba(255,255,255,0.01)" }}
+                data-testid={`item-recebida-${av.id}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                      style={{ background: "rgba(215,187,125,0.12)", color: "#D7BB7D" }}
+                    >
+                      {i + 1}
+                    </div>
+                    <p className="text-xs font-medium text-foreground truncate">
+                      {av.avaliador_nome ?? "Membro da comunidade"}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                    {new Date(av.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {av.palavras.map(p => (
+                    <Badge
+                      key={p}
+                      variant="outline"
+                      className="text-[11px] h-5 px-2 font-medium"
+                      style={{ borderColor: "rgba(215,187,125,0.35)", color: "#D7BB7D", background: "rgba(215,187,125,0.06)" }}
+                    >
+                      {p}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

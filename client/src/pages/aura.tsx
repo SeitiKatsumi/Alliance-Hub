@@ -157,7 +157,7 @@ export default function AuraPage() {
   const analisarMutation = useMutation({
     mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
       const res = await apiRequest("POST", "/api/aura/analisar-texto", { texto, membro_nome });
-      return res as { palavras: string[] };
+      return res.json() as Promise<{ palavras: string[] }>;
     },
     onSuccess: (data) => {
       if (data.palavras.length === 0) {

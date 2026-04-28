@@ -4728,5 +4728,84 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     res.status(200).json({ received: true });
   });
 
+  // ── Aura Percebida ───────────────────────────────────────────────────────────
+  const { calcularAura, classificarPalavra, PALAVRAS_SUGERIDAS } = await import("./aura-lexico.js");
+
+  // GET /api/aura/membros/busca — member search for evaluation form
+  app.get("/api/aura/membros/busca", async (req: any, res) => {
+    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
+    const q = String(req.query.q || "").trim();
+    if (q.length < 2) return res.json([]);
+    try {
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=10&fields=id,nome,cargo,empresa,foto_perfil&search=${encodeURIComponent(q)}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!r.ok) return res.json([]);
+      const json = await r.json();
+      const items = (json.data || []).map((m: any) => ({ id: m.id, nome: m.nome, cargo: m.cargo, empresa: m.empresa, foto: m.foto_perfil || null }));
+      return res.json(items);
+    } catch {
+      return res.json([]);
+    }
+  });
+
+  // GET /api/aura/lexico — keyword list for autocomplete
+  app.get("/api/aura/lexico", (_req, res) => {
+    res.json(PALAVRAS_SUGERIDAS);
+  });
+
+  // GET /api/aura/score/:membroId — public score (null if <3 evaluators)
+  app.get("/api/aura/score/:membroId", async (req, res) => {
+    try {
+      const { membroId } = req.params;
+      const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
+      if (avaliacoes.length < 3) {
+        return res.json({ score: null, T: null, R: null, C: null, n: avaliacoes.length, faixa: null, palavras_recebidas: [] });
+      }
+      const result = calcularAura(avaliacoes.map(a => ({ avaliador_membro_id: a.avaliador_membro_id, palavras: a.palavras })));
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/aura/minhas-avaliacoes — evaluations made by the logged-in member
+  app.get("/api/aura/minhas-avaliacoes", async (req: any, res) => {
+    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
+    const user = await storage.getUser(req.session.userId);
+    if (!user?.membro_directus_id) return res.json([]);
+    const avaliacoes = await storage.getAuraAvaliacoesByAvaliador(user.membro_directus_id);
+    return res.json(avaliacoes);
+  });
+
+  // GET /api/aura/avaliacao/:avaliadoId — get my evaluation of a specific member
+  app.get("/api/aura/avaliacao/:avaliadoId", async (req: any, res) => {
+    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
+    const user = await storage.getUser(req.session.userId);
+    if (!user?.membro_directus_id) return res.json(null);
+    const av = await storage.getAuraAvaliacaoByPair(user.membro_directus_id, req.params.avaliadoId);
+    return res.json(av ?? null);
+  });
+
+  // POST /api/aura/avaliar — submit or update an evaluation
+  app.post("/api/aura/avaliar", async (req: any, res) => {
+    if (!req.session?.userId) return res.status(401).json({ error: "Não autenticado" });
+    const user = await storage.getUser(req.session.userId);
+    if (!user?.membro_directus_id) return res.status(400).json({ error: "Membro não encontrado" });
+
+    const { avaliado_membro_id, palavras } = req.body;
+    if (!avaliado_membro_id || !Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
+      return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
+    }
+    if (avaliado_membro_id === user.membro_directus_id) {
+      return res.status(400).json({ error: "Você não pode avaliar a si mesmo" });
+    }
+    // Validate all words are in the lexicon
+    for (const p of palavras) {
+      if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra não reconhecida: ${p}` });
+    }
+    const result = await storage.upsertAuraAvaliacao(user.membro_directus_id, avaliado_membro_id, palavras);
+    return res.json(result);
+  });
+
   return httpServer;
 }

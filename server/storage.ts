@@ -14,6 +14,7 @@ import {
   anuncios, type Anuncio, type InsertAnuncio,
   passwordResetTokens, type PasswordResetToken,
   biaAprovacoes, type BiaAprovacao, type InsertBiaAprovacao,
+  auraAvaliacoes, type AuraAvaliacao,
 } from "@shared/schema";
 import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -120,6 +121,11 @@ export interface IStorage {
   updateAnuncio(id: string, data: Partial<InsertAnuncio>): Promise<Anuncio | undefined>;
   deleteAnuncio(id: string): Promise<boolean>;
   getAnunciosDisponibilidade(meses: number): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number }>>;
+
+  upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao>;
+  getAuraAvaliacoesByAvaliado(avaliadoId: string): Promise<AuraAvaliacao[]>;
+  getAuraAvaliacoesByAvaliador(avaliadorId: string): Promise<AuraAvaliacao[]>;
+  getAuraAvaliacaoByPair(avaliadorId: string, avaliadoId: string): Promise<AuraAvaliacao | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -630,6 +636,33 @@ export class DatabaseStorage implements IStorage {
 
   async getAllBiaAprovacoes(): Promise<BiaAprovacao[]> {
     return db.select().from(biaAprovacoes).orderBy(desc(biaAprovacoes.criado_em));
+  }
+
+  async upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao> {
+    const existing = await this.getAuraAvaliacaoByPair(avaliadorId, avaliadoId);
+    if (existing) {
+      const [row] = await db.update(auraAvaliacoes)
+        .set({ palavras, created_at: new Date() })
+        .where(and(eq(auraAvaliacoes.avaliador_membro_id, avaliadorId), eq(auraAvaliacoes.avaliado_membro_id, avaliadoId)))
+        .returning();
+      return row;
+    }
+    const [row] = await db.insert(auraAvaliacoes).values({ avaliador_membro_id: avaliadorId, avaliado_membro_id: avaliadoId, palavras }).returning();
+    return row;
+  }
+
+  async getAuraAvaliacoesByAvaliado(avaliadoId: string): Promise<AuraAvaliacao[]> {
+    return db.select().from(auraAvaliacoes).where(eq(auraAvaliacoes.avaliado_membro_id, avaliadoId)).orderBy(desc(auraAvaliacoes.created_at));
+  }
+
+  async getAuraAvaliacoesByAvaliador(avaliadorId: string): Promise<AuraAvaliacao[]> {
+    return db.select().from(auraAvaliacoes).where(eq(auraAvaliacoes.avaliador_membro_id, avaliadorId)).orderBy(desc(auraAvaliacoes.created_at));
+  }
+
+  async getAuraAvaliacaoByPair(avaliadorId: string, avaliadoId: string): Promise<AuraAvaliacao | undefined> {
+    const [row] = await db.select().from(auraAvaliacoes)
+      .where(and(eq(auraAvaliacoes.avaliador_membro_id, avaliadorId), eq(auraAvaliacoes.avaliado_membro_id, avaliadoId)));
+    return row;
   }
 }
 

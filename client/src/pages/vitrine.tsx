@@ -22,6 +22,7 @@ import {
   Megaphone, CalendarDays, ExternalLink, ImageIcon, Tag, CheckCircle2, XCircle, Upload,
   ShieldCheck, Check,
 } from "lucide-react";
+import { AuraBadge } from "@/components/aura-score";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -1815,6 +1816,10 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
                 <span className="text-xs text-white/35 truncate">{m.cidade}</span>
               </div>
             )}
+
+            <div className="flex justify-center">
+              <AuraBadge membroId={m.id} />
+            </div>
 
             {m.link_site && (
               <a

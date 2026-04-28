@@ -16,6 +16,7 @@ import {
   Search, Building2, MapPin, Globe, Phone, FileText,
   MessageSquare, Lock, Shield, Users
 } from "lucide-react";
+import { AuraBadge } from "@/components/aura-score";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -449,6 +450,9 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
                 <span className="text-xs text-white/35 truncate">{m.cidade}</span>
               </div>
             )}
+            <div className="flex justify-center">
+              <AuraBadge membroId={m.id} />
+            </div>
             {m.link_site && (
               <a
                 href={m.link_site.startsWith("http") ? m.link_site : `https://${m.link_site}`}

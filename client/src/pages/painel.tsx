@@ -8,9 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Briefcase, Globe, Users, TrendingUp, TrendingDown,
   MapPin, LayoutDashboard, Building2,
-  Target, Wallet, ChevronRight,
+  Target, Wallet, ChevronRight, Sparkles,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { AuraScore, getFaixaColor } from "@/components/aura-score";
 
 interface DashboardBia {
   id: string;
@@ -118,6 +119,11 @@ export default function PainelPage() {
 
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
+  });
+
+  const { data: auraData } = useQuery<{ score: number | null; T: number | null; R: number | null; C: number | null; n: number; faixa: string | null }>({
+    queryKey: ["/api/aura/score", user?.membro_directus_id],
+    enabled: !!user?.membro_directus_id,
   });
 
   const bias = data?.bias ?? [];
@@ -362,6 +368,56 @@ export default function PainelPage() {
 
         {/* Right column */}
         <div className="space-y-6">
+          {/* Aura Percebida */}
+          {user?.membro_directus_id && (
+            <Card
+              className="border cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
+              style={{ borderColor: auraData?.score != null ? `${getFaixaColor(auraData.score)}30` : "rgba(255,255,255,0.08)" }}
+              onClick={() => navigate("/aura")}
+              data-testid="card-aura-painel"
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
+                    Aura Percebida
+                  </h2>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
+                  <div className="flex-1 space-y-1.5">
+                    {auraData?.score != null ? (
+                      <>
+                        <p className="text-xs font-medium" style={{ color: getFaixaColor(auraData.score) }}>{auraData.faixa}</p>
+                        {[
+                          { label: "Téc.", val: auraData.T ?? 0, color: "#3B82F6" },
+                          { label: "Rel.", val: auraData.R ?? 0, color: "#22C55E" },
+                          { label: "Com.", val: auraData.C ?? 0, color: "#D7BB7D" },
+                        ].map(d => (
+                          <div key={d.label} className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground w-7 shrink-0">{d.label}</span>
+                            <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${d.val}%`, background: d.color }} />
+                            </div>
+                            <span className="text-[10px] font-mono text-muted-foreground w-6 text-right">{d.val}</span>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Aguardando avaliações</p>
+                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                          {auraData ? `${auraData.n}/3 recebidas` : "—"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Minhas Comunidades */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

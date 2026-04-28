@@ -48,6 +48,7 @@ A collapsible sidebar provides access to:
     - **Minhas OPAs**: Opportunities dashboard with detail pages and CRUD.
     - **Núcleo Técnico**: Document management across various alliances (Projects, Legal, Intelligence, Governance).
     - **Núcleo de Capital**: Financial management (Fluxo de Caixa, Resultados).
+    - **Aura Percebida**: Peer reputation scoring system — keyword-based evaluations (up to 3 words per member), three-dimensional score (Técnica 40%, Comportamental 35%, Relacional 25%), score visible after 3+ evaluations. Lexicon with 50+ canonical values in `server/aura-lexico.ts`. Small Aura badge shown on member cards.
 - **Administração**: Member directory.
 
 ## External Dependencies

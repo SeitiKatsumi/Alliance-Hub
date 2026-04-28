@@ -1,75 +1,557 @@
-import { Sparkles, Construction } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AuraScore, getFaixaColor } from "@/components/aura-score";
+import {
+  Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
+  BarChart3, Users, Zap,
+} from "lucide-react";
+
+interface AuraResult {
+  score: number | null;
+  T: number | null;
+  R: number | null;
+  C: number | null;
+  n: number;
+  faixa: string | null;
+  palavras_recebidas: Array<{ palavra: string; canonico: string; dimensao: "T" | "R" | "C"; count: number }>;
+}
+
+interface MembroBusca {
+  id: string;
+  nome?: string;
+  cargo?: string;
+  empresa?: string;
+  foto?: string | null;
+}
+
+interface MinhaAvaliacao {
+  id: number;
+  avaliado_membro_id: string;
+  palavras: string[];
+  created_at: string;
+}
+
+function dimColor(d: "T" | "R" | "C"): string {
+  if (d === "T") return "#3B82F6";
+  if (d === "R") return "#22C55E";
+  return "#D7BB7D";
+}
+
+function dimLabel(d: "T" | "R" | "C"): string {
+  if (d === "T") return "Técnica";
+  if (d === "R") return "Relacional";
+  return "Comportamental";
+}
+
+function fotoUrl(foto: string | null | undefined): string | null {
+  if (!foto) return null;
+  if (foto.startsWith("http")) return foto;
+  const base = (import.meta.env.VITE_DIRECTUS_URL as string) || "";
+  return `${base}/assets/${foto}?width=80&height=80&fit=cover`;
+}
+
+function getInitials(nome: string): string {
+  return nome.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "?";
+}
 
 export default function AuraPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMembro, setSelectedMembro] = useState<MembroBusca | null>(null);
+  const [selectedPalavras, setSelectedPalavras] = useState<string[]>([]);
+  const [palavraInput, setPalavraInput] = useState("");
+  const [showSugestoes, setShowSugestoes] = useState(false);
+
+  const myId = user?.membro_directus_id;
+
+  const { data: myAura, isLoading: loadingMyAura } = useQuery<AuraResult>({
+    queryKey: ["/api/aura/score", myId],
+    enabled: !!myId,
+  });
+
+  const { data: lexico = [] } = useQuery<string[]>({
+    queryKey: ["/api/aura/lexico"],
+  });
+
+  const { data: minhasAvaliacoes = [] } = useQuery<MinhaAvaliacao[]>({
+    queryKey: ["/api/aura/minhas-avaliacoes"],
+    enabled: !!myId,
+  });
+
+  const { data: searchResults = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
+    queryKey: ["/api/aura/membros/busca", searchQuery],
+    queryFn: async () => {
+      if (!searchQuery || searchQuery.length < 2) return [];
+      const res = await fetch(`/api/aura/membros/busca?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data: MembroBusca[] = await res.json();
+      return data.filter(m => m.id !== myId).slice(0, 8);
+    },
+    enabled: searchQuery.length >= 2,
+  });
+
+  const { data: minhaAvaliacaoDoSelecionado } = useQuery<{ palavras: string[] } | null>({
+    queryKey: ["/api/aura/avaliacao", selectedMembro?.id],
+    enabled: !!selectedMembro?.id,
+  });
+
+  const avaliarMutation = useMutation({
+    mutationFn: async ({ avaliadoId, palavras }: { avaliadoId: string; palavras: string[] }) => {
+      return apiRequest("POST", "/api/aura/avaliar", { avaliado_membro_id: avaliadoId, palavras });
+    },
+    onSuccess: () => {
+      toast({ title: "Avaliação enviada!", description: "Obrigado por contribuir com a Aura da comunidade." });
+      queryClient.invalidateQueries({ queryKey: ["/api/aura/minhas-avaliacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/aura/avaliacao", selectedMembro?.id] });
+      setSelectedMembro(null);
+      setSelectedPalavras([]);
+      setSearchQuery("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro", description: err.message || "Não foi possível enviar a avaliação.", variant: "destructive" });
+    },
+  });
+
+  const sugestoesFiltradas = useMemo(() => {
+    if (!palavraInput || palavraInput.length < 1) return [];
+    const norm = palavraInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return lexico.filter(p => {
+      const pn = p.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return pn.includes(norm) && !selectedPalavras.includes(p);
+    }).slice(0, 8);
+  }, [palavraInput, lexico, selectedPalavras]);
+
+  function togglePalavra(p: string) {
+    setSelectedPalavras(prev => {
+      if (prev.includes(p)) return prev.filter(x => x !== p);
+      if (prev.length >= 3) {
+        toast({ title: "Máximo de 3 palavras", description: "Remova uma para adicionar outra.", variant: "destructive" });
+        return prev;
+      }
+      return [...prev, p];
+    });
+    setPalavraInput("");
+    setShowSugestoes(false);
+  }
+
+  const score = myAura?.score ?? null;
+  const T = myAura?.T ?? 0;
+  const R = myAura?.R ?? 0;
+  const C = myAura?.C ?? 0;
+  const n = myAura?.n ?? 0;
+  const palavrasRecebidas = myAura?.palavras_recebidas ?? [];
+
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center"
-      style={{ background: "#020b16" }}
-    >
-      {/* Grid overlay */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(215,187,125,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.03) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-
-      <div className="relative z-10 flex flex-col items-center text-center px-6 space-y-6">
-        {/* Animated icon */}
-        <div className="relative">
-          <div
-            className="w-24 h-24 rounded-full flex items-center justify-center border border-brand-gold/20"
-            style={{
-              background: "radial-gradient(circle, rgba(215,187,125,0.1) 0%, transparent 70%)",
-              boxShadow: "0 0 40px rgba(215,187,125,0.12)",
-              animation: "pulse 3s ease-in-out infinite",
-            }}
-          >
-            <Sparkles className="w-10 h-10 text-brand-gold/60" />
-          </div>
-          <div
-            className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center border border-amber-500/30"
-            style={{ background: "rgba(2,11,22,0.9)" }}
-          >
-            <Construction className="w-4 h-4 text-amber-400/70" />
-          </div>
-        </div>
-
-        {/* Label */}
-        <div className="space-y-2">
-          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.4em] uppercase">
-            // EM CONSTRUÇÃO
-          </p>
-          <h1 className="text-3xl font-bold font-mono text-brand-gold tracking-wide">
-            AURA
-          </h1>
-          <p className="text-sm text-white/30 max-w-xs leading-relaxed">
-            O módulo de scoring e reputação da rede BUILT Alliances está sendo desenvolvido e em breve estará disponível.
-          </p>
-        </div>
-
-        {/* Decorative line */}
-        <div
-          className="w-40 h-px"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, rgba(215,187,125,0.4), transparent)",
-          }}
-        />
-
-        <p className="text-[11px] font-mono text-white/20">
-          &gt; módulo em desenvolvimento...
+    <div className="p-6 space-y-8 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#D7BB7D]" />
+          Aura Percebida
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Reputação construída pela percepção da comunidade sobre você.
         </p>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.8; }
-        }
-      `}</style>
+      {/* My Score */}
+      {myId && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Score ring */}
+          <Card className="border border-border/60 md:col-span-1" data-testid="card-meu-score">
+            <CardContent className="p-6 flex flex-col items-center gap-4">
+              {loadingMyAura ? (
+                <div className="space-y-3 flex flex-col items-center">
+                  <Skeleton className="w-32 h-32 rounded-full" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ) : (
+                <>
+                  <AuraScore score={score} size="lg" />
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">
+                      {score !== null
+                        ? `Baseado em ${n} avaliação${n !== 1 ? "ões" : ""}`
+                        : n > 0
+                          ? `${n}/3 avaliações recebidas`
+                          : "Nenhuma avaliação ainda"
+                      }
+                    </p>
+                    {score === null && n < 3 && (
+                      <p className="text-[11px] text-muted-foreground/60 mt-1">
+                        Score visível após 3 avaliações
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Dimension bars */}
+          <Card className="border border-border/60 md:col-span-2" data-testid="card-dimensoes">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-[#D7BB7D]" />
+                Dimensões da Aura
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {loadingMyAura ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-full rounded-full" />
+                  </div>
+                ))
+              ) : (
+                <>
+                  {[
+                    { label: "Técnica", key: "T" as const, val: T, pct: 40, color: "#3B82F6", desc: "40% do score" },
+                    { label: "Comportamental", key: "C" as const, val: C, pct: 35, color: "#D7BB7D", desc: "35% do score" },
+                    { label: "Relacional", key: "R" as const, val: R, pct: 25, color: "#22C55E", desc: "25% do score" },
+                  ].map(d => (
+                    <div key={d.key} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-foreground">{d.label}</span>
+                          <span className="text-[10px] text-muted-foreground">{d.desc}</span>
+                        </div>
+                        <span className="text-sm font-mono font-semibold" style={{ color: score !== null ? d.color : "#4B5563" }}>
+                          {score !== null ? d.val : "—"}
+                        </span>
+                      </div>
+                      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-1000"
+                          style={{
+                            width: score !== null ? `${d.val}%` : "0%",
+                            background: `linear-gradient(90deg, ${d.color}80, ${d.color})`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {score === null && (
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Score disponível após receber 3 avaliações.
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Keywords received */}
+      {myId && palavrasRecebidas.length > 0 && (
+        <div className="space-y-3" data-testid="section-palavras-recebidas">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Zap className="w-4 h-4 text-[#D7BB7D]" />
+            Palavras que a comunidade usa para te descrever
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {palavrasRecebidas.map(p => (
+              <div
+                key={p.canonico}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border"
+                style={{
+                  background: `${dimColor(p.dimensao)}12`,
+                  borderColor: `${dimColor(p.dimensao)}40`,
+                  color: dimColor(p.dimensao),
+                }}
+                data-testid={`badge-palavra-${p.canonico}`}
+              >
+                <span>{p.canonico}</span>
+                {p.count > 1 && (
+                  <span
+                    className="rounded-full px-1.5 py-0.5 text-[9px] font-bold"
+                    style={{ background: `${dimColor(p.dimensao)}25` }}
+                  >
+                    ×{p.count}
+                  </span>
+                )}
+                <span className="text-[9px] opacity-50 ml-0.5">{dimLabel(p.dimensao)[0]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Evaluate a member */}
+      {myId && (
+        <Card className="border border-border/60" data-testid="card-avaliar">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#D7BB7D]" />
+              Avaliar um Membro
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedMembro ? (
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                  <Input
+                    placeholder="Buscar membro pelo nome..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    data-testid="input-buscar-membro"
+                  />
+                </div>
+                {searchQuery.length >= 2 && (
+                  <div className="space-y-1">
+                    {loadingSearch ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg">
+                          <Skeleton className="w-8 h-8 rounded-full" />
+                          <Skeleton className="h-4 w-40" />
+                        </div>
+                      ))
+                    ) : searchResults.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2">Nenhum membro encontrado.</p>
+                    ) : (
+                      searchResults.map(m => (
+                        <button
+                          key={m.id}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 transition-colors text-left"
+                          onClick={() => { setSelectedMembro(m); setSearchQuery(""); setSelectedPalavras([]); }}
+                          data-testid={`btn-selecionar-membro-${m.id}`}
+                        >
+                          <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold bg-white/10 text-[#D7BB7D] shrink-0">
+                            {fotoUrl(m.foto) ? (
+                              <img src={fotoUrl(m.foto)!} alt={m.nome || ""} className="w-full h-full object-cover" />
+                            ) : (
+                              getInitials(m.nome || "?")
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">{m.nome || "—"}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{[m.cargo, m.empresa].filter(Boolean).join(" · ")}</p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Selected member */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60" style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-[#D7BB7D] shrink-0" style={{ background: "rgba(255,255,255,0.08)" }}>
+                    {fotoUrl(selectedMembro.foto) ? (
+                      <img src={fotoUrl(selectedMembro.foto)!} alt={selectedMembro.nome || ""} className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(selectedMembro.nome || "?")
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{selectedMembro.nome || "—"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{[selectedMembro.cargo, selectedMembro.empresa].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <button
+                    className="p-1 rounded hover:bg-white/10 transition-colors"
+                    onClick={() => { setSelectedMembro(null); setSelectedPalavras([]); setSearchQuery(""); }}
+                    data-testid="btn-limpar-membro"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+
+                {/* Previous evaluation notice */}
+                {minhaAvaliacaoDoSelecionado && (minhaAvaliacaoDoSelecionado as any).palavras?.length > 0 && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg border text-xs" style={{ borderColor: "rgba(215,187,125,0.2)", background: "rgba(215,187,125,0.05)", color: "rgba(215,187,125,0.8)" }}>
+                    <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      Você já avaliou: <strong>{(minhaAvaliacaoDoSelecionado as any).palavras.join(", ")}</strong>. Enviar uma nova avaliação substituirá a anterior.
+                    </span>
+                  </div>
+                )}
+
+                {/* Word selection */}
+                <div className="space-y-3">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Escolha até 3 palavras que descrevem este membro
+                  </label>
+
+                  {selectedPalavras.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedPalavras.map(p => (
+                        <button
+                          key={p}
+                          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all hover:opacity-80"
+                          style={{ background: "rgba(215,187,125,0.12)", borderColor: "rgba(215,187,125,0.4)", color: "#D7BB7D" }}
+                          onClick={() => togglePalavra(p)}
+                          data-testid={`chip-palavra-${p}`}
+                        >
+                          {p}
+                          <X className="w-3 h-3 opacity-70" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedPalavras.length < 3 && (
+                    <div className="relative">
+                      <Input
+                        placeholder="Digitar para buscar palavra..."
+                        value={palavraInput}
+                        onChange={e => { setPalavraInput(e.target.value); setShowSugestoes(true); }}
+                        onFocus={() => setShowSugestoes(true)}
+                        onBlur={() => setTimeout(() => setShowSugestoes(false), 150)}
+                        data-testid="input-palavra"
+                        className="pr-9"
+                      />
+                      {palavraInput && (
+                        <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setPalavraInput("")}>
+                          <X className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                      )}
+                      {showSugestoes && sugestoesFiltradas.length > 0 && (
+                        <div
+                          className="absolute z-20 left-0 right-0 top-full mt-1 rounded-lg border border-border/60 overflow-hidden shadow-xl"
+                          style={{ background: "#071626" }}
+                        >
+                          {sugestoesFiltradas.map(s => (
+                            <button
+                              key={s}
+                              className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/8 transition-colors"
+                              onMouseDown={() => togglePalavra(s)}
+                              data-testid={`sugestao-${s}`}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Quick word suggestions */}
+                  {!palavraInput && selectedPalavras.length < 3 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {lexico.filter(p => !selectedPalavras.includes(p)).slice(0, 16).map(p => (
+                        <button
+                          key={p}
+                          className="rounded-full px-2.5 py-1 text-[11px] border border-border/40 text-muted-foreground hover:border-[#D7BB7D]/40 hover:text-[#D7BB7D] transition-colors"
+                          onClick={() => togglePalavra(p)}
+                          data-testid={`sugestao-rapida-${p}`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  className="w-full"
+                  style={{ background: "#D7BB7D", color: "#001D34" }}
+                  disabled={selectedPalavras.length === 0 || avaliarMutation.isPending}
+                  onClick={() => avaliarMutation.mutate({ avaliadoId: selectedMembro.id, palavras: selectedPalavras })}
+                  data-testid="btn-enviar-avaliacao"
+                >
+                  {avaliarMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                  ) : (
+                    <><CheckCircle2 className="w-4 h-4 mr-2" /> Enviar Avaliação ({selectedPalavras.length}/3)</>
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* My evaluations given */}
+      {myId && minhasAvaliacoes.length > 0 && (
+        <div className="space-y-3" data-testid="section-minhas-avaliacoes">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#D7BB7D]" />
+            Avaliações que Você Deu ({minhasAvaliacoes.length})
+          </h2>
+          <div className="space-y-2">
+            {minhasAvaliacoes.map(av => (
+              <div
+                key={av.id}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border/60"
+                style={{ background: "rgba(255,255,255,0.01)" }}
+                data-testid={`item-avaliacao-${av.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-muted-foreground/60 font-mono truncate mb-1">
+                    Membro {av.avaliado_membro_id.slice(0, 8)}…
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {av.palavras.map(p => (
+                      <Badge
+                        key={p}
+                        variant="outline"
+                        className="text-[10px] h-4 px-1.5"
+                        style={{ borderColor: "rgba(215,187,125,0.3)", color: "rgba(215,187,125,0.7)" }}
+                      >
+                        {p}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                  {av.created_at ? new Date(av.created_at).toLocaleDateString("pt-BR") : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Explanation */}
+      <Card className="border border-border/40 bg-transparent" data-testid="card-explicacao">
+        <CardContent className="p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
+            Como funciona a Aura?
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            A Aura Percebida é uma reputação construída pela percepção da comunidade. Cada membro pode escolher até 3 palavras para descrever outro membro. O score é calculado com base em três dimensões:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { dim: "T" as const, label: "Técnica", pct: 40, desc: "Competências técnicas, execução, organização, visão estratégica." },
+              { dim: "C" as const, label: "Comportamental", pct: 35, desc: "Integridade, liderança, coragem, protagonismo, equilíbrio emocional." },
+              { dim: "R" as const, label: "Relacional", pct: 25, desc: "Colaboração, empatia, confiança, comunicação, aliança." },
+            ].map(d => (
+              <div key={d.dim} className="rounded-lg p-3 border border-border/40 space-y-1.5" style={{ background: `${dimColor(d.dim)}08` }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: dimColor(d.dim) }}>{d.label}</span>
+                  <Badge variant="outline" className="text-[9px] h-4 px-1.5" style={{ borderColor: `${dimColor(d.dim)}40`, color: dimColor(d.dim) }}>
+                    {d.pct}%
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{d.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-1.5 text-[11px] text-muted-foreground">
+            <p>• Score visível publicamente apenas após <strong className="text-foreground">mínimo de 3 avaliações</strong>.</p>
+            <p>• Palavras avaliadas por 2-3 membros têm peso 1.5×; por 4 ou mais, peso 2.0×.</p>
+            <p>• Você pode atualizar sua avaliação de um membro a qualquer momento.</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

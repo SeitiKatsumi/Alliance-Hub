@@ -317,6 +317,7 @@ export async function notificarInteresseOpa(opts: {
   destinatarioNome: string;
   papel: string;
   membroNome: string;
+  membroId?: string | null;
   opaNome: string;
   biaNome: string;
   mensagem?: string | null;
@@ -344,7 +345,7 @@ export async function notificarInteresseOpa(opts: {
       ${msgBlock}
       <p style="color:rgba(255,255,255,0.6);font-size:13px">Você está recebendo esta notificação como <strong>${opts.papel}</strong> desta BIA.</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${BASE_URL}/opas" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver OPAs</a>
+        <a href="${opts.membroId ? `${BASE_URL}/vitrine/${opts.membroId}` : `${BASE_URL}/membros`}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Perfil</a>
       </div>
     `)
   );

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -436,7 +436,9 @@ export const auraAvaliacoes = pgTable("aura_avaliacoes", {
   avaliado_membro_id: text("avaliado_membro_id").notNull(),
   palavras: text("palavras").array().notNull(),
   created_at: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  avaliadorAvaliadoUniq: unique("aura_avaliacoes_avaliador_avaliado_uniq").on(t.avaliador_membro_id, t.avaliado_membro_id),
+}));
 
 export type AuraAvaliacao = typeof auraAvaliacoes.$inferSelect;
 export const insertAuraAvaliacaoSchema = createInsertSchema(auraAvaliacoes).omit({ id: true, created_at: true });

@@ -4777,7 +4777,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       storage.getAuraAvaliacoesByAvaliado(user.membro_directus_id),
       storage.getAuraAvaliacoesByAvaliador(user.membro_directus_id),
     ]);
-    return res.json({ recebidas, dadas });
+
+    // Enrich "dadas" with avaliado member names from Directus
+    const avaliadoIds = [...new Set(dadas.map(a => a.avaliado_membro_id))];
+    let nomesMap: Record<string, string> = {};
+    if (avaliadoIds.length > 0) {
+      try {
+        const idsFilter = avaliadoIds.map(id => `filter[id][_in][]=${encodeURIComponent(id)}`).join("&");
+        const r = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?fields=id,nome&${idsFilter}`, {
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+        });
+        if (r.ok) {
+          const json = await r.json();
+          for (const m of (json.data || [])) {
+            nomesMap[m.id] = m.nome || m.id;
+          }
+        }
+      } catch { /* fallback to id on error */ }
+    }
+
+    const dadasEnriquecidas = dadas.map(a => ({
+      ...a,
+      avaliado_nome: nomesMap[a.avaliado_membro_id] ?? null,
+    }));
+
+    return res.json({ recebidas, dadas: dadasEnriquecidas });
   });
 
   // GET /api/aura/avaliacao/:avaliadoId — get my evaluation of a specific member

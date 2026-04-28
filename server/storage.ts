@@ -639,15 +639,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao> {
-    const existing = await this.getAuraAvaliacaoByPair(avaliadorId, avaliadoId);
-    if (existing) {
-      const [row] = await db.update(auraAvaliacoes)
-        .set({ palavras, created_at: new Date() })
-        .where(and(eq(auraAvaliacoes.avaliador_membro_id, avaliadorId), eq(auraAvaliacoes.avaliado_membro_id, avaliadoId)))
-        .returning();
-      return row;
-    }
-    const [row] = await db.insert(auraAvaliacoes).values({ avaliador_membro_id: avaliadorId, avaliado_membro_id: avaliadoId, palavras }).returning();
+    const [row] = await db.insert(auraAvaliacoes)
+      .values({ avaliador_membro_id: avaliadorId, avaliado_membro_id: avaliadoId, palavras })
+      .onConflictDoUpdate({
+        target: [auraAvaliacoes.avaliador_membro_id, auraAvaliacoes.avaliado_membro_id],
+        set: { palavras, created_at: new Date() },
+      })
+      .returning();
     return row;
   }
 

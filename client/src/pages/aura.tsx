@@ -36,6 +36,7 @@ interface MinhaAvaliacao {
   id: number;
   avaliador_membro_id: string;
   avaliado_membro_id: string;
+  avaliado_nome: string | null;
   palavras: string[];
   created_at: string;
 }
@@ -508,8 +509,8 @@ export default function AuraPage() {
                 data-testid={`item-avaliacao-${av.id}`}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-muted-foreground/60 font-mono truncate mb-1">
-                    Membro {av.avaliado_membro_id.slice(0, 8)}…
+                  <p className="text-[11px] text-muted-foreground/60 truncate mb-1">
+                    {av.avaliado_nome ?? `Membro ${av.avaliado_membro_id.slice(0, 8)}…`}
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {av.palavras.map(p => (

@@ -102,7 +102,21 @@ export function AuraBadge({ membroId, className }: AuraBadgeProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  if (!membroId || !data || data.score === null) return null;
+  if (!membroId || data === undefined) return null;
+
+  if (data.score === null) {
+    return (
+      <div
+        className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border", className)}
+        style={{ background: "rgba(107,114,128,0.08)", borderColor: "rgba(107,114,128,0.3)", color: "#6B7280" }}
+        title="Aura em formação (mínimo 3 avaliações)"
+        data-testid="badge-aura-em-formacao"
+      >
+        <Sparkles className="w-2.5 h-2.5 shrink-0" />
+        <span>Em formação</span>
+      </div>
+    );
+  }
 
   const color = getFaixaColor(data.score);
 

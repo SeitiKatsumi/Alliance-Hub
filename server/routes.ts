@@ -4737,7 +4737,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     const q = String(req.query.q || "").trim();
     if (q.length < 2) return res.json([]);
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=10&fields=id,nome,cargo,empresa,foto_perfil&search=${encodeURIComponent(q)}`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=10&fields=id,nome,cargo,empresa,foto_perfil&filter[nome][_icontains]=${encodeURIComponent(q)}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.json([]);
       const json = await r.json();

@@ -4754,13 +4754,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     res.json(PALAVRAS_SUGERIDAS);
   });
 
-  // GET /api/aura/score/:membroId — public score (null if <3 evaluators)
+  // GET /api/aura/score/:membroId — public score (always calculated if ≥1 evaluation)
   app.get("/api/aura/score/:membroId", async (req, res) => {
     try {
       const { membroId } = req.params;
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
-      if (avaliacoes.length < 3) {
-        return res.json({ score: null, T: null, R: null, C: null, n: avaliacoes.length, faixa: null, palavras_recebidas: [] });
+      if (avaliacoes.length === 0) {
+        return res.json({ score: null, T: null, R: null, C: null, n: 0, faixa: null, palavras_recebidas: [] });
       }
       const result = calcularAura(avaliacoes.map(a => ({ avaliador_membro_id: a.avaliador_membro_id, palavras: a.palavras })));
       return res.json(result);

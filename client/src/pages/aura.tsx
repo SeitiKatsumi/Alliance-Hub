@@ -316,18 +316,11 @@ export default function AuraPage() {
                   <AuraScore score={score} size="lg" />
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">
-                      {score !== null
-                        ? `Baseado em ${n} avaliação${n !== 1 ? "ões" : ""}`
-                        : n > 0
-                          ? `${n}/3 avaliações recebidas`
-                          : "Nenhuma avaliação ainda"
+                      {n > 0
+                        ? `${n} avaliação${n !== 1 ? "ões" : ""} recebida${n !== 1 ? "s" : ""}`
+                        : "Nenhuma avaliação ainda"
                       }
                     </p>
-                    {score === null && n < 3 && (
-                      <p className="text-[11px] text-muted-foreground/60 mt-1">
-                        Score visível após 3 avaliações
-                      </p>
-                    )}
                   </div>
                 </>
               )}
@@ -360,11 +353,6 @@ export default function AuraPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {evolucaoDados.length < 3 && (
-                    <p className="text-[10px] text-muted-foreground/50">
-                      Score ativo após 3 avaliações · {3 - evolucaoDados.length} restante{3 - evolucaoDados.length !== 1 ? "s" : ""}
-                    </p>
-                  )}
                   <ResponsiveContainer width="100%" height={130}>
                     <AreaChart data={evolucaoDados} margin={{ top: 8, right: 4, left: -28, bottom: 0 }}>
                       <defs>

@@ -4823,6 +4823,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if (!avaliado_membro_id || !Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
       return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
     }
+    if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
+      return res.status(400).json({ error: "Todas as palavras devem ser texto não vazio" });
+    }
     if (avaliado_membro_id === user.membro_directus_id) {
       return res.status(400).json({ error: "Você não pode avaliar a si mesmo" });
     }

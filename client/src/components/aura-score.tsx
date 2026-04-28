@@ -18,7 +18,7 @@ function getFaixaColor(score: number | null): string {
 }
 
 function getFaixaNome(score: number | null): string {
-  if (score === null) return "Sem dados";
+  if (score === null) return "Em formação";
   if (score >= 90) return "Aura Suprema";
   if (score >= 70) return "Aura Forte";
   if (score >= 50) return "Aura Confiável";

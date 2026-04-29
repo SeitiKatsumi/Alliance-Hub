@@ -10,7 +10,7 @@ import {
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
   Navigation, Globe, UserCheck, UserX, Bell, Clock,
   Eye, FileText, Phone, Mail, Building, Calendar, Hash,
-  Ticket, Link2, CheckCircle, XCircle, Copy
+  Ticket, Link2, CheckCircle, XCircle, Copy, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -322,6 +322,21 @@ function getInitials(nome?: string): string {
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function CandidatoAuraBadge({ membroId }: { membroId?: string | null }) {
+  const { data } = useQuery<{ score: number | null; count: number }>({
+    queryKey: ["/api/aura/score", membroId],
+    queryFn: () => fetch(`/api/aura/score/${membroId}`).then(r => r.json()),
+    enabled: !!membroId,
+  });
+  if (!membroId || !data || data.count < 1) return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-semibold border border-violet-400/30 bg-violet-400/10 text-violet-300">
+      <Sparkles className="w-2 h-2" />
+      {data.score !== null ? Number(data.score).toFixed(1) : "—"}
+    </span>
+  );
+}
+
 export default function ComunidadePage() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -576,10 +591,39 @@ export default function ComunidadePage() {
       apiRequest("PATCH", `/api/convites/${token}/rejeitar-vitrine`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
-      toast({ title: "Candidato rejeitado." });
+      toast({ title: "Candidato rejeitado. E-mails enviados." });
     },
     onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
   });
+
+  // Aura evaluation state for Aliado evaluating a candidate directly from the panel
+  const [auraDialogConvite, setAuraDialogConvite] = useState<{ candidatoMembroId: string; candidatoNome: string } | null>(null);
+  const [auraSelectedWords, setAuraSelectedWords] = useState<string[]>([]);
+  const [auraSearch, setAuraSearch] = useState("");
+
+  const { data: auraLexico = [] } = useQuery<{ canonico: string; dimensao: string }[]>({
+    queryKey: ["/api/aura/lexico"],
+    queryFn: () => fetch("/api/aura/lexico").then(r => r.json()),
+    enabled: auraDialogConvite !== null,
+  });
+
+  const avaliarAuraMutation = useMutation({
+    mutationFn: ({ avaliado_id, palavras }: { avaliado_id: string; palavras: string[] }) =>
+      apiRequest("POST", "/api/aura/avaliar", { avaliado_id, palavras }),
+    onSuccess: () => {
+      toast({ title: "Percepção de Aura registrada!" });
+      setAuraDialogConvite(null);
+      setAuraSelectedWords([]);
+      setAuraSearch("");
+    },
+    onError: () => toast({ title: "Erro ao registrar Aura", variant: "destructive" }),
+  });
+
+  const toggleAuraWord = (word: string) => {
+    setAuraSelectedWords(prev =>
+      prev.includes(word) ? prev.filter(w => w !== word) : prev.length < 3 ? [...prev, word] : prev
+    );
+  };
 
   const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
   const vitrineCandidatosFiltrados = filtroConvitesComunidade === "todas"
@@ -824,6 +868,7 @@ export default function ComunidadePage() {
                           <span className={`text-[10px] font-mono ${statusInfo.color}`}>
                             • {statusInfo.label}
                           </span>
+                          {isP && <CandidatoAuraBadge membroId={convite.candidato_membro_id} />}
                         </div>
                         {convite.candidato_email && (
                           <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
@@ -841,25 +886,41 @@ export default function ComunidadePage() {
                         )}
                       </div>
                       {isP && (
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            onClick={() => aprovarVitrineMutation.mutate(convite.token)}
-                            disabled={aprovarVitrineMutation.isPending}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
-                            data-testid={`btn-aprovar-vitrine-${convite.id}`}
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            Aprovar acesso
-                          </button>
-                          <button
-                            onClick={() => rejeitarVitrineMutation.mutate(convite.token)}
-                            disabled={rejeitarVitrineMutation.isPending}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
-                            data-testid={`btn-rejeitar-vitrine-${convite.id}`}
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Rejeitar
-                          </button>
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => aprovarVitrineMutation.mutate(convite.token)}
+                              disabled={aprovarVitrineMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                              data-testid={`btn-aprovar-vitrine-${convite.id}`}
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              Aprovar acesso
+                            </button>
+                            <button
+                              onClick={() => rejeitarVitrineMutation.mutate(convite.token)}
+                              disabled={rejeitarVitrineMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                              data-testid={`btn-rejeitar-vitrine-${convite.id}`}
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Rejeitar
+                            </button>
+                          </div>
+                          {convite.candidato_membro_id && (
+                            <button
+                              onClick={() => {
+                                setAuraDialogConvite({ candidatoMembroId: convite.candidato_membro_id, candidatoNome: convite.candidato_nome || "Candidato" });
+                                setAuraSelectedWords([]);
+                                setAuraSearch("");
+                              }}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-brand-gold/80 border border-brand-gold/20 hover:bg-brand-gold/5 transition-colors"
+                              data-testid={`btn-avaliar-aura-${convite.id}`}
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              Registrar Percepção de Aura
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1373,6 +1434,79 @@ export default function ComunidadePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Aura Evaluation Dialog — Aliado registers their own Aura perception for a vitrine candidate */}
+      <Dialog open={!!auraDialogConvite} onOpenChange={open => { if (!open) { setAuraDialogConvite(null); setAuraSelectedWords([]); setAuraSearch(""); } }}>
+        <DialogContent className="max-w-lg border-brand-gold/20 text-white" style={{ background: "#001428" }}>
+          <DialogHeader>
+            <DialogTitle className="font-mono text-brand-gold flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Percepção de Aura
+            </DialogTitle>
+            <DialogDescription className="text-white/40 font-mono text-xs">
+              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT? Escolha até 3 palavras.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {auraSelectedWords.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {auraSelectedWords.map(w => (
+                  <button key={w} onClick={() => toggleAuraWord(w)} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-semibold border border-brand-gold/40 bg-brand-gold/10 text-brand-gold">
+                    {w} <X className="w-2.5 h-2.5" />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+              <Input
+                value={auraSearch}
+                onChange={e => setAuraSearch(e.target.value)}
+                placeholder="Buscar..."
+                className="pl-8 h-8 text-xs font-mono"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+              {auraLexico
+                .filter(item => !auraSearch || item.canonico.toLowerCase().includes(auraSearch.toLowerCase()))
+                .map(item => {
+                  const isSelected = auraSelectedWords.includes(item.canonico);
+                  const isDisabled = auraSelectedWords.length >= 3 && !isSelected;
+                  return (
+                    <button
+                      key={item.canonico}
+                      onClick={() => !isDisabled && toggleAuraWord(item.canonico)}
+                      disabled={isDisabled}
+                      className={`text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-all ${isSelected ? "border-brand-gold/50 bg-brand-gold/10 text-brand-gold" : isDisabled ? "border-white/5 text-white/20 cursor-not-allowed" : "border-white/10 text-white/60 hover:border-white/20 hover:text-white/80 hover:bg-white/5"}`}
+                    >
+                      {item.canonico}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setAuraDialogConvite(null); setAuraSelectedWords([]); }}
+              className="border-white/10 text-white/50 hover:text-white bg-transparent text-xs font-mono"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => auraDialogConvite && avaliarAuraMutation.mutate({ avaliado_id: auraDialogConvite.candidatoMembroId, palavras: auraSelectedWords })}
+              disabled={auraSelectedWords.length === 0 || avaliarAuraMutation.isPending}
+              className="text-xs font-mono font-bold"
+              style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
+              data-testid="btn-confirmar-aura-aliado"
+            >
+              {avaliarAuraMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Sparkles className="w-3 h-3 mr-1.5" />}
+              Registrar Percepção
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

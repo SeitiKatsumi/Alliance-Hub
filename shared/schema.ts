@@ -373,6 +373,10 @@ export const convitesComunidade = pgTable("convites_comunidade", {
   termos_aceitos_em: timestamp("termos_aceitos_em"),
   solicitacao_acesso_em: timestamp("solicitacao_acesso_em"),
   aura_invitador_avaliada_em: timestamp("aura_invitador_avaliada_em"),
+  avaliacao_token: varchar("avaliacao_token").unique(),
+  lembrete_24h_em: timestamp("lembrete_24h_em"),
+  lembrete_48h_em: timestamp("lembrete_48h_em"),
+  lembrete_72h_em: timestamp("lembrete_72h_em"),
   criado_em: timestamp("criado_em").defaultNow(),
   atualizado_em: timestamp("atualizado_em").defaultNow(),
 });

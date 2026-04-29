@@ -39,9 +39,9 @@ export default function AvaliarAuraCandidatoPage() {
   const [submitted, setSubmitted] = useState(false);
 
   const { data: convite, isLoading, error } = useQuery<ConviteData>({
-    queryKey: ["/api/convites", token],
-    queryFn: () => fetch(`/api/convites/${token}`).then(r => {
-      if (!r.ok) throw new Error("Convite não encontrado");
+    queryKey: ["/api/avaliacao-aura", token],
+    queryFn: () => fetch(`/api/avaliacao-aura/${token}`).then(r => {
+      if (!r.ok) throw new Error("Link de avaliação inválido");
       return r.json();
     }),
     enabled: !!token,
@@ -55,7 +55,7 @@ export default function AvaliarAuraCandidatoPage() {
 
   const avaliarMutation = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`/api/convites/${token}/aura-invitador`, {
+      const r = await fetch(`/api/avaliacao-aura/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ palavras: selected }),

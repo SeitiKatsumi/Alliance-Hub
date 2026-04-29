@@ -4266,10 +4266,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
       if (convite.status !== "termos_aceitos") return res.status(400).json({ error: "Aceite os termos antes de enviar a solicitação" });
 
+      // Generate a dedicated avaliacao_token so the invitador evaluation page is
+      // NOT accessible via the candidate's convite token (security: separate auth)
+      const { randomUUID } = await import("crypto");
+      const avaliacaoToken = randomUUID();
+
       const updated = await storage.updateConvite(convite.id, {
         status: "aguardando_avaliacao_aura",
         solicitacao_acesso_em: new Date(),
-      });
+        avaliacao_token: avaliacaoToken,
+      } as any);
 
       // Get comunidade + invitador info to email the inviting member
       const col = await getComunidadeCol();
@@ -4285,7 +4291,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
             invitadorNome: invitador.nome || "Membro BUILT",
             candidatoNome: convite.candidato_nome || "Candidato",
             comunidadeNome: comunidade?.nome || "Comunidade BUILT",
-            avaliacaoToken: convite.token,
+            avaliacaoToken, // use the dedicated one-time token
           });
         }
       }
@@ -4296,14 +4302,33 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites/:token/aura-invitador — inviting member submits Aura evaluation (public via token)
-  app.post("/api/convites/:token/aura-invitador", async (req, res) => {
+  // GET /api/avaliacao-aura/:avaliacaoToken — fetch convite by its dedicated avaliacao_token (public)
+  app.get("/api/avaliacao-aura/:avaliacaoToken", async (req, res) => {
     try {
-      const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      const convite = await storage.getConviteByAvaliacaoToken(req.params.avaliacaoToken);
+      if (!convite) return res.status(404).json({ error: "Link de avaliação inválido" });
+      if (convite.status !== "aguardando_avaliacao_aura") {
+        // Already evaluated or not ready: return status for UI to handle
+        return res.json({ status: convite.status, candidato_nome: convite.candidato_nome, comunidade: null });
+      }
+      // Get comunidade info to display on the evaluation page
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+      res.json({ status: convite.status, candidato_nome: convite.candidato_nome, candidato_email: convite.candidato_email, comunidade });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/avaliacao-aura/:avaliacaoToken — inviting member submits Aura evaluation (public via dedicated one-time token)
+  app.post("/api/avaliacao-aura/:avaliacaoToken", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByAvaliacaoToken(req.params.avaliacaoToken);
+      if (!convite) return res.status(404).json({ error: "Link de avaliação inválido" });
       if (convite.status !== "aguardando_avaliacao_aura") return res.status(400).json({ error: "Avaliação de Aura não está disponível neste momento" });
       if (!convite.invitador_membro_id) return res.status(400).json({ error: "Este convite não possui um convidador identificado" });
-
       const { palavras } = req.body;
       if (!Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
         return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
@@ -4311,67 +4336,43 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
         return res.status(400).json({ error: "Todas as palavras devem ser texto não vazio" });
       }
-
-      // Validate words against the Aura lexicon
       const { classificarPalavra } = await import("./aura-lexico");
       for (const p of palavras) {
         if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra não reconhecida no léxico: ${p}` });
       }
-
-      // Register Aura evaluation from invitador for candidato
-      await storage.upsertAuraAvaliacao(
-        convite.invitador_membro_id,
-        convite.candidato_membro_id,
-        palavras,
-      );
-
-      // Mark invitador evaluation done and advance status to candidato
-      await storage.updateConvite(convite.id, {
-        status: "candidato",
-        aura_invitador_avaliada_em: new Date(),
-      });
-
-      // Fetch Aura score to include in the Aliado email
+      await storage.upsertAuraAvaliacao(convite.invitador_membro_id, convite.candidato_membro_id, palavras);
+      await storage.updateConvite(convite.id, { status: "candidato", aura_invitador_avaliada_em: new Date() });
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       const comunidade = cr.ok ? (await cr.json()).data : null;
       const aliado = comunidade?.aliado;
-
-      // Compute Aura score for email
       let auraScore: number | null = null;
       let auraFaixa: string | null = null;
       try {
         const auraRes = await fetch(`http://localhost:5001/api/aura/${convite.candidato_membro_id}`);
-        if (auraRes.ok) {
-          const auraData = await auraRes.json();
-          auraScore = auraData.score ?? null;
-          auraFaixa = auraData.faixa ?? null;
-        }
+        if (auraRes.ok) { const ad = await auraRes.json(); auraScore = ad.score ?? null; auraFaixa = ad.faixa ?? null; }
       } catch (_) {}
-
       const invitador = await getDirectusMembro(convite.invitador_membro_id);
-
       if (aliado?.email) {
         await notificarAliadoAposAuraInvitador({
-          aliadoEmail: aliado.email,
-          aliadoNome: aliado.nome || "Aliado",
-          candidatoNome: convite.candidato_nome || "Candidato",
-          candidatoEmail: convite.candidato_email || undefined,
-          candidatoId: convite.candidato_membro_id,
-          invitadorNome: invitador?.nome || "Membro BUILT",
-          auraScore,
-          auraFaixa,
-          auraPalavras: palavras,
-          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
-          comunidadeId: convite.comunidade_id,
+          aliadoEmail: aliado.email, aliadoNome: aliado.nome || "Aliado",
+          candidatoNome: convite.candidato_nome || "Candidato", candidatoEmail: convite.candidato_email || undefined,
+          candidatoId: convite.candidato_membro_id, invitadorNome: invitador?.nome || "Membro BUILT",
+          auraScore, auraFaixa, auraPalavras: palavras,
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT", comunidadeId: convite.comunidade_id,
         });
       }
-
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // POST /api/convites/:token/aura-invitador — BLOCKED: use /api/avaliacao-aura/:avaliacaoToken instead
+  // Kept to prevent accidental self-evaluation by candidates using their own convite token
+  app.post("/api/convites/:token/aura-invitador", (_req, res) => {
+    res.status(403).json({ error: "Este endpoint foi desativado. Use o link enviado por e-mail para registrar a avaliação de Aura." });
   });
 
   // PATCH /api/convites/:token/pagamento — confirm payment & activate member (authenticated, aliado/admin)
@@ -4722,6 +4723,26 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       await storage.updateConvite(convite.id, { status: "rejeitado" });
+
+      // Send rejection emails to candidate and invitador
+      const { enviarRejeicaoVitrine } = await import("./mailer");
+      if (convite.candidato_email) {
+        let invitadorEmail: string | undefined;
+        let invitadorNome: string | undefined;
+        if (convite.invitador_membro_id) {
+          const invitador = await getDirectusMembro(convite.invitador_membro_id);
+          invitadorEmail = invitador?.email || undefined;
+          invitadorNome = invitador?.nome || undefined;
+        }
+        await enviarRejeicaoVitrine({
+          candidatoEmail: convite.candidato_email,
+          candidatoNome: convite.candidato_nome || "Candidato",
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          invitadorEmail,
+          invitadorNome,
+        });
+      }
+
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

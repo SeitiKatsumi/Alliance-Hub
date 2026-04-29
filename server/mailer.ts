@@ -419,6 +419,82 @@ export async function notificarAliadoAposAuraInvitador(opts: {
   );
 }
 
+export async function enviarLembreteTermos(opts: {
+  candidatoEmail: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+  conviteToken: string;
+  intervalHours: 24 | 48 | 72;
+}) {
+  const link = `${BASE_URL}/adesao/${opts.conviteToken}`;
+  await send(
+    opts.candidatoEmail,
+    `Lembrete: Termos de Adesão aguardando sua assinatura — BUILT Alliances`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">⏰ Termos aguardando você</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.candidatoNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">
+        ${opts.intervalHours === 72
+          ? `Este é o último lembrete sobre os Termos de Adesão da <strong>${opts.comunidadeNome}</strong>. Após este prazo, o seu convite será expirado automaticamente.`
+          : `Há ${opts.intervalHours}h você se cadastrou na plataforma BUILT Alliances, mas ainda não aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong>.`
+        }
+      </p>
+      <p style="color:rgba(255,255,255,0.7)">Acesse o link abaixo para ler e aceitar os termos:</p>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
+      </div>
+    `)
+  );
+}
+
+export async function notificarAliadoConviteExpirado(opts: {
+  aliadoEmail: string;
+  aliadoNome: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+}) {
+  await send(
+    opts.aliadoEmail,
+    `Convite expirado — ${opts.candidatoNome} não aceitou os termos`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Convite Expirado</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.aliadoNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">O candidato <strong style="color:#D7BB7D">${opts.candidatoNome}</strong> não aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong> dentro do prazo de 72 horas e o convite foi expirado automaticamente.</p>
+      <p style="color:rgba(255,255,255,0.7)">Um novo link de convite pode ser gerado pelo membro que fez o convite original, se necessário.</p>
+    `)
+  );
+}
+
+export async function enviarRejeicaoVitrine(opts: {
+  candidatoEmail: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+  invitadorEmail?: string;
+  invitadorNome?: string;
+}) {
+  await send(
+    opts.candidatoEmail,
+    `Candidatura não aprovada — BUILT Alliances`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Candidatura não aprovada</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.candidatoNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Após análise do Aliado BUILT da comunidade <strong>${opts.comunidadeNome}</strong>, sua candidatura não foi aprovada neste momento.</p>
+      <p style="color:rgba(255,255,255,0.5);font-size:13px">Se tiver dúvidas, entre em contato com quem te convidou para a rede BUILT.</p>
+    `)
+  );
+  if (opts.invitadorEmail) {
+    await send(
+      opts.invitadorEmail,
+      `Candidatura rejeitada — ${opts.candidatoNome}`,
+      baseTemplate(`
+        <h2 style="color:#D7BB7D;margin-top:0">Candidatura não aprovada</h2>
+        <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.invitadorNome}</strong>!</p>
+        <p style="color:rgba(255,255,255,0.7)">A candidatura de <strong style="color:#D7BB7D">${opts.candidatoNome}</strong> para a comunidade <strong>${opts.comunidadeNome}</strong> não foi aprovada pelo Aliado BUILT.</p>
+      `)
+    );
+  }
+}
+
 export async function enviarAprovacaoVitrine(opts: {
   candidatoEmail: string;
   candidatoNome: string;

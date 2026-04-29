@@ -96,9 +96,11 @@ export interface IStorage {
 
   createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade>;
   getConviteByToken(token: string): Promise<ConviteComunidade | undefined>;
+  getConviteByAvaliacaoToken(avaliacaoToken: string): Promise<ConviteComunidade | undefined>;
   getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidatoMembro(membroId: string, tipo?: string): Promise<ConviteComunidade[]>;
+  getConvitesTermosPendentes(): Promise<ConviteComunidade[]>;
   updateConvite(id: string, data: Partial<ConviteComunidade>): Promise<ConviteComunidade | undefined>;
 
   createConviteLink(data: InsertConviteLink): Promise<ConviteLink>;
@@ -397,6 +399,22 @@ export class DatabaseStorage implements IStorage {
       .from(convitesComunidade)
       .where(eq(convitesComunidade.token, token));
     return item;
+  }
+
+  async getConviteByAvaliacaoToken(avaliacaoToken: string): Promise<ConviteComunidade | undefined> {
+    const [item] = await db
+      .select()
+      .from(convitesComunidade)
+      .where(eq(convitesComunidade.avaliacao_token, avaliacaoToken));
+    return item;
+  }
+
+  async getConvitesTermosPendentes(): Promise<ConviteComunidade[]> {
+    return db
+      .select()
+      .from(convitesComunidade)
+      .where(eq(convitesComunidade.status, "termos_pendentes"))
+      .orderBy(convitesComunidade.criado_em);
   }
 
   async getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]> {

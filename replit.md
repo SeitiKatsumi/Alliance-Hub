@@ -38,7 +38,13 @@ Preferred communication style: Simple, everyday language.
 - **Currency Support**: BIAs support multiple currencies with dynamic formatting using `Intl.NumberFormat`.
 - **Nucleo Técnico Module**: Manages documents with CRUD functionality, storing data in local PostgreSQL.
 - **Convites & Adesão às Comunidades**: Implements a multi-step invitation and membership process with email notifications and public-facing pages for application, terms acceptance, and manual payment confirmation.
-- **Sistema de Convite-Gated Registration**: Any authenticated member can generate a personal invite link (valid 30 days). New users must provide a valid invite token to register. After registration, they enter "vitrine candidato" status (tipo="vitrine") and await approval by the community's Aliado BUILT. Approved users get role="membro"; pending users see an "Aguardando aprovação" blocking page. The Comunidades page has a "Convites" tab for Aliados/admins to manage both Vitrine (link-based) and Associação Completa (full membership) candidates.
+- **Sistema de Convite-Gated Registration**: Any authenticated member can generate a personal invite link (valid 30 days). New users must provide a valid invite token to register. After registration, the full onboarding flow is:
+  1. `termos_pendentes` — candidate sees Terms immediately after registration (with 24h/48h/72h email reminders via node-cron scheduler, auto-expire after 72h with Aliado notification)
+  2. `termos_aceitos` — candidate accepts terms, sees "Enviar Solicitação de Acesso" button
+  3. `aguardando_avaliacao_aura` — inviting member receives email with a **dedicated one-time `avaliacao_token`** (separate from the candidate's convite token) to evaluate Aura at `/avaliar-aura/:avaliacaoToken`
+  4. `candidato` — Aliado receives email with Aura data and evaluates via Comunidades panel (includes "Registrar Percepção de Aura" dialog)
+  5. `vitrine_ativo` (approval) or `rejeitado` (rejection with emails to candidate + invitador)
+- **Security**: The invitador Aura evaluation uses a dedicated `avaliacao_token` (UUID stored in `convites_comunidade.avaliacao_token`) to prevent candidate self-evaluation via their own convite token.
 - **BIA Approval Flow**: When a "Diretor de Aliança" (member with `tipos_alianca.includes("Liderança")` but NOT an Aliado BUILT seal) creates a BIA, an approval record is created in the local `bia_aprovacoes` PostgreSQL table and an email notification is sent to the community's Aliado BUILT. The Aliado BUILT sees a panel on the BIA page to approve or reject (with optional reason) each pending BIA. Directors see a notice about their pending BIAs. Email is sent to the director after a decision is taken. Aliados BUILT, admins and managers create BIAs without an approval step.
 
 ### Navigation Structure
@@ -55,6 +61,7 @@ A collapsible sidebar provides access to:
 - **Directus CMS**: For core business data management (members, BIAS projects, cash flow, categories, opportunity types).
 - **PostgreSQL**: Local database for user accounts, authentication sessions, Nucleo Técnico documents, invitations, and advertisement data.
 - **Nodemailer**: For sending email notifications related to invitations and membership.
+- **node-cron**: Background scheduler for 24h/48h/72h terms acceptance reminder emails and 72h auto-expiry.
 - **Nominatim (OpenStreetMap)**: Free geocoding service for BIA location data.
 - **`react-simple-maps`**: For rendering interactive geographical maps.
 - **Multer**: For handling multipart file uploads to the API.

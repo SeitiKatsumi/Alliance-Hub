@@ -3069,7 +3069,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           candidato_nome: nome,
           candidato_email: email,
           invitador_membro_id: conviteLink.gerador_membro_id || null,
-          status: "candidato",
+          status: "termos_pendentes",
           tipo: "vitrine",
           dados_contratuais: null,
           expires_at: null,
@@ -3105,41 +3105,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       const { password: _pw, ...safe } = user;
       res.json({ success: true, user: safe, ...(pagamentoToken ? { pagamento_token: pagamentoToken } : {}) });
-
-      // Notify community admin (aliado BUILT) about the new candidate — fire and forget
-      if (conviteLink.comunidade_id) {
-        (async () => {
-          try {
-            const { notificarAliadoCandidatura: notifyAliado } = await import("./mailer");
-            const col = await getComunidadeCol();
-            const cr = await fetch(`${DIRECTUS_URL}/items/${col}/${conviteLink.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`, {
-              headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-            });
-            if (cr.ok) {
-              const comunidade = (await cr.json()).data;
-              const aliado = comunidade?.aliado;
-              if (aliado?.email) {
-                await notifyAliado({
-                  aliadoEmail: aliado.email,
-                  aliadoNome: aliado.nome || "Aliado",
-                  candidatoNome: nome,
-                  candidatoEmail: email,
-                  comunidadeNome: comunidade?.nome || "Comunidade BUILT",
-                  comunidadeId: conviteLink.comunidade_id,
-                  interesses: interessesArr,
-                });
-                console.log("[register] Admin notified:", aliado.email);
-              } else {
-                console.warn("[register] No aliado email found for community:", conviteLink.comunidade_id);
-              }
-            } else {
-              console.warn("[register] Could not fetch community for admin notification:", cr.status, conviteLink.comunidade_id);
-            }
-          } catch (notifyErr: any) {
-            console.error("[register] Failed to notify aliado:", notifyErr.message);
-          }
-        })();
-      }
+      // Note: Aliado is NOT notified at registration. The new flow is:
+      // termos_pendentes → aceitar termos → solicitar acesso → invitador avalia Aura → Aliado é notificado
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3382,13 +3349,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
     // Check for pending or rejected vitrine approval (only for "user" role)
     let pending_vitrine = false;
+    let convite_pendente: { token: string; status: string } | null = null;
+    const PENDING_VITRINE_STATUSES = ["termos_pendentes", "termos_aceitos", "aguardando_avaliacao_aura", "candidato", "rejeitado"];
     if (role === "user" && email) {
       try {
         const localUser = await storage.getUserByEmail(email);
         if (localUser?.membro_directus_id) {
           const vitrineConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "vitrine");
-          // Block if awaiting approval OR if rejected — platform access is not granted until approved
-          pending_vitrine = vitrineConvites.some(c => c.status === "candidato" || c.status === "rejeitado");
+          const blocking = vitrineConvites.find(c => PENDING_VITRINE_STATUSES.includes(c.status));
+          if (blocking) {
+            pending_vitrine = true;
+            convite_pendente = { token: blocking.token, status: blocking.status };
+          }
         }
       } catch (_) {}
     }
@@ -3404,6 +3376,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       Outras_redes_as_quais_pertenco,
       foto_perfil: fotoPerfil ? `/api/assets/${fotoPerfil}` : null,
       pending_vitrine,
+      convite_pendente,
     });
   });
 
@@ -3944,6 +3917,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     enviarPagamento,
     enviarNovoMembro,
     enviarAprovacaoVitrine,
+    notificarInvitadorAvaliarAura,
+    notificarAliadoAposAuraInvitador,
   } = await import("./mailer");
 
   // Helper: get Directus member info by membro_id
@@ -4226,6 +4201,139 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/convites/:token/aceitar-termos — candidate accepts terms (public, new flow)
+  app.patch("/api/convites/:token/aceitar-termos", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.status !== "termos_pendentes") return res.status(400).json({ error: "Termos não disponíveis para aceite neste momento" });
+
+      const updated = await storage.updateConvite(convite.id, {
+        status: "termos_aceitos",
+        termos_aceitos_em: new Date(),
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/convites/:token/solicitar-acesso — candidate requests access after accepting terms (public, new flow)
+  app.post("/api/convites/:token/solicitar-acesso", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.status !== "termos_aceitos") return res.status(400).json({ error: "Aceite os termos antes de enviar a solicitação" });
+
+      const updated = await storage.updateConvite(convite.id, {
+        status: "aguardando_avaliacao_aura",
+        solicitacao_acesso_em: new Date(),
+      });
+
+      // Get comunidade + invitador info to email the inviting member
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      if (convite.invitador_membro_id) {
+        const invitador = await getDirectusMembro(convite.invitador_membro_id);
+        if (invitador?.email) {
+          await notificarInvitadorAvaliarAura({
+            invitadorEmail: invitador.email,
+            invitadorNome: invitador.nome || "Membro BUILT",
+            candidatoNome: convite.candidato_nome || "Candidato",
+            comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+            avaliacaoToken: convite.token,
+          });
+        }
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/convites/:token/aura-invitador — inviting member submits Aura evaluation (public via token)
+  app.post("/api/convites/:token/aura-invitador", async (req, res) => {
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (convite.status !== "aguardando_avaliacao_aura") return res.status(400).json({ error: "Avaliação de Aura não está disponível neste momento" });
+      if (!convite.invitador_membro_id) return res.status(400).json({ error: "Este convite não possui um convidador identificado" });
+
+      const { palavras } = req.body;
+      if (!Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
+        return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
+      }
+      if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
+        return res.status(400).json({ error: "Todas as palavras devem ser texto não vazio" });
+      }
+
+      // Validate words against the Aura lexicon
+      const { classificarPalavra } = await import("./aura-lexico");
+      for (const p of palavras) {
+        if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra não reconhecida no léxico: ${p}` });
+      }
+
+      // Register Aura evaluation from invitador for candidato
+      await storage.upsertAuraAvaliacao(
+        convite.invitador_membro_id,
+        convite.candidato_membro_id,
+        palavras,
+      );
+
+      // Mark invitador evaluation done and advance status to candidato
+      await storage.updateConvite(convite.id, {
+        status: "candidato",
+        aura_invitador_avaliada_em: new Date(),
+      });
+
+      // Fetch Aura score to include in the Aliado email
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+      const aliado = comunidade?.aliado;
+
+      // Compute Aura score for email
+      let auraScore: number | null = null;
+      let auraFaixa: string | null = null;
+      try {
+        const auraRes = await fetch(`http://localhost:5001/api/aura/${convite.candidato_membro_id}`);
+        if (auraRes.ok) {
+          const auraData = await auraRes.json();
+          auraScore = auraData.score ?? null;
+          auraFaixa = auraData.faixa ?? null;
+        }
+      } catch (_) {}
+
+      const invitador = await getDirectusMembro(convite.invitador_membro_id);
+
+      if (aliado?.email) {
+        await notificarAliadoAposAuraInvitador({
+          aliadoEmail: aliado.email,
+          aliadoNome: aliado.nome || "Aliado",
+          candidatoNome: convite.candidato_nome || "Candidato",
+          candidatoEmail: convite.candidato_email || undefined,
+          candidatoId: convite.candidato_membro_id,
+          invitadorNome: invitador?.nome || "Membro BUILT",
+          auraScore,
+          auraFaixa,
+          auraPalavras: palavras,
+          comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+          comunidadeId: convite.comunidade_id,
+        });
+      }
+
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

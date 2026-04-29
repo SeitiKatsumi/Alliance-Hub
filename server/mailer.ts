@@ -351,6 +351,74 @@ export async function notificarInteresseOpa(opts: {
   );
 }
 
+export async function notificarInvitadorAvaliarAura(opts: {
+  invitadorEmail: string;
+  invitadorNome: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+  avaliacaoToken: string;
+}) {
+  const link = `${BASE_URL}/avaliar-aura/${opts.avaliacaoToken}`;
+  await send(
+    opts.invitadorEmail,
+    `Avalie a Percepção de Aura de ${opts.candidatoNome} — BUILT Alliances`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">✨ Avalie a Percepção de Aura</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.invitadorNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong> e solicitou acesso à plataforma.</p>
+      <p style="color:rgba(255,255,255,0.7)">Como pessoa que convidou ${opts.candidatoNome}, você precisa registrar sua percepção de Aura antes que o Aliado BUILT analise a candidatura.</p>
+      <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+        <p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">Escolha até <strong style="color:#D7BB7D">3 palavras</strong> que descrevam melhor as qualidades de ${opts.candidatoNome} na rede BUILT.</p>
+      </div>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Registrar Percepção de Aura</a>
+      </div>
+      <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é pessoal e intransferível. Após o registro, o Aliado BUILT será notificado para analisar a candidatura.</p>
+    `)
+  );
+}
+
+export async function notificarAliadoAposAuraInvitador(opts: {
+  aliadoEmail: string;
+  aliadoNome: string;
+  candidatoNome: string;
+  candidatoEmail?: string;
+  candidatoId: string;
+  invitadorNome: string;
+  auraScore?: number | null;
+  auraFaixa?: string | null;
+  auraPalavras?: string[];
+  comunidadeNome: string;
+  comunidadeId: string;
+}) {
+  const candidatoLink = `${BASE_URL}/vitrine/${opts.candidatoId}`;
+  const painelLink = `${BASE_URL}/comunidade`;
+  const auraBlock = opts.auraFaixa
+    ? `<div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+        <p style="color:rgba(255,255,255,0.5);font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.1em">Percepção de Aura registrada pelo convidador</p>
+        <p style="color:#D7BB7D;font-size:17px;font-weight:bold;margin:0 0 4px">${opts.auraFaixa}${opts.auraScore != null ? ` — ${opts.auraScore.toFixed(1)}` : ""}</p>
+        ${opts.auraPalavras?.length ? `<p style="color:rgba(255,255,255,0.5);font-size:12px;margin:0">${opts.auraPalavras.join(" · ")}</p>` : ""}
+      </div>`
+    : "";
+  await send(
+    opts.aliadoEmail,
+    `Nova candidatura com Aura registrada — ${opts.candidatoNome}`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Candidatura Pronta para Análise</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.aliadoNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os termos de adesão da <strong>${opts.comunidadeNome}</strong> e teve sua Aura avaliada por <strong>${opts.invitadorNome}</strong>.</p>
+      ${auraBlock}
+      <p style="color:rgba(255,255,255,0.7)">Acesse o painel de candidatos para analisar o perfil, registrar sua própria Percepção de Aura e tomar a decisão:</p>
+      <div style="text-align:center;margin:28px 0 12px">
+        <a href="${painelLink}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
+      </div>
+      <div style="text-align:center;margin:0 0 24px">
+        <a href="${candidatoLink}" style="color:#D7BB7D;font-size:13px;text-decoration:underline">Ver Perfil de ${opts.candidatoNome}</a>
+      </div>
+    `)
+  );
+}
+
 export async function enviarAprovacaoVitrine(opts: {
   candidatoEmail: string;
   candidatoNome: string;

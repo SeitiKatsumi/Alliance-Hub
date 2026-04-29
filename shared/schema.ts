@@ -370,6 +370,9 @@ export const convitesComunidade = pgTable("convites_comunidade", {
   tipo: text("tipo").notNull().default("completo"),
   dados_contratuais: jsonb("dados_contratuais"),
   expires_at: timestamp("expires_at"),
+  termos_aceitos_em: timestamp("termos_aceitos_em"),
+  solicitacao_acesso_em: timestamp("solicitacao_acesso_em"),
+  aura_invitador_avaliada_em: timestamp("aura_invitador_avaliada_em"),
   criado_em: timestamp("criado_em").defaultNow(),
   atualizado_em: timestamp("atualizado_em").defaultNow(),
 });

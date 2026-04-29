@@ -2636,17 +2636,17 @@ export async function registerRoutes(
       (async () => {
         try {
           const { notificarInteresseOpa } = await import("./mailer");
-          // Fetch the OPA to get bia_id and name
-          const opa = await directusFetchOne("tipos_oportunidades", id, "fields=nome_oportunidade,bia_id");
-          console.log(`[interesse-opa] OPA fetched: id=${id} nome=${opa?.nome_oportunidade} bia_id=${opa?.bia_id}`);
-          const rawBiaId = opa?.bia_id;
-          // bia_id may be a plain UUID string or a Directus M2O object {id:...}
+          // Directus stores the BIA link in field 'bia' (not 'bia_id')
+          const opa = await directusFetchOne("tipos_oportunidades", id, "fields=nome_oportunidade,bia");
+          console.log(`[interesse-opa] OPA fetched: id=${id} nome=${opa?.nome_oportunidade} bia=${opa?.bia}`);
+          const rawBiaId = opa?.bia;
+          // bia may be a plain UUID string or a Directus M2O object {id:...}
           const biaId: string | null = rawBiaId
             ? (typeof rawBiaId === "object" ? String((rawBiaId as any).id) : String(rawBiaId))
             : null;
           const opaNome = (opa?.nome_oportunidade as string) || "OPA";
           if (!biaId) {
-            console.warn(`[interesse-opa] OPA ${id} has no bia_id, skipping email notification`);
+            console.warn(`[interesse-opa] OPA ${id} has no bia linked, skipping email notification`);
             return;
           }
           // Fetch the BIA to get roles and name

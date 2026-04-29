@@ -2638,14 +2638,29 @@ export async function registerRoutes(
           const { notificarInteresseOpa } = await import("./mailer");
           // Fetch the OPA to get bia_id and name
           const opa = await directusFetchOne("tipos_oportunidades", id, "fields=nome_oportunidade,bia_id");
-          const biaId = opa?.bia_id as string | null | undefined;
+          console.log(`[interesse-opa] OPA fetched: id=${id} nome=${opa?.nome_oportunidade} bia_id=${opa?.bia_id}`);
+          const rawBiaId = opa?.bia_id;
+          // bia_id may be a plain UUID string or a Directus M2O object {id:...}
+          const biaId: string | null = rawBiaId
+            ? (typeof rawBiaId === "object" ? String((rawBiaId as any).id) : String(rawBiaId))
+            : null;
           const opaNome = (opa?.nome_oportunidade as string) || "OPA";
-          if (!biaId) return;
+          if (!biaId) {
+            console.warn(`[interesse-opa] OPA ${id} has no bia_id, skipping email notification`);
+            return;
+          }
           // Fetch the BIA to get roles and name
           const bia = await directusFetchOne("bias_projetos", biaId, "fields=nome_bia,diretor_alianca,aliado_built");
+          console.log(`[interesse-opa] BIA fetched: id=${biaId} nome=${bia?.nome_bia} diretor=${bia?.diretor_alianca} aliado=${bia?.aliado_built}`);
           const biaNome = (bia?.nome_bia as string) || "BIA";
-          const diretorId = bia?.diretor_alianca as string | null | undefined;
-          const aliadoId = bia?.aliado_built as string | null | undefined;
+          const rawDiretor = bia?.diretor_alianca;
+          const rawAliado = bia?.aliado_built;
+          const diretorId: string | null = rawDiretor
+            ? (typeof rawDiretor === "object" ? String((rawDiretor as any).id) : String(rawDiretor))
+            : null;
+          const aliadoId: string | null = rawAliado
+            ? (typeof rawAliado === "object" ? String((rawAliado as any).id) : String(rawAliado))
+            : null;
 
           async function fetchMemberEmail(mid: string): Promise<{ email: string; nome: string } | null> {
             try {
@@ -3350,7 +3365,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     // Check for pending or rejected vitrine approval (only for "user" role)
     let pending_vitrine = false;
     let convite_pendente: { token: string; status: string } | null = null;
-    const PENDING_VITRINE_STATUSES = ["termos_pendentes", "termos_aceitos", "aguardando_avaliacao_aura", "candidato", "rejeitado"];
+    const PENDING_VITRINE_STATUSES = ["termos_pendentes", "termos_aceitos", "aguardando_avaliacao_aura", "candidato", "rejeitado", "expirado"];
     if (role === "user" && email) {
       try {
         const localUser = await storage.getUserByEmail(email);
@@ -4682,18 +4697,30 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         await storage.updateUser(candidatoUser.id, { role: "membro" });
       }
 
-      // Send approval email
-      if (convite.candidato_email) {
-        try {
-          const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+      // Send approval email to candidate and notify invitador
+      const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+      try {
+        if (convite.candidato_email) {
           await enviarAprovacaoVitrine({
             candidatoEmail: convite.candidato_email,
             candidatoNome: convite.candidato_nome || "Candidato",
             comunidadeNome,
           });
-        } catch (emailErr) {
-          console.warn("[aprovar-vitrine] email failed (non-fatal):", emailErr);
         }
+        if (convite.invitador_membro_id) {
+          const invitador = await getDirectusMembro(convite.invitador_membro_id);
+          if (invitador?.email) {
+            const { enviarAprovacaoVitrineInvitador } = await import("./mailer");
+            await enviarAprovacaoVitrineInvitador({
+              invitadorEmail: invitador.email,
+              invitadorNome: invitador.nome || "Membro BUILT",
+              candidatoNome: convite.candidato_nome || "Candidato",
+              comunidadeNome,
+            });
+          }
+        }
+      } catch (emailErr) {
+        console.warn("[aprovar-vitrine] email failed (non-fatal):", emailErr);
       }
 
       res.json({ success: true });

@@ -512,3 +512,21 @@ export async function enviarAprovacaoVitrine(opts: {
   `);
   await send(opts.candidatoEmail, "Seu acesso à BUILT Alliances foi aprovado!", html);
 }
+
+export async function enviarAprovacaoVitrineInvitador(opts: {
+  invitadorEmail: string;
+  invitadorNome: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+}) {
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">✅ Seu convidado foi aprovado!</h2>
+    <p style="color:rgba(255,255,255,0.7)">Olá, <strong style="color:#D7BB7D">${opts.invitadorNome}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">O candidato <strong>${opts.candidatoNome}</strong> que você convidou foi aprovado pelo Aliado BUILT e já pode acessar a comunidade <strong>${opts.comunidadeNome}</strong>.</p>
+    <p style="color:rgba(255,255,255,0.7)">Obrigado por trazer um novo membro para a rede BUILT Alliances!</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${BASE_URL}/comunidade" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Comunidade</a>
+    </div>
+  `);
+  await send(opts.invitadorEmail, `${opts.candidatoNome} foi aprovado na ${opts.comunidadeNome}!`, html);
+}

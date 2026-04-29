@@ -186,17 +186,18 @@ export default function AdesaoPage() {
 
   const status = localStatus ?? convite.status;
 
-  // LEGACY FLOW: associacao_completa after aliado approval
+  // LEGACY FLOW: associacao_completa — redirect payment-stage statuses directly to payment page
+  if (["pagamento_pendente", "membro"].includes(status)) {
+    navigate(`/pagamento/${token}`);
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
+        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+      </div>
+    );
+  }
+
+  // LEGACY FLOW: associacao_completa after aliado approval (show terms acceptance)
   if (["aprovado", "termos_enviados"].includes(status)) {
-    const jaAceito = ["termos_aceitos", "pagamento_pendente", "membro"].includes(status);
-    if (jaAceito) {
-      navigate(`/pagamento/${token}`);
-      return (
-        <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
-          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-        </div>
-      );
-    }
     return (
       <div className="min-h-screen" style={{ background: "#001D34" }}>
         <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">

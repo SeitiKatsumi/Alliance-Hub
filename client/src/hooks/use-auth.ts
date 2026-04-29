@@ -14,6 +14,7 @@ export interface AppUser {
   Outras_redes_as_quais_pertenco?: string[];
   foto_perfil?: string | null;
   pending_vitrine?: boolean;
+  convite_pendente?: { token: string; status: string } | null;
 }
 
 export function useAuth() {

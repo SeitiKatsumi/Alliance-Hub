@@ -3070,6 +3070,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // AND the token consumption so the invite can still be used on retry.
       let tokenConsumed = false;
       let pagamentoToken: string | null = null;
+      let vitrineToken: string | null = null;
       try {
         await storage.updateConviteLink(conviteLink.id, {
           status: "usado",
@@ -3078,7 +3079,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         });
         tokenConsumed = true;
 
-        await storage.createConvite({
+        const vitrineConvite = await storage.createConvite({
           comunidade_id: conviteLink.comunidade_id!,
           candidato_membro_id: membroDirectusId,
           candidato_nome: nome,
@@ -3089,6 +3090,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           dados_contratuais: null,
           expires_at: null,
         });
+        vitrineToken = vitrineConvite.token;
 
         // If user chose Área de Alianças, create an associacao_completa convite for payment
         if (emMembrosBuilt && conviteLink.comunidade_id) {
@@ -3118,10 +3120,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         throw postUserErr;
       }
 
+      // Auto-login: set session so the new user is immediately authenticated
+      (req.session as any).directusUserId = user.id;
+      (req.session as any).membroId = membroDirectusId;
+      (req.session as any).nome = nome;
+      (req.session as any).email = email;
+      (req.session as any).role = "user";
+      (req.session as any).permissions = {};
+
       const { password: _pw, ...safe } = user;
-      res.json({ success: true, user: safe, ...(pagamentoToken ? { pagamento_token: pagamentoToken } : {}) });
-      // Note: Aliado is NOT notified at registration. The new flow is:
-      // termos_pendentes → aceitar termos → solicitar acesso → invitador avalia Aura → Aliado é notificado
+      res.json({
+        success: true,
+        user: safe,
+        ...(pagamentoToken ? { pagamento_token: pagamentoToken } : {}),
+        ...(vitrineToken ? { vitrine_token: vitrineToken } : {}),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -4173,11 +4186,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           if (convite.invitador_membro_id) {
             const invitador = await getDirectusMembro(convite.invitador_membro_id);
             if (invitador?.email) {
-              const { enviarAprovacaoVitrine: envVitrine } = await import("./mailer");
-              // Reuse existing vitrine email for invitador (customised message would be better but acceptable)
-              await envVitrine({
-                candidatoEmail: invitador.email,
-                candidatoNome: `${convite.candidato_nome || "Candidato"} (convidado por você)`,
+              const { enviarAprovacaoVitrineInvitador } = await import("./mailer");
+              await enviarAprovacaoVitrineInvitador({
+                invitadorEmail: invitador.email,
+                invitadorNome: invitador.nome || "Membro BUILT",
+                candidatoNome: convite.candidato_nome || "Candidato",
                 comunidadeNome,
               });
             }

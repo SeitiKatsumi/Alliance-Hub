@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -179,8 +180,11 @@ export default function LoginPage() {
       setShowInteressesModal(false);
       if (data.pagamento_token) {
         navigate(`/pagamento/${data.pagamento_token}`);
+      } else if (data.vitrine_token) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+        navigate(`/adesao/${data.vitrine_token}`);
       } else {
-        toast({ title: "Conta criada!", description: "Aguarde aprovação da sua candidatura." });
+        toast({ title: "Conta criada!", description: "Você já pode fazer login." });
         setEmail(regEmail);
         setMode("login");
       }

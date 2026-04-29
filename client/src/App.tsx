@@ -73,7 +73,7 @@ function ProtectedApp() {
 
   // Block pending vitrine users — route based on their current stage
   if (user?.pending_vitrine) {
-    const convitePendente = (user as any)?.convite_pendente as { token: string; status: string } | null;
+    const convitePendente = user.convite_pendente ?? null;
     if (convitePendente?.token && ["termos_pendentes", "termos_aceitos", "aguardando_avaliacao_aura"].includes(convitePendente.status)) {
       return <TermsRedirect token={convitePendente.token} />;
     }

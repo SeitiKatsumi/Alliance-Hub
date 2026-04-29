@@ -4175,6 +4175,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           // Vitrine/Capital: direct approval → platform access
           newStatus = "vitrine_ativo";
           updated = await storage.updateConvite(convite.id, { status: newStatus });
+          // Promote candidate user to "membro" so they can access the platform
+          const allUsers = await storage.getAllUsers();
+          const candidatoUser = allUsers.find(u => u.membro_directus_id === convite.candidato_membro_id);
+          if (candidatoUser) {
+            await storage.updateUser(candidatoUser.id, { role: "membro" });
+          }
           if (convite.candidato_email) {
             await enviarAprovacaoVitrine({
               candidatoEmail: convite.candidato_email,

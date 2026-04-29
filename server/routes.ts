@@ -4136,20 +4136,55 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode aprovar ou rejeitar candidatos" });
       }
 
-      // When approving, give 12h for terms acceptance
-      const newExpiresAt = decisao === "aprovado" ? (() => { const d = new Date(); d.setHours(d.getHours() + 12); return d; })() : undefined;
-      const updated = await storage.updateConvite(convite.id, { status: decisao, ...(newExpiresAt ? { expires_at: newExpiresAt } : {}) });
-
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+      const isVitrine = convite.tipo === "vitrine";
 
-      if (decisao === "aprovado" && convite.candidato_email) {
-        await enviarAprovacao({
-          candidatoEmail: convite.candidato_email,
-          candidatoNome: convite.candidato_nome || "Candidato",
-          comunidadeNome,
-          token: convite.token,
-        });
-      } else if (decisao === "rejeitado") {
+      let newStatus: string;
+      let updated: any;
+
+      if (decisao === "aprovado") {
+        if (isVitrine) {
+          // Vitrine/Capital: direct approval → platform access
+          newStatus = "vitrine_ativo";
+          updated = await storage.updateConvite(convite.id, { status: newStatus });
+          if (convite.candidato_email) {
+            await enviarAprovacaoVitrine({
+              candidatoEmail: convite.candidato_email,
+              candidatoNome: convite.candidato_nome || "Candidato",
+              comunidadeNome,
+            });
+          }
+          // Also notify invitador
+          if (convite.invitador_membro_id) {
+            const invitador = await getDirectusMembro(convite.invitador_membro_id);
+            if (invitador?.email) {
+              const { enviarAprovacaoVitrine: envVitrine } = await import("./mailer");
+              // Reuse existing vitrine email for invitador (customised message would be better but acceptable)
+              await envVitrine({
+                candidatoEmail: invitador.email,
+                candidatoNome: `${convite.candidato_nome || "Candidato"} (convidado por você)`,
+                comunidadeNome,
+              });
+            }
+          }
+        } else {
+          // Associação Completa: terms + payment flow
+          newStatus = "aprovado";
+          const newExpiresAt = (() => { const d = new Date(); d.setHours(d.getHours() + 12); return d; })();
+          updated = await storage.updateConvite(convite.id, { status: newStatus, expires_at: newExpiresAt });
+          if (convite.candidato_email) {
+            await enviarAprovacao({
+              candidatoEmail: convite.candidato_email,
+              candidatoNome: convite.candidato_nome || "Candidato",
+              comunidadeNome,
+              token: convite.token,
+            });
+          }
+        }
+      } else {
+        // Rejection: email both candidate and invitador
+        newStatus = "rejeitado";
+        updated = await storage.updateConvite(convite.id, { status: newStatus });
         if (convite.candidato_email) {
           const invitador = convite.invitador_membro_id ? await getDirectusMembro(convite.invitador_membro_id) : null;
           await enviarRejeicao({

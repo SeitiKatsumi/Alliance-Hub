@@ -1,15 +1,17 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, FileText, CheckCircle2, AlertCircle, Shield } from "lucide-react";
+import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ConviteData {
   id: string;
   token: string;
   status: string;
+  tipo?: string;
   candidato_nome?: string;
   candidato_email?: string;
+  invitador_membro_id?: string;
   comunidade?: {
     id: string;
     nome?: string;
@@ -104,8 +106,8 @@ Ao aceitar este Termo, o usuário declara ter lido, compreendido e concordado in
 export default function AdesaoPage() {
   const { token } = useParams<{ token: string }>();
   const [, navigate] = useLocation();
-  const [accepted, setAccepted] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [localStatus, setLocalStatus] = useState<string | null>(null);
 
   const { data: convite, isLoading, error } = useQuery<ConviteData>({
     queryKey: ["/api/convites", token],
@@ -117,6 +119,38 @@ export default function AdesaoPage() {
     retry: false,
   });
 
+  const aceitarTermosMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/convites/${token}/aceitar-termos`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aceito: true }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || "Erro ao registrar aceite");
+      }
+      return r.json();
+    },
+    onSuccess: () => setLocalStatus("termos_aceitos"),
+  });
+
+  const solicitarAcessoMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/convites/${token}/solicitar-acesso`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || "Erro ao enviar solicitação");
+      }
+      return r.json();
+    },
+    onSuccess: () => setLocalStatus("aguardando_avaliacao_aura"),
+  });
+
+  // Legacy: old flow for associacao_completa tipo (approved by aliado)
   const adesaoMutation = useMutation({
     mutationFn: async () => {
       const r = await fetch(`/api/convites/${token}/adesao`, {
@@ -127,9 +161,7 @@ export default function AdesaoPage() {
       if (!r.ok) throw new Error("Erro ao registrar aceite");
       return r.json();
     },
-    onSuccess: () => {
-      navigate(`/pagamento/${token}`);
-    },
+    onSuccess: () => navigate(`/pagamento/${token}`),
   });
 
   if (isLoading) {
@@ -152,89 +184,226 @@ export default function AdesaoPage() {
     );
   }
 
-  const statusInvalid = !["aprovado", "termos_enviados"].includes(convite.status);
-  const jaAceito = convite.status === "termos_aceitos" || convite.status === "pagamento_pendente" || convite.status === "membro";
+  const status = localStatus ?? convite.status;
 
-  if (accepted || jaAceito) {
-    navigate(`/pagamento/${token}`);
+  // LEGACY FLOW: associacao_completa after aliado approval
+  if (["aprovado", "termos_enviados"].includes(status)) {
+    const jaAceito = ["termos_aceitos", "pagamento_pendente", "membro"].includes(status);
+    if (jaAceito) {
+      navigate(`/pagamento/${token}`);
+      return (
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
+          <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
+        </div>
+      );
+    }
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
-        <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
-      </div>
-    );
-  }
-
-  if (statusInvalid) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
-        <div className="text-center space-y-4 p-8 max-w-md">
-          <AlertCircle className="w-12 h-12 text-amber-400 mx-auto" />
-          <h2 className="text-xl font-bold font-mono text-white">Termos não disponíveis</h2>
-          <p className="text-white/50 text-sm font-mono">Este link não está disponível para aceite de termos no momento.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen" style={{ background: "#001D34" }}>
-      <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">
-        <div className="text-center">
-          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
-          <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
-          <p className="text-white/50 text-sm font-mono mt-1">
-            Leia atentamente o termo antes de aceitar
-          </p>
-        </div>
-
-        {/* Comunidade info */}
-        <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
-          <Shield className="w-5 h-5 text-brand-gold shrink-0" />
-          <div>
-            <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
-            <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome}</p>
+      <div className="min-h-screen" style={{ background: "#001D34" }}>
+        <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">
+          <div className="text-center">
+            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+            <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
           </div>
-        </div>
-
-        {/* Terms document */}
-        <div className="rounded-2xl border border-white/10 overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
-            <FileText className="w-4 h-4 text-brand-gold" />
-            <span className="text-xs font-mono text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
+          <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
+            <Shield className="w-5 h-5 text-brand-gold shrink-0" />
+            <div>
+              <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
+              <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome}</p>
+            </div>
           </div>
-          <div className="p-5 max-h-[28rem] overflow-y-auto">
-            <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">
-              {TERMOS_ADESAO}
-            </pre>
+          <div className="rounded-2xl border border-white/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <FileText className="w-4 h-4 text-brand-gold" />
+              <span className="text-xs font-mono text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
+            </div>
+            <div className="p-5 max-h-[28rem] overflow-y-auto">
+              <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">{TERMOS_ADESAO}</pre>
+            </div>
           </div>
-        </div>
-
-        {/* Checkbox */}
-        <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-aceite-termos">
-          <div
-            className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
-            onClick={() => setChecked(c => !c)}
+          <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-aceite-termos">
+            <div
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
+              onClick={() => setChecked(c => !c)}
+            >
+              {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </div>
+            <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
+              Li e concordo com o <strong className="text-brand-gold">Termo de Acesso à Área de Membros BUILT</strong>
+            </span>
+          </label>
+          <Button
+            onClick={() => adesaoMutation.mutate()}
+            disabled={!checked || adesaoMutation.isPending}
+            className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
+            style={{ background: checked ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
+            data-testid="btn-aceitar-termos"
           >
-            {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-          </div>
-          <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
-            Li e concordo com o <strong className="text-brand-gold">Termo de Acesso à Área de Membros BUILT</strong>
-          </span>
-        </label>
+            {adesaoMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Aceitar Termos e Continuar
+          </Button>
+          {adesaoMutation.isError && (
+            <p className="text-red-400 text-xs font-mono text-center">{(adesaoMutation.error as Error).message}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
-        <Button
-          onClick={() => adesaoMutation.mutate()}
-          disabled={!checked || adesaoMutation.isPending}
-          className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
-          style={{ background: checked ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
-          data-testid="btn-aceitar-termos"
-        >
-          {adesaoMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-          Aceitar Termos e Continuar
-        </Button>
-        {adesaoMutation.isError && (
-          <p className="text-red-400 text-xs font-mono text-center">Erro ao registrar aceite. Tente novamente.</p>
-        )}
+  // NEW FLOW: termos_pendentes → show terms + accept
+  if (status === "termos_pendentes") {
+    return (
+      <div className="min-h-screen" style={{ background: "#001D34" }}>
+        <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">
+          <div className="text-center">
+            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+            <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
+            <p className="text-white/50 text-sm font-mono mt-1">
+              Bem-vindo(a), <strong className="text-brand-gold">{convite.candidato_nome}</strong>! Leia e aceite os termos para continuar.
+            </p>
+          </div>
+
+          <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
+            <Shield className="w-5 h-5 text-brand-gold shrink-0" />
+            <div>
+              <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
+              <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome}</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <FileText className="w-4 h-4 text-brand-gold" />
+              <span className="text-xs font-mono text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
+            </div>
+            <div className="p-5 max-h-[28rem] overflow-y-auto">
+              <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">{TERMOS_ADESAO}</pre>
+            </div>
+          </div>
+
+          <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-aceite-termos">
+            <div
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
+              onClick={() => setChecked(c => !c)}
+            >
+              {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </div>
+            <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
+              Li e concordo com o <strong className="text-brand-gold">Termo de Acesso à Área de Membros BUILT</strong>
+            </span>
+          </label>
+
+          <Button
+            onClick={() => aceitarTermosMutation.mutate()}
+            disabled={!checked || aceitarTermosMutation.isPending}
+            className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
+            style={{ background: checked ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
+            data-testid="btn-aceitar-termos"
+          >
+            {aceitarTermosMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Aceitar Termos e Avançar
+          </Button>
+          {aceitarTermosMutation.isError && (
+            <p className="text-red-400 text-xs font-mono text-center">{(aceitarTermosMutation.error as Error).message}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // NEW FLOW: termos_aceitos → show "Enviar Solicitação de Acesso" button
+  if (status === "termos_aceitos") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#001D34" }}>
+        <div className="max-w-md w-full space-y-6">
+          <div className="text-center">
+            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+            <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termos Aceitos</h1>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-500/20 p-6 flex flex-col items-center gap-3" style={{ background: "rgba(16,185,129,0.05)" }}>
+            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+            <p className="text-white/80 text-sm font-mono text-center">
+              Você aceitou os Termos de Acesso da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong>.
+            </p>
+            <p className="text-white/50 text-xs font-mono text-center leading-relaxed">
+              O próximo passo é enviar sua solicitação de acesso. O membro que te convidou será notificado para registrar a percepção de Aura — depois, o Aliado BUILT analisará sua candidatura.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => solicitarAcessoMutation.mutate()}
+            disabled={solicitarAcessoMutation.isPending}
+            className="w-full h-12 font-mono font-bold text-sm"
+            style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
+            data-testid="btn-solicitar-acesso"
+          >
+            {solicitarAcessoMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+            Enviar Solicitação de Acesso
+          </Button>
+
+          {solicitarAcessoMutation.isError && (
+            <p className="text-red-400 text-xs font-mono text-center">{(solicitarAcessoMutation.error as Error).message}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // NEW FLOW: aguardando_avaliacao_aura → waiting message
+  if (status === "aguardando_avaliacao_aura") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#001D34" }}>
+        <div className="max-w-md w-full space-y-6 text-center">
+          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+          <div className="w-16 h-16 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto">
+            <Sparkles className="w-8 h-8 text-brand-gold" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold font-mono text-white">Aguardando Avaliação de Aura</h1>
+            <p className="text-white/50 text-sm font-mono mt-2 leading-relaxed">
+              Sua solicitação foi enviada! O membro que te convidou receberá um e-mail para registrar sua percepção de Aura.
+            </p>
+            <p className="text-white/40 text-xs font-mono mt-3 leading-relaxed">
+              Após a avaliação, o Aliado BUILT da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong> será notificado para analisar sua candidatura.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 p-4 flex items-center gap-3 text-left" style={{ background: "rgba(255,255,255,0.03)" }}>
+            <Clock className="w-5 h-5 text-brand-gold shrink-0" />
+            <p className="text-xs font-mono text-white/50">Você receberá um e-mail assim que a análise for concluída. Fique atento à sua caixa de entrada.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // candidato status → in review by Aliado
+  if (status === "candidato") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#001D34" }}>
+        <div className="max-w-md w-full space-y-6 text-center">
+          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+          <div className="w-16 h-16 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto">
+            <Clock className="w-8 h-8 text-brand-gold animate-pulse" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold font-mono text-white">Candidatura em Análise</h1>
+            <p className="text-white/50 text-sm font-mono mt-2 leading-relaxed">
+              O Aliado BUILT da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong> está analisando seu perfil e a avaliação de Aura recebida.
+            </p>
+            <p className="text-white/40 text-xs font-mono mt-3">Você receberá um e-mail com a decisão em breve.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback for other statuses
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
+      <div className="text-center space-y-4 p-8 max-w-md">
+        <AlertCircle className="w-12 h-12 text-amber-400 mx-auto" />
+        <h2 className="text-xl font-bold font-mono text-white">Página não disponível</h2>
+        <p className="text-white/50 text-sm font-mono">Este link não está disponível no momento.</p>
       </div>
     </div>
   );

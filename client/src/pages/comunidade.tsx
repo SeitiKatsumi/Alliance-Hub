@@ -589,7 +589,7 @@ export default function ComunidadePage() {
     ? todosCandidatos
     : todosCandidatos.filter(c => String(c.comunidade_id) === filtroConvitesComunidade);
   const candidatosPendentes = todosCandidatosFiltrados.filter(c => c.status === "candidato");
-  const vitrinePendentes = vitrineCandidatosFiltrados.filter(c => c.status === "candidato");
+  const vitrinePendentes = vitrineCandidatosFiltrados.filter(c => ["candidato", "aguardando_avaliacao_aura"].includes(c.status));
   const outrosConvites = todosCandidatosFiltrados.filter(c => c.status !== "candidato" && c.status !== "convidado");
 
   // ── Notificações de novos candidatos ──────────────────────────────
@@ -633,20 +633,25 @@ export default function ComunidadePage() {
 
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     convidado: { label: "Convidado", color: "text-blue-400" },
+    termos_pendentes: { label: "Lendo Termos", color: "text-orange-400" },
+    termos_aceitos: { label: "Termos aceitos", color: "text-cyan-400" },
+    aguardando_avaliacao_aura: { label: "Aguardando Aura", color: "text-violet-400" },
     candidato: { label: "Aguardando decisão", color: "text-amber-400" },
     aprovado: { label: "Aprovado", color: "text-green-400" },
     rejeitado: { label: "Rejeitado", color: "text-red-400" },
     termos_enviados: { label: "Termos enviados", color: "text-purple-400" },
-    termos_aceitos: { label: "Termos aceitos", color: "text-cyan-400" },
     pagamento_pendente: { label: "Pagamento pendente", color: "text-amber-400" },
     membro: { label: "Membro ativo", color: "text-emerald-400" },
+    vitrine_ativo: { label: "Vitrine ativa", color: "text-emerald-400" },
   };
 
   const showConvitesTab = isAdmin || isManager || minhasComunidadesComoAliado.length > 0;
   const todosCandidatosCompleto = todosCandidatosFiltrados.filter(c => c.tipo !== "vitrine");
+  // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
+  const PENDING_DECISION_STATUSES = ["candidato", "aguardando_avaliacao_aura"];
   const convitesBadgeCount =
-    vitrineCandidatos.filter((c: any) => c.status === "candidato").length +
-    todosCandidatos.filter((c: any) => c.status === "candidato").length;
+    vitrineCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length +
+    todosCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -806,18 +811,18 @@ export default function ComunidadePage() {
               <div className="divide-y divide-white/5">
                 {vitrineCandidatosFiltrados.map((convite: any) => {
                   const isP = convite.status === "candidato";
-                  const isAprovado = convite.status === "vitrine_ativo";
-                  const isRejeitado = convite.status === "rejeitado";
+                  const isAguardandoAura = convite.status === "aguardando_avaliacao_aura";
                   const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || "—";
                   const invitador = membros.find(m => String(m.id) === String(convite.invitador_membro_id));
                   const nomeConvidador = invitador?.nome || null;
+                  const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/40" };
                   return (
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-mono font-bold text-white">{convite.candidato_nome || "—"}</p>
-                          <span className={`text-[10px] font-mono ${isP ? "text-amber-400" : isAprovado ? "text-emerald-400" : isRejeitado ? "text-red-400" : "text-white/40"}`}>
-                            • {isP ? "Aguardando aprovação" : isAprovado ? "Vitrine ativa" : isRejeitado ? "Rejeitado" : convite.status}
+                          <span className={`text-[10px] font-mono ${statusInfo.color}`}>
+                            • {statusInfo.label}
                           </span>
                         </div>
                         {convite.candidato_email && (
@@ -829,6 +834,11 @@ export default function ComunidadePage() {
                           </p>
                         )}
                         <p className="text-[10px] font-mono text-white/25">{comNome}</p>
+                        {isAguardandoAura && (
+                          <p className="text-[10px] font-mono text-violet-400/70 mt-0.5">
+                            Aguardando avaliação de Aura do convidador
+                          </p>
+                        )}
                       </div>
                       {isP && (
                         <div className="flex gap-2 shrink-0">

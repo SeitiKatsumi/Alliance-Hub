@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -35,12 +36,23 @@ import LoginPage from "@/pages/login";
 import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
 import ConvitePage from "@/pages/convite";
 import AdesaoPage from "@/pages/adesao";
+import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
 import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+
+function TermsRedirect({ token }: { token: string }) {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate(`/adesao/${token}`); }, [token]);
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#001D34]">
+      <div className="w-8 h-8 border-2 border-[#D7BB7D]/30 border-t-[#D7BB7D] rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
@@ -59,8 +71,12 @@ function ProtectedApp() {
     return <LoginPage />;
   }
 
-  // Block pending vitrine users — always show the waiting page without the full layout
+  // Block pending vitrine users — route based on their current stage
   if (user?.pending_vitrine) {
+    const convitePendente = (user as any)?.convite_pendente as { token: string; status: string } | null;
+    if (convitePendente?.token && ["termos_pendentes", "termos_aceitos", "aguardando_avaliacao_aura"].includes(convitePendente.status)) {
+      return <TermsRedirect token={convitePendente.token} />;
+    }
     return <AguardandoAprovacaoPage />;
   }
 
@@ -147,6 +163,7 @@ function App() {
         <Switch>
           <Route path="/convite/:token" component={ConvitePage} />
           <Route path="/adesao/:token" component={AdesaoPage} />
+          <Route path="/avaliar-aura/:token" component={AvaliarAuraCandidatoPage} />
           <Route path="/pagamento/sucesso" component={PagamentoSucessoPage} />
           <Route path="/pagamento/:token" component={PagamentoPage} />
           <Route component={ProtectedApp} />

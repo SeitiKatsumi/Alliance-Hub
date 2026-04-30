@@ -26,6 +26,10 @@ COPY --from=builder /app/migrations ./migrations
 COPY migrate.cjs ./migrate.cjs
 COPY start.sh ./start.sh
 
+# connect-pg-simple é bundlado pelo esbuild — o __dirname aponta para dist/
+# então precisamos do table.sql nesse diretório para criar a tabela de sessões
+RUN cp node_modules/connect-pg-simple/table.sql dist/table.sql
+
 RUN chmod +x start.sh
 
 ENV NODE_ENV=production

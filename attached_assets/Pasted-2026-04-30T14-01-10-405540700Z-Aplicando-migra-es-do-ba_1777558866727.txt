@@ -1,0 +1,272 @@
+2026-04-30T14:01:10.405540700Z === Aplicando migrações do banco de dados ===
+2026-04-30T14:01:10.545658341Z [migrate] skip 0000_solid_risque.sql (já aplicado)
+2026-04-30T14:01:10.547463475Z [migrate] skip 0001_seed_data.sql (já aplicado)
+2026-04-30T14:01:10.547574664Z [migrate] Todas as migrations aplicadas com sucesso.
+2026-04-30T14:01:10.561692287Z === Iniciando servidor ===
+2026-04-30T14:01:10.841268135Z [google-auth] Google OAuth enabled (callback: http://localhost:5000/auth/google/callback)
+2026-04-30T14:01:10.966907944Z 2:01:10 PM [express] serving on port 5000
+2026-04-30T14:01:11.189550768Z [comunidade] Found collection as 'Comunidade'
+2026-04-30T14:01:11.195538049Z [estudos] Collection already exists
+2026-04-30T14:01:11.248964118Z [geo-bias] Field latitude response: 400
+2026-04-30T14:01:11.253763308Z [vitrine-fields] Field na_vitrine response: 400
+2026-04-30T14:01:11.256517673Z [geo-opa] Field latitude response: 400
+2026-04-30T14:01:11.265570785Z [nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+2026-04-30T14:01:11.565620662Z [bias-valid] No field validations to clear
+2026-04-30T14:01:11.574050238Z [bia] nome_bia varchar length OK, skipping
+2026-04-30T14:01:11.666424645Z [geo-opa] Field longitude response: 400
+2026-04-30T14:01:11.669038796Z [geo-bias] Field longitude response: 400
+2026-04-30T14:01:11.670788015Z [vitrine-fields] Field em_membros_built response: 400
+2026-04-30T14:01:11.674064353Z [perms] No reference permissions found
+2026-04-30T14:01:11.764939312Z [geo-bias] Field localizacao response: 400
+2026-04-30T14:01:11.764970582Z [vitrine-fields] Field em_built_capital response: 400
+2026-04-30T14:01:11.764978246Z [geo-opa] Field localizacao response: 400
+2026-04-30T14:01:11.781685892Z [cadastro_geral] nome expanded to varchar(500)
+2026-04-30T14:01:11.781735095Z [cadastro_geral] perfil_aliado already OK (text/null), skipping
+2026-04-30T14:01:11.781820546Z [cadastro_geral] nucleo_alianca already OK (text/null), skipping
+2026-04-30T14:01:11.818270232Z [vitrine-fields] Field link_site response: 400
+2026-04-30T14:01:11.870393275Z [vitrine-fields] Field latitude response: 400
+2026-04-30T14:01:11.891823358Z [cadastro_geral] empresa expanded to varchar(500)
+2026-04-30T14:01:11.927053783Z [vitrine-fields] Field longitude response: 400
+2026-04-30T14:01:11.988434104Z [vitrine-fields] Field logo_empresa response: 400
+2026-04-30T14:01:12.004413087Z [cadastro_geral] cargo expanded to varchar(500)
+2026-04-30T14:01:12.048137711Z [comunidade] Scalar field 'status': undefined
+2026-04-30T14:01:12.052401712Z [vitrine-fields] Field especialidade_livre response: 400
+2026-04-30T14:01:12.123178251Z [vitrine-fields] Field ramo_atuacao response: 400
+2026-04-30T14:01:12.201436869Z [vitrine-fields] Field segmento response: 400
+2026-04-30T14:01:12.255990415Z [vitrine-fields] Field idiomas response: 400
+2026-04-30T14:01:12.330683229Z [vitrine-fields] Field nucleos_alianca response: 400
+2026-04-30T14:01:12.336028469Z [comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+2026-04-30T14:01:12.378216165Z [vitrine-fields] Field tipos_alianca response: 400
+2026-04-30T14:01:12.387324952Z [comunidade] Junction 'comunidade_membros' already exists
+2026-04-30T14:01:12.400359562Z [comunidade] M2M alias 'membros': INVALID_PAYLOAD
+2026-04-30T14:01:12.437141454Z [comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+2026-04-30T14:01:12.443159624Z [comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+2026-04-30T14:01:12.486354390Z [comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+2026-04-30T14:01:12.496817170Z [comunidade] Junction 'comunidade_bias' already exists
+2026-04-30T14:01:12.504754909Z [comunidade] M2M alias 'bias': INVALID_PAYLOAD
+2026-04-30T14:01:12.546353134Z [comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+2026-04-30T14:01:12.554491751Z [comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+2026-04-30T14:01:12.554521968Z [comunidade] Fields ensured (M2O/M2M)
+2026-04-30T14:06:46.267974810Z 2:06:46 PM [express] GET /api/me 401 in 6ms :: {"error":"Não autenticado"}
+2026-04-30T14:07:31.166764557Z 2:07:31 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:08:09.308790797Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:08:09.326991669Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:08:09.383135082Z 2:08:09 PM [express] POST /api/login 200 in 628ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:08:09.386919769Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:09.386941130Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:09.386952210Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:09.386963061Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:09.386973159Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:08:09.386983379Z errno: -2,
+2026-04-30T14:08:09.386992325Z code: 'ENOENT',
+2026-04-30T14:08:09.386998627Z syscall: 'open',
+2026-04-30T14:08:09.387021852Z path: '/app/dist/table.sql'
+2026-04-30T14:08:09.387028434Z }
+2026-04-30T14:08:09.388599105Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:09.388651695Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:09.388665551Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:09.388678295Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:09.388690167Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:08:09.525542546Z 2:08:09 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:08:12.609791980Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:08:12.622173248Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:08:12.625894696Z 2:08:12 PM [express] POST /api/login 200 in 553ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:08:12.626306763Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:12.626314868Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:12.626319266Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:12.626323394Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:12.626327371Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:08:12.626331089Z errno: -2,
+2026-04-30T14:08:12.626334726Z code: 'ENOENT',
+2026-04-30T14:08:12.626338472Z syscall: 'open',
+2026-04-30T14:08:12.626342239Z path: '/app/dist/table.sql'
+2026-04-30T14:08:12.626345966Z }
+2026-04-30T14:08:12.626805403Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:12.626830941Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:12.626837172Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:12.626842162Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:12.626847293Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:08:12.768178337Z 2:08:12 PM [express] GET /api/me 401 in 2ms :: {"error":"Não autenticado"}
+2026-04-30T14:08:15.819595877Z 2:08:15 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:08:36.831771771Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:08:36.846983286Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:08:36.869742303Z 2:08:36 PM [express] POST /api/login 200 in 570ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:08:36.870408279Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:36.870441372Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:36.870457903Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:36.870471528Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:36.870484914Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:08:36.870498339Z errno: -2,
+2026-04-30T14:08:36.870512225Z code: 'ENOENT',
+2026-04-30T14:08:36.870524488Z syscall: 'open',
+2026-04-30T14:08:36.870537474Z path: '/app/dist/table.sql'
+2026-04-30T14:08:36.870550648Z }
+2026-04-30T14:08:36.870760444Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:36.870783346Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:36.870796201Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:36.870805037Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:36.870813343Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:08:37.012058676Z 2:08:37 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:08:44.330736120Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:08:44.337744998Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:08:44.340466109Z 2:08:44 PM [express] POST /api/login 200 in 537ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:08:44.340840355Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:44.340852487Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:44.340858068Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:44.340862826Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:44.340867526Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:08:44.340874348Z errno: -2,
+2026-04-30T14:08:44.340881522Z code: 'ENOENT',
+2026-04-30T14:08:44.340888515Z syscall: 'open',
+2026-04-30T14:08:44.340895688Z path: '/app/dist/table.sql'
+2026-04-30T14:08:44.340902902Z }
+2026-04-30T14:08:44.340996989Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:08:44.341006889Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:08:44.341011808Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:08:44.341015726Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:08:44.341019503Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:08:44.481636890Z 2:08:44 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:15:52.386274784Z === Aplicando migrações do banco de dados ===
+2026-04-30T14:15:52.508213568Z [migrate] skip 0000_solid_risque.sql (já aplicado)
+2026-04-30T14:15:52.509372193Z [migrate] skip 0001_seed_data.sql (já aplicado)
+2026-04-30T14:15:52.509475869Z [migrate] Todas as migrations aplicadas com sucesso.
+2026-04-30T14:15:52.521225265Z === Iniciando servidor ===
+2026-04-30T14:15:52.782818880Z [google-auth] Google OAuth enabled (callback: http://localhost:5000/auth/google/callback)
+2026-04-30T14:15:52.946800326Z 2:15:52 PM [express] serving on port 5000
+2026-04-30T14:15:53.071040229Z [comunidade] Found collection as 'Comunidade'
+2026-04-30T14:15:53.128680023Z [vitrine-fields] Field na_vitrine response: 400
+2026-04-30T14:15:53.133354227Z [geo-opa] Field latitude response: 400
+2026-04-30T14:15:53.135198174Z [geo-bias] Field latitude response: 400
+2026-04-30T14:15:53.167765087Z [estudos] Collection already exists
+2026-04-30T14:15:53.200822805Z [nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+2026-04-30T14:15:53.273903686Z [bias-valid] No field validations to clear
+2026-04-30T14:15:53.545515223Z [bia] nome_bia varchar length OK, skipping
+2026-04-30T14:15:53.576733122Z [geo-opa] Field longitude response: 400
+2026-04-30T14:15:53.585006223Z [vitrine-fields] Field em_membros_built response: 400
+2026-04-30T14:15:53.592524530Z [geo-bias] Field longitude response: 400
+2026-04-30T14:15:53.601901503Z [perms] No reference permissions found
+2026-04-30T14:15:53.681948409Z [geo-opa] Field localizacao response: 400
+2026-04-30T14:15:53.685462837Z [geo-bias] Field localizacao response: 400
+2026-04-30T14:15:53.688872867Z [vitrine-fields] Field em_built_capital response: 400
+2026-04-30T14:15:53.720126263Z [cadastro_geral] nome expanded to varchar(500)
+2026-04-30T14:15:53.720144777Z [cadastro_geral] perfil_aliado already OK (text/null), skipping
+2026-04-30T14:15:53.720190705Z [cadastro_geral] nucleo_alianca already OK (text/null), skipping
+2026-04-30T14:15:53.758120109Z [vitrine-fields] Field link_site response: 400
+2026-04-30T14:15:53.822908372Z [vitrine-fields] Field latitude response: 400
+2026-04-30T14:15:53.849852943Z [cadastro_geral] empresa expanded to varchar(500)
+2026-04-30T14:15:53.876234882Z [vitrine-fields] Field longitude response: 400
+2026-04-30T14:15:53.937089928Z [vitrine-fields] Field logo_empresa response: 400
+2026-04-30T14:15:53.956452280Z [cadastro_geral] cargo expanded to varchar(500)
+2026-04-30T14:15:54.028121369Z [vitrine-fields] Field especialidade_livre response: 400
+2026-04-30T14:15:54.087845153Z [vitrine-fields] Field ramo_atuacao response: 400
+2026-04-30T14:15:54.165369783Z [vitrine-fields] Field segmento response: 400
+2026-04-30T14:15:54.217537137Z [vitrine-fields] Field idiomas response: 400
+2026-04-30T14:15:54.259538151Z [vitrine-fields] Field nucleos_alianca response: 400
+2026-04-30T14:15:54.326428407Z [comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+2026-04-30T14:15:54.327894722Z [vitrine-fields] Field tipos_alianca response: 400
+2026-04-30T14:15:54.373819684Z [comunidade] Junction 'comunidade_membros' already exists
+2026-04-30T14:15:54.388972889Z [comunidade] M2M alias 'membros': INVALID_PAYLOAD
+2026-04-30T14:15:54.451177781Z [comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+2026-04-30T14:15:54.463760219Z [comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+2026-04-30T14:15:54.546639827Z [comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+2026-04-30T14:15:54.559493685Z [comunidade] Junction 'comunidade_bias' already exists
+2026-04-30T14:15:54.569290781Z [comunidade] M2M alias 'bias': INVALID_PAYLOAD
+2026-04-30T14:15:54.640630158Z [comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+2026-04-30T14:15:54.653584516Z [comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+2026-04-30T14:15:54.653618109Z [comunidade] Fields ensured (M2O/M2M)
+2026-04-30T14:16:07.053515187Z 2:16:07 PM [express] GET /api/me 401 in 2ms :: {"error":"Não autenticado"}
+2026-04-30T14:16:12.351588930Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:16:12.387035984Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:16:12.421145335Z 2:16:12 PM [express] POST /api/login 200 in 623ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:16:12.426480074Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:12.426511633Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:12.426526461Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:12.426539586Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:12.426550957Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:16:12.426559153Z errno: -2,
+2026-04-30T14:16:12.426567128Z code: 'ENOENT',
+2026-04-30T14:16:12.426575063Z syscall: 'open',
+2026-04-30T14:16:12.426585122Z path: '/app/dist/table.sql'
+2026-04-30T14:16:12.426597586Z }
+2026-04-30T14:16:12.429537579Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:12.429597473Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:12.429613643Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:12.429626778Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:12.429639271Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:16:12.562475165Z 2:16:12 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:16:14.000121280Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:16:14.013307046Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:16:14.019801322Z 2:16:14 PM [express] POST /api/login 200 in 543ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:16:14.020550414Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:14.020576133Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:14.020588958Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:14.020600349Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:14.020611891Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:16:14.020623212Z errno: -2,
+2026-04-30T14:16:14.020633993Z code: 'ENOENT',
+2026-04-30T14:16:14.020644632Z syscall: 'open',
+2026-04-30T14:16:14.020655763Z path: '/app/dist/table.sql'
+2026-04-30T14:16:14.020667656Z }
+2026-04-30T14:16:14.021458477Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:14.021479347Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:14.021488864Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:14.021497200Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:14.021505506Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:16:14.158951663Z 2:16:14 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:16:18.152786008Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:16:18.162252058Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:16:18.166885947Z 2:16:18 PM [express] POST /api/login 200 in 543ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:16:18.167292893Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:18.167334793Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:18.167343148Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:18.167350091Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:18.167356774Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:16:18.167363707Z errno: -2,
+2026-04-30T14:16:18.167371031Z code: 'ENOENT',
+2026-04-30T14:16:18.167377323Z syscall: 'open',
+2026-04-30T14:16:18.167382162Z path: '/app/dist/table.sql'
+2026-04-30T14:16:18.167386760Z }
+2026-04-30T14:16:18.167572100Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:18.167594431Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:18.167604962Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:18.167613609Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:18.167621814Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:16:18.312083511Z 2:16:18 PM [express] GET /api/me 401 in 2ms :: {"error":"Não autenticado"}
+2026-04-30T14:16:19.582060127Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:16:19.600987088Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:16:19.607903269Z 2:16:19 PM [express] POST /api/login 200 in 564ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:16:19.609048280Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:19.609083936Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:19.609099215Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:19.609108212Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:19.609116458Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:16:19.609124593Z errno: -2,
+2026-04-30T14:16:19.609132507Z code: 'ENOENT',
+2026-04-30T14:16:19.609140814Z syscall: 'open',
+2026-04-30T14:16:19.609148759Z path: '/app/dist/table.sql'
+2026-04-30T14:16:19.609156654Z }
+2026-04-30T14:16:19.609298851Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:19.609323960Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:19.609338577Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:19.609351541Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:19.609361179Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:16:19.745383171Z 2:16:19 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2026-04-30T14:16:23.497911216Z [login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+2026-04-30T14:16:23.515434530Z [login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2026-04-30T14:16:23.520550488Z 2:16:23 PM [express] POST /api/login 200 in 549ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+2026-04-30T14:16:23.521239306Z Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:23.521262539Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:23.521276846Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:23.521289691Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:23.521300932Z at async r._asyncQuery (/app/dist/index.cjs:74:29913) {
+2026-04-30T14:16:23.521309148Z errno: -2,
+2026-04-30T14:16:23.521317644Z code: 'ENOENT',
+2026-04-30T14:16:23.521325659Z syscall: 'open',
+2026-04-30T14:16:23.521356186Z path: '/app/dist/table.sql'
+2026-04-30T14:16:23.521364642Z }
+2026-04-30T14:16:23.521528271Z Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+2026-04-30T14:16:23.521549170Z at async open (node:internal/fs/promises:637:25)
+2026-04-30T14:16:23.521562355Z at async Object.readFile (node:internal/fs/promises:1249:14)
+2026-04-30T14:16:23.521574629Z at async r._rawEnsureSessionStoreTable (/app/dist/index.cjs:74:28828)
+2026-04-30T14:16:23.521586802Z at async r._asyncQuery (/app/dist/index.cjs:74:29913)
+2026-04-30T14:16:23.658849643Z 2:16:23 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}

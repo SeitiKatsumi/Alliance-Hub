@@ -1,0 +1,112 @@
+------------------------- Thu Apr 30 2026 13:47:27 GMT+0000 (Coordinated Universal Time)
+Build started for built-hub-app
+Ignore warnings for unconsumed build-args if there is any
+Step 1/19 : FROM node:20-alpine AS builder
+
+---> fb4cd12c85ee
+Step 2/19 : WORKDIR /app
+
+---> Using cache
+---> 798cb2593084
+Step 3/19 : COPY package*.json ./
+
+---> Using cache
+---> 59c3c213db1d
+Step 4/19 : RUN npm ci
+
+---> Using cache
+---> 3240ec48435d
+Step 5/19 : COPY . .
+
+---> 59a5caaae6c2
+Step 6/19 : ENV NODE_ENV=production
+
+---> Running in 995ca29e531c
+---> Removed intermediate container 995ca29e531c
+---> b232c022f36d
+Step 7/19 : RUN npm run build
+
+---> Running in bbfc3b63ea26
+> rest-express@1.0.0 build
+> tsx script/build.ts
+building client...
+vite v7.3.0 building client environment for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+✓ 2707 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/public/index.html                                                               2.22 kB │ gzip:   0.87 kB
+../dist/public/assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930-DXzPcwpy.png      20.37 kB
+../dist/public/assets/Built_Alliances_Platform_Negativo_1775603722664-Dgsbwzif.png     22.12 kB
+../dist/public/assets/index-919P0mBS.css                                              131.59 kB │ gzip:  20.12 kB
+../dist/public/assets/index-fHhhF7ei.js                                             1,614.29 kB │ gzip: 434.69 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+✓ built in 9.12s
+building server...
+
+  dist/index.cjs  3.2mb ⚠️
+
+⚡ Done in 267ms
+
+
+---> fb4cd12c85ee
+Step 9/19 : WORKDIR /app
+
+---> Using cache
+---> 798cb2593084
+Step 10/19 : COPY package*.json ./
+
+---> Using cache
+---> 59c3c213db1d
+Step 11/19 : RUN npm ci --omit=dev
+
+---> Using cache
+---> 8d956ad11083
+Step 12/19 : COPY --from=builder /app/dist ./dist
+
+---> Using cache
+---> 249c929c0f16
+Step 13/19 : COPY --from=builder /app/migrations ./migrations
+
+---> Using cache
+---> 21c7dc412673
+Step 14/19 : COPY migrate.cjs ./migrate.cjs
+
+---> Using cache
+---> b55b3ef51884
+Step 15/19 : COPY start.sh ./start.sh
+
+---> Using cache
+---> 501a72562ef3
+Step 16/19 : RUN chmod +x start.sh
+
+---> Using cache
+---> 76b54f8c2b6b
+Step 17/19 : ENV NODE_ENV=production
+
+---> Using cache
+---> c2b0f5938584
+Step 18/19 : EXPOSE 5000
+
+---> Using cache
+---> ca82da2a42ea
+Step 19/19 : CMD ["./start.sh"]
+
+---> Using cache
+---> 11d744db9030
+[Warning] One or more build-args [CAPROVER_GIT_COMMIT_SHA DATABASE_URL DIRECTUS_TOKEN DIRECTUS_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET NODE_ENV OPENAI_API_KEY PORT SESSION_SECRET SMTP_FROM SMTP_HOST SMTP_PASS SMTP_PORT SMTP_USER STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET] were not consumed
+Successfully built 11d744db9030
+Successfully tagged img-captain-built-hub-app:latest
+Build has finished successfully!

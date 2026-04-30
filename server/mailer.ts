@@ -56,7 +56,7 @@ export async function enviarConvite(opts: {
       <p style="color:rgba(255,255,255,0.7)">${opts.invitadorNome} te convidou para fazer parte da <strong style="color:#D7BB7D">${opts.comunidadeNome}</strong>, uma comunidade de negócios da rede BUILT Alliances.</p>
       <p style="color:rgba(255,255,255,0.7)">Clique no botão abaixo para conhecer a comunidade e preencher seu formulário de candidatura:</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Demonstre interesse</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Demonstre interesse</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Se não reconhece este convite, pode ignorar este e-mail com segurança.</p>
     `)
@@ -108,7 +108,7 @@ export async function notificarAliadoCandidatura(opts: {
       ${aliancasNote}
       <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para revisar a candidatura e tomar uma decisão:</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${BASE_URL}/comunidade" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
+        <a href="${BASE_URL}/comunidade" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
       </div>
     `)
   );
@@ -130,7 +130,7 @@ export async function enviarAprovacao(opts: {
       <p style="color:rgba(255,255,255,0.7)">Sua candidatura para a <strong style="color:#D7BB7D">${opts.comunidadeNome}</strong> foi aprovada.</p>
       <p style="color:rgba(255,255,255,0.7)">O próximo passo é assinar os termos de adesão. Clique no botão abaixo para continuar:</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é válido por 12 horas. Após aceitar os termos, você receberá as instruções de pagamento.</p>
     `)
@@ -182,7 +182,7 @@ export async function enviarTermos(opts: {
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.candidatoNome}</strong>!</p>
       <p style="color:rgba(255,255,255,0.7)">Você ainda não assinou os termos de adesão da <strong style="color:#D7BB7D">${opts.comunidadeNome}</strong>. Não perca seu acesso!</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
       </div>
     `)
   );
@@ -208,7 +208,7 @@ export async function enviarPagamento(opts: {
         <p style="color:#D7BB7D;font-size:28px;font-weight:bold;margin:8px 0">${opts.valor}</p>
       </div>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Instruções de Pagamento</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Instruções de Pagamento</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Você tem 24 horas para concluir o pagamento.</p>
     `)
@@ -227,7 +227,7 @@ export async function enviarNovoMembro(opts: {
     <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.novoMembroNome}</strong> acabou de se tornar membro oficial da <strong>${opts.comunidadeNome}</strong>!</p>
     <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para conhecer o novo membro e ampliar sua rede de alianças:</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Perfil do Membro</a>
+      <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Perfil do Membro</a>
     </div>
   `);
   for (const email of opts.emails) {
@@ -250,7 +250,7 @@ export async function enviarResetSenha(opts: {
       <p style="color:rgba(255,255,255,0.7)">Recebemos uma solicitação de redefinição de senha para sua conta na plataforma BUILT Alliances.</p>
       <p style="color:rgba(255,255,255,0.7)">Clique no botão abaixo para criar uma nova senha. O link é válido por <strong>1 hora</strong>.</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Redefinir minha senha</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Redefinir minha senha</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Se você não solicitou esta redefinição, ignore este e-mail — sua senha permanece a mesma.</p>
     `)
@@ -276,7 +276,7 @@ export async function enviarSolicitacaoBiaParaAliado(opts: {
     </div>
     <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para aprovar ou rejeitar esta BIA.</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver BIAs Pendentes</a>
+      <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver BIAs Pendentes</a>
     </div>
   `);
   await send(opts.aliadoEmail, `BIA "${opts.biaNome}" aguarda sua aprovação`, html);
@@ -295,7 +295,7 @@ export async function enviarResultadoAprovacaoBia(opts: {
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong style="color:#D7BB7D">${opts.diretorNome}</strong>!</p>
       <p style="color:rgba(255,255,255,0.7)">O Aliado BUILT aprovou sua BIA <strong>${opts.biaNome}</strong>. Ela já está ativa na plataforma.</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${BASE_URL}/bias" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver minha BIA</a>
+        <a href="${BASE_URL}/bias" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver minha BIA</a>
       </div>
     `
     : `
@@ -345,7 +345,7 @@ export async function notificarInteresseOpa(opts: {
       ${msgBlock}
       <p style="color:rgba(255,255,255,0.6);font-size:13px">Você está recebendo esta notificação como <strong>${opts.papel}</strong> desta BIA.</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${opts.membroId ? `${BASE_URL}/vitrine/${opts.membroId}` : `${BASE_URL}/membros`}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Perfil</a>
+        <a href="${opts.membroId ? `${BASE_URL}/vitrine/${opts.membroId}` : `${BASE_URL}/membros`}" style="display:inline-block;background-color:#D7BB7D;display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Perfil</a>
       </div>
     `)
   );
@@ -371,7 +371,7 @@ export async function notificarInvitadorAvaliarAura(opts: {
         <p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">Escolha até <strong style="color:#D7BB7D">3 palavras</strong> que descrevam melhor as qualidades de ${opts.candidatoNome} na rede BUILT.</p>
       </div>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Registrar Percepção de Aura</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Registrar Percepção de Aura</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é pessoal e intransferível. Após o registro, o Aliado BUILT será notificado para analisar a candidatura.</p>
     `)
@@ -410,7 +410,7 @@ export async function notificarAliadoAposAuraInvitador(opts: {
       ${auraBlock}
       <p style="color:rgba(255,255,255,0.7)">Acesse o painel de candidatos para analisar o perfil, registrar sua própria Percepção de Aura e tomar a decisão:</p>
       <div style="text-align:center;margin:28px 0 12px">
-        <a href="${painelLink}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
+        <a href="${painelLink}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
       </div>
       <div style="text-align:center;margin:0 0 24px">
         <a href="${candidatoLink}" style="color:#D7BB7D;font-size:13px;text-decoration:underline">Ver Perfil de ${opts.candidatoNome}</a>
@@ -441,7 +441,7 @@ export async function enviarLembreteTermos(opts: {
       </p>
       <p style="color:rgba(255,255,255,0.7)">Acesse o link abaixo para ler e aceitar os termos:</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
       </div>
     `)
   );
@@ -507,7 +507,7 @@ export async function enviarAprovacaoVitrine(opts: {
     <p style="color:rgba(255,255,255,0.7)">Seu acesso à plataforma BUILT Alliances foi aprovado pelo Aliado da comunidade <strong>${opts.comunidadeNome}</strong>.</p>
     <p style="color:rgba(255,255,255,0.7)">Agora você já pode acessar a vitrine e explorar a rede de alianças BUILT!</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${link}" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar a Plataforma</a>
+      <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar a Plataforma</a>
     </div>
   `);
   await send(opts.candidatoEmail, "Seu acesso à BUILT Alliances foi aprovado!", html);
@@ -525,7 +525,7 @@ export async function enviarAprovacaoVitrineInvitador(opts: {
     <p style="color:rgba(255,255,255,0.7)">O candidato <strong>${opts.candidatoNome}</strong> que você convidou foi aprovado pelo Aliado BUILT e já pode acessar a comunidade <strong>${opts.comunidadeNome}</strong>.</p>
     <p style="color:rgba(255,255,255,0.7)">Obrigado por trazer um novo membro para a rede BUILT Alliances!</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${BASE_URL}/comunidade" style="background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Comunidade</a>
+      <a href="${BASE_URL}/comunidade" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Comunidade</a>
     </div>
   `);
   await send(opts.invitadorEmail, `${opts.candidatoNome} foi aprovado na ${opts.comunidadeNome}!`, html);

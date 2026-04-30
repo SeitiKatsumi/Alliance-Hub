@@ -1491,7 +1491,7 @@ export default function FluxoCaixaPage() {
 
   if (loadingBias) {
     return (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 space-y-6">
         <Skeleton className="h-10 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-32" />
@@ -1504,7 +1504,7 @@ export default function FluxoCaixaPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-page-title">
@@ -2318,26 +2318,26 @@ export default function FluxoCaixaPage() {
                   <p className="text-sm text-muted-foreground/60 mt-1">Clique em "Novo Lançamento" para começar</p>
                 </div>
               ) : (
-                <div>
-                  <table className="w-full text-sm table-fixed" data-testid="table-lancamentos">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm" data-testid="table-lancamentos">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[90px]">Vencimento</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[100px]">Status</th>
-                        <th className="text-right py-3 px-2 font-medium text-muted-foreground w-[110px]">Valor</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[120px]">Categoria</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[100px]">Favorecido</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[130px]">Tipo CPP</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[60px]">Anexos</th>
-                        <th className="py-3 px-2 w-[68px]"></th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Vencimento</th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Status</th>
+                        <th className="text-right py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Valor</th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground">Descrição</th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Categoria</th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Favorecido</th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Tipo CPP</th>
+                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Anexos</th>
+                        <th className="py-3 px-3 w-20"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {fluxoItems.map((item) => (
                         <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lancamento-${item.id}`}>
                           {/* Vencimento */}
-                          <td className="py-3 px-2 text-sm" data-testid={`text-vencimento-${item.id}`}>
+                          <td className="py-3 px-3 text-sm whitespace-nowrap" data-testid={`text-vencimento-${item.id}`}>
                             {item.data_vencimento ? (
                               <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
                                 <CalendarClock className="w-3 h-3" />
@@ -2346,37 +2346,35 @@ export default function FluxoCaixaPage() {
                             ) : "-"}
                           </td>
                           {/* Status */}
-                          <td className="py-3 px-2 overflow-hidden" data-testid={`text-status-${item.id}`}>
+                          <td className="py-3 px-3 whitespace-nowrap" data-testid={`text-status-${item.id}`}>
                             {(() => {
                               const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "vencido" : (item.status || null);
                               const { label, color, Icon } = getStatusConfig(effective as StatusPagamento | null);
                               return (
-                                <Badge variant="outline" className={`gap-1 max-w-full ${color}`}>
-                                  <Icon className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">{label}</span>
+                                <Badge variant="outline" className={`gap-1 ${color}`}>
+                                  <Icon className="w-3 h-3" />
+                                  {label}
                                 </Badge>
                               );
                             })()}
                           </td>
                           {/* Valor */}
-                          <td className={`py-3 px-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
+                          <td className={`py-3 px-3 text-right font-semibold whitespace-nowrap ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
                             {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
                           {/* Descrição */}
-                          <td className="py-3 px-2 max-w-0" data-testid={`text-descricao-${item.id}`}>
-                            <span className="block truncate">{item.descricao || "-"}</span>
-                          </td>
+                          <td className="py-3 px-3" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           {/* Categoria */}
-                          <td className="py-3 px-2 max-w-0">
+                          <td className="py-3 px-3">
                             {item.Categoria && item.Categoria.length > 0 ? (
-                              <Badge variant="secondary" className="gap-1 max-w-full">
-                                <Tag className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}</span>
+                              <Badge variant="secondary" className="gap-1 whitespace-nowrap">
+                                <Tag className="w-3 h-3" />
+                                {item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}
                               </Badge>
                             ) : "-"}
                           </td>
                           {/* Favorecido */}
-                          <td className="py-3 px-2 max-w-0" data-testid={`text-favorecido-${item.id}`}>
+                          <td className="py-3 px-3" data-testid={`text-favorecido-${item.id}`}>
                             {item.Favorecido && item.Favorecido.length > 0 ? (
                               <span className="flex flex-col gap-0.5">
                                 {item.Favorecido.map((f, idx) => {
@@ -2387,11 +2385,11 @@ export default function FluxoCaixaPage() {
                                     <button
                                       key={idx}
                                       onClick={() => membro && setProfileMembro(membro)}
-                                      className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left min-w-0"
+                                      className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left whitespace-nowrap"
                                       data-testid={`link-favorecido-${item.id}-${idx}`}
                                     >
                                       <UserCheck className="w-3 h-3 shrink-0" />
-                                      <span className="truncate">{nome}</span>
+                                      {nome}
                                     </button>
                                   );
                                 })}
@@ -2399,11 +2397,11 @@ export default function FluxoCaixaPage() {
                             ) : "-"}
                           </td>
                           {/* Tipo CPP */}
-                          <td className="py-3 px-2 max-w-0" data-testid={`text-tipo-cpp-${item.id}`}>
+                          <td className="py-3 px-3" data-testid={`text-tipo-cpp-${item.id}`}>
                             {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ? (
-                              <Badge variant="secondary" className="gap-1 max-w-full">
-                                <Layers className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}</span>
+                              <Badge variant="secondary" className="gap-1 whitespace-nowrap">
+                                <Layers className="w-3 h-3" />
+                                {item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}
                               </Badge>
                             ) : "-"}
                           </td>

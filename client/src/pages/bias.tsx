@@ -1358,7 +1358,11 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const { toast } = useToast();
   const isEdit = !!bia;
 
+  const EMPTY_INFO = { razao_social: "", cnpj: "", nome_fantasia: "", inscricao_estadual: "", banco: "", agencia: "", conta: "", tipo_conta: "", titular_conta: "", chave_pix: "" };
+  type InfoComercialForm = typeof EMPTY_INFO;
+
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [infoForm, setInfoForm] = useState<InfoComercialForm>(EMPTY_INFO);
   const [activeTab, setActiveTab] = useState("geral");
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
@@ -1378,17 +1382,36 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   useEffect(() => {
     if (open) {
       setForm(bia ? biaToForm(bia) : EMPTY_FORM);
+      setInfoForm(EMPTY_INFO);
       setActiveTab("geral");
       setExistingAnexos(bia?.Anexos ?? []);
       setPendingFiles([]);
       setUploading(false);
-      // Reset payment form when modal opens
       setFormaPagamento("");
       setNumeroParcelas("");
       setVencimento("");
       setVencimentosParcelas([]);
       setValoresParcelas([]);
       setValorAVista(0);
+      if (bia?.id) {
+        fetch(`/api/bias/${bia.id}/info-comercial`, { credentials: "include" })
+          .then(r => r.ok ? r.json() : {})
+          .then(data => {
+            setInfoForm({
+              razao_social: data.razao_social || "",
+              cnpj: data.cnpj || "",
+              nome_fantasia: data.nome_fantasia || "",
+              inscricao_estadual: data.inscricao_estadual || "",
+              banco: data.banco || "",
+              agencia: data.agencia || "",
+              conta: data.conta || "",
+              tipo_conta: data.tipo_conta || "",
+              titular_conta: data.titular_conta || "",
+              chave_pix: data.chave_pix || "",
+            });
+          })
+          .catch(() => {});
+      }
     }
   }, [open, bia]);
 
@@ -1477,7 +1500,17 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         return apiRequest("POST", "/api/bias", payload);
       }
     },
-    onSuccess: () => {
+    onSuccess: async (response: Response) => {
+      const saved = await response.json().catch(() => null);
+      const biaId = saved?.id ?? bia?.id;
+      if (biaId) {
+        await fetch(`/api/bias/${biaId}/info-comercial`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(infoForm),
+        }).catch(() => {});
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       toast({ title: isEdit ? "BIA atualizada!" : "BIA criada!", description: form.nome_bia });
       onClose();
@@ -1488,6 +1521,14 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     }
   });
 
+  const infoComercialOk = form.situacao !== "ativa" || (
+    infoForm.razao_social.trim().length > 0 &&
+    infoForm.cnpj.trim().length > 0 &&
+    infoForm.banco.trim().length > 0 &&
+    infoForm.conta.trim().length > 0 &&
+    infoForm.titular_conta.trim().length > 0
+  );
+
   const canSave =
     form.nome_bia.trim().length > 0 &&
     form.destinacao.trim().length > 0 &&
@@ -1495,7 +1536,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     form.objetivo_alianca.trim().length > 0 &&
     form.observacoes.trim().length > 0 &&
     !!form.aliado_built &&
-    !!form.diretor_alianca;
+    !!form.diretor_alianca &&
+    infoComercialOk;
 
   function handleLocationSelect(localizacao: string, lat: number, lng: number) {
     setForm({ ...form, localizacao, latitude: String(lat), longitude: String(lng) });
@@ -1515,11 +1557,12 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
           </SheetHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList className="grid grid-cols-4">
+            <TabsList className="grid grid-cols-5">
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
               <TabsTrigger value="cpp" data-testid="tab-cpp">DM</TabsTrigger>
               <TabsTrigger value="receita" data-testid="tab-receita">Análises</TabsTrigger>
+              <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
             </TabsList>
 
             {/* Tab Geral */}
@@ -1806,6 +1849,143 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <PercField label="IR Previsto" field="ir_previsto" form={form} setForm={setForm} baseValue={valorRealizado} />
               <PercField label="INSS Previsto" field="inss_previsto" form={form} setForm={setForm} baseValue={valorRealizado} />
               <PercField label="Manutenção Pós Obra Prevista" field="manutencao_pos_obra_prevista" form={form} setForm={setForm} baseValue={valorRealizado} />
+            </TabsContent>
+
+            {/* Tab Informações */}
+            <TabsContent value="info" className="space-y-6 mt-4">
+              {form.situacao === "ativa" && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  BIA com situação <strong>Ativa</strong>: preencha os campos obrigatórios marcados com *.
+                </p>
+              )}
+
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Dados Comerciais</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Razão Social {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.razao_social}
+                      onChange={e => setInfoForm({ ...infoForm, razao_social: e.target.value })}
+                      placeholder="Razão social da empresa"
+                      data-testid="input-razao-social"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      CNPJ {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.cnpj}
+                      onChange={e => setInfoForm({ ...infoForm, cnpj: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                      data-testid="input-cnpj-comercial"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Nome Fantasia</label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.nome_fantasia}
+                      onChange={e => setInfoForm({ ...infoForm, nome_fantasia: e.target.value })}
+                      placeholder="Nome fantasia"
+                      data-testid="input-nome-fantasia"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Inscrição Estadual</label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.inscricao_estadual}
+                      onChange={e => setInfoForm({ ...infoForm, inscricao_estadual: e.target.value })}
+                      placeholder="Inscrição estadual"
+                      data-testid="input-inscricao-estadual"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Conta Bancária</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Banco {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.banco}
+                      onChange={e => setInfoForm({ ...infoForm, banco: e.target.value })}
+                      placeholder="Nome do banco"
+                      data-testid="input-banco"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Agência</label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.agencia}
+                      onChange={e => setInfoForm({ ...infoForm, agencia: e.target.value })}
+                      placeholder="0000"
+                      data-testid="input-agencia"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Conta {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.conta}
+                      onChange={e => setInfoForm({ ...infoForm, conta: e.target.value })}
+                      placeholder="00000-0"
+                      data-testid="input-conta"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">Tipo de Conta</label>
+                    <select
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.tipo_conta}
+                      onChange={e => setInfoForm({ ...infoForm, tipo_conta: e.target.value })}
+                      data-testid="select-tipo-conta"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="corrente">Conta Corrente</option>
+                      <option value="poupanca">Conta Poupança</option>
+                      <option value="pagamento">Conta de Pagamento</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Titular da Conta {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.titular_conta}
+                      onChange={e => setInfoForm({ ...infoForm, titular_conta: e.target.value })}
+                      placeholder="Nome completo do titular"
+                      data-testid="input-titular-conta"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-sm font-medium text-foreground">Chave PIX</label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.chave_pix}
+                      onChange={e => setInfoForm({ ...infoForm, chave_pix: e.target.value })}
+                      placeholder="CPF, CNPJ, email ou chave aleatória"
+                      data-testid="input-chave-pix"
+                    />
+                  </div>
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
           </div>

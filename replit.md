@@ -45,6 +45,7 @@ Preferred communication style: Simple, everyday language.
   4. `candidato` — Aliado receives email with Aura data and evaluates via Comunidades panel (includes "Registrar Percepção de Aura" dialog)
   5. `vitrine_ativo` (approval) or `rejeitado` (rejection with emails to candidate + invitador)
 - **Security**: The invitador Aura evaluation uses a dedicated `avaliacao_token` (UUID stored in `convites_comunidade.avaliacao_token`) to prevent candidate self-evaluation via their own convite token.
+- **BIA Informações Tab**: Each BIA has an "Informações" tab with two sections — Dados Comerciais (razão social, CNPJ, nome fantasia, inscrição estadual) and Conta Bancária (banco, agência, conta, tipo conta, titular, chave PIX). Data is stored in the local `bia_info_comercial` PostgreSQL table (keyed by `bia_id`). When BIA situação is "ativa", the key commercial/banking fields become required for save.
 - **BIA Approval Flow**: When a "Diretor de Aliança" (member with `tipos_alianca.includes("Liderança")` but NOT an Aliado BUILT seal) creates a BIA, an approval record is created in the local `bia_aprovacoes` PostgreSQL table and an email notification is sent to the community's Aliado BUILT. The Aliado BUILT sees a panel on the BIA page to approve or reject (with optional reason) each pending BIA. Directors see a notice about their pending BIAs. Email is sent to the director after a decision is taken. Aliados BUILT, admins and managers create BIAs without an approval step.
 
 ### Navigation Structure

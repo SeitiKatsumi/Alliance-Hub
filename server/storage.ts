@@ -15,6 +15,7 @@ import {
   passwordResetTokens, type PasswordResetToken,
   biaAprovacoes, type BiaAprovacao, type InsertBiaAprovacao,
   auraAvaliacoes, type AuraAvaliacao,
+  biaInfoComercial, type BiaInfoComercial,
 } from "@shared/schema";
 import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -684,6 +685,27 @@ export class DatabaseStorage implements IStorage {
     const [row] = await db.select().from(auraAvaliacoes)
       .where(and(eq(auraAvaliacoes.avaliador_membro_id, avaliadorId), eq(auraAvaliacoes.avaliado_membro_id, avaliadoId)));
     return row;
+  }
+
+  async getBiaInfoComercial(biaId: string): Promise<BiaInfoComercial | null> {
+    const [row] = await db.select().from(biaInfoComercial).where(eq(biaInfoComercial.bia_id, biaId));
+    return row ?? null;
+  }
+
+  async upsertBiaInfoComercial(biaId: string, data: Partial<Omit<BiaInfoComercial, "id" | "bia_id" | "updated_at">>): Promise<BiaInfoComercial> {
+    const existing = await this.getBiaInfoComercial(biaId);
+    if (existing) {
+      const [updated] = await db.update(biaInfoComercial)
+        .set({ ...data, updated_at: new Date() })
+        .where(eq(biaInfoComercial.bia_id, biaId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(biaInfoComercial)
+        .values({ bia_id: biaId, ...data })
+        .returning();
+      return created;
+    }
   }
 }
 

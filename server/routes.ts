@@ -2201,6 +2201,40 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/bias/:id/info-comercial
+  app.get("/api/bias/:id/info-comercial", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const info = await storage.getBiaInfoComercial(req.params.id);
+      res.json(info ?? {});
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PUT /api/bias/:id/info-comercial
+  app.put("/api/bias/:id/info-comercial", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { razao_social, cnpj, nome_fantasia, inscricao_estadual, banco, agencia, conta, tipo_conta, titular_conta, chave_pix } = req.body;
+      const info = await storage.upsertBiaInfoComercial(req.params.id, {
+        razao_social: razao_social || null,
+        cnpj: cnpj || null,
+        nome_fantasia: nome_fantasia || null,
+        inscricao_estadual: inscricao_estadual || null,
+        banco: banco || null,
+        agencia: agencia || null,
+        conta: conta || null,
+        tipo_conta: tipo_conta || null,
+        titular_conta: titular_conta || null,
+        chave_pix: chave_pix || null,
+      });
+      res.json(info);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/bias/:id/aportes — returns "Aporte do Fator de Multiplicação" fluxo_caixa entries for a BIA
   app.get("/api/bias/:id/aportes", async (req, res) => {
     try {

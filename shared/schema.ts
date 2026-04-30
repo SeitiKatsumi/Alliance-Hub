@@ -452,6 +452,28 @@ export type AuraAvaliacao = typeof auraAvaliacoes.$inferSelect;
 export const insertAuraAvaliacaoSchema = createInsertSchema(auraAvaliacoes).omit({ id: true, created_at: true });
 export type InsertAuraAvaliacao = z.infer<typeof insertAuraAvaliacaoSchema>;
 
+export const biaInfoComercial = pgTable("bia_info_comercial", {
+  id: serial("id").primaryKey(),
+  bia_id: text("bia_id").notNull().unique(),
+  // Dados Comerciais
+  razao_social: text("razao_social"),
+  cnpj: text("cnpj"),
+  nome_fantasia: text("nome_fantasia"),
+  inscricao_estadual: text("inscricao_estadual"),
+  // Conta Bancária
+  banco: text("banco"),
+  agencia: text("agencia"),
+  conta: text("conta"),
+  tipo_conta: text("tipo_conta"),
+  titular_conta: text("titular_conta"),
+  chave_pix: text("chave_pix"),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+export type BiaInfoComercial = typeof biaInfoComercial.$inferSelect;
+export const insertBiaInfoComercialSchema = createInsertSchema(biaInfoComercial).omit({ id: true, updated_at: true });
+export type InsertBiaInfoComercial = z.infer<typeof insertBiaInfoComercialSchema>;
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: varchar("token").notNull().unique().default(sql`gen_random_uuid()`),

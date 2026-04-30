@@ -2322,15 +2322,15 @@ export default function FluxoCaixaPage() {
                   <table className="w-full text-sm table-fixed" data-testid="table-lancamentos">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[96px]">Vencimento</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[84px]">Status</th>
-                        <th className="text-right py-3 px-2 font-medium text-muted-foreground w-[108px]">Valor</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[90px]">Vencimento</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[100px]">Status</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground w-[110px]">Valor</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[130px]">Categoria</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[110px]">Favorecido</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[148px]">Tipo CPP</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[72px]">Anexos</th>
-                        <th className="py-3 px-2 w-[72px]"></th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[120px]">Categoria</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[100px]">Favorecido</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[130px]">Tipo CPP</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[60px]">Anexos</th>
+                        <th className="py-3 px-2 w-[68px]"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2346,14 +2346,14 @@ export default function FluxoCaixaPage() {
                             ) : "-"}
                           </td>
                           {/* Status */}
-                          <td className="py-3 px-2" data-testid={`text-status-${item.id}`}>
+                          <td className="py-3 px-2 overflow-hidden" data-testid={`text-status-${item.id}`}>
                             {(() => {
                               const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "vencido" : (item.status || null);
                               const { label, color, Icon } = getStatusConfig(effective as StatusPagamento | null);
                               return (
-                                <Badge variant="outline" className={`gap-1 ${color}`}>
-                                  <Icon className="w-3 h-3" />
-                                  {label}
+                                <Badge variant="outline" className={`gap-1 max-w-full ${color}`}>
+                                  <Icon className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{label}</span>
                                 </Badge>
                               );
                             })()}

@@ -97,6 +97,7 @@ export interface IStorage {
   createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade>;
   getConviteByToken(token: string): Promise<ConviteComunidade | undefined>;
   getConviteByAvaliacaoToken(avaliacaoToken: string): Promise<ConviteComunidade | undefined>;
+  getAllConvites(): Promise<ConviteComunidade[]>;
   getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidatoMembro(membroId: string, tipo?: string): Promise<ConviteComunidade[]>;
@@ -407,6 +408,10 @@ export class DatabaseStorage implements IStorage {
       .from(convitesComunidade)
       .where(eq(convitesComunidade.avaliacao_token, avaliacaoToken));
     return item;
+  }
+
+  async getAllConvites(): Promise<ConviteComunidade[]> {
+    return db.select().from(convitesComunidade).orderBy(desc(convitesComunidade.criado_em));
   }
 
   async getConvitesTermosPendentes(): Promise<ConviteComunidade[]> {

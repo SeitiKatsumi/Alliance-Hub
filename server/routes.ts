@@ -5004,6 +5004,155 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     res.status(200).json({ received: true });
   });
 
+  // POST /api/webhooks/asaas — handle Asaas payment webhook events
+  app.post("/api/webhooks/asaas", async (req, res) => {
+    // Optional token verification — configure ASAAS_WEBHOOK_TOKEN in env to enable
+    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+    if (webhookToken) {
+      const incomingToken = req.headers["asaas-access-token"] as string | undefined;
+      if (incomingToken !== webhookToken) {
+        console.error("[asaas/webhook] invalid or missing access token");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    }
+
+    const body = req.body as any;
+    const event: string = body?.event || "";
+    const payment = body?.payment || {};
+
+    console.log(`[asaas/webhook] event=${event} paymentId=${payment.id} status=${payment.status}`);
+
+    // Only act on confirmed/received payments
+    const ACTIVATION_EVENTS = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"];
+    if (!ACTIVATION_EVENTS.includes(event)) {
+      return res.status(200).json({ received: true });
+    }
+
+    try {
+      // Strategy 1: match by externalReference (set this to the convite token when creating dynamic payments)
+      let convite: any = null;
+      const extRef: string | null = payment.externalReference || null;
+      if (extRef) {
+        convite = await storage.getConviteByToken(extRef);
+        if (convite) console.log(`[asaas/webhook] matched convite via externalReference token: ${extRef}`);
+      }
+
+      // Strategy 2: match by customer email — Asaas may include customerEmail or email fields
+      if (!convite) {
+        const email: string | null =
+          payment.customerEmail ||
+          payment.customer?.email ||
+          body.customer?.email ||
+          null;
+        if (email) {
+          const all = await storage.getAllConvites();
+          convite = all.find(
+            (c: any) =>
+              c.candidato_email?.toLowerCase() === email.toLowerCase() &&
+              ["pagamento_pendente", "termos_aceitos", "aprovado"].includes(c.status)
+          ) || null;
+          if (convite) console.log(`[asaas/webhook] matched convite via email: ${email}`);
+        }
+      }
+
+      if (!convite) {
+        console.warn(`[asaas/webhook] could not match convite — paymentId=${payment.id} externalReference=${extRef}`);
+        return res.status(200).json({ received: true });
+      }
+
+      // Idempotency: skip if already activated
+      if (convite.status === "membro") {
+        console.log(`[asaas/webhook] convite already activated, skipping: ${convite.token}`);
+        return res.status(200).json({ received: true });
+      }
+
+      const col = await getComunidadeCol();
+
+      // 1. Add BUILT_PROUD_MEMBER badge in Directus
+      const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
+      if (!candidatoData) {
+        console.error("[asaas/webhook] candidato not found in Directus:", convite.candidato_membro_id);
+        return res.status(500).json({ error: "Candidato não encontrado — webhook será re-tentado" });
+      }
+      const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
+        ? candidatoData.Outras_redes_as_quais_pertenco
+        : [];
+      if (!redesAtuais.includes("BUILT_PROUD_MEMBER")) {
+        const badgePatch = await fetch(`${DIRECTUS_URL}/items/cadastro_geral/${convite.candidato_membro_id}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ Outras_redes_as_quais_pertenco: [...redesAtuais, "BUILT_PROUD_MEMBER"] }),
+        });
+        if (!badgePatch.ok) {
+          const err = await badgePatch.text().catch(() => "");
+          console.error("[asaas/webhook] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
+          return res.status(502).json({ error: "Falha ao atualizar badge no Directus — webhook será re-tentado" });
+        }
+      }
+
+      // 2. Add member to community M2M in Directus
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?${COMUNIDADE_FIELDS}`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!cr.ok) {
+        console.error("[asaas/webhook] failed to fetch comunidade:", cr.status);
+        return res.status(502).json({ error: "Falha ao buscar comunidade — webhook será re-tentado" });
+      }
+      const comunidade = (await cr.json()).data;
+      const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
+      const currentMembros: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+      const currentIds = currentMembros.map((m: any) => {
+        const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+        return id ? { cadastro_geral_id: id } : null;
+      }).filter(Boolean);
+      if (!currentIds.some((m: any) => m.cadastro_geral_id === convite.candidato_membro_id)) {
+        currentIds.push({ cadastro_geral_id: convite.candidato_membro_id });
+      }
+      const m2mPatch = await fetch(`${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ membros: currentIds }),
+      });
+      if (!m2mPatch.ok) {
+        const err = await m2mPatch.text().catch(() => "");
+        console.error("[asaas/webhook] M2M membership update failed:", m2mPatch.status, err);
+        return res.status(502).json({ error: "Falha ao adicionar membro à comunidade — webhook será re-tentado" });
+      }
+
+      // 3. Mark convite as membro
+      await storage.updateConvite(convite.id, { status: "membro" });
+      console.log(`[asaas/webhook] convite activated: ${convite.token}`);
+
+      // 4. Send welcome emails (non-blocking)
+      const notifyEmails: string[] = [];
+      if (candidatoData?.email) notifyEmails.push(candidatoData.email);
+      const aliado = typeof comunidade?.aliado === "object" ? comunidade?.aliado : null;
+      if (aliado?.email) notifyEmails.push(aliado.email);
+      const allMembrosComunidade: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+      for (const m of allMembrosComunidade) {
+        const mInfo = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id : null;
+        if (mInfo?.email) notifyEmails.push(mInfo.email);
+      }
+      const adminEmail = process.env.ADMIN_EMAIL || (process.env.SMTP_FROM ? process.env.SMTP_FROM.replace(/.*<(.+)>/, "$1") : null);
+      if (adminEmail) notifyEmails.push(adminEmail);
+      const uniqueEmails = [...new Set(notifyEmails)].filter(Boolean);
+      if (uniqueEmails.length > 0) {
+        enviarNovoMembro({
+          emails: uniqueEmails,
+          novoMembroNome: convite.candidato_nome || "Novo Membro",
+          comunidadeNome,
+          novoMembroId: convite.candidato_membro_id || undefined,
+        }).catch((emailErr: any) => {
+          console.error("[asaas/webhook] email send failed (non-fatal):", emailErr.message);
+        });
+      }
+    } catch (err: any) {
+      console.error("[asaas/webhook] processing error:", err.message);
+      return res.status(500).json({ error: "Erro interno — webhook será re-tentado" });
+    }
+
+    return res.status(200).json({ received: true });
+  });
+
   // ── Aura Percebida ───────────────────────────────────────────────────────────
   const { calcularAura, classificarPalavra, PALAVRAS_SUGERIDAS } = await import("./aura-lexico.js");
 

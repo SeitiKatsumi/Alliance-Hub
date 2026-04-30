@@ -407,10 +407,6 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <Input value={form.Nome_de_usuario || ""} onChange={e => setField("Nome_de_usuario", e.target.value)} className={inputCls} data-testid="input-edit-nome-usuario" />
                 </div>
                 <div>
-                  <label className={labelCls}>CPF / CNPJ</label>
-                  <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="000.000.000-00" data-testid="input-edit-cpf-cnpj" />
-                </div>
-                <div>
                   <label className={labelCls}>Data de Nascimento</label>
                   <Input value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} type="date" className={inputCls} data-testid="input-edit-data-nascimento" />
                 </div>
@@ -470,20 +466,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <Input value={form.empresa || ""} onChange={e => setField("empresa", e.target.value)} className={inputCls} data-testid="input-edit-empresa" />
                 </div>
                 <div>
-                  <label className={labelCls}>Cargo / Função</label>
-                  <Input value={form.cargo || ""} onChange={e => setField("cargo", e.target.value)} className={inputCls} data-testid="input-edit-cargo" />
-                </div>
-                <div>
-                  <label className={labelCls}>Categoria</label>
-                  <Input value={form.categoria || ""} onChange={e => setField("categoria", e.target.value)} className={inputCls} data-testid="input-edit-categoria" />
-                </div>
-                <div>
-                  <label className={labelCls}>RG / IE</label>
-                  <Input value={form.rg_ie || ""} onChange={e => setField("rg_ie", e.target.value)} className={inputCls} data-testid="input-edit-rg-ie" />
-                </div>
-                <div>
-                  <label className={labelCls}>Inscrição Municipal</label>
-                  <Input value={form.inscricao_municipal || ""} onChange={e => setField("inscricao_municipal", e.target.value)} className={inputCls} data-testid="input-edit-inscricao-municipal" />
+                  <label className={labelCls}>CNPJ</label>
+                  <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="00.000.000/0000-00" data-testid="input-edit-cnpj-empresa" />
                 </div>
               </div>
             </div>

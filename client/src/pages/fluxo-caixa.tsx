@@ -2317,19 +2317,19 @@ export default function FluxoCaixaPage() {
                   <p className="text-sm text-muted-foreground/60 mt-1">Clique em "Novo Lançamento" para começar</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm" data-testid="table-lancamentos">
+                <div>
+                  <table className="w-full text-sm table-fixed" data-testid="table-lancamentos">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Vencimento</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Status</th>
-                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[96px]">Vencimento</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[84px]">Status</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground w-[108px]">Valor</th>
                         <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Categoria</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Favorecido</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Tipo CPP</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Anexos</th>
-                        <th className="py-3 px-2 w-20"></th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[130px]">Categoria</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[110px]">Favorecido</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[148px]">Tipo CPP</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground w-[72px]">Anexos</th>
+                        <th className="py-3 px-2 w-[72px]"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2362,18 +2362,20 @@ export default function FluxoCaixaPage() {
                             {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
                           {/* Descrição */}
-                          <td className="py-3 px-2" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
+                          <td className="py-3 px-2 max-w-0" data-testid={`text-descricao-${item.id}`}>
+                            <span className="block truncate">{item.descricao || "-"}</span>
+                          </td>
                           {/* Categoria */}
-                          <td className="py-3 px-2">
+                          <td className="py-3 px-2 max-w-0">
                             {item.Categoria && item.Categoria.length > 0 ? (
-                              <Badge variant="secondary" className="gap-1">
-                                <Tag className="w-3 h-3" />
-                                {item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}
+                              <Badge variant="secondary" className="gap-1 max-w-full">
+                                <Tag className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}</span>
                               </Badge>
                             ) : "-"}
                           </td>
                           {/* Favorecido */}
-                          <td className="py-3 px-2" data-testid={`text-favorecido-${item.id}`}>
+                          <td className="py-3 px-2 max-w-0" data-testid={`text-favorecido-${item.id}`}>
                             {item.Favorecido && item.Favorecido.length > 0 ? (
                               <span className="flex flex-col gap-0.5">
                                 {item.Favorecido.map((f, idx) => {
@@ -2384,11 +2386,11 @@ export default function FluxoCaixaPage() {
                                     <button
                                       key={idx}
                                       onClick={() => membro && setProfileMembro(membro)}
-                                      className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left"
+                                      className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left min-w-0"
                                       data-testid={`link-favorecido-${item.id}-${idx}`}
                                     >
                                       <UserCheck className="w-3 h-3 shrink-0" />
-                                      {nome}
+                                      <span className="truncate">{nome}</span>
                                     </button>
                                   );
                                 })}
@@ -2396,11 +2398,11 @@ export default function FluxoCaixaPage() {
                             ) : "-"}
                           </td>
                           {/* Tipo CPP */}
-                          <td className="py-3 px-2" data-testid={`text-tipo-cpp-${item.id}`}>
+                          <td className="py-3 px-2 max-w-0" data-testid={`text-tipo-cpp-${item.id}`}>
                             {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ? (
-                              <Badge variant="secondary" className="gap-1">
-                                <Layers className="w-3 h-3" />
-                                {item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}
+                              <Badge variant="secondary" className="gap-1 max-w-full">
+                                <Layers className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}</span>
                               </Badge>
                             ) : "-"}
                           </td>

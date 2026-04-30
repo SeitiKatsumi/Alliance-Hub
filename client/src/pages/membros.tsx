@@ -407,34 +407,6 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <Input value={form.Nome_de_usuario || ""} onChange={e => setField("Nome_de_usuario", e.target.value)} className={inputCls} data-testid="input-edit-nome-usuario" />
                 </div>
                 <div>
-                  <label className={labelCls}>Tipo de Pessoa</label>
-                  <Select value={form.tipo_pessoa || ""} onValueChange={v => setField("tipo_pessoa", v)}>
-                    <SelectTrigger className={inputCls} data-testid="select-edit-tipo-pessoa">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PF">Pessoa Física (PF)</SelectItem>
-                      <SelectItem value="PJ">Pessoa Jurídica (PJ)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className={labelCls}>Tipo de Cadastro</label>
-                  <Select value={form.tipo_de_cadastro || ""} onValueChange={v => setField("tipo_de_cadastro", v)}>
-                    <SelectTrigger className={inputCls} data-testid="select-edit-tipo-cadastro">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CEO Built">CEO BUILT</SelectItem>
-                      <SelectItem value="Aliado Built">Aliado BUILT</SelectItem>
-                      <SelectItem value="Fornecedor">Fornecedor</SelectItem>
-                      <SelectItem value="Investidor">Investidor</SelectItem>
-                      <SelectItem value="Parceiro">Parceiro</SelectItem>
-                      <SelectItem value="Consultor">Consultor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
                   <label className={labelCls}>CPF / CNPJ</label>
                   <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="000.000.000-00" data-testid="input-edit-cpf-cnpj" />
                 </div>

@@ -5015,14 +5015,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // POST /api/webhooks/asaas — handle Asaas payment webhook events
   app.post("/api/webhooks/asaas", async (req, res) => {
-    // Optional token verification — configure ASAAS_WEBHOOK_TOKEN in env to enable
+    // Mandatory token verification — ASAAS_WEBHOOK_TOKEN must be set in env
     const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    if (webhookToken) {
-      const incomingToken = req.headers["asaas-access-token"] as string | undefined;
-      if (incomingToken !== webhookToken) {
-        console.error("[asaas/webhook] invalid or missing access token");
-        return res.status(401).json({ error: "Unauthorized" });
-      }
+    if (!webhookToken) {
+      console.error("[asaas/webhook] ASAAS_WEBHOOK_TOKEN not configured — rejecting request");
+      return res.status(503).json({ error: "Webhook not configured" });
+    }
+    const incomingToken = req.headers["asaas-access-token"] as string | undefined;
+    if (!incomingToken || incomingToken !== webhookToken) {
+      console.error("[asaas/webhook] invalid or missing access token");
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
     const body = req.body as any;
@@ -5046,7 +5048,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         if (convite) console.log(`[asaas/webhook] matched convite via externalReference token: ${extRef}`);
       }
 
-      // Strategy 2: match by customer email — Asaas may include customerEmail or email fields
+      // Strategy 2: match by customer email — only match convites in pagamento_pendente status
+      // to avoid ambiguity when a customer has multiple convites
       if (!convite) {
         const email: string | null =
           payment.customerEmail ||
@@ -5055,12 +5058,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           null;
         if (email) {
           const all = await storage.getAllConvites();
-          convite = all.find(
+          const matches = all.filter(
             (c: any) =>
               c.candidato_email?.toLowerCase() === email.toLowerCase() &&
-              ["pagamento_pendente", "termos_aceitos", "aprovado"].includes(c.status)
-          ) || null;
+              c.status === "pagamento_pendente"
+          );
+          // Pick the most recently created match to avoid activating stale convites
+          matches.sort((a: any, b: any) => new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime());
+          convite = matches[0] || null;
           if (convite) console.log(`[asaas/webhook] matched convite via email: ${email}`);
+          else if (matches.length === 0) console.warn(`[asaas/webhook] no pagamento_pendente convite found for email: ${email}`);
         }
       }
 

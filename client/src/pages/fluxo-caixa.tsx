@@ -60,6 +60,7 @@ import {
   ThumbsDown,
   Divide,
   PlusCircle,
+  ExternalLink,
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -923,6 +924,7 @@ export default function FluxoCaixaPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
+  const [anexosModal, setAnexosModal] = useState<{ id: string; anexos: any[] } | null>(null);
 
   const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
   const [formValor, setFormValor] = useState<string>("");
@@ -2407,23 +2409,18 @@ export default function FluxoCaixaPage() {
                             ) : "-"}
                           </td>
                           {/* Anexos */}
-                          <td className="py-3 px-2" data-testid={`text-anexos-${item.id}`}>
+                          <td className="py-3 px-2 text-center" data-testid={`text-anexos-${item.id}`}>
                             {item.anexos && item.anexos.length > 0 ? (
-                              <div className="flex flex-wrap items-center gap-1">
-                                {item.anexos.map((anexo: any, ai: number) => {
-                                  const name = typeof anexo === "string" ? anexo : (anexo.filename || anexo.title || anexo.id);
-                                  const href = typeof anexo === "string" ? anexo : anexo.url;
-                                  const IconComp = getFileIcon(name);
-                                  return (
-                                    <a key={ai} href={href} target="_blank" rel="noopener noreferrer" title={name} data-testid={`link-anexo-${item.id}-${ai}`}>
-                                      <Button variant="outline" size="sm" className="h-7 px-2 gap-1 text-xs hover:bg-brand-gold/10 hover:border-brand-gold/40">
-                                        <IconComp className="w-3 h-3" />
-                                        <span className="max-w-[80px] truncate">{name}</span>
-                                      </Button>
-                                    </a>
-                                  );
-                                })}
-                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 gap-1 text-xs hover:bg-brand-gold/10 hover:border-brand-gold/40"
+                                onClick={() => setAnexosModal({ id: item.id, anexos: item.anexos as any[] })}
+                                data-testid={`button-anexos-${item.id}`}
+                              >
+                                <Paperclip className="w-3 h-3" />
+                                {item.anexos.length}
+                              </Button>
                             ) : "-"}
                           </td>
                           <td className="py-3 px-2">
@@ -2613,6 +2610,39 @@ export default function FluxoCaixaPage() {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal de Anexos */}
+          <Dialog open={!!anexosModal} onOpenChange={(open) => { if (!open) setAnexosModal(null); }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Paperclip className="w-5 h-5 text-brand-gold" />
+                  Anexos ({anexosModal?.anexos.length ?? 0})
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto py-1">
+                {anexosModal?.anexos.map((anexo: any, ai: number) => {
+                  const name = typeof anexo === "string" ? anexo : (anexo.filename || anexo.title || anexo.id);
+                  const href = typeof anexo === "string" ? anexo : anexo.url;
+                  const IconComp = getFileIcon(name);
+                  return (
+                    <a
+                      key={ai}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/40 hover:border-brand-gold/30 transition-colors group"
+                      data-testid={`modal-anexo-${anexosModal?.id}-${ai}`}
+                    >
+                      <IconComp className="w-5 h-5 text-muted-foreground shrink-0 group-hover:text-brand-gold transition-colors" />
+                      <span className="text-sm truncate flex-1">{name}</span>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-brand-gold transition-colors" />
+                    </a>
+                  );
+                })}
+              </div>
             </DialogContent>
           </Dialog>
         </>

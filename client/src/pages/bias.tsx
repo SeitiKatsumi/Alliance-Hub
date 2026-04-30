@@ -1528,7 +1528,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
               <TabsTrigger value="equipe" data-testid="tab-equipe">Equipe</TabsTrigger>
               <TabsTrigger value="cpp" data-testid="tab-cpp">DM</TabsTrigger>
-              <TabsTrigger value="receita" data-testid="tab-receita">Receita</TabsTrigger>
+              <TabsTrigger value="receita" data-testid="tab-receita">Análises</TabsTrigger>
             </TabsList>
 
             {/* Tab Geral */}

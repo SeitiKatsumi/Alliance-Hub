@@ -35,6 +35,7 @@ interface Membro {
   tipo_pessoa?: string;
   tipo_de_cadastro?: string;
   cpf_cnpj?: string;
+  cnpj?: string;
   razao_social?: string;
   nome_fantasia?: string;
   rg_ie?: string;
@@ -471,7 +472,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>CNPJ</label>
-                  <Input value={form.inscricao_municipal || ""} onChange={e => setField("inscricao_municipal", e.target.value)} className={inputCls} placeholder="00.000.000/0000-00" data-testid="input-edit-cnpj-empresa" />
+                  <Input value={form.cnpj || ""} onChange={e => setField("cnpj", e.target.value)} className={inputCls} placeholder="00.000.000/0000-00" data-testid="input-edit-cnpj-empresa" />
                 </div>
               </div>
             </div>

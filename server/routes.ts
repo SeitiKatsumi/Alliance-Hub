@@ -2665,8 +2665,11 @@ export async function registerRoutes(
           async function fetchMemberEmail(mid: string): Promise<{ email: string; nome: string } | null> {
             try {
               const m = await directusFetchOne("cadastro_geral", mid, "fields=email,nome");
+              console.log(`[interesse-opa] fetchMemberEmail id=${mid} email=${m?.email ?? "null"} nome=${m?.nome ?? "null"}`);
               if (m?.email) return { email: m.email as string, nome: (m.nome as string) || mid };
-            } catch {}
+            } catch (e: any) {
+              console.error(`[interesse-opa] fetchMemberEmail error id=${mid}:`, e?.message || e);
+            }
             return null;
           }
 
@@ -2687,6 +2690,9 @@ export async function registerRoutes(
                 mensagem: msgBody,
                 multiplicador,
               });
+              console.log(`[interesse-opa] email sent to diretor ${m.email}`);
+            } else {
+              console.warn(`[interesse-opa] diretor ${diretorId} has no email, skipping`);
             }
           }
 
@@ -2704,6 +2710,9 @@ export async function registerRoutes(
                 mensagem: msgBody,
                 multiplicador,
               });
+              console.log(`[interesse-opa] email sent to aliado ${m.email}`);
+            } else {
+              console.warn(`[interesse-opa] aliado ${aliadoId} has no email, skipping`);
             }
           }
         } catch (notifErr: any) {

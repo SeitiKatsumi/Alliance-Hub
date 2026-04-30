@@ -2622,6 +2622,14 @@ export async function registerRoutes(
       const existing = await storage.getUserInteresseByOpa(id, directusUserId);
       if (existing) return res.status(409).json({ error: "Interesse já registrado" });
       const multiplicador = req.body.multiplicador != null ? String(req.body.multiplicador) : null;
+      // Validate submitted multiplicador against OPA minimum
+      if (multiplicador != null) {
+        const opaFields = await directusFetchOne("tipos_oportunidades", id, "fields=Minimo_esforco_multiplicador");
+        const minMult = parseFloat(String(opaFields?.Minimo_esforco_multiplicador || "0")) || 0;
+        if (minMult > 0 && parseFloat(multiplicador) < minMult) {
+          return res.status(400).json({ error: `O multiplicador deve ser de no mínimo ${minMult}%.` });
+        }
+      }
       const item = await storage.createOpaInteresse({
         opa_id: id,
         user_id: directusUserId,

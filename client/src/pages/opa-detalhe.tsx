@@ -562,12 +562,12 @@ export default function OpaDetalhePage() {
               <div className="flex items-center gap-3">
                 <input
                   type="number"
-                  min={0}
+                  min={mult > 0 ? mult : 0}
                   step={0.1}
                   value={multiplicadorInput}
                   onChange={(e) => setMultiplicadorInput(e.target.value)}
                   placeholder={mult > 0 ? String(mult) : "Ex: 1.5"}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult ? "border-destructive focus-visible:ring-destructive" : "border-input"}`}
                   data-testid="input-multiplicador-interesse"
                 />
                 <span className="text-sm text-muted-foreground shrink-0">%</span>
@@ -575,6 +575,11 @@ export default function OpaDetalhePage() {
               {mult > 0 && (
                 <p className="text-[10px] text-muted-foreground">
                   Mínimo definido na OPA: <span className="font-semibold text-foreground">{mult}%</span>
+                </p>
+              )}
+              {mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult && (
+                <p className="text-[11px] text-destructive font-medium">
+                  O valor não pode ser menor que o mínimo de {mult}%.
                 </p>
               )}
             </div>
@@ -607,7 +612,17 @@ export default function OpaDetalhePage() {
             </Button>
             <Button
               className="gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
-              onClick={() => interesseMutation.mutate({ msg: mensagem, mult: multiplicadorInput })}
+              onClick={() => {
+                if (mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult) {
+                  toast({
+                    title: "Valor abaixo do mínimo",
+                    description: `O multiplicador deve ser de no mínimo ${mult}%.`,
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                interesseMutation.mutate({ msg: mensagem, mult: multiplicadorInput });
+              }}
               disabled={interesseMutation.isPending}
               data-testid="btn-confirm-interesse"
             >

@@ -258,6 +258,8 @@ function SearchableMembroSelect({
   placeholder,
   testId,
   allowNone,
+  allowCreate,
+  onCreateNew,
 }: {
   membros: Membro[];
   value: string;
@@ -265,10 +267,16 @@ function SearchableMembroSelect({
   placeholder: string;
   testId: string;
   allowNone?: boolean;
+  allowCreate?: boolean;
+  onCreateNew?: (nome: string) => Promise<Membro | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [createMode, setCreateMode] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const createInputRef = useRef<HTMLInputElement>(null);
 
   const sorted = useMemo(() =>
     [...membros].sort((a, b) => getMembroNome(a).localeCompare(getMembroNome(b), "pt-BR")),
@@ -294,10 +302,36 @@ function SearchableMembroSelect({
     onValueChange(id);
     setOpen(false);
     setSearch("");
+    setCreateMode(false);
+    setCreateName("");
+  }
+
+  async function handleCreate() {
+    const nome = (createMode ? createName : search).trim();
+    if (!nome || !onCreateNew) return;
+    setCreating(true);
+    try {
+      const newMembro = await onCreateNew(nome);
+      if (newMembro) {
+        onValueChange(newMembro.id);
+        setOpen(false);
+        setSearch("");
+        setCreateMode(false);
+        setCreateName("");
+      }
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function handleOpenCreate() {
+    setCreateMode(true);
+    setCreateName(search);
+    setTimeout(() => createInputRef.current?.focus(), 50);
   }
 
   return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(""); }}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setSearch(""); setCreateMode(false); setCreateName(""); } }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -313,49 +347,103 @@ function SearchableMembroSelect({
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }}>
         <div className="flex flex-col">
-          <div className="flex items-center border-b px-3 py-2 gap-2">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <input
-              ref={inputRef}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              placeholder="Digite para buscar..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.stopPropagation()}
-            />
-            {search && (
-              <button type="button" onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground">
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          <div className="max-h-52 overflow-y-auto py-1">
-            {allowNone && (
-              <button
-                type="button"
-                onClick={() => handleSelect("__none__")}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === "__none__" ? "font-medium" : ""}`}
-              >
-                <Check className={`h-4 w-4 ${value === "__none__" ? "opacity-100" : "opacity-0"}`} />
-                Nenhum
-              </button>
-            )}
-            {search && search.length > 0 && search.length < 3 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Digite ao menos 3 letras...</p>
-            ) : filtered.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum membro encontrado.</p>
-            ) : filtered.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => handleSelect(m.id)}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === m.id ? "font-medium" : ""}`}
-              >
-                <Check className={`h-4 w-4 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
-                {getMembroNome(m)}
-              </button>
-            ))}
-          </div>
+          {!createMode && (
+            <div className="flex items-center border-b px-3 py-2 gap-2">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                ref={inputRef}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                placeholder="Digite para buscar..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {!createMode ? (
+            <>
+              <div className="max-h-52 overflow-y-auto py-1">
+                {allowNone && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelect("__none__")}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === "__none__" ? "font-medium" : ""}`}
+                  >
+                    <Check className={`h-4 w-4 ${value === "__none__" ? "opacity-100" : "opacity-0"}`} />
+                    Nenhum
+                  </button>
+                )}
+                {search && search.length > 0 && search.length < 3 ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">Digite ao menos 3 letras...</p>
+                ) : filtered.length === 0 && search.length >= 3 ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum membro encontrado.</p>
+                ) : filtered.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleSelect(m.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === m.id ? "font-medium" : ""}`}
+                  >
+                    <Check className={`h-4 w-4 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
+                    {getMembroNome(m)}
+                  </button>
+                ))}
+              </div>
+              {allowCreate && onCreateNew && (
+                <div className="border-t p-1.5">
+                  <button
+                    type="button"
+                    onClick={handleOpenCreate}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-sm text-brand-navy hover:bg-brand-navy/5 hover:text-brand-navy font-medium transition-colors"
+                    data-testid={`${testId}-create-btn`}
+                  >
+                    <Plus className="h-4 w-4 shrink-0 text-brand-gold" />
+                    {search.length >= 3 ? `Adicionar "${search}" como favorecido` : "Adicionar novo favorecido"}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="p-3 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">Novo favorecido externo</p>
+              <input
+                ref={createInputRef}
+                className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold"
+                placeholder="Nome do favorecido..."
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") { e.preventDefault(); handleCreate(); }
+                  if (e.key === "Escape") { setCreateMode(false); setCreateName(""); }
+                }}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setCreateMode(false); setCreateName(""); }}
+                  className="flex-1 px-3 py-1.5 text-xs rounded-md border hover:bg-muted transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={!createName.trim() || creating}
+                  className="flex-1 px-3 py-1.5 text-xs rounded-md bg-brand-navy text-white hover:bg-brand-navy/90 disabled:opacity-50 transition-colors font-medium"
+                  data-testid={`${testId}-create-confirm`}
+                >
+                  {creating ? "Criando..." : "Criar favorecido"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -548,6 +636,7 @@ function LancamentoFormFields({
   existingAnexos, setExistingAnexos,
   uploading,
   isCreate,
+  onCreateFavorecido,
 }: {
   formTipo: "entrada" | "saida";
   setFormTipo: (v: "entrada" | "saida") => void;
@@ -585,6 +674,7 @@ function LancamentoFormFields({
   setExistingAnexos: (files: AnexoFile[]) => void;
   uploading: boolean;
   isCreate?: boolean;
+  onCreateFavorecido?: (nome: string) => Promise<Membro | null>;
 }) {
   function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
@@ -730,6 +820,8 @@ function LancamentoFormFields({
             placeholder="Selecione o favorecido..."
             testId={`${prefix}-select-favorecido`}
             allowNone
+            allowCreate={!!onCreateFavorecido}
+            onCreateNew={onCreateFavorecido}
           />
         ) : (
           <div className="space-y-3">
@@ -1366,6 +1458,19 @@ export default function FluxoCaixaPage() {
     setExistingAnexos([]);
   }
 
+  async function handleCreateFavorecido(nome: string): Promise<Membro | null> {
+    try {
+      const res = await apiRequest("POST", "/api/membros/criar-favorecido", { nome });
+      const newMembro: Membro = await res.json();
+      queryClient.setQueryData<Membro[]>(["/api/membros"], (prev) =>
+        prev ? [...prev, newMembro] : [newMembro]
+      );
+      return newMembro;
+    } catch {
+      return null;
+    }
+  }
+
   function openEditDialog(item: FluxoCaixaItem) {
     setEditingItemId(item.id);
     setFormTipo(item.tipo);
@@ -1564,6 +1669,7 @@ export default function FluxoCaixaPage() {
                   existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
                   uploading={uploading}
                   isCreate
+                  onCreateFavorecido={handleCreateFavorecido}
                 />
                 <DialogFooter>
                   <DialogClose asChild>
@@ -2480,6 +2586,7 @@ export default function FluxoCaixaPage() {
                 pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
                 existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
                 uploading={uploading}
+                onCreateFavorecido={handleCreateFavorecido}
               />
               <DialogFooter>
                 <Button variant="outline" onClick={() => { setEditDialogOpen(false); setEditingItemId(null); }} data-testid="button-cancelar-edit">

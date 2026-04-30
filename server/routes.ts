@@ -1673,6 +1673,21 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/membros/criar-favorecido", async (req, res) => {
+    if (!(req.session as any)?.membroId) return res.status(401).json({ error: "Não autenticado" });
+    const { nome } = req.body;
+    if (!nome || !String(nome).trim()) return res.status(400).json({ error: "Nome é obrigatório" });
+    try {
+      const item = await directusCreate("cadastro_geral", {
+        nome: String(nome).trim(),
+        tipo_de_cadastro: "favorecido_externo",
+      });
+      res.json({ id: item.id, nome: item.nome });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/membros", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;
     try {

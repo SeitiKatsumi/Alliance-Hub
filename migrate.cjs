@@ -3,6 +3,54 @@ const { Pool } = require("pg");
 const { readdir, readFile } = require("fs/promises");
 const path = require("path");
 
+/**
+ * Divide um arquivo SQL em statements individuais.
+ * Suporta dois formatos:
+ *   1. Drizzle: separados por "--> statement-breakpoint"
+ *   2. Plain SQL: separados por ";" no final da linha
+ */
+function splitStatements(sql) {
+  if (sql.includes("--> statement-breakpoint")) {
+    return sql
+      .split("--> statement-breakpoint")
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+
+  // Plain SQL: divide por ponto-e-vírgula, preservando strings
+  const statements = [];
+  let current = "";
+  let inString = false;
+  let stringChar = "";
+
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+
+    if (inString) {
+      current += ch;
+      if (ch === stringChar && sql[i - 1] !== "\\") inString = false;
+    } else if (ch === "'" || ch === '"') {
+      inString = true;
+      stringChar = ch;
+      current += ch;
+    } else if (ch === ";") {
+      const stmt = current.trim();
+      if (stmt.length > 0) statements.push(stmt + ";");
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  const last = current.trim();
+  if (last.length > 0) statements.push(last);
+
+  return statements.filter(s => {
+    // Remove blocos que são só comentários
+    const stripped = s.replace(/--[^\n]*/g, "").trim();
+    return stripped.length > 0;
+  });
+}
+
 async function main() {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL não definida");
@@ -12,7 +60,6 @@ async function main() {
   const client = await pool.connect();
 
   try {
-    // Tabela de controle de migrations
     await client.query(`
       CREATE TABLE IF NOT EXISTS __drizzle_migrations (
         id SERIAL PRIMARY KEY,
@@ -45,21 +92,13 @@ async function main() {
       }
 
       const raw = await readFile(path.join(migrationsDir, file), "utf-8");
-
-      // Drizzle usa "--> statement-breakpoint" para separar statements.
-      // Dividimos por esse marcador e filtramos blocos que são só whitespace.
-      const statements = raw
-        .split("--> statement-breakpoint")
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+      const statements = splitStatements(raw);
 
       console.log(`[migrate] start ${file} (${statements.length} statements)`);
       await client.query("BEGIN");
       try {
         for (const stmt of statements) {
-          if (stmt.trim()) {
-            await client.query(stmt);
-          }
+          await client.query(stmt);
         }
         await client.query(
           "INSERT INTO __drizzle_migrations (hash, created_at) VALUES ($1, $2)",

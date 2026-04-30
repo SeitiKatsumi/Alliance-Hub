@@ -1,0 +1,125 @@
+------------------------- Thu Apr 30 2026 14:14:16 GMT+0000 (Coordinated Universal Time)
+Build started for built-hub-app
+Ignore warnings for unconsumed build-args if there is any
+Step 1/21 : FROM node:20-alpine AS builder
+
+---> fb4cd12c85ee
+Step 2/21 : WORKDIR /app
+
+---> Using cache
+---> 798cb2593084
+Step 3/21 : COPY package*.json ./
+
+---> Using cache
+---> 59c3c213db1d
+Step 4/21 : RUN npm ci
+
+---> Using cache
+---> 3240ec48435d
+Step 5/21 : COPY . .
+
+---> 5421015fb90b
+Step 6/21 : ENV NODE_ENV=production
+
+---> Running in 57cdec75fd61
+---> Removed intermediate container 57cdec75fd61
+---> 1f51d51c1127
+Step 7/21 : RUN npm run build
+
+---> Running in 17dd55fb9e4c
+> rest-express@1.0.0 build
+> tsx script/build.ts
+building client...
+vite v7.3.0 building client environment for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+✓ 2707 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/public/index.html                                                               2.22 kB │ gzip:   0.87 kB
+../dist/public/assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930-DXzPcwpy.png      20.37 kB
+../dist/public/assets/Built_Alliances_Platform_Negativo_1775603722664-Dgsbwzif.png     22.12 kB
+../dist/public/assets/index-919P0mBS.css                                              131.59 kB │ gzip:  20.12 kB
+../dist/public/assets/index-fHhhF7ei.js                                             1,614.29 kB │ gzip: 434.69 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+✓ built in 9.00s
+building server...
+
+  dist/index.cjs  3.2mb ⚠️
+
+⚡ Done in 253ms
+
+---> Removed intermediate container 17dd55fb9e4c
+---> 64c8cad8c7ad
+Step 8/21 : FROM node:20-alpine AS runner
+
+---> fb4cd12c85ee
+Step 9/21 : WORKDIR /app
+
+---> Using cache
+---> 798cb2593084
+Step 10/21 : COPY package*.json ./
+
+---> Using cache
+---> 59c3c213db1d
+Step 11/21 : RUN npm ci --omit=dev
+
+---> Using cache
+---> 8d956ad11083
+Step 12/21 : ARG CAPROVER_GIT_COMMIT_SHA=unknown
+
+---> Running in 82b8d7b5db22
+---> Removed intermediate container 82b8d7b5db22
+---> 08b45973d74b
+Step 13/21 : ENV BUILD_SHA=${CAPROVER_GIT_COMMIT_SHA}
+
+---> Running in 056144c6c08b
+---> Removed intermediate container 056144c6c08b
+---> d97b14fcca9a
+Step 14/21 : COPY --from=builder /app/dist ./dist
+
+---> 3d62d95ede29
+Step 15/21 : COPY --from=builder /app/migrations ./migrations
+
+---> bdb5353f7d42
+Step 16/21 : COPY migrate.cjs ./migrate.cjs
+
+---> b98377453d11
+Step 17/21 : COPY start.sh ./start.sh
+
+---> 9c55dd7dc154
+Step 18/21 : RUN chmod +x start.sh
+
+---> Running in 1daf7ad4835f
+---> Removed intermediate container 1daf7ad4835f
+---> 3444396caa94
+Step 19/21 : ENV NODE_ENV=production
+
+---> Running in 391a84b3d767
+---> Removed intermediate container 391a84b3d767
+---> 6668421d0697
+Step 20/21 : EXPOSE 5000
+
+---> Running in 594166dd94b1
+---> Removed intermediate container 594166dd94b1
+---> ec59ecb160a3
+Step 21/21 : CMD ["./start.sh"]
+
+---> Running in 7bcfa96ac283
+---> Removed intermediate container 7bcfa96ac283
+---> 5eb8470108c2
+[Warning] One or more build-args [DATABASE_URL DIRECTUS_TOKEN DIRECTUS_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET NODE_ENV OPENAI_API_KEY PORT SESSION_SECRET SMTP_FROM SMTP_HOST SMTP_PASS SMTP_PORT SMTP_USER STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET] were not consumed
+Successfully built 5eb8470108c2
+Successfully tagged img-captain-built-hub-app:latest
+Build has finished successfully!

@@ -33,7 +33,7 @@ interface MembroBusca {
   nome?: string;
   cargo?: string;
   empresa?: string;
-  foto?: string | null;
+  foto?: string | { id?: string; filename_disk?: string } | null;
 }
 
 interface MinhaAvaliacao {
@@ -123,11 +123,29 @@ function dimLabel(d: "T" | "R" | "C"): string {
   return "Comportamental";
 }
 
-function fotoUrl(foto: string | null | undefined): string | null {
+function fotoUrl(foto: MembroBusca["foto"]): string | null {
   if (!foto) return null;
-  if (foto.startsWith("http")) return foto;
-  const base = (import.meta.env.VITE_DIRECTUS_URL as string) || "";
-  return `${base}/assets/${foto}?width=80&height=80&fit=cover`;
+  const fileId = typeof foto === "string" ? foto : foto.id || foto.filename_disk;
+  if (!fileId) return null;
+  if (fileId.startsWith("/api/assets/")) return fileId;
+  if (fileId.startsWith("/assets/")) return fileId.replace(/^\/assets\//, "/api/assets/");
+  if (fileId.startsWith("http")) return fileId;
+  return `/api/assets/${fileId}?width=80&height=80&fit=cover`;
+}
+
+function AvatarImage({ foto, nome }: { foto: MembroBusca["foto"]; nome?: string }) {
+  const [failed, setFailed] = useState(false);
+  const src = !failed ? fotoUrl(foto) : null;
+  if (!src) return <>{getInitials(nome || "?")}</>;
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      className="w-full h-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 function getInitials(nome: string): string {
@@ -532,11 +550,7 @@ export default function AuraPage() {
                           data-testid={`btn-selecionar-membro-${m.id}`}
                         >
                           <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold bg-white/10 text-[#D7BB7D] shrink-0">
-                            {fotoUrl(m.foto) ? (
-                              <img src={fotoUrl(m.foto)!} alt={m.nome || ""} className="w-full h-full object-cover" />
-                            ) : (
-                              getInitials(m.nome || "?")
-                            )}
+                            <AvatarImage foto={m.foto} nome={m.nome} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-foreground truncate">{m.nome || "—"}</p>
@@ -553,11 +567,7 @@ export default function AuraPage() {
                 {/* Selected member */}
                 <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60" style={{ background: "rgba(255,255,255,0.02)" }}>
                   <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-[#D7BB7D] shrink-0" style={{ background: "rgba(255,255,255,0.08)" }}>
-                    {fotoUrl(selectedMembro.foto) ? (
-                      <img src={fotoUrl(selectedMembro.foto)!} alt={selectedMembro.nome || ""} className="w-full h-full object-cover" />
-                    ) : (
-                      getInitials(selectedMembro.nome || "?")
-                    )}
+                    <AvatarImage foto={selectedMembro.foto} nome={selectedMembro.nome} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{selectedMembro.nome || "—"}</p>

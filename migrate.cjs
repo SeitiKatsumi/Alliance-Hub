@@ -12,6 +12,7 @@ async function main() {
   const client = await pool.connect();
 
   try {
+    // Tabela de controle de migrations
     await client.query(`
       CREATE TABLE IF NOT EXISTS __drizzle_migrations (
         id SERIAL PRIMARY KEY,
@@ -25,7 +26,7 @@ async function main() {
     try {
       files = await readdir(migrationsDir);
     } catch {
-      console.log("Pasta migrations/ não encontrada — nenhuma migração aplicada.");
+      console.log("[migrate] Pasta migrations/ não encontrada — nenhuma migration aplicada.");
       return;
     }
 
@@ -33,33 +34,46 @@ async function main() {
 
     for (const file of sqlFiles) {
       const hash = file.replace(".sql", "");
+
       const exists = await client.query(
         "SELECT id FROM __drizzle_migrations WHERE hash = $1",
         [hash]
       );
       if (exists.rows.length > 0) {
-        console.log(`[skip] ${file} (já aplicado)`);
+        console.log(`[migrate] skip  ${file} (já aplicado)`);
         continue;
       }
 
-      const sql = await readFile(path.join(migrationsDir, file), "utf-8");
-      console.log(`[run ] ${file}`);
+      const raw = await readFile(path.join(migrationsDir, file), "utf-8");
+
+      // Drizzle usa "--> statement-breakpoint" para separar statements.
+      // Dividimos por esse marcador e filtramos blocos que são só whitespace.
+      const statements = raw
+        .split("--> statement-breakpoint")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      console.log(`[migrate] start ${file} (${statements.length} statements)`);
       await client.query("BEGIN");
       try {
-        await client.query(sql);
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await client.query(stmt);
+          }
+        }
         await client.query(
           "INSERT INTO __drizzle_migrations (hash, created_at) VALUES ($1, $2)",
           [hash, Date.now()]
         );
         await client.query("COMMIT");
-        console.log(`[ok  ] ${file}`);
+        console.log(`[migrate] ok    ${file}`);
       } catch (err) {
         await client.query("ROLLBACK");
-        throw err;
+        throw new Error(`Erro ao aplicar ${file}: ${err.message}`);
       }
     }
 
-    console.log("Migrações concluídas.");
+    console.log("[migrate] Todas as migrations aplicadas com sucesso.");
   } finally {
     client.release();
     await pool.end();
@@ -67,6 +81,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error("Erro nas migrações:", err);
+  console.error("[migrate] ERRO:", err.message);
   process.exit(1);
 });

@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+.git
+.gitignore
+.env
+.local
+*.tar.gz
+vite.config.ts.*
+attached_assets

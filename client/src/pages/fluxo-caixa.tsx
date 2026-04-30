@@ -1177,15 +1177,14 @@ export default function FluxoCaixaPage() {
   }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
 
   const totals = useMemo(() => {
-    const contabeis = fluxoItems.filter((i) => !isValorOrigemAuto(i));
-    const entradas = contabeis
+    const entradas = fluxoItemsContabeis
       .filter((i) => i.tipo === "entrada" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
-    const saidas = contabeis
+    const saidas = fluxoItemsContabeis
       .filter((i) => i.tipo === "saida" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
-  }, [fluxoItems]);
+  }, [fluxoItemsContabeis]);
 
   const today = new Date().toISOString().split("T")[0];
   const in7days = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
@@ -1219,7 +1218,7 @@ export default function FluxoCaixaPage() {
   }, [fluxoItemsAll, today, in7days]);
 
   const aportesPorMembro = useMemo(() => {
-    const entradas = fluxoItems.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
+    const entradas = fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
     const map: Record<string, number> = {};
     const nameMap: Record<string, string> = {};
     entradas.forEach((i) => {
@@ -1242,7 +1241,7 @@ export default function FluxoCaixaPage() {
         percentual: totalAportesComMembro > 0 ? (valor / totalAportesComMembro) * 100 : 0,
       }))
       .sort((a, b) => b.valor - a.valor);
-  }, [fluxoItems]);
+  }, [fluxoItemsContabeis]);
 
   async function uploadFiles(files: globalThis.File[]): Promise<string[]> {
     if (files.length === 0) return [];
@@ -1636,7 +1635,7 @@ export default function FluxoCaixaPage() {
               <CardContent>
                 <p className="text-2xl font-bold text-green-600" data-testid="text-total-entradas">{formatBRL(totals.entradas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItems.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
+                  {fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
                 </p>
               </CardContent>
             </Card>
@@ -1649,7 +1648,7 @@ export default function FluxoCaixaPage() {
               <CardContent>
                 <p className="text-2xl font-bold text-red-600" data-testid="text-total-saidas">{formatBRL(totals.saidas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItems.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
+                  {fluxoItemsContabeis.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
                 </p>
               </CardContent>
             </Card>

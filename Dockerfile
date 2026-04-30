@@ -17,6 +17,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
+# CAPROVER_GIT_COMMIT_SHA muda a cada deploy — invalida o cache das layers abaixo
+ARG CAPROVER_GIT_COMMIT_SHA=unknown
+ENV BUILD_SHA=${CAPROVER_GIT_COMMIT_SHA}
+
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/migrations ./migrations
 COPY migrate.cjs ./migrate.cjs

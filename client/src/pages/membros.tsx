@@ -407,6 +407,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <Input value={form.Nome_de_usuario || ""} onChange={e => setField("Nome_de_usuario", e.target.value)} className={inputCls} data-testid="input-edit-nome-usuario" />
                 </div>
                 <div>
+                  <label className={labelCls}>CPF</label>
+                  <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="000.000.000-00" data-testid="input-edit-cpf" />
+                </div>
+                <div>
                   <label className={labelCls}>Data de Nascimento</label>
                   <Input value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} type="date" className={inputCls} data-testid="input-edit-data-nascimento" />
                 </div>
@@ -467,7 +471,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>CNPJ</label>
-                  <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="00.000.000/0000-00" data-testid="input-edit-cnpj-empresa" />
+                  <Input value={form.inscricao_municipal || ""} onChange={e => setField("inscricao_municipal", e.target.value)} className={inputCls} placeholder="00.000.000/0000-00" data-testid="input-edit-cnpj-empresa" />
                 </div>
               </div>
             </div>

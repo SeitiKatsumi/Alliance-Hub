@@ -680,26 +680,17 @@ function LocationField({ form, setForm, onPickerOpen }: {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">Localização <span className="text-red-500">*</span></Label>
-      <div className="flex gap-2">
-        <Input
-          placeholder="Cidade, Estado ou País"
-          value={form.localizacao}
-          onChange={(e) => setForm({ ...form, localizacao: capitalizeWords(e.target.value) })}
-          className="h-8 text-sm flex-1"
-          data-testid="input-localizacao"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0 border-brand-gold/30 hover:border-brand-gold hover:text-brand-gold gap-1.5"
-          onClick={onPickerOpen}
-          data-testid="btn-pick-location"
-        >
-          <Navigation className="w-3.5 h-3.5" />
-          Mapa
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 w-full border-brand-gold/30 hover:border-brand-gold hover:text-brand-gold gap-1.5 justify-center"
+        onClick={onPickerOpen}
+        data-testid="btn-pick-location"
+      >
+        <Navigation className="w-3.5 h-3.5" />
+        {form.localizacao ? form.localizacao : "Selecionar no Mapa"}
+      </Button>
       {hasCoords && (
         <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
           <Crosshair className="w-3 h-3 text-brand-gold/60" />

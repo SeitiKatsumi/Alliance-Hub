@@ -7,7 +7,7 @@ import multer from "multer";
 import path from "path";
 import express from "express";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 
 const openai = new OpenAI({
@@ -98,6 +98,24 @@ async function ensureBiasExtraFields() {
       type: "string",
       meta: { interface: "input", display: "raw", hidden: false, note: "Código ISO da moeda (ex: BRL, USD, EUR)" },
       schema: { is_nullable: true, default_value: "BRL" },
+    },
+    {
+      field: "socios_multiplicadores",
+      type: "text",
+      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs dos Sócios Multiplicadores" },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "socios_guardioes",
+      type: "text",
+      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs dos Sócios Guardiões" },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "terceiros",
+      type: "text",
+      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs de Terceiros vinculados à BIA" },
+      schema: { is_nullable: true },
     },
   ];
   for (const fieldDef of fields) {
@@ -457,9 +475,16 @@ async function directusDelete(collection: string, id: string) {
 
 async function findOrCreateValorOrigemCategoria(): Promise<number> {
   const cats = await directusFetchScoped("Categorias", "fields=id,Nome_da_categoria");
-  const existing = cats.find((c: any) => c.Nome_da_categoria === "Valor de Origem");
+  const existing = cats.find((c: any) => {
+    const name = String(c.Nome_da_categoria || "").trim();
+    return name === "Valor de Origem" || name.endsWith(" Valor de Origem");
+  });
   if (existing) return existing.id;
-  const created = await directusCreate("Categorias", { Nome_da_categoria: "Valor de Origem" });
+  const created = await directusCreate("Categorias", {
+    Nome_da_categoria: "1.1 Valor de Origem",
+    Tipo_de_categoria: "Saída",
+    Descricao_das_categorias: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO",
+  });
   return created.id;
 }
 
@@ -470,7 +495,12 @@ async function findCppCategoriaId(categoryName: string): Promise<number | null> 
     const cats = await directusFetchScoped("Categorias", "fields=id,Nome_da_categoria");
     _catCache = {};
     for (const c of cats) {
-      if (c.Nome_da_categoria) _catCache[c.Nome_da_categoria.trim()] = c.id;
+      if (c.Nome_da_categoria) {
+        const name = c.Nome_da_categoria.trim();
+        _catCache[name] = c.id;
+        const withoutCode = name.replace(/^\d+(?:\.\d+)*\s+/, "");
+        _catCache[withoutCode] = c.id;
+      }
     }
   }
   return _catCache[categoryName.trim()] ?? null;
@@ -1675,14 +1705,15 @@ export async function registerRoutes(
 
   app.post("/api/membros/criar-favorecido", async (req, res) => {
     if (!(req.session as any)?.membroId) return res.status(401).json({ error: "Não autenticado" });
-    const { nome } = req.body;
+    const { nome, empresa } = req.body;
     if (!nome || !String(nome).trim()) return res.status(400).json({ error: "Nome é obrigatório" });
     try {
       const item = await directusCreate("cadastro_geral", {
         nome: String(nome).trim(),
+        empresa: empresa ? String(empresa).trim() : undefined,
         tipo_de_cadastro: "favorecido_externo",
       });
-      res.json({ id: item.id, nome: item.nome });
+      res.json({ id: item.id, nome: item.nome, empresa: item.empresa });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1857,9 +1888,22 @@ export async function registerRoutes(
   });
 
   // ========== BIAS PROJETOS (from Directus) ==========
+  function parseBiaMemberList(value: unknown): string[] {
+    if (Array.isArray(value)) return value.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+    if (typeof value !== "string" || !value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+    } catch {}
+    return value.split(",").map((id) => id.trim()).filter(Boolean);
+  }
+
   function resolveAnexosBia(items: any[]): any[] {
     return items.map((b: any) => ({
       ...b,
+      socios_multiplicadores: parseBiaMemberList(b.socios_multiplicadores),
+      socios_guardioes: parseBiaMemberList(b.socios_guardioes),
+      terceiros: parseBiaMemberList(b.terceiros),
       Anexos: (b.Anexos || []).map((a: any) => {
         const f = a.directus_files_id;
         if (!f || typeof f !== "object") return null;
@@ -1999,6 +2043,11 @@ export async function registerRoutes(
       if (Array.isArray(data.Anexos) && data.Anexos.every((a: any) => typeof a === "string")) {
         const validIds: string[] = data.Anexos.filter((id: string) => uuidRegex.test(id));
         data.Anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
+      }
+    }
+    for (const field of ["socios_multiplicadores", "socios_guardioes", "terceiros"]) {
+      if (data[field] !== undefined) {
+        data[field] = JSON.stringify(parseBiaMemberList(data[field]));
       }
     }
     return data;
@@ -2537,11 +2586,124 @@ export async function registerRoutes(
   });
 
   // ========== CATEGORIAS (from Directus) ==========
+  const PLANO_CONTAS_CATEGORIAS = [
+    { nome: "1.1 Venda do ativo / unidades", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
+    { nome: "1.2 Receita de locação", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
+    { nome: "1.3 Receita de operação", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
+    { nome: "1.4 Receita extra", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
+    { nome: "2.1 Aporte inicial", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
+    { nome: "2.2 Aportes por chamadas de capital", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
+    { nome: "2.3 Aporte emergencial", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
+    { nome: "2.4 Aporte complementar", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
+    { nome: "2.5 Provisionamento de recursos", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
+    { nome: "3.1 Empréstimos e financiamento bancário", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
+    { nome: "3.2 Dívida com investidores", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
+    { nome: "3.3 Antecipação de recebíveis", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
+    { nome: "3.4 Tranches condicionadas", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
+    { nome: "3.5 Liberações por marcos e garantias", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
+    { nome: "4.1 Reembolsos", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.2 Estornos e devoluções", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.3 Créditos e bônus de fornecedores", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.4 Recuperação e ressarcimento", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.5 Receitas financeiras", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.6 Ajustes e regularizações financeiras", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "5.1 Taxas internas do veículo", tipo: "Entrada", grupo: "ENTRADAS LIGADAS À GOVERNANÇA / MÉTODO BUILT" },
+    { nome: "5.2 Multas contratuais recebidas", tipo: "Entrada", grupo: "ENTRADAS LIGADAS À GOVERNANÇA / MÉTODO BUILT" },
+    { nome: "5.3 Penalidades e recomposições financeiras", tipo: "Entrada", grupo: "ENTRADAS LIGADAS À GOVERNANÇA / MÉTODO BUILT" },
+    { nome: "6.1 Integralização de ativo", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
+    { nome: "6.2 Aportes em bens", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
+    { nome: "6.3 Aportes em direitos e cessões", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
+    { nome: "6.4 Esforço multiplicador convertido em CPP", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
+    { nome: "1.1 Valor de Origem", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "1.2 Due diligence e validação do ativo", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "1.3 Estruturação jurídica da origem", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "1.4 Formalização da BIA", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "1.5 Direito Econômico Institucional BUILT", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "1.6 Direito Econômico Institucional do Aliado", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "1.7 Direito Econômico por Liderança de Aliança", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
+    { nome: "2.1 Estudos e viabilidade", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.2 Projetos e Compatibilização", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.3 Aprovações e legalização", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.4 Consultorias técnicas", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.5 Jurídico e Auditoria", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.6 Treinamentos técnicos", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.7 Documentação técnica e regularização final", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "2.8 Direito Econômico por Liderança Técnica", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
+    { nome: "3.1 Gestão e acompanhamento da obra", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.2 Despesas Preliminares", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.3 Fundações e Estrutura", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.4 Vedações e coberturas", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.5 Instalações e automação", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.6 Acabamentos", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.7 Urbanização e áreas externas", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.8 Entrega técnica, testes e ajustes finais", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.9 Serviços recorrentes de operações e facilities", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.10 Reposição por garantia", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.11 Medicina e segurança do trabalho", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.12 Treinamentos operacionais", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.13 Logística, suprimentos e equipamentos", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.14 Qualidade e controle tecnológico", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "3.15 Direito Econômico por Liderança de Obra", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
+    { nome: "4.1 Branding e posicionamento", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.2 Marketing direto", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.3 Vendas", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.4 Locação", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.5 Networking e relacionamento com o mercado", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.6 SAC e pós-venda", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.7 Custos de plataformas e canais", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.8 Treinamentos comerciais", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.9 Inteligência comercial e precificação", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "4.10 Direito Econômico por Liderança Comercial", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
+    { nome: "5.1 Captação de recursos", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.2 Gestão financeira", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.3 Gestão contábil", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.4 Condomínio e despesas recorrentes do ativo", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.5 Tributos patrimoniais e fiscais", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.6 Seguros e garantias", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.7 Contingência e passivos", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.8 Distribuição e encerramento patrimonial", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "5.9 Direito Econômico por Liderança de Capital", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+  ];
+
+  const PLANO_CONTAS_NOMES = new Set(PLANO_CONTAS_CATEGORIAS.map((c) => c.nome));
+
+  async function ensurePlanoContasCategorias() {
+    const items = await directusFetch("Categorias");
+    const byName = new Map<string, any>();
+    for (const item of items) {
+      const name = String(item.Nome_da_categoria || "").trim();
+      if (name) byName.set(name, item);
+    }
+    for (const cat of PLANO_CONTAS_CATEGORIAS) {
+      const existing = byName.get(cat.nome);
+      const payload = {
+        Nome_da_categoria: cat.nome,
+        Tipo_de_categoria: cat.tipo,
+        Descricao_das_categorias: cat.grupo,
+      };
+      if (existing) {
+        if (existing.Tipo_de_categoria !== cat.tipo || existing.Descricao_das_categorias !== cat.grupo) {
+          await directusUpdate("Categorias", existing.id, payload);
+        }
+      } else {
+        await directusCreate("Categorias", payload);
+      }
+    }
+  }
+
+  await ensurePlanoContasCategorias().catch((err: any) => {
+    console.warn(`[categorias] Plano de contas não sincronizado: ${err.message}`);
+  });
+
   app.get("/api/categorias", async (req, res) => {
     try {
       const items = await directusFetch("Categorias");
       const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, Tipo_de_categoria: c.Tipo_de_categoria || null }));
-      res.json(mapped);
+      const sortCategorias = (a: any, b: any) =>
+        String(a.Tipo_de_categoria || "").localeCompare(String(b.Tipo_de_categoria || ""), "pt-BR") ||
+        String(a.Nome_da_categoria || "").localeCompare(String(b.Nome_da_categoria || ""), "pt-BR", { numeric: true });
+      const plano = mapped.filter((c: any) => PLANO_CONTAS_NOMES.has(c.Nome_da_categoria)).sort(sortCategorias);
+      res.json(plano.length > 0 ? plano : mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2557,6 +2719,16 @@ export async function registerRoutes(
   });
 
   // ========== OPORTUNIDADES (from Directus: tipos_oportunidades) ==========
+  function fixMojibakeText(value: unknown): string | undefined {
+    if (typeof value !== "string" || !value) return undefined;
+    if (!/[ÃÂÌÍÎÏ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
+    try {
+      return Buffer.from(value, "latin1").toString("utf8").normalize("NFC");
+    } catch {
+      return value.normalize("NFC");
+    }
+  }
+
   function resolveAnexosOpa(items: any[]): any[] {
     return items.map((o: any) => ({
       id: o.id,
@@ -2577,10 +2749,12 @@ export async function registerRoutes(
       Anexos: (o.anexos || []).map((a: any) => {
         const f = a?.directus_files_id;
         if (!f || typeof f !== "object") return null;
+        const filename = fixMojibakeText(f.filename_download) || fixMojibakeText(f.title) || f.id;
+        const title = fixMojibakeText(f.title) || filename;
         return {
           id: f.id,
-          title: f.title || f.filename_download,
-          filename: f.filename_download,
+          title,
+          filename,
           url: f.id ? `/api/assets/${f.id}` : null,
           size: f.filesize ? `${Math.round(f.filesize / 1024)} KB` : null,
         };
@@ -3732,6 +3906,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== TRANSFERÊNCIA DE COTAS ==========
+  await db.execute(sql`ALTER TABLE transferencias_cotas ADD COLUMN IF NOT EXISTS anexos text[] DEFAULT '{}'::text[]`);
+
   app.get("/api/transferencia-cotas", async (req, res) => {
     try {
       const directusUserId = (req.session as any).directusUserId;
@@ -3751,10 +3927,17 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const sessionDirectusUserId = (req.session as any).directusUserId;
       const sessionRole = (req.session as any).role || "user";
       if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
-      const { bia_id, membro_origem_id, membro_destino_id, valor_total, percentual_transferencia, observacoes } = req.body;
+      const { bia_id, membro_origem_id, membro_destino_id, valor_total, percentual_transferencia, observacoes, anexos } = req.body;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
       }
+      const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
+      if (!observacao) {
+        return res.status(400).json({ error: "Observação é obrigatória" });
+      }
+      const safeAnexos = Array.isArray(anexos)
+        ? anexos.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
+        : [];
       // Fetch the BIA to check roles
       const bia = await directusFetchOne("bias_projetos", bia_id, "fields=diretor_alianca,aliado_built");
       const biaDiretorAlianca = bia?.diretor_alianca as string | null | undefined;
@@ -3777,7 +3960,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         percentual_transferencia: percentual_transferencia != null ? String(percentual_transferencia) : null,
         status: "pendente",
         solicitado_por: sessionDirectusUserId,
-        observacoes: observacoes || null,
+        observacoes: observacao,
+        anexos: safeAnexos,
         motivo_rejeicao: null,
       });
       res.json(item);
@@ -3793,9 +3977,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const sessionRole = (req.session as any).role || "user";
       if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
 
-      const { action, motivo_rejeicao } = req.body;
-      if (!action || !["aceitar", "rejeitar"].includes(action)) {
-        return res.status(400).json({ error: "action deve ser 'aceitar' ou 'rejeitar'" });
+      const { action, motivo_rejeicao, membro_destino_id, valor_total, percentual_transferencia, observacoes, anexos } = req.body;
+      if (!action || !["aceitar", "rejeitar", "editar"].includes(action)) {
+        return res.status(400).json({ error: "action deve ser 'aceitar', 'rejeitar' ou 'editar'" });
       }
 
       const transfer = await storage.getTransferenciaCotas(req.params.id);
@@ -3808,6 +3992,38 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const bia = await directusFetchOne("bias_projetos", transfer.bia_id!, "fields=diretor_alianca,aliado_built");
       const biaDiretorAlianca = bia?.diretor_alianca as string | null | undefined;
       const biaAliadoBuilt = bia?.aliado_built as string | null | undefined;
+
+      if (action === "editar") {
+        const canEdit =
+          sessionRole === "admin" ||
+          (sessionMembroId && sessionMembroId === transfer.membro_origem_id) ||
+          sessionDirectusUserId === transfer.solicitado_por;
+        if (!canEdit) {
+          return res.status(403).json({ error: "Sem permissão para editar esta solicitação" });
+        }
+        const destino = membro_destino_id || transfer.membro_destino_id;
+        if (!destino) {
+          return res.status(400).json({ error: "Membro destinatário é obrigatório" });
+        }
+        if (transfer.membro_origem_id === destino) {
+          return res.status(400).json({ error: "Origem e destino não podem ser o mesmo membro" });
+        }
+        const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
+        if (!observacao) {
+          return res.status(400).json({ error: "Observação é obrigatória" });
+        }
+        const safeAnexos = Array.isArray(anexos)
+          ? anexos.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
+          : [];
+        const updated = await storage.updateTransferenciaCotas(req.params.id, {
+          membro_destino_id: destino,
+          valor_total: valor_total != null ? String(valor_total) : transfer.valor_total,
+          percentual_transferencia: percentual_transferencia != null ? String(percentual_transferencia) : transfer.percentual_transferencia,
+          observacoes: observacao,
+          anexos: safeAnexos,
+        });
+        return res.json(updated);
+      }
 
       // Membro de origem cannot accept/reject their own transfer request
       if (sessionMembroId && sessionMembroId === transfer.membro_origem_id) {

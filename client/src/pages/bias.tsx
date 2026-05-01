@@ -84,6 +84,9 @@ interface BiasProjeto {
   diretor_execucao?: string | null;
   diretor_comercial?: string | null;
   diretor_capital?: string | null;
+  socios_multiplicadores?: string[] | string | null;
+  socios_guardioes?: string[] | string | null;
+  terceiros?: string[] | string | null;
   // CPP
   valor_origem?: string | number;
   divisor_multiplicador?: string | number;
@@ -155,6 +158,16 @@ function getMembroNome(m: Membro): string {
 function n(v?: string | number | null): number {
   if (v === null || v === undefined || v === "") return 0;
   return parseFloat(String(v)) || 0;
+}
+
+function parseMemberList(value?: string[] | string | null): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === "string" && id.length > 0);
+  } catch {}
+  return String(value).split(",").map((id) => id.trim()).filter(Boolean);
 }
 
 function brl(value: number): string {
@@ -320,6 +333,9 @@ const EMPTY_FORM = {
   diretor_execucao: "",
   diretor_comercial: "",
   diretor_capital: "",
+  socios_multiplicadores: [] as string[],
+  socios_guardioes: [] as string[],
+  terceiros: [] as string[],
   valor_origem: "",
   perc_autor_opa: "",
   perc_aliado_built: "",
@@ -359,6 +375,9 @@ function biaToForm(b: BiasProjeto): FormState {
     diretor_execucao: b.diretor_execucao || "",
     diretor_comercial: b.diretor_comercial || "",
     diretor_capital: b.diretor_capital || "",
+    socios_multiplicadores: parseMemberList(b.socios_multiplicadores),
+    socios_guardioes: parseMemberList(b.socios_guardioes),
+    terceiros: parseMemberList(b.terceiros),
     valor_origem: numToBRLStr(b.valor_origem),
     perc_autor_opa: b.perc_autor_opa != null ? String(b.perc_autor_opa) : "",
     perc_aliado_built: b.perc_aliado_built != null ? String(b.perc_aliado_built) : "",
@@ -441,7 +460,7 @@ function FieldInput({ label, field, form, setForm, placeholder, type = "text" }:
         step={type === "number" ? "0.01" : undefined}
         min={type === "number" ? "0" : undefined}
         placeholder={placeholder}
-        value={form[field]}
+        value={String(form[field] ?? "")}
         onChange={(e) => setForm({ ...form, [field]: e.target.value })}
         className="h-8 text-sm"
         data-testid={`input-${field}`}
@@ -467,7 +486,7 @@ function PercField({ label, field, form, setForm, baseValue }: {
             min="0"
             max="100"
             placeholder="0,00"
-            value={form[field]}
+            value={String(form[field] ?? "")}
             onChange={(e) => setForm({ ...form, [field]: e.target.value })}
             className="pr-8 h-8 text-sm"
             data-testid={`input-${field}`}
@@ -517,6 +536,104 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
       {isEmpty && (
         <p className="text-[10px] text-red-400/70 font-mono">Campo obrigatório</p>
       )}
+    </div>
+  );
+}
+
+function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, note }: {
+  label: string;
+  field: "socios_multiplicadores" | "socios_guardioes" | "terceiros";
+  form: FormState;
+  setForm: (f: FormState) => void;
+  membros: Membro[];
+  icon?: any;
+  note?: string;
+}) {
+  const selectedIds = parseMemberList(form[field] as string[] | string);
+  const selectedSet = new Set(selectedIds);
+  const oppositeField = field === "socios_multiplicadores"
+    ? "socios_guardioes"
+    : field === "socios_guardioes"
+      ? "socios_multiplicadores"
+      : null;
+  const blockedIds = oppositeField ? new Set(parseMemberList(form[oppositeField] as string[] | string)) : new Set<string>();
+  const blockedLabel = field === "socios_multiplicadores" ? "guardião" : "multiplicador";
+  const selectedMembros = selectedIds
+    .map((id) => membros.find((m) => m.id === id))
+    .filter(Boolean) as Membro[];
+
+  function toggleMembro(id: string) {
+    if (!selectedSet.has(id) && blockedIds.has(id)) return;
+    const next = selectedSet.has(id)
+      ? selectedIds.filter((current) => current !== id)
+      : [...selectedIds, id];
+    const nextForm = { ...form, [field]: next };
+    if (oppositeField) {
+      nextForm[oppositeField] = parseMemberList(nextForm[oppositeField] as string[] | string).filter((current) => current !== id);
+    }
+    setForm(nextForm);
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs text-muted-foreground flex items-center gap-1">
+        {Icon && <Icon className="w-3 h-3" />} {label}
+      </Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-left"
+            data-testid={`select-${field}`}
+          >
+            <span className={selectedMembros.length ? "line-clamp-2" : "text-muted-foreground"}>
+              {selectedMembros.length
+                ? selectedMembros.map((m) => getMembroNome(m)).join(", ")
+                : "Selecionar membros..."}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 w-[360px]" align="start">
+          <Command>
+            <CommandInput placeholder="Buscar membro..." />
+            <CommandList>
+              <CommandEmpty>Nenhum membro encontrado.</CommandEmpty>
+              <CommandGroup>
+                {membros.map((m) => {
+                  const checked = selectedSet.has(m.id);
+                  const blocked = !checked && blockedIds.has(m.id);
+                  return (
+                    <CommandItem
+                      key={m.id}
+                      value={`${getMembroNome(m)} ${m.empresa || ""}`}
+                      disabled={blocked}
+                      onSelect={() => toggleMembro(m.id)}
+                    >
+                      <Check className={`mr-2 h-4 w-4 ${checked ? "opacity-100" : "opacity-0"}`} />
+                      <span className="truncate">{getMembroNome(m)}{m.empresa ? ` · ${m.empresa}` : ""}</span>
+                      {blocked && <span className="text-[10px] text-muted-foreground">já é {blockedLabel}</span>}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedMembros.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedMembros.map((m) => (
+            <Badge key={m.id} variant="secondary" className="gap-1 pr-1">
+              {getMembroNome(m)}
+              <button type="button" onClick={() => toggleMembro(m.id)} className="rounded-full hover:bg-background/80">
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      {note && <p className="text-[11px] text-muted-foreground leading-relaxed">{note}</p>}
     </div>
   );
 }
@@ -1239,7 +1356,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
                 <MapPin className="w-3 h-3 shrink-0" />
                 <span className="truncate">{bia.localizacao}</span>
                 {bia.latitude && bia.longitude && (
-                  <Crosshair className="w-2.5 h-2.5 shrink-0 text-brand-gold/50" title="Geolocalizado" />
+                  <Crosshair className="w-2.5 h-2.5 shrink-0 text-brand-gold/50" aria-label="Geolocalizado" />
                 )}
               </p>
             )}
@@ -1364,6 +1481,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [infoForm, setInfoForm] = useState<InfoComercialForm>(EMPTY_INFO);
   const [activeTab, setActiveTab] = useState("geral");
+  const [quickMemberOpen, setQuickMemberOpen] = useState(false);
+  const [quickMemberName, setQuickMemberName] = useState("");
+  const [quickMemberCompany, setQuickMemberCompany] = useState("");
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -1453,6 +1573,10 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       }
       const existingIds = existingAnexos.map(a => a.id);
       const allAnexoIds = [...existingIds, ...newFileIds];
+      const sociosMultiplicadores = parseMemberList(form.socios_multiplicadores);
+      const multiplicadoresSet = new Set(sociosMultiplicadores);
+      const sociosGuardioes = parseMemberList(form.socios_guardioes).filter((id) => !multiplicadoresSet.has(id));
+      const terceiros = parseMemberList(form.terceiros);
 
       const payload: Record<string, any> = {
         nome_bia: form.nome_bia.trim(),
@@ -1471,6 +1595,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         diretor_execucao: form.diretor_execucao || null,
         diretor_comercial: form.diretor_comercial || null,
         diretor_capital: form.diretor_capital || null,
+        socios_multiplicadores: sociosMultiplicadores,
+        socios_guardioes: sociosGuardioes,
+        terceiros,
         valor_origem: valorOrigem || null,
         _forma_pagamento: formaPagamento || null,
         _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
@@ -1519,6 +1646,32 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       setUploading(false);
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     }
+  });
+
+  const createQuickMemberMutation = useMutation({
+    mutationFn: async () => {
+      const nome = quickMemberName.trim();
+      if (!nome) throw new Error("Nome é obrigatório");
+      const response = await apiRequest("POST", "/api/membros/criar-favorecido", {
+        nome,
+        empresa: quickMemberCompany.trim() || undefined,
+      });
+      return response.json() as Promise<Membro>;
+    },
+    onSuccess: (novo) => {
+      queryClient.setQueryData<Membro[]>(["/api/membros"], (prev = []) => {
+        if (prev.some((m) => m.id === novo.id)) return prev;
+        return [...prev, novo];
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      setQuickMemberName("");
+      setQuickMemberCompany("");
+      setQuickMemberOpen(false);
+      toast({ title: "Membro criado", description: getMembroNome(novo) });
+    },
+    onError: (e: any) => {
+      toast({ title: "Erro ao criar membro", description: e.message, variant: "destructive" });
+    },
   });
 
   const infoComercialOk = form.situacao !== "ativa" || (
@@ -1773,6 +1926,54 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <MembroSelect label="Diretor de Núcleo de Obra" field="diretor_execucao" form={form} setForm={setForm} membros={membros} icon={Hammer} />
               <MembroSelect label="Diretor Comercial" field="diretor_comercial" form={form} setForm={setForm} membros={membros} icon={Building2} />
               <MembroSelect label="Diretor de Capital" field="diretor_capital" form={form} setForm={setForm} membros={membros} icon={Wallet} />
+              <Separator />
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Papéis Patrimoniais</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    Multiplicadores convertem entrega em CPP; Guardiões sustentam a BIA, caixa e chamadas futuras.
+                  </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0"
+                    onClick={() => setQuickMemberOpen(true)}
+                    data-testid="btn-criar-membro-patrimonial"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Criar novo membro
+                  </Button>
+                </div>
+                <MultiMembroSelect
+                  label="Sócios Multiplicadores"
+                  field="socios_multiplicadores"
+                  form={form}
+                  setForm={setForm}
+                  membros={membros}
+                  icon={TrendingUp}
+                  note="Participam entregando trabalho, técnica, execução, fornecimento, venda ou relacionamento convertido em CPP."
+                />
+                <MultiMembroSelect
+                  label="Sócios Guardiões"
+                  field="socios_guardioes"
+                  form={form}
+                  setForm={setForm}
+                  membros={membros}
+                  icon={Shield}
+                  note="Responsáveis por manter a BIA, organizar o caixa e sustentar o projeto."
+                />
+                <MultiMembroSelect
+                  label="Terceiros"
+                  field="terceiros"
+                  form={form}
+                  setForm={setForm}
+                  membros={membros}
+                  icon={Briefcase}
+                />
+              </div>
             </TabsContent>
 
             {/* Tab CPP */}
@@ -2011,6 +2212,59 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         onClose={() => setLocationPickerOpen(false)}
         onSelect={handleLocationSelect}
       />
+
+      <Dialog open={quickMemberOpen} onOpenChange={setQuickMemberOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-4 h-4 text-brand-gold" />
+              Criar novo membro
+            </DialogTitle>
+            <DialogDescription>
+              Cadastre um membro simples para selecionar nos papéis patrimoniais da BIA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Nome *</Label>
+              <Input
+                value={quickMemberName}
+                onChange={(e) => setQuickMemberName(e.target.value)}
+                placeholder="Nome do membro"
+                data-testid="input-quick-member-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Empresa</Label>
+              <Input
+                value={quickMemberCompany}
+                onChange={(e) => setQuickMemberCompany(e.target.value)}
+                placeholder="Empresa ou organização"
+                data-testid="input-quick-member-company"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setQuickMemberOpen(false)}
+              disabled={createQuickMemberMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => createQuickMemberMutation.mutate()}
+              disabled={!quickMemberName.trim() || createQuickMemberMutation.isPending}
+              className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+              data-testid="btn-save-quick-member"
+            >
+              {createQuickMemberMutation.isPending ? "Criando..." : "Criar membro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PagamentoModal
         open={pagamentoModalOpen}

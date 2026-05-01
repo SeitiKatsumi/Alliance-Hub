@@ -296,6 +296,7 @@ export const transferenciasCotas = pgTable("transferencias_cotas", {
   status: text("status").notNull().default("pendente"),
   solicitado_por: varchar("solicitado_por"),
   observacoes: text("observacoes"),
+  anexos: text("anexos").array().default([]),
   motivo_rejeicao: text("motivo_rejeicao"),
   criado_em: timestamp("criado_em").defaultNow(),
   atualizado_em: timestamp("atualizado_em").defaultNow(),
@@ -484,4 +485,3 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 });
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
-

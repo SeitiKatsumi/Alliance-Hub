@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
@@ -69,7 +70,14 @@ interface BiasProjeto {
   objetivo_alianca?: string;
   valor_origem?: string | number | null;
   diretor_alianca?: string | null;
+  diretor_nucleo_tecnico?: string | null;
+  diretor_execucao?: string | null;
+  diretor_comercial?: string | null;
+  diretor_capital?: string | null;
   aliado_built?: string | null;
+  socios_multiplicadores?: string[] | string | null;
+  socios_guardioes?: string[] | string | null;
+  terceiros?: string[] | string | null;
 }
 
 interface TransferenciaCotas {
@@ -82,6 +90,7 @@ interface TransferenciaCotas {
   status: "pendente" | "aceita" | "rejeitada";
   solicitado_por: string | null;
   observacoes: string | null;
+  anexos?: (AnexoFile | string)[] | null;
   motivo_rejeicao: string | null;
   criado_em: string;
 }
@@ -105,6 +114,8 @@ interface Membro {
   perfil_aliado?: string;
   nucleo_alianca?: string;
 }
+
+type PapelFavorecidoBia = "socios_multiplicadores" | "socios_guardioes" | "terceiros";
 
 interface TipoCPP {
   id: number;
@@ -205,6 +216,16 @@ function getRelId(val: string | { id: string | number } | number | null): string
   return String(val);
 }
 
+function parseMemberList(value?: string[] | string | null): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === "string" && id.length > 0);
+  } catch {}
+  return String(value).split(",").map((id) => id.trim()).filter(Boolean);
+}
+
 function getCppName(cpp: TipoCPP | number, cppMap: Record<number, string>): string {
   if (typeof cpp === "object" && cpp !== null) return cpp.Nome || "CPP";
   return cppMap[cpp] || "CPP";
@@ -220,8 +241,21 @@ function getFavName(fav: Membro | string, membroMap: Record<string, string>): st
 }
 
 function getCatName(cat: CategoriaItem | number, catMap: Record<number, string>): string {
-  if (typeof cat === "object" && cat !== null) return cat.Nome_da_categoria || "Categoria";
-  return catMap[cat] || "Categoria";
+  if (typeof cat === "object" && cat !== null) return stripPlanoContaCode(cat.Nome_da_categoria || "Categoria");
+  return stripPlanoContaCode(catMap[cat] || "Categoria");
+}
+
+function stripPlanoContaCode(name?: string | null): string {
+  return (name || "").replace(/^\d+(?:\.\d+)*\s+/, "").trim();
+}
+
+function getPlanoContaGroup(cat?: CategoriaItem | null): string {
+  return (cat?.Descricao_das_categorias || "Outras categorias").trim();
+}
+
+function isValorOrigemCategoriaName(name?: string | null): boolean {
+  const normalized = (name || "").trim().toLowerCase();
+  return normalized === "valor de origem" || normalized.endsWith(" valor de origem");
 }
 
 function parseBRLToNumber(formatted: string): number {
@@ -268,12 +302,13 @@ function SearchableMembroSelect({
   testId: string;
   allowNone?: boolean;
   allowCreate?: boolean;
-  onCreateNew?: (nome: string) => Promise<Membro | null>;
+  onCreateNew?: (nome: string, papel: PapelFavorecidoBia) => Promise<Membro | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [createMode, setCreateMode] = useState(false);
   const [createName, setCreateName] = useState("");
+  const [createRole, setCreateRole] = useState<PapelFavorecidoBia>("terceiros");
   const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const createInputRef = useRef<HTMLInputElement>(null);
@@ -304,6 +339,7 @@ function SearchableMembroSelect({
     setSearch("");
     setCreateMode(false);
     setCreateName("");
+    setCreateRole("terceiros");
   }
 
   async function handleCreate() {
@@ -311,13 +347,14 @@ function SearchableMembroSelect({
     if (!nome || !onCreateNew) return;
     setCreating(true);
     try {
-      const newMembro = await onCreateNew(nome);
+      const newMembro = await onCreateNew(nome, createRole);
       if (newMembro) {
         onValueChange(newMembro.id);
         setOpen(false);
         setSearch("");
         setCreateMode(false);
         setCreateName("");
+        setCreateRole("terceiros");
       }
     } finally {
       setCreating(false);
@@ -327,11 +364,12 @@ function SearchableMembroSelect({
   function handleOpenCreate() {
     setCreateMode(true);
     setCreateName(search);
+    setCreateRole("terceiros");
     setTimeout(() => createInputRef.current?.focus(), 50);
   }
 
   return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setSearch(""); setCreateMode(false); setCreateName(""); } }}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setSearch(""); setCreateMode(false); setCreateName(""); setCreateRole("terceiros"); } }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -424,10 +462,34 @@ function SearchableMembroSelect({
                   if (e.key === "Escape") { setCreateMode(false); setCreateName(""); }
                 }}
               />
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">Tipo na equipe da BIA</p>
+                <div className="grid grid-cols-1 gap-1">
+                  {[
+                    { value: "socios_multiplicadores" as PapelFavorecidoBia, label: "Sócio Multiplicador" },
+                    { value: "socios_guardioes" as PapelFavorecidoBia, label: "Sócio Guardião" },
+                    { value: "terceiros" as PapelFavorecidoBia, label: "Terceiro" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setCreateRole(option.value)}
+                      className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs text-left transition-colors ${
+                        createRole === option.value
+                          ? "border-brand-gold bg-brand-gold/10 text-brand-navy font-medium"
+                          : "border-border hover:bg-muted"
+                      }`}
+                    >
+                      <Check className={`h-3.5 w-3.5 ${createRole === option.value ? "opacity-100" : "opacity-0"}`} />
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { setCreateMode(false); setCreateName(""); }}
+                  onClick={() => { setCreateMode(false); setCreateName(""); setCreateRole("terceiros"); }}
                   className="flex-1 px-3 py-1.5 text-xs rounded-md border hover:bg-muted transition-colors"
                 >
                   Cancelar
@@ -474,14 +536,26 @@ function CategoriaCombobox({
       const norm = cat.Tipo_de_categoria.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return norm === formTipo;
     });
-    const sorted = [...base].sort((a, b) => a.Nome_da_categoria.localeCompare(b.Nome_da_categoria, "pt-BR"));
+    const sorted = [...base].sort((a, b) => a.Nome_da_categoria.localeCompare(b.Nome_da_categoria, "pt-BR", { numeric: true }));
     if (!search.trim()) return sorted;
     const s = search.toLowerCase();
-    return sorted.filter((c) => c.Nome_da_categoria.toLowerCase().includes(s));
+    return sorted.filter((c) =>
+      stripPlanoContaCode(c.Nome_da_categoria).toLowerCase().includes(s) ||
+      getPlanoContaGroup(c).toLowerCase().includes(s)
+    );
   }, [categorias, formTipo, search]);
 
   const selected = categorias.find((c) => c.id === value);
-  const exactMatch = filtered.some((c) => c.Nome_da_categoria.toLowerCase() === search.toLowerCase());
+  const exactMatch = filtered.some((c) => stripPlanoContaCode(c.Nome_da_categoria).toLowerCase() === search.toLowerCase());
+  const grouped = useMemo(() => {
+    const groups: Record<string, CategoriaItem[]> = {};
+    for (const cat of filtered) {
+      const group = getPlanoContaGroup(cat);
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(cat);
+    }
+    return Object.entries(groups);
+  }, [filtered]);
 
   async function handleCreate() {
     if (!search.trim()) return;
@@ -507,11 +581,18 @@ function CategoriaCombobox({
         <button
           type="button"
           data-testid={`${prefix}-select-categoria`}
-          className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span className={selected ? "" : "text-muted-foreground"}>
-            {selected ? selected.Nome_da_categoria : "Nenhuma"}
-          </span>
+          {selected ? (
+            <span className="min-w-0 text-left leading-tight">
+              <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {getPlanoContaGroup(selected)}
+              </span>
+              <span className="block truncate">{stripPlanoContaCode(selected.Nome_da_categoria)}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Nenhuma</span>
+          )}
           <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
         </button>
       </PopoverTrigger>
@@ -533,21 +614,28 @@ function CategoriaCombobox({
               </CommandItem>
             </CommandGroup>
             <CommandSeparator />
-            <CommandGroup heading="Categorias">
+            {filtered.length === 0 && (
+              <CommandGroup heading="Categorias">
+                <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+              </CommandGroup>
+            )}
+            {grouped.map(([group, items]) => (
+            <CommandGroup key={group} heading={group}>
               {filtered.length === 0 && !search && (
                 <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
               )}
-              {filtered.map((cat) => (
+              {items.map((cat) => (
                 <CommandItem
                   key={cat.id}
                   value={String(cat.id)}
                   onSelect={() => { onValueChange(cat.id); setSearch(""); setOpen(false); }}
                 >
                   <Check className={`mr-2 h-4 w-4 ${value === cat.id ? "opacity-100" : "opacity-0"}`} />
-                  {cat.Nome_da_categoria}
+                  {stripPlanoContaCode(cat.Nome_da_categoria)}
                 </CommandItem>
               ))}
             </CommandGroup>
+            ))}
             {search.trim() && !exactMatch && (
               <>
                 <CommandSeparator />
@@ -631,6 +719,7 @@ function LancamentoFormFields({
   formDataVencimento, setFormDataVencimento,
   formDataPagamento, setFormDataPagamento,
   membros, tiposCpp, categorias,
+  favorecidos,
   prefix,
   pendingFiles, setPendingFiles,
   existingAnexos, setExistingAnexos,
@@ -665,6 +754,7 @@ function LancamentoFormFields({
   formDataPagamento: string;
   setFormDataPagamento: (v: string) => void;
   membros: Membro[];
+  favorecidos?: Membro[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
   prefix: string;
@@ -674,8 +764,9 @@ function LancamentoFormFields({
   setExistingAnexos: (files: AnexoFile[]) => void;
   uploading: boolean;
   isCreate?: boolean;
-  onCreateFavorecido?: (nome: string) => Promise<Membro | null>;
+  onCreateFavorecido?: (nome: string, papel: PapelFavorecidoBia) => Promise<Membro | null>;
 }) {
+  const favorecidosOptions = favorecidos ?? membros;
   function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
     const formatted = formatInputBRL(raw);
@@ -814,7 +905,7 @@ function LancamentoFormFields({
 
         {(!isCreate || rateioTipo === "individual") ? (
           <SearchableMembroSelect
-            membros={membros}
+            membros={favorecidosOptions}
             value={formFavorecido}
             onValueChange={setFormFavorecido}
             placeholder="Selecione o favorecido..."
@@ -840,7 +931,7 @@ function LancamentoFormFields({
                 <div key={item.id} className="flex gap-2 items-center">
                   <div className="flex-1 min-w-0">
                     <SearchableMembroSelect
-                      membros={membros}
+                      membros={favorecidosOptions}
                       value={item.membroId}
                       onValueChange={(v) => updateRateioItem(item.id, "membroId", v)}
                       placeholder={`Favorecido ${idx + 1}...`}
@@ -1042,6 +1133,10 @@ export default function FluxoCaixaPage() {
   const [transferObservacoes, setTransferObservacoes] = useState<string>("");
   const [transferValorRef, setTransferValorRef] = useState<number>(0);
   const [destinatarios, setDestinatarios] = useState<Destinatario[]>([{ membroId: "", percentual: 100 }]);
+  const [editingTransferId, setEditingTransferId] = useState<string | null>(null);
+  const [transferPendingFiles, setTransferPendingFiles] = useState<globalThis.File[]>([]);
+  const [transferExistingAnexos, setTransferExistingAnexos] = useState<AnexoFile[]>([]);
+  const [transferUploading, setTransferUploading] = useState(false);
   const [rejeicaoDialogId, setRejeicaoDialogId] = useState<string | null>(null);
   const [rejeicaoMotivo, setRejeicaoMotivo] = useState<string>("");
 
@@ -1129,25 +1224,53 @@ export default function FluxoCaixaPage() {
       if (hasDuplicateDest) throw new Error("Destinatários duplicados");
       if (totalPercentual > 100) throw new Error("A soma dos percentuais não pode exceder 100%");
       if (totalPercentual <= 0) throw new Error("A soma dos percentuais deve ser maior que 0%");
-      for (const dest of destinatarios) {
-        const valor = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
-        await apiRequest("POST", "/api/transferencia-cotas", {
-          bia_id: selectedBiaId,
-          membro_origem_id: transferOrigemId,
-          membro_destino_id: dest.membroId,
-          valor_total: valor,
-          percentual_transferencia: dest.percentual,
-          observacoes: transferObservacoes || null,
-        });
+      const observacoes = transferObservacoes.trim();
+      if (!observacoes) throw new Error("Informe o motivo da transferência");
+      setTransferUploading(true);
+      try {
+        const newFileIds = await uploadFiles(transferPendingFiles);
+        const anexos = [...transferExistingAnexos.map((a) => a.id), ...newFileIds];
+        if (editingTransferId) {
+          const dest = destinatarios[0];
+          const valor = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+          await apiRequest("PATCH", `/api/transferencia-cotas/${editingTransferId}`, {
+            action: "editar",
+            membro_destino_id: dest.membroId,
+            valor_total: valor,
+            percentual_transferencia: dest.percentual,
+            observacoes,
+            anexos,
+          });
+          return;
+        }
+        for (const dest of destinatarios) {
+          const valor = parseFloat(((dest.percentual / 100) * transferValorRef).toFixed(2));
+          await apiRequest("POST", "/api/transferencia-cotas", {
+            bia_id: selectedBiaId,
+            membro_origem_id: transferOrigemId,
+            membro_destino_id: dest.membroId,
+            valor_total: valor,
+            percentual_transferencia: dest.percentual,
+            observacoes,
+            anexos,
+          });
+        }
+      } finally {
+        setTransferUploading(false);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
       setTransferDialogOpen(false);
-      setTransferObservacoes("");
-      setDestinatarios([{ membroId: "", percentual: 100 }]);
+      const wasEditing = !!editingTransferId;
       const n = destinatarios.length;
-      toast({ title: "Solicitação enviada", description: `${n} solicitaç${n === 1 ? "ão criada" : "ões criadas"}. Aguardando aprovação do Diretor de Aliança ou Aliado BUILT.` });
+      resetTransferForm();
+      toast({
+        title: wasEditing ? "Solicitação atualizada" : "Solicitação enviada",
+        description: wasEditing
+          ? "A solicitação de transferência foi atualizada."
+          : `${n} solicitaç${n === 1 ? "ão criada" : "ões criadas"}. Aguardando aprovação do Diretor de Aliança ou Aliado BUILT.`,
+      });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -1309,6 +1432,24 @@ export default function FluxoCaixaPage() {
     };
   }, [fluxoItemsAll, today, in7days]);
 
+  const selectedBia = bias.find((b) => b.id === selectedBiaId);
+  const favorecidosDaBia = useMemo(() => {
+    if (!selectedBia) return [];
+    const ids = new Set<string>();
+    [
+      selectedBia.aliado_built,
+      selectedBia.diretor_alianca,
+      selectedBia.diretor_nucleo_tecnico,
+      selectedBia.diretor_execucao,
+      selectedBia.diretor_comercial,
+      selectedBia.diretor_capital,
+      ...parseMemberList(selectedBia.socios_multiplicadores),
+      ...parseMemberList(selectedBia.socios_guardioes),
+      ...parseMemberList(selectedBia.terceiros),
+    ].filter(Boolean).forEach((id) => ids.add(String(id)));
+    return membros.filter((m) => ids.has(m.id));
+  }, [membros, selectedBia]);
+
   const aportesPorMembro = useMemo(() => {
     const entradas = fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
     const map: Record<string, number> = {};
@@ -1335,6 +1476,16 @@ export default function FluxoCaixaPage() {
       .sort((a, b) => b.valor - a.valor);
   }, [fluxoItemsContabeis]);
 
+  const alocacaoPorPapel = useMemo(() => {
+    const multiplicadores = new Set(parseMemberList(selectedBia?.socios_multiplicadores));
+    const guardioes = new Set(parseMemberList(selectedBia?.socios_guardioes));
+    return {
+      guardioes: aportesPorMembro.filter((item) => guardioes.has(item.membroId)),
+      multiplicadores: aportesPorMembro.filter((item) => multiplicadores.has(item.membroId)),
+      naoClassificados: aportesPorMembro.filter((item) => !guardioes.has(item.membroId) && !multiplicadores.has(item.membroId)),
+    };
+  }, [aportesPorMembro, selectedBia]);
+
   async function uploadFiles(files: globalThis.File[]): Promise<string[]> {
     if (files.length === 0) return [];
     const formDataObj = new FormData();
@@ -1346,6 +1497,65 @@ export default function FluxoCaixaPage() {
     }
     const result = await response.json();
     return result.fileIds;
+  }
+
+  function normalizeTransferAnexos(anexos?: (AnexoFile | string)[] | null): AnexoFile[] {
+    if (!Array.isArray(anexos)) return [];
+    return anexos
+      .filter(Boolean)
+      .map((anexo) => {
+        if (typeof anexo === "string") {
+          return { id: anexo, filename: "Anexo", url: `/api/assets/${anexo}` };
+        }
+        return {
+          id: anexo.id,
+          title: anexo.title,
+          filename: anexo.filename || anexo.title || "Anexo",
+          url: anexo.url || `/api/assets/${anexo.id}`,
+          size: anexo.size,
+        };
+      })
+      .filter((anexo) => !!anexo.id);
+  }
+
+  function resetTransferForm() {
+    setEditingTransferId(null);
+    setTransferOrigemId("");
+    setTransferValorRef(0);
+    setTransferObservacoes("");
+    setDestinatarios([{ membroId: "", percentual: 100 }]);
+    setTransferPendingFiles([]);
+    setTransferExistingAnexos([]);
+  }
+
+  function openTransferDialog(membroId: string, valor: number) {
+    resetTransferForm();
+    setTransferOrigemId(membroId);
+    setTransferValorRef(valor);
+    setTransferDialogOpen(true);
+  }
+
+  function openEditTransferDialog(transfer: TransferenciaCotas) {
+    const percentual = parseFloat(transfer.percentual_transferencia || "0") || 0;
+    const valor = parseFloat(transfer.valor_total || "0") || 0;
+    const aporteOrigem = aportesPorMembro.find((a) => a.membroId === transfer.membro_origem_id)?.valor;
+    const valorRef = percentual > 0 ? valor / (percentual / 100) : (aporteOrigem || valor);
+    setEditingTransferId(transfer.id);
+    setTransferOrigemId(transfer.membro_origem_id);
+    setTransferValorRef(Number.isFinite(valorRef) ? valorRef : 0);
+    setDestinatarios([{ membroId: transfer.membro_destino_id, percentual }]);
+    setTransferObservacoes(transfer.observacoes || "");
+    setTransferPendingFiles([]);
+    setTransferExistingAnexos(normalizeTransferAnexos(transfer.anexos));
+    setTransferDialogOpen(true);
+  }
+
+  function removeTransferPendingFile(index: number) {
+    setTransferPendingFiles((files) => files.filter((_, i) => i !== index));
+  }
+
+  function removeTransferExistingAnexo(index: number) {
+    setTransferExistingAnexos((files) => files.filter((_, i) => i !== index));
   }
 
   function buildPayload(newFileIds: string[]) {
@@ -1458,15 +1668,39 @@ export default function FluxoCaixaPage() {
     setExistingAnexos([]);
   }
 
-  async function handleCreateFavorecido(nome: string): Promise<Membro | null> {
+  async function handleCreateFavorecido(nome: string, papel: PapelFavorecidoBia): Promise<Membro | null> {
+    if (!selectedBia) {
+      toast({ title: "Selecione uma BIA antes de criar o favorecido", variant: "destructive" });
+      return null;
+    }
     try {
       const res = await apiRequest("POST", "/api/membros/criar-favorecido", { nome });
       const newMembro: Membro = await res.json();
       queryClient.setQueryData<Membro[]>(["/api/membros"], (prev) =>
         prev ? [...prev, newMembro] : [newMembro]
       );
+      const multiplicadores = parseMemberList(selectedBia.socios_multiplicadores).filter((id) => id !== newMembro.id);
+      const guardioes = parseMemberList(selectedBia.socios_guardioes).filter((id) => id !== newMembro.id);
+      const terceiros = parseMemberList(selectedBia.terceiros).filter((id) => id !== newMembro.id);
+      if (papel === "socios_multiplicadores") multiplicadores.push(newMembro.id);
+      if (papel === "socios_guardioes") guardioes.push(newMembro.id);
+      if (papel === "terceiros") terceiros.push(newMembro.id);
+      await apiRequest("PATCH", `/api/bias/${selectedBia.id}`, {
+        socios_multiplicadores: multiplicadores,
+        socios_guardioes: guardioes,
+        terceiros,
+      });
+      queryClient.setQueryData<BiasProjeto[]>(["/api/bias"], (prev = []) =>
+        prev.map((b) => b.id === selectedBia.id
+          ? { ...b, socios_multiplicadores: multiplicadores, socios_guardioes: guardioes, terceiros }
+          : b
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       return newMembro;
-    } catch {
+    } catch (error: any) {
+      toast({ title: "Erro ao criar favorecido", description: error.message, variant: "destructive" });
       return null;
     }
   }
@@ -1592,8 +1826,6 @@ export default function FluxoCaixaPage() {
     return map;
   }, [categorias]);
 
-  const selectedBia = bias.find((b) => b.id === selectedBiaId);
-
   if (loadingBias) {
     return (
       <div className="p-4 space-y-6">
@@ -1662,7 +1894,7 @@ export default function FluxoCaixaPage() {
                   formStatus={formStatus} setFormStatus={setFormStatus}
                   formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                   formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                  membros={membros} tiposCpp={tiposCpp}
+                  membros={membros} favorecidos={favorecidosDaBia} tiposCpp={tiposCpp}
                   categorias={categorias}
                   prefix="create"
                   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
@@ -1707,11 +1939,15 @@ export default function FluxoCaixaPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {(() => {
               const valorOrigemTotal = parseFloat(String(selectedBia?.valor_origem || 0)) || 0;
-              const catValorOrigem = categorias.find((c) => c.Nome_da_categoria === "Valor de Origem");
+              const catValorOrigemIds = new Set(
+                categorias
+                  .filter((c) => isValorOrigemCategoriaName(c.Nome_da_categoria))
+                  .map((c) => c.id)
+              );
               const valorOrigemPago = fluxoItemsContabeis
                 .filter((i) => i.tipo === "saida" && i.status === "pago" && i.Categoria.some((c) => {
                   const id = typeof c === "object" && c !== null ? (c as CategoriaItem).id : c;
-                  return catValorOrigem && id === catValorOrigem.id;
+                  return catValorOrigemIds.has(Number(id));
                 }))
                 .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
               const percPago = valorOrigemTotal > 0 ? (valorOrigemPago / valorOrigemTotal) * 100 : 0;
@@ -1851,8 +2087,18 @@ export default function FluxoCaixaPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {aportesPorMembro.map((item) => (
+                <div className="space-y-5">
+                  {[
+                    { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes, cls: "border-brand-gold/50 text-brand-gold bg-brand-gold/10" },
+                    { title: "Sócios Multiplicadores", items: alocacaoPorPapel.multiplicadores, cls: "border-green-500/50 text-green-600 bg-green-500/10" },
+                    { title: "Não classificados", items: alocacaoPorPapel.naoClassificados, cls: "border-muted-foreground/40 text-muted-foreground bg-muted/40" },
+                  ].filter((group) => group.items.length > 0).map((group) => (
+                    <div key={group.title} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</p>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${group.cls}`}>{group.items.length}</Badge>
+                      </div>
+                      {group.items.map((item) => (
                     <div key={item.membroId} className="space-y-1" data-testid={`aporte-membro-${item.membroId}`}>
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 font-medium">
@@ -1871,11 +2117,7 @@ export default function FluxoCaixaPage() {
                             title="Solicitar transferência de cotas"
                             data-testid={`btn-transfer-membro-${item.membroId}`}
                             onClick={() => {
-                              setTransferOrigemId(item.membroId);
-                              setTransferValorRef(item.valor);
-                              setTransferObservacoes("");
-                              setDestinatarios([{ membroId: "", percentual: 100 }]);
-                              setTransferDialogOpen(true);
+                              openTransferDialog(item.membroId, item.valor);
                             }}
                           >
                             <ArrowLeftRight className="w-3.5 h-3.5 mr-1" />
@@ -1891,6 +2133,8 @@ export default function FluxoCaixaPage() {
                         />
                       </div>
                     </div>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </CardContent>
@@ -1898,12 +2142,12 @@ export default function FluxoCaixaPage() {
           )}
 
           {/* Dialog de solicitação de transferência */}
-          <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+          <Dialog open={transferDialogOpen} onOpenChange={(open) => { setTransferDialogOpen(open); if (!open) resetTransferForm(); }}>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
-                  Solicitar Transferência de Cotas
+                  {editingTransferId ? "Editar Transferência de Cotas" : "Solicitar Transferência de Cotas"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-5 py-2">
@@ -1922,6 +2166,7 @@ export default function FluxoCaixaPage() {
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold uppercase tracking-wide">Destinatários</Label>
+                    {!editingTransferId && (
                     <div className="flex gap-1.5">
                       {destinatarios.length > 1 && (
                         <Button
@@ -1948,6 +2193,7 @@ export default function FluxoCaixaPage() {
                         Adicionar
                       </Button>
                     </div>
+                    )}
                   </div>
 
                   {destinatarios.map((dest, idx) => {
@@ -2046,13 +2292,64 @@ export default function FluxoCaixaPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="transfer-obs" className="text-xs font-medium">Observações (opcional)</Label>
-                  <Input
+                  <Label htmlFor="transfer-obs" className="text-xs font-medium">
+                    Observação / motivo <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
                     id="transfer-obs"
                     value={transferObservacoes}
                     onChange={(e) => setTransferObservacoes(e.target.value)}
-                    placeholder="Motivo da transferência..."
+                    placeholder="Escreva o motivo da transferência..."
+                    className="min-h-[88px]"
                     data-testid="input-transfer-obs"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-xs font-medium">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    Anexo
+                  </Label>
+
+                  {transferExistingAnexos.length > 0 && (
+                    <div className="space-y-1">
+                      {transferExistingAnexos.map((anexo, i) => {
+                        const displayName = anexo.filename || anexo.title || anexo.id;
+                        const IconComp = getFileIcon(displayName);
+                        return (
+                          <div key={anexo.id || i} className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 text-sm">
+                            <IconComp className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <a href={anexo.url} target="_blank" rel="noopener noreferrer" className="truncate text-brand-gold hover:underline flex-1">
+                              {displayName}
+                            </a>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeTransferExistingAnexo(i)} data-testid={`button-remove-transfer-existing-anexo-${i}`}>
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {transferPendingFiles.length > 0 && (
+                    <div className="space-y-1">
+                      {transferPendingFiles.map((file, i) => (
+                        <div key={`${file.name}-${i}`} className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-sm">
+                          <Upload className="w-4 h-4 text-blue-500 shrink-0" />
+                          <span className="truncate flex-1">{file.name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeTransferPendingFile(i)} data-testid={`button-remove-transfer-pending-file-${i}`}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <FilePickerButton
+                    prefix="transfer-anexo"
+                    uploading={transferUploading || createTransferMutation.isPending}
+                    onFilesSelected={(files) => setTransferPendingFiles([...transferPendingFiles, ...files])}
                   />
                 </div>
 
@@ -2071,13 +2368,15 @@ export default function FluxoCaixaPage() {
                 <Button
                   size="sm"
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
-                  disabled={!destValidos || hasDuplicateDest || totalPercentual > 100 || totalPercentual <= 0 || createTransferMutation.isPending}
+                  disabled={!destValidos || hasDuplicateDest || totalPercentual > 100 || totalPercentual <= 0 || !transferObservacoes.trim() || createTransferMutation.isPending || transferUploading}
                   onClick={() => createTransferMutation.mutate()}
                   data-testid="btn-submit-transfer"
                 >
                   <SendHorizontal className="w-4 h-4 mr-1.5" />
-                  {createTransferMutation.isPending
-                    ? "Enviando..."
+                  {createTransferMutation.isPending || transferUploading
+                    ? "Salvando..."
+                    : editingTransferId
+                      ? "Salvar Alterações"
                     : destinatarios.length > 1
                       ? `Solicitar (${destinatarios.length} destinatários)`
                       : "Solicitar Transferência"}
@@ -2147,6 +2446,8 @@ export default function FluxoCaixaPage() {
                     const canApprove =
                       !isOrigem &&
                       (isDiretorAlianca || isAliadoBuilt || currentUser?.role === "admin");
+                    const canEdit = t.status === "pendente" && (isOrigem || currentUser?.role === "admin");
+                    const transferAnexos = normalizeTransferAnexos(t.anexos);
                     const statusConfig =
                       t.status === "aceita"
                         ? { label: "Aceita", cls: "text-green-600 bg-green-500/10 border-green-500/40" }
@@ -2181,9 +2482,41 @@ export default function FluxoCaixaPage() {
                           {t.status === "rejeitada" && t.motivo_rejeicao && (
                             <p className="text-xs text-red-500 mt-0.5">Motivo: {t.motivo_rejeicao}</p>
                           )}
+                          {transferAnexos.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {transferAnexos.map((anexo, ai) => {
+                                const name = anexo.filename || anexo.title || anexo.id;
+                                return (
+                                  <a
+                                    key={`${anexo.id}-${ai}`}
+                                    href={anexo.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-xs text-muted-foreground hover:text-brand-gold hover:border-brand-gold/40"
+                                    data-testid={`link-transfer-anexo-${t.id}-${ai}`}
+                                  >
+                                    <Paperclip className="w-3 h-3" />
+                                    <span className="max-w-[140px] truncate">{name}</span>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Badge variant="outline" className={`text-xs ${statusConfig.cls}`}>{statusConfig.label}</Badge>
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs text-brand-navy border-brand-gold/50 hover:bg-brand-gold/10"
+                              onClick={() => openEditTransferDialog(t)}
+                              data-testid={`btn-editar-transfer-${t.id}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5 mr-1" />
+                              Editar
+                            </Button>
+                          )}
                           {t.status === "pendente" && canApprove && (
                             <>
                               <Button
@@ -2281,7 +2614,9 @@ export default function FluxoCaixaPage() {
                     <SelectContent>
                       <SelectItem value="todos">Todas</SelectItem>
                       {categorias.map((cat) => (
-                        <SelectItem key={cat.id} value={String(cat.id)}>{cat.Nome_da_categoria}</SelectItem>
+                        <SelectItem key={cat.id} value={String(cat.id)}>
+                          {getPlanoContaGroup(cat)} / {stripPlanoContaCode(cat.Nome_da_categoria)}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -2297,7 +2632,7 @@ export default function FluxoCaixaPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todos">Todos</SelectItem>
-                      {membros.map((m) => (
+                      {favorecidosDaBia.map((m) => (
                         <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
                       ))}
                     </SelectContent>
@@ -2580,7 +2915,7 @@ export default function FluxoCaixaPage() {
                 formStatus={formStatus} setFormStatus={setFormStatus}
                 formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                 formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                membros={membros} tiposCpp={tiposCpp}
+                membros={membros} favorecidos={favorecidosDaBia} tiposCpp={tiposCpp}
                 categorias={categorias}
                 prefix="edit"
                 pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}

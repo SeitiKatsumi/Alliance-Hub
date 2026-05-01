@@ -80,6 +80,20 @@ function brl(value: number, currency = "BRL"): string {
   }
 }
 
+function fixMojibakeText(value?: string | null): string {
+  if (!value) return "";
+  if (!/[ÃÂÌÍÎÏ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
+  try {
+    return decodeURIComponent(escape(value)).normalize("NFC");
+  } catch {
+    return value.normalize("NFC");
+  }
+}
+
+function getAnexoName(anexo: AnexoFile): string {
+  return fixMojibakeText(anexo.filename || anexo.title || anexo.id);
+}
+
 function SectionTitle({ icon: Icon, children }: { icon: any; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-4">
@@ -397,23 +411,27 @@ export default function OpaDetalhePage() {
                   <Badge variant="secondary" className="ml-2 text-xs">{opa.Anexos.length}</Badge>
                 </SectionTitle>
                 <div className="space-y-2">
-                  {opa.Anexos.map((anexo, i) => (
-                    <a
-                      key={anexo.id || i}
-                      href={anexo.url || "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/40 px-3 py-2.5 transition-colors group"
-                      data-testid={`link-opa-anexo-${i}`}
-                    >
-                      <FileText className="w-4 h-4 text-brand-gold/60 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{anexo.title || anexo.filename || anexo.id}</p>
-                        {anexo.size && <p className="text-[11px] text-muted-foreground">{anexo.size}</p>}
-                      </div>
-                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
-                    </a>
-                  ))}
+                  {opa.Anexos.map((anexo, i) => {
+                    const name = getAnexoName(anexo);
+                    return (
+                      <a
+                        key={anexo.id || i}
+                        href={anexo.url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/40 px-3 py-2.5 transition-colors group"
+                        data-testid={`link-opa-anexo-${i}`}
+                        title={name}
+                      >
+                        <FileText className="w-4 h-4 text-brand-gold/60 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{name}</p>
+                          {anexo.size && <p className="text-[11px] text-muted-foreground">{anexo.size}</p>}
+                        </div>
+                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
+                      </a>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

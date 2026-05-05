@@ -1,16 +1,24 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import type { Express, Request, Response } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 import { storage } from "./storage";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
-function getCallbackURL(): string {
+function getCallbackURL(req?: Request): string {
   if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
   if (process.env.APP_URL) return `${process.env.APP_URL.replace(/\/$/, "")}/auth/google/callback`;
   const domain = process.env.REPLIT_DEV_DOMAIN;
   if (domain) return `https://${domain}/auth/google/callback`;
+  if (req) {
+    const host = req.get("x-forwarded-host") || req.get("host");
+    if (host) {
+      const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
+      const protocol = forwardedProto || (req.secure ? "https" : "http");
+      return `${protocol}://${host}/auth/google/callback`;
+    }
+  }
   return "http://localhost:5000/auth/google/callback";
 }
 
@@ -36,11 +44,23 @@ export function setupGoogleAuth(app: Express) {
     )
   );
 
-  app.get("/auth/google", passport.authenticate("google", { session: false, scope: ["profile", "email"] }));
+  app.get("/auth/google", (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate("google", {
+      session: false,
+      scope: ["profile", "email"],
+      callbackURL: getCallbackURL(req),
+    })(req, res, next);
+  });
 
   app.get(
     "/auth/google/callback",
-    passport.authenticate("google", { session: false, failureRedirect: "/login?error=google_failed" }),
+    (req: Request, res: Response, next: NextFunction) => {
+      passport.authenticate("google", {
+        session: false,
+        failureRedirect: "/login?error=google_failed",
+        callbackURL: getCallbackURL(req),
+      })(req, res, next);
+    },
     async (req: Request, res: Response) => {
       try {
         const profile = req.user as any;

@@ -50,6 +50,7 @@ interface MembroVitrine {
   email?: string;
   foto?: string | null;
   foto_perfil?: string | null;
+  logo_empresa?: string | { id?: string } | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
   na_vitrine?: boolean;
@@ -383,6 +384,13 @@ function fotoUrl(m: MembroVitrine): string | null {
   const f = m.foto || m.foto_perfil;
   if (!f) return null;
   return `/api/assets/${f}?width=200&height=200&fit=cover`;
+}
+
+function logoEmpresaUrl(m: MembroVitrine): string | null {
+  const logo = m.logo_empresa;
+  const id = typeof logo === "string" ? logo : logo?.id;
+  if (!id) return null;
+  return `/api/assets/${id}?width=160&height=80&fit=contain`;
 }
 
 function getInitials(nome?: string): string {
@@ -1712,6 +1720,7 @@ export default function VitrinePage() {
 
 function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
   const foto = fotoUrl(m);
+  const logo = logoEmpresaUrl(m);
   const nome = m.nome || "—";
   const [, navigate] = useLocation();
   const [orcamentoOpen, setOrcamentoOpen] = useState(false);
@@ -1804,8 +1813,14 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
             )}
 
             {m.empresa && (
-              <div className="flex items-center justify-center gap-1">
-                <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+              <div className="flex items-center justify-center gap-2 min-w-0">
+                {logo ? (
+                  <span className="flex h-7 w-12 shrink-0 items-center justify-center">
+                    <img src={logo} alt={`Marca ${m.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
+                  </span>
+                ) : (
+                  <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+                )}
                 <span className="text-xs text-white/40 truncate">{m.empresa}</span>
               </div>
             )}

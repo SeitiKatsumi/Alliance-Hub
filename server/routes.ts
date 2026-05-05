@@ -46,6 +46,12 @@ async function ensureBiasExtraFields() {
       schema: { is_nullable: true },
     },
     {
+      field: "bia_publica",
+      type: "boolean",
+      meta: { interface: "boolean", display: "boolean", hidden: false, note: "Controla se a BIA aparece na listagem pública" },
+      schema: { is_nullable: true, default_value: true },
+    },
+    {
       field: "diretor_nucleo_tecnico",
       type: "string",
       meta: { interface: "input", display: "raw", hidden: false },
@@ -1941,6 +1947,7 @@ export async function registerRoutes(
   function resolveAnexosBia(items: any[]): any[] {
     return items.map((b: any) => ({
       ...b,
+      bia_publica: b.bia_publica !== false,
       socios_multiplicadores: parseBiaMemberList(b.socios_multiplicadores),
       socios_guardioes: parseBiaMemberList(b.socios_guardioes),
       terceiros: parseBiaMemberList(b.terceiros),
@@ -1956,6 +1963,27 @@ export async function registerRoutes(
         };
       }).filter(Boolean),
     }));
+  }
+
+  function isUserLinkedToBia(bia: any, membroId?: string | null): boolean {
+    if (!membroId) return false;
+    const singleMemberFields = [
+      "autor_bia", "aliado_built", "diretor_alianca", "diretor_nucleo_tecnico",
+      "diretor_execucao", "diretor_comercial", "diretor_capital",
+    ];
+    if (singleMemberFields.some((field) => bia[field] === membroId)) return true;
+    return [
+      ...parseBiaMemberList(bia.socios_guardioes),
+      ...parseBiaMemberList(bia.socios_multiplicadores),
+      ...parseBiaMemberList(bia.terceiros),
+    ].includes(membroId);
+  }
+
+  function canViewBia(bia: any, req: any): boolean {
+    if (bia.bia_publica !== false) return true;
+    const role = req.session?.role || "user";
+    if (role === "admin" || role === "manager") return true;
+    return isUserLinkedToBia(bia, req.session?.membroId);
   }
 
   app.get("/api/dashboard", async (req, res) => {
@@ -1981,8 +2009,9 @@ export async function registerRoutes(
 
       const [allBias, allOpas, comunidades] = await Promise.all([
         directusFetchScoped("bias_projetos",
-          "fields=id,nome_bia,situacao,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
-          "autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital"
+          "fields=id,nome_bia,situacao,objetivo_alianca,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
+          "bia_publica,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital," +
+          "socios_guardioes,socios_multiplicadores,terceiros"
         ),
         directusFetchScoped("tipos_oportunidades",
           "fields=id,nome_oportunidade,tipo,bia_id,valor_origem_opa,status"
@@ -1990,9 +2019,7 @@ export async function registerRoutes(
         directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => []),
       ]);
 
-      const userBias = (allBias as any[]).filter(b =>
-        BIA_ROLE_FIELDS.some(role => b[role] === membroId)
-      );
+      const userBias = (allBias as any[]).filter(b => isUserLinkedToBia(b, membroId));
 
       const userBiaIds = new Set(userBias.map((b: any) => b.id));
       const biaNameMap: Record<string, string> = {};
@@ -2045,7 +2072,19 @@ export async function registerRoutes(
       });
 
       res.json({
-        bias: biasWithRole,
+        bias: userBias.map((b: any) => {
+          const papel = BIA_ROLE_FIELDS.find((role) => b[role] === membroId);
+          const papeis: Record<string, string> = {
+            aliado_built: "Aliado BUILT",
+            autor_bia: "Autor da BIA",
+            diretor_alianca: "Dir. de Aliança",
+            diretor_nucleo_tecnico: "Dir. Núcleo Técnico",
+            diretor_execucao: "Dir. de Execução",
+            diretor_comercial: "Dir. Comercial",
+            diretor_capital: "Dir. de Capital",
+          };
+          return { ...b, papel_usuario: papel ? papeis[papel] : "Membro" };
+        }),
         comunidades: userComunidades,
         opas: userOpas,
         totals,
@@ -2059,7 +2098,7 @@ export async function registerRoutes(
   app.get("/api/bias", async (req, res) => {
     try {
       const items = await directusFetch("bias_projetos", "fields=*,Anexos.directus_files_id.*");
-      res.json(resolveAnexosBia(items));
+      res.json(resolveAnexosBia(items.filter((item: any) => canViewBia(item, req))));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2069,6 +2108,7 @@ export async function registerRoutes(
     try {
       const item = await directusFetchOne("bias_projetos", req.params.id, "fields=*,Anexos.directus_files_id.*");
       if (!item) return res.status(404).json({ error: "BIA não encontrada" });
+      if (!canViewBia(item, req)) return res.status(403).json({ error: "Você não tem acesso a esta BIA privada" });
       res.json(resolveAnexosBia([item])[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2140,7 +2180,9 @@ export async function registerRoutes(
       }
 
       // Create the BIA in Directus
-      const item = await directusCreate("bias_projetos", prepareBiaPayload(req.body));
+      const createBody = { ...req.body };
+      if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
+      const item = await directusCreate("bias_projetos", prepareBiaPayload(createBody));
       const valorOrigem = parseFloat(req.body.valor_origem) || 0;
       if (valorOrigem > 0) {
         syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);

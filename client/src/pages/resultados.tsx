@@ -111,15 +111,15 @@ function MetricCard({
   );
 }
 
-function RowItem({ label, value, sub, positive, currency = "BRL" }: { label: string; value: number; sub?: string; positive?: boolean; currency?: string }) {
+function RowItem({ label, value, sub, positive, currency = "BRL", withBorder = true }: { label: string; value: number; sub?: string; positive?: boolean; currency?: string; withBorder?: boolean }) {
   const cls = positive !== undefined ? (positive ? "text-green-600" : "text-red-600") : colorClass(value);
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
-      <div>
+    <div className={`flex items-start justify-between gap-4 py-2 ${withBorder ? "border-b border-border/40 last:border-0" : ""}`}>
+      <div className="min-w-0">
         <span className="text-sm">{label}</span>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </div>
-      <span className={`text-sm font-semibold tabular-nums ${cls}`}>{formatMoney(value, currency)}</span>
+      <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${cls}`}>{formatMoney(value, currency)}</span>
     </div>
   );
 }
@@ -382,12 +382,11 @@ export default function ResultadosPage() {
               </CardHeader>
               <CardContent>
                 <RowItem label="Valor de Origem" value={valorOrigem} positive={false} currency={bia?.moeda || "BRL"} />
-                <RowItem label="Custo de Origem da BIA" sub="Origem + Divisor" value={custoOrigem} positive={false} currency={bia?.moeda || "BRL"} />
-                <RowItem label="Divisor Multiplicador" sub="Soma dos percentuais" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} />
+                <RowItem label="Divisor Multiplicador" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} withBorder={false} />
                 <Separator className="my-2" />
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-sm font-semibold">Total DM</span>
-                  <span className="text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoCPP, bia?.moeda || "BRL")}</span>
+                <div className="flex items-start justify-between gap-4 pt-1">
+                  <span className="min-w-0 text-sm font-semibold">Custo de Origem da BIA</span>
+                  <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoOrigem, bia?.moeda || "BRL")}</span>
                 </div>
               </CardContent>
             </Card>

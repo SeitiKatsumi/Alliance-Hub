@@ -69,6 +69,7 @@ interface BiasProjeto {
   id: string;
   nome_bia: string;
   situacao?: "ativa" | "em_formacao" | null;
+  bia_publica?: boolean | null;
   destinacao?: string | null;
   selo_certified_alliance?: boolean | null;
   objetivo_alianca?: string;
@@ -292,13 +293,17 @@ function numToBRLStr(v?: string | number | null): string {
 }
 
 // ---- BRLInput component ----
-function BRLInput({ label, field, form, setForm, testId }: {
+function BRLInput({ label, field, form, setForm, testId, required }: {
   label: string; field: keyof FormState; form: FormState;
-  setForm: (f: FormState) => void; testId?: string;
+  setForm: (f: FormState) => void; testId?: string; required?: boolean;
 }) {
+  const isEmpty = required && parseBRLToNumber(String(form[field] ?? "")) <= 0;
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-muted-foreground">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </Label>
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
         <Input
@@ -311,6 +316,9 @@ function BRLInput({ label, field, form, setForm, testId }: {
           data-testid={testId ?? `input-${field}`}
         />
       </div>
+      {isEmpty && (
+        <p className="text-[10px] text-red-400/70 font-mono">Campo obrigatório</p>
+      )}
     </div>
   );
 }
@@ -319,6 +327,7 @@ function BRLInput({ label, field, form, setForm, testId }: {
 const EMPTY_FORM = {
   nome_bia: "",
   situacao: "em_formacao" as "ativa" | "em_formacao",
+  bia_publica: true,
   destinacao: "",
   selo_certified_alliance: false,
   localizacao: "",
@@ -361,6 +370,7 @@ function biaToForm(b: BiasProjeto): FormState {
   return {
     nome_bia: b.nome_bia || "",
     situacao: (b.situacao === "em_formacao" ? "em_formacao" : "ativa") as "ativa" | "em_formacao",
+    bia_publica: b.bia_publica !== false,
     destinacao: b.destinacao || "",
     selo_certified_alliance: !!b.selo_certified_alliance,
     localizacao: b.localizacao || "",
@@ -574,6 +584,15 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
     setForm(nextForm);
   }
 
+  function handleListWheel(event: React.WheelEvent<HTMLDivElement>) {
+    const list = event.currentTarget;
+    if (list.scrollHeight <= list.clientHeight) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    list.scrollTop += event.deltaY;
+  }
+
   return (
     <div className="space-y-2">
       <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -594,10 +613,17 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
             <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-[360px]" align="start">
+        <PopoverContent
+          disablePortal
+          className="p-0 w-[360px]"
+          align="start"
+        >
           <Command>
             <CommandInput placeholder="Buscar membro..." />
-            <CommandList>
+            <CommandList
+              className="max-h-[300px] overscroll-contain"
+              onWheel={handleListWheel}
+            >
               <CommandEmpty>Nenhum membro encontrado.</CommandEmpty>
               <CommandGroup>
                 {membros.map((m) => {
@@ -1581,6 +1607,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       const payload: Record<string, any> = {
         nome_bia: form.nome_bia.trim(),
         situacao: form.situacao,
+        bia_publica: form.bia_publica,
         destinacao: form.destinacao.trim() || null,
         selo_certified_alliance: form.selo_certified_alliance,
         localizacao: form.localizacao.trim() || null,
@@ -1681,6 +1708,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     if (!form.localizacao.trim()) missing.push("Localização");
     if (!form.objetivo_alianca.trim()) missing.push("Objetivo da aliança");
     if (!form.observacoes.trim()) missing.push("Observações");
+    if (parseBRLToNumber(form.valor_geral_venda_vgv) <= 0) missing.push("VGV");
     if (!form.aliado_built) missing.push("Aliado BUILT");
     if (!form.diretor_alianca) missing.push("Diretor de Aliança");
     if (form.situacao === "ativa") {
@@ -1698,6 +1726,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     if (missing.length > 0) {
       const infoFields = new Set(["Razão social/Nome", "CNPJ/CPF", "Banco", "Conta", "Titular da Conta"]);
       if (missing.some((field) => infoFields.has(field))) setActiveTab("info");
+      else if (missing.includes("VGV")) setActiveTab("receita");
       toast({
         title: "Campos obrigatórios pendentes",
         description: `Preencha: ${missing.join(", ")}.`,
@@ -1785,6 +1814,35 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                       {opt}
                     </ToggleGroupItem>
                   ))}
+                </ToggleGroup>
+              </div>
+
+              {/* Visibilidade */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Visibilidade da BIA</Label>
+                <ToggleGroup
+                  type="single"
+                  value={form.bia_publica ? "publica" : "privada"}
+                  onValueChange={(v) => {
+                    if (v) setForm({ ...form, bia_publica: v === "publica" });
+                  }}
+                  className="justify-start"
+                  data-testid="toggle-visibilidade-bia"
+                >
+                  <ToggleGroupItem
+                    value="publica"
+                    className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold"
+                    data-testid="toggle-bia-publica"
+                  >
+                    BIA Pública
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="privada"
+                    className="border border-input data-[state=on]:border-brand-gold data-[state=on]:bg-brand-gold/10 data-[state=on]:text-brand-gold"
+                    data-testid="toggle-bia-privada"
+                  >
+                    BIA Privada
+                  </ToggleGroupItem>
                 </ToggleGroup>
               </div>
 
@@ -2058,7 +2116,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             {/* Tab Receita */}
             <TabsContent value="receita" className="space-y-4 mt-4">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Receita</p>
-              <BRLInput label="VGV — Valor Geral de Venda (R$)" field="valor_geral_venda_vgv" form={form} setForm={setForm} />
+              <BRLInput label="VGV — Valor Geral de Venda (R$)" field="valor_geral_venda_vgv" form={form} setForm={setForm} required />
               <BRLInput label="Valor Realizado de Venda (R$)" field="valor_realizado_venda" form={form} setForm={setForm} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Deduções (% sobre Valor Realizado)</p>

@@ -69,6 +69,7 @@ interface Membro {
   perfil_aliado?: string;
   observacoes?: string;
   foto?: string | null;
+  logo_empresa?: string | { id?: string } | null;
   ativo?: boolean;
   na_vitrine?: boolean;
   em_membros_built?: boolean;
@@ -79,6 +80,12 @@ interface Membro {
 function fotoUrl(foto?: string | null, size = 160): string | null {
   if (!foto) return null;
   return `/api/assets/${foto}?width=${size}&height=${size}&fit=cover`;
+}
+
+function logoEmpresaUrl(logo?: string | { id?: string } | null): string | null {
+  const id = typeof logo === "string" ? logo : logo?.id;
+  if (!id) return null;
+  return `/api/assets/${id}?width=160&height=80&fit=contain`;
 }
 
 function getDisplayNome(m: Membro): string {
@@ -1014,6 +1021,7 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
   const location = [membro.cidade, membro.estado].filter(Boolean).join(", ");
   const contacto = membro.whatsapp || membro.telefone;
   const foto = fotoUrl(membro.foto);
+  const logo = logoEmpresaUrl(membro.logo_empresa);
 
   return (
     <div
@@ -1095,10 +1103,16 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
               </p>
             )}
             {membro.empresa && (
-              <p className="text-xs text-white/40 truncate mt-0.5 flex items-center gap-1">
-                <Building2 className="w-2.5 h-2.5 shrink-0" />
-                {membro.empresa}
-              </p>
+              <div className="mt-1 flex items-center gap-2 min-w-0">
+                {logo ? (
+                  <span className="flex h-7 w-12 shrink-0 items-center justify-center">
+                    <img src={logo} alt={`Marca ${membro.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
+                  </span>
+                ) : (
+                  <Building2 className="w-2.5 h-2.5 shrink-0 text-white/25" />
+                )}
+                <span className="text-xs text-white/40 truncate">{membro.empresa}</span>
+              </div>
             )}
           </div>
         </div>

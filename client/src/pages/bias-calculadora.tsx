@@ -386,7 +386,7 @@ export default function BiasCalculadoraPage() {
       setValoresParcelas([]);
       setValorAVista(0);
       setPercAutor(toNum(selectedBia.perc_autor_opa));
-      setPercAliado(toNum(selectedBia.perc_aliado_built));
+      setPercAliado(Math.max(toNum(selectedBia.perc_aliado_built), 1));
       setPercBuilt(Math.max(toNum(selectedBia.perc_built), 1));
       setPercTecnico(toNum(selectedBia.perc_dir_tecnico));
       setPercAlianca(Math.max(toNum(selectedBia.perc_dir_alianca), 1));
@@ -563,7 +563,7 @@ export default function BiasCalculadoraPage() {
   });
 
   const percFields = [
-    { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500", memberId: membroAliadoBuilt, memberSetter: setMembroAliadoBuilt },
+    { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500", memberId: membroAliadoBuilt, memberSetter: setMembroAliadoBuilt, min: 1 },
     { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold", memberId: null, memberSetter: null, min: 1 },
     { label: "Dir. de Aliança", icon: Crown, value: percAlianca, setter: setPercAlianca, cpp: cppAlianca, color: "text-indigo-500", memberId: membroDirTecnico, memberSetter: setMembroDirTecnico, min: 1 },
     { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500", memberId: membroDirNucleoTecnico, memberSetter: setMembroDirNucleoTecnico },

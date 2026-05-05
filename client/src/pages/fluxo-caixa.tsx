@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,7 +144,10 @@ interface RateioItem {
   id: string;
   membroId: string;
   valor: string;
+  anexos?: globalThis.File[];
 }
+
+type RateioModo = "percentual" | "valor";
 
 type StatusPagamento = "pendente" | "pago" | "vencido" | "cancelado" | "parcial" | "agendado";
 
@@ -318,6 +321,17 @@ function formatInputBRL(value: string): string {
   const cents = parseInt(digits, 10);
   const reais = cents / 100;
   return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatInputPercent(value: string): string {
+  const cleaned = value
+    .replace(/[^\d,.]/g, "")
+    .replace(/\./g, ",");
+  const [integerPart, ...decimalParts] = cleaned.split(",");
+  const integer = integerPart.replace(/\D/g, "");
+  const decimal = decimalParts.join("").replace(/\D/g, "").slice(0, 2);
+  if (!integer && !decimal) return "";
+  return decimalParts.length > 0 ? `${integer || "0"},${decimal}` : integer;
 }
 
 function getFileIcon(url: string) {
@@ -817,6 +831,58 @@ function FilePickerButton({
   );
 }
 
+function InlineFilePickerButton({
+  prefix,
+  uploading,
+  onFilesSelected,
+  count = 0,
+}: {
+  prefix: string;
+  uploading: boolean;
+  onFilesSelected: (files: globalThis.File[]) => void;
+  count?: number;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files;
+    if (!selected || selected.length === 0) return;
+    onFilesSelected(Array.from(selected));
+    e.target.value = "";
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx"
+        onChange={handleChange}
+        disabled={uploading}
+        style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
+        tabIndex={-1}
+        data-testid={`${prefix}-input-file`}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className={`h-9 w-9 inline-flex items-center justify-center rounded-md border transition-colors shrink-0 ${
+          count > 0
+            ? "border-brand-gold/60 bg-brand-gold/10 text-brand-navy hover:bg-brand-gold/20"
+            : "border-border text-muted-foreground hover:text-brand-navy hover:border-brand-gold/50"
+        } disabled:opacity-50 disabled:cursor-not-allowed`}
+        title={count > 0 ? `${count} anexo(s) individual(is)` : "Adicionar anexo individual"}
+        data-testid={`${prefix}-button-upload`}
+      >
+        <Paperclip className="w-4 h-4" />
+        {count > 0 && <span className="ml-0.5 text-[10px] font-semibold">{count}</span>}
+      </button>
+    </>
+  );
+}
+
 function LancamentoFormFields({
   formTipo, setFormTipo,
   formValor, setFormValor,
@@ -826,6 +892,7 @@ function LancamentoFormFields({
   formMembro, setFormMembro,
   formFavorecido, setFormFavorecido,
   rateioTipo, setRateioTipo,
+  rateioModo, setRateioModo,
   rateioItems, setRateioItems,
   formTiposCpp, setFormTiposCpp,
   formStatus, setFormStatus,
@@ -857,6 +924,8 @@ function LancamentoFormFields({
   setFormFavorecido: (v: string) => void;
   rateioTipo: "individual" | "grupo";
   setRateioTipo: (v: "individual" | "grupo") => void;
+  rateioModo: RateioModo;
+  setRateioModo: (v: RateioModo) => void;
   rateioItems: RateioItem[];
   setRateioItems: (items: RateioItem[]) => void;
   formTiposCpp: number | null;
@@ -889,7 +958,7 @@ function LancamentoFormFields({
   }
 
   function addRateioItem() {
-    setRateioItems([...rateioItems, { id: String(Date.now() + Math.random()), membroId: "__none__", valor: "" }]);
+    setRateioItems([...rateioItems, { id: String(Date.now() + Math.random()), membroId: "__none__", valor: "", anexos: [] }]);
   }
 
   function removeRateioItem(id: string) {
@@ -900,8 +969,26 @@ function LancamentoFormFields({
     setRateioItems(rateioItems.map((item) => item.id === id ? { ...item, [field]: value } : item));
   }
 
-  const totalRateado = rateioItems.reduce((acc, item) => acc + parseBRLToNumber(item.valor), 0);
   const valorTotal = parseBRLToNumber(formValor);
+  const getRateioItemValor = (item: RateioItem) => {
+    const rawValue = parseBRLToNumber(item.valor);
+    return rateioModo === "percentual" ? (valorTotal * rawValue) / 100 : rawValue;
+  };
+  const totalRateado = rateioItems.reduce((acc, item) => acc + getRateioItemValor(item), 0);
+
+  function addRateioItemFiles(id: string, files: globalThis.File[]) {
+    setRateioItems(rateioItems.map((item) =>
+      item.id === id ? { ...item, anexos: [...(item.anexos || []), ...files] } : item
+    ));
+  }
+
+  function removeRateioItemFile(id: string, fileIndex: number) {
+    setRateioItems(rateioItems.map((item) =>
+      item.id === id
+        ? { ...item, anexos: (item.anexos || []).filter((_, i) => i !== fileIndex) }
+        : item
+    ));
+  }
 
   function removePendingFile(index: number) {
     setPendingFiles(pendingFiles.filter((_, i) => i !== index));
@@ -1032,6 +1119,27 @@ function LancamentoFormFields({
           />
         ) : (
           <div className="space-y-3">
+            <div className="flex items-center justify-end gap-3">
+              <div className="flex gap-0.5 p-0.5 bg-muted rounded-md shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setRateioModo("percentual")}
+                  className={`px-2.5 py-1 text-xs rounded transition-all ${rateioModo === "percentual" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                  data-testid={`${prefix}-rateio-modo-percentual`}
+                >
+                  <span className="flex items-center gap-1"><BadgePercent className="w-3 h-3" />%</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRateioModo("valor")}
+                  className={`px-2.5 py-1 text-xs rounded transition-all ${rateioModo === "valor" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                  data-testid={`${prefix}-rateio-modo-valor`}
+                >
+                  <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />R$</span>
+                </button>
+              </div>
+            </div>
+
             {valorTotal > 0 && (
               <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border ${Math.abs(totalRateado - valorTotal) < 0.01 ? "bg-green-50 border-green-200 text-green-700" : totalRateado > valorTotal ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
                 <span>Rateado: <strong>{formatBRL(totalRateado)}</strong></span>
@@ -1044,36 +1152,69 @@ function LancamentoFormFields({
 
             <div className="space-y-2">
               {rateioItems.map((item, idx) => (
-                <div key={item.id} className="flex gap-2 items-center">
-                  <div className="flex-1 min-w-0">
-                    <SearchableMembroSelect
-                      membros={favorecidosOptions}
-                      value={item.membroId}
-                      onValueChange={(v) => updateRateioItem(item.id, "membroId", v)}
-                      placeholder={`Favorecido ${idx + 1}...`}
-                      testId={`${prefix}-rateio-membro-${idx}`}
-                      allowNone
+                <div key={item.id} className="space-y-1.5">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableMembroSelect
+                        membros={favorecidosOptions}
+                        value={item.membroId}
+                        onValueChange={(v) => updateRateioItem(item.id, "membroId", v)}
+                        placeholder={`Favorecido ${idx + 1}...`}
+                        testId={`${prefix}-rateio-membro-${idx}`}
+                        allowNone
+                      />
+                    </div>
+                    <div className="w-32 shrink-0 relative">
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={item.valor}
+                        onChange={(e) => updateRateioItem(
+                          item.id,
+                          "valor",
+                          rateioModo === "percentual" ? formatInputPercent(e.target.value) : formatInputBRL(e.target.value)
+                        )}
+                        placeholder="0,00"
+                        className="text-sm h-9 pr-9"
+                        data-testid={`${prefix}-rateio-valor-${idx}`}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {rateioModo === "percentual" ? "%" : "R$"}
+                      </span>
+                    </div>
+                    <InlineFilePickerButton
+                      prefix={`${prefix}-rateio-anexo-${idx}`}
+                      uploading={uploading}
+                      count={(item.anexos || []).length}
+                      onFilesSelected={(files) => addRateioItemFiles(item.id, files)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => removeRateioItem(item.id)}
+                      className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                      data-testid={`${prefix}-rateio-remove-${idx}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="w-28 shrink-0">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={item.valor}
-                      onChange={(e) => updateRateioItem(item.id, "valor", formatInputBRL(e.target.value))}
-                      placeholder="0,00"
-                      className="text-sm h-9"
-                      data-testid={`${prefix}-rateio-valor-${idx}`}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeRateioItem(item.id)}
-                    className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
-                    data-testid={`${prefix}-rateio-remove-${idx}`}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  {(item.anexos || []).length > 0 && (
+                    <div className="pl-1 flex flex-wrap gap-1.5">
+                      {(item.anexos || []).map((file, fileIndex) => (
+                        <span key={`${file.name}-${fileIndex}`} className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-[11px] text-blue-700">
+                          <Paperclip className="w-3 h-3" />
+                          <span className="max-w-[180px] truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            className="text-blue-700 hover:text-red-600"
+                            onClick={() => removeRateioItemFile(item.id, fileIndex)}
+                            data-testid={`${prefix}-rateio-anexo-remove-${idx}-${fileIndex}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1239,6 +1380,7 @@ export default function FluxoCaixaPage() {
   const [formMembro, setFormMembro] = useState<string>("");
   const [formFavorecido, setFormFavorecido] = useState<string>("__none__");
   const [rateioTipo, setRateioTipo] = useState<"individual" | "grupo">("individual");
+  const [rateioModo, setRateioModo] = useState<RateioModo>("percentual");
   const [rateioItems, setRateioItems] = useState<RateioItem[]>([]);
   const [formTiposCpp, setFormTiposCpp] = useState<number | null>(null);
   const [formStatus, setFormStatus] = useState<StatusPagamento | "">("");
@@ -1533,8 +1675,7 @@ export default function FluxoCaixaPage() {
   const financialDashboard = useMemo(() => {
     const allBia = fluxoItemsContabeis;
     const contasPagar = allBia.filter(
-      (i) => i.tipo === "saida" && (i.status === "pendente" || i.status === "agendado" || !i.status)
-        && !isVencido(i)
+      (i) => i.tipo === "saida" && i.status === "agendado" && !isVencido(i)
     );
     const vencidas = allBia.filter((i) => i.tipo === "saida" && isVencido(i));
     const aVencer7 = allBia.filter(
@@ -1545,16 +1686,12 @@ export default function FluxoCaixaPage() {
     const aReceber = allBia.filter(
       (i) => i.tipo === "entrada" && (i.status === "pendente" || i.status === "agendado" || !i.status)
     );
-    const pagas = allBia.filter((i) => i.status === "pago");
-    const cancelados = allBia.filter((i) => i.status === "cancelado");
     const sum = (arr: FluxoCaixaItem[]) => arr.reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
     return {
       contasPagar: { count: contasPagar.length, valor: sum(contasPagar) },
       vencidas:    { count: vencidas.length,    valor: sum(vencidas) },
       aVencer7:    { count: aVencer7.length,    valor: sum(aVencer7) },
       aReceber:    { count: aReceber.length,    valor: sum(aReceber) },
-      pagas:       { count: pagas.length,       valor: sum(pagas) },
-      cancelados:  { count: cancelados.length,  valor: sum(cancelados) },
     };
   }, [fluxoItemsAll, today, in7days]);
 
@@ -1705,6 +1842,12 @@ export default function FluxoCaixaPage() {
     return payload;
   }
 
+  function getRateioValorFinal(item: RateioItem) {
+    const rawValue = parseBRLToNumber(item.valor);
+    const valorTotal = parseBRLToNumber(formValor);
+    return rateioModo === "percentual" ? Number(((valorTotal * rawValue) / 100).toFixed(2)) : rawValue;
+  }
+
   const createMutation = useMutation({
     mutationFn: async () => {
       setUploading(true);
@@ -1713,10 +1856,12 @@ export default function FluxoCaixaPage() {
         if (rateioTipo === "grupo" && rateioItems.length > 0) {
           const base = buildPayload(newFileIds);
           for (const item of rateioItems) {
+            const itemFileIds = await uploadFiles(item.anexos || []);
             const payload = {
               ...base,
-              valor: parseBRLToNumber(item.valor),
+              valor: getRateioValorFinal(item),
               Favorecido: item.membroId && item.membroId !== "__none__" ? [item.membroId] : [],
+              anexos: [...newFileIds, ...itemFileIds],
             };
             await apiRequest("POST", "/api/fluxo-caixa", payload);
           }
@@ -1815,6 +1960,7 @@ export default function FluxoCaixaPage() {
     setFormMembro(currentUser?.membro_directus_id || "");
     setFormFavorecido("__none__");
     setRateioTipo("individual");
+    setRateioModo("percentual");
     setRateioItems([]);
     setFormTiposCpp(null);
     setFormStatus("");
@@ -2045,6 +2191,7 @@ export default function FluxoCaixaPage() {
                   formMembro={formMembro} setFormMembro={setFormMembro}
                   formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
                   rateioTipo={rateioTipo} setRateioTipo={setRateioTipo}
+                  rateioModo={rateioModo} setRateioModo={setRateioModo}
                   rateioItems={rateioItems} setRateioItems={setRateioItems}
                   formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
                   formStatus={formStatus} setFormStatus={setFormStatus}
@@ -2166,7 +2313,7 @@ export default function FluxoCaixaPage() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="panel-financeiro">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="panel-financeiro">
             <Card className="border-red-500/40 bg-red-500/5" data-testid="panel-contas-pagar">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
                 <CardTitle className="text-xs font-medium text-muted-foreground">A Pagar</CardTitle>
@@ -2211,27 +2358,6 @@ export default function FluxoCaixaPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-green-500/40 bg-green-500/5" data-testid="panel-pagas">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Pagas/Recebidas</CardTitle>
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <p className="text-sm font-bold text-green-600 leading-tight break-all" data-testid="text-pagas-valor">{formatBRL(financialDashboard.pagas.valor)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.pagas.count} lançamento(s)</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-400/40 bg-gray-500/5" data-testid="panel-cancelados">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-medium text-muted-foreground">Cancelados</CardTitle>
-                <XCircle className="w-3.5 h-3.5 text-gray-500" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <p className="text-sm font-bold text-gray-500 leading-tight break-all" data-testid="text-cancelados-valor">{formatBRL(financialDashboard.cancelados.valor)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.cancelados.count} lançamento(s)</p>
-              </CardContent>
-            </Card>
 
           </div>
 
@@ -3079,6 +3205,7 @@ export default function FluxoCaixaPage() {
                 formMembro={formMembro} setFormMembro={setFormMembro}
                 formFavorecido={formFavorecido} setFormFavorecido={setFormFavorecido}
                 rateioTipo={rateioTipo} setRateioTipo={setRateioTipo}
+                rateioModo={rateioModo} setRateioModo={setRateioModo}
                 rateioItems={rateioItems} setRateioItems={setRateioItems}
                 formTiposCpp={formTiposCpp} setFormTiposCpp={setFormTiposCpp}
                 formStatus={formStatus} setFormStatus={setFormStatus}

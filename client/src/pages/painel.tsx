@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,7 @@ interface DashboardBia {
   id: string;
   nome_bia: string;
   situacao?: "ativa" | "em_formacao" | null;
+  objetivo_alianca?: string | null;
   localizacao?: string;
   valor_origem?: number | string | null;
   custo_final_previsto?: number | string | null;
@@ -74,9 +75,10 @@ function fmt(value: number, currency = "BRL"): string {
 function situacaoBadge(s?: string | null) {
   if (s === "ativa")
     return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Ativa</Badge>;
-  if (s === "em_formacao")
+  if (s === "em_formacao") {
     return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]">Em Formação</Badge>;
-  return <Badge variant="outline" className="text-[10px]">—</Badge>;
+  }
+  return <Badge variant="outline" className="text-[10px]">-</Badge>;
 }
 
 function StatCardSkeleton() {
@@ -107,7 +109,7 @@ function deriveRole(user: any): string | null {
   const redes: string[] = Array.isArray(user.Outras_redes_as_quais_pertenco) ? user.Outras_redes_as_quais_pertenco : [];
   if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) return "Aliado BUILT";
   const tipos: string[] = Array.isArray(user.tipos_alianca) ? user.tipos_alianca : [];
-  if (tipos.includes("Liderança")) return "Diretor de Aliança";
+  if (tipos.includes("LideranÃ§a")) return "Diretor de AlianÃ§a";
   if (user.role === "admin") return "Administrador";
   if (user.role === "manager") return "Gestor";
   return null;
@@ -193,7 +195,7 @@ export default function PainelPage() {
           )}
           {!roleLabel && !comunidadeLabel && (
             <p className="text-sm text-muted-foreground">
-              Visão geral da sua atividade na plataforma Built Alliances.
+              VisÃ£o geral da sua atividade na plataforma Built Alliances.
             </p>
           )}
         </div>
@@ -274,7 +276,7 @@ export default function PainelPage() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Minhas BIAs — 2 cols */}
+        {/* Minhas BIAs â€” 2 cols */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -328,14 +330,27 @@ export default function PainelPage() {
                       {situacaoBadge(b.situacao)}
                     </div>
 
-                    {b.papel_usuario && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5"
-                        data-testid={`badge-papel-${b.id}`}
-                      >
-                        {b.papel_usuario}
-                      </Badge>
+                    {(b.papel_usuario || b.objetivo_alianca) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {b.papel_usuario && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5"
+                            data-testid={`badge-papel-${b.id}`}
+                          >
+                            {b.papel_usuario}
+                          </Badge>
+                        )}
+                        {b.objetivo_alianca && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-muted-foreground border-border/70 bg-muted/30"
+                            data-testid={`badge-objetivo-${b.id}`}
+                          >
+                            {b.objetivo_alianca}
+                          </Badge>
+                        )}
+                      </div>
                     )}
 
                     {b.localizacao && (
@@ -349,13 +364,13 @@ export default function PainelPage() {
                       <div>
                         <p className="text-[10px] text-muted-foreground">Valor de Origem</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`valor-origem-${b.id}`}>
-                          {n(b.valor_origem) > 0 ? fmt(n(b.valor_origem), b.moeda || "BRL") : "—"}
+                          {n(b.valor_origem) > 0 ? fmt(n(b.valor_origem), b.moeda || "BRL") : "â€”"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground">Custo Final Prev.</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`custo-final-${b.id}`}>
-                          {n(b.custo_final_previsto) > 0 ? fmt(n(b.custo_final_previsto), b.moeda || "BRL") : "—"}
+                          {n(b.custo_final_previsto) > 0 ? fmt(n(b.custo_final_previsto), b.moeda || "BRL") : "â€”"}
                         </p>
                       </div>
                     </div>
@@ -391,7 +406,7 @@ export default function PainelPage() {
                       <>
                         <p className="text-xs font-medium" style={{ color: getFaixaColor(auraData.score) }}>{auraData.faixa}</p>
                         {[
-                          { label: "Téc.", val: auraData.T ?? 0, color: "#3B82F6" },
+                          { label: "TÃ©c.", val: auraData.T ?? 0, color: "#3B82F6" },
                           { label: "Rel.", val: auraData.R ?? 0, color: "#22C55E" },
                           { label: "Com.", val: auraData.C ?? 0, color: "#D7BB7D" },
                         ].map(d => (
@@ -406,10 +421,7 @@ export default function PainelPage() {
                       </>
                     ) : (
                       <div>
-                        <p className="text-xs text-muted-foreground">Aguardando avaliações</p>
-                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                          {auraData ? `${auraData.n}/3 recebidas` : "—"}
-                        </p>
+                        <p className="text-xs text-muted-foreground">Aguardando avaliaÃ§Ãµes</p>
                       </div>
                     )}
                   </div>
@@ -459,7 +471,7 @@ export default function PainelPage() {
                 {comunidades.map(c => {
                   const nMembros = Array.isArray(c.membros) ? c.membros.length : 0;
                   const nBias = Array.isArray(c.bias) ? c.bias.length : 0;
-                  const territory = [c.sigla_territorio, c.pais].filter(Boolean).join(" · ");
+                  const territory = [c.sigla_territorio, c.pais].filter(Boolean).join(" Â· ");
                   return (
                     <Card
                       key={c.id}
@@ -554,7 +566,7 @@ export default function PainelPage() {
                           o.tipo,
                           n(o.valor_origem_opa) > 0 ? fmt(n(o.valor_origem_opa)) : null,
                           o.nome_bia_vinculada ? `BIA: ${o.nome_bia_vinculada}` : null,
-                        ].filter(Boolean).join(" · ")}
+                        ].filter(Boolean).join(" Â· ")}
                       </p>
                     </div>
                     {o.status && o.status !== "concluida" && o.status !== "desistencia" ? (
@@ -563,11 +575,11 @@ export default function PainelPage() {
                       </Badge>
                     ) : o.status === "concluida" ? (
                       <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[9px] shrink-0 h-4">
-                        Concluída
+                        ConcluÃ­da
                       </Badge>
                     ) : o.status === "desistencia" ? (
                       <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[9px] shrink-0 h-4">
-                        Desistência
+                        DesistÃªncia
                       </Badge>
                     ) : (
                       <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
@@ -635,7 +647,7 @@ export default function PainelPage() {
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className={`w-4 h-4 ${totals.resultado_liquido >= 0 ? "text-emerald-400" : "text-red-400"}`} />
-                  <span className="text-xs text-muted-foreground">Resultado Líquido</span>
+                  <span className="text-xs text-muted-foreground">Resultado LÃ­quido</span>
                 </div>
                 <p className={`text-xl font-bold tabular-nums ${totals.resultado_liquido >= 0 ? "text-emerald-500" : "text-red-500"}`}>
                   {fmt(totals.resultado_liquido)}

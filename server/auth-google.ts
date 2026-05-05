@@ -8,6 +8,7 @@ const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
 function getCallbackURL(): string {
   if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
+  if (process.env.APP_URL) return `${process.env.APP_URL.replace(/\/$/, "")}/auth/google/callback`;
   const domain = process.env.REPLIT_DEV_DOMAIN;
   if (domain) return `https://${domain}/auth/google/callback`;
   return "http://localhost:5000/auth/google/callback";

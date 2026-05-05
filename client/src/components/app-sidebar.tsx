@@ -17,7 +17,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import builtLogo from "@assets/Built_Alliances_Platform_Negativo_1775603722664.png";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 
 export function AppSidebar() {
   const { user } = useAuth();
@@ -42,7 +42,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-3 border-b border-sidebar-border">
         <div className="flex items-center justify-center">
-          <img src={builtLogo} alt="Built Alliances" className="h-16 w-auto max-w-[200px]" />
+          <img src={builtLogo} alt="Built Alliances" className="h-16 w-auto max-w-[210px] object-contain" />
         </div>
       </SidebarHeader>
 

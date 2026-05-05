@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Clock, LogOut, Mail } from "lucide-react";
-import builtLogo from "@assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930.png";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";

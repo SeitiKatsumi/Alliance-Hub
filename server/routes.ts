@@ -479,6 +479,95 @@ async function directusDelete(collection: string, id: string) {
   return true;
 }
 
+async function ensureFluxoCaixaHistoricoTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS fluxo_caixa_historico (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      fluxo_caixa_id text NOT NULL,
+      bia_id text,
+      acao text NOT NULL,
+      ator_user_id text,
+      ator_membro_id text,
+      ator_nome text,
+      origem text,
+      dados_antes jsonb,
+      dados_depois jsonb,
+      payload jsonb,
+      anexos jsonb,
+      criado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fluxo_caixa_historico_fluxo ON fluxo_caixa_historico (fluxo_caixa_id, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fluxo_caixa_historico_bia ON fluxo_caixa_historico (bia_id, criado_em DESC)`);
+}
+
+function getAuditActor(req: any) {
+  return {
+    userId: (req.session as any)?.directusUserId || (req.session as any)?.userId || null,
+    membroId: (req.session as any)?.membroId || null,
+    nome: (req.session as any)?.nome || (req.session as any)?.email || null,
+  };
+}
+
+function extractFluxoAnexosSnapshot(snapshot: any) {
+  const anexos = Array.isArray(snapshot?.Anexos) ? snapshot.Anexos : [];
+  return anexos.map((rel: any) => {
+    const file = rel?.directus_files_id;
+    if (!file) return rel;
+    if (typeof file === "string") return { id: file, url: `/api/files/${file}` };
+    return {
+      id: file.id,
+      title: file.title || null,
+      filename: file.filename_download || file.filename_disk || null,
+      type: file.type || null,
+      filesize: file.filesize || null,
+      uploaded_on: file.uploaded_on || file.created_on || null,
+      url: file.id ? `/api/files/${file.id}` : null,
+    };
+  });
+}
+
+async function fetchFluxoSnapshot(id: string) {
+  const items = await directusFetchScoped(
+    "fluxo_caixa",
+    `fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.*,membro_responsavel.*&filter[id][_eq]=${encodeURIComponent(id)}`
+  );
+  return items[0] || null;
+}
+
+async function registrarFluxoHistorico(params: {
+  fluxoId: string;
+  biaId?: string | null;
+  acao: string;
+  req?: any;
+  origem?: string;
+  antes?: any;
+  depois?: any;
+  payload?: any;
+}) {
+  const actor = params.req ? getAuditActor(params.req) : { userId: null, membroId: null, nome: null };
+  const anexosSource = params.depois || params.antes || params.payload || null;
+  await db.execute(sql`
+    INSERT INTO fluxo_caixa_historico (
+      fluxo_caixa_id, bia_id, acao, ator_user_id, ator_membro_id, ator_nome,
+      origem, dados_antes, dados_depois, payload, anexos
+    )
+    VALUES (
+      ${params.fluxoId},
+      ${params.biaId || params.depois?.bia || params.antes?.bia || params.payload?.bia || params.payload?.bia_id || null},
+      ${params.acao},
+      ${actor.userId},
+      ${actor.membroId},
+      ${actor.nome},
+      ${params.origem || "app"},
+      ${params.antes ? JSON.stringify(params.antes) : null}::jsonb,
+      ${params.depois ? JSON.stringify(params.depois) : null}::jsonb,
+      ${params.payload ? JSON.stringify(params.payload) : null}::jsonb,
+      ${anexosSource ? JSON.stringify(extractFluxoAnexosSnapshot(anexosSource)) : null}::jsonb
+    )
+  `);
+}
+
 async function findOrCreateValorOrigemCategoria(): Promise<number> {
   const cats = await directusFetchScoped("Categorias", "fields=id,Nome_da_categoria");
   const existing = cats.find((c: any) => {
@@ -578,7 +667,7 @@ async function syncValorOrigemLancamento(
   try {
     const biaEntries = await directusFetchScoped(
       "fluxo_caixa",
-      `fields=id,descricao&filter[bia][_eq]=${encodeURIComponent(biaId)}`
+      `fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.*,membro_responsavel.*&filter[bia][_eq]=${encodeURIComponent(biaId)}`
     );
     existing = biaEntries.filter((e: any) => {
       const desc = e.descricao || "";
@@ -591,6 +680,16 @@ async function syncValorOrigemLancamento(
   // Bulk-clear M2M relations then bulk-delete all existing entries (2 API calls regardless of count)
   const existingIds = existing.map((e: any) => e.id);
   if (existingIds.length > 0) {
+    for (const oldEntry of existing) {
+      await registrarFluxoHistorico({
+        fluxoId: String(oldEntry.id),
+        biaId,
+        acao: "excluido_por_sync",
+        origem: "sync_valor_origem",
+        antes: oldEntry,
+        payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
+      }).catch((err: any) => console.error("[fluxo_historico] excluido_por_sync:", err.message));
+    }
     await directusBulkPatch("fluxo_caixa", existingIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
     await directusBulkDelete("fluxo_caixa", existingIds);
   }
@@ -746,7 +845,17 @@ async function syncValorOrigemLancamento(
   }
 
   // Single bulk create call for all entries
-  await directusBulkCreate("fluxo_caixa", entriesToCreate);
+  const createdEntries = await directusBulkCreate("fluxo_caixa", entriesToCreate);
+  for (const created of createdEntries) {
+    await registrarFluxoHistorico({
+      fluxoId: String(created.id),
+      biaId,
+      acao: "criado_por_sync",
+      origem: "sync_valor_origem",
+      depois: created,
+      payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
+    }).catch((err: any) => console.error("[fluxo_historico] criado_por_sync:", err.message));
+  }
 
   summary.contributorLabels = Array.from(activeContributorLabels);
   return summary;
@@ -1556,7 +1665,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "O período selecionado já passou. Escolha uma quinzena futura." });
       }
 
-      const hasConflito = await storage.hasAnuncioByMembroInPeriod(membroId, data_inicio, data_fim);
+      const isSuperAdmin = (req.session as any).role === "admin";
+      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, data_inicio, data_fim);
       if (hasConflito) return res.status(409).json({ error: "Você já tem um anúncio neste período. Escolha outra quinzena." });
 
       const count = await storage.countAnunciosByPeriod(data_inicio, data_fim);
@@ -2491,6 +2601,10 @@ export async function registerRoutes(
   });
 
   // ========== FLUXO DE CAIXA (from Directus) ==========
+  await ensureFluxoCaixaHistoricoTable().catch((err: any) => {
+    console.warn(`[fluxo_historico] Tabela de historico nao sincronizada: ${err.message}`);
+  });
+
   await ensureFluxoPagamentoFields().catch((err: any) => {
     console.warn(`[fluxo_pagamento] Campos de pagamento nao sincronizados: ${err.message}`);
   });
@@ -2569,6 +2683,33 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/fluxo-caixa/:id/historico", async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT
+          id,
+          fluxo_caixa_id,
+          bia_id,
+          acao,
+          ator_user_id,
+          ator_membro_id,
+          ator_nome,
+          origem,
+          dados_antes,
+          dados_depois,
+          payload,
+          anexos,
+          criado_em
+        FROM fluxo_caixa_historico
+        WHERE fluxo_caixa_id = ${req.params.id}
+        ORDER BY criado_em DESC
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/fluxo-caixa", async (req, res) => {
     try {
       const body = req.body;
@@ -2600,6 +2741,14 @@ export async function registerRoutes(
         Anexos: anexosPayload.length > 0 ? anexosPayload : [],
       };
       const item = await directusCreate("fluxo_caixa", data);
+      const snapshot = await fetchFluxoSnapshot(String(item.id)).catch(() => item);
+      await registrarFluxoHistorico({
+        fluxoId: String(item.id),
+        acao: "criado",
+        req,
+        depois: snapshot,
+        payload: body,
+      });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2608,6 +2757,7 @@ export async function registerRoutes(
 
   app.patch("/api/fluxo-caixa/:id", async (req, res) => {
     try {
+      const antes = await fetchFluxoSnapshot(req.params.id);
       const body = req.body;
       const data: Record<string, any> = {};
       if (body.tipo !== undefined) data.tipo = body.tipo;
@@ -2638,6 +2788,15 @@ export async function registerRoutes(
       }
 
       const item = await directusUpdate("fluxo_caixa", req.params.id, data);
+      const depois = await fetchFluxoSnapshot(req.params.id).catch(() => item);
+      await registrarFluxoHistorico({
+        fluxoId: req.params.id,
+        acao: "editado",
+        req,
+        antes,
+        depois,
+        payload: body,
+      });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2695,6 +2854,7 @@ export async function registerRoutes(
   }
 
   async function markFluxoPagamentoPago(id: string, provider: "asaas" | "stripe", paymentId?: string | null) {
+    const antes = await fetchFluxoSnapshot(id).catch(() => null);
     await directusUpdate("fluxo_caixa", id, {
       status: "pago",
       data_pagamento: new Date().toISOString().split("T")[0],
@@ -2702,6 +2862,15 @@ export async function registerRoutes(
       pagamento_provider: provider,
       ...(paymentId ? { pagamento_id: paymentId } : {}),
     });
+    const depois = await fetchFluxoSnapshot(id).catch(() => null);
+    await registrarFluxoHistorico({
+      fluxoId: id,
+      acao: "pagamento_confirmado",
+      origem: `webhook:${provider}`,
+      antes,
+      depois,
+      payload: { provider, paymentId },
+    }).catch((err: any) => console.error("[fluxo_historico] pagamento_confirmado:", err.message));
   }
 
   async function createAsaasBoleto(params: {
@@ -2855,6 +3024,16 @@ export async function registerRoutes(
         pagamento_pagador_documento: documento || null,
         pagamento_gerado_em: new Date().toISOString(),
       });
+      const depoisPagamento = await fetchFluxoSnapshot(req.params.id).catch(() => null);
+      await registrarFluxoHistorico({
+        fluxoId: req.params.id,
+        acao: "pagamento_gerado",
+        req,
+        origem: pais === "brasil" ? "asaas" : "stripe",
+        antes: item,
+        depois: depoisPagamento,
+        payload: { pais, nome, email, documento: documento || null, payment },
+      });
 
       res.json({
         provider: pais === "brasil" ? "asaas" : "stripe",
@@ -2870,6 +3049,14 @@ export async function registerRoutes(
 
   app.delete("/api/fluxo-caixa/:id", async (req, res) => {
     try {
+      const antes = await fetchFluxoSnapshot(req.params.id);
+      await registrarFluxoHistorico({
+        fluxoId: req.params.id,
+        acao: "excluido",
+        req,
+        antes,
+        payload: { id: req.params.id },
+      });
       // Limpa relações M2M primeiro para evitar violação de foreign key
       await directusUpdate("fluxo_caixa", req.params.id, {
         Categoria: [],
@@ -4403,7 +4590,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         `filter[bia][_eq]=${transfer.bia_id}`,
         `filter[tipo][_eq]=entrada`,
         `filter[favorecido_id][_eq]=${transfer.membro_origem_id}`,
-        `fields=id`,
+        `fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.*,membro_responsavel.*`,
       ].join("&");
       const url = `${DIRECTUS_URL}/items/fluxo_caixa?${filterParams}`;
       const fetchRes = await fetch(url, {
@@ -4414,12 +4601,27 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         throw new Error(`Directus fetch error ${fetchRes.status}: ${text}`);
       }
       const fetchJson = await fetchRes.json();
-      const entradas: { id: string }[] = fetchJson.data || [];
+      const entradas: any[] = fetchJson.data || [];
 
       for (const entrada of entradas) {
         await directusUpdate("fluxo_caixa", entrada.id, {
           favorecido_id: transfer.membro_destino_id,
         });
+        const depois = await fetchFluxoSnapshot(entrada.id).catch(() => null);
+        await registrarFluxoHistorico({
+          fluxoId: entrada.id,
+          biaId: transfer.bia_id,
+          acao: "favorecido_transferido",
+          req,
+          origem: "transferencia_cotas",
+          antes: entrada,
+          depois,
+          payload: {
+            transferencia_id: transfer.id,
+            membro_origem_id: transfer.membro_origem_id,
+            membro_destino_id: transfer.membro_destino_id,
+          },
+        }).catch((err: any) => console.error("[fluxo_historico] favorecido_transferido:", err.message));
       }
 
       const updated = await storage.updateTransferenciaCotas(req.params.id, {

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +63,7 @@ import {
   Divide,
   PlusCircle,
   ExternalLink,
+  History,
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -175,6 +176,20 @@ interface FluxoCaixaItem {
   pagamento_pagador_email?: string | null;
   pagamento_pagador_documento?: string | null;
   pagamento_gerado_em?: string | null;
+}
+
+interface FluxoCaixaHistoricoItem {
+  id: string;
+  fluxo_caixa_id: string;
+  bia_id?: string | null;
+  acao: string;
+  ator_nome?: string | null;
+  origem?: string | null;
+  dados_antes?: any;
+  dados_depois?: any;
+  payload?: any;
+  anexos?: any[];
+  criado_em: string;
 }
 
 const STATUS_OPTIONS: { value: StatusPagamento; label: string }[] = [
@@ -1365,6 +1380,7 @@ export default function FluxoCaixaPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
   const [anexosModal, setAnexosModal] = useState<{ id: string; anexos: any[] } | null>(null);
+  const [historicoItem, setHistoricoItem] = useState<FluxoCaixaItem | null>(null);
   const [boletoItem, setBoletoItem] = useState<FluxoCaixaItem | null>(null);
   const [boletoPais, setBoletoPais] = useState<"brasil" | "fora">("brasil");
   const [boletoNome, setBoletoNome] = useState("");
@@ -1468,6 +1484,17 @@ export default function FluxoCaixaPage() {
 
   const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
     queryKey: ["/api/fluxo-caixa"],
+  });
+
+  const { data: historico = [], isLoading: loadingHistorico } = useQuery<FluxoCaixaHistoricoItem[]>({
+    queryKey: ["/api/fluxo-caixa/historico", historicoItem?.id],
+    queryFn: async () => {
+      if (!historicoItem?.id) return [];
+      const res = await fetch(`/api/fluxo-caixa/${historicoItem.id}/historico`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao buscar histórico do lançamento");
+      return res.json();
+    },
+    enabled: !!historicoItem?.id,
   });
 
   const { data: transferencias = [] } = useQuery<TransferenciaCotas[]>({
@@ -3170,6 +3197,16 @@ export default function FluxoCaixaPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
+                                onClick={() => setHistoricoItem(item)}
+                                data-testid={`button-historico-${item.id}`}
+                                title="Histórico do lançamento"
+                              >
+                                <History className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-red-500"
                                 onClick={() => setDeleteConfirmId(item.id)}
                                 disabled={deleteMutation.isPending}
@@ -3470,6 +3507,80 @@ export default function FluxoCaixaPage() {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal de Histórico */}
+          <Dialog open={!!historicoItem} onOpenChange={(open) => { if (!open) setHistoricoItem(null); }}>
+            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-brand-gold" />
+                  Histórico do lançamento
+                </DialogTitle>
+                <DialogDescription>
+                  Registro auditável de criação, alterações, exclusão e pagamentos vinculados a este lançamento.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-1">
+                {loadingHistorico ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-20" />
+                    <Skeleton className="h-20" />
+                  </div>
+                ) : historico.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum histórico registrado para este lançamento.</p>
+                ) : (
+                  historico.map((evento) => {
+                    const valorAntes = evento.dados_antes?.valor;
+                    const valorDepois = evento.dados_depois?.valor;
+                    const statusAntes = evento.dados_antes?.status;
+                    const statusDepois = evento.dados_depois?.status;
+                    const anexos = Array.isArray(evento.anexos) ? evento.anexos : [];
+                    return (
+                      <div key={evento.id} className="rounded-lg border p-3 space-y-2 bg-card">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold capitalize">{evento.acao.replace(/_/g, " ")}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(evento.criado_em).toLocaleString("pt-BR")} · {evento.ator_nome || evento.origem || "Sistema"}
+                            </p>
+                          </div>
+                          {evento.origem && <Badge variant="outline" className="text-[10px]">{evento.origem}</Badge>}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                          <div className="rounded border bg-muted/30 p-2">
+                            <span className="text-muted-foreground">Valor</span>
+                            <p className="font-medium">
+                              {valorAntes ? formatCurrency(valorAntes) : "-"} {valorDepois && valorDepois !== valorAntes ? `→ ${formatCurrency(valorDepois)}` : ""}
+                            </p>
+                          </div>
+                          <div className="rounded border bg-muted/30 p-2">
+                            <span className="text-muted-foreground">Status</span>
+                            <p className="font-medium">
+                              {statusAntes || "-"} {statusDepois && statusDepois !== statusAntes ? `→ ${statusDepois}` : ""}
+                            </p>
+                          </div>
+                          <div className="rounded border bg-muted/30 p-2">
+                            <span className="text-muted-foreground">Anexos preservados</span>
+                            <p className="font-medium">{anexos.length}</p>
+                          </div>
+                        </div>
+                        {anexos.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {anexos.map((anexo: any, idx: number) => (
+                              <span key={`${anexo.id || idx}`} className="inline-flex max-w-full items-center gap-1 rounded border px-2 py-1 text-[11px] text-muted-foreground">
+                                <Paperclip className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{anexo.filename || anexo.title || anexo.id || "Anexo"}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </DialogContent>
           </Dialog>
 

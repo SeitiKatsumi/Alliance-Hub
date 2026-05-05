@@ -30,6 +30,10 @@ import {
 import { getAllTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "/world-countries-50m.json";
+const ANUNCIO_PAYMENT_LINKS = {
+  brasil: "https://www.asaas.com/c/j3grfxxw456r9ucm",
+  exterior: "https://buy.stripe.com/7sYbJ00YJa9H0Sh8Mb04801",
+} as const;
 
 const NUCLEOS = [
   "Diretoria da Aliança",
@@ -742,10 +746,13 @@ export default function VitrinePage() {
   const [anuncioImagemPreview, setAnuncioImagemPreview] = useState<string | null>(null);
   const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
   const [anuncioTerms, setAnuncioTerms] = useState({ t1: false, t2: false, t3: false });
+  const [anuncioPagamentoPais, setAnuncioPagamentoPais] = useState<keyof typeof ANUNCIO_PAYMENT_LINKS>("brasil");
+  const [anuncioPagamentoConfirmado, setAnuncioPagamentoConfirmado] = useState(false);
   const anuncioTermsAllAccepted = anuncioTerms.t1 && anuncioTerms.t2 && anuncioTerms.t3;
   const [anuncioEditTarget, setAnuncioEditTarget] = useState<AnuncioVitrine | null>(null);
 
   const membroId = user?.membro_directus_id;
+  const isSuperAdmin = user?.role === "admin";
 
   // Fetch all vitrine members
   const { data: membros = [], isLoading } = useQuery<MembroVitrine[]>({
@@ -835,11 +842,14 @@ export default function VitrinePage() {
 
   function openAnuncioCreate() {
     setAnuncioEditMode(false);
+    setAnuncioEditTarget(null);
     setAnuncioForm({ titulo: "", descricao: "", link: "" });
     setAnuncioPeriodo(null);
     setAnuncioImagemId(null);
     setAnuncioImagemPreview(null);
     setAnuncioTerms({ t1: false, t2: false, t3: false });
+    setAnuncioPagamentoPais("brasil");
+    setAnuncioPagamentoConfirmado(false);
     setAnuncioDialogOpen(true);
   }
 
@@ -889,6 +899,10 @@ export default function VitrinePage() {
     } else {
       if (!anuncioPeriodo) {
         toast({ title: "Selecione um período", variant: "destructive" });
+        return;
+      }
+      if (!isSuperAdmin && !anuncioPagamentoConfirmado) {
+        toast({ title: "Finalize o pagamento antes de publicar", variant: "destructive" });
         return;
       }
       criarAnuncioMutation.mutate({
@@ -1118,7 +1132,7 @@ export default function VitrinePage() {
             <AnuncioCard
               key={a.id}
               anuncio={a}
-              isOwn={a.membro_id === membroId}
+              isOwn={isSuperAdmin || a.membro_id === membroId}
               onEdit={openAnuncioEdit}
               onCancel={() => cancelarAnuncioMutation.mutate(a.id)}
             />
@@ -1602,7 +1616,7 @@ export default function VitrinePage() {
                     periodos={disponibilidade}
                     selected={anuncioPeriodo}
                     onSelect={setAnuncioPeriodo}
-                    reservados={periodosReservados}
+                    reservados={isSuperAdmin ? [] : periodosReservados}
                   />
                 )}
                 {anuncioPeriodo && (
@@ -1614,6 +1628,68 @@ export default function VitrinePage() {
                     </span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {!anuncioEditMode && !isSuperAdmin && (
+              <div className="rounded-xl p-4 space-y-3"
+                style={{ background: "rgba(215,187,125,0.04)", border: "1px solid rgba(215,187,125,0.16)" }}>
+                <div className="flex items-center gap-2">
+                  <ExternalLink className="w-3.5 h-3.5 text-brand-gold/50" />
+                  <span className="text-xs font-mono text-brand-gold/60">Pagamento do anúncio</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+                  <Select
+                    value={anuncioPagamentoPais}
+                    onValueChange={(value) => {
+                      setAnuncioPagamentoPais(value as keyof typeof ANUNCIO_PAYMENT_LINKS);
+                      setAnuncioPagamentoConfirmado(false);
+                    }}
+                  >
+                    <SelectTrigger
+                      className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                      data-testid="select-anuncio-pagamento"
+                    >
+                      <SelectValue placeholder="Local do pagamento" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#001428] border-white/10 text-white">
+                      <SelectItem value="brasil">Brasil</SelectItem>
+                      <SelectItem value="exterior">Fora do Brasil</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => window.open(ANUNCIO_PAYMENT_LINKS[anuncioPagamentoPais], "_blank", "noopener,noreferrer")}
+                    className="gap-2 font-mono text-xs border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
+                    data-testid="btn-pagar-anuncio"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Comprar
+                  </Button>
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer group" data-testid="checkbox-pagamento-anuncio">
+                  <div
+                    onClick={() => setAnuncioPagamentoConfirmado(v => !v)}
+                    className="mt-0.5 w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-all cursor-pointer"
+                    style={{
+                      background: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.04)",
+                      borderColor: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    {anuncioPagamentoConfirmado && <Check className="w-2.5 h-2.5 text-[#001D34]" />}
+                  </div>
+                  <span
+                    className="text-[11px] font-mono leading-relaxed select-none transition-colors"
+                    style={{ color: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
+                    onClick={() => setAnuncioPagamentoConfirmado(v => !v)}
+                  >
+                    Já realizei o pagamento do anúncio e quero publicar.
+                  </span>
+                </label>
               </div>
             )}
 
@@ -1697,6 +1773,7 @@ export default function VitrinePage() {
               onClick={handleAnuncioSubmit}
               disabled={
                 (!anuncioEditMode && !anuncioTermsAllAccepted) ||
+                (!anuncioEditMode && !isSuperAdmin && !anuncioPagamentoConfirmado) ||
                 criarAnuncioMutation.isPending ||
                 editarAnuncioMutation.isPending ||
                 anuncioUploadLoading

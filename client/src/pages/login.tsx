@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail, Store, TrendingUp, Handshake } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
-import builtLogo from "@assets/Logo_BUILT_3_Horizontal_Negativo_1776817526930.png";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 
 interface ConviteInfo {
   gerador_nome: string | null;

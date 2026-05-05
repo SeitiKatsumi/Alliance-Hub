@@ -54,6 +54,7 @@ import {
   CalendarClock,
   CalendarCheck,
   Receipt,
+  CreditCard,
   BadgePercent,
   ArrowLeftRight,
   SendHorizontal,
@@ -128,6 +129,7 @@ interface CategoriaItem {
   Nome_da_categoria: string;
   Descricao_das_categorias?: string;
   Tipo_de_categoria?: string | null;
+  bia_id?: string | null;
 }
 
 interface AnexoFile {
@@ -161,6 +163,15 @@ interface FluxoCaixaItem {
   tipo_de_cpp: (TipoCPP | number)[];
   Favorecido: (Membro | string)[];
   anexos: (AnexoFile | string)[];
+  pagamento_provider?: "asaas" | "stripe" | null;
+  pagamento_id?: string | null;
+  pagamento_url?: string | null;
+  pagamento_status?: string | null;
+  pagamento_pais?: "brasil" | "fora" | null;
+  pagamento_pagador_nome?: string | null;
+  pagamento_pagador_email?: string | null;
+  pagamento_pagador_documento?: string | null;
+  pagamento_gerado_em?: string | null;
 }
 
 const STATUS_OPTIONS: { value: StatusPagamento; label: string }[] = [
@@ -195,6 +206,14 @@ function formatBRL(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+function fluxoValorToNumber(value: number | string): number {
+  if (typeof value === "number") return value;
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+  if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", ".")) || 0;
+  return Number(raw) || 0;
 }
 
 function formatDate(dateStr: string): string {
@@ -243,6 +262,35 @@ function getFavName(fav: Membro | string, membroMap: Record<string, string>): st
 function getCatName(cat: CategoriaItem | number, catMap: Record<number, string>): string {
   if (typeof cat === "object" && cat !== null) return stripPlanoContaCode(cat.Nome_da_categoria || "Categoria");
   return stripPlanoContaCode(catMap[cat] || "Categoria");
+}
+
+function normalizeText(value?: string | null): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isDivisorDeibLancamento(item: FluxoCaixaItem, catMap: Record<number, string>): boolean {
+  const descricao = normalizeText(item.descricao);
+  const hasDivisor = descricao.startsWith("divisor multiplicador");
+  const hasDeib = (item.Categoria || []).some((cat) => {
+    const name = normalizeText(typeof cat === "object" && cat !== null ? cat.Nome_da_categoria : catMap[cat]);
+    return name.includes("direito economico institucional built") && (name.includes("dei-b") || name.includes("built"));
+  });
+  return hasDivisor && hasDeib;
+}
+
+function readableApiError(error: Error): string {
+  const raw = error.message || "Erro inesperado";
+  const jsonStart = raw.indexOf("{");
+  if (jsonStart >= 0) {
+    try {
+      const parsed = JSON.parse(raw.slice(jsonStart));
+      if (parsed?.error) return String(parsed.error);
+    } catch {}
+  }
+  return raw.replace(/^\d+:\s*/, "");
 }
 
 function stripPlanoContaCode(name?: string | null): string {
@@ -517,16 +565,20 @@ function CategoriaCombobox({
   value,
   onValueChange,
   formTipo,
+  biaId,
   prefix,
 }: {
   categorias: CategoriaItem[];
   value: number | null;
   onValueChange: (v: number | null) => void;
   formTipo: string;
+  biaId?: string;
   prefix: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [createMode, setCreateMode] = useState(false);
+  const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
@@ -558,16 +610,27 @@ function CategoriaCombobox({
   }, [filtered]);
 
   async function handleCreate() {
-    if (!search.trim()) return;
+    const nome = (createMode ? createName : search).trim();
+    if (!nome) {
+      setCreateMode(true);
+      return;
+    }
     setCreating(true);
     try {
-      const res = await apiRequest("POST", "/api/categorias", { Nome_da_categoria: search.trim() });
+      const res = await apiRequest("POST", "/api/categorias", {
+        Nome_da_categoria: nome,
+        Tipo_de_categoria: formTipo === "entrada" ? "Entrada" : "Saída",
+        Descricao_das_categorias: "Categorias da BIA",
+        bia_id: biaId || null,
+      });
       const created: CategoriaItem = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/categorias"] });
       onValueChange(created.id);
       setSearch("");
+      setCreateName("");
+      setCreateMode(false);
       setOpen(false);
-      toast({ title: `Categoria "${created.Nome_da_categoria}" criada!` });
+      toast({ title: `Categoria "${created.Nome_da_categoria}" criada para esta BIA!` });
     } catch {
       toast({ title: "Erro ao criar categoria", variant: "destructive" });
     } finally {
@@ -576,7 +639,7 @@ function CategoriaCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) { setCreateMode(false); setCreateName(""); } }}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -597,6 +660,49 @@ function CategoriaCombobox({
         </button>
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[280px]" align="start">
+        {createMode ? (
+          <div className="p-3 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground">Nova categoria desta BIA</p>
+            <Input
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              placeholder="Nome da categoria..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCreate();
+                }
+                if (e.key === "Escape") {
+                  setCreateMode(false);
+                  setCreateName("");
+                }
+              }}
+              data-testid={`${prefix}-input-nova-categoria`}
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => { setCreateMode(false); setCreateName(""); }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1 bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+                disabled={!createName.trim() || creating}
+                onClick={handleCreate}
+                data-testid={`${prefix}-button-criar-categoria`}
+              >
+                {creating ? "Criando..." : "Criar"}
+              </Button>
+            </div>
+          </div>
+        ) : (
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Buscar categoria..."
@@ -636,24 +742,31 @@ function CategoriaCombobox({
               ))}
             </CommandGroup>
             ))}
-            {search.trim() && !exactMatch && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    value="__create__"
-                    onSelect={handleCreate}
-                    disabled={creating}
-                    className="text-brand-gold cursor-pointer"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    {creating ? "Criando..." : `Criar "${search.trim()}"`}
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem
+                value="__create__"
+                onSelect={() => {
+                  if (search.trim() && !exactMatch) handleCreate();
+                  else {
+                    setCreateName(search.trim());
+                    setCreateMode(true);
+                  }
+                }}
+                disabled={creating}
+                className="text-brand-gold cursor-pointer"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {creating
+                  ? "Criando..."
+                  : search.trim() && !exactMatch
+                    ? `Nova categoria: "${search.trim()}"`
+                    : "Nova categoria"}
+              </CommandItem>
+            </CommandGroup>
           </CommandList>
         </Command>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -720,6 +833,7 @@ function LancamentoFormFields({
   formDataPagamento, setFormDataPagamento,
   membros, tiposCpp, categorias,
   favorecidos,
+  selectedBiaId,
   prefix,
   pendingFiles, setPendingFiles,
   existingAnexos, setExistingAnexos,
@@ -757,6 +871,7 @@ function LancamentoFormFields({
   favorecidos?: Membro[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
+  selectedBiaId?: string;
   prefix: string;
   pendingFiles: globalThis.File[];
   setPendingFiles: (files: globalThis.File[]) => void;
@@ -860,6 +975,7 @@ function LancamentoFormFields({
           value={formCategorias}
           onValueChange={setFormCategorias}
           formTipo={formTipo}
+          biaId={selectedBiaId}
           prefix={prefix}
         />
       </div>
@@ -1108,6 +1224,12 @@ export default function FluxoCaixaPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
   const [anexosModal, setAnexosModal] = useState<{ id: string; anexos: any[] } | null>(null);
+  const [boletoItem, setBoletoItem] = useState<FluxoCaixaItem | null>(null);
+  const [boletoPais, setBoletoPais] = useState<"brasil" | "fora">("brasil");
+  const [boletoNome, setBoletoNome] = useState("");
+  const [boletoEmail, setBoletoEmail] = useState("");
+  const [boletoDocumento, setBoletoDocumento] = useState("");
+  const [boletoUrl, setBoletoUrl] = useState("");
 
   const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
   const [formValor, setFormValor] = useState<string>("");
@@ -1195,7 +1317,11 @@ export default function FluxoCaixaPage() {
   });
 
   const { data: categorias = [] } = useQuery<CategoriaItem[]>({
-    queryKey: ["/api/categorias"],
+    queryKey: ["/api/categorias", selectedBiaId],
+    queryFn: () => fetch(`/api/categorias${selectedBiaId ? `?bia_id=${encodeURIComponent(selectedBiaId)}` : ""}`).then((r) => {
+      if (!r.ok) throw new Error("Erro ao buscar categorias");
+      return r.json();
+    }),
   });
 
   const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
@@ -1650,6 +1776,36 @@ export default function FluxoCaixaPage() {
     },
   });
 
+  const gerarBoletoMutation = useMutation({
+    mutationFn: async () => {
+      if (!boletoItem) throw new Error("Lancamento nao selecionado");
+      const res = await apiRequest("POST", `/api/fluxo-caixa/${boletoItem.id}/gerar-pagamento`, {
+        pais: boletoPais,
+        nome: boletoNome.trim(),
+        email: boletoEmail.trim(),
+        documento: boletoDocumento.trim(),
+      });
+      return res.json() as Promise<{ provider: "asaas" | "stripe"; id: string; url: string; status: string }>;
+    },
+    onSuccess: (data) => {
+      setBoletoUrl(data.url);
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      toast({ title: "Pagamento gerado", description: "O link de pagamento esta pronto." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao gerar pagamento", description: readableApiError(error), variant: "destructive" });
+    },
+  });
+
+  function openBoletoDialog(item: FluxoCaixaItem) {
+    setBoletoItem(item);
+    setBoletoPais(item.pagamento_pais || "brasil");
+    setBoletoNome(item.pagamento_pagador_nome || "");
+    setBoletoEmail(item.pagamento_pagador_email || "");
+    setBoletoDocumento(item.pagamento_pagador_documento || "");
+    setBoletoUrl(item.pagamento_url || "");
+  }
+
   function resetForm() {
     setFormTipo("entrada");
     setFormValor("");
@@ -1896,6 +2052,7 @@ export default function FluxoCaixaPage() {
                   formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
                   membros={membros} favorecidos={favorecidosDaBia} tiposCpp={tiposCpp}
                   categorias={categorias}
+                  selectedBiaId={selectedBiaId}
                   prefix="create"
                   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
                   existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
@@ -2863,6 +3020,18 @@ export default function FluxoCaixaPage() {
                           </td>
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-1">
+                              {isDivisorDeibLancamento(item, catMap) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
+                                  onClick={() => openBoletoDialog(item)}
+                                  data-testid={`button-gerar-boleto-${item.id}`}
+                                  title={item.pagamento_url ? "Ver ou gerar novo pagamento" : "Gerar boleto"}
+                                >
+                                  <Receipt className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -2917,6 +3086,7 @@ export default function FluxoCaixaPage() {
                 formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
                 membros={membros} favorecidos={favorecidosDaBia} tiposCpp={tiposCpp}
                 categorias={categorias}
+                selectedBiaId={selectedBiaId}
                 prefix="edit"
                 pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
                 existingAnexos={existingAnexos} setExistingAnexos={setExistingAnexos}
@@ -2938,6 +3108,130 @@ export default function FluxoCaixaPage() {
                     <Pencil className="w-4 h-4 mr-2" />
                   )}
                   {uploading ? "Enviando..." : "Salvar Alterações"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!boletoItem} onOpenChange={(open) => { if (!open) { setBoletoItem(null); setBoletoUrl(""); gerarBoletoMutation.reset(); } }}>
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-brand-gold" />
+                  Gerar boleto
+                </DialogTitle>
+              </DialogHeader>
+              {boletoItem && (
+                <div className="space-y-4">
+                  <div className="rounded-md border border-brand-gold/30 bg-brand-gold/5 p-3 text-sm">
+                    <div className="text-muted-foreground">Valor do lancamento</div>
+                    <div className="text-lg font-bold text-brand-navy">{formatBRL(Math.abs(fluxoValorToNumber(boletoItem.valor)))}</div>
+                    <div className="mt-1 text-muted-foreground">{boletoItem.descricao}</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Local do pagador</Label>
+                    <Select
+                      value={boletoPais}
+                      onValueChange={(value) => {
+                        setBoletoPais(value as "brasil" | "fora");
+                        setBoletoUrl("");
+                      }}
+                    >
+                      <SelectTrigger data-testid="select-boleto-pais">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="brasil">Brasil</SelectItem>
+                        <SelectItem value="fora">Fora do Brasil</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="boleto-nome">Nome do pagador <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="boleto-nome"
+                        value={boletoNome}
+                        onChange={(e) => setBoletoNome(e.target.value)}
+                        placeholder="Nome completo ou razao social"
+                        data-testid="input-boleto-nome"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="boleto-email">Email <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="boleto-email"
+                        type="email"
+                        value={boletoEmail}
+                        onChange={(e) => setBoletoEmail(e.target.value)}
+                        placeholder="email@exemplo.com"
+                        data-testid="input-boleto-email"
+                      />
+                    </div>
+                  </div>
+
+                  {boletoPais === "brasil" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="boleto-documento">CPF/CNPJ <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="boleto-documento"
+                        value={boletoDocumento}
+                        onChange={(e) => setBoletoDocumento(e.target.value)}
+                        placeholder="Somente numeros ou formatado"
+                        data-testid="input-boleto-documento"
+                      />
+                    </div>
+                  )}
+
+                  {boletoUrl && (
+                    <div className="rounded-md border p-3 space-y-2">
+                      <div className="text-sm font-medium text-brand-navy">Link de pagamento gerado</div>
+                      <div className="break-all text-sm text-muted-foreground">{boletoUrl}</div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => window.open(boletoUrl, "_blank")} data-testid="button-abrir-boleto">
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Abrir
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(boletoUrl);
+                            toast({ title: "Link copiado" });
+                          }}
+                          data-testid="button-copiar-boleto"
+                        >
+                          Copiar link
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBoletoItem(null)} data-testid="button-cancelar-boleto">
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => gerarBoletoMutation.mutate()}
+                  disabled={
+                    gerarBoletoMutation.isPending ||
+                    !boletoNome.trim() ||
+                    !boletoEmail.trim() ||
+                    (boletoPais === "brasil" && !boletoDocumento.trim())
+                  }
+                  data-testid="button-confirmar-gerar-boleto"
+                >
+                  {gerarBoletoMutation.isPending ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : boletoPais === "brasil" ? (
+                    <Receipt className="w-4 h-4 mr-2" />
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
+                  {boletoPais === "brasil" ? "Gerar boleto" : "Gerar fatura"}
                 </Button>
               </DialogFooter>
             </DialogContent>

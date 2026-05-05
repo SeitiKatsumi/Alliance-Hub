@@ -1674,23 +1674,39 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     },
   });
 
-  const infoComercialOk = form.situacao !== "ativa" || (
-    infoForm.razao_social.trim().length > 0 &&
-    infoForm.cnpj.trim().length > 0 &&
-    infoForm.banco.trim().length > 0 &&
-    infoForm.conta.trim().length > 0 &&
-    infoForm.titular_conta.trim().length > 0
-  );
+  function getMissingRequiredFields(): string[] {
+    const missing: string[] = [];
+    if (!form.nome_bia.trim()) missing.push("Nome da BIA");
+    if (!form.destinacao.trim()) missing.push("Destinação");
+    if (!form.localizacao.trim()) missing.push("Localização");
+    if (!form.objetivo_alianca.trim()) missing.push("Objetivo da aliança");
+    if (!form.observacoes.trim()) missing.push("Observações");
+    if (!form.aliado_built) missing.push("Aliado BUILT");
+    if (!form.diretor_alianca) missing.push("Diretor de Aliança");
+    if (form.situacao === "ativa") {
+      if (!infoForm.razao_social.trim()) missing.push("Razão social/Nome");
+      if (!infoForm.cnpj.trim()) missing.push("CNPJ/CPF");
+      if (!infoForm.banco.trim()) missing.push("Banco");
+      if (!infoForm.conta.trim()) missing.push("Conta");
+      if (!infoForm.titular_conta.trim()) missing.push("Titular da Conta");
+    }
+    return missing;
+  }
 
-  const canSave =
-    form.nome_bia.trim().length > 0 &&
-    form.destinacao.trim().length > 0 &&
-    form.localizacao.trim().length > 0 &&
-    form.objetivo_alianca.trim().length > 0 &&
-    form.observacoes.trim().length > 0 &&
-    !!form.aliado_built &&
-    !!form.diretor_alianca &&
-    infoComercialOk;
+  function handleSaveClick() {
+    const missing = getMissingRequiredFields();
+    if (missing.length > 0) {
+      const infoFields = new Set(["Razão social/Nome", "CNPJ/CPF", "Banco", "Conta", "Titular da Conta"]);
+      if (missing.some((field) => infoFields.has(field))) setActiveTab("info");
+      toast({
+        title: "Campos obrigatórios pendentes",
+        description: `Preencha: ${missing.join(", ")}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    saveMutation.mutate();
+  }
 
   function handleLocationSelect(localizacao: string, lat: number, lng: number) {
     setForm({ ...form, localizacao, latitude: String(lat), longitude: String(lng) });
@@ -1948,15 +1964,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   </Button>
                 </div>
                 <MultiMembroSelect
-                  label="Sócios Multiplicadores"
-                  field="socios_multiplicadores"
-                  form={form}
-                  setForm={setForm}
-                  membros={membros}
-                  icon={TrendingUp}
-                  note="Participam entregando trabalho, técnica, execução, fornecimento, venda ou relacionamento convertido em CPP."
-                />
-                <MultiMembroSelect
                   label="Sócios Guardiões"
                   field="socios_guardioes"
                   form={form}
@@ -1964,6 +1971,15 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   membros={membros}
                   icon={Shield}
                   note="Responsáveis por manter a BIA, organizar o caixa e sustentar o projeto."
+                />
+                <MultiMembroSelect
+                  label="Sócios Multiplicadores"
+                  field="socios_multiplicadores"
+                  form={form}
+                  setForm={setForm}
+                  membros={membros}
+                  icon={TrendingUp}
+                  note="Participam entregando trabalho, técnica, execução, fornecimento, venda ou relacionamento convertido em CPP."
                 />
                 <MultiMembroSelect
                   label="Terceiros"
@@ -2065,25 +2081,25 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-foreground">
-                      Razão Social {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                      Razão social/Nome {form.situacao === "ativa" && <span className="text-destructive">*</span>}
                     </label>
                     <input
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.razao_social}
                       onChange={e => setInfoForm({ ...infoForm, razao_social: e.target.value })}
-                      placeholder="Razão social da empresa"
+                      placeholder="Razão social ou nome"
                       data-testid="input-razao-social"
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-foreground">
-                      CNPJ {form.situacao === "ativa" && <span className="text-destructive">*</span>}
+                      CNPJ/CPF {form.situacao === "ativa" && <span className="text-destructive">*</span>}
                     </label>
                     <input
                       className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                       value={infoForm.cnpj}
                       onChange={e => setInfoForm({ ...infoForm, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00"
+                      placeholder="00.000.000/0000-00 ou 000.000.000-00"
                       data-testid="input-cnpj-comercial"
                     />
                   </div>
@@ -2196,8 +2212,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               Cancelar
             </Button>
             <Button
-              onClick={() => saveMutation.mutate()}
-              disabled={!canSave || saveMutation.isPending || uploading || isLoading}
+              onClick={handleSaveClick}
+              disabled={saveMutation.isPending || uploading || isLoading}
               className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
               data-testid="btn-save-bia"
             >

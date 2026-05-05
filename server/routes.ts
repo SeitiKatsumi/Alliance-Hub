@@ -911,6 +911,19 @@ async function directusFieldPost(collection: string, body: object): Promise<{ ok
   } catch { return { ok: false }; }
 }
 
+async function directusFieldPatch(collection: string, field: string, body: object): Promise<{ ok: boolean; code?: string }> {
+  try {
+    const r = await fetch(`${DIRECTUS_URL}/fields/${collection}/${field}`, {
+      method: "PATCH",
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) return { ok: true };
+    const err = await r.json().catch(() => ({}));
+    return { ok: false, code: err?.errors?.[0]?.extensions?.code };
+  } catch { return { ok: false }; }
+}
+
 async function directusRelationPost(body: object): Promise<{ ok: boolean; code?: string }> {
   try {
     const r = await fetch(`${DIRECTUS_URL}/relations`, {
@@ -922,6 +935,33 @@ async function directusRelationPost(body: object): Promise<{ ok: boolean; code?:
     const err = await r.json().catch(() => ({}));
     return { ok: false, code: err?.errors?.[0]?.extensions?.code };
   } catch { return { ok: false }; }
+}
+
+async function ensureFluxoPagamentoFields() {
+  const fields = [
+    { field: "pagamento_provider", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_id", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_url", type: "text", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_status", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_pais", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_pagador_nome", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_pagador_email", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_pagador_documento", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "pagamento_gerado_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false }, schema: { is_nullable: true } },
+  ];
+
+  const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
+  for (const field of fields) {
+    const result = await directusFieldPost("fluxo_caixa", field);
+    if (!result.ok && !silent.has(result.code || "")) {
+      console.warn(`[fluxo_pagamento] Field ${field.field} not ensured: ${result.code || "unknown"}`);
+    }
+  }
+  await directusFieldPatch("fluxo_caixa", "pagamento_url", {
+    type: "text",
+    meta: { interface: "input", display: "raw", hidden: false },
+    schema: { data_type: "text", is_nullable: true },
+  });
 }
 
 async function ensureComunidadeM2O(col: string, field: string, relatedCollection: string) {
@@ -2409,6 +2449,10 @@ export async function registerRoutes(
   });
 
   // ========== FLUXO DE CAIXA (from Directus) ==========
+  await ensureFluxoPagamentoFields().catch((err: any) => {
+    console.warn(`[fluxo_pagamento] Campos de pagamento nao sincronizados: ${err.message}`);
+  });
+
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
       const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario,favorecido_id.razao_social");
@@ -2455,6 +2499,15 @@ export async function registerRoutes(
           multa: f.multa || null,
           juros: f.juros || null,
           responsavel_multa_juros: f.responsavel_multa_juros || null,
+          pagamento_provider: f.pagamento_provider || null,
+          pagamento_id: f.pagamento_id || null,
+          pagamento_url: f.pagamento_url || null,
+          pagamento_status: f.pagamento_status || null,
+          pagamento_pais: f.pagamento_pais || null,
+          pagamento_pagador_nome: f.pagamento_pagador_nome || null,
+          pagamento_pagador_email: f.pagamento_pagador_email || null,
+          pagamento_pagador_documento: f.pagamento_pagador_documento || null,
+          pagamento_gerado_em: f.pagamento_gerado_em || null,
           Categoria: categorias,
           tipo_de_cpp: tiposCpp,
           Favorecido: (() => {
@@ -2545,6 +2598,230 @@ export async function registerRoutes(
       const item = await directusUpdate("fluxo_caixa", req.params.id, data);
       res.json(item);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  function normalizePaymentText(value: unknown): string {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+
+  function categoriaNameFromRel(rel: any): string {
+    if (!rel) return "";
+    if (rel.categorias_id && typeof rel.categorias_id === "object") {
+      return rel.categorias_id.Nome_da_categoria || "";
+    }
+    return rel.Nome_da_categoria || "";
+  }
+
+  function isFluxoDeibDivisor(item: any): boolean {
+    const descricao = normalizePaymentText(item?.descricao);
+    const categorias = Array.isArray(item?.Categoria) ? item.Categoria : [];
+    const hasDivisor = descricao.startsWith("divisor multiplicador");
+    const hasDeib = categorias.some((cat: any) => {
+      const name = normalizePaymentText(categoriaNameFromRel(cat));
+      return name.includes("direito economico institucional built") && (name.includes("dei-b") || name.includes("built"));
+    });
+    return hasDivisor && hasDeib;
+  }
+
+  function parseMoneyValue(value: unknown): number {
+    if (typeof value === "number") return value;
+    const raw = String(value || "").trim();
+    if (!raw) return 0;
+    if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
+    return Number(raw);
+  }
+
+  async function fetchFluxoForPayment(id: string) {
+    const items = await directusFetchScoped(
+      "fluxo_caixa",
+      `fields=*,Categoria.categorias_id.*&filter[id][_eq]=${encodeURIComponent(id)}`
+    );
+    return items[0] || null;
+  }
+
+  function getBaseUrl(req: any): string {
+    const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : null);
+    if (rawDomain) return rawDomain.replace(/\/$/, "");
+    const proto = req.headers["x-forwarded-proto"] || req.protocol || "http";
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+    return `${proto}://${host}`;
+  }
+
+  async function markFluxoPagamentoPago(id: string, provider: "asaas" | "stripe", paymentId?: string | null) {
+    await directusUpdate("fluxo_caixa", id, {
+      status: "pago",
+      data_pagamento: new Date().toISOString().split("T")[0],
+      pagamento_status: "pago",
+      pagamento_provider: provider,
+      ...(paymentId ? { pagamento_id: paymentId } : {}),
+    });
+  }
+
+  async function createAsaasBoleto(params: {
+    fluxoId: string;
+    nome: string;
+    email: string;
+    documento: string;
+    valor: number;
+    vencimento?: string | null;
+    descricao: string;
+  }) {
+    const apiKey = process.env.ASAAS_API_KEY;
+    if (!apiKey) {
+      throw new Error("ASAAS_API_KEY nao configurada. Adicione a chave do Asaas no ambiente.");
+    }
+    const baseUrl = (process.env.ASAAS_API_URL || "https://api.asaas.com/v3").replace(/\/$/, "");
+    const headers = {
+      "Content-Type": "application/json",
+      access_token: apiKey,
+    };
+    const customerRes = await fetch(`${baseUrl}/customers`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        name: params.nome,
+        email: params.email,
+        cpfCnpj: params.documento.replace(/\D/g, ""),
+      }),
+    });
+    if (!customerRes.ok) {
+      const text = await customerRes.text().catch(() => "");
+      throw new Error(readProviderError(text, `Erro ao criar cliente no Asaas (${customerRes.status})`));
+    }
+    const customer = await customerRes.json();
+    const dueDate = params.vencimento || new Date().toISOString().split("T")[0];
+    const paymentRes = await fetch(`${baseUrl}/payments`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        customer: customer.id,
+        billingType: "BOLETO",
+        value: Number(params.valor.toFixed(2)),
+        dueDate,
+        description: params.descricao,
+        externalReference: `fluxo_caixa:${params.fluxoId}`,
+      }),
+    });
+    if (!paymentRes.ok) {
+      const text = await paymentRes.text().catch(() => "");
+      throw new Error(readProviderError(text, `Erro ao criar cobrança no Asaas (${paymentRes.status})`));
+    }
+    const payment = await paymentRes.json();
+    return {
+      id: payment.id,
+      url: payment.bankSlipUrl || payment.invoiceUrl || payment.transactionReceiptUrl,
+      status: payment.status || "pendente",
+    };
+  }
+
+  function readProviderError(text: string, fallback: string): string {
+    try {
+      const parsed = JSON.parse(text);
+      const first = Array.isArray(parsed?.errors) ? parsed.errors[0] : null;
+      if (first?.description) return String(first.description);
+      if (parsed?.error) return String(parsed.error);
+      if (parsed?.message) return String(parsed.message);
+    } catch {}
+    return fallback;
+  }
+
+  app.post("/api/fluxo-caixa/:id/gerar-pagamento", async (req, res) => {
+    try {
+      const pais = req.body?.pais === "fora" ? "fora" : "brasil";
+      const nome = String(req.body?.nome || "").trim();
+      const email = String(req.body?.email || "").trim();
+      const documento = String(req.body?.documento || "").trim();
+      if (!nome || !email || (pais === "brasil" && !documento)) {
+        return res.status(400).json({ error: "Informe nome, email e CPF/CNPJ quando o pagamento for do Brasil." });
+      }
+
+      const item = await fetchFluxoForPayment(req.params.id);
+      if (!item) return res.status(404).json({ error: "Lancamento nao encontrado" });
+      if (!isFluxoDeibDivisor(item)) {
+        return res.status(400).json({ error: "Pagamento permitido apenas para Divisor Multiplicador DEI-B." });
+      }
+
+      const valor = Math.abs(parseMoneyValue(item.valor));
+      if (!Number.isFinite(valor) || valor <= 0) {
+        return res.status(400).json({ error: "Valor do lancamento invalido para pagamento." });
+      }
+
+      const descricao = `Divisor Multiplicador DEI-B - ${item.descricao || item.id}`;
+      let payment: { id: string; url: string; status: string };
+      if (pais === "brasil") {
+        payment = await createAsaasBoleto({
+          fluxoId: req.params.id,
+          nome,
+          email,
+          documento,
+          valor,
+          vencimento: item.data_vencimento,
+          descricao,
+        });
+      } else {
+        const stripe = getStripeClient();
+        const customer = await stripe.customers.create({
+          name: nome,
+          email,
+          metadata: {
+            fluxo_caixa_id: String(item.id),
+            pagamento_tipo: "fluxo_caixa_deib",
+          },
+        });
+        const invoice = await stripe.invoices.create({
+          customer: customer.id,
+          collection_method: "send_invoice",
+          days_until_due: 7,
+          auto_advance: false,
+          metadata: {
+            fluxo_caixa_id: String(item.id),
+            pagamento_tipo: "fluxo_caixa_deib",
+            pagador_nome: nome,
+          },
+        });
+        await stripe.invoiceItems.create({
+          customer: customer.id,
+          invoice: invoice.id,
+          currency: "brl",
+          amount: Math.round(valor * 100),
+          description: descricao,
+        });
+        const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+        if (!finalizedInvoice.hosted_invoice_url) {
+          return res.status(502).json({ error: "Erro ao obter link da fatura do Stripe." });
+        }
+        payment = {
+          id: finalizedInvoice.id,
+          url: finalizedInvoice.hosted_invoice_url,
+          status: finalizedInvoice.status || "pendente",
+        };
+      }
+
+      await directusUpdate("fluxo_caixa", req.params.id, {
+        pagamento_provider: pais === "brasil" ? "asaas" : "stripe",
+        pagamento_id: payment.id,
+        pagamento_url: payment.url,
+        pagamento_status: payment.status,
+        pagamento_pais: pais,
+        pagamento_pagador_nome: nome,
+        pagamento_pagador_email: email,
+        pagamento_pagador_documento: documento || null,
+        pagamento_gerado_em: new Date().toISOString(),
+      });
+
+      res.json({
+        provider: pais === "brasil" ? "asaas" : "stripe",
+        id: payment.id,
+        url: payment.url,
+        status: payment.status,
+      });
+    } catch (error: any) {
+      console.error("[fluxo_pagamento] gerar-pagamento error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });
@@ -2667,6 +2944,30 @@ export async function registerRoutes(
 
   const PLANO_CONTAS_NOMES = new Set(PLANO_CONTAS_CATEGORIAS.map((c) => c.nome));
 
+  async function ensureCategoriaBiaField() {
+    try {
+      const res = await fetch(`${DIRECTUS_URL}/fields/Categorias`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          field: "bia_id",
+          type: "string",
+          meta: { interface: "input", display: "raw", hidden: false, note: "BIA vinculada para categorias customizadas" },
+          schema: { is_nullable: true },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const code = err?.errors?.[0]?.extensions?.code;
+        if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
+          console.warn(`[categorias] Field bia_id response: ${res.status}`);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[categorias] bia_id field not ensured: ${err.message}`);
+    }
+  }
+
   async function ensurePlanoContasCategorias() {
     const items = await directusFetch("Categorias");
     const byName = new Map<string, any>();
@@ -2695,15 +2996,19 @@ export async function registerRoutes(
     console.warn(`[categorias] Plano de contas não sincronizado: ${err.message}`);
   });
 
+  await ensureCategoriaBiaField();
+
   app.get("/api/categorias", async (req, res) => {
     try {
+      const biaId = typeof req.query.bia_id === "string" ? req.query.bia_id : "";
       const items = await directusFetch("Categorias");
-      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, Tipo_de_categoria: c.Tipo_de_categoria || null }));
+      const mapped = items.map((c: any) => ({ id: c.id, Nome_da_categoria: c.Nome_da_categoria, Descricao_das_categorias: c.Descricao_das_categorias, Tipo_de_categoria: c.Tipo_de_categoria || null, bia_id: c.bia_id || null }));
       const sortCategorias = (a: any, b: any) =>
         String(a.Tipo_de_categoria || "").localeCompare(String(b.Tipo_de_categoria || ""), "pt-BR") ||
         String(a.Nome_da_categoria || "").localeCompare(String(b.Nome_da_categoria || ""), "pt-BR", { numeric: true });
       const plano = mapped.filter((c: any) => PLANO_CONTAS_NOMES.has(c.Nome_da_categoria)).sort(sortCategorias);
-      res.json(plano.length > 0 ? plano : mapped);
+      const customDaBia = mapped.filter((c: any) => !PLANO_CONTAS_NOMES.has(c.Nome_da_categoria) && c.bia_id === biaId).sort(sortCategorias);
+      res.json(plano.length > 0 ? [...plano, ...customDaBia] : mapped);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2711,7 +3016,12 @@ export async function registerRoutes(
 
   app.post("/api/categorias", async (req, res) => {
     try {
-      const item = await directusCreate("Categorias", { Nome_da_categoria: req.body.nome || req.body.Nome_da_categoria, Descricao_das_categorias: req.body.descricao || req.body.Descricao_das_categorias });
+      const item = await directusCreate("Categorias", {
+        Nome_da_categoria: req.body.nome || req.body.Nome_da_categoria,
+        Descricao_das_categorias: req.body.descricao || req.body.Descricao_das_categorias || "Categorias da BIA",
+        Tipo_de_categoria: req.body.tipo || req.body.Tipo_de_categoria || null,
+        bia_id: req.body.bia_id || null,
+      });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -5167,8 +5477,39 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
     }
 
+    if (event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") {
+      const invoice = event.data.object;
+      const fluxoCaixaId: string | undefined = invoice.metadata?.fluxo_caixa_id || undefined;
+      if (fluxoCaixaId) {
+        try {
+          await markFluxoPagamentoPago(fluxoCaixaId, "stripe", invoice.id);
+          console.log("[stripe/webhook] fluxo_caixa invoice paid:", fluxoCaixaId);
+        } catch (err: any) {
+          console.error("[stripe/webhook] fluxo_caixa invoice update error:", err.message);
+          return res.status(500).json({ error: "Erro interno ao processar fatura do fluxo de caixa" });
+        }
+        return res.status(200).json({ received: true });
+      }
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      const fluxoCaixaId: string | undefined = session.metadata?.fluxo_caixa_id || undefined;
+      if (fluxoCaixaId) {
+        if (session.payment_status !== "paid") {
+          console.log("[stripe/webhook] fluxo_caixa session not yet paid (payment_status=%s), skipping: %s", session.payment_status, fluxoCaixaId);
+          return res.status(200).json({ received: true });
+        }
+        try {
+          await markFluxoPagamentoPago(fluxoCaixaId, "stripe", session.id);
+          console.log("[stripe/webhook] fluxo_caixa payment confirmed:", fluxoCaixaId);
+        } catch (err: any) {
+          console.error("[stripe/webhook] fluxo_caixa update error:", err.message);
+          return res.status(500).json({ error: "Erro interno ao processar pagamento do fluxo de caixa" });
+        }
+        return res.status(200).json({ received: true });
+      }
+
       // Support both dynamic checkout sessions (metadata) and Payment Links (client_reference_id)
       const token: string | undefined = session.metadata?.convite_token || session.client_reference_id || undefined;
 
@@ -5316,6 +5657,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Strategy 1: match by externalReference (set this to the convite token when creating dynamic payments)
       let convite: any = null;
       const extRef: string | null = payment.externalReference || null;
+      if (extRef?.startsWith("fluxo_caixa:")) {
+        const fluxoCaixaId = extRef.replace("fluxo_caixa:", "");
+        try {
+          await markFluxoPagamentoPago(fluxoCaixaId, "asaas", payment.id || null);
+          console.log("[asaas/webhook] fluxo_caixa payment confirmed:", fluxoCaixaId);
+        } catch (err: any) {
+          console.error("[asaas/webhook] fluxo_caixa update error:", err.message);
+          return res.status(500).json({ error: "Erro interno ao processar pagamento do fluxo de caixa" });
+        }
+        return res.status(200).json({ received: true });
+      }
+
       if (extRef) {
         convite = await storage.getConviteByToken(extRef);
         if (convite) console.log(`[asaas/webhook] matched convite via externalReference token: ${extRef}`);

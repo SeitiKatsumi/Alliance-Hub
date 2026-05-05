@@ -19,14 +19,7 @@ import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-
-const REDE_BADGES: Record<string, { img: string; label: string }> = {
-  BUILT_PROUD_MEMBER: { img: "/built-proud-member.png", label: "BUILT Proud Member" },
-  BUILT_FOUNDING_MEMBER: { img: "/built-founding-member.png", label: "BUILT Founding Member" },
-  BUILT_CAPITAL_PARTNER: { img: "/built-capital-partner.png", label: "BUILT Capital Partner" },
-  BNI: { img: "/bni-badge.png", label: "Membro BNI" },
-};
-const REDE_ORDER = ["BUILT_PROUD_MEMBER", "BUILT_FOUNDING_MEMBER", "BUILT_CAPITAL_PARTNER", "BNI"];
+import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 
 interface MembroDetalhe {
   id: string;
@@ -161,7 +154,7 @@ export default function VitrineDetalhePage() {
   const especialidades = (membro?.Especialidades || [])
     .map(e => e?.especialidades_id?.nome_especialidade)
     .filter(Boolean) as string[];
-  const redes = REDE_ORDER.filter(r => (membro?.Outras_redes_as_quais_pertenco || []).includes(r) && REDE_BADGES[r]);
+  const redes = getRedesBadges(membro?.Outras_redes_as_quais_pertenco);
   const localidade = [membro?.cidade, membro?.estado?.toUpperCase(), membro?.pais]
     .filter(Boolean).join(", ");
 
@@ -285,14 +278,12 @@ export default function VitrineDetalhePage() {
               {redes.length > 0 && (
                 <div className="flex flex-wrap gap-2 items-center justify-center sm:justify-start mt-4">
                   {redes.map(rede => (
-                    <img
+                    <RedeBadgeButton
                       key={rede}
-                      src={REDE_BADGES[rede].img}
-                      alt={REDE_BADGES[rede].label}
-                      title={REDE_BADGES[rede].label}
-                      className="object-contain rounded"
-                      style={{ height: 48, width: "auto", maxWidth: 120 }}
-                      data-testid={`badge-rede-${rede.toLowerCase()}`}
+                      rede={rede}
+                      height={48}
+                      maxWidth={120}
+                      testId={`badge-rede-${rede.toLowerCase()}`}
                     />
                   ))}
                 </div>

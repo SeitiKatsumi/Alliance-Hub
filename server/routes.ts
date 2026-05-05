@@ -5214,7 +5214,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!forceNew) {
         const existing = await storage.getActiveConviteLinkByUserId(userId);
         if (existing && new Date() < new Date(existing.expires_at)) {
-          const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+          const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
           return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
         }
       }
@@ -5260,7 +5260,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       const expires = new Date();
-      expires.setDate(expires.getDate() + 30); // Valid for 30 days
+      expires.setDate(expires.getDate() + 1); // Valid for 1 day
 
       const convite = await storage.createConviteLink({
         gerador_user_id: userId,
@@ -5273,7 +5273,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         expires_at: expires,
       });
 
-      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -5295,7 +5295,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         await storage.updateConviteLink(convite.id, { status: "expirado" }).catch(() => {});
         return res.json(null);
       }
-      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "");
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

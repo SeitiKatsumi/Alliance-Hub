@@ -23,6 +23,7 @@ import {
   ShieldCheck, Check,
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
+import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -1721,6 +1722,7 @@ export default function VitrinePage() {
 function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
+  const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   const nome = m.nome || "—";
   const [, navigate] = useLocation();
   const [orcamentoOpen, setOrcamentoOpen] = useState(false);
@@ -1774,16 +1776,16 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
         <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
         <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
 
-        {/* BUILT Proud Member badge — canto superior direito */}
-        {(m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER") && (
-          <img
-            src="/built-proud-member.png"
-            alt="BUILT Proud Member"
-            title="BUILT Proud Member"
-            className="absolute top-2 right-2 w-auto object-contain z-10"
-            style={{ height: 48 }}
-            data-testid="badge-proud-member"
-          />
+        {/* Selo principal */}
+        {hasProudMember && (
+          <div className="absolute top-2 right-2 z-10 flex items-start gap-1">
+            <RedeBadgeButton
+              rede="BUILT_PROUD_MEMBER"
+              height={42}
+              maxWidth={86}
+              testId="badge-card-built_proud_member"
+            />
+          </div>
         )}
 
         <div className="p-4 space-y-3">

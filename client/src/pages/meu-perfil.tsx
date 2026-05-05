@@ -38,6 +38,14 @@ interface NominatimResult {
   };
 }
 
+const INVITE_APP_URL = "https://built.dna11.com.br";
+
+function normalizeInviteLink(link?: string | null) {
+  if (!link) return "";
+  if (/^https?:\/\//i.test(link)) return link;
+  return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
+}
+
 function LocationPickerModal({ open, onClose, onSelect }: {
   open: boolean;
   onClose: () => void;
@@ -270,6 +278,7 @@ export default function MeuPerfilPage() {
     },
     staleTime: 60000,
   });
+  const meuConviteLink = normalizeInviteLink(meuConvite?.link);
 
   const gerarConviteMutation = useMutation({
     mutationFn: async (force?: boolean) => {
@@ -964,15 +973,15 @@ export default function MeuPerfilPage() {
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 30 dias.
+                  Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 1 dia.
                 </p>
-                {meuConvite?.link ? (
+                {meuConviteLink ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                      <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConvite.link}</span>
+                      <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConviteLink}</span>
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(meuConvite.link);
+                          navigator.clipboard.writeText(meuConviteLink);
                           toast({ title: "Link copiado!", description: "Compartilhe com quem quiser convidar." });
                         }}
                         className="text-brand-gold hover:text-brand-gold/70 transition-colors"

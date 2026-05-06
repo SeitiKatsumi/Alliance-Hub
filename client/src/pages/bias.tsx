@@ -2039,14 +2039,6 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   icon={TrendingUp}
                   note="Participam entregando trabalho, técnica, execução, fornecimento, venda ou relacionamento convertido em CPP."
                 />
-                <MultiMembroSelect
-                  label="Terceiros"
-                  field="terceiros"
-                  form={form}
-                  setForm={setForm}
-                  membros={membros}
-                  icon={Briefcase}
-                />
               </div>
             </TabsContent>
 

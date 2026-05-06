@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation, useSearch } from "wouter";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -722,8 +722,6 @@ function AnuncioCard({
 export default function VitrinePage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const searchParams = useSearch();
-  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterTerritorio, setFilterTerritorio] = useState("all");
@@ -934,16 +932,6 @@ export default function VitrinePage() {
     }
   }
 
-  // Auto-open edit dialog when navigated from detail page with ?edit=true
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    if (params.get("edit") === "true" && myMembro && !dialogOpen) {
-      openDialog();
-      navigate("/vitrine", { replace: true });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, myMembro]);
-
   // Pre-fill form when dialog opens
   function openDialog() {
     if (myMembro) {
@@ -1073,46 +1061,6 @@ export default function VitrinePage() {
 
         {membroId && (
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Card buttons */}
-            {myCardExists ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={openDialog}
-                  className="gap-2 border-brand-gold/20 text-brand-gold/70 hover:bg-brand-gold/10 hover:text-brand-gold font-mono text-xs"
-                  data-testid="btn-editar-meu-card"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Editar meu card
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => removeMutation.mutate()}
-                  disabled={removeMutation.isPending}
-                  className="gap-2 text-red-400/60 hover:text-red-400 hover:bg-red-400/10 font-mono text-xs"
-                  data-testid="btn-remover-meu-card"
-                >
-                  {removeMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  Remover
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                onClick={openDialog}
-                className="gap-2 font-mono text-xs bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
-                data-testid="btn-criar-meu-card"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Criar meu card
-              </Button>
-            )}
-
-            {/* Divider */}
-            <div className="h-5 w-px bg-white/10" />
-
             {/* Anunciar button */}
             <Button
               size="sm"

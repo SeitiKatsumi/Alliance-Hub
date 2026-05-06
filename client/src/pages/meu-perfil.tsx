@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
@@ -303,6 +304,7 @@ export default function MeuPerfilPage() {
       apiRequest("PATCH", `/api/membros/${membroId}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -960,6 +962,30 @@ export default function MeuPerfilPage() {
                   <p className="text-[10px] text-white/20 font-mono">
                     Selecione as redes de negócios das quais você é membro. Os selos aparecerão no seu perfil.
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Vitrine BUILT */}
+            <Card className="border-white/5" style={{ background: "#050f1c" }}>
+              <CardContent className="pt-5 space-y-4">
+                <SectionLabel icon={Globe} label="Vitrine BUILT" />
+                <div
+                  className="flex flex-col gap-4 rounded-xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+                >
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-white">Aparecer na Vitrine</p>
+                    <p className="text-xs text-white/35 leading-relaxed">
+                      Quando ativo, os dados deste perfil serao usados no seu card publico da Vitrine.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!form.na_vitrine}
+                    onCheckedChange={checked => setForm(f => ({ ...f, na_vitrine: checked }))}
+                    className="data-[state=checked]:bg-brand-gold data-[state=unchecked]:bg-white/15"
+                    data-testid="switch-perfil-na-vitrine"
+                  />
                 </div>
               </CardContent>
             </Card>

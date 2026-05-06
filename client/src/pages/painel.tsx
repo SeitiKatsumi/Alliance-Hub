@@ -22,6 +22,9 @@ interface DashboardBia {
   valor_origem?: number | string | null;
   custo_final_previsto?: number | string | null;
   resultado_liquido?: number | string | null;
+  investimento_usuario_valor?: number | string | null;
+  investimento_usuario_percentual?: number | string | null;
+  receita_usuario_valor?: number | string | null;
   moeda?: string | null;
   papel_usuario?: string;
 }
@@ -45,12 +48,16 @@ interface DashboardOpa {
   nome_bia_vinculada?: string | null;
   valor_origem_opa?: number | string | null;
   status?: string;
+  nucleo_alianca?: string | null;
+  perfil_aliado?: string | null;
+  Minimo_esforco_multiplicador?: number | string | null;
 }
 
 interface DashboardData {
   bias: DashboardBia[];
   comunidades: DashboardComunidade[];
   opas: DashboardOpa[];
+  convergencias?: DashboardOpa[];
   totals: {
     valor_origem: number;
     custo_final_previsto: number;
@@ -79,6 +86,13 @@ function situacaoBadge(s?: string | null) {
     return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]">Em Formação</Badge>;
   }
   return <Badge variant="outline" className="text-[10px]">-</Badge>;
+}
+
+function fmtPercent(value: number): string {
+  return `${new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: value > 0 && value < 1 ? 2 : 1,
+    maximumFractionDigits: 2,
+  }).format(value)}%`;
 }
 
 function StatCardSkeleton() {
@@ -131,6 +145,7 @@ export default function PainelPage() {
   const bias = data?.bias ?? [];
   const comunidades = data?.comunidades ?? [];
   const opas = data?.opas ?? [];
+  const convergencias = data?.convergencias ?? [];
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
   const opasAbertas = data?.opas_abertas ?? opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").length;
 
@@ -243,18 +258,38 @@ export default function PainelPage() {
 
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate("/comunidade")}
+              onClick={() => navigate(comunidades[0]?.id ? `/comunidade/${comunidades[0].id}` : "/comunidade")}
               data-testid="stat-card-comunidades"
             >
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Globe className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">Comunidades</span>
+                  <span className="text-xs text-muted-foreground">Minha Comunidade</span>
                 </div>
-                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-comunidades">
-                  {comunidades.length}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">vinculadas</p>
+                <div className="space-y-0.5" data-testid="stat-value-comunidades">
+                  <p className="text-base font-bold text-foreground truncate">
+                    {comunidades[0]?.nome || "-"}
+                  </p>
+                  {comunidades[0]?.sigla && (
+                    <p className="text-[10px] font-mono text-[#D7BB7D] truncate">
+                      {comunidades[0].sigla}
+                    </p>
+                  )}
+                </div>
+                {comunidades[0] ? (
+                  <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      {Array.isArray(comunidades[0].membros) ? comunidades[0].membros.length : 0} membros
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="w-3 h-3" />
+                      {Array.isArray(comunidades[0].bias) ? comunidades[0].bias.length : 0} BIAs
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">nenhuma comunidade</p>
+                )}
               </CardContent>
             </Card>
 
@@ -360,17 +395,23 @@ export default function PainelPage() {
                       </div>
                     )}
 
-                    <div className="pt-1 border-t border-border/40 grid grid-cols-2 gap-2">
+                    <div className="pt-1 border-t border-border/40 grid grid-cols-3 gap-2">
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Valor de Origem</p>
-                        <p className="text-xs font-medium tabular-nums" data-testid={`valor-origem-${b.id}`}>
-                          {n(b.valor_origem) > 0 ? fmt(n(b.valor_origem), b.moeda || "BRL") : "-"}
+                        <p className="text-[10px] text-muted-foreground">Investido</p>
+                        <p className="text-xs font-medium tabular-nums" data-testid={`investido-usuario-${b.id}`}>
+                          {n(b.investimento_usuario_valor) > 0 ? fmt(n(b.investimento_usuario_valor), b.moeda || "BRL") : "-"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Custo Final Prev.</p>
-                        <p className="text-xs font-medium tabular-nums" data-testid={`custo-final-${b.id}`}>
-                          {n(b.custo_final_previsto) > 0 ? fmt(n(b.custo_final_previsto), b.moeda || "BRL") : "-"}
+                        <p className="text-[10px] text-muted-foreground">CPP</p>
+                        <p className="text-xs font-medium tabular-nums" data-testid={`participacao-usuario-${b.id}`}>
+                          {n(b.investimento_usuario_percentual) > 0 ? fmtPercent(n(b.investimento_usuario_percentual)) : "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Receita</p>
+                        <p className="text-xs font-medium tabular-nums" data-testid={`receita-usuario-${b.id}`}>
+                          {n(b.receita_usuario_valor) > 0 ? fmt(n(b.receita_usuario_valor), b.moeda || "BRL") : "-"}
                         </p>
                       </div>
                     </div>
@@ -379,6 +420,93 @@ export default function PainelPage() {
               ))}
             </div>
           )}
+
+          <div className="pt-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Target className="w-4 h-4 text-[#D7BB7D]" />
+                Painel de Convergências
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => navigate("/opas")}
+                data-testid="link-ver-convergencias"
+              >
+                Ver OPAs <ChevronRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Array.from({ length: 2 }).map((_, i) => <BiaCardSkeleton key={i} />)}
+              </div>
+            ) : convergencias.length === 0 ? (
+              <Card className="border border-dashed border-border/60">
+                <CardContent className="p-6 text-center space-y-2">
+                  <Target className="w-7 h-7 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">Nenhuma OPA convergente com suas áreas de contribuição.</p>
+                  <p className="text-xs text-muted-foreground/70">Atualize suas áreas em Meu Perfil para melhorar as recomendações.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {convergencias.map((opa) => (
+                  <Card
+                    key={opa.id}
+                    className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/opas/${opa.id}`)}
+                    data-testid={`card-convergencia-${opa.id}`}
+                  >
+                    <CardContent className="p-4 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground leading-snug line-clamp-2 flex-1">
+                          {opa.nome_oportunidade || "OPA sem nome"}
+                        </p>
+                        {opa.tipo && (
+                          <Badge variant="outline" className="text-[10px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5">
+                            {opa.tipo}
+                          </Badge>
+                        )}
+                      </div>
+                      {(opa.nucleo_alianca || opa.nome_bia_vinculada) && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {opa.nucleo_alianca && (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/70 bg-muted/30">
+                              {opa.nucleo_alianca}
+                            </Badge>
+                          )}
+                          {opa.nome_bia_vinculada && (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/70 bg-muted/30">
+                              {opa.nome_bia_vinculada}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      {opa.perfil_aliado && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{opa.perfil_aliado}</p>
+                      )}
+                      <div className="pt-1 border-t border-border/40 grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Valor da OPA</p>
+                          <p className="text-xs font-medium tabular-nums">
+                            {n(opa.valor_origem_opa) > 0 ? fmt(n(opa.valor_origem_opa)) : "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Mín. esforço</p>
+                          <p className="text-xs font-medium tabular-nums">
+                            {n(opa.Minimo_esforco_multiplicador) > 0 ? fmtPercent(n(opa.Minimo_esforco_multiplicador)) : "-"}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right column */}
@@ -429,86 +557,6 @@ export default function PainelPage() {
               </CardContent>
             </Card>
           )}
-
-          {/* Minhas Comunidades */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Globe className="w-4 h-4 text-[#D7BB7D]" />
-                Minhas Comunidades
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => navigate("/comunidade")}
-                data-testid="link-ver-comunidades"
-              >
-                Ver <ChevronRight className="w-3 h-3 ml-1" />
-              </Button>
-            </div>
-
-            {isLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <Card key={i} className="border border-border/60">
-                    <CardContent className="p-3 space-y-2">
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : comunidades.length === 0 ? (
-              <Card className="border border-dashed border-border/60">
-                <CardContent className="p-5 text-center">
-                  <Globe className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Nenhuma comunidade vinculada.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {comunidades.map(c => {
-                  const nMembros = Array.isArray(c.membros) ? c.membros.length : 0;
-                  const nBias = Array.isArray(c.bias) ? c.bias.length : 0;
-                  const territory = [c.sigla_territorio, c.pais].filter(Boolean).join(" · ");
-                  return (
-                    <Card
-                      key={c.id}
-                      className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/comunidade/${c.id}`)}
-                      data-testid={`card-comunidade-${c.id}`}
-                    >
-                      <CardContent className="p-3 space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-foreground truncate">{c.nome || "Comunidade"}</p>
-                          {c.sigla && (
-                            <span className="text-[10px] font-mono text-[#D7BB7D] shrink-0">{c.sigla}</span>
-                          )}
-                        </div>
-                        {territory && (
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <MapPin className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{territory}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {nMembros} membros
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="w-3 h-3" />
-                            {nBias} BIAs
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* Minhas OPAs */}
           <div className="space-y-3">

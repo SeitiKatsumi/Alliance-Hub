@@ -1482,7 +1482,7 @@ export async function registerRoutes(
             ...m,
             cargo: m.cargo || m.responsavel_cargo || null,
             foto: m.foto_perfil || null,
-            especialidade: especialidades[0] || null,
+            especialidade: especialidades[0] || m.especialidade_livre || null,
             latitude: m.latitude ? parseFloat(m.latitude) : null,
             longitude: m.longitude ? parseFloat(m.longitude) : null,
           };
@@ -1512,7 +1512,7 @@ export async function registerRoutes(
         cargo: m.cargo || m.responsavel_cargo || null,
         foto: m.foto_perfil || null,
         especialidade_id: (typeof firstEsp === "object" ? firstEsp?.id : null) ?? null,
-        especialidade: (typeof firstEsp === "object" ? firstEsp?.nome_especialidade : null) ?? null,
+        especialidade: (typeof firstEsp === "object" ? firstEsp?.nome_especialidade : null) ?? m.especialidade_livre ?? null,
         latitude: m.latitude ? parseFloat(m.latitude) : null,
         longitude: m.longitude ? parseFloat(m.longitude) : null,
       });
@@ -2186,32 +2186,78 @@ export async function registerRoutes(
         "diretor_execucao", "diretor_comercial", "diretor_capital",
       ];
 
-      const [allBias, allOpas, comunidades] = await Promise.all([
+      const [allBias, allOpas, comunidades, fluxoCaixa] = await Promise.all([
         directusFetchScoped("bias_projetos",
           "fields=id,nome_bia,situacao,objetivo_alianca,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
           "bia_publica,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital," +
           "socios_guardioes,socios_multiplicadores,terceiros"
         ),
         directusFetchScoped("tipos_oportunidades",
-          "fields=id,nome_oportunidade,tipo,bia_id,valor_origem_opa,status"
+          "fields=id,nome_oportunidade,tipo,bia,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador"
         ).catch(() => []),
         directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => []),
+        directusFetch("fluxo_caixa", "fields=id,bia,tipo,valor,favorecido_id").catch(() => []),
       ]);
 
       const userBias = (allBias as any[]).filter(b => isUserLinkedToBia(b, membroId));
 
       const userBiaIds = new Set(userBias.map((b: any) => b.id));
+      const CLOSED_STATUSES = new Set(["concluida", "desistencia"]);
+      const relationId = (value: any): string | null => {
+        if (!value) return null;
+        if (typeof value === "object") return value.id ? String(value.id) : null;
+        return String(value);
+      };
+      const allBiaNameMap: Record<string, string> = {};
+      for (const b of allBias as any[]) allBiaNameMap[b.id] = b.nome_bia || b.id;
       const biaNameMap: Record<string, string> = {};
       for (const b of userBias) biaNameMap[b.id] = b.nome_bia || b.id;
 
       const userOpas = (allOpas as any[])
-        .filter((o: any) => userBiaIds.has(o.bia_id))
+        .filter((o: any) => {
+          const opaBiaId = relationId(o.bia) || relationId(o.bia_id);
+          return !!opaBiaId && userBiaIds.has(opaBiaId);
+        })
         .map((o: any) => ({
           ...o,
-          nome_bia_vinculada: biaNameMap[o.bia_id] || null,
+          bia_id: relationId(o.bia) || relationId(o.bia_id),
+          nome_bia_vinculada: biaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
         }));
 
-      const CLOSED_STATUSES = new Set(["concluida", "desistencia"]);
+      const normalize = (value: any) => String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      const membroPerfil = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,tipo_alianca,nucleos_alianca,nucleo_alianca").catch(() => null);
+      const areasContribuicao: string[] = [
+        ...(Array.isArray(membroPerfil?.tipos_alianca) ? membroPerfil.tipos_alianca : []),
+        ...(Array.isArray(membroPerfil?.nucleos_alianca) ? membroPerfil.nucleos_alianca : []),
+        membroPerfil?.tipo_alianca,
+        membroPerfil?.nucleo_alianca,
+      ].filter(Boolean);
+      const areaKeywords: Record<string, string[]> = {
+        lideranca: ["lideranca", "alianca", "diretoria"],
+        tecnico: ["tecnico", "tecnica", "projeto", "engenharia", "viabilidade", "compatibilizacao"],
+        obra: ["obra", "execucao", "construcao", "operacional"],
+        comercial: ["comercial", "venda", "locacao", "marketing", "relacionamento"],
+        capital: ["capital", "financeiro", "financiamento", "captacao", "investimento"],
+      };
+      const activeAreaKeys = Array.from(new Set(areasContribuicao.flatMap((area) => {
+        const normalizedArea = normalize(area);
+        return Object.keys(areaKeywords).filter((key) => normalizedArea.includes(key));
+      })));
+      const convergencias = (allOpas as any[])
+        .filter((o: any) => !CLOSED_STATUSES.has(o.status))
+        .map((o: any) => ({
+          ...o,
+          bia_id: relationId(o.bia) || relationId(o.bia_id),
+          nome_bia_vinculada: allBiaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
+          _matchText: normalize([o.tipo, o.nucleo_alianca, o.perfil_aliado, o.objetivo_alianca, o.nome_oportunidade].join(" ")),
+        }))
+        .filter((o: any) => activeAreaKeys.some((key) => areaKeywords[key].some((keyword) => o._matchText.includes(keyword))))
+        .slice(0, 6)
+        .map(({ _matchText, ...o }: any) => o);
+
       const opasAbertas = userOpas.filter((o: any) => !CLOSED_STATUSES.has(o.status)).length;
 
       const userComunidades = (comunidades as any[]).filter((c: any) => {
@@ -2225,6 +2271,30 @@ export async function registerRoutes(
       });
 
       function n(v: any) { return parseFloat(String(v ?? "")) || 0; }
+      function relId(value: any): string | null {
+        if (!value) return null;
+        if (typeof value === "object") return value.id ? String(value.id) : null;
+        return String(value);
+      }
+
+      const aportesPorBia: Record<string, { total: number; porMembro: Record<string, number> }> = {};
+      const receitasPorBia: Record<string, Record<string, number>> = {};
+      for (const item of fluxoCaixa as any[]) {
+        const tipo = String(item.tipo || "").toLowerCase();
+        const biaId = relId(item.bia);
+        const favorecidoId = relId(item.favorecido_id);
+        const valor = n(item.valor);
+        if (!biaId || !favorecidoId || valor <= 0) continue;
+        if (tipo === "entrada") {
+          if (!aportesPorBia[biaId]) aportesPorBia[biaId] = { total: 0, porMembro: {} };
+          aportesPorBia[biaId].total += valor;
+          aportesPorBia[biaId].porMembro[favorecidoId] = (aportesPorBia[biaId].porMembro[favorecidoId] || 0) + valor;
+        }
+        if (tipo === "saida") {
+          if (!receitasPorBia[biaId]) receitasPorBia[biaId] = {};
+          receitasPorBia[biaId][favorecidoId] = (receitasPorBia[biaId][favorecidoId] || 0) + valor;
+        }
+      }
 
       const totals = userBias.reduce(
         (acc: any, b: any) => ({
@@ -2262,10 +2332,21 @@ export async function registerRoutes(
             diretor_comercial: "Dir. Comercial",
             diretor_capital: "Dir. de Capital",
           };
-          return { ...b, papel_usuario: papel ? papeis[papel] : "Membro" };
+          const alocacao = aportesPorBia[b.id] || { total: 0, porMembro: {} };
+          const investimentoUsuarioValor = alocacao.porMembro[membroId] || 0;
+          const investimentoUsuarioPercentual = alocacao.total > 0 ? (investimentoUsuarioValor / alocacao.total) * 100 : 0;
+          const receitaUsuarioValor = receitasPorBia[b.id]?.[membroId] || 0;
+          return {
+            ...b,
+            papel_usuario: papel ? papeis[papel] : "Membro",
+            investimento_usuario_valor: investimentoUsuarioValor,
+            investimento_usuario_percentual: investimentoUsuarioPercentual,
+            receita_usuario_valor: receitaUsuarioValor,
+          };
         }),
         comunidades: userComunidades,
         opas: userOpas,
+        convergencias,
         totals,
         opas_abertas: opasAbertas,
       });

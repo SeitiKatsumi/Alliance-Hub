@@ -1,10 +1,10 @@
-import { useParams, useLocation } from "wouter";
+import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useState } from "react";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
-  User, Globe, MessageSquare, Store, ExternalLink, Languages, Pencil,
+  User, Globe, MessageSquare, Store, ExternalLink, Languages,
   UserPlus, Loader2, CheckCircle2, UserCheck
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -111,7 +111,6 @@ interface MinhasComunidades {
 export default function VitrineDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [convidarOpen, setConvidarOpen] = useState(false);
   const [comunidadeSelectedId, setComunidadeSelectedId] = useState("");
@@ -217,17 +216,6 @@ export default function VitrineDetalhePage() {
             Voltar à Vitrine
           </button>
         </Link>
-        {isMyCard && (
-          <button
-            onClick={() => navigate("/vitrine?edit=true")}
-            className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-all"
-            style={{ background: "rgba(215,187,125,0.12)", color: "#D7BB7D", border: "1px solid rgba(215,187,125,0.25)" }}
-            data-testid="btn-editar-meu-card-detalhe"
-          >
-            <Pencil className="w-3 h-3" />
-            Editar meu card
-          </button>
-        )}
       </div>
 
       <div className="max-w-3xl mx-auto px-6 pb-10 space-y-5">

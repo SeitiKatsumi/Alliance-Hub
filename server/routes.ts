@@ -2169,6 +2169,7 @@ export async function registerRoutes(
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const membroId = (req.session as any).membroId as string | null;
+      const directusUserId = (req.session as any).directusUserId as string;
 
       // Security: if the user has no linked Directus member profile, return empty scoped data
       if (!membroId) {
@@ -2213,15 +2214,18 @@ export async function registerRoutes(
       const biaNameMap: Record<string, string> = {};
       for (const b of userBias) biaNameMap[b.id] = b.nome_bia || b.id;
 
+      const meusInteresses = await storage.getInteressesByUser(directusUserId).catch(() => []);
+      const interesseOpaIds = new Set(meusInteresses.map((interesse: any) => interesse.opa_id));
+      const interesseDataMap = new Map(meusInteresses.map((interesse: any) => [interesse.opa_id, interesse]));
+
       const userOpas = (allOpas as any[])
-        .filter((o: any) => {
-          const opaBiaId = relationId(o.bia) || relationId(o.bia_id);
-          return !!opaBiaId && userBiaIds.has(opaBiaId);
-        })
+        .filter((o: any) => interesseOpaIds.has(o.id))
         .map((o: any) => ({
           ...o,
           bia_id: relationId(o.bia) || relationId(o.bia_id),
-          nome_bia_vinculada: biaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
+          nome_bia_vinculada: allBiaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
+          interesse_criado_em: interesseDataMap.get(o.id)?.criado_em || null,
+          interesse_multiplicador: interesseDataMap.get(o.id)?.multiplicador || null,
         }));
 
       const normalize = (value: any) => String(value || "")

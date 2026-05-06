@@ -91,6 +91,7 @@ export interface IStorage {
   updateTransferenciaCotas(id: string, data: Partial<TransferenciaCotas>): Promise<TransferenciaCotas | undefined>;
 
   getInteressesByOpa(opaId: string): Promise<OpaInteresse[]>;
+  getInteressesByUser(userId: string): Promise<OpaInteresse[]>;
   getUserInteresseByOpa(opaId: string, userId: string): Promise<OpaInteresse | undefined>;
   createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse>;
   deleteOpaInteresse(opaId: string, userId: string): Promise<boolean>;
@@ -366,6 +367,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(opaInteresses)
       .where(eq(opaInteresses.opa_id, opaId))
+      .orderBy(desc(opaInteresses.criado_em));
+  }
+
+  async getInteressesByUser(userId: string): Promise<OpaInteresse[]> {
+    return db
+      .select()
+      .from(opaInteresses)
+      .where(eq(opaInteresses.user_id, userId))
       .orderBy(desc(opaInteresses.criado_em));
   }
 

@@ -1,14 +1,18 @@
 ﻿import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Briefcase, Globe, Users, TrendingUp, TrendingDown,
   MapPin, LayoutDashboard, Building2,
-  Target, Wallet, ChevronRight, Sparkles,
+  Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -95,6 +99,13 @@ function fmtPercent(value: number): string {
   }).format(value)}%`;
 }
 
+function normalizeText(value?: string | number | null): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function StatCardSkeleton() {
   return (
     <Card className="border border-border/60">
@@ -146,10 +157,60 @@ export default function PainelPage() {
   const comunidades = data?.comunidades ?? [];
   const opas = data?.opas ?? [];
   const convergencias = data?.convergencias ?? [];
+  const [biaSearch, setBiaSearch] = useState("");
+  const [biaSituacao, setBiaSituacao] = useState("__all__");
+  const [biaPapel, setBiaPapel] = useState("__all__");
+  const [convergenciaSearch, setConvergenciaSearch] = useState("");
+  const [convergenciaTipo, setConvergenciaTipo] = useState("__all__");
+  const [convergenciaNucleo, setConvergenciaNucleo] = useState("__all__");
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
   const opasAbertas = data?.opas_abertas ?? opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").length;
 
   const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
+  const biaPapelOptions = useMemo(
+    () => Array.from(new Set(bias.map((b) => b.papel_usuario).filter(Boolean))) as string[],
+    [bias],
+  );
+  const convergenciaTipoOptions = useMemo(
+    () => Array.from(new Set(convergencias.map((opa) => opa.tipo).filter(Boolean))) as string[],
+    [convergencias],
+  );
+  const convergenciaNucleoOptions = useMemo(
+    () => Array.from(new Set(convergencias.map((opa) => opa.nucleo_alianca).filter(Boolean))) as string[],
+    [convergencias],
+  );
+  const filteredBias = useMemo(() => {
+    const q = normalizeText(biaSearch);
+    return bias.filter((b) => {
+      const haystack = normalizeText([
+        b.nome_bia,
+        b.objetivo_alianca,
+        b.localizacao,
+        b.papel_usuario,
+        b.situacao,
+      ].join(" "));
+      const matchSearch = !q || haystack.includes(q);
+      const matchSituacao = biaSituacao === "__all__" || b.situacao === biaSituacao;
+      const matchPapel = biaPapel === "__all__" || b.papel_usuario === biaPapel;
+      return matchSearch && matchSituacao && matchPapel;
+    });
+  }, [bias, biaSearch, biaSituacao, biaPapel]);
+  const filteredConvergencias = useMemo(() => {
+    const q = normalizeText(convergenciaSearch);
+    return convergencias.filter((opa) => {
+      const haystack = normalizeText([
+        opa.nome_oportunidade,
+        opa.tipo,
+        opa.nucleo_alianca,
+        opa.nome_bia_vinculada,
+        opa.perfil_aliado,
+      ].join(" "));
+      const matchSearch = !q || haystack.includes(q);
+      const matchTipo = convergenciaTipo === "__all__" || opa.tipo === convergenciaTipo;
+      const matchNucleo = convergenciaNucleo === "__all__" || opa.nucleo_alianca === convergenciaNucleo;
+      return matchSearch && matchTipo && matchNucleo;
+    });
+  }, [convergencias, convergenciaSearch, convergenciaTipo, convergenciaNucleo]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -252,7 +313,7 @@ export default function PainelPage() {
                 <p className="text-2xl font-bold text-foreground" data-testid="stat-value-opas">
                   {opasAbertas}
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{opas.length} total nas suas BIAs</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{opas.length} com interesse</p>
               </CardContent>
             </Card>
 
@@ -293,26 +354,52 @@ export default function PainelPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/60" data-testid="stat-card-valor">
+            <Card
+              className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
+              style={{ borderColor: auraData?.score != null ? `${getFaixaColor(auraData.score)}30` : undefined }}
+              onClick={() => navigate("/aura")}
+              data-testid="stat-card-aura"
+            >
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Wallet className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">Valor de Origem</span>
+                  <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
+                  <span className="text-xs text-muted-foreground">Aura Percebida</span>
                 </div>
-                <p className="text-lg font-bold text-foreground tabular-nums leading-tight" data-testid="stat-value-vorigem">
-                  {fmt(totals.valor_origem)}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">total consolidado</p>
+                <div className="flex items-center gap-3">
+                  <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate" style={{ color: auraData?.score != null ? getFaixaColor(auraData.score) : undefined }}>
+                      {auraData?.score != null ? auraData.faixa : "Aguardando avaliações"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {auraData?.score != null ? "resultado atual" : "sem avaliações"}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </>
         )}
       </div>
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Minhas BIAs - 2 cols */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Dashboard tabs */}
+      <Tabs defaultValue="bias" className="space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/40 p-1 sm:grid-cols-3">
+          <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-bias">
+            <Briefcase className="w-4 h-4" />
+            Minhas BIAs
+          </TabsTrigger>
+          <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
+            <Target className="w-4 h-4" />
+            Painel de Convergências
+          </TabsTrigger>
+          <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
+            <Target className="w-4 h-4" />
+            Minhas OPAs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bias" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-[#D7BB7D]" />
@@ -327,6 +414,40 @@ export default function PainelPage() {
             >
               Ver todas <ChevronRight className="w-3 h-3 ml-1" />
             </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_150px] gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={biaSearch}
+                onChange={(event) => setBiaSearch(event.target.value)}
+                placeholder="Buscar BIA..."
+                className="h-9 pl-8 text-xs"
+                data-testid="input-filtro-bias-dashboard"
+              />
+            </div>
+            <Select value={biaSituacao} onValueChange={setBiaSituacao}>
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filtro-bia-situacao">
+                <SelectValue placeholder="Situação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todas</SelectItem>
+                <SelectItem value="ativa">Ativas</SelectItem>
+                <SelectItem value="em_formacao">Em formação</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={biaPapel} onValueChange={setBiaPapel}>
+              <SelectTrigger className="h-9 text-xs" data-testid="select-filtro-bia-papel">
+                <SelectValue placeholder="Papel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todos os papéis</SelectItem>
+                {biaPapelOptions.map((papel) => (
+                  <SelectItem key={papel} value={papel}>{papel}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {isLoading ? (
@@ -348,9 +469,16 @@ export default function PainelPage() {
                 </Button>
               </CardContent>
             </Card>
+          ) : filteredBias.length === 0 ? (
+            <Card className="border border-dashed border-border/60">
+              <CardContent className="p-6 text-center space-y-2">
+                <SlidersHorizontal className="w-7 h-7 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm text-muted-foreground">Nenhuma BIA encontrada com esses filtros.</p>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {bias.map(b => (
+              {filteredBias.map(b => (
                 <Card
                   key={b.id}
                   className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
@@ -421,7 +549,10 @@ export default function PainelPage() {
             </div>
           )}
 
-          <div className="pt-2 space-y-3">
+        </TabsContent>
+
+        <TabsContent value="convergencias" className="space-y-4 mt-0">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Target className="w-4 h-4 text-[#D7BB7D]" />
@@ -438,6 +569,41 @@ export default function PainelPage() {
               </Button>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_150px] gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={convergenciaSearch}
+                  onChange={(event) => setConvergenciaSearch(event.target.value)}
+                  placeholder="Buscar oportunidade..."
+                  className="h-9 pl-8 text-xs"
+                  data-testid="input-filtro-convergencias-dashboard"
+                />
+              </div>
+              <Select value={convergenciaTipo} onValueChange={setConvergenciaTipo}>
+                <SelectTrigger className="h-9 text-xs" data-testid="select-filtro-convergencia-tipo">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos os tipos</SelectItem>
+                  {convergenciaTipoOptions.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={convergenciaNucleo} onValueChange={setConvergenciaNucleo}>
+                <SelectTrigger className="h-9 text-xs" data-testid="select-filtro-convergencia-nucleo">
+                  <SelectValue placeholder="Núcleo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos os núcleos</SelectItem>
+                  {convergenciaNucleoOptions.map((nucleo) => (
+                    <SelectItem key={nucleo} value={nucleo}>{nucleo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {Array.from({ length: 2 }).map((_, i) => <BiaCardSkeleton key={i} />)}
@@ -450,9 +616,16 @@ export default function PainelPage() {
                   <p className="text-xs text-muted-foreground/70">Atualize suas áreas em Meu Perfil para melhorar as recomendações.</p>
                 </CardContent>
               </Card>
+            ) : filteredConvergencias.length === 0 ? (
+              <Card className="border border-dashed border-border/60">
+                <CardContent className="p-6 text-center space-y-2">
+                  <SlidersHorizontal className="w-7 h-7 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">Nenhuma convergência encontrada com esses filtros.</p>
+                </CardContent>
+              </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {convergencias.map((opa) => (
+                {filteredConvergencias.map((opa) => (
                   <Card
                     key={opa.id}
                     className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
@@ -507,57 +680,9 @@ export default function PainelPage() {
               </div>
             )}
           </div>
-        </div>
+        </TabsContent>
 
-        {/* Right column */}
-        <div className="space-y-6">
-          {/* Aura Percebida */}
-          {user?.membro_directus_id && (
-            <Card
-              className="border cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              style={{ borderColor: auraData?.score != null ? `${getFaixaColor(auraData.score)}30` : "rgba(255,255,255,0.08)" }}
-              onClick={() => navigate("/aura")}
-              data-testid="card-aura-painel"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
-                    Aura Percebida
-                  </h2>
-                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-                </div>
-                <div className="flex items-center gap-4">
-                  <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
-                  <div className="flex-1 space-y-1.5">
-                    {auraData?.score != null ? (
-                      <>
-                        <p className="text-xs font-medium" style={{ color: getFaixaColor(auraData.score) }}>{auraData.faixa}</p>
-                        {[
-                          { label: "Téc.", val: auraData.T ?? 0, color: "#3B82F6" },
-                          { label: "Rel.", val: auraData.R ?? 0, color: "#22C55E" },
-                          { label: "Com.", val: auraData.C ?? 0, color: "#D7BB7D" },
-                        ].map(d => (
-                          <div key={d.label} className="flex items-center gap-2">
-                            <span className="text-[10px] text-muted-foreground w-7 shrink-0">{d.label}</span>
-                            <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${d.val}%`, background: d.color }} />
-                            </div>
-                            <span className="text-[10px] font-mono text-muted-foreground w-6 text-right">{d.val}</span>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Aguardando avaliações</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
+        <TabsContent value="opas" className="space-y-4 mt-0">
           {/* Minhas OPAs */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -592,7 +717,7 @@ export default function PainelPage() {
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-5 text-center">
                   <Target className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Nenhuma OPA nas suas BIAs.</p>
+                  <p className="text-xs text-muted-foreground">Nenhuma OPA com interesse manifestado.</p>
                 </CardContent>
               </Card>
             ) : (
@@ -646,66 +771,9 @@ export default function PainelPage() {
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
-      {/* Resumo Financeiro */}
-      <div className="space-y-4">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-[#D7BB7D]" />
-          Resumo Financeiro Consolidado
-        </h2>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="border border-border/60" data-testid="resumo-valor-origem">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs text-muted-foreground">Valor de Origem Total</span>
-                </div>
-                <p className="text-xl font-bold text-foreground tabular-nums">
-                  {fmt(totals.valor_origem)}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">soma de todas as BIAs</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/60" data-testid="resumo-custo-final">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingDown className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs text-muted-foreground">Custo Final Previsto</span>
-                </div>
-                <p className="text-xl font-bold text-foreground tabular-nums">
-                  {fmt(totals.custo_final_previsto)}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">CPP consolidado</p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className={`border ${totals.resultado_liquido >= 0 ? "border-emerald-500/30" : "border-red-500/30"}`}
-              data-testid="resumo-resultado-liquido"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp className={`w-4 h-4 ${totals.resultado_liquido >= 0 ? "text-emerald-400" : "text-red-400"}`} />
-                  <span className="text-xs text-muted-foreground">Resultado Líquido</span>
-                </div>
-                <p className={`text-xl font-bold tabular-nums ${totals.resultado_liquido >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                  {fmt(totals.resultado_liquido)}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">resultado consolidado</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

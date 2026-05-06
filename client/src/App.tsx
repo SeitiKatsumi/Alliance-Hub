@@ -29,6 +29,7 @@ import NucleoTecnicoPage from "@/pages/nucleo-tecnico";
 import NucleoObraPage from "@/pages/nucleo-obra";
 import NucleoComercialPage from "@/pages/nucleo-comercial";
 import NucleoCapitalPage from "@/pages/nucleo-capital";
+import GestaoOpasPage from "@/pages/gestao-opas";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
 import AreMembroPage from "@/pages/area-membros";
@@ -440,6 +441,7 @@ function ProtectedApp() {
               <Route path="/nucleo-obra" component={NucleoObraPage} />
               <Route path="/nucleo-comercial" component={NucleoComercialPage} />
               <Route path="/nucleo-capital" component={NucleoCapitalPage} />
+              <Route path="/gestao-opas" component={GestaoOpasPage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
               <Route path="/area-membros" component={AreMembroPage} />

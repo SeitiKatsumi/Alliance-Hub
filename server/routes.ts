@@ -1089,6 +1089,21 @@ async function ensureFluxoPagamentoFields() {
   });
 }
 
+async function ensureOpaInteressesCrmFields() {
+  await db.execute(sql`
+    ALTER TABLE opa_interesses
+    ADD COLUMN IF NOT EXISTS status_crm text NOT NULL DEFAULT 'interesse_recebido'
+  `);
+  await db.execute(sql`
+    ALTER TABLE opa_interesses
+    ADD COLUMN IF NOT EXISTS observacao_crm text
+  `);
+  await db.execute(sql`
+    ALTER TABLE opa_interesses
+    ADD COLUMN IF NOT EXISTS atualizado_em timestamp DEFAULT now()
+  `);
+}
+
 async function ensureComunidadeM2O(col: string, field: string, relatedCollection: string) {
   const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
   const fr = await directusFieldPost(col, {
@@ -1381,6 +1396,7 @@ export async function registerRoutes(
   ensureCadastroGeralFields().catch(console.error);
   ensureEstudosViabilidadeCollection().catch(console.error);
   ensureNucleoTecnicoCollection().catch(console.error);
+  ensureOpaInteressesCrmFields().catch(console.error);
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -2189,7 +2205,7 @@ export async function registerRoutes(
 
       const [allBias, allOpas, comunidades, fluxoCaixa] = await Promise.all([
         directusFetchScoped("bias_projetos",
-          "fields=id,nome_bia,situacao,objetivo_alianca,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
+          "fields=id,nome_bia,situacao,objetivo_alianca,destinacao,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
           "bia_publica,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital," +
           "socios_guardioes,socios_multiplicadores,terceiros"
         ),
@@ -3414,12 +3430,33 @@ export async function registerRoutes(
   // ========== OPORTUNIDADES (from Directus: tipos_oportunidades) ==========
   function fixMojibakeText(value: unknown): string | undefined {
     if (typeof value !== "string" || !value) return undefined;
-    if (!/[ÃÂÌÍÎÏ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
+    const cleanReplacementChars = (text: string) => text
+      .replace(/Ve�neto/gi, "Veneto")
+      .replace(/Ele�trico/gi, "Elétrico")
+      .replace(/Climatiza��o/gi, "Climatização")
+      .replace(/\uFFFD+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!/[ÃÂÌÍÎÏ]|[\u0080-\u009F]/.test(value)) return cleanReplacementChars(value.normalize("NFC"));
     try {
-      return Buffer.from(value, "latin1").toString("utf8").normalize("NFC");
+      return cleanReplacementChars(Buffer.from(value, "latin1").toString("utf8").normalize("NFC"));
     } catch {
-      return value.normalize("NFC");
+      return cleanReplacementChars(value.normalize("NFC"));
     }
+  }
+
+  function resolveOpaLocation(value: unknown): string | null {
+    if (!value) return null;
+    if (typeof value === "string") return fixMojibakeText(value) || value;
+    if (typeof value === "object") {
+      const location = value as Record<string, any>;
+      return fixMojibakeText(location.display_name)
+        || fixMojibakeText(location.localizacao)
+        || fixMojibakeText(location.label)
+        || fixMojibakeText(location.address)
+        || null;
+    }
+    return String(value);
   }
 
   function resolveAnexosOpa(items: any[]): any[] {
@@ -3439,6 +3476,9 @@ export async function registerRoutes(
       status: o.status || "ativa",
       motivo_encerramento: o.motivo_encerramento || null,
       date_created: o.date_created || null,
+      localizacao: resolveOpaLocation(o.localizacao),
+      latitude: o.latitude ?? null,
+      longitude: o.longitude ?? null,
       Anexos: (o.anexos || []).map((a: any) => {
         const f = a?.directus_files_id;
         if (!f || typeof f !== "object") return null;
@@ -3471,6 +3511,11 @@ export async function registerRoutes(
       const validIds: string[] = data.Anexos.filter((id: any) => typeof id === "string" && uuidRegex.test(id));
       data.anexos = validIds.map((fileId: string) => ({ directus_files_id: fileId }));
       delete data.Anexos;
+    }
+    if (typeof data.localizacao === "string") {
+      data.localizacao = data.localizacao.trim()
+        ? { display_name: data.localizacao.trim() }
+        : null;
     }
     return data;
   }
@@ -3523,6 +3568,32 @@ export async function registerRoutes(
       const directusUserId = (req.session as any).directusUserId as string | undefined;
       const meuInteresse = directusUserId ? await storage.getUserInteresseByOpa(id, directusUserId) : null;
       res.json({ interesses, meuInteresse: meuInteresse || null, total: interesses.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/oportunidades/:id/interesse/:interesseId", async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+      const allowedStatuses = new Set([
+        "interesse_recebido",
+        "em_analise",
+        "em_tratativa",
+        "alianca_firmada",
+        "nao_selecionado",
+        "em_espera",
+      ]);
+      const statusCrm = String(req.body.status_crm || "");
+      if (!allowedStatuses.has(statusCrm)) {
+        return res.status(400).json({ error: "Status invÃ¡lido" });
+      }
+      const item = await storage.updateOpaInteresse(req.params.interesseId, {
+        status_crm: statusCrm,
+        observacao_crm: req.body.observacao_crm ? String(req.body.observacao_crm) : null,
+      } as any);
+      if (!item || item.opa_id !== req.params.id) return res.status(404).json({ error: "ManifestaÃ§Ã£o nÃ£o encontrada" });
+      res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

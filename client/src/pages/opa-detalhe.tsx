@@ -575,7 +575,7 @@ export default function OpaDetalhePage() {
 
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
-                Mínimo Multiplicador (%)
+                Mínimo Esforço Multiplicador (%)
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -592,7 +592,7 @@ export default function OpaDetalhePage() {
               </div>
               {mult > 0 && (
                 <p className="text-[10px] text-muted-foreground">
-                  Mínimo definido na OPA: <span className="font-semibold text-foreground">{mult}%</span>
+                Mínimo esforço definido na OPA: <span className="font-semibold text-foreground">{mult}%</span>
                 </p>
               )}
               {mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult && (

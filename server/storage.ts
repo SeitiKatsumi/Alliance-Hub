@@ -94,6 +94,7 @@ export interface IStorage {
   getInteressesByUser(userId: string): Promise<OpaInteresse[]>;
   getUserInteresseByOpa(opaId: string, userId: string): Promise<OpaInteresse | undefined>;
   createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse>;
+  updateOpaInteresse(id: string, data: Partial<OpaInteresse>): Promise<OpaInteresse | undefined>;
   deleteOpaInteresse(opaId: string, userId: string): Promise<boolean>;
 
   createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade>;
@@ -388,6 +389,15 @@ export class DatabaseStorage implements IStorage {
 
   async createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse> {
     const [item] = await db.insert(opaInteresses).values(data).returning();
+    return item;
+  }
+
+  async updateOpaInteresse(id: string, data: Partial<OpaInteresse>): Promise<OpaInteresse | undefined> {
+    const [item] = await db
+      .update(opaInteresses)
+      .set({ ...data, atualizado_em: new Date() } as any)
+      .where(eq(opaInteresses.id, id))
+      .returning();
     return item;
   }
 

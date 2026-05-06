@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins, MessageCircle } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins, MessageCircle, ClipboardList } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -31,7 +31,7 @@ export function AppSidebar() {
   const hasProudMemberSeal = isAdmin || redes.includes("BUILT_PROUD_MEMBER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
   const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
 
-  const isBiasSection = location === "/bias" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
+  const isBiasSection = location === "/bias" || location === "/gestao-opas" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
   const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital" || location === "/comunidade";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
@@ -187,6 +187,15 @@ export function AppSidebar() {
                         </SidebarMenuSubItem>
 
                         {/* Núcleo Técnico */}
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild isActive={location === "/gestao-opas"} data-testid="nav-gestao-opas" className="text-xs">
+                            <Link href="/gestao-opas">
+                              <ClipboardList className="w-3 h-3" />
+                              <span>Gestão OPAs</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
                             asChild

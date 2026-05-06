@@ -39,6 +39,8 @@ interface NominatimResult {
   type?: string;
 }
 
+type OpaStatus = "ativa" | "pausada" | "cancelado" | "encerrada" | "concluida" | "desistencia";
+
 interface Oportunidade {
   id: string;
   nome_oportunidade?: string;
@@ -51,7 +53,7 @@ interface Oportunidade {
   pais?: string;
   descricao?: string;
   perfil_aliado?: string;
-  status?: "ativa" | "concluida" | "desistencia" | null;
+  status?: OpaStatus | null;
   motivo_encerramento?: string | null;
   Anexos?: AnexoFile[];
   date_created?: string | null;
@@ -67,6 +69,33 @@ interface BiasProjeto {
   latitude?: number | null;
   longitude?: number | null;
 }
+
+const OPA_STATUS_BADGES: Record<OpaStatus, { label: string; className: string }> = {
+  ativa: {
+    label: "Ativa",
+    className: "bg-emerald-500/15 text-emerald-700 border-emerald-500/25 hover:bg-emerald-500/15",
+  },
+  pausada: {
+    label: "Pausada",
+    className: "bg-amber-500/15 text-amber-700 border-amber-500/25 hover:bg-amber-500/15",
+  },
+  cancelado: {
+    label: "Cancelado",
+    className: "bg-rose-500/15 text-rose-600 border-rose-500/25 hover:bg-rose-500/15",
+  },
+  encerrada: {
+    label: "Encerrada",
+    className: "bg-slate-500/15 text-slate-600 border-slate-500/25 hover:bg-slate-500/15",
+  },
+  concluida: {
+    label: "Concluída",
+    className: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/15",
+  },
+  desistencia: {
+    label: "Desistência",
+    className: "bg-rose-500/15 text-rose-500 border-rose-500/30 hover:bg-rose-500/15",
+  },
+};
 
 // ---- Helpers ----
 function n(v?: string | number | null): number {
@@ -88,6 +117,24 @@ function formatInputBRL(value: string): string {
 function parseBRLToNumber(formatted: string): number {
   if (!formatted) return 0;
   return parseFloat(formatted.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
+function cleanFileName(value?: string | null): string {
+  if (!value) return "";
+  return value
+    .normalize("NFC")
+    .replace(/Ve�neto/gi, "Veneto")
+    .replace(/Ele�trico/gi, "Elétrico")
+    .replace(/Climatiza��o/gi, "Climatização")
+    .replace(/\uFFFD+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function anexoDisplayName(anexo: AnexoFile): string {
+  const title = cleanFileName(anexo.title);
+  const filename = cleanFileName(anexo.filename);
+  return title || filename || anexo.id;
 }
 
 // ---- Location Picker Modal ----
@@ -578,18 +625,16 @@ function EncerramentoDialog({ open, onClose, onConfirm }: {
 
 // ---- OPA Card ----
 function OpaCard({
-  opa, bia, onEdit, onDelete, onSetStatus, onViewDetail
+  opa, bia, onViewDetail
 }: {
   opa: Oportunidade;
   bia?: BiasProjeto;
-  onEdit: () => void;
-  onDelete: () => void;
-  onSetStatus: (status: "ativa" | "concluida" | "desistencia", motivo?: string) => void;
   onViewDetail: () => void;
 }) {
-  const [encerramentoOpen, setEncerramentoOpen] = useState(false);
   const valor = n(opa.valor_origem_opa);
-  const isClosed = opa.status === "concluida" || opa.status === "desistencia";
+  const currentStatus = (opa.status || "ativa") as OpaStatus;
+  const statusBadge = OPA_STATUS_BADGES[currentStatus] || OPA_STATUS_BADGES.ativa;
+  const isClosed = ["cancelado", "encerrada", "concluida", "desistencia"].includes(currentStatus);
 
   return (
     <>
@@ -611,48 +656,13 @@ function OpaCard({
               {opa.tipo && (
                 <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">{opa.tipo}</Badge>
               )}
-              {opa.status === "concluida" && (
-                <Badge className="text-[9px] h-4 px-1.5 font-normal bg-emerald-500/15 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/15">
-                  <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" /> Concluída
-                </Badge>
-              )}
-              {opa.status === "desistencia" && (
-                <Badge className="text-[9px] h-4 px-1.5 font-normal bg-rose-500/15 text-rose-500 border-rose-500/30 hover:bg-rose-500/15">
-                  <XCircle className="w-2.5 h-2.5 mr-0.5" /> Desistência
-                </Badge>
-              )}
+              <Badge className={`text-[9px] h-4 px-1.5 font-normal border ${statusBadge.className}`}>
+                {statusBadge.label}
+              </Badge>
             </div>
             <CardTitle className="text-sm font-semibold leading-tight" data-testid={`text-opa-nome-${opa.id}`}>
               {opa.nome_oportunidade || "Sem nome"}
             </CardTitle>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
-            {isClosed ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 px-2 text-[10px] gap-1 text-brand-gold hover:text-brand-gold"
-                onClick={e => { e.stopPropagation(); onSetStatus("ativa"); }}
-                data-testid={`btn-reativar-opa-${opa.id}`}
-              >
-                <RotateCcw className="w-3 h-3" /> Reativar
-              </Button>
-            ) : (
-              <>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={e => { e.stopPropagation(); onEdit(); }} data-testid={`btn-edit-opa-${opa.id}`}>
-                  <Pencil className="w-3 h-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2 text-[10px] gap-1 text-foreground hover:text-foreground hover:bg-accent"
-                  onClick={e => { e.stopPropagation(); setEncerramentoOpen(true); }}
-                  data-testid={`btn-encerrar-opa-${opa.id}`}
-                >
-                  <Ban className="w-3 h-3" /> Encerrar
-                </Button>
-              </>
-            )}
           </div>
         </div>
       </CardHeader>
@@ -763,14 +773,6 @@ function OpaCard({
       </CardContent>
     </Card>
 
-    <EncerramentoDialog
-      open={encerramentoOpen}
-      onClose={() => setEncerramentoOpen(false)}
-      onConfirm={(status, motivo) => {
-        onSetStatus(status, motivo);
-        setEncerramentoOpen(false);
-      }}
-    />
     </>
   );
 }
@@ -779,6 +781,7 @@ function OpaCard({
 const EMPTY_OPA = {
   nome_oportunidade: "",
   tipo: "",
+  status: "ativa" as OpaStatus,
   bia_id: "",
   valor_origem_opa: "",
   Minimo_esforco_multiplicador: "",
@@ -790,7 +793,7 @@ const EMPTY_OPA = {
 
 interface TipoOpa { text: string; value: string; }
 
-function OpaFormDialog({
+export function OpaFormDialog({
   open, onClose, opa, bias
 }: {
   open: boolean;
@@ -819,6 +822,7 @@ function OpaFormDialog({
       setForm({
         nome_oportunidade: opa.nome_oportunidade || "",
         tipo: opa.tipo || "",
+        status: opa.status || "ativa",
         bia_id: opa.bia_id || "",
         valor_origem_opa: n(opa.valor_origem_opa) > 0
           ? (n(opa.valor_origem_opa)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
@@ -907,6 +911,7 @@ function OpaFormDialog({
       saveMutation.mutate({
         nome_oportunidade: form.nome_oportunidade,
         tipo: form.tipo || null,
+        status: form.status || "ativa",
         bia: form.bia_id || null,
         valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
         Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
@@ -1017,7 +1022,26 @@ function OpaFormDialog({
             </Select>
           </div>
 
-          {/* 5. Localização */}
+          {/* 5. Status */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Status da OPA *</Label>
+            <Select
+              value={form.status || "ativa"}
+              onValueChange={v => setForm(f => ({ ...f, status: v as OpaStatus }))}
+            >
+              <SelectTrigger className="h-8 text-sm" data-testid="select-opa-status">
+                <SelectValue placeholder="Selecionar status..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativa">Ativa</SelectItem>
+                <SelectItem value="pausada">Pausada</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
+                <SelectItem value="encerrada">Encerrada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 6. Localização */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Localização (para mapa)</Label>
             <div className="flex gap-2">
@@ -1060,7 +1084,7 @@ function OpaFormDialog({
             )}
           </div>
 
-          {/* 6. Valor + Mín Esforço Multiplicador */}
+          {/* 7. Valor + Mín Esforço Multiplicador */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Valor da OPA (R$) *</Label>
@@ -1097,7 +1121,7 @@ function OpaFormDialog({
             </div>
           </div>
 
-          {/* 6. Perfil do Aliado */}
+          {/* 8. Perfil do Aliado */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Perfil do Aliado</Label>
             <Textarea
@@ -1109,7 +1133,7 @@ function OpaFormDialog({
             />
           </div>
 
-          {/* 7. Descrição / Escopo */}
+          {/* 9. Descrição / Escopo */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Descrição / Escopo</Label>
             <Textarea
@@ -1121,7 +1145,7 @@ function OpaFormDialog({
             />
           </div>
 
-          {/* 8. Anexos */}
+          {/* 10. Anexos */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Paperclip className="w-3 h-3" /> Anexos
@@ -1138,7 +1162,7 @@ function OpaFormDialog({
                 {existingAnexos.map((a, i) => (
                   <div key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/50 border border-border/40 group">
                     <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <span className="flex-1 text-xs truncate">{a.title || a.filename || a.id}</span>
+                    <span className="flex-1 text-xs truncate" title={anexoDisplayName(a)}>{anexoDisplayName(a)}</span>
                     {a.url && (
                       <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-gold/60 hover:text-brand-gold shrink-0">
                         <ExternalLink className="w-3 h-3" />
@@ -1231,16 +1255,11 @@ function OpaFormDialog({
 
 // ---- Main Page ----
 export default function OportunidadesPage() {
-  const { toast } = useToast();
   const [, navigate] = useLocation();
-  const searchString = useSearch();
   const [search, setSearch] = useState("");
   const [filterBia, setFilterBia] = useState<string>("__all__");
   const [filterNucleo, setFilterNucleo] = useState<string>("__all__");
   const [filterTipo, setFilterTipo] = useState<string>("__all__");
-  const [editingOpa, setEditingOpa] = useState<Oportunidade | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Oportunidade | null>(null);
 
   const { data: opasRaw = [], isLoading: loadingOpas } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -1280,47 +1299,7 @@ export default function OportunidadesPage() {
     });
   }, [opas, search, filterBia, filterNucleo, filterTipo]);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/oportunidades/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
-      toast({ title: "OPA removida" });
-      setDeleteTarget(null);
-    },
-    onError: (e: any) => {
-      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status, motivo }: { id: string; status: string; motivo?: string }) =>
-      apiRequest("PATCH", `/api/oportunidades/${id}`, {
-        status,
-        motivo_encerramento: motivo || null,
-      }),
-    onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
-      const label = vars.status === "concluida" ? "OPA encerrada por conclusão" : vars.status === "desistencia" ? "OPA encerrada por desistência" : "OPA reativada";
-      toast({ title: label });
-    },
-    onError: (e: any) => {
-      toast({ title: "Erro ao atualizar status", description: e.message, variant: "destructive" });
-    },
-  });
-
   const loading = loadingOpas || loadingBias;
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchString);
-    const editId = params.get("edit");
-    if (editId && opas.length > 0) {
-      const target = opas.find(o => o.id === editId);
-      if (target) { setEditingOpa(target); setFormOpen(true); navigate("/opas", { replace: true }); }
-    }
-  }, [searchString, opas]);
-
-  function openCreate() { setEditingOpa(null); setFormOpen(true); }
-  function openEdit(o: Oportunidade) { setEditingOpa(o); setFormOpen(true); }
 
   return (
     <div className="p-6 space-y-6">
@@ -1335,13 +1314,6 @@ export default function OportunidadesPage() {
             Ofertas Públicas de Aliança
           </p>
         </div>
-        <Button
-          onClick={openCreate}
-          className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
-          data-testid="btn-nova-opa"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Nova OPA
-        </Button>
       </div>
 
       {/* Futuristic header */}
@@ -1455,10 +1427,7 @@ export default function OportunidadesPage() {
               <>
                 <Target className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">Nenhuma OPA cadastrada</h3>
-                <p className="text-sm text-muted-foreground/70 mb-4">Crie a primeira oportunidade de aliança</p>
-                <Button className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90" onClick={openCreate}>
-                  <Plus className="w-4 h-4 mr-2" /> Criar primeira OPA
-                </Button>
+                <p className="text-sm text-muted-foreground/70 mb-4">Crie oportunidades pela Gestão OPAs</p>
               </>
             )}
           </CardContent>
@@ -1470,44 +1439,12 @@ export default function OportunidadesPage() {
               key={opa.id}
               opa={opa}
               bia={opa.bia_id ? biasMap[opa.bia_id] : undefined}
-              onEdit={() => openEdit(opa)}
-              onDelete={() => setDeleteTarget(opa)}
-              onSetStatus={(status, motivo) => statusMutation.mutate({ id: opa.id, status, motivo })}
               onViewDetail={() => navigate(`/opas/${opa.id}`)}
             />
           ))}
         </div>
       )}
 
-      {/* Form dialog */}
-      <OpaFormDialog
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        opa={editingOpa}
-        bias={bias}
-      />
-
-      {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o) setDeleteTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover OPA</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover a OPA "{deleteTarget?.nome_oportunidade}"? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-              data-testid="btn-confirm-delete-opa"
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

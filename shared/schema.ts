@@ -275,7 +275,10 @@ export const opaInteresses = pgTable("opa_interesses", {
   membro_nome: text("membro_nome"),
   mensagem: text("mensagem"),
   multiplicador: text("multiplicador"),
+  status_crm: text("status_crm").notNull().default("interesse_recebido"),
+  observacao_crm: text("observacao_crm"),
   criado_em: timestamp("criado_em").defaultNow(),
+  atualizado_em: timestamp("atualizado_em").defaultNow(),
 });
 
 export const insertOpaInteresseSchema = createInsertSchema(opaInteresses).omit({

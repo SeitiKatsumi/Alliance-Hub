@@ -16,12 +16,25 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 interface DashboardBia {
   id: string;
   nome_bia: string;
   situacao?: "ativa" | "em_formacao" | null;
   objetivo_alianca?: string | null;
+  destinacao?: string | null;
   localizacao?: string;
   valor_origem?: number | string | null;
   custo_final_previsto?: number | string | null;
@@ -104,6 +117,78 @@ function normalizeText(value?: string | number | null): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#64748B"];
+
+function compactLabel(value?: string | null): string {
+  return String(value || "Não definido").trim() || "Não definido";
+}
+
+function groupCurrencyBy(items: DashboardBia[], key: keyof DashboardBia) {
+  const grouped = new Map<string, number>();
+  items.forEach((item) => {
+    const label = compactLabel(item[key] as string | null);
+    grouped.set(label, (grouped.get(label) || 0) + n(item.receita_usuario_valor));
+  });
+  const total = Array.from(grouped.values()).reduce((sum, value) => sum + value, 0);
+  return Array.from(grouped.entries())
+    .map(([name, value]) => ({ name, value, percent: total > 0 ? (value / total) * 100 : 0 }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
+function EmptyChart({ text = "Sem dados suficientes" }: { text?: string }) {
+  return (
+    <div className="flex h-[190px] items-center justify-center rounded-md border border-dashed border-border/60 text-xs text-muted-foreground">
+      {text}
+    </div>
+  );
+}
+
+function PieDistributionCard({ title, data }: { title: string; data: Array<{ name: string; value: number; percent: number }> }) {
+  return (
+    <Card className="border border-border/60">
+      <CardContent className="p-4">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="text-[11px] text-muted-foreground">Percentual da sua receita</p>
+        {data.length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[180px_1fr]">
+            <div className="h-[170px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={data} dataKey="value" nameKey="name" innerRadius={42} outerRadius={68} paddingAngle={2}>
+                    {data.map((entry, index) => (
+                      <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, _name, props) => [
+                      `${fmt(Number(value))} (${fmtPercent(props.payload.percent)})`,
+                      props.payload.name,
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2 self-center">
+              {data.slice(0, 5).map((item, index) => (
+                <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} />
+                    <span className="truncate">{item.name}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">{fmtPercent(item.percent)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function StatCardSkeleton() {
@@ -195,6 +280,27 @@ export default function PainelPage() {
       return matchSearch && matchSituacao && matchPapel;
     });
   }, [bias, biaSearch, biaSituacao, biaPapel]);
+  const totalInvestimentoUsuario = useMemo(
+    () => bias.reduce((sum, b) => sum + n(b.investimento_usuario_valor), 0),
+    [bias],
+  );
+  const totalReceitaUsuario = useMemo(
+    () => bias.reduce((sum, b) => sum + n(b.receita_usuario_valor), 0),
+    [bias],
+  );
+  const receitaVsInvestimentoData = useMemo(
+    () => bias
+      .map((b) => ({
+        name: b.nome_bia?.length > 18 ? `${b.nome_bia.slice(0, 18)}...` : b.nome_bia,
+        investimento: n(b.investimento_usuario_valor),
+        receita: n(b.receita_usuario_valor),
+      }))
+      .filter((item) => item.investimento > 0 || item.receita > 0)
+      .slice(0, 8),
+    [bias],
+  );
+  const rendaPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
+  const rendaPorObjetivo = useMemo(() => groupCurrencyBy(bias, "objetivo_alianca"), [bias]);
   const filteredConvergencias = useMemo(() => {
     const q = normalizeText(convergenciaSearch);
     return convergencias.filter((opa) => {
@@ -308,7 +414,7 @@ export default function PainelPage() {
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Target className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">OPAs abertas</span>
+                  <span className="text-xs text-muted-foreground">OPAs no radar</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground" data-testid="stat-value-opas">
                   {opasAbertas}
@@ -449,6 +555,61 @@ export default function PainelPage() {
               </SelectContent>
             </Select>
           </div>
+
+          {!isLoading && (
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
+              <Card className="border border-border/60 xl:col-span-1">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-[#D7BB7D]" />
+                    <p className="text-sm font-semibold text-foreground">Valor total de investimento</p>
+                  </div>
+                  <p className="mt-5 text-2xl font-bold tabular-nums text-foreground" data-testid="chart-total-investimento">
+                    {fmt(totalInvestimentoUsuario)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">soma investida nas suas BIAs</p>
+                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-[#D7BB7D]"
+                      style={{ width: `${Math.min(100, Math.max(6, totalInvestimentoUsuario > 0 ? 100 : 0))}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/60 xl:col-span-3">
+                <CardContent className="p-4">
+                  <p className="text-sm font-semibold text-foreground">Receita vs investimento</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Receita total: {fmt(totalReceitaUsuario)} · Investimento total: {fmt(totalInvestimentoUsuario)}
+                  </p>
+                  {receitaVsInvestimentoData.length === 0 ? (
+                    <EmptyChart />
+                  ) : (
+                    <div className="mt-3 h-[210px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={receitaVsInvestimentoData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                          <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value) / 1000}k`} />
+                          <Tooltip formatter={(value: number) => fmt(Number(value))} />
+                          <Bar dataKey="investimento" name="Investimento" fill="#D7BB7D" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="receita" name="Receita" fill="#10B981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="xl:col-span-2">
+                <PieDistributionCard title="Renda por destinação" data={rendaPorDestinacao} />
+              </div>
+              <div className="xl:col-span-2">
+                <PieDistributionCard title="Renda por objetivo de aliança" data={rendaPorObjetivo} />
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

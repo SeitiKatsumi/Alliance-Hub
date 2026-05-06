@@ -479,6 +479,16 @@ async function directusDelete(collection: string, id: string) {
   return true;
 }
 
+async function ensureAnunciosPagamentoFields() {
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_provider text`);
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_id text`);
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_url text`);
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_status text`);
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_pais text`);
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_gerado_em timestamp`);
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS publicado_em timestamp`);
+}
+
 async function ensureFluxoCaixaHistoricoTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS fluxo_caixa_historico (
@@ -1592,7 +1602,21 @@ export async function registerRoutes(
   });
 
   // ========== ANÚNCIOS ==========
+  await ensureAnunciosPagamentoFields().catch((err: any) => {
+    console.warn(`[anuncios_pagamento] Campos de pagamento nao sincronizados: ${err.message}`);
+  });
+
   async function enrichAnuncio(a: any) {
+    if (a?.pagamento_status === "pendente" && !a.pagamento_url) {
+      const pais = a.pagamento_pais === "exterior" ? "exterior" : "brasil";
+      const pagamentoUrl = buildAnuncioPagamentoUrl(pais, a.id);
+      const updated = await storage.updateAnuncio(a.id, {
+        pagamento_url: pagamentoUrl,
+        pagamento_id: a.pagamento_id || `payment_link:${a.id}`,
+      } as any);
+      a = updated || { ...a, pagamento_url: pagamentoUrl };
+    }
+
     let membro: any = null;
     try {
       const r = await fetch(
@@ -1611,6 +1635,33 @@ export async function registerRoutes(
       membro_foto: membro?.foto_perfil ? `/api/assets/${membro.foto_perfil}` : null,
       imagem_url: a.imagem_directus_id ? `/api/assets/${a.imagem_directus_id}` : null,
     };
+  }
+
+  function buildAnuncioPagamentoUrl(pais: "brasil" | "exterior", anuncioId: string) {
+    const baseUrl = pais === "brasil"
+      ? "https://www.asaas.com/c/j3grfxxw456r9ucm"
+      : "https://buy.stripe.com/7sYbJ00YJa9H0Sh8Mb04801";
+    const url = new URL(baseUrl);
+    const reference = `anuncio:${anuncioId}`;
+    if (pais === "brasil") {
+      url.searchParams.set("externalReference", reference);
+    } else {
+      url.searchParams.set("client_reference_id", reference);
+    }
+    return url.toString();
+  }
+
+  async function markAnuncioPago(anuncioId: string, provider: "asaas" | "stripe", paymentId?: string | null) {
+    const anuncio = await storage.getAnuncioById(anuncioId);
+    if (!anuncio) throw new Error("Anuncio nao encontrado");
+    if (anuncio.ativo && anuncio.pagamento_status === "pago") return anuncio;
+    return storage.updateAnuncio(anuncioId, {
+      ativo: true,
+      pagamento_provider: provider,
+      pagamento_status: "pago",
+      ...(paymentId ? { pagamento_id: paymentId } : {}),
+      publicado_em: new Date(),
+    } as any);
   }
 
   app.get("/api/anuncios", async (req, res) => {
@@ -1654,6 +1705,7 @@ export async function registerRoutes(
       if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado" });
 
       const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
+      const pagamentoPais = req.body?.pagamento_pais === "exterior" ? "exterior" : "brasil";
       if (!data_inicio || !data_fim) return res.status(400).json({ error: "data_inicio e data_fim são obrigatórios" });
 
       if (!isValidQuinzena(data_inicio, data_fim)) {
@@ -1680,9 +1732,26 @@ export async function registerRoutes(
         imagem_directus_id: imagem_directus_id || null,
         data_inicio,
         data_fim,
-        ativo: true,
+        ativo: isSuperAdmin,
+        pagamento_provider: isSuperAdmin ? null : (pagamentoPais === "brasil" ? "asaas" : "stripe"),
+        pagamento_status: isSuperAdmin ? "dispensado" : "pendente",
+        pagamento_pais: isSuperAdmin ? null : pagamentoPais,
+        pagamento_gerado_em: isSuperAdmin ? null : new Date(),
+        publicado_em: isSuperAdmin ? new Date() : null,
+      } as any);
+      if (isSuperAdmin) {
+        return res.json(await enrichAnuncio(anuncio));
+      }
+
+      const pagamentoUrl = buildAnuncioPagamentoUrl(pagamentoPais, anuncio.id);
+      const updated = await storage.updateAnuncio(anuncio.id, {
+        pagamento_url: pagamentoUrl,
+        pagamento_id: `payment_link:${anuncio.id}`,
+      } as any);
+      res.json({
+        ...(await enrichAnuncio(updated || anuncio)),
+        pagamento_url: pagamentoUrl,
       });
-      res.json(await enrichAnuncio(anuncio));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -4144,13 +4213,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     let tipos_alianca: string[] = [];
     let Outras_redes_as_quais_pertenco: string[] = [];
     let fotoPerfil: string | null = null;
+    let nomePerfil = (req.session as any).nome || "";
     if (membroId) {
       try {
-        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil");
+        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil");
         if (membro) {
+          nomePerfil = membro.Nome_de_usuario || membro.nome || nomePerfil;
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
           Outras_redes_as_quais_pertenco = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
           fotoPerfil = membro.foto_perfil || null;
+          (req.session as any).nome = nomePerfil;
         }
       } catch (_) {}
     }
@@ -4174,7 +4246,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
     res.json({
       id: directusUserId,
-      nome: (req.session as any).nome || "",
+      nome: nomePerfil,
       email,
       membro_directus_id: membroId || null,
       role,
@@ -5754,6 +5826,25 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(200).json({ received: true });
       }
 
+      const anuncioReference: string | undefined = session.metadata?.anuncio_id
+        ? `anuncio:${session.metadata.anuncio_id}`
+        : session.client_reference_id || undefined;
+      if (anuncioReference?.startsWith("anuncio:")) {
+        const anuncioId = anuncioReference.replace("anuncio:", "");
+        if (session.payment_status !== "paid") {
+          console.log("[stripe/webhook] anuncio session not yet paid (payment_status=%s), skipping: %s", session.payment_status, anuncioId);
+          return res.status(200).json({ received: true });
+        }
+        try {
+          await markAnuncioPago(anuncioId, "stripe", session.id);
+          console.log("[stripe/webhook] anuncio payment confirmed:", anuncioId);
+        } catch (err: any) {
+          console.error("[stripe/webhook] anuncio update error:", err.message);
+          return res.status(500).json({ error: "Erro interno ao processar pagamento do anuncio" });
+        }
+        return res.status(200).json({ received: true });
+      }
+
       // Support both dynamic checkout sessions (metadata) and Payment Links (client_reference_id)
       const token: string | undefined = session.metadata?.convite_token || session.client_reference_id || undefined;
 
@@ -5909,6 +6000,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         } catch (err: any) {
           console.error("[asaas/webhook] fluxo_caixa update error:", err.message);
           return res.status(500).json({ error: "Erro interno ao processar pagamento do fluxo de caixa" });
+        }
+        return res.status(200).json({ received: true });
+      }
+
+      if (extRef?.startsWith("anuncio:")) {
+        const anuncioId = extRef.replace("anuncio:", "");
+        try {
+          await markAnuncioPago(anuncioId, "asaas", payment.id || null);
+          console.log("[asaas/webhook] anuncio payment confirmed:", anuncioId);
+        } catch (err: any) {
+          console.error("[asaas/webhook] anuncio update error:", err.message);
+          return res.status(500).json({ error: "Erro interno ao processar pagamento do anuncio" });
         }
         return res.status(200).json({ received: true });
       }

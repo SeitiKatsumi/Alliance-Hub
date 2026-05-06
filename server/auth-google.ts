@@ -6,6 +6,10 @@ import { storage } from "./storage";
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
+function getMembroDisplayName(membro: any): string | null {
+  return membro?.Nome_de_usuario || membro?.nome || null;
+}
+
 function getCallbackURL(req?: Request): string {
   if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
   if (process.env.APP_URL) return `${process.env.APP_URL.replace(/\/$/, "")}/auth/google/callback`;
@@ -87,6 +91,8 @@ export function setupGoogleAuth(app: Express) {
           return res.redirect("/login?error=google_no_invite");
         }
 
+        let nomeSessao = user.nome || nome;
+
         // 4. For existing users without a membro_directus_id, attempt to FIND (not create) their Directus member by email.
         if (!user.membro_directus_id) {
           const userEmail = user.email || email;
@@ -94,7 +100,7 @@ export function setupGoogleAuth(app: Express) {
             try {
               const qs = new URLSearchParams();
               qs.set("filter[email][_eq]", userEmail);
-              qs.set("fields", "id,nome");
+              qs.set("fields", "id,Nome_de_usuario,nome");
               qs.set("limit", "1");
               const r = await fetch(`${DIRECTUS_URL}/items/cadastro_geral?${qs}`, {
                 headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
@@ -105,12 +111,29 @@ export function setupGoogleAuth(app: Express) {
                 if (m) {
                   await storage.updateUser(user.id, { membro_directus_id: m.id } as any);
                   user = { ...user, membro_directus_id: m.id };
+                  nomeSessao = getMembroDisplayName(m) || nomeSessao;
                   console.log(`[google-auth] Linked existing Directus member ${m.id} to user ${user.id}`);
                 }
               }
             } catch (e) {
               console.warn("[google-auth] Failed to look up Directus member for linking:", e);
             }
+          }
+        }
+
+        if (user.membro_directus_id) {
+          try {
+            const qs = new URLSearchParams();
+            qs.set("fields", "id,Nome_de_usuario,nome");
+            const r = await fetch(`${DIRECTUS_URL}/items/cadastro_geral/${user.membro_directus_id}?${qs}`, {
+              headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+            });
+            if (r.ok) {
+              const d = await r.json();
+              nomeSessao = getMembroDisplayName(d.data) || nomeSessao;
+            }
+          } catch (e) {
+            console.warn("[google-auth] Failed to fetch linked Directus member name:", e);
           }
         }
 
@@ -134,7 +157,7 @@ export function setupGoogleAuth(app: Express) {
 
         (req.session as any).directusUserId = user.id;
         (req.session as any).membroId = user.membro_directus_id || null;
-        (req.session as any).nome = user.nome;
+        (req.session as any).nome = nomeSessao;
         (req.session as any).email = user.email;
         (req.session as any).role = role;
         (req.session as any).permissions = permissions;

@@ -17,7 +17,7 @@ import {
   auraAvaliacoes, type AuraAvaliacao,
   biaInfoComercial, type BiaInfoComercial,
 } from "@shared/schema";
-import { eq, desc, and, lte, gte, sql as sqlExpr } from "drizzle-orm";
+import { eq, desc, and, or, lte, gte, sql as sqlExpr } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -527,7 +527,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(anuncios.membro_id, membroId),
-          eq(anuncios.ativo, true),
+          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
           gte(anuncios.data_fim, today),
         )
       )
@@ -544,7 +544,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(anuncios.membro_id, membroId),
-          eq(anuncios.ativo, true),
+          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
           gte(anuncios.data_fim, today),
         )
       )
@@ -558,7 +558,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(anuncios.membro_id, membroId),
-          eq(anuncios.ativo, true),
+          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
         )
@@ -578,7 +578,7 @@ export class DatabaseStorage implements IStorage {
       .from(anuncios)
       .where(
         and(
-          eq(anuncios.ativo, true),
+          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
         )
@@ -600,7 +600,7 @@ export class DatabaseStorage implements IStorage {
   async deleteAnuncio(id: string): Promise<boolean> {
     const result = await db
       .update(anuncios)
-      .set({ ativo: false })
+      .set({ ativo: false, pagamento_status: "cancelado", pagamento_url: null })
       .where(eq(anuncios.id, id))
       .returning();
     return result.length > 0;

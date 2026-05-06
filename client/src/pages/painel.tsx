@@ -109,7 +109,7 @@ function deriveRole(user: any): string | null {
   const redes: string[] = Array.isArray(user.Outras_redes_as_quais_pertenco) ? user.Outras_redes_as_quais_pertenco : [];
   if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) return "Aliado BUILT";
   const tipos: string[] = Array.isArray(user.tipos_alianca) ? user.tipos_alianca : [];
-  if (tipos.includes("LideranÃ§a")) return "Diretor de AlianÃ§a";
+  if (tipos.includes("Liderança")) return "Diretor de Aliança";
   if (user.role === "admin") return "Administrador";
   if (user.role === "manager") return "Gestor";
   return null;
@@ -195,7 +195,7 @@ export default function PainelPage() {
           )}
           {!roleLabel && !comunidadeLabel && (
             <p className="text-sm text-muted-foreground">
-              VisÃ£o geral da sua atividade na plataforma Built Alliances.
+              Visão geral da sua atividade na plataforma Built Alliances.
             </p>
           )}
         </div>
@@ -276,7 +276,7 @@ export default function PainelPage() {
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Minhas BIAs â€” 2 cols */}
+        {/* Minhas BIAs - 2 cols */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -364,13 +364,13 @@ export default function PainelPage() {
                       <div>
                         <p className="text-[10px] text-muted-foreground">Valor de Origem</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`valor-origem-${b.id}`}>
-                          {n(b.valor_origem) > 0 ? fmt(n(b.valor_origem), b.moeda || "BRL") : "â€”"}
+                          {n(b.valor_origem) > 0 ? fmt(n(b.valor_origem), b.moeda || "BRL") : "-"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground">Custo Final Prev.</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`custo-final-${b.id}`}>
-                          {n(b.custo_final_previsto) > 0 ? fmt(n(b.custo_final_previsto), b.moeda || "BRL") : "â€”"}
+                          {n(b.custo_final_previsto) > 0 ? fmt(n(b.custo_final_previsto), b.moeda || "BRL") : "-"}
                         </p>
                       </div>
                     </div>
@@ -406,7 +406,7 @@ export default function PainelPage() {
                       <>
                         <p className="text-xs font-medium" style={{ color: getFaixaColor(auraData.score) }}>{auraData.faixa}</p>
                         {[
-                          { label: "TÃ©c.", val: auraData.T ?? 0, color: "#3B82F6" },
+                          { label: "Téc.", val: auraData.T ?? 0, color: "#3B82F6" },
                           { label: "Rel.", val: auraData.R ?? 0, color: "#22C55E" },
                           { label: "Com.", val: auraData.C ?? 0, color: "#D7BB7D" },
                         ].map(d => (
@@ -421,7 +421,7 @@ export default function PainelPage() {
                       </>
                     ) : (
                       <div>
-                        <p className="text-xs text-muted-foreground">Aguardando avaliaÃ§Ãµes</p>
+                        <p className="text-xs text-muted-foreground">Aguardando avaliações</p>
                       </div>
                     )}
                   </div>
@@ -471,7 +471,7 @@ export default function PainelPage() {
                 {comunidades.map(c => {
                   const nMembros = Array.isArray(c.membros) ? c.membros.length : 0;
                   const nBias = Array.isArray(c.bias) ? c.bias.length : 0;
-                  const territory = [c.sigla_territorio, c.pais].filter(Boolean).join(" Â· ");
+                  const territory = [c.sigla_territorio, c.pais].filter(Boolean).join(" · ");
                   return (
                     <Card
                       key={c.id}
@@ -566,7 +566,7 @@ export default function PainelPage() {
                           o.tipo,
                           n(o.valor_origem_opa) > 0 ? fmt(n(o.valor_origem_opa)) : null,
                           o.nome_bia_vinculada ? `BIA: ${o.nome_bia_vinculada}` : null,
-                        ].filter(Boolean).join(" Â· ")}
+                        ].filter(Boolean).join(" · ")}
                       </p>
                     </div>
                     {o.status && o.status !== "concluida" && o.status !== "desistencia" ? (
@@ -575,11 +575,11 @@ export default function PainelPage() {
                       </Badge>
                     ) : o.status === "concluida" ? (
                       <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[9px] shrink-0 h-4">
-                        ConcluÃ­da
+                        Concluída
                       </Badge>
                     ) : o.status === "desistencia" ? (
                       <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[9px] shrink-0 h-4">
-                        DesistÃªncia
+                        Desistência
                       </Badge>
                     ) : (
                       <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
@@ -647,7 +647,7 @@ export default function PainelPage() {
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className={`w-4 h-4 ${totals.resultado_liquido >= 0 ? "text-emerald-400" : "text-red-400"}`} />
-                  <span className="text-xs text-muted-foreground">Resultado LÃ­quido</span>
+                  <span className="text-xs text-muted-foreground">Resultado Líquido</span>
                 </div>
                 <p className={`text-xl font-bold tabular-nums ${totals.resultado_liquido >= 0 ? "text-emerald-500" : "text-red-500"}`}>
                   {fmt(totals.resultado_liquido)}

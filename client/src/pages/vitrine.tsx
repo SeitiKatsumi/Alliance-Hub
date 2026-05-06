@@ -30,11 +30,6 @@ import {
 import { getAllTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "/world-countries-50m.json";
-const ANUNCIO_PAYMENT_LINKS = {
-  brasil: "https://www.asaas.com/c/j3grfxxw456r9ucm",
-  exterior: "https://buy.stripe.com/7sYbJ00YJa9H0Sh8Mb04801",
-} as const;
-
 const NUCLEOS = [
   "Diretoria da Aliança",
   "Núcleo Técnico",
@@ -539,6 +534,10 @@ interface AnuncioVitrine {
   data_inicio: string;
   data_fim: string;
   ativo: boolean;
+  pagamento_url?: string | null;
+  pagamento_status?: string | null;
+  pagamento_provider?: string | null;
+  pagamento_pais?: string | null;
 }
 
 interface PeriodoDisponivel {
@@ -746,8 +745,14 @@ export default function VitrinePage() {
   const [anuncioImagemPreview, setAnuncioImagemPreview] = useState<string | null>(null);
   const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
   const [anuncioTerms, setAnuncioTerms] = useState({ t1: false, t2: false, t3: false });
-  const [anuncioPagamentoPais, setAnuncioPagamentoPais] = useState<keyof typeof ANUNCIO_PAYMENT_LINKS>("brasil");
+  const [anuncioPagamentoPais, setAnuncioPagamentoPais] = useState<"brasil" | "exterior">("brasil");
   const [anuncioPagamentoConfirmado, setAnuncioPagamentoConfirmado] = useState(false);
+  const [ultimoPagamentoAnuncio, setUltimoPagamentoAnuncio] = useState<{
+    url: string;
+    pais?: string | null;
+    dataInicio?: string | null;
+    dataFim?: string | null;
+  } | null>(null);
   const anuncioTermsAllAccepted = anuncioTerms.t1 && anuncioTerms.t2 && anuncioTerms.t3;
   const [anuncioEditTarget, setAnuncioEditTarget] = useState<AnuncioVitrine | null>(null);
 
@@ -809,11 +814,28 @@ export default function VitrinePage() {
 
   // Anúncio mutations
   const criarAnuncioMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/anuncios", data),
-    onSuccess: () => {
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/anuncios", data);
+      return response.json();
+    },
+    onSuccess: (anuncio: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
       setAnuncioDialogOpen(false);
+      if (anuncio?.pagamento_url && !isSuperAdmin) {
+        setUltimoPagamentoAnuncio({
+          url: anuncio.pagamento_url,
+          pais: anuncio.pagamento_pais,
+          dataInicio: anuncio.data_inicio,
+          dataFim: anuncio.data_fim,
+        });
+        window.open(anuncio.pagamento_url, "_blank", "noopener,noreferrer");
+        toast({
+          title: "Pagamento gerado",
+          description: "O link abriu em uma nova aba. Se o navegador bloquear, use o botão Abrir pagamento em Meus agendamentos.",
+        });
+        return;
+      }
       toast({ title: "Anúncio criado com sucesso!" });
     },
     onError: (err: any) => toast({ title: err?.message || "Erro ao criar anúncio", variant: "destructive" }),
@@ -849,7 +871,6 @@ export default function VitrinePage() {
     setAnuncioImagemPreview(null);
     setAnuncioTerms({ t1: false, t2: false, t3: false });
     setAnuncioPagamentoPais("brasil");
-    setAnuncioPagamentoConfirmado(false);
     setAnuncioDialogOpen(true);
   }
 
@@ -901,10 +922,6 @@ export default function VitrinePage() {
         toast({ title: "Selecione um período", variant: "destructive" });
         return;
       }
-      if (!isSuperAdmin && !anuncioPagamentoConfirmado) {
-        toast({ title: "Finalize o pagamento antes de publicar", variant: "destructive" });
-        return;
-      }
       criarAnuncioMutation.mutate({
         titulo: anuncioForm.titulo,
         descricao: anuncioForm.descricao || null,
@@ -912,6 +929,7 @@ export default function VitrinePage() {
         imagem_directus_id: anuncioImagemId || null,
         data_inicio: anuncioPeriodo.inicio,
         data_fim: anuncioPeriodo.fim,
+        pagamento_pais: anuncioPagamentoPais,
       });
     }
   }
@@ -1182,11 +1200,38 @@ export default function VitrinePage() {
               Meus agendamentos ({meusAnuncios.length})
             </span>
           </div>
+          {ultimoPagamentoAnuncio?.url && (
+            <div
+              className="flex flex-col gap-3 rounded-lg px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              style={{ background: "rgba(215,187,125,0.07)", border: "1px solid rgba(215,187,125,0.22)" }}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-mono text-brand-gold/80">Pagamento do anúncio gerado</p>
+                <p className="text-[10px] font-mono text-white/35">
+                  {ultimoPagamentoAnuncio.dataInicio && ultimoPagamentoAnuncio.dataFim
+                    ? `${ultimoPagamentoAnuncio.dataInicio} -> ${ultimoPagamentoAnuncio.dataFim}`
+                    : "Após o pagamento, o webhook publica automaticamente."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2 border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
+                onClick={() => window.open(ultimoPagamentoAnuncio.url, "_blank", "noopener,noreferrer")}
+                data-testid="btn-abrir-ultimo-pagamento-anuncio"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Abrir pagamento
+              </Button>
+            </div>
+          )}
           <div className="space-y-2">
             {meusAnuncios.map(a => {
               const today = new Date().toISOString().slice(0, 10);
               const isAtivo = a.data_inicio <= today && a.data_fim >= today;
               const isFuturo = a.data_inicio > today;
+              const isPagamentoPendente = a.pagamento_status === "pendente";
               return (
                 <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -1208,12 +1253,22 @@ export default function VitrinePage() {
                   </div>
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded-full shrink-0"
                     style={{
-                      background: isAtivo ? "rgba(74,222,128,0.1)" : "rgba(215,187,125,0.08)",
-                      border: `1px solid ${isAtivo ? "rgba(74,222,128,0.3)" : "rgba(215,187,125,0.2)"}`,
-                      color: isAtivo ? "rgba(74,222,128,0.8)" : "rgba(215,187,125,0.6)",
+                      background: isAtivo ? "rgba(74,222,128,0.1)" : isPagamentoPendente ? "rgba(251,191,36,0.1)" : "rgba(215,187,125,0.08)",
+                      border: `1px solid ${isAtivo ? "rgba(74,222,128,0.3)" : isPagamentoPendente ? "rgba(251,191,36,0.28)" : "rgba(215,187,125,0.2)"}`,
+                      color: isAtivo ? "rgba(74,222,128,0.8)" : isPagamentoPendente ? "rgba(251,191,36,0.85)" : "rgba(215,187,125,0.6)",
                     }}>
-                    {isAtivo ? "Ativo" : isFuturo ? "Agendado" : "Encerrado"}
+                    {isPagamentoPendente ? "Pagamento pendente" : isAtivo ? "Ativo" : isFuturo ? "Agendado" : "Encerrado"}
                   </span>
+                  {isPagamentoPendente && a.pagamento_url && (
+                    <button
+                      onClick={() => window.open(a.pagamento_url!, "_blank", "noopener,noreferrer")}
+                      className="h-6 rounded px-2 text-[10px] font-mono text-brand-gold/70 transition-colors hover:bg-brand-gold/10"
+                      style={{ border: "1px solid rgba(215,187,125,0.2)" }}
+                      data-testid={`btn-abrir-pagamento-anuncio-${a.id}`}
+                    >
+                      Abrir pagamento
+                    </button>
+                  )}
                   <button
                     onClick={() => openAnuncioEdit(a)}
                     className="w-6 h-6 rounded flex items-center justify-center shrink-0 transition-colors hover:bg-brand-gold/10"
@@ -1642,10 +1697,7 @@ export default function VitrinePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
                   <Select
                     value={anuncioPagamentoPais}
-                    onValueChange={(value) => {
-                      setAnuncioPagamentoPais(value as keyof typeof ANUNCIO_PAYMENT_LINKS);
-                      setAnuncioPagamentoConfirmado(false);
-                    }}
+                    onValueChange={(value) => setAnuncioPagamentoPais(value as "brasil" | "exterior")}
                   >
                     <SelectTrigger
                       className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
@@ -1659,19 +1711,13 @@ export default function VitrinePage() {
                     </SelectContent>
                   </Select>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => window.open(ANUNCIO_PAYMENT_LINKS[anuncioPagamentoPais], "_blank", "noopener,noreferrer")}
-                    className="gap-2 font-mono text-xs border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
-                    data-testid="btn-pagar-anuncio"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Comprar
-                  </Button>
+                  <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-mono text-white/35">
+                    <ExternalLink className="w-3.5 h-3.5 text-brand-gold/45" />
+                    O link será gerado ao confirmar
+                  </div>
                 </div>
 
-                <label className="flex items-start gap-3 cursor-pointer group" data-testid="checkbox-pagamento-anuncio">
+                <label className="hidden" data-testid="checkbox-pagamento-anuncio">
                   <div
                     onClick={() => setAnuncioPagamentoConfirmado(v => !v)}
                     className="mt-0.5 w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-all cursor-pointer"
@@ -1773,7 +1819,6 @@ export default function VitrinePage() {
               onClick={handleAnuncioSubmit}
               disabled={
                 (!anuncioEditMode && !anuncioTermsAllAccepted) ||
-                (!anuncioEditMode && !isSuperAdmin && !anuncioPagamentoConfirmado) ||
                 criarAnuncioMutation.isPending ||
                 editarAnuncioMutation.isPending ||
                 anuncioUploadLoading
@@ -1787,7 +1832,7 @@ export default function VitrinePage() {
               ) : (
                 <Megaphone className="w-4 h-4" />
               )}
-              {anuncioEditMode ? "Salvar alterações" : "Publicar anúncio"}
+              {anuncioEditMode ? "Salvar alterações" : isSuperAdmin ? "Publicar anúncio" : "Gerar pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>

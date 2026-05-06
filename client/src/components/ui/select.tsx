@@ -70,7 +70,7 @@ SelectScrollDownButton.displayName =
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
+>(({ className, children, position = "popper", onWheel, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -81,6 +81,17 @@ const SelectContent = React.forwardRef<
         className
       )}
       position={position}
+      onWheel={(event) => {
+        onWheel?.(event)
+        if (event.defaultPrevented) return
+
+        const list = event.currentTarget
+        if (list.scrollHeight <= list.clientHeight) return
+
+        event.preventDefault()
+        event.stopPropagation()
+        list.scrollTop += event.deltaY
+      }}
       {...props}
     >
       <SelectScrollUpButton />

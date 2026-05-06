@@ -321,6 +321,13 @@ export const anuncios = pgTable("anuncios", {
   data_inicio: date("data_inicio").notNull(),
   data_fim: date("data_fim").notNull(),
   ativo: boolean("ativo").notNull().default(true),
+  pagamento_provider: text("pagamento_provider"),
+  pagamento_id: text("pagamento_id"),
+  pagamento_url: text("pagamento_url"),
+  pagamento_status: text("pagamento_status"),
+  pagamento_pais: text("pagamento_pais"),
+  pagamento_gerado_em: timestamp("pagamento_gerado_em"),
+  publicado_em: timestamp("publicado_em"),
   created_at: timestamp("created_at").defaultNow(),
 });
 

@@ -324,6 +324,10 @@ function isValorOrigemCategoriaName(name?: string | null): boolean {
   return normalized === "valor de origem" || normalized.endsWith(" valor de origem");
 }
 
+function isValorOrigemText(value?: string | null): boolean {
+  return normalizeText(value).includes("valor de origem");
+}
+
 function parseBRLToNumber(formatted: string): number {
   if (!formatted) return 0;
   const cleaned = formatted.replace(/\./g, "").replace(",", ".");
@@ -360,6 +364,15 @@ function getFileName(url: string) {
   const full = parts[parts.length - 1];
   if (full.length > 25) return full.substring(0, 10) + "..." + full.substring(full.length - 10);
   return full;
+}
+
+function handleDropdownWheel(event: any) {
+  const list = event.currentTarget as HTMLDivElement;
+  if (list.scrollHeight <= list.clientHeight) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  list.scrollTop += event.deltaY;
 }
 
 function SearchableMembroSelect({
@@ -483,7 +496,7 @@ function SearchableMembroSelect({
 
           {!createMode ? (
             <>
-              <div className="max-h-52 overflow-y-auto py-1">
+              <div className="max-h-52 overflow-y-auto py-1" onWheel={handleDropdownWheel}>
                 {allowNone && (
                   <button
                     type="button"
@@ -966,6 +979,8 @@ function LancamentoFormFields({
   onCreateFavorecido?: (nome: string, papel: PapelFavorecidoBia) => Promise<Membro | null>;
 }) {
   const favorecidosOptions = favorecidos ?? membros;
+  const selectedCategoria = categorias.find((cat) => cat.id === formCategorias);
+  const canUseRateio = isCreate || isValorOrigemCategoriaName(selectedCategoria?.Nome_da_categoria) || isValorOrigemText(formDescricao);
   function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
     const formatted = formatInputBRL(raw);
@@ -1099,7 +1114,7 @@ function LancamentoFormFields({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Favorecido</Label>
-          {isCreate && (
+          {canUseRateio && (
             <div className="flex gap-0.5 p-0.5 bg-muted rounded-md">
               <button
                 type="button"
@@ -1121,7 +1136,7 @@ function LancamentoFormFields({
           )}
         </div>
 
-        {(!isCreate || rateioTipo === "individual") ? (
+        {(!canUseRateio || rateioTipo === "individual") ? (
           <SearchableMembroSelect
             membros={favorecidosOptions}
             value={formFavorecido}
@@ -1917,8 +1932,29 @@ export default function FluxoCaixaPage() {
       try {
         const newFileIds = await uploadFiles(pendingFiles);
         const payload = buildPayload(newFileIds);
+        const basePayload = { ...payload };
         delete payload.bia;
-        await apiRequest("PATCH", `/api/fluxo-caixa/${id}`, payload);
+        if (rateioTipo === "grupo" && rateioItems.length > 0) {
+          const [firstItem, ...extraItems] = rateioItems;
+          await apiRequest("PATCH", `/api/fluxo-caixa/${id}`, {
+            ...payload,
+            valor: getRateioValorFinal(firstItem),
+            Favorecido: firstItem.membroId && firstItem.membroId !== "__none__" ? [firstItem.membroId] : [],
+            anexos: payload.anexos,
+          });
+
+          for (const item of extraItems) {
+            const itemFileIds = await uploadFiles(item.anexos || []);
+            await apiRequest("POST", "/api/fluxo-caixa", {
+              ...basePayload,
+              valor: getRateioValorFinal(item),
+              Favorecido: item.membroId && item.membroId !== "__none__" ? [item.membroId] : [],
+              anexos: [...((basePayload.anexos as string[]) || []), ...itemFileIds],
+            });
+          }
+        } else {
+          await apiRequest("PATCH", `/api/fluxo-caixa/${id}`, payload);
+        }
       } finally {
         setUploading(false);
       }
@@ -2068,6 +2104,9 @@ export default function FluxoCaixaPage() {
         : a
     );
     setExistingAnexos(normalizedAnexos);
+    setRateioTipo("individual");
+    setRateioModo("valor");
+    setRateioItems([]);
 
     setEditDialogOpen(true);
   }
@@ -2133,6 +2172,22 @@ export default function FluxoCaixaPage() {
     if (!formStatus) {
       toast({ title: "Selecione o status do pagamento", variant: "destructive" });
       return;
+    }
+    if (rateioTipo === "grupo") {
+      if (rateioItems.length === 0) {
+        toast({ title: "Adicione pelo menos um favorecido no rateio", variant: "destructive" });
+        return;
+      }
+      for (const item of rateioItems) {
+        if (!item.membroId || item.membroId === "__none__") {
+          toast({ title: "Selecione o membro para todos os itens do rateio", variant: "destructive" });
+          return;
+        }
+        if (!item.valor || parseBRLToNumber(item.valor) <= 0) {
+          toast({ title: "Informe o valor para todos os itens do rateio", variant: "destructive" });
+          return;
+        }
+      }
     }
     updateMutation.mutate(editingItemId);
   }

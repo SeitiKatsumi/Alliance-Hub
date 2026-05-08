@@ -11,15 +11,19 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.com>";
-const BASE_URL = process.env.APP_URL || "https://app.builtalliances.11mind.com.br";
+const BASE_URL = process.env.APP_URL || "https://built.dna11.com.br";
 
-async function send(to: string, subject: string, html: string) {
+async function send(to: string, subject: string, html: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const safeTo = to.replace(/^(.{2}).*(@.*)$/, "$1***$2");
   try {
-    await transporter.sendMail({ from: FROM, to, subject, html });
+    const info = await transporter.sendMail({ from: FROM, to, subject, html });
+    console.log(`[mailer] Email accepted by SMTP: to=${safeTo} subject="${subject}" messageId=${info.messageId || "n/a"}`);
+    return { ok: true, messageId: info.messageId };
   } catch (err: any) {
     // Email failures are logged but not re-thrown so SMTP errors never break
     // API routes that have already committed a DB change.
-    console.error(`[mailer] Failed to send email to ${to} ("${subject}"): ${err.message}`);
+    console.error(`[mailer] Failed to send email to ${safeTo} ("${subject}"): ${err.message}`);
+    return { ok: false, error: err.message };
   }
 }
 
@@ -47,7 +51,7 @@ export async function enviarConvite(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/convite/${opts.token}`;
-  await send(
+  return send(
     opts.candidatoEmail,
     `Você foi convidado para a ${opts.comunidadeNome} — BUILT Alliances`,
     baseTemplate(`
@@ -121,7 +125,7 @@ export async function enviarAprovacao(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/adesao/${opts.token}`;
-  await send(
+  return send(
     opts.candidatoEmail,
     `Sua candidatura foi aprovada! — ${opts.comunidadeNome}`,
     baseTemplate(`
@@ -133,6 +137,30 @@ export async function enviarAprovacao(opts: {
         <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Aceitar Termos de Adesão</a>
       </div>
       <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é válido por 12 horas. Após aceitar os termos, você receberá as instruções de pagamento.</p>
+    `)
+  );
+}
+
+export async function enviarConviteAdesaoMembro(opts: {
+  candidatoEmail: string;
+  candidatoNome: string;
+  comunidadeNome: string;
+  invitadorNome: string;
+  token: string;
+}) {
+  const link = `${BASE_URL}/adesao/${opts.token}`;
+  return send(
+    opts.candidatoEmail,
+    `Convite de adesao BUILT - ${opts.comunidadeNome}`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Continue sua adesao BUILT</h2>
+      <p style="color:rgba(255,255,255,0.8)">Ola, <strong>${opts.candidatoNome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Voce solicitou acesso para se tornar membro da <strong style="color:#D7BB7D">${opts.comunidadeNome}</strong>.</p>
+      <p style="color:rgba(255,255,255,0.7)">Este convite foi vinculado a sua comunidade de origem e ao seu convidador, <strong>${opts.invitadorNome}</strong>. Clique abaixo para iniciar o fluxo de adesao e liberar a manifestacao de interesse em OPAs apos receber o selo Proud Member.</p>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Iniciar adesao</a>
+      </div>
+      <p style="color:rgba(255,255,255,0.4);font-size:12px">Se voce nao solicitou este convite, pode ignorar este e-mail com seguranca.</p>
     `)
   );
 }

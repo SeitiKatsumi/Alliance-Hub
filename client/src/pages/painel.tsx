@@ -1,7 +1,10 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,10 +12,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
   Briefcase, Globe, Users, TrendingUp, TrendingDown,
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
+  Ticket, Copy, RefreshCw, Loader2,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -75,6 +80,15 @@ interface DashboardData {
   comunidades: DashboardComunidade[];
   opas: DashboardOpa[];
   convergencias?: DashboardOpa[];
+  dashboard_stats?: {
+    convergencias_total: number;
+    opas_total_periodo: number;
+    interesses_manifestados: number;
+    indice_convergencia: number;
+    taxa_interesse: number;
+    opas_comunidade_total: number;
+    opas_por_abrangencia: Array<{ name: string; value: number }>;
+  };
   totals: {
     valor_origem: number;
     custo_final_previsto: number;
@@ -120,6 +134,13 @@ function normalizeText(value?: string | number | null): string {
 }
 
 const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#64748B"];
+const INVITE_APP_URL = "https://built.dna11.com.br";
+
+function normalizeInviteLink(link?: string | null) {
+  if (!link) return "";
+  if (/^https?:\/\//i.test(link)) return link;
+  return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
+}
 
 function compactLabel(value?: string | null): string {
   return String(value || "Não definido").trim() || "Não definido";
@@ -129,7 +150,7 @@ function groupCurrencyBy(items: DashboardBia[], key: keyof DashboardBia) {
   const grouped = new Map<string, number>();
   items.forEach((item) => {
     const label = compactLabel(item[key] as string | null);
-    grouped.set(label, (grouped.get(label) || 0) + n(item.receita_usuario_valor));
+    grouped.set(label, (grouped.get(label) || 0) + n(item.investimento_usuario_valor));
   });
   const total = Array.from(grouped.values()).reduce((sum, value) => sum + value, 0);
   return Array.from(grouped.entries())
@@ -151,7 +172,7 @@ function PieDistributionCard({ title, data }: { title: string; data: Array<{ nam
     <Card className="border border-border/60">
       <CardContent className="p-4">
         <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="text-[11px] text-muted-foreground">Percentual da sua receita</p>
+        <p className="text-[11px] text-muted-foreground">Percentual do capital investido</p>
         {data.length === 0 ? (
           <EmptyChart />
         ) : (
@@ -186,6 +207,18 @@ function PieDistributionCard({ title, data }: { title: string; data: Array<{ nam
             </div>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricCard({ title, value, subtitle }: { title: string; value: string | number; subtitle?: string }) {
+  return (
+    <Card className="border border-border/60">
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground">{title}</p>
+        <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</p>
+        {subtitle && <p className="mt-1 text-[11px] text-muted-foreground">{subtitle}</p>}
       </CardContent>
     </Card>
   );
@@ -227,10 +260,44 @@ function deriveRole(user: any): string | null {
 
 export default function PainelPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
+  });
+
+  const { data: meuConvite } = useQuery<any>({
+    queryKey: ["/api/meu-convite"],
+    queryFn: async () => {
+      const res = await fetch("/api/meu-convite", { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.membro_directus_id,
+    staleTime: 60000,
+  });
+  const meuConviteLink = normalizeInviteLink(meuConvite?.link);
+
+  const gerarConviteMutation = useMutation({
+    mutationFn: async (force?: boolean) => {
+      const res = await fetch("/api/meu-convite", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: !!force }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erro ao gerar convite");
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meu-convite"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" });
+    },
   });
 
   const { data: auraData } = useQuery<{ score: number | null; T: number | null; R: number | null; C: number | null; n: number; faixa: string | null }>({
@@ -242,6 +309,19 @@ export default function PainelPage() {
   const comunidades = data?.comunidades ?? [];
   const opas = data?.opas ?? [];
   const convergencias = data?.convergencias ?? [];
+  const dashboardStats = data?.dashboard_stats ?? {
+    convergencias_total: convergencias.length,
+    opas_total_periodo: 0,
+    interesses_manifestados: opas.length,
+    indice_convergencia: 0,
+    taxa_interesse: 0,
+    opas_comunidade_total: 0,
+    opas_por_abrangencia: [
+      { name: "Regional", value: 0 },
+      { name: "Nacional", value: 0 },
+      { name: "Global", value: 0 },
+    ],
+  };
   const [biaSearch, setBiaSearch] = useState("");
   const [biaSituacao, setBiaSituacao] = useState("__all__");
   const [biaPapel, setBiaPapel] = useState("__all__");
@@ -299,8 +379,12 @@ export default function PainelPage() {
       .slice(0, 8),
     [bias],
   );
-  const rendaPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
-  const rendaPorObjetivo = useMemo(() => groupCurrencyBy(bias, "objetivo_alianca"), [bias]);
+  const alocacaoPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
+  const alocacaoPorObjetivo = useMemo(() => groupCurrencyBy(bias, "objetivo_alianca"), [bias]);
+  const convergenciaMetricsData = useMemo(() => [
+    { name: "OPAs Convergentes", value: dashboardStats.convergencias_total },
+    { name: "Interesses Manifestados", value: dashboardStats.interesses_manifestados },
+  ], [dashboardStats.convergencias_total, dashboardStats.interesses_manifestados]);
   const filteredConvergencias = useMemo(() => {
     const q = normalizeText(convergenciaSearch);
     return convergencias.filter((opa) => {
@@ -341,20 +425,33 @@ export default function PainelPage() {
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <Avatar className="w-10 h-10 ring-2 ring-[#D7BB7D]/30" data-testid="avatar-profile">
-            {user?.foto_perfil && (
-              <AvatarImage src={user.foto_perfil} alt={nomeExibido} />
-            )}
-            <AvatarFallback className="bg-[#D7BB7D]/15 text-[#D7BB7D] text-sm font-semibold">
-              {avatarInitials || <LayoutDashboard className="w-4 h-4" />}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              {greeting()}, {nomeExibido}
-            </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-10 h-10 ring-2 ring-[#D7BB7D]/30" data-testid="avatar-profile">
+              {user?.foto_perfil && (
+                <AvatarImage src={user.foto_perfil} alt={nomeExibido} />
+              )}
+              <AvatarFallback className="bg-[#D7BB7D]/15 text-[#D7BB7D] text-sm font-semibold">
+                {avatarInitials || <LayoutDashboard className="w-4 h-4" />}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">
+                {greeting()}, {nomeExibido}
+              </h1>
+            </div>
           </div>
+          {user?.membro_directus_id && (
+            <Button
+              variant="outline"
+              className="gap-2 border-[#D7BB7D]/35 text-[#D7BB7D] hover:bg-[#D7BB7D]/10 hover:text-[#D7BB7D]"
+              onClick={() => setConviteDialogOpen(true)}
+              data-testid="btn-dashboard-convidar-parceiro"
+            >
+              <Ticket className="w-4 h-4" />
+              Convidar parceiro
+            </Button>
+          )}
         </div>
         <div className="pl-[52px] flex flex-wrap items-center gap-2">
           {roleLabel && (
@@ -425,7 +522,7 @@ export default function PainelPage() {
 
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate(comunidades[0]?.id ? `/comunidade/${comunidades[0].id}` : "/comunidade")}
+              onClick={() => navigate(comunidades[0]?.id ? `/comunidade/${comunidades[0].id}?from=dashboard` : "/comunidade")}
               data-testid="stat-card-comunidades"
             >
               <CardContent className="p-5">
@@ -484,6 +581,7 @@ export default function PainelPage() {
                 </div>
               </CardContent>
             </Card>
+
           </>
         )}
       </div>
@@ -497,11 +595,11 @@ export default function PainelPage() {
           </TabsTrigger>
           <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
             <Target className="w-4 h-4" />
-            Painel de Convergências
+            Painel de Convergência
           </TabsTrigger>
           <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
             <Target className="w-4 h-4" />
-            Minhas OPAs
+            OPAs de Interesse
           </TabsTrigger>
         </TabsList>
 
@@ -562,12 +660,12 @@ export default function PainelPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-[#D7BB7D]" />
-                    <p className="text-sm font-semibold text-foreground">Valor total de investimento</p>
+                    <p className="text-sm font-semibold text-foreground">Capital Total Alocado</p>
                   </div>
                   <p className="mt-5 text-2xl font-bold tabular-nums text-foreground" data-testid="chart-total-investimento">
                     {fmt(totalInvestimentoUsuario)}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">soma investida nas suas BIAs</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">capital alocado nas suas BIAs</p>
                   <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-[#D7BB7D]"
@@ -579,9 +677,9 @@ export default function PainelPage() {
 
               <Card className="border border-border/60 xl:col-span-3">
                 <CardContent className="p-4">
-                  <p className="text-sm font-semibold text-foreground">Receita vs investimento</p>
+                  <p className="text-sm font-semibold text-foreground">Alocação vs Receita</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Receita total: {fmt(totalReceitaUsuario)} · Investimento total: {fmt(totalInvestimentoUsuario)}
+                    Capital Total Alocado: {fmt(totalInvestimentoUsuario)} vs Receita total: {fmt(totalReceitaUsuario)}
                   </p>
                   {receitaVsInvestimentoData.length === 0 ? (
                     <EmptyChart />
@@ -593,7 +691,7 @@ export default function PainelPage() {
                           <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                           <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value) / 1000}k`} />
                           <Tooltip formatter={(value: number) => fmt(Number(value))} />
-                          <Bar dataKey="investimento" name="Investimento" fill="#D7BB7D" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="investimento" name="Alocação" fill="#D7BB7D" radius={[4, 4, 0, 0]} />
                           <Bar dataKey="receita" name="Receita" fill="#10B981" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
@@ -603,10 +701,10 @@ export default function PainelPage() {
               </Card>
 
               <div className="xl:col-span-2">
-                <PieDistributionCard title="Renda por destinação" data={rendaPorDestinacao} />
+                <PieDistributionCard title="Alocação por destinação" data={alocacaoPorDestinacao} />
               </div>
               <div className="xl:col-span-2">
-                <PieDistributionCard title="Renda por objetivo de aliança" data={rendaPorObjetivo} />
+                <PieDistributionCard title="Alocação por objetivo de aliança" data={alocacaoPorObjetivo} />
               </div>
             </div>
           )}
@@ -717,7 +815,7 @@ export default function PainelPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Target className="w-4 h-4 text-[#D7BB7D]" />
-                Painel de Convergências
+                Painel de Convergência
               </h2>
               <Button
                 variant="ghost"
@@ -729,6 +827,38 @@ export default function PainelPage() {
                 Ver OPAs <ChevronRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
+
+            {!isLoading && (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <Card className="border border-border/60 lg:col-span-1">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold text-foreground">Nº de OPAs Convergentes vs Nº de Interesses Manifestados</p>
+                    <p className="text-[11px] text-muted-foreground">Comparativo do período atual</p>
+                    <div className="mt-3 h-[180px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={convergenciaMetricsData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                          <Tooltip formatter={(value: number) => [Number(value), "Quantidade"]} />
+                          <Bar dataKey="value" name="Quantidade" fill="#D7BB7D" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+                <MetricCard
+                  title="Índice de Convergência"
+                  value={fmtPercent(dashboardStats.indice_convergencia)}
+                  subtitle="OPAs convergentes no período / total de OPAs no período"
+                />
+                <MetricCard
+                  title="Taxa de interesse"
+                  value={fmtPercent(dashboardStats.taxa_interesse)}
+                  subtitle="Interesses manifestados / OPAs convergentes"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_150px] gap-2">
               <div className="relative">
@@ -844,12 +974,12 @@ export default function PainelPage() {
         </TabsContent>
 
         <TabsContent value="opas" className="space-y-4 mt-0">
-          {/* Minhas OPAs */}
+          {/* OPAs de Interesse */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Target className="w-4 h-4 text-[#D7BB7D]" />
-                Minhas OPAs
+                OPAs com Interesse Manifestado
               </h2>
               <Button
                 variant="ghost"
@@ -878,7 +1008,7 @@ export default function PainelPage() {
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-5 text-center">
                   <Target className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Nenhuma OPA com interesse manifestado.</p>
+                  <p className="text-xs text-muted-foreground">Nenhuma OPA de interesse registrada.</p>
                 </CardContent>
               </Card>
             ) : (
@@ -934,6 +1064,81 @@ export default function PainelPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={conviteDialogOpen} onOpenChange={setConviteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-[#D7BB7D]" />
+              Convidar parceiro
+            </DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              Gere e compartilhe um link de convite para novos parceiros entrarem na rede BUILT. O link é válido por 1 dia.
+            </DialogDescription>
+          </DialogHeader>
+
+          {meuConviteLink ? (
+            <div className="space-y-3">
+              <div className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-xs font-mono text-muted-foreground" data-testid="text-dashboard-convite-link">
+                  {meuConviteLink}
+                </span>
+                <button
+                  type="button"
+                  title="Copiar link"
+                  onClick={() => {
+                    navigator.clipboard.writeText(meuConviteLink);
+                    toast({ title: "Link copiado!", description: "Compartilhe com quem quiser convidar." });
+                  }}
+                  className="shrink-0 rounded-md p-1.5 text-[#D7BB7D] hover:bg-[#D7BB7D]/10"
+                  data-testid="btn-dashboard-copiar-convite"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              {meuConvite?.expires_at && (
+                <p className="text-[11px] text-muted-foreground">
+                  Expira em: {new Date(meuConvite.expires_at).toLocaleDateString("pt-BR")}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => gerarConviteMutation.mutate(true)}
+                disabled={gerarConviteMutation.isPending}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                data-testid="btn-dashboard-renovar-convite"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${gerarConviteMutation.isPending ? "animate-spin" : ""}`} />
+                Gerar novo link
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-5 text-center space-y-3">
+              <Ticket className="w-7 h-7 text-[#D7BB7D]/60 mx-auto" />
+              <p className="text-sm text-muted-foreground">Nenhum link ativo no momento.</p>
+              <Button
+                onClick={() => gerarConviteMutation.mutate(false)}
+                disabled={gerarConviteMutation.isPending}
+                className="gap-2 bg-[#D7BB7D] text-[#001D34] hover:bg-[#D7BB7D]/90"
+                data-testid="btn-dashboard-gerar-convite"
+              >
+                {gerarConviteMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Ticket className="w-4 h-4" />
+                )}
+                Gerar link de convite
+              </Button>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConviteDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

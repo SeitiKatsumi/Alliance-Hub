@@ -264,7 +264,6 @@ export default function BiaDetalhePage() {
   const equipe = useMemo(() => {
     if (!bia) return [];
     return [
-      { id: bia.autor_bia, role: "Autor da BIA (OPA)", icon: Briefcase },
       { id: bia.aliado_built, role: "Aliado BUILT", icon: Shield },
       { id: bia.diretor_alianca, role: "Diretor de Aliança", icon: Crown },
       { id: bia.diretor_nucleo_tecnico, role: "Diretor de Núcleo Técnico", icon: Shield },

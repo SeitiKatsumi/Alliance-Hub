@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Search, Building2, MapPin, Globe, Phone, FileText,
-  MessageSquare, Lock, Shield, Users
+  MessageSquare, Lock, Shield, Users, LayoutGrid, List
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
@@ -359,6 +359,89 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
   );
 }
 
+function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean }) {
+  const foto = fotoUrl(m);
+  const logo = logoEmpresaUrl(m);
+  const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
+  const nome = m.nome || "—";
+  const [, navigate] = useLocation();
+
+  function handleOrcamento(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (m.whatsapp) {
+      const digits = m.whatsapp.replace(/\D/g, "");
+      const telefone = digits.startsWith("55") ? digits : `55${digits}`;
+      window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(`Olá ${nome}! Gostaria de solicitar um orçamento.`)}`, "_blank");
+      return;
+    }
+    if (m.email) {
+      const assunto = encodeURIComponent("Solicitação de orçamento - BUILT Alliances");
+      const corpo = encodeURIComponent(`Olá ${nome}!\n\nGostaria de solicitar um orçamento.`);
+      window.open(`mailto:${m.email}?subject=${assunto}&body=${corpo}`, "_blank");
+    }
+  }
+
+  return (
+    <div
+      className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
+      style={{
+        background: "linear-gradient(145deg, #071626, #040e1c)",
+        borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+      }}
+      onClick={() => navigate(`/membro/${m.id}`)}
+      data-testid={`list-membro-${m.id}`}
+    >
+      <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
+        style={{ background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
+        {foto ? <img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="font-semibold text-white font-mono truncate">{nome}</p>
+          {hasProudMember && (
+            <RedeBadgeButton rede="BUILT_PROUD_MEMBER" height={24} maxWidth={58} testId="badge-list-membro-built_proud_member" />
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
+          {m.empresa && (
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              {logo ? <img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
+              <span className="truncate max-w-[220px]">{m.empresa}</span>
+            </span>
+          )}
+          {(m.segmento || m.especialidade || m.cargo) && (
+            <span className="truncate max-w-[220px]">{m.segmento || m.especialidade || m.cargo}</span>
+          )}
+          {m.cidade && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {m.cidade}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-3 shrink-0">
+        <AuraBadge membroId={m.id} />
+        {!isOwn && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOrcamento}
+            className="gap-2 border-brand-gold/25 bg-brand-gold/5 text-brand-gold hover:bg-brand-gold/10"
+            data-testid={`btn-list-orcamento-membro-${m.id}`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Solicitar orçamento
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ===== MEMBER CARD =====
 function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean }) {
   const foto = fotoUrl(m);
@@ -597,6 +680,7 @@ export default function AreMembroPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [filterEstado, setFilterEstado] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const membroId = user?.membro_directus_id;
 
@@ -706,41 +790,61 @@ export default function AreMembroPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar membro..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-brand-gold/40"
+            className="pl-9 h-10 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-brand-gold/50"
             data-testid="input-busca-membros"
           />
         </div>
         <Select value={filterEstado} onValueChange={setFilterEstado}>
-          <SelectTrigger className="w-36 bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-estado-membros">
+          <SelectTrigger className="w-40 h-10 bg-background border-border text-foreground focus:border-brand-gold/50" data-testid="select-estado-membros">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
-          <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-            <SelectItem value="all" className="text-white/80 focus:bg-brand-gold/10 focus:text-white">Todos os estados</SelectItem>
+          <SelectContent className="bg-popover border-border text-popover-foreground max-h-64">
+            <SelectItem value="all">Todos os estados</SelectItem>
             {ESTADOS_BR.map(e => (
-              <SelectItem key={e} value={e} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{e}</SelectItem>
+              <SelectItem key={e} value={e}>{e}</SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <div className="flex h-10 rounded-md border border-border overflow-hidden bg-background" aria-label="Modo de visualização">
+          <button
+            type="button"
+            title="Ver em cards"
+            onClick={() => setViewMode("grid")}
+            className={`w-10 flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            data-testid="btn-membros-view-grid"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Ver em lista"
+            onClick={() => setViewMode("list")}
+            className={`w-10 flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            data-testid="btn-membros-view-list"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
         {(search || filterEstado !== "all") && (
           <Button variant="ghost" size="sm"
             onClick={() => { setSearch(""); setFilterEstado("all"); }}
-            className="text-white/40 hover:text-white/70 font-mono text-xs"
+            className="text-muted-foreground hover:text-foreground font-mono text-xs"
             data-testid="btn-limpar-filtros-membros">
             Limpar filtros
           </Button>
         )}
       </div>
 
-      {/* Grid */}
+      {/* Cards / Lista */}
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className={viewMode === "list" ? "space-y-3" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"}>
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-white/5 bg-white/3 h-52 animate-pulse" />
+            <div key={i} className={`rounded-xl border border-white/5 bg-white/3 animate-pulse ${viewMode === "list" ? "h-24" : "h-52"}`} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -749,11 +853,19 @@ export default function AreMembroPage() {
           <p className="text-white/30 font-mono text-sm">Nenhum membro encontrado</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {filtered.map(m => (
-            <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
-          ))}
-        </div>
+        viewMode === "list" ? (
+          <div className="space-y-3">
+            {filtered.map(m => (
+              <MembroListItem key={m.id} membro={m} isOwn={m.id === membroId} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {filtered.map(m => (
+              <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
+            ))}
+          </div>
+        )
       )}
     </div>
   );

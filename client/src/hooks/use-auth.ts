@@ -15,6 +15,7 @@ export interface AppUser {
   foto_perfil?: string | null;
   pending_vitrine?: boolean;
   convite_pendente?: { token: string; status: string } | null;
+  adesao_pendente?: { token: string; status: string } | null;
 }
 
 export function useAuth() {

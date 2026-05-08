@@ -20,7 +20,7 @@ import {
   Users, X, Plus, Pencil, Trash2, Loader2,
   FileText, Mail, MessageSquare, Globe, Phone, Navigation,
   Megaphone, CalendarDays, ExternalLink, ImageIcon, Tag, CheckCircle2, XCircle, Upload,
-  ShieldCheck, Check,
+  ShieldCheck, Check, LayoutGrid, List,
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
@@ -725,6 +725,7 @@ export default function VitrinePage() {
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterTerritorio, setFilterTerritorio] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [form, setForm] = useState<CardForm>({
@@ -1240,16 +1241,16 @@ export default function VitrinePage() {
             placeholder="Buscar por nome, empresa ou especialidade..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
+            className="pl-9 h-9 text-sm bg-background border-border text-foreground placeholder:text-muted-foreground"
             data-testid="input-vitrine-search"
           />
         </div>
 
         <Select value={filterEspecialidade} onValueChange={setFilterEspecialidade}>
-          <SelectTrigger className="w-44 h-9 text-sm" data-testid="select-vitrine-especialidade">
+          <SelectTrigger className="w-44 h-9 text-sm bg-background border-border text-foreground" data-testid="select-vitrine-especialidade">
             <SelectValue placeholder="Ramo de atuação" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover border-border text-popover-foreground">
             <SelectItem value="all">Todos ramos</SelectItem>
             {especialidades.map(e => (
               <SelectItem key={e} value={e}>{e}</SelectItem>
@@ -1258,16 +1259,37 @@ export default function VitrinePage() {
         </Select>
 
         <Select value={filterTerritorio} onValueChange={setFilterTerritorio}>
-          <SelectTrigger className="w-40 h-9 text-sm" data-testid="select-vitrine-territorio">
+          <SelectTrigger className="w-40 h-9 text-sm bg-background border-border text-foreground" data-testid="select-vitrine-territorio">
             <SelectValue placeholder="Território" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover border-border text-popover-foreground">
             <SelectItem value="all">Todos os territórios</SelectItem>
             {territorios.map(t => (
               <SelectItem key={t} value={t}>{t}</SelectItem>
             ))}
           </SelectContent>
         </Select>
+
+        <div className="flex h-9 rounded-md border border-border overflow-hidden bg-background" aria-label="Modo de visualizaÃ§Ã£o">
+          <button
+            type="button"
+            title="Ver em cards"
+            onClick={() => setViewMode("grid")}
+            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            data-testid="btn-vitrine-view-grid"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Ver em lista"
+            onClick={() => setViewMode("list")}
+            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            data-testid="btn-vitrine-view-list"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
 
         {hasFilters && (
           <button
@@ -1281,10 +1303,10 @@ export default function VitrinePage() {
         )}
       </div>
 
-      {/* Card grid */}
+      {/* Cards / Lista */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-52 rounded-xl" />)}
+        <div className={viewMode === "list" ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}>
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className={viewMode === "list" ? "h-24 rounded-xl" : "h-52 rounded-xl"} />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -1297,11 +1319,19 @@ export default function VitrinePage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map(m => (
-            <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
-          ))}
-        </div>
+        viewMode === "list" ? (
+          <div className="space-y-3">
+            {filtered.map(m => (
+              <MembroListItem key={m.id} membro={m} isOwn={m.id === membroId} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filtered.map(m => (
+              <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
+            ))}
+          </div>
+        )
       )}
 
       {/* Create/Edit Card Dialog */}
@@ -1785,6 +1815,87 @@ export default function VitrinePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
+  const foto = fotoUrl(m);
+  const logo = logoEmpresaUrl(m);
+  const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
+  const nome = m.nome || "—";
+  const [, navigate] = useLocation();
+
+  function handleOrcamento(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (m.whatsapp) {
+      const digits = m.whatsapp.replace(/\D/g, "");
+      const telefone = digits.startsWith("55") ? digits : `55${digits}`;
+      window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(`Olá ${nome}! Gostaria de solicitar um orçamento.`)}`, "_blank");
+      return;
+    }
+    if (m.email) {
+      const assunto = encodeURIComponent("Solicitação de orçamento - BUILT Alliances");
+      const corpo = encodeURIComponent(`Olá ${nome}!\n\nGostaria de solicitar um orçamento.`);
+      window.open(`mailto:${m.email}?subject=${assunto}&body=${corpo}`, "_blank");
+    }
+  }
+
+  return (
+    <div
+      className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
+      style={{
+        background: "linear-gradient(145deg, #071626, #040e1c)",
+        borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+      }}
+      onClick={() => navigate(`/vitrine/${m.id}`)}
+      data-testid={`list-vitrine-${m.id}`}
+    >
+      <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
+        style={{ background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
+        {foto ? <img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="font-semibold text-white font-mono truncate">{nome}</p>
+          {hasProudMember && (
+            <RedeBadgeButton rede="BUILT_PROUD_MEMBER" height={24} maxWidth={58} testId="badge-list-built_proud_member" />
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
+          {m.empresa && (
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              {logo ? <img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
+              <span className="truncate max-w-[220px]">{m.empresa}</span>
+            </span>
+          )}
+          {(m.especialidade || m.cargo) && <span className="truncate max-w-[220px]">{m.especialidade || m.cargo}</span>}
+          {m.cidade && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {m.cidade}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-3 shrink-0">
+        <AuraBadge membroId={m.id} />
+        {!isOwn && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOrcamento}
+            className="gap-2 border-brand-gold/25 bg-brand-gold/5 text-brand-gold hover:bg-brand-gold/10"
+            data-testid={`btn-list-orcamento-${m.id}`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Solicitar orçamento
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

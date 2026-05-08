@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type React from "react";
 import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Users, Briefcase, Shield,
@@ -7,6 +8,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 interface Membro {
   id: string;
@@ -14,6 +25,14 @@ interface Membro {
   cargo?: string;
   empresa?: string;
   foto_perfil?: string | null;
+  tipo_de_cadastro?: string | null;
+  tipo_alianca?: string | null;
+  tipos_alianca?: string[] | null;
+  nucleo_alianca?: string | null;
+  nucleos_alianca?: string[] | null;
+  Outras_redes_as_quais_pertenco?: string[] | null;
+  em_built_capital?: boolean | null;
+  na_vitrine?: boolean | null;
 }
 interface Bia {
   id: string;
@@ -37,7 +56,18 @@ interface Comunidade {
   aliado?: Membro | string | null;
   membros?: MembroJunction[];
   bias?: BiaJunction[];
+  analytics?: {
+    opas_total: number;
+    opas_por_abrangencia: Array<{ name: string; value: number }>;
+    composicao: {
+      parceiros_mercado: number;
+      area_aliancas: number;
+      parceiros_capital: number;
+    };
+  };
 }
+
+const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#8B5CF6"];
 
 function resolveAliado(c: Comunidade): Membro | null {
   if (!c.aliado) return null;
@@ -73,9 +103,35 @@ function formatDate(d?: string): string {
   return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+function DarkPanel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-2xl p-5 space-y-4 ${className}`}
+      style={{
+        background: "linear-gradient(145deg, #071626, #040e1c)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, children }: { icon: any; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="w-4 h-4 text-brand-gold/60" />
+      <h2 className="text-xs font-mono text-white/50 uppercase tracking-widest">{children}</h2>
+    </div>
+  );
+}
+
 export default function ComunidadeDetalhePage() {
   const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const fromDashboard = new URLSearchParams(location.split("?")[1] || "").get("from") === "dashboard";
+  const backHref = fromDashboard ? "/" : "/comunidade";
+  const backLabel = fromDashboard ? "Voltar para Dashboard" : "Voltar para Comunidades";
 
   const { data: comunidade, isLoading, isError } = useQuery<Comunidade>({
     queryKey: ["/api/comunidades", id],
@@ -105,7 +161,7 @@ export default function ComunidadeDetalhePage() {
       <div className="p-6 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-64 gap-4">
         <MessageCircle className="w-12 h-12 text-brand-gold/20" />
         <p className="text-white/40 font-mono">Comunidade não encontrada</p>
-        <Button variant="ghost" onClick={() => navigate("/comunidade")} className="text-brand-gold">
+        <Button variant="ghost" onClick={() => navigate(backHref)} className="text-brand-gold">
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
       </div>
@@ -116,17 +172,39 @@ export default function ComunidadeDetalhePage() {
   const membros = resolveMembros(comunidade);
   const bias = resolveBias(comunidade);
   const aliadoFoto = fotoUrl(aliado?.foto_perfil);
+  const analytics = comunidade.analytics ?? {
+    opas_total: 0,
+    opas_por_abrangencia: [
+      { name: "Regional", value: 0 },
+      { name: "Nacional", value: 0 },
+      { name: "Global", value: 0 },
+    ],
+    composicao: {
+      parceiros_mercado: 0,
+      area_aliancas: 0,
+      parceiros_capital: 0,
+    },
+  };
+  const opaChartData = [
+    { name: "Total", value: analytics.opas_total },
+    ...analytics.opas_por_abrangencia,
+  ];
+  const composicaoChartData = [
+    { name: "Mercado", value: analytics.composicao.parceiros_mercado },
+    { name: "Área de Alianças", value: analytics.composicao.area_aliancas },
+    { name: "Capital", value: analytics.composicao.parceiros_capital },
+  ];
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       {/* Back */}
       <button
-        onClick={() => navigate("/comunidade")}
+        onClick={() => navigate(backHref)}
         className="inline-flex items-center gap-2 text-sm font-mono px-3 py-1.5 rounded-lg transition-colors text-brand-gold/70 hover:text-brand-gold hover:bg-brand-gold/10 border border-brand-gold/20 hover:border-brand-gold/40"
         data-testid="btn-back-comunidade"
       >
         <ArrowLeft className="w-4 h-4" />
-        Voltar para Comunidades
+        {backLabel}
       </button>
 
       {/* Hero */}
@@ -286,6 +364,66 @@ export default function ComunidadeDetalhePage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Indicadores da comunidade */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DarkPanel>
+          <SectionTitle icon={Globe}>OPAs da Comunidade</SectionTitle>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={opaChartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.55)" }} tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "rgba(255,255,255,0.45)" }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: "rgba(215,187,125,0.08)" }}
+                  contentStyle={{ background: "#071626", border: "1px solid rgba(215,187,125,0.25)", borderRadius: 8, color: "#fff" }}
+                  formatter={(value: number) => [Number(value), "OPAs"]}
+                />
+                <Bar dataKey="value" name="OPAs" radius={[4, 4, 0, 0]}>
+                  {opaChartData.map((entry, index) => (
+                    <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[11px] text-white/35 font-mono">
+            Nº total de OPAs da comunidade vs OPAs Regional, Nacional e Global.
+          </p>
+        </DarkPanel>
+
+        <DarkPanel>
+          <SectionTitle icon={Users}>Composição da Comunidade</SectionTitle>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={composicaoChartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.55)" }} tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "rgba(255,255,255,0.45)" }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: "rgba(215,187,125,0.08)" }}
+                  contentStyle={{ background: "#071626", border: "1px solid rgba(215,187,125,0.25)", borderRadius: 8, color: "#fff" }}
+                  formatter={(value: number) => [Number(value), "Membros"]}
+                />
+                <Bar dataKey="value" name="Membros" radius={[4, 4, 0, 0]}>
+                  {composicaoChartData.map((entry, index) => (
+                    <Cell key={entry.name} fill={CHART_COLORS[(index + 1) % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {composicaoChartData.map((item) => (
+              <div key={item.name} className="rounded-xl p-3 text-center" style={{ background: "rgba(215,187,125,0.05)", border: "1px solid rgba(215,187,125,0.1)" }}>
+                <p className="text-xl font-bold text-brand-gold font-mono">{item.value}</p>
+                <p className="text-[9px] text-white/40 font-mono uppercase tracking-widest mt-1">{item.name}</p>
+              </div>
+            ))}
+          </div>
+        </DarkPanel>
       </div>
 
       {/* Membros */}

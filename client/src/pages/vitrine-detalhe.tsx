@@ -142,7 +142,11 @@ export default function VitrineDetalhePage() {
       setConviteEnviado(true);
       toast({ title: "Convite enviado com sucesso!" });
     },
-    onError: () => toast({ title: "Erro ao enviar convite", variant: "destructive" }),
+    onError: (err: any) => toast({
+      title: "Erro ao enviar convite",
+      description: err?.message || "Não foi possível enviar o e-mail do convite.",
+      variant: "destructive",
+    }),
   });
 
   const foto = fotoUrl(membro?.foto_perfil);

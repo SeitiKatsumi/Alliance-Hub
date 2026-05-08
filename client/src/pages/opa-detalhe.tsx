@@ -127,7 +127,7 @@ export default function OpaDetalhePage() {
 
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const hasSeal = !!(user?.role === "admin" || user?.role === "manager" ||
-    redes.some(r => r.startsWith("BUILT_")));
+    redes.includes("BUILT_PROUD_MEMBER"));
 
   const { data: opasRaw = [], isLoading } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -183,6 +183,35 @@ export default function OpaDetalhePage() {
     },
     onError: () => {
       toast({ title: "Erro", description: "Não foi possível remover o interesse.", variant: "destructive" });
+    },
+  });
+
+  const solicitarAdesaoMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/opa/solicitar-adesao", {});
+      return res.json() as Promise<{ token?: string; status?: string; link?: string; alreadyMember?: boolean }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      setSemSeloDialog(false);
+      if (data.alreadyMember) {
+        setInteresseDialog(true);
+        return;
+      }
+      toast({
+        title: "Pagamento de adesão gerado",
+        description: "Enviamos o link para seu e-mail. Você também será direcionado para pagar agora.",
+      });
+      if (data.token) {
+        navigate(`/pagamento/${data.token}`);
+      }
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Não foi possível enviar o convite",
+        description: err?.message || "Verifique seu cadastro e tente novamente.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -352,9 +381,11 @@ export default function OpaDetalhePage() {
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={Layers}>BIA Vinculada</SectionTitle>
                 <div
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 border border-brand-gold/20 cursor-pointer hover:border-brand-gold/40 transition-colors"
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 border border-brand-gold/20 transition-colors ${
+                    hasSeal ? "cursor-pointer hover:border-brand-gold/40" : "cursor-default"
+                  }`}
                   style={{ background: "rgba(215,187,125,0.04)" }}
-                  onClick={() => navigate(`/bias/${bia.id}`)}
+                  onClick={hasSeal ? () => navigate(`/bias/${bia.id}`) : undefined}
                   data-testid="link-bia-vinculada"
                 >
                   <Layers className="w-4 h-4 text-brand-gold/50 shrink-0" />
@@ -366,7 +397,7 @@ export default function OpaDetalhePage() {
                       </p>
                     )}
                   </div>
-                  <ArrowLeft className="w-4 h-4 text-brand-gold/30 rotate-180 shrink-0" />
+                  {hasSeal && <ArrowLeft className="w-4 h-4 text-brand-gold/30 rotate-180 shrink-0" />}
                 </div>
               </CardContent>
             </Card>
@@ -403,7 +434,7 @@ export default function OpaDetalhePage() {
           )}
 
           {/* Anexos */}
-          {opa.Anexos && opa.Anexos.length > 0 && (
+          {hasSeal && opa.Anexos && opa.Anexos.length > 0 && (
             <Card>
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={Paperclip}>
@@ -514,14 +545,22 @@ export default function OpaDetalhePage() {
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       Tem interesse nesta oportunidade? Notifique o responsável pela OPA.
                     </p>
-                    <Button
-                      className="w-full gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
-                      onClick={() => hasSeal ? setInteresseDialog(true) : setSemSeloDialog(true)}
-                      data-testid="btn-manifestar-interesse"
-                    >
-                      <HandHeart className="w-4 h-4" />
-                      Manifestar Interesse
-                    </Button>
+                    {true ? (
+                      <Button
+                        className="w-full gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
+                        onClick={() => hasSeal ? setInteresseDialog(true) : setSemSeloDialog(true)}
+                        data-testid="btn-manifestar-interesse"
+                      >
+                        <HandHeart className="w-4 h-4" />
+                        Manifestar Interesse
+                      </Button>
+                    ) : (
+                      <div className="rounded-lg border border-brand-gold/15 bg-brand-gold/5 px-3 py-2.5">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          A manifestação de interesse fica disponível após receber o selo Proud Member.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -666,15 +705,28 @@ export default function OpaDetalhePage() {
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Para manifestar interesse em OPAs, você precisa ser um membro ativo da Rede BUILT com o selo <strong className="text-foreground">Proud Member</strong>.
+              Para manifestar interesse em OPAs, você precisa estar ativo como membro da Rede BUILT com o selo <strong className="text-foreground">Proud Member</strong>.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Entre em contato com o Aliado BUILT da sua aliança ou acesse a seção de Comunidades para iniciar o processo de adesão.
+              Como seu perfil já passou pela Vitrine, falta apenas efetuar o pagamento de adesão. Após a confirmação automática, seu selo será liberado e a comunidade será notificada.
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSemSeloDialog(false)}>
               Fechar
+            </Button>
+            <Button
+              className="bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
+              onClick={() => solicitarAdesaoMutation.mutate()}
+              disabled={solicitarAdesaoMutation.isPending}
+              data-testid="btn-ir-adesao-opa"
+            >
+              {solicitarAdesaoMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <HandHeart className="w-4 h-4 mr-2" />
+              )}
+              Gerar pagamento
             </Button>
           </DialogFooter>
         </DialogContent>

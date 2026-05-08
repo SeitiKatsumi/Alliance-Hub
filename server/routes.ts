@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
@@ -2193,6 +2193,20 @@ export async function registerRoutes(
           bias: [],
           comunidades: [],
           opas: [],
+          convergencias: [],
+          dashboard_stats: {
+            convergencias_total: 0,
+            opas_total_periodo: 0,
+            interesses_manifestados: 0,
+            indice_convergencia: 0,
+            taxa_interesse: 0,
+            opas_comunidade_total: 0,
+            opas_por_abrangencia: [
+              { name: "Regional", value: 0 },
+              { name: "Nacional", value: 0 },
+              { name: "Global", value: 0 },
+            ],
+          },
           totals: { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 },
           opas_abertas: 0,
         });
@@ -2210,7 +2224,7 @@ export async function registerRoutes(
           "socios_guardioes,socios_multiplicadores,terceiros"
         ),
         directusFetchScoped("tipos_oportunidades",
-          "fields=id,nome_oportunidade,tipo,bia,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador"
+          "fields=id,nome_oportunidade,tipo,bia,status,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador"
         ).catch(() => []),
         directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => []),
         directusFetch("fluxo_caixa", "fields=id,bia,tipo,valor,favorecido_id").catch(() => []),
@@ -2266,7 +2280,7 @@ export async function registerRoutes(
         const normalizedArea = normalize(area);
         return Object.keys(areaKeywords).filter((key) => normalizedArea.includes(key));
       })));
-      const convergencias = (allOpas as any[])
+      const convergenciasFull = (allOpas as any[])
         .filter((o: any) => !CLOSED_STATUSES.has(o.status))
         .map((o: any) => ({
           ...o,
@@ -2274,7 +2288,8 @@ export async function registerRoutes(
           nome_bia_vinculada: allBiaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
           _matchText: normalize([o.tipo, o.nucleo_alianca, o.perfil_aliado, o.objetivo_alianca, o.nome_oportunidade].join(" ")),
         }))
-        .filter((o: any) => activeAreaKeys.some((key) => areaKeywords[key].some((keyword) => o._matchText.includes(keyword))))
+        .filter((o: any) => activeAreaKeys.some((key) => areaKeywords[key].some((keyword) => o._matchText.includes(keyword))));
+      const convergencias = convergenciasFull
         .slice(0, 6)
         .map(({ _matchText, ...o }: any) => o);
 
@@ -2289,6 +2304,47 @@ export async function registerRoutes(
           return id === membroId;
         });
       });
+
+      const comunidadeBiaIds = new Set<string>();
+      for (const comunidade of userComunidades) {
+        const biasRelacionadas = Array.isArray(comunidade.bias) ? comunidade.bias : [];
+        for (const rel of biasRelacionadas) {
+          const biaId =
+            relationId(rel?.bias_projetos_id) ||
+            relationId(rel?.bias_id) ||
+            relationId(rel?.id) ||
+            relationId(rel);
+          if (biaId) comunidadeBiaIds.add(biaId);
+        }
+      }
+      if (comunidadeBiaIds.size === 0) {
+        userBiaIds.forEach((biaId) => comunidadeBiaIds.add(biaId));
+      }
+
+      const classifyAbrangencia = (opa: any) => {
+        const text = normalize([opa.tipo, opa.nucleo_alianca, opa.objetivo_alianca, opa.localizacao, opa.pais].join(" "));
+        if (/(global|internacional|exterior|fora do brasil|outside brazil)/.test(text)) return "Global";
+        if (/(nacional|brasil|brazil)/.test(text)) return "Nacional";
+        return "Regional";
+      };
+      const opasComunidade = (allOpas as any[]).filter((opa: any) => {
+        const biaId = relationId(opa.bia) || relationId(opa.bia_id);
+        return !!biaId && comunidadeBiaIds.has(biaId);
+      });
+      const opasPorAbrangencia = ["Regional", "Nacional", "Global"].map((name) => ({
+        name,
+        value: opasComunidade.filter((opa: any) => classifyAbrangencia(opa) === name).length,
+      }));
+      const opasTotalPeriodo = (allOpas as any[]).length;
+      const dashboardStats = {
+        convergencias_total: convergenciasFull.length,
+        opas_total_periodo: opasTotalPeriodo,
+        interesses_manifestados: meusInteresses.length,
+        indice_convergencia: opasTotalPeriodo > 0 ? (convergenciasFull.length / opasTotalPeriodo) * 100 : 0,
+        taxa_interesse: convergenciasFull.length > 0 ? (meusInteresses.length / convergenciasFull.length) * 100 : 0,
+        opas_comunidade_total: opasComunidade.length,
+        opas_por_abrangencia: opasPorAbrangencia,
+      };
 
       function n(v: any) { return parseFloat(String(v ?? "")) || 0; }
       function relId(value: any): string | null {
@@ -2367,6 +2423,7 @@ export async function registerRoutes(
         comunidades: userComunidades,
         opas: userOpas,
         convergencias,
+        dashboard_stats: dashboardStats,
         totals,
         opas_abertas: opasAbertas,
       });
@@ -3459,7 +3516,26 @@ export async function registerRoutes(
     return String(value);
   }
 
-  function resolveAnexosOpa(items: any[]): any[] {
+  async function canAccessProtectedOpaActions(req: Request): Promise<boolean> {
+    const role = (req.session as any)?.role;
+    if (role === "admin" || role === "manager") return true;
+
+    const membroId = (req.session as any)?.membroId as string | undefined;
+    if (!membroId) return false;
+
+    const membro = await directusFetchOne(
+      "cadastro_geral",
+      membroId,
+      "fields=Outras_redes_as_quais_pertenco",
+    ).catch(() => null);
+    const redes = Array.isArray(membro?.Outras_redes_as_quais_pertenco)
+      ? membro.Outras_redes_as_quais_pertenco
+      : [];
+
+    return redes.includes("BUILT_PROUD_MEMBER");
+  }
+
+  function resolveAnexosOpa(items: any[], includeAnexos = true): any[] {
     return items.map((o: any) => ({
       id: o.id,
       nome_oportunidade: o.nome_oportunidade,
@@ -3479,7 +3555,7 @@ export async function registerRoutes(
       localizacao: resolveOpaLocation(o.localizacao),
       latitude: o.latitude ?? null,
       longitude: o.longitude ?? null,
-      Anexos: (o.anexos || []).map((a: any) => {
+      Anexos: includeAnexos ? (o.anexos || []).map((a: any) => {
         const f = a?.directus_files_id;
         if (!f || typeof f !== "object") return null;
         const filename = fixMojibakeText(f.filename_download) || fixMojibakeText(f.title) || f.id;
@@ -3491,14 +3567,15 @@ export async function registerRoutes(
           url: f.id ? `/api/assets/${f.id}` : null,
           size: f.filesize ? `${Math.round(f.filesize / 1024)} KB` : null,
         };
-      }).filter(Boolean),
+      }).filter(Boolean) : [],
     }));
   }
 
   app.get("/api/oportunidades", async (req, res) => {
     try {
       const items = await directusFetch("tipos_oportunidades", "fields=*,anexos.directus_files_id.*");
-      res.json(resolveAnexosOpa(items));
+      const canSeeAnexos = await canAccessProtectedOpaActions(req);
+      res.json(resolveAnexosOpa(items, canSeeAnexos));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3603,6 +3680,12 @@ export async function registerRoutes(
     try {
       const directusUserId = (req.session as any).directusUserId as string | undefined;
       if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      const canManifestar = await canAccessProtectedOpaActions(req);
+      if (!canManifestar) {
+        return res.status(403).json({
+          error: "Apenas membros com selo BUILT Proud Member podem manifestar interesse em OPAs.",
+        });
+      }
       const membroId = (req.session as any).membroId as string | undefined;
       const nome = (req.session as any).nome as string | undefined;
       const { id } = req.params;
@@ -4385,7 +4468,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     // Check for pending or rejected vitrine approval (only for "user" role)
     let pending_vitrine = false;
     let convite_pendente: { token: string; status: string } | null = null;
+    let adesao_pendente: { token: string; status: string } | null = null;
     const PENDING_VITRINE_STATUSES = ["termos_pendentes", "termos_aceitos", "aguardando_avaliacao_aura", "candidato", "rejeitado", "expirado"];
+    const PENDING_ADESAO_STATUSES = ["termos_pendentes", "termos_aceitos", "pagamento_pendente", "aguardando_avaliacao_aura", "candidato"];
     if (role === "user" && email) {
       try {
         const localUser = await storage.getUserByEmail(email);
@@ -4395,6 +4480,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           if (blocking) {
             pending_vitrine = true;
             convite_pendente = { token: blocking.token, status: blocking.status };
+          }
+          const adesaoConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "associacao_completa");
+          const adesao = adesaoConvites.find(c => PENDING_ADESAO_STATUSES.includes(c.status));
+          if (adesao) {
+            adesao_pendente = { token: adesao.token, status: adesao.status };
           }
         }
       } catch (_) {}
@@ -4412,6 +4502,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       foto_perfil: fotoPerfil ? `/api/assets/${fotoPerfil}` : null,
       pending_vitrine,
       convite_pendente,
+      adesao_pendente,
     });
   });
 
@@ -4865,8 +4956,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // Explicit fields list — excludes legacy aliado_id/membros_ids/bias_ids; expands M2O (aliado) and M2M (membros, bias)
   const COMUNIDADE_FIELDS =
     "fields=id,nome,sigla,pais,sigla_pais,territorio,sigla_territorio,codigo_sequencial,status,date_created," +
-    "aliado.id,aliado.nome,aliado.email,aliado.foto_perfil,aliado.cargo,aliado.empresa," +
-    "membros.cadastro_geral_id.id,membros.cadastro_geral_id.nome,membros.cadastro_geral_id.email,membros.cadastro_geral_id.foto_perfil,membros.cadastro_geral_id.cargo,membros.cadastro_geral_id.empresa," +
+    "aliado.id,aliado.nome,aliado.email,aliado.foto_perfil,aliado.cargo,aliado.empresa,aliado.tipo_de_cadastro,aliado.tipo_alianca,aliado.tipos_alianca,aliado.nucleo_alianca,aliado.nucleos_alianca,aliado.Outras_redes_as_quais_pertenco,aliado.em_built_capital,aliado.na_vitrine," +
+    "membros.cadastro_geral_id.id,membros.cadastro_geral_id.nome,membros.cadastro_geral_id.email,membros.cadastro_geral_id.foto_perfil,membros.cadastro_geral_id.cargo,membros.cadastro_geral_id.empresa,membros.cadastro_geral_id.tipo_de_cadastro,membros.cadastro_geral_id.tipo_alianca,membros.cadastro_geral_id.tipos_alianca,membros.cadastro_geral_id.nucleo_alianca,membros.cadastro_geral_id.nucleos_alianca,membros.cadastro_geral_id.Outras_redes_as_quais_pertenco,membros.cadastro_geral_id.em_built_capital,membros.cadastro_geral_id.na_vitrine," +
     "bias.bias_projetos_id.id,bias.bias_projetos_id.nome_bia";
 
   // Convert frontend payload (aliado_id, membros_ids[], bias_ids[]) to Directus M2O/M2M format
@@ -4940,7 +5031,62 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const r = await fetch(url, { headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.status(404).json({ error: "Não encontrado" });
       const d = await r.json();
-      res.json(d.data);
+      const comunidade = d.data;
+      const relationId = (value: any): string | null => {
+        if (!value) return null;
+        if (typeof value === "object") return value.id ? String(value.id) : null;
+        return String(value);
+      };
+      const normalize = (value: any) => String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      const biasIds = new Set(
+        (Array.isArray(comunidade.bias) ? comunidade.bias : [])
+          .map((item: any) => relationId(item?.bias_projetos_id))
+          .filter(Boolean)
+      );
+      const opas = biasIds.size > 0
+        ? await directusFetch("tipos_oportunidades", "fields=id,bia,tipo,nucleo_alianca,objetivo_alianca,localizacao,pais,status").catch(() => [])
+        : [];
+      const opasComunidade = (opas as any[]).filter((opa: any) => {
+        const biaId = relationId(opa.bia) || relationId(opa.bia_id);
+        return !!biaId && biasIds.has(biaId);
+      });
+      const classifyAbrangencia = (opa: any) => {
+        const text = normalize([opa.tipo, opa.nucleo_alianca, opa.objetivo_alianca, opa.localizacao, opa.pais].join(" "));
+        if (/(global|internacional|exterior|fora do brasil|outside brazil)/.test(text)) return "Global";
+        if (/(nacional|brasil|brazil)/.test(text)) return "Nacional";
+        return "Regional";
+      };
+      const opasPorAbrangencia = ["Regional", "Nacional", "Global"].map((name) => ({
+        name,
+        value: opasComunidade.filter((opa: any) => classifyAbrangencia(opa) === name).length,
+      }));
+      const membros = (Array.isArray(comunidade.membros) ? comunidade.membros : [])
+        .map((item: any) => item?.cadastro_geral_id)
+        .filter((item: any) => item && typeof item === "object");
+      const memberText = (membro: any) => normalize([
+        membro.tipo_de_cadastro,
+        membro.tipo_alianca,
+        ...(Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : []),
+        membro.nucleo_alianca,
+        ...(Array.isArray(membro.nucleos_alianca) ? membro.nucleos_alianca : []),
+        ...(Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : []),
+      ].join(" "));
+      const isCapital = (membro: any) => membro.em_built_capital === true || memberText(membro).includes("capital");
+      const isAreaAliancas = (membro: any) => /(alianca|lideranca|diretoria|built)/.test(memberText(membro));
+      const isMercado = (membro: any) => !isCapital(membro) && !isAreaAliancas(membro);
+      const analytics = {
+        opas_total: opasComunidade.length,
+        opas_por_abrangencia: opasPorAbrangencia,
+        composicao: {
+          parceiros_mercado: membros.filter(isMercado).length,
+          area_aliancas: membros.filter(isAreaAliancas).length,
+          parceiros_capital: membros.filter(isCapital).length,
+        },
+      };
+      res.json({ ...comunidade, analytics });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -5050,6 +5196,121 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     });
   }
 
+  async function findMemberCommunityForAdesao(membroId: string) {
+    const col = await getComunidadeCol();
+    const fields = "id,nome,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id";
+    const byMemberUrl = `${DIRECTUS_URL}/items/${col}?fields=${fields}&filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(membroId)}&limit=1`;
+    const memberRes = await fetch(byMemberUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+    if (memberRes.ok) {
+      const data = await memberRes.json();
+      if (data.data?.[0]) return data.data[0];
+    }
+
+    const byAliadoUrl = `${DIRECTUS_URL}/items/${col}?fields=${fields}&filter[aliado][_eq]=${encodeURIComponent(membroId)}&limit=1`;
+    const aliadoRes = await fetch(byAliadoUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+    if (aliadoRes.ok) {
+      const data = await aliadoRes.json();
+      if (data.data?.[0]) return data.data[0];
+    }
+
+    return null;
+  }
+
+  // POST /api/opa/solicitar-adesao — non-members request the Proud Member flow from an OPA
+  app.post("/api/opa/solicitar-adesao", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const membroId = (req.session as any).membroId as string | undefined;
+      if (!membroId) return res.status(400).json({ error: "Seu perfil ainda não está vinculado ao cadastro de membro." });
+
+      if (await canAccessProtectedOpaActions(req)) {
+        return res.json({ alreadyMember: true });
+      }
+
+      const candidato = await getDirectusMembro(membroId);
+      const candidatoEmail = candidato?.email || (req.session as any).email;
+      const candidatoNome = candidato?.nome || (req.session as any).nome || "Membro BUILT";
+      if (!candidatoEmail) {
+        return res.status(400).json({ error: "Seu cadastro não possui e-mail para receber o convite de adesão." });
+      }
+
+      const allConvites = await storage.getConvitesByCandidatoMembro(membroId);
+      const existingAdesao = allConvites.find((c) => {
+        if (c.tipo !== "associacao_completa") return false;
+        return !["rejeitado", "expirado", "membro", "cancelado"].includes(c.status);
+      });
+
+      let comunidade: any = null;
+      if (existingAdesao?.comunidade_id) {
+        const col = await getComunidadeCol();
+        const cr = await fetch(`${DIRECTUS_URL}/items/${col}/${existingAdesao.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id`, {
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+        });
+        comunidade = cr.ok ? (await cr.json()).data : null;
+      }
+      if (!comunidade) comunidade = await findMemberCommunityForAdesao(membroId);
+
+      if (!comunidade?.id) {
+        return res.status(400).json({
+          error: "Você precisa estar associado a uma comunidade para iniciar a adesão. Use o convite recebido originalmente ou fale com quem te convidou.",
+        });
+      }
+
+      const origemConvite = allConvites.find((c) => c.invitador_membro_id) || null;
+      const aliadoId = typeof comunidade.aliado === "object" && comunidade.aliado !== null
+        ? comunidade.aliado.id
+        : comunidade.aliado;
+      const invitadorId = existingAdesao?.invitador_membro_id || origemConvite?.invitador_membro_id || aliadoId || null;
+
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      let convite = existingAdesao || null;
+      if (convite) {
+        convite = await storage.updateConvite(convite.id, { status: "pagamento_pendente", expires_at: expiresAt }) || convite;
+      } else {
+        convite = await storage.createConvite({
+          comunidade_id: comunidade.id,
+          candidato_membro_id: membroId,
+          candidato_nome: candidatoNome,
+          candidato_email: candidatoEmail,
+          invitador_membro_id: invitadorId,
+          status: "pagamento_pendente",
+          tipo: "associacao_completa",
+          dados_contratuais: null,
+          expires_at: expiresAt,
+        });
+      }
+
+      const emailResult = await enviarPagamento({
+        candidatoEmail,
+        candidatoNome,
+        comunidadeNome: comunidade.nome || "Comunidade BUILT",
+        token: convite.token,
+        valor: "R$ 500,00",
+      });
+      if (!emailResult?.ok) {
+        return res.status(502).json({
+          error: `Pagamento gerado, mas o e-mail não foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
+          token: convite.token,
+          link: `/pagamento/${convite.token}`,
+        });
+      }
+
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
+      res.json({
+        token: convite.token,
+        status: convite.status,
+        comunidade_id: convite.comunidade_id,
+        comunidade_nome: comunidade.nome || null,
+        emailed: true,
+        link: `${rawDomain}/pagamento/${convite.token}`,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/convites — create invite (authenticated, community aliado or admin)
   app.post("/api/convites", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
@@ -5062,6 +5323,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Get candidato info from Directus
       const candidato = await getDirectusMembro(candidato_membro_id);
       if (!candidato) return res.status(404).json({ error: "Membro candidato não encontrado" });
+      if (!candidato.email) {
+        return res.status(400).json({ error: "Este membro não possui e-mail cadastrado. Atualize o cadastro antes de enviar o convite." });
+      }
 
       // Get comunidade info (including membros so isCommunityMember can check membership)
       const col = await getComunidadeCol();
@@ -5092,17 +5356,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         expires_at: expiresAt,
       });
 
-      if (candidato.email) {
-        await enviarConvite({
-          candidatoEmail: candidato.email,
-          candidatoNome: candidato.nome || "Candidato",
-          comunidadeNome: comunidade.nome || "Comunidade BUILT",
-          invitadorNome: invitadorMembro?.nome || "Membro BUILT",
-          token: convite.token,
+      const emailResult = await enviarConvite({
+        candidatoEmail: candidato.email,
+        candidatoNome: candidato.nome || "Candidato",
+        comunidadeNome: comunidade.nome || "Comunidade BUILT",
+        invitadorNome: invitadorMembro?.nome || "Membro BUILT",
+        token: convite.token,
+      });
+      if (!emailResult?.ok) {
+        return res.status(502).json({
+          error: `Convite criado, mas o e-mail não foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
+          convite,
         });
       }
 
-      res.json(convite);
+      res.json({ ...convite, email_enviado: true, email_message_id: emailResult.messageId || null });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

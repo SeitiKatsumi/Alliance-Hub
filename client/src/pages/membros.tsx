@@ -344,22 +344,49 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     },
   });
 
-  const inputCls = "bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm";
-  const labelCls = "text-xs text-white/50 mb-1 block";
+  const inputCls = "bg-white border-slate-300 text-brand-navy placeholder:text-slate-400 focus:border-brand-gold/60 h-9 text-sm";
+  const labelCls = "text-xs text-slate-500 mb-1 block";
 
   return (
     <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0" style={{ background: "#020b16", borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+      <SheetContent side="right" className="membro-edit-light w-full sm:max-w-xl flex flex-col p-0 bg-white text-brand-navy border-l border-brand-gold/30">
+        <style>{`
+          .membro-edit-light [class*="text-white"] {
+            color: #475569 !important;
+          }
+          .membro-edit-light [class*="text-brand-gold"] {
+            color: #9a7430 !important;
+          }
+          .membro-edit-light .font-semibold,
+          .membro-edit-light .font-bold {
+            color: #001d34 !important;
+          }
+          .membro-edit-light input,
+          .membro-edit-light textarea,
+          .membro-edit-light button[role="combobox"] {
+            background: #ffffff !important;
+            border-color: #d8dee8 !important;
+            color: #001d34 !important;
+          }
+          .membro-edit-light input::placeholder,
+          .membro-edit-light textarea::placeholder {
+            color: #94a3b8 !important;
+          }
+          .membro-edit-light [style*="rgba(255,255,255"] {
+            background: #ffffff !important;
+            border-color: rgba(215, 187, 125, 0.28) !important;
+          }
+        `}</style>
         <div className="flex-1 overflow-y-auto">
           {/* Header */}
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-white/5">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-brand-gold/20 bg-slate-50">
             <div className="flex items-center gap-4">
               {/* Avatar with upload */}
               <div className="relative shrink-0 cursor-pointer group/avatar" onClick={() => fileInputRef.current?.click()}>
                 <div
                   className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-bold text-xl font-mono border-2"
                   style={{
-                    background: `radial-gradient(circle at 30% 30%, ${accentColor}20, #030812)`,
+                    background: `radial-gradient(circle at 30% 30%, ${accentColor}18, #ffffff)`,
                     borderColor: `${accentColor}40`,
                     color: accentColor,
                   }}
@@ -375,7 +402,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div
                   className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-2 flex items-center justify-center"
-                  style={{ background: "#020b16", borderColor: `${accentColor}40` }}
+                  style={{ background: "#ffffff", borderColor: `${accentColor}40` }}
                 >
                   <Camera className="w-3.5 h-3.5" style={{ color: accentColor }} />
                 </div>
@@ -389,8 +416,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 />
               </div>
               <div>
-                <SheetTitle className="text-brand-gold font-mono text-lg">{membro.id ?nome : "Novo Membro"}</SheetTitle>
-                <SheetDescription className="text-white/40 text-xs mt-0.5">
+                <SheetTitle className="text-brand-navy font-mono text-lg">{membro.id ?nome : "Novo Membro"}</SheetTitle>
+                <SheetDescription className="text-slate-500 text-xs mt-0.5">
                   Clique no avatar para alterar a foto
                 </SheetDescription>
               </div>
@@ -425,7 +452,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Vínculo à Comunidade */}
             <div>
@@ -464,7 +491,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Dados da Empresa */}
             <div>
@@ -484,7 +511,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Contato */}
             <div>
@@ -520,7 +547,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Endereço */}
             <div>
@@ -564,7 +591,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Aliança */}
             <div>
@@ -639,7 +666,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Presença na Rede */}
             <div>
@@ -685,7 +712,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Selos */}
             <div>
@@ -725,7 +752,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Permissões da Plataforma */}
             <div>
@@ -768,7 +795,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                         value={changePassword}
                         onChange={e => setChangePassword(e.target.value)}
                         placeholder="Nova senha..."
-                        className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm rounded-md px-3 pr-9 outline-none"
+                        className="w-full bg-white border border-slate-300 text-brand-navy placeholder:text-slate-400 focus:border-brand-gold/60 h-9 text-sm rounded-md px-3 pr-9 outline-none"
                         data-testid="input-change-password"
                       />
                       <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
@@ -877,7 +904,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                           value={newAccPassword}
                           onChange={e => setNewAccPassword(e.target.value)}
                           placeholder="Mín. 4 caracteres"
-                          className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 h-9 text-sm rounded-md px-3 pr-9 outline-none"
+                          className="w-full bg-white border border-slate-300 text-brand-navy placeholder:text-slate-400 focus:border-brand-gold/60 h-9 text-sm rounded-md px-3 pr-9 outline-none"
                           data-testid="input-new-acc-password"
                         />
                         <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
@@ -893,7 +920,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                           value={newAccPassword2}
                           onChange={e => setNewAccPassword2(e.target.value)}
                           placeholder="Repita a senha"
-                          className={`w-full bg-white/5 border h-9 text-sm rounded-md px-3 pr-9 outline-none text-white placeholder:text-white/20 focus:border-brand-gold/40 ${newAccPassword2 && newAccPassword !== newAccPassword2 ?"border-red-500/40" : "border-white/10"}`}
+                          className={`w-full bg-white border h-9 text-sm rounded-md px-3 pr-9 outline-none text-brand-navy placeholder:text-slate-400 focus:border-brand-gold/60 ${newAccPassword2 && newAccPassword !== newAccPassword2 ?"border-red-500/40" : "border-slate-300"}`}
                           data-testid="input-new-acc-password2"
                         />
                         <button type="button" onClick={() => setShowPass2(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
@@ -952,7 +979,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               )}
             </div>
 
-            <Separator className="bg-white/5" />
+            <Separator className="bg-brand-gold/20" />
 
             {/* Observações */}
             <div>
@@ -965,7 +992,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 onChange={e => setField("observacoes", e.target.value)}
                 rows={3}
                 placeholder="Observações sobre este membro..."
-                className="w-full bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40 text-sm rounded-md px-3 py-2 resize-none outline-none"
+                className="w-full bg-white border border-slate-300 text-brand-navy placeholder:text-slate-400 focus:border-brand-gold/60 text-sm rounded-md px-3 py-2 resize-none outline-none"
                 data-testid="textarea-edit-observacoes"
               />
             </div>
@@ -986,12 +1013,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-white/5 flex justify-end gap-2" style={{ background: "rgba(2,11,22,0.95)" }}>
+        <div className="shrink-0 px-6 py-4 border-t border-brand-gold/20 flex justify-end gap-2 bg-white">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={saveMutation.isPending || uploading}
-            className="border-white/10 text-white/60 hover:text-white hover:bg-white/5"
+            className="border-slate-300 text-slate-600 hover:text-brand-navy hover:bg-slate-50"
           >
             Cancelar
           </Button>
@@ -1259,14 +1286,14 @@ export default function MembrosPage() {
   // Restrict to Super Admin only
   if (user && user.role !== "admin") {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#020b16" }}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4 text-center px-6">
           <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <Lock className="w-7 h-7 text-red-400" />
           </div>
-          <h2 className="text-white text-xl font-bold">Acesso Restrito</h2>
-          <p className="text-white/40 text-sm max-w-xs">
-            O módulo <strong className="text-white/70">Cadastro Geral</strong> é exclusivo para Super Administradores da plataforma.
+          <h2 className="text-brand-navy text-xl font-bold">Acesso Restrito</h2>
+          <p className="text-slate-500 text-sm max-w-xs">
+            O módulo <strong className="text-brand-navy">Cadastro Geral</strong> é exclusivo para Super Administradores da plataforma.
           </p>
         </div>
       </div>
@@ -1274,8 +1301,91 @@ export default function MembrosPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#020b16" }}>
+    <div className="membros-light-page min-h-screen bg-slate-50 text-brand-navy">
       <style>{`
+        .membros-light-page {
+          background: #f8fafc !important;
+          color: #001d34 !important;
+        }
+        .membros-light-page > .relative.overflow-hidden {
+          background: #ffffff !important;
+          border-bottom-color: rgba(215, 187, 125, 0.35) !important;
+          min-height: 180px !important;
+        }
+        .membros-light-page > .relative.overflow-hidden .absolute.inset-0,
+        .membros-light-page > .relative.overflow-hidden .rounded-full,
+        .membros-light-page > .relative.overflow-hidden .h-px {
+          opacity: 0.35;
+        }
+        .membros-light-page [class*="text-white"] {
+          color: #475569 !important;
+        }
+        .membros-light-page h1,
+        .membros-light-page h2,
+        .membros-light-page h3,
+        .membros-light-page .font-bold {
+          color: #001d34 !important;
+        }
+        .membros-light-page [class*="text-brand-gold"] {
+          color: #9a7430 !important;
+        }
+        .membros-light-page h1.text-brand-gold,
+        .membros-light-page h1 {
+          color: #000000 !important;
+        }
+        .membros-light-page .sticky {
+          background: rgba(255, 255, 255, 0.96) !important;
+          border-bottom-color: rgba(215, 187, 125, 0.35) !important;
+        }
+        .membros-light-page .sticky input,
+        .membros-light-page .sticky button[role="combobox"] {
+          background: #ffffff !important;
+          border-color: #d8dee8 !important;
+          color: #001d34 !important;
+          font-family: inherit !important;
+          letter-spacing: 0 !important;
+        }
+        .membros-light-page .sticky input::placeholder {
+          color: #94a3b8 !important;
+        }
+        .membros-light-page .sticky .font-mono,
+        .membros-light-page .sticky button,
+        .membros-light-page .sticky input {
+          font-family: inherit !important;
+          letter-spacing: 0 !important;
+        }
+        .membros-light-page .inline-flex.items-center.rounded-lg {
+          background: #ffffff !important;
+          border-color: rgba(215, 187, 125, 0.35) !important;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
+        }
+        .membros-light-page .inline-flex.items-center.rounded-lg .font-mono {
+          color: #9a7430 !important;
+          font-family: inherit !important;
+        }
+        .membros-light-page .inline-flex.items-center.rounded-lg [class*="uppercase"] {
+          color: #64748b !important;
+          letter-spacing: 0 !important;
+        }
+        .membros-light-page [data-testid^="card-membro-"] {
+          background: linear-gradient(135deg, #06182a 0%, #03111f 100%) !important;
+          border-color: rgba(215, 187, 125, 0.35) !important;
+          box-shadow: 0 12px 28px rgba(3, 17, 31, 0.18) !important;
+        }
+        .membros-light-page [data-testid^="card-membro-"] [class*="text-white"] {
+          color: rgba(226, 232, 240, 0.72) !important;
+        }
+        .membros-light-page [data-testid^="card-membro-"] h3 {
+          color: #ffffff !important;
+        }
+        .membros-light-page [data-testid^="card-membro-"] a,
+        .membros-light-page [data-testid^="card-membro-"] span,
+        .membros-light-page [data-testid^="card-membro-"] p {
+          color: rgba(226, 232, 240, 0.72) !important;
+        }
+        .membros-light-page [data-testid^="card-membro-"] .font-mono {
+          color: rgba(215, 187, 125, 0.72) !important;
+        }
         @keyframes scanline {
           0% { transform: translateY(-100%); }
           100% { transform: translateY(100%); }
@@ -1332,18 +1442,22 @@ export default function MembrosPage() {
         <div className="relative z-10 px-6 py-8">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-1 rounded-full bg-brand-gold" style={{ animation: "pulse-dot 2s ease-in-out infinite" }} />
-            <span className="text-[10px] font-mono text-brand-gold/50 tracking-[0.4em] uppercase">
+            <span className="text-xs text-brand-gold/60 uppercase">
               BUILT ALLIANCES // REDE DE PROFISSIONAIS
             </span>
           </div>
-          <h1
-            className="text-3xl font-bold font-mono text-brand-gold tracking-wide mb-1"
-            style={{ animation: "flicker 6s ease-in-out infinite", textShadow: "0 0 20px rgba(215,187,125,0.3)" }}
-          >
-            CADASTRO GERAL
-          </h1>
-          <p className="text-sm text-white/30 font-mono mb-6">
-            &gt; {isLoading ?"carregando perfis..." : `${membros.length} nós ativos na rede`}
+          <div className="mb-1 flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-gold/70 text-brand-navy">
+              <Users className="h-5 w-5" />
+            </div>
+            <h1
+              className="text-3xl font-bold text-brand-navy"
+            >
+              Cadastro Geral
+            </h1>
+          </div>
+          <p className="text-sm text-slate-600 mb-6">
+            {isLoading ?"Carregando perfis..." : `${membros.length} nós ativos na rede`}
           </p>
           <div className="inline-flex items-center rounded-lg border border-brand-gold/10 py-3" style={{ background: "rgba(0,10,20,0.6)", backdropFilter: "blur(8px)" }}>
             <StatItem label="Cadastros" value={stats.total} icon={Users} />

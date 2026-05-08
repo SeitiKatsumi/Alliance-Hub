@@ -308,7 +308,7 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
     <div>
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <span className="text-sm text-white/40">{filtered.length} documento{filtered.length !== 1 ?"s" : ""}</span>
+          <span className="text-sm text-slate-600">{filtered.length} documento{filtered.length !== 1 ?"s" : ""}</span>
         </div>
         <Button
           onClick={onNew}
@@ -323,15 +323,15 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
 
       {isLoading && (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" style={{ background: "#0a1929" }} />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl bg-slate-100" />)}
         </div>
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <div className="text-center py-14 rounded-xl" style={{ border: `1px dashed ${ACCENT}25` }}>
+        <div className="text-center py-14 rounded-xl bg-white" style={{ border: `1px dashed ${ACCENT}45` }}>
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-20" style={{ color: ACCENT }} />
-          <p className="text-sm text-white/30">Nenhum documento registrado</p>
-          <p className="text-xs text-white/20 mt-1">Clique em Adicionar para começar</p>
+          <p className="text-sm text-slate-600">Nenhum documento registrado</p>
+          <p className="text-xs text-slate-400 mt-1">Clique em Adicionar para começar</p>
         </div>
       )}
 
@@ -341,8 +341,8 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
           return (
             <div
               key={doc.id}
-              className="rounded-xl p-4 transition-all duration-200 hover:border-[#5B9BD5]/20"
-              style={{ background: "linear-gradient(135deg, #050f1c, #030812)", border: `1px solid ${verde ?"#22c55e20" : "#ffffff08"}` }}
+              className="rounded-xl p-4 bg-white transition-all duration-200 shadow-sm hover:border-[#5B9BD5]/30"
+              style={{ border: `1px solid ${verde ?"#22c55e40" : "#e2e8f0"}` }}
               data-testid={`card-doc-${doc.id}`}
             >
               <div className="flex items-start gap-3">
@@ -355,19 +355,19 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-medium text-white/90 leading-tight">{doc.tipo_documento}</span>
+                    <span className="text-sm font-medium text-slate-900 leading-tight">{doc.tipo_documento}</span>
                     {verde && <Badge className="text-[9px] px-1.5 py-0 h-4 font-mono" style={{ background: "#22c55e15", color: "#22c55e", border: "1px solid #22c55e30" }}>INTEGRADO</Badge>}
                   </div>
                   {!biaId && (
-                    <p className="text-[11px] text-white/30 mb-1">{biaName(doc.bia_id)}</p>
+                    <p className="text-[11px] text-slate-500 mb-1">{biaName(doc.bia_id)}</p>
                   )}
-                  {doc.descricao && <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{doc.descricao}</p>}
+                  {doc.descricao && <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{doc.descricao}</p>}
                   {(doc.arquivos || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {(doc.arquivos || []).map(a => (
                         <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1 text-[10px] rounded px-2 py-0.5 transition-colors hover:border-white/20"
-                          style={{ background: "#ffffff08", border: "1px solid #ffffff10", color: "#ffffff60" }}
+                          className="flex items-center gap-1 text-[10px] rounded px-2 py-0.5 transition-colors hover:border-slate-300"
+                          style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#475569" }}
                         >
                           <Paperclip className="w-2.5 h-2.5" />
                           <span className="max-w-[120px] truncate">{a.filename || a.title}</span>
@@ -375,14 +375,14 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
                       ))}
                     </div>
                   )}
-                  <p className="text-[10px] text-white/20 mt-2">{formatDate(doc.date_created)}</p>
+                  <p className="text-[10px] text-slate-400 mt-2">{formatDate(doc.date_created)}</p>
                 </div>
 
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => onEdit(doc)} className="w-7 h-7 rounded flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors" data-testid={`btn-editar-doc-${doc.id}`} title="Editar">
+                  <button onClick={() => onEdit(doc)} className="w-7 h-7 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" data-testid={`btn-editar-doc-${doc.id}`} title="Editar">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => onDelete(doc)} className="w-7 h-7 rounded flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors" data-testid={`btn-deletar-doc-${doc.id}`} title="Excluir">
+                  <button onClick={() => onDelete(doc)} className="w-7 h-7 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-testid={`btn-deletar-doc-${doc.id}`} title="Excluir">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -420,30 +420,34 @@ export default function NucleoTecnicoPage() {
   const docsFiltered = biaId ?docs.filter(d => d.bia_id === biaId) : docs;
 
   return (
-    <div className="min-h-screen p-6" style={{ background: "linear-gradient(135deg, #001020 0%, #000c18 100%)" }}>
+    <div className="min-h-screen p-6 bg-[#f8fafc] text-slate-900">
       {/* Header */}
       <div className="relative mb-8">
-        <div className="absolute inset-0 pointer-events-none">
+        <div className="hidden absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-24 h-px" style={{ background: `linear-gradient(90deg, ${ACCENT}, transparent)` }} />
           <div className="absolute top-0 left-0 w-px h-24" style={{ background: `linear-gradient(180deg, ${ACCENT}, transparent)` }} />
         </div>
-        <div className="flex items-center justify-between pt-2 pl-2">
+        <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${ACCENT}20, #001D34)`, border: `1px solid ${ACCENT}40` }}>
+            <div className="hidden w-12 h-12 rounded-xl items-center justify-center" style={{ background: `linear-gradient(135deg, ${ACCENT}20, #001D34)`, border: `1px solid ${ACCENT}40` }}>
               <Wrench className="w-6 h-6" style={{ color: ACCENT }} />
             </div>
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: `${ACCENT}60` }}>BUILT ALLIANCES · 4.2</div>
-              <h1 className="text-2xl font-bold text-white">Núcleo Técnico</h1>
-              <p className="text-sm mt-0.5" style={{ color: `${ACCENT}70` }}>Documentos técnicos, jurídicos, de inteligência e governança</p>
+              <h1 className="text-2xl font-bold text-slate-950 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
+                  <Wrench className="h-6 w-6 shrink-0" />
+                </div>
+                Núcleo Técnico
+              </h1>
+              <p className="text-sm mt-0.5 text-slate-600">Documentos técnicos, jurídicos, de inteligência e governança</p>
             </div>
           </div>
 
           {/* Stats */}
           <div className="hidden md:flex gap-3">
-            <div className="rounded-xl px-4 py-3 text-center" style={{ background: "#050f1c", border: `1px solid ${ACCENT}15` }}>
-              <div className="text-lg font-bold text-white">{docsFiltered.length}</div>
-              <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">Documentos</div>
+            <div className="rounded-xl px-4 py-3 text-center bg-white shadow-sm" style={{ border: "1px solid #e2e8f0" }}>
+              <div className="text-lg font-bold text-slate-950">{docsFiltered.length}</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Documentos</div>
             </div>
           </div>
         </div>
@@ -451,9 +455,9 @@ export default function NucleoTecnicoPage() {
 
       {/* BIA Filter */}
       <div className="mb-6 flex items-center gap-3">
-        <span className="text-xs text-white/40 uppercase tracking-wider shrink-0">Filtrar por BIA:</span>
+        <span className="text-xs text-slate-500 uppercase tracking-wider shrink-0">Filtrar por BIA:</span>
         <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ?null : v)}>
-          <SelectTrigger className="max-w-xs bg-white/5 border-white/10 text-white text-sm h-9" data-testid="select-filter-bia">
+          <SelectTrigger className="max-w-xs bg-white border-slate-200 text-slate-900 text-sm h-9" data-testid="select-filter-bia">
             <SelectValue placeholder="Todas as BIAs" />
           </SelectTrigger>
           <SelectContent>
@@ -465,7 +469,7 @@ export default function NucleoTecnicoPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap" style={{ background: "#050f1c", border: `1px solid ${ACCENT}15` }}>
+        <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap bg-white shadow-sm" style={{ border: "1px solid #e2e8f0" }}>
           {Object.entries(ABA_LABELS).map(([key, label]) => {
             const count = (biaId ?docs.filter(d => d.bia_id === biaId) : docs).filter(d => d.alianca_tipo === key).length;
             const isActive = activeTab === key;
@@ -476,7 +480,7 @@ export default function NucleoTecnicoPage() {
                 className="flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all"
                 style={{
                   background: isActive ?ACCENT : "transparent",
-                  color: isActive ?"#ffffff" : "#ffffff60",
+                  color: isActive ?"#ffffff" : "#64748b",
                   fontWeight: isActive ?600 : 400,
                   minWidth: 0,
                 }}

@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,6 +27,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  ComposableMap, Geographies, Geography, Marker, ZoomableGroup
+} from "react-simple-maps";
+
+const WORLD_GEO = "/world-countries-50m.json";
 
 interface NominatimResult {
   place_id: number;
@@ -241,6 +247,8 @@ interface Comunidade {
   bias?: BiaJunction[];
   status?: string;
   date_created?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // Helpers to extract objects from M2O/M2M fields
@@ -320,6 +328,197 @@ function fotoUrl(foto?: string | null): string | null {
 function getInitials(nome?: string): string {
   if (!nome) return "?";
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function normalizeLocationKey(value?: string | null): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const COMMUNITY_COORDS: Record<string, [number, number]> = {
+  "belo horizonte": [-43.9378, -19.9208],
+  "cachoeiro de itapemirim": [-41.1129, -20.8489],
+  "descoberto": [-42.9672, -21.4594],
+  "espinho": [-8.6414, 41.0076],
+  "gramado": [-50.8764, -29.3788],
+  "juiz de fora": [-43.3503, -21.7622],
+  "porto": [-8.6291, 41.1579],
+  "porto velho": [-63.9039, -8.7619],
+  "rio meao": [-8.5826, 40.9582],
+  "salvador": [-38.5014, -12.9777],
+  "sao paulo": [-46.6333, -23.5505],
+  "serra": [-40.3078, -20.1286],
+  "toquio": [139.6917, 35.6895],
+  "tokyo": [139.6917, 35.6895],
+  "vila velha": [-40.2925, -20.3297],
+  "vitoria": [-40.2958, -20.2976],
+};
+
+function comunidadeCoordinates(c: Comunidade): [number, number] | null {
+  const lat = c.latitude != null ? Number(c.latitude) : NaN;
+  const lng = c.longitude != null ? Number(c.longitude) : NaN;
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return [lng, lat];
+  const territoryKey = normalizeLocationKey(c.territorio);
+  if (COMMUNITY_COORDS[territoryKey]) return COMMUNITY_COORDS[territoryKey];
+  const nameKey = normalizeLocationKey(c.nome);
+  const matched = Object.keys(COMMUNITY_COORDS).find((key) => nameKey.includes(key));
+  return matched ? COMMUNITY_COORDS[matched] : null;
+}
+
+function ComunidadesMapHeader({ comunidades }: { comunidades: Comunidade[] }) {
+  const [, navigate] = useLocation();
+  const [hovered, setHovered] = useState<Comunidade | null>(null);
+  const [zoom, setZoom] = useState(1.4);
+  const [center, setCenter] = useState<[number, number]>([-45, -12]);
+
+  const mapped = useMemo(
+    () => comunidades
+      .map((comunidade) => ({ comunidade, coordinates: comunidadeCoordinates(comunidade) }))
+      .filter((item): item is { comunidade: Comunidade; coordinates: [number, number] } => !!item.coordinates),
+    [comunidades]
+  );
+
+  const clusters = useMemo(() => {
+    const threshold = 1.2;
+    const result: { center: [number, number]; items: Comunidade[] }[] = [];
+    for (const item of mapped) {
+      const [lng, lat] = item.coordinates;
+      const existing = result.find(
+        (cluster) => Math.abs(cluster.center[0] - lng) < threshold && Math.abs(cluster.center[1] - lat) < threshold
+      );
+      if (existing) existing.items.push(item.comunidade);
+      else result.push({ center: [lng, lat], items: [item.comunidade] });
+    }
+    return result;
+  }, [mapped]);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-brand-gold/25"
+      style={{ height: 360, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+      data-testid="mapa-comunidades"
+    >
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
+        backgroundSize: "50px 50px",
+      }} />
+
+      <div className="absolute top-5 left-6 z-20">
+        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+          MAPA DE COMUNIDADES
+        </h2>
+      </div>
+
+      <div className="absolute top-5 right-6 z-20 text-right font-mono">
+        <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Comunidades</p>
+        <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{comunidades.length}</p>
+        <p className="text-[9px] text-brand-gold/30 mt-2">{mapped.length} geolocalizadas</p>
+      </div>
+
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">
+        <button
+          onClick={() => setZoom((z) => Math.min(z * 1.5, 16))}
+          className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+          title="Ampliar"
+        >+</button>
+        <button
+          onClick={() => { setZoom(1.4); setCenter([-45, -12]); }}
+          className="w-7 h-7 flex items-center justify-center rounded border font-mono text-[9px] font-bold transition-colors"
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.2)", color: "#D7BB7D80" }}
+          title="Resetar"
+        >⊙</button>
+        <button
+          onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}
+          className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+          title="Reduzir"
+        >−</button>
+      </div>
+
+      <ComposableMap projection="geoMercator" projectionConfig={{ center: [0, 10], scale: 160 }} style={{ width: "100%", height: "100%" }}>
+        <ZoomableGroup
+          zoom={zoom}
+          center={center}
+          minZoom={1}
+          maxZoom={16}
+          onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
+        >
+          <Geographies geography={WORLD_GEO}>
+            {({ geographies }) => geographies.map((geo) => (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                style={{
+                  default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                  hover: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                  pressed: { fill: "#011630", outline: "none" },
+                }}
+              />
+            ))}
+          </Geographies>
+
+          {clusters.map((cluster, index) => {
+            const isMulti = cluster.items.length > 1;
+            const r = Math.max(2, 5 / zoom);
+            return (
+              <Marker
+                key={`${cluster.center.join(",")}-${index}`}
+                coordinates={cluster.center}
+                onMouseEnter={() => setHovered(cluster.items[0])}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => {
+                  if (isMulti) return;
+                  navigate(`/comunidade/${cluster.items[0].id}`);
+                }}
+              >
+                <g style={{ cursor: isMulti ? "default" : "pointer" }}>
+                  <circle r={r * 4} fill="#D7BB7D" fillOpacity={0.08}>
+                    <animate attributeName="r" from={r * 2.8} to={r * 5} dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.35" to="0" dur="2s" repeatCount="indefinite" />
+                  </circle>
+                  <circle r={r * 2.25} fill="#001D34" stroke="#D7BB7D" strokeWidth={r * 0.35} strokeOpacity={0.75} />
+                  <text textAnchor="middle" dominantBaseline="central" fontSize={r * 1.25} fontWeight="bold" fontFamily="monospace" fill="#D7BB7D">
+                    {isMulti ? cluster.items.length : "C"}
+                  </text>
+                </g>
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+
+      {hovered && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none"
+          style={{ background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)", padding: "28px 24px 14px" }}
+        >
+          <div className="font-mono">
+            <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Comunidade</p>
+            <p className="text-sm font-bold text-brand-gold mt-0.5">{hovered.nome || hovered.sigla || "Comunidade BUILT"}</p>
+            <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3 h-3" />
+              {[hovered.territorio, hovered.pais].filter(Boolean).join(", ")}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {comunidades.length > 0 && mapped.length === 0 && (
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none">
+          <p className="text-[10px] text-brand-gold/30 font-mono tracking-wider">
+            Adicione território às comunidades para visualizar no mapa
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CandidatoAuraBadge({ membroId }: { membroId?: string | null }) {
@@ -868,6 +1067,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
 
       {!convitesOnly && activeTab === "comunidades" && (
         <>
+      <ComunidadesMapHeader comunidades={filtered} />
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(215,187,125,0.5)" }} />

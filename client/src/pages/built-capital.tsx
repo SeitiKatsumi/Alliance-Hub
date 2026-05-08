@@ -11,15 +11,10 @@ import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 import {
-  Search, MapPin, Phone, Mail, Building2, Coins, Globe, TrendingUp, Users, LayoutGrid, List
+  Search, MapPin, Phone, Mail, Building2, Coins, Globe, LayoutGrid, List
 } from "lucide-react";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
-
-const ESTADOS_BR = [
-  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT",
-  "PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"
-];
 
 interface Parceiro {
   id: string;
@@ -680,11 +675,6 @@ export default function BuiltCapitalPage() {
     });
   }, [parceiros, search, filterTerritorio, filterRamo, sortOrder]);
 
-  const estadosPresentes = useMemo(() => {
-    const set = new Set(parceiros.map(p => p.estado).filter(Boolean));
-    return ESTADOS_BR.filter(e => set.has(e));
-  }, [parceiros]);
-
   const hasFilters = search || filterTerritorio !== "all" || filterRamo !== "all" || sortOrder !== "default";
 
   function clearFilters() {
@@ -710,28 +700,6 @@ export default function BuiltCapitalPage() {
             Rede de investidores e parceiros estratégicos
             {hasFilters && ` · ${filtered.length} exibindo`}
           </p>
-        </div>
-
-        {/* Stats bar */}
-        <div className="flex gap-3 flex-wrap">
-          {[
-            { icon: <Users className="w-4 h-4" />, label: "Investidores", value: parceiros.length },
-            { icon: <MapPin className="w-4 h-4" />, label: "Estados", value: estadosPresentes.length },
-            { icon: <TrendingUp className="w-4 h-4" />, label: "Segmentos", value: ramos.length },
-          ].map(stat => (
-            <div
-              key={stat.label}
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-brand-gold/15"
-              style={{ background: "rgba(215,187,125,0.05)" }}
-              data-testid={`stat-capital-${stat.label.toLowerCase()}`}
-            >
-              <span className="text-brand-gold/50">{stat.icon}</span>
-              <div>
-                <p className="text-[10px] text-white/30 font-mono leading-none">{stat.label}</p>
-                <p className="text-lg font-bold font-mono leading-tight" style={{ color: "#D7BB7D" }}>{stat.value}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 

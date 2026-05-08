@@ -23,6 +23,7 @@ export interface AliancaDocsPageConfig {
   theme?: "dark" | "light";
   hideHeaderIcon?: boolean;
   hideHeaderChrome?: boolean;
+  showTitleIcon?: boolean;
 }
 
 type Bia = { id: string; nome_bia: string };
@@ -257,7 +258,14 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
               {!config.hideHeaderChrome && (
                 <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: `${accentColor}60` }}>BUILT ALLIANCES</div>
               )}
-              <h1 className={isLight ? "text-2xl font-bold text-foreground" : "text-2xl font-bold text-white"}>{titulo}</h1>
+              <h1 className={isLight ? "text-2xl font-bold text-foreground flex items-center gap-3" : "text-2xl font-bold text-white flex items-center gap-3"}>
+                {config.showTitleIcon && (
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
+                    <config.icon className="h-6 w-6 shrink-0" />
+                  </div>
+                )}
+                {titulo}
+              </h1>
               <p className={isLight ? "text-sm mt-0.5 text-muted-foreground" : "text-sm mt-0.5"} style={isLight ? undefined : { color: `${accentColor}70` }}>{subtitulo}</p>
             </div>
           </div>

@@ -379,13 +379,13 @@ export default function MeuPerfilPage() {
 
   if (!membroId) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#020b16" }}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center space-y-3">
-          <User className="w-16 h-16 text-white/10 mx-auto" />
-          <p className="text-white/40 font-mono text-sm">
+          <User className="w-16 h-16 text-slate-300 mx-auto" />
+          <p className="text-slate-500 font-mono text-sm">
             // seu usuário não está vinculado a um cadastro
           </p>
-          <p className="text-white/25 text-xs">Peça ao administrador para vincular seu perfil.</p>
+          <p className="text-slate-400 text-xs">Peça ao administrador para vincular seu perfil.</p>
         </div>
       </div>
     );
@@ -395,7 +395,78 @@ export default function MeuPerfilPage() {
   const nome = form.nome || membro?.nome || user?.nome || "";
 
   return (
-    <div className="min-h-screen" style={{ background: "#020b16" }}>
+    <div className="profile-light-page min-h-screen bg-slate-50 text-brand-navy">
+      <style>{`
+        .profile-light-page {
+          background: #f8fafc !important;
+          color: #001d34 !important;
+        }
+        .profile-light-page > .relative.overflow-hidden {
+          background: #ffffff !important;
+          border-bottom-color: rgba(215, 187, 125, 0.35) !important;
+        }
+        .profile-light-page > .relative.overflow-hidden .absolute.inset-0 {
+          opacity: 0.55;
+        }
+        .profile-light-page .rounded-xl[style],
+        .profile-light-page .rounded-lg[style],
+        .profile-light-page .rounded-md[style],
+        .profile-light-page .border-transparent[style],
+        .profile-light-page [class*="border-white"][style] {
+          background: #ffffff !important;
+          border-color: rgba(215, 187, 125, 0.35) !important;
+        }
+        .profile-light-page input,
+        .profile-light-page textarea,
+        .profile-light-page button[role="combobox"] {
+          background: #ffffff !important;
+          border-color: #d8dee8 !important;
+          color: #001d34 !important;
+        }
+        .profile-light-page input::placeholder,
+        .profile-light-page textarea::placeholder {
+          color: #94a3b8 !important;
+        }
+        .profile-light-page [class*="text-white"] {
+          color: #475569 !important;
+        }
+        .profile-light-page h1,
+        .profile-light-page h2,
+        .profile-light-page h3,
+        .profile-light-page .font-bold {
+          color: #001d34 !important;
+        }
+        .profile-light-page [class*="text-brand-gold"],
+        .profile-light-page [data-testid^="chip-"],
+        .profile-light-page [data-testid^="btn-rede-"] span {
+          color: #9a7430 !important;
+        }
+        .profile-light-page [data-testid="btn-salvar-perfil"] {
+          color: #001d34 !important;
+        }
+        .profile-light-page [data-testid="switch-perfil-na-vitrine"] {
+          background: #cbd5e1 !important;
+          border: 1px solid #94a3b8 !important;
+          box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.12) !important;
+        }
+        .profile-light-page [data-testid="switch-perfil-na-vitrine"][data-state="checked"] {
+          background: #d7bb7d !important;
+          border-color: #9a7430 !important;
+        }
+        .profile-light-page [data-testid="switch-perfil-na-vitrine"] span {
+          background: #ffffff !important;
+          border: 1px solid rgba(15, 23, 42, 0.12) !important;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.24) !important;
+        }
+        .profile-light-page .bg-black\\/60,
+        .profile-light-page .bg-black\\/50 {
+          background: rgba(0, 29, 52, 0.68) !important;
+        }
+        .profile-light-page .bg-black\\/60 svg,
+        .profile-light-page .bg-black\\/50 svg {
+          color: #ffffff !important;
+        }
+      `}</style>
       {/* Header */}
       <div
         className="relative overflow-hidden border-b border-brand-gold/10 px-6 py-8"

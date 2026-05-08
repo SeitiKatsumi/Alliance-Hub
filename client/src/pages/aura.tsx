@@ -814,7 +814,7 @@ export default function AuraPage() {
         <div className="space-y-3" data-testid="section-minhas-avaliacoes">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-[#D7BB7D]" />
-            Avaliações que Você Deu ({minhasAvaliacoesDadas.length})
+            Avaliações que você deu ({minhasAvaliacoesDadas.length})
           </h2>
           <div className="space-y-2">
             {minhasAvaliacoesDadas.map(av => (
@@ -855,7 +855,7 @@ export default function AuraPage() {
         <CardContent className="p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
-            Como funciona a Aura?
+            Como funciona a Percepção de Aura
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
             A Aura Percebida é uma reputação construída pela percepção da comunidade. Cada membro pode escolher até 3 palavras para descrever outro membro. O score é calculado com base em três dimensões:

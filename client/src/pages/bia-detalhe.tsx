@@ -303,7 +303,7 @@ export default function BiaDetalhePage() {
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">BIA não encontrada.</p>
-        <Button variant="link" onClick={() => navigate("/bias")}>Voltar</Button>
+        <Button variant="link" onClick={() => navigate("/area-aliancas?tab=bias")}>Voltar</Button>
       </div>
     );
   }
@@ -325,7 +325,7 @@ export default function BiaDetalhePage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/bias")}
+          onClick={() => navigate("/area-aliancas?tab=bias")}
           className="gap-2 text-muted-foreground hover:text-foreground -ml-2"
           data-testid="btn-back-bias"
         >
@@ -336,7 +336,7 @@ export default function BiaDetalhePage() {
           variant="outline"
           size="sm"
           className="gap-2 border-brand-gold/30 text-brand-gold hover:border-brand-gold hover:bg-brand-gold/5"
-          onClick={() => navigate(`/bias?edit=${id}`)}
+          onClick={() => navigate(`/area-aliancas?tab=bias&edit=${id}`)}
           data-testid="btn-edit-bia-detail"
         >
           <Pencil className="w-3.5 h-3.5" />

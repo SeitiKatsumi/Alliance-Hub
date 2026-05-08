@@ -2566,16 +2566,17 @@ export default function BiasPage() {
     const params = new URLSearchParams(window.location.search);
     const editId = params.get("edit");
     const criar = params.get("criar");
+    const returnPath = window.location.pathname === "/area-aliancas" ? "/area-aliancas?tab=bias" : "/bias";
     if (criar === "true") {
       setEditingBia(null);
       setSheetOpen(true);
-      navigate("/bias", { replace: true });
+      navigate(returnPath, { replace: true });
     } else if (editId && (biasRaw as BiasProjeto[]).length > 0) {
       const target = (biasRaw as BiasProjeto[]).find(b => b.id === editId);
       if (target) {
         setEditingBia(target);
         setSheetOpen(true);
-        navigate("/bias", { replace: true });
+        navigate(returnPath, { replace: true });
       }
     }
   }, [biasRaw]);

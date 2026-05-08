@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -172,7 +172,16 @@ function AliadosTab() {
 }
 
 export default function AreaAliancasPage() {
-  const [activeTab, setActiveTab] = useState("aliados");
+  const searchParams = useSearch();
+  const getTabFromSearch = () => {
+    const tab = new URLSearchParams(searchParams).get("tab");
+    return ["aliados", "membros", "comunidades", "bias"].includes(tab || "") ? tab! : "aliados";
+  };
+  const [activeTab, setActiveTab] = useState(getTabFromSearch);
+
+  useEffect(() => {
+    setActiveTab(getTabFromSearch());
+  }, [searchParams]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">

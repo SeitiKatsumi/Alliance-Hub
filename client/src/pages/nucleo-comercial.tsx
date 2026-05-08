@@ -8,6 +8,9 @@ const config: AliancaDocsPageConfig = {
   accentColor: "#6EBF8B",
   icon: TrendingUp,
   theme: "light",
+  hideHeaderIcon: true,
+  hideHeaderChrome: true,
+  showTitleIcon: true,
   aliancas: [
     {
       key: "comercial",

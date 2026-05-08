@@ -8,6 +8,9 @@ const config: AliancaDocsPageConfig = {
   accentColor: "#E8845A",
   icon: HardHat,
   theme: "light",
+  hideHeaderIcon: true,
+  hideHeaderChrome: true,
+  showTitleIcon: true,
   aliancas: [
     {
       key: "execucao",

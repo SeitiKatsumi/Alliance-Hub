@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+﻿import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -98,7 +98,7 @@ function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
     let T = 0, R = 0, C = 0;
     for (const [, { dim, avaliadores }] of canonAvaliadores) {
       const count = avaliadores.size;
-      const peso = count >= 4 ? 2.0 : count >= 2 ? 1.5 : 1.0;
+      const peso = count >= 4 ?2.0 : count >= 2 ?1.5 : 1.0;
       if (dim === "T") T += peso;
       else if (dim === "R") R += peso;
       else C += peso;
@@ -125,7 +125,7 @@ function dimLabel(d: "T" | "R" | "C"): string {
 
 function fotoUrl(foto: MembroBusca["foto"]): string | null {
   if (!foto) return null;
-  const fileId = typeof foto === "string" ? foto : foto.id || foto.filename_disk;
+  const fileId = typeof foto === "string" ?foto : foto.id || foto.filename_disk;
   if (!fileId) return null;
   if (fileId.startsWith("/api/assets/")) return fileId;
   if (fileId.startsWith("/assets/")) return fileId.replace(/^\/assets\//, "/api/assets/");
@@ -135,7 +135,7 @@ function fotoUrl(foto: MembroBusca["foto"]): string | null {
 
 function AvatarImage({ foto, nome }: { foto: MembroBusca["foto"]; nome?: string }) {
   const [failed, setFailed] = useState(false);
-  const src = !failed ? fotoUrl(foto) : null;
+  const src = !failed ?fotoUrl(foto) : null;
   if (!src) return <>{getInitials(nome || "?")}</>;
   return (
     <img
@@ -249,7 +249,7 @@ export default function AuraPage() {
       return res.json() as Promise<{ texto: string }>;
     },
     onSuccess: (data) => {
-      setTextoIA(prev => prev ? prev + "\n\n" + data.texto : data.texto);
+      setTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
       toast({ title: "Arquivo processado!", description: "O texto foi extraído e adicionado ao campo abaixo." });
     },
     onError: (err: Error) => {
@@ -324,7 +324,7 @@ export default function AuraPage() {
           {/* Score ring */}
           <Card className="border border-border/60 md:col-span-1" data-testid="card-meu-score">
             <CardContent className="p-6 flex flex-col items-center gap-4">
-              {loadingMyAura ? (
+              {loadingMyAura ?(
                 <div className="space-y-3 flex flex-col items-center">
                   <Skeleton className="w-32 h-32 rounded-full" />
                   <Skeleton className="h-4 w-24" />
@@ -335,7 +335,7 @@ export default function AuraPage() {
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground">
                       {n > 0
-                        ? `${n} avaliação${n !== 1 ? "ões" : ""} recebida${n !== 1 ? "s" : ""}`
+                        ?`${n} avaliação${n !== 1 ?"ões" : ""} recebida${n !== 1 ?"s" : ""}`
                         : "Nenhuma avaliação ainda"
                       }
                     </p>
@@ -355,15 +355,15 @@ export default function AuraPage() {
                 </CardTitle>
                 {evolucaoDados.length > 0 && (
                   <span className="text-[10px] text-muted-foreground/60">
-                    {evolucaoDados.length} avaliação{evolucaoDados.length !== 1 ? "ões" : ""}
+                    {evolucaoDados.length} avaliação{evolucaoDados.length !== 1 ?"ões" : ""}
                   </span>
                 )}
               </div>
             </CardHeader>
             <CardContent>
-              {loadingMyAura ? (
+              {loadingMyAura ?(
                 <Skeleton className="h-32 w-full rounded-lg" />
-              ) : evolucaoDados.length === 0 ? (
+              ) : evolucaoDados.length === 0 ?(
                 <div className="h-32 flex items-center justify-center">
                   <p className="text-xs text-muted-foreground/50 text-center">
                     Nenhuma avaliação recebida ainda.<br />O gráfico aparece conforme você recebe avaliações.
@@ -404,7 +404,7 @@ export default function AuraPage() {
                         formatter={(val: number) => [`${val} pts`, "Score"]}
                         labelFormatter={(label: string, payload: any[]) => {
                           const n = payload?.[0]?.payload?.n;
-                          return `${label}${n !== undefined ? ` · avaliação #${n}` : ""}`;
+                          return `${label}${n !== undefined ?` · avaliação #${n}` : ""}`;
                         }}
                       />
                       <Area
@@ -519,7 +519,7 @@ export default function AuraPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!selectedMembro ? (
+            {!selectedMembro ?(
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
@@ -532,15 +532,15 @@ export default function AuraPage() {
                   />
                 </div>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {loadingSearch ? (
+                    {loadingSearch ?(
                       Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3 p-2 rounded-lg">
                           <Skeleton className="w-8 h-8 rounded-full" />
                           <Skeleton className="h-4 w-40" />
                         </div>
                       ))
-                    ) : searchResults.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-2">{searchQuery.length >= 2 ? "Nenhum membro encontrado." : "Carregando membros..."}</p>
+                    ) : searchResults.length === 0 ?(
+                      <p className="text-xs text-muted-foreground p-2">{searchQuery.length >= 2 ?"Nenhum membro encontrado." : "Carregando membros..."}</p>
                     ) : (
                       searchResults.map(m => (
                         <button
@@ -583,7 +583,7 @@ export default function AuraPage() {
                 </div>
 
                 {/* Already evaluated — locked state */}
-                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 ? (
+                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 ?(
                   <div className="space-y-3">
                     <div className="flex items-start gap-2.5 p-3 rounded-lg border text-xs" style={{ borderColor: "rgba(215,187,125,0.25)", background: "rgba(215,187,125,0.06)", color: "rgba(215,187,125,0.85)" }}>
                       <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
@@ -614,7 +614,7 @@ export default function AuraPage() {
                   <button
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
                     style={evalMode === "palavras"
-                      ? { background: "rgba(215,187,125,0.18)", color: "#b8962e", borderRight: "1px solid rgba(215,187,125,0.2)" }
+                      ?{ background: "rgba(215,187,125,0.18)", color: "#b8962e", borderRight: "1px solid rgba(215,187,125,0.2)" }
                       : { color: "#64748b", borderRight: "1px solid rgba(0,0,0,0.08)" }}
                     onClick={() => setEvalMode("palavras")}
                     data-testid="btn-modo-palavras"
@@ -625,7 +625,7 @@ export default function AuraPage() {
                   <button
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
                     style={evalMode === "texto"
-                      ? { background: "rgba(215,187,125,0.18)", color: "#b8962e" }
+                      ?{ background: "rgba(215,187,125,0.18)", color: "#b8962e" }
                       : { color: "#64748b" }}
                     onClick={() => setEvalMode("texto")}
                     data-testid="btn-modo-texto"
@@ -649,12 +649,12 @@ export default function AuraPage() {
                         data-testid="btn-anexar-arquivo"
                         title="Anexar PDF ou TXT"
                       >
-                        {extrairArquivoMutation.isPending ? (
+                        {extrairArquivoMutation.isPending ?(
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <Paperclip className="w-3.5 h-3.5" />
                         )}
-                        {extrairArquivoMutation.isPending ? "Lendo..." : "Anexar arquivo"}
+                        {extrairArquivoMutation.isPending ?"Lendo..." : "Anexar arquivo"}
                       </button>
                       <input
                         ref={fileInputRef}
@@ -698,7 +698,7 @@ export default function AuraPage() {
                       onClick={() => analisarMutation.mutate({ texto: textoIA, membro_nome: selectedMembro.nome || "" })}
                       data-testid="btn-analisar-ia"
                     >
-                      {analisarMutation.isPending ? (
+                      {analisarMutation.isPending ?(
                         <><Loader2 className="w-4 h-4 animate-spin" /> Analisando...</>
                       ) : (
                         <><Sparkles className="w-4 h-4" /> Analisar com IA</>
@@ -795,7 +795,7 @@ export default function AuraPage() {
                   onClick={() => avaliarMutation.mutate({ avaliadoId: selectedMembro.id, palavras: selectedPalavras })}
                   data-testid="btn-enviar-avaliacao"
                 >
-                  {avaliarMutation.isPending ? (
+                  {avaliarMutation.isPending ?(
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
                   ) : (
                     <><CheckCircle2 className="w-4 h-4 mr-2" /> Enviar Avaliação ({selectedPalavras.length}/3)</>
@@ -826,7 +826,7 @@ export default function AuraPage() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] text-muted-foreground/60 truncate mb-1">
-                    {av.avaliado_nome ?? `Membro ${av.avaliado_membro_id.slice(0, 8)}…`}
+                      {av.avaliado_nome ?? `Membro ${av.avaliado_membro_id.slice(0, 8)}...`}
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {av.palavras.map(p => (
@@ -842,7 +842,7 @@ export default function AuraPage() {
                   </div>
                 </div>
                 <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                  {av.created_at ? new Date(av.created_at).toLocaleDateString("pt-BR") : "—"}
+                  {av.created_at ?new Date(av.created_at).toLocaleDateString("pt-BR") : "—"}
                 </span>
               </div>
             ))}
@@ -887,3 +887,6 @@ export default function AuraPage() {
     </div>
   );
 }
+
+
+

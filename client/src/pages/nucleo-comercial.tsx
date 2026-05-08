@@ -7,6 +7,7 @@ const config: AliancaDocsPageConfig = {
   subtitulo: "Documentos de alianças comerciais, vendas e marketing",
   accentColor: "#6EBF8B",
   icon: TrendingUp,
+  theme: "light",
   aliancas: [
     {
       key: "comercial",

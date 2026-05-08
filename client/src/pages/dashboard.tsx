@@ -167,7 +167,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {(bias.length > 0 ? bias.slice(0, 4) : [
+            {(bias.length > 0 ?bias.slice(0, 4) : [
               { id: "1", nome_bia: "BIA Infraestrutura Inteligente" },
               { id: "2", nome_bia: "BIA Tecnologia Verde" },
               { id: "3", nome_bia: "BIA Transformação Digital" },
@@ -183,8 +183,8 @@ export default function Dashboard() {
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className={`h-full rounded-full transition-all ${
-                        progress >= 70 ? "bg-brand-gold" : 
-                        progress >= 40 ? "bg-brand-navy" : 
+                        progress >= 70 ?"bg-brand-gold" : 
+                        progress >= 40 ?"bg-brand-navy" : 
                         "bg-brand-gray"
                       }`}
                       style={{ width: `${progress}%` }}

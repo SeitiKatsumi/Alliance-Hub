@@ -1,7 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, BookOpen, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins, MessageCircle, ClipboardList } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins, MessageCircle, ClipboardList, Ticket } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -31,8 +31,8 @@ export function AppSidebar() {
   const hasProudMemberSeal = isAdmin || redes.includes("BUILT_PROUD_MEMBER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
   const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
 
-  const isBiasSection = location === "/bias" || location === "/gestao-opas" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
-  const isRedeBuiltSection = location === "/vitrine" || location === "/area-membros" || location === "/built-capital" || location === "/comunidade";
+  const isBiasSection = location === "/gestao-bias" || location === "/gestao-opas" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
+  const isRedeBuiltSection = location === "/area-aliancas" || location === "/area-membros" || location === "/comunidade" || location === "/bias";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
   const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
@@ -61,243 +61,106 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Rede Built — colapsável */}
-              <Collapsible open={redeBuiltOpen} onOpenChange={setRedeBuiltOpen}>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/vitrine"} className="text-sm" data-testid="nav-vitrine">
+                  <Link href="/vitrine">
+                    <Store className="w-3.5 h-3.5" />
+                    <span>BUILT Vitrine</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {hasSeal && (
                 <SidebarMenuItem>
-                  <div className="flex items-center">
-                    <SidebarMenuButton
-                      className="flex-1 text-sm cursor-pointer"
-                      isActive={isRedeBuiltSection}
-                      data-testid="nav-rede-built"
-                    >
+                  <SidebarMenuButton asChild isActive={location === "/area-aliancas"} className="text-sm" data-testid="nav-area-aliancas">
+                    <Link href="/area-aliancas">
                       <Globe2 className="w-3.5 h-3.5" />
-                      <span>Rede BUILT</span>
-                    </SidebarMenuButton>
-                    <CollapsibleTrigger asChild>
-                      <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors" data-testid="toggle-rede-built-menu">
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${redeBuiltOpen ? "rotate-180" : ""}`} />
-                      </button>
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {/* Vitrine — sempre visível */}
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/vitrine"} className="text-xs" data-testid="nav-vitrine">
-                          <Link href="/vitrine">
-                            <Store className="w-3 h-3" />
-                            <span>Vitrine</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Membros — requer Proud Member ou Aliado BUILT */}
-                      {hasProudMemberSeal && (
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={location === "/area-membros"} className="text-xs" data-testid="nav-area-membros">
-                            <Link href="/area-membros">
-                              <Network className="w-3 h-3" />
-                              <span>Membros</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      )}
-
-                      {/* Comunidades — requer qualquer selo */}
-                      {hasSeal && (
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={location === "/comunidade"} className="text-xs" data-testid="nav-comunidade">
-                            <Link href="/comunidade">
-                              <MessageCircle className="w-3 h-3" />
-                              <span>Comunidades</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      )}
-
-                      {/* Parceiros Capital — requer Built Capital Partner ou Aliado BUILT */}
-                      {hasBuiltCapitalPartnerSeal && (
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-xs" data-testid="nav-built-capital">
-                            <Link href="/built-capital">
-                              <Coins className="w-3 h-3" />
-                              <span>Parceiros Capital</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      )}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
+                      <span>Área de Alianças</span>
+                    </Link>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
-              </Collapsible>
+              )}
 
-              {/* BIAs — requer qualquer selo */}
+              {hasSeal && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital">
+                    <Link href="/built-capital">
+                      <Coins className="w-3.5 h-3.5" />
+                      <span>BUILT Capital</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Gestão de BIAs */}
               {hasSeal && (
                 <Collapsible open={biasOpen} onOpenChange={setBiasOpen}>
                   <SidebarMenuItem>
-                    <div className="flex items-center">
-                      <SidebarMenuButton asChild isActive={location === "/bias"} className="flex-1 text-sm" data-testid="nav-bias">
-                        <Link href="/bias">
-                          <Briefcase className="w-3.5 h-3.5" />
-                          <span>BIAs</span>
-                        </Link>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton isActive={isBiasSection} className="text-sm" data-testid="nav-gestao-bias">
+                        <Briefcase className="w-3.5 h-3.5" />
+                        <span>Gestão de BIAs</span>
+                        <ChevronDown className={`ml-auto h-3.5 w-3.5 transition-transform ${biasOpen ? "rotate-180" : ""}`} />
                       </SidebarMenuButton>
-                      <CollapsibleTrigger asChild>
-                        <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors" data-testid="toggle-bias-menu">
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${biasOpen ? "rotate-180" : ""}`} />
-                        </button>
-                      </CollapsibleTrigger>
-                    </div>
-
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {/* Diretoria da Aliança */}
-                        <SidebarMenuSubItem>
-                          <Collapsible open={diretoriaOpen} onOpenChange={setDiretoriaOpen}>
-                            <div className="flex items-center w-full">
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={location === "/diretoria-alianca"}
-                                className="flex-1 text-xs"
-                                data-testid="nav-diretoria-alianca"
-                              >
-                                <Link href="/diretoria-alianca">
-                                  <Shield className="w-3 h-3" />
-                                  <span>Diretoria da Aliança</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                              <CollapsibleTrigger asChild>
-                                <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-diretoria-menu">
-                                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${diretoriaOpen ? "rotate-180" : ""}`} />
-                                </button>
-                              </CollapsibleTrigger>
-                            </div>
-                            <CollapsibleContent>
-                              <div className="pl-3">
-                                <SidebarMenuSub>
-                                  <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton className="text-xs text-sidebar-foreground/40 cursor-not-allowed" data-testid="nav-diretoria-placeholder">
-                                      <span className="italic">Em desenvolvimento</span>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                </SidebarMenuSub>
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </SidebarMenuSubItem>
-
-                        {/* Núcleo Técnico */}
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={location === "/gestao-opas"} data-testid="nav-gestao-opas" className="text-xs">
-                            <Link href="/gestao-opas">
-                              <ClipboardList className="w-3 h-3" />
-                              <span>Gestão OPAs</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={location === "/nucleo-tecnico"}
-                            className="text-xs"
-                            data-testid="nav-nucleo-tecnico"
-                          >
-                            <Link href="/nucleo-tecnico">
-                              <Wrench className="w-3 h-3" />
-                              <span>Núcleo Técnico</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-
-                        {/* Núcleo de Obra */}
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={location === "/nucleo-obra"}
-                            className="text-xs"
-                            data-testid="nav-nucleo-obra"
-                          >
-                            <Link href="/nucleo-obra">
-                              <HardHat className="w-3 h-3" />
-                              <span>Núcleo de Obra</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-
-                        {/* Núcleo Comercial */}
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={location === "/nucleo-comercial"}
-                            className="text-xs"
-                            data-testid="nav-nucleo-comercial"
-                          >
-                            <Link href="/nucleo-comercial">
-                              <TrendingUp className="w-3 h-3" />
-                              <span>Núcleo Comercial</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-
-                        {/* Núcleo de Capital */}
-                        <SidebarMenuSubItem>
-                          <Collapsible open={nucleoCapitalOpen} onOpenChange={setNucleoCapitalOpen}>
-                            <div className="flex items-center w-full">
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={location === "/nucleo-capital"}
-                                className="flex-1 text-xs"
-                                data-testid="nav-nucleo-capital"
-                              >
-                                <Link href="/nucleo-capital">
-                                  <Landmark className="w-3 h-3" />
-                                  <span>Núcleo de Capital</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                              <CollapsibleTrigger asChild>
-                                <button className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors mr-1" data-testid="toggle-nucleo-capital-menu">
-                                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${nucleoCapitalOpen ? "rotate-180" : ""}`} />
-                                </button>
-                              </CollapsibleTrigger>
-                            </div>
-                            <CollapsibleContent>
-                              <div className="pl-3">
-                                <SidebarMenuSub>
-                                  <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={location === "/fluxo-caixa"} data-testid="nav-fluxo-caixa" className="text-xs">
-                                      <Link href="/fluxo-caixa">
-                                        <Wallet className="w-3 h-3" />
-                                        <span>Financeiro</span>
-                                      </Link>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                  <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={location === "/resultados"} data-testid="nav-resultados" className="text-xs">
-                                      <Link href="/resultados">
-                                        <BarChart3 className="w-3 h-3" />
-                                        <span>Análises</span>
-                                      </Link>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                </SidebarMenuSub>
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </SidebarMenuSubItem>
-
-                        {/* Calculadora DM */}
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={location === "/bias-calculadora"} data-testid="nav-bias-calculadora" className="text-xs">
-                            <Link href="/bias-calculadora">
-                              <Calculator className="w-3 h-3" />
-                              <span>Calculadora DM</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
+                    </CollapsibleTrigger>
                   </SidebarMenuItem>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/diretoria-alianca"} className="text-sm" data-testid="nav-diretoria-alianca">
+                          <Link href="/diretoria-alianca">
+                            <Shield className="w-3.5 h-3.5" />
+                            <span>Diretoria da Aliança</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/gestao-opas"} className="text-sm" data-testid="nav-gestao-opas">
+                          <Link href="/gestao-opas">
+                            <ClipboardList className="w-3.5 h-3.5" />
+                            <span>Gestão OPAs</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/nucleo-tecnico"} className="text-sm" data-testid="nav-nucleo-tecnico">
+                          <Link href="/nucleo-tecnico">
+                            <Wrench className="w-3.5 h-3.5" />
+                            <span>Núcleo Técnico</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/nucleo-obra"} className="text-sm" data-testid="nav-nucleo-obra">
+                          <Link href="/nucleo-obra">
+                            <HardHat className="w-3.5 h-3.5" />
+                            <span>Núcleo de Obra</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={location === "/nucleo-comercial"} className="text-sm" data-testid="nav-nucleo-comercial">
+                          <Link href="/nucleo-comercial">
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            <span>Núcleo Comercial</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados" || location === "/bias-calculadora"}
+                          className="text-sm"
+                          data-testid="nav-nucleo-capital"
+                        >
+                          <Link href="/nucleo-capital">
+                            <Landmark className="w-3.5 h-3.5" />
+                            <span>Núcleo de Capital</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
                 </Collapsible>
               )}
 
@@ -323,7 +186,19 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
+              {/* Aprovações — requer qualquer selo */}
               {/* Aura — requer qualquer selo */}
+              {hasSeal && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/convites"} data-testid="nav-convites" className="text-sm">
+                    <Link href="/convites">
+                      <Ticket className="w-3.5 h-3.5" />
+                      <span>Aprovações</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
               {hasSeal && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/aura"} data-testid="nav-aura" className="text-sm">
@@ -345,15 +220,6 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Documentação — sempre visível */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/documentacao"} data-testid="nav-documentacao" className="text-sm">
-                  <Link href="/documentacao">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>Documentação</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
 
             </SidebarMenu>
           </SidebarGroupContent>

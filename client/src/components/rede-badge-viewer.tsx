@@ -41,8 +41,8 @@ export function RedeBadgeButton({
   if (!badge) return null;
 
   const isBni = rede === "BNI";
-  const displayHeight = isBni ? Math.round(height * 0.58) : height;
-  const displayMaxWidth = isBni ? Math.round(maxWidth * 0.62) : maxWidth;
+  const displayHeight = isBni ?Math.round(height * 0.58) : height;
+  const displayMaxWidth = isBni ?Math.round(maxWidth * 0.62) : maxWidth;
 
   return (
     <>

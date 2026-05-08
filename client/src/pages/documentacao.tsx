@@ -28,7 +28,7 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
           {rows.map((row, i) => (
             <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
               {row.map((cell, j) => (
-                <td key={j} className={`px-3 py-2 text-white/60 ${j === 0 ? "font-mono text-brand-gold/70" : ""}`}>{cell}</td>
+                <td key={j} className={`px-3 py-2 text-white/60 ${j === 0 ?"font-mono text-brand-gold/70" : ""}`}>{cell}</td>
               ))}
             </tr>
           ))}

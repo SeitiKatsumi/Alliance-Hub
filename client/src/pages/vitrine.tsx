@@ -225,21 +225,21 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
                 }}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isSelected || isClusterSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.12 : 0.06}>
+                  <circle r={r * (isSelected || isClusterSelected ?5.5 : isHovered ?4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ?0.12 : 0.06}>
                     <animate attributeName="r" from={r * 2.5} to={r * 5} dur="1.6s" repeatCount="indefinite" />
                     <animate attributeName="fill-opacity" from="0.4" to="0" dur="1.6s" repeatCount="indefinite" />
                   </circle>
-                  <circle r={r * (isSelected || isClusterSelected ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.4 : isHovered ? 0.3 : 0.18} />
-                  <circle r={r * (isSelected || isClusterSelected ? 1.6 : isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * (isSelected || isClusterSelected ?3 : isHovered ?2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ?0.4 : isHovered ?0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSelected ?1.6 : isHovered ?1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
                   <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
                   {isMulti && (
                     <>
                       <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2}
-                        fill={isClusterSelected ? "#D7BB7D" : "#001D34"}
+                        fill={isClusterSelected ?"#D7BB7D" : "#001D34"}
                         stroke="#D7BB7D" strokeWidth={0.5} />
                       <text x={r * 1.6} y={r * -1.6} textAnchor="middle" dominantBaseline="central"
                         fontSize={r * 1.0} fontWeight="bold" fontFamily="monospace"
-                        fill={isClusterSelected ? "#001D34" : "#D7BB7D"}>
+                        fill={isClusterSelected ?"#001D34" : "#D7BB7D"}>
                         {cluster.items.length}
                       </text>
                     </>
@@ -330,7 +330,7 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
           <div className="flex items-center gap-4 font-mono">
             <div className="w-12 h-12 rounded-full overflow-hidden border border-brand-gold/30 shrink-0 flex items-center justify-center"
               style={{ background: "rgba(215,187,125,0.08)" }}>
-              {fotoUrlMap(selectedMembro) ? (
+              {fotoUrlMap(selectedMembro) ?(
                 <img src={fotoUrlMap(selectedMembro)!} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-sm font-bold text-brand-gold/70">{getInitialsMap(selectedMembro.nome)}</span>
@@ -388,7 +388,7 @@ function fotoUrl(m: MembroVitrine): string | null {
 
 function logoEmpresaUrl(m: MembroVitrine): string | null {
   const logo = m.logo_empresa;
-  const id = typeof logo === "string" ? logo : logo?.id;
+  const id = typeof logo === "string" ?logo : logo?.id;
   if (!id) return null;
   return `/api/assets/${id}?width=160&height=80&fit=contain`;
 }
@@ -396,6 +396,31 @@ function logoEmpresaUrl(m: MembroVitrine): string | null {
 function getInitials(nome?: string): string {
   if (!nome) return "?";
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function normalizeFilterText(value?: string | null): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[.,;/|()[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTerritorioKey(cidade?: string | null): string {
+  return normalizeFilterText(cidade)
+    .replace(/\b(brasil|brazil|japao|japan|portugal|usa|eua|estados unidos|united states)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatFilterLabel(value: string): string {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  return cleaned
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|\s|[-'/])\p{L}/gu, (letter) => letter.toLocaleUpperCase("pt-BR"));
 }
 
 const ESTADOS_BR = [
@@ -480,7 +505,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
             className="px-3 py-2 rounded-md bg-brand-gold text-brand-navy hover:bg-brand-gold/90 disabled:opacity-50 shrink-0"
             data-testid="btn-search-location"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ?<Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </button>
         </div>
         {error && <p className="text-sm text-muted-foreground text-center py-2">{error}</p>}
@@ -492,7 +517,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
                 onClick={() => setSelected(r)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors border ${
                   selected?.place_id === r.place_id
-                    ? "bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
+                    ?"bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
                     : "hover:bg-muted border-transparent"
                 }`}
                 data-testid={`location-result-${r.place_id}`}
@@ -602,19 +627,19 @@ function PeriodoPickerGrid({
                   data-testid={`btn-periodo-${q.inicio}`}
                   className={`w-full text-left px-3 py-2 rounded-lg border text-xs font-mono transition-all ${
                     isSelected
-                      ? "border-brand-gold bg-brand-gold/10 text-brand-gold"
+                      ?"border-brand-gold bg-brand-gold/10 text-brand-gold"
                       : isReservado
-                      ? "border-brand-gold/30 bg-brand-gold/5 text-brand-gold/40 cursor-not-allowed"
+                      ?"border-brand-gold/30 bg-brand-gold/5 text-brand-gold/40 cursor-not-allowed"
                       : isFull
-                      ? "border-red-500/20 bg-red-500/5 text-red-400/50 cursor-not-allowed"
+                      ?"border-red-500/20 bg-red-500/5 text-red-400/50 cursor-not-allowed"
                       : isPast
-                      ? "border-white/5 bg-white/3 text-white/20 cursor-not-allowed"
+                      ?"border-white/5 bg-white/3 text-white/20 cursor-not-allowed"
                       : "border-white/10 hover:border-brand-gold/30 hover:bg-brand-gold/5 text-white/70 cursor-pointer"
                   }`}
                 >
                   <span className="block">{quinzenaLabel(q.inicio, q.fim)}</span>
-                  <span className={`text-[10px] ${isReservado ? "text-brand-gold/40" : isFull ? "text-red-400/50" : "text-white/30"}`}>
-                    {isReservado ? "Já reservado" : isFull ? "Lotado" : `${q.vagas}/6 vagas`}
+                  <span className={`text-[10px] ${isReservado ?"text-brand-gold/40" : isFull ?"text-red-400/50" : "text-white/30"}`}>
+                    {isReservado ?"Já reservado" : isFull ?"Lotado" : `${q.vagas}/6 vagas`}
                   </span>
                 </button>
               );
@@ -639,7 +664,7 @@ function AnuncioCard({
   onCancel: () => void;
 }) {
   const href = anuncio.link
-    ? (anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`)
+    ?(anuncio.link.startsWith("http") ?anuncio.link : `https://${anuncio.link}`)
     : undefined;
 
   const handleClick = () => {
@@ -655,16 +680,16 @@ function AnuncioCard({
       onMouseLeave={() => setHovered(false)}
       className="relative rounded-xl overflow-hidden"
       style={{
-        border: isOwn ? "1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
-        boxShadow: isOwn ? "0 0 16px rgba(215,187,125,0.08)" : "0 2px 8px rgba(0,0,0,0.4)",
+        border: isOwn ?"1px solid rgba(215,187,125,0.35)" : "1px solid rgba(215,187,125,0.15)",
+        boxShadow: isOwn ?"0 0 16px rgba(215,187,125,0.08)" : "0 2px 8px rgba(0,0,0,0.4)",
         aspectRatio: "2/1",
-        cursor: href ? "pointer" : "default",
+        cursor: href ?"pointer" : "default",
         background: "rgba(0,29,52,0.9)",
       }}
       data-testid={`card-anuncio-${anuncio.id}`}
     >
       {/* Full image */}
-      {anuncio.imagem_url ? (
+      {anuncio.imagem_url ?(
         <img
           src={anuncio.imagem_url}
           alt={anuncio.titulo}
@@ -684,7 +709,7 @@ function AnuncioCard({
           background: "rgba(0,0,0,0.55)",
           border: "1px solid rgba(215,187,125,0.3)",
           backdropFilter: "blur(4px)",
-          opacity: hovered ? 1 : 0,
+          opacity: hovered ?1 : 0,
         }}
       >
         <Megaphone className="w-2.5 h-2.5 text-brand-gold/80" />
@@ -695,7 +720,7 @@ function AnuncioCard({
       {isOwn && (
         <div
           className="absolute top-2 right-2 flex gap-1 transition-opacity duration-200"
-          style={{ opacity: hovered ? 1 : 0 }}
+          style={{ opacity: hovered ?1 : 0 }}
         >
           <button
             onClick={e => { e.stopPropagation(); onEdit(anuncio); }}
@@ -725,6 +750,7 @@ export default function VitrinePage() {
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterTerritorio, setFilterTerritorio] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"default" | "az" | "za">("default");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -765,7 +791,7 @@ export default function VitrinePage() {
       const r = await fetch("/api/vitrine");
       if (!r.ok) return [];
       const data = await r.json();
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ?data : [];
     },
   });
 
@@ -944,8 +970,8 @@ export default function VitrinePage() {
         segmento: (myMembro as any).segmento || "",
         cidade: myMembro.cidade || "",
         estado: myMembro.estado || "",
-        latitude: myMembro.latitude != null ? String(myMembro.latitude) : "",
-        longitude: myMembro.longitude != null ? String(myMembro.longitude) : "",
+        latitude: myMembro.latitude != null ?String(myMembro.latitude) : "",
+        longitude: myMembro.longitude != null ?String(myMembro.longitude) : "",
         whatsapp: myMembro.whatsapp || myMembro.whatsapp_e164 || "",
         email: myMembro.email || "",
         perfil_aliado: myMembro.perfil_aliado || "",
@@ -969,7 +995,7 @@ export default function VitrinePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
       setDialogOpen(false);
-      toast({ title: myCardExists ? "Card atualizado na Vitrine!" : "Card criado na Vitrine!" });
+      toast({ title: myCardExists ?"Card atualizado na Vitrine!" : "Card criado na Vitrine!" });
     },
     onError: (err: any) => {
       let msg = "Erro ao salvar card";
@@ -1011,36 +1037,62 @@ export default function VitrinePage() {
   }
 
   const especialidades = useMemo(() => {
-    const set = new Set<string>();
-    membros.forEach(m => { if (m.especialidade) set.add(m.especialidade); });
-    return Array.from(set).sort();
+    const map = new Map<string, string>();
+    membros.forEach(m => {
+      const key = normalizeFilterText(m.especialidade);
+      if (!key) return;
+      const label = formatFilterLabel(m.especialidade || "");
+      const current = map.get(key);
+      if (!current || label.length < current.length || current === current.toLocaleUpperCase("pt-BR")) {
+        map.set(key, label);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [membros]);
 
   const territorios = useMemo(() => {
-    const set = new Set<string>();
-    membros.forEach(m => { if (m.cidade) set.add(m.cidade); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const map = new Map<string, string>();
+    membros.forEach(m => {
+      const key = normalizeTerritorioKey(m.cidade);
+      if (!key) return;
+      const label = formatFilterLabel(key);
+      const current = map.get(key);
+      if (!current || label.length < current.length) {
+        map.set(key, label);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [membros]);
 
   const filtered = useMemo(() => {
-    return membros.filter(m => {
+    const list = membros.filter(m => {
       const nome = (m.nome || "").toLowerCase();
       const empresa = (m.empresa || "").toLowerCase();
       const esp = (m.especialidade || "").toLowerCase();
       const q = search.toLowerCase();
       const matchSearch = !q || nome.includes(q) || empresa.includes(q) || esp.includes(q);
-      const matchEsp = filterEspecialidade === "all" || m.especialidade === filterEspecialidade;
-      const matchTerritorio = filterTerritorio === "all" || (m.cidade || "") === filterTerritorio;
+      const matchEsp = filterEspecialidade === "all" || normalizeFilterText(m.especialidade) === filterEspecialidade;
+      const matchTerritorio = filterTerritorio === "all" || normalizeTerritorioKey(m.cidade) === filterTerritorio;
       return matchSearch && matchEsp && matchTerritorio;
     });
-  }, [membros, search, filterEspecialidade, filterTerritorio]);
+    if (sortOrder === "default") return list;
+    return [...list].sort((a, b) => {
+      const compare = (a.nome || a.empresa || "").localeCompare(b.nome || b.empresa || "", "pt-BR", { sensitivity: "base" });
+      return sortOrder === "az" ? compare : -compare;
+    });
+  }, [membros, search, filterEspecialidade, filterTerritorio, sortOrder]);
 
-  const hasFilters = search || filterEspecialidade !== "all" || filterTerritorio !== "all";
+  const hasFilters = search || filterEspecialidade !== "all" || filterTerritorio !== "all" || sortOrder !== "default";
 
   function clearFilters() {
     setSearch("");
     setFilterEspecialidade("all");
     setFilterTerritorio("all");
+    setSortOrder("default");
   }
 
   return (
@@ -1071,14 +1123,14 @@ export default function VitrinePage() {
               data-testid="btn-anunciar"
             >
               <Megaphone className="w-3.5 h-3.5" />
-              {meusAnuncios.length > 0 ? `+ Novo anúncio` : "Anunciar"}
+              {meusAnuncios.length > 0 ?`+ Novo anúncio` : "Anunciar"}
             </Button>
           </div>
         )}
       </div>
 
       {/* World Map */}
-      {isLoading ? (
+      {isLoading ?(
         <Skeleton className="h-[440px] rounded-2xl" />
       ) : (
         <WorldMapHeader membros={membros} />
@@ -1107,13 +1159,13 @@ export default function VitrinePage() {
           {Array.from({ length: Math.max(0, 6 - anunciosAtivos.length) }).map((_, i) => (
             <div
               key={`slot-${i}`}
-              onClick={membroId ? openAnuncioCreate : undefined}
+              onClick={membroId ?openAnuncioCreate : undefined}
               className="relative rounded-xl overflow-hidden flex flex-col items-center justify-center gap-3 group transition-all duration-200"
               style={{
                 aspectRatio: "2/1",
                 border: "1.5px solid rgba(215,187,125,0.5)",
                 background: "rgba(255,255,255,0.97)",
-                cursor: membroId ? "pointer" : "default",
+                cursor: membroId ?"pointer" : "default",
                 boxShadow: "0 2px 12px rgba(215,187,125,0.12)",
               }}
               data-testid={`slot-anuncio-vazio-${i}`}
@@ -1158,7 +1210,7 @@ export default function VitrinePage() {
                 <p className="text-xs font-mono text-brand-gold/80">Pagamento do anúncio gerado</p>
                 <p className="text-[10px] font-mono text-white/35">
                   {ultimoPagamentoAnuncio.dataInicio && ultimoPagamentoAnuncio.dataFim
-                    ? `${ultimoPagamentoAnuncio.dataInicio} -> ${ultimoPagamentoAnuncio.dataFim}`
+                    ?`${ultimoPagamentoAnuncio.dataInicio} -> ${ultimoPagamentoAnuncio.dataFim}`
                     : "Após o pagamento, o webhook publica automaticamente."}
                 </p>
               </div>
@@ -1184,7 +1236,7 @@ export default function VitrinePage() {
               return (
                 <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  {a.imagem_url ? (
+                  {a.imagem_url ?(
                     <img src={a.imagem_url} alt="" className="w-10 h-7 rounded object-cover shrink-0" />
                   ) : (
                     <div className="w-10 h-7 rounded shrink-0 flex items-center justify-center"
@@ -1202,11 +1254,11 @@ export default function VitrinePage() {
                   </div>
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded-full shrink-0"
                     style={{
-                      background: isAtivo ? "rgba(74,222,128,0.1)" : isPagamentoPendente ? "rgba(251,191,36,0.1)" : "rgba(215,187,125,0.08)",
-                      border: `1px solid ${isAtivo ? "rgba(74,222,128,0.3)" : isPagamentoPendente ? "rgba(251,191,36,0.28)" : "rgba(215,187,125,0.2)"}`,
-                      color: isAtivo ? "rgba(74,222,128,0.8)" : isPagamentoPendente ? "rgba(251,191,36,0.85)" : "rgba(215,187,125,0.6)",
+                      background: isAtivo ?"rgba(74,222,128,0.1)" : isPagamentoPendente ?"rgba(251,191,36,0.1)" : "rgba(215,187,125,0.08)",
+                      border: `1px solid ${isAtivo ?"rgba(74,222,128,0.3)" : isPagamentoPendente ?"rgba(251,191,36,0.28)" : "rgba(215,187,125,0.2)"}`,
+                      color: isAtivo ?"rgba(74,222,128,0.8)" : isPagamentoPendente ?"rgba(251,191,36,0.85)" : "rgba(215,187,125,0.6)",
                     }}>
-                    {isPagamentoPendente ? "Pagamento pendente" : isAtivo ? "Ativo" : isFuturo ? "Agendado" : "Encerrado"}
+                    {isPagamentoPendente ?"Pagamento pendente" : isAtivo ?"Ativo" : isFuturo ?"Agendado" : "Encerrado"}
                   </span>
                   {isPagamentoPendente && a.pagamento_url && (
                     <button
@@ -1253,7 +1305,7 @@ export default function VitrinePage() {
           <SelectContent className="bg-popover border-border text-popover-foreground">
             <SelectItem value="all">Todos ramos</SelectItem>
             {especialidades.map(e => (
-              <SelectItem key={e} value={e}>{e}</SelectItem>
+              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -1265,17 +1317,28 @@ export default function VitrinePage() {
           <SelectContent className="bg-popover border-border text-popover-foreground">
             <SelectItem value="all">Todos os territórios</SelectItem>
             {territorios.map(t => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
+              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <div className="flex h-9 rounded-md border border-border overflow-hidden bg-background" aria-label="Modo de visualizaÃ§Ã£o">
+        <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "default" | "az" | "za")}>
+          <SelectTrigger className="w-36 h-9 text-sm bg-background border-border text-foreground" data-testid="select-vitrine-ordenacao">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover border-border text-popover-foreground">
+            <SelectItem value="default">Ordenar</SelectItem>
+            <SelectItem value="az">A-Z</SelectItem>
+            <SelectItem value="za">Z-A</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="flex h-9 rounded-md border border-border overflow-hidden bg-background" aria-label="Modo de visualização">
           <button
             type="button"
             title="Ver em cards"
             onClick={() => setViewMode("grid")}
-            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "grid" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
             data-testid="btn-vitrine-view-grid"
           >
             <LayoutGrid className="w-4 h-4" />
@@ -1284,7 +1347,7 @@ export default function VitrinePage() {
             type="button"
             title="Ver em lista"
             onClick={() => setViewMode("list")}
-            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "list" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
             data-testid="btn-vitrine-view-list"
           >
             <List className="w-4 h-4" />
@@ -1304,22 +1367,22 @@ export default function VitrinePage() {
       </div>
 
       {/* Cards / Lista */}
-      {isLoading ? (
-        <div className={viewMode === "list" ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}>
-          {[...Array(8)].map((_, i) => <Skeleton key={i} className={viewMode === "list" ? "h-24 rounded-xl" : "h-52 rounded-xl"} />)}
+      {isLoading ?(
+        <div className={viewMode === "list" ?"space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}>
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className={viewMode === "list" ?"h-24 rounded-xl" : "h-52 rounded-xl"} />)}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 ?(
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Store className="w-12 h-12 text-muted-foreground/20 mb-4" />
           <p className="text-muted-foreground font-mono text-sm">
-            {hasFilters ? "Nenhum resultado para os filtros aplicados" : "Nenhum membro na Vitrine ainda"}
+            {hasFilters ?"Nenhum resultado para os filtros aplicados" : "Nenhum membro na Vitrine ainda"}
           </p>
           <p className="text-muted-foreground/50 text-xs mt-1 font-mono">
-            {hasFilters ? "Tente ajustar os filtros" : "Crie seu card usando o botão acima"}
+            {hasFilters ?"Tente ajustar os filtros" : "Crie seu card usando o botão acima"}
           </p>
         </div>
       ) : (
-        viewMode === "list" ? (
+        viewMode === "list" ?(
           <div className="space-y-3">
             {filtered.map(m => (
               <MembroListItem key={m.id} membro={m} isOwn={m.id === membroId} />
@@ -1343,7 +1406,7 @@ export default function VitrinePage() {
           <DialogHeader>
             <DialogTitle className="font-mono text-brand-gold text-base flex items-center gap-2">
               <Store className="w-4 h-4" />
-              {myCardExists ? "Editar card na Vitrine" : "Criar card na Vitrine"}
+              {myCardExists ?"Editar card na Vitrine" : "Criar card na Vitrine"}
             </DialogTitle>
             <p className="text-xs text-white/40 font-mono mt-1">
               Preencha as informações que aparecerão no seu card público. Os campos são pré-preenchidos com seu perfil.
@@ -1413,7 +1476,7 @@ export default function VitrinePage() {
                       className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40 disabled:opacity-40"
                       data-testid="select-card-segmento"
                     >
-                      <SelectValue placeholder={form.ramo_atuacao ? "Selecione o segmento..." : "Selecione o ramo primeiro"} />
+                      <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento..." : "Selecione o ramo primeiro"} />
                     </SelectTrigger>
                     <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
                       {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
@@ -1436,7 +1499,7 @@ export default function VitrinePage() {
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <MapPin className="w-4 h-4 text-brand-gold/50 shrink-0" />
-                  {form.cidade || form.estado ? (
+                  {form.cidade || form.estado ?(
                     <span className="text-sm text-white truncate">
                       {[form.cidade, form.estado].filter(Boolean).join(", ")}
                     </span>
@@ -1541,8 +1604,8 @@ export default function VitrinePage() {
               }}
               data-testid="btn-salvar-card"
             >
-              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
-              {myCardExists ? "Salvar alterações" : "Publicar na Vitrine"}
+              {saveMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
+              {myCardExists ?"Salvar alterações" : "Publicar na Vitrine"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1563,11 +1626,11 @@ export default function VitrinePage() {
           <DialogHeader>
             <DialogTitle className="font-mono text-brand-gold text-base flex items-center gap-2">
               <Megaphone className="w-4 h-4" />
-              {anuncioEditMode ? "Editar anúncio" : "Criar anúncio"}
+              {anuncioEditMode ?"Editar anúncio" : "Criar anúncio"}
             </DialogTitle>
             <p className="text-xs text-white/40 font-mono mt-1">
               {anuncioEditMode
-                ? "Atualize as informações do seu anúncio. O período não pode ser alterado."
+                ?"Atualize as informações do seu anúncio. O período não pode ser alterado."
                 : "Preencha os dados e escolha um período quinzenal disponível."}
             </p>
           </DialogHeader>
@@ -1579,9 +1642,9 @@ export default function VitrinePage() {
               <div className="flex items-center gap-3">
                 <div
                   className="w-20 h-14 rounded-lg flex items-center justify-center overflow-hidden border border-white/10"
-                  style={{ background: anuncioImagemPreview ? "transparent" : "rgba(255,255,255,0.04)" }}
+                  style={{ background: anuncioImagemPreview ?"transparent" : "rgba(255,255,255,0.04)" }}
                 >
-                  {anuncioImagemPreview ? (
+                  {anuncioImagemPreview ?(
                     <img src={anuncioImagemPreview} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <ImageIcon className="w-5 h-5 text-white/20" />
@@ -1600,8 +1663,8 @@ export default function VitrinePage() {
                   />
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono cursor-pointer transition-colors"
                     style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}>
-                    {anuncioUploadLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                    {anuncioUploadLoading ? "Enviando..." : "Escolher imagem"}
+                    {anuncioUploadLoading ?<Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                    {anuncioUploadLoading ?"Enviando..." : "Escolher imagem"}
                   </div>
                 </label>
                 {anuncioImagemId && (
@@ -1639,7 +1702,7 @@ export default function VitrinePage() {
                   <CalendarDays className="w-3.5 h-3.5 text-brand-gold/50" />
                   <span className="text-xs font-mono text-brand-gold/60">Período do anúncio</span>
                 </div>
-                {disponibilidade.length === 0 ? (
+                {disponibilidade.length === 0 ?(
                   <div className="flex items-center gap-2 text-xs text-white/30 font-mono py-2">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Carregando disponibilidade...
@@ -1649,7 +1712,7 @@ export default function VitrinePage() {
                     periodos={disponibilidade}
                     selected={anuncioPeriodo}
                     onSelect={setAnuncioPeriodo}
-                    reservados={isSuperAdmin ? [] : periodosReservados}
+                    reservados={isSuperAdmin ?[] : periodosReservados}
                   />
                 )}
                 {anuncioPeriodo && (
@@ -1700,15 +1763,15 @@ export default function VitrinePage() {
                     onClick={() => setAnuncioPagamentoConfirmado(v => !v)}
                     className="mt-0.5 w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-all cursor-pointer"
                     style={{
-                      background: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.04)",
-                      borderColor: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.15)",
+                      background: anuncioPagamentoConfirmado ?"rgba(215,187,125,0.9)" : "rgba(255,255,255,0.04)",
+                      borderColor: anuncioPagamentoConfirmado ?"rgba(215,187,125,0.9)" : "rgba(255,255,255,0.15)",
                     }}
                   >
                     {anuncioPagamentoConfirmado && <Check className="w-2.5 h-2.5 text-[#001D34]" />}
                   </div>
                   <span
                     className="text-[11px] font-mono leading-relaxed select-none transition-colors"
-                    style={{ color: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
+                    style={{ color: anuncioPagamentoConfirmado ?"rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
                     onClick={() => setAnuncioPagamentoConfirmado(v => !v)}
                   >
                     Já realizei o pagamento do anúncio e quero publicar.
@@ -1749,15 +1812,15 @@ export default function VitrinePage() {
                         onClick={() => setAnuncioTerms(t => ({ ...t, [key]: !t[key] }))}
                         className="mt-0.5 w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-all cursor-pointer"
                         style={{
-                          background: anuncioTerms[key] ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.04)",
-                          borderColor: anuncioTerms[key] ? "rgba(215,187,125,0.9)" : "rgba(255,255,255,0.15)",
+                          background: anuncioTerms[key] ?"rgba(215,187,125,0.9)" : "rgba(255,255,255,0.04)",
+                          borderColor: anuncioTerms[key] ?"rgba(215,187,125,0.9)" : "rgba(255,255,255,0.15)",
                         }}
                       >
                         {anuncioTerms[key] && <Check className="w-2.5 h-2.5 text-[#001D34]" />}
                       </div>
                       <span
                         className="text-[11px] font-mono leading-relaxed select-none transition-colors"
-                        style={{ color: anuncioTerms[key] ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
+                        style={{ color: anuncioTerms[key] ?"rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
                         onClick={() => setAnuncioTerms(t => ({ ...t, [key]: !t[key] }))}
                       >
                         {label}
@@ -1805,12 +1868,12 @@ export default function VitrinePage() {
               style={{ background: "linear-gradient(135deg, #D7BB7D, #b89a50)", color: "#001D34" }}
               data-testid="btn-salvar-anuncio"
             >
-              {(criarAnuncioMutation.isPending || editarAnuncioMutation.isPending) ? (
+              {(criarAnuncioMutation.isPending || editarAnuncioMutation.isPending) ?(
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Megaphone className="w-4 h-4" />
               )}
-              {anuncioEditMode ? "Salvar alterações" : isSuperAdmin ? "Publicar anúncio" : "Gerar pagamento"}
+              {anuncioEditMode ?"Salvar alterações" : isSuperAdmin ?"Publicar anúncio" : "Gerar pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1830,7 +1893,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
     e.stopPropagation();
     if (m.whatsapp) {
       const digits = m.whatsapp.replace(/\D/g, "");
-      const telefone = digits.startsWith("55") ? digits : `55${digits}`;
+      const telefone = digits.startsWith("55") ?digits : `55${digits}`;
       window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(`Olá ${nome}! Gostaria de solicitar um orçamento.`)}`, "_blank");
       return;
     }
@@ -1846,14 +1909,14 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
       className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
       style={{
         background: "linear-gradient(145deg, #071626, #040e1c)",
-        borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+        borderColor: isOwn ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
       }}
       onClick={() => navigate(`/vitrine/${m.id}`)}
       data-testid={`list-vitrine-${m.id}`}
     >
       <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
-        style={{ background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
-        {foto ? <img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+        style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
+        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -1866,7 +1929,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
           {m.empresa && (
             <span className="inline-flex items-center gap-1.5 min-w-0">
-              {logo ? <img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
+              {logo ?<img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
               <span className="truncate max-w-[220px]">{m.empresa}</span>
             </span>
           )}
@@ -1912,7 +1975,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
   function waLink() {
     if (!m.whatsapp) return null;
     const digits = m.whatsapp.replace(/\D/g, "");
-    return `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`;
+    return `https://wa.me/${digits.startsWith("55") ?digits : "55" + digits}`;
   }
 
   function handleEnviarWa(e: React.MouseEvent) {
@@ -1941,7 +2004,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
         style={{
           background: "linear-gradient(145deg, #071626, #040e1c)",
           boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-          borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+          borderColor: isOwn ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
         }}
         onClick={() => navigate(`/vitrine/${m.id}`)}
         data-testid={`card-vitrine-${m.id}`}
@@ -1949,7 +2012,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
         {/* Top accent */}
         <div className="absolute top-0 left-0 right-0 h-px"
           style={{ background: isOwn
-            ? "linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
+            ?"linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
             : "linear-gradient(90deg, transparent, rgba(215,187,125,0.3), transparent)"
           }} />
 
@@ -1975,11 +2038,11 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
               style={{
-                background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
+                background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
                 boxShadow: "0 0 16px rgba(215,187,125,0.1)",
               }}
             >
-              {foto ? (
+              {foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
@@ -1997,7 +2060,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
 
             {m.empresa && (
               <div className="flex items-center justify-center gap-2 min-w-0">
-                {logo ? (
+                {logo ?(
                   <span className="flex h-7 w-12 shrink-0 items-center justify-center">
                     <img src={logo} alt={`Marca ${m.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
                   </span>
@@ -2021,7 +2084,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
 
             {m.link_site && (
               <a
-                href={m.link_site.startsWith("http") ? m.link_site : `https://${m.link_site}`}
+                href={m.link_site.startsWith("http") ?m.link_site : `https://${m.link_site}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}

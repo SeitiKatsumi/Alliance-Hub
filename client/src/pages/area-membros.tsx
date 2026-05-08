@@ -56,7 +56,7 @@ function fotoUrl(m: MembroBuilt): string | null {
 
 function logoEmpresaUrl(m: MembroBuilt): string | null {
   const logo = m.logo_empresa;
-  const id = typeof logo === "string" ? logo : logo?.id;
+  const id = typeof logo === "string" ?logo : logo?.id;
   if (!id) return null;
   return `/api/assets/${id}?width=160&height=80&fit=contain`;
 }
@@ -186,7 +186,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
             const isSelected = !isMulti && selectedMembro?.id === cluster.items[0]?.id;
             const isClusterSelected = isMulti && clusterItems === cluster.items;
             const r = Math.max(2, 5 / zoom);
-            const foto = !isMulti ? fotoUrlMap(cluster.items[0]) : null;
+            const foto = !isMulti ?fotoUrlMap(cluster.items[0]) : null;
             const photoR = r * 2.2;
             const clipId = `clip-mb-${idx}`;
 
@@ -205,9 +205,9 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
                 <g style={{ cursor: "pointer" }}>
                   {/* Glow ring */}
                   <circle
-                    r={r * (isSelected || isClusterSelected ? 5 : 4)}
+                    r={r * (isSelected || isClusterSelected ?5 : 4)}
                     fill="#D7BB7D"
-                    fillOpacity={isSelected || isClusterSelected ? 0.15 : 0.06}
+                    fillOpacity={isSelected || isClusterSelected ?0.15 : 0.06}
                   >
                     <animate attributeName="r" from={r * 2.8} to={r * 5} dur="2s" repeatCount="indefinite" />
                     <animate attributeName="fill-opacity" from="0.35" to="0" dur="2s" repeatCount="indefinite" />
@@ -217,8 +217,8 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
                     r={photoR + r * 0.35}
                     fill="none"
                     stroke="#D7BB7D"
-                    strokeWidth={r * (isSelected ? 0.55 : 0.28)}
-                    strokeOpacity={isSelected || isClusterSelected ? 0.9 : 0.6}
+                    strokeWidth={r * (isSelected ?0.55 : 0.28)}
+                    strokeOpacity={isSelected || isClusterSelected ?0.9 : 0.6}
                   />
                   {/* Photo or initials */}
                   <defs>
@@ -226,7 +226,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
                       <circle r={photoR} />
                     </clipPath>
                   </defs>
-                  {isMulti ? (
+                  {isMulti ?(
                     <>
                       <circle r={photoR} fill="#001D34" clipPath={`url(#${clipId})`} />
                       <text textAnchor="middle" dominantBaseline="central"
@@ -234,7 +234,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
                         {cluster.items.length}
                       </text>
                     </>
-                  ) : foto ? (
+                  ) : foto ?(
                     <image
                       href={foto}
                       x={-photoR} y={-photoR}
@@ -333,7 +333,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
           <div className="flex items-center gap-4 font-mono">
             <div className="w-12 h-12 rounded-full overflow-hidden border border-brand-gold/30 shrink-0 flex items-center justify-center"
               style={{ background: "rgba(215,187,125,0.08)" }}>
-              {fotoUrlMap(selectedMembro) ? (
+              {fotoUrlMap(selectedMembro) ?(
                 <img src={fotoUrlMap(selectedMembro)!} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-sm font-bold text-brand-gold/70">{getInitials(selectedMembro.nome)}</span>
@@ -370,7 +370,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
     e.stopPropagation();
     if (m.whatsapp) {
       const digits = m.whatsapp.replace(/\D/g, "");
-      const telefone = digits.startsWith("55") ? digits : `55${digits}`;
+      const telefone = digits.startsWith("55") ?digits : `55${digits}`;
       window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(`Olá ${nome}! Gostaria de solicitar um orçamento.`)}`, "_blank");
       return;
     }
@@ -386,14 +386,14 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
       className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
       style={{
         background: "linear-gradient(145deg, #071626, #040e1c)",
-        borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+        borderColor: isOwn ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
       }}
       onClick={() => navigate(`/membro/${m.id}`)}
       data-testid={`list-membro-${m.id}`}
     >
       <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
-        style={{ background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
-        {foto ? <img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+        style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
+        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -406,7 +406,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
           {m.empresa && (
             <span className="inline-flex items-center gap-1.5 min-w-0">
-              {logo ? <img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
+              {logo ?<img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
               <span className="truncate max-w-[220px]">{m.empresa}</span>
             </span>
           )}
@@ -455,7 +455,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
   function waLink() {
     if (!m.whatsapp) return null;
     const digits = m.whatsapp.replace(/\D/g, "");
-    return `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`;
+    return `https://wa.me/${digits.startsWith("55") ?digits : "55" + digits}`;
   }
 
   function handleEnviarWa(e: React.MouseEvent) {
@@ -484,7 +484,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
         style={{
           background: "linear-gradient(145deg, #071626, #040e1c)",
           boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-          borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+          borderColor: isOwn ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
         }}
         onClick={() => navigate(`/membro/${m.id}`)}
         data-testid={`card-membro-${m.id}`}
@@ -492,7 +492,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
         {/* Top accent */}
         <div className="absolute top-0 left-0 right-0 h-px"
           style={{ background: isOwn
-            ? "linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
+            ?"linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
             : "linear-gradient(90deg, transparent, rgba(215,187,125,0.3), transparent)"
           }} />
         <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
@@ -516,11 +516,11 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
               style={{
-                background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
+                background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
                 boxShadow: "0 0 16px rgba(215,187,125,0.1)",
               }}
             >
-              {foto ? (
+              {foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
@@ -536,7 +536,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
             )}
             {m.empresa && (
               <div className="flex items-center justify-center gap-2 min-w-0">
-                {logo ? (
+                {logo ?(
                   <span className="flex h-7 w-12 shrink-0 items-center justify-center">
                     <img src={logo} alt={`Marca ${m.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
                   </span>
@@ -557,7 +557,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
             </div>
             {m.link_site && (
               <a
-                href={m.link_site.startsWith("http") ? m.link_site : `https://${m.link_site}`}
+                href={m.link_site.startsWith("http") ?m.link_site : `https://${m.link_site}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
@@ -704,7 +704,7 @@ export default function AreMembroPage() {
       const r = await fetch("/api/membros-built");
       if (!r.ok) return [];
       const data = await r.json();
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ?data : [];
     },
     enabled: isProudMember,
   });
@@ -815,7 +815,7 @@ export default function AreMembroPage() {
             type="button"
             title="Ver em cards"
             onClick={() => setViewMode("grid")}
-            className={`w-10 flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            className={`w-10 flex items-center justify-center transition-colors ${viewMode === "grid" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
             data-testid="btn-membros-view-grid"
           >
             <LayoutGrid className="w-4 h-4" />
@@ -824,7 +824,7 @@ export default function AreMembroPage() {
             type="button"
             title="Ver em lista"
             onClick={() => setViewMode("list")}
-            className={`w-10 flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            className={`w-10 flex items-center justify-center transition-colors ${viewMode === "list" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
             data-testid="btn-membros-view-list"
           >
             <List className="w-4 h-4" />
@@ -841,19 +841,19 @@ export default function AreMembroPage() {
       </div>
 
       {/* Cards / Lista */}
-      {isLoading ? (
-        <div className={viewMode === "list" ? "space-y-3" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"}>
+      {isLoading ?(
+        <div className={viewMode === "list" ?"space-y-3" : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"}>
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className={`rounded-xl border border-white/5 bg-white/3 animate-pulse ${viewMode === "list" ? "h-24" : "h-52"}`} />
+            <div key={i} className={`rounded-xl border border-white/5 bg-white/3 animate-pulse ${viewMode === "list" ?"h-24" : "h-52"}`} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 ?(
         <div className="text-center py-20">
           <Users className="w-12 h-12 text-white/10 mx-auto mb-3" />
           <p className="text-white/30 font-mono text-sm">Nenhum membro encontrado</p>
         </div>
       ) : (
-        viewMode === "list" ? (
+        viewMode === "list" ?(
           <div className="space-y-3">
             {filtered.map(m => (
               <MembroListItem key={m.id} membro={m} isOwn={m.id === membroId} />

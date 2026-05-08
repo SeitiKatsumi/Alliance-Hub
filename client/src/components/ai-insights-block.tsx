@@ -44,7 +44,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
   const analyzeWithAI = useMutation({
     mutationFn: async () => {
       const context = type === "oportunidades" 
-        ? `Analise estas ${data.length} oportunidades de aliança: ${JSON.stringify(data.slice(0, 5).map(o => ({
+        ?`Analise estas ${data.length} oportunidades de aliança: ${JSON.stringify(data.slice(0, 5).map(o => ({
             nome: o.nome_oportunidade,
             tipo: o.tipo,
             valor: o.valor_origem_opa,
@@ -76,11 +76,11 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
       }, {});
       
       const maiorOportunidade = data.reduce((max, o) => 
-        (parseFloat(o.valor_origem_opa) || 0) > (parseFloat(max?.valor_origem_opa) || 0) ? o : max
+        (parseFloat(o.valor_origem_opa) || 0) > (parseFloat(max?.valor_origem_opa) || 0) ?o : max
       , data[0]);
 
       const menorOportunidade = data.reduce((min, o) => 
-        (parseFloat(o.valor_origem_opa) || 0) < (parseFloat(min?.valor_origem_opa) || 0) ? o : min
+        (parseFloat(o.valor_origem_opa) || 0) < (parseFloat(min?.valor_origem_opa) || 0) ?o : min
       , data[0]);
 
       const opaCapital = data.filter(o => o.tipo === "OPA-CAP");
@@ -112,7 +112,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
           icon: Lightbulb,
           title: "Recomendação IA",
           description: tipoCount["OPA-TEC"] >= 3 
-            ? "Alto volume técnico - ideal para especialistas" 
+            ?"Alto volume técnico - ideal para especialistas" 
             : "Mercado diversificado - explore múltiplos núcleos",
           highlight: "Dica",
           type: "warning"
@@ -134,14 +134,14 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
           icon: BarChart3,
           title: "Modelo Venda",
           description: `${vendasBias.length} projetos para comercialização`,
-          highlight: vendasBias.length > 0 ? "Ativo" : "Nenhum",
+          highlight: vendasBias.length > 0 ?"Ativo" : "Nenhum",
           type: "gold"
         },
         {
           icon: TrendingUp,
           title: "Modelo Renda",
           description: `${rendaBias.length} projetos para renda passiva`,
-          highlight: rendaBias.length > 0 ? "Ativo" : "Nenhum",
+          highlight: rendaBias.length > 0 ?"Ativo" : "Nenhum",
           type: "info"
         },
         {
@@ -182,7 +182,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
               </h3>
               <p className="text-xs text-muted-foreground">
                 {type === "oportunidades" 
-                  ? "Análise personalizada das oportunidades" 
+                  ?"Análise personalizada das oportunidades" 
                   : "Visão estratégica das alianças"}
               </p>
             </div>
@@ -195,7 +195,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
             className="border-brand-gold/30 hover:bg-brand-gold/10"
             data-testid="button-analyze-ai"
           >
-            {analyzeWithAI.isPending ? (
+            {analyzeWithAI.isPending ?(
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <Zap className="w-4 h-4 mr-2 text-brand-gold" />
@@ -235,7 +235,7 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
               <span className="font-medium text-sm">Análise da IA</span>
             </div>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {isExpanded ? aiResponse : aiResponse.slice(0, 300) + (aiResponse.length > 300 ? "..." : "")}
+              {isExpanded ?aiResponse : aiResponse.slice(0, 300) + (aiResponse.length > 300 ?"..." : "")}
             </p>
             {aiResponse.length > 300 && (
               <Button 
@@ -244,8 +244,8 @@ export function AIInsightsBlock({ type, data, biasData = [], membrosCount = 0 }:
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="mt-2 text-brand-gold"
               >
-                {isExpanded ? "Ver menos" : "Ver mais"}
-                <ChevronRight className={`w-4 h-4 ml-1 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                {isExpanded ?"Ver menos" : "Ver mais"}
+                <ChevronRight className={`w-4 h-4 ml-1 transition-transform ${isExpanded ?"rotate-90" : ""}`} />
               </Button>
             )}
           </div>

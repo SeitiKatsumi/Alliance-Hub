@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+﻿import { Switch, Route, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { apiRequest, queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
@@ -8,7 +8,9 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch as UiSwitch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
 import OportunidadesPage from "@/pages/oportunidades";
@@ -30,12 +32,15 @@ import NucleoObraPage from "@/pages/nucleo-obra";
 import NucleoComercialPage from "@/pages/nucleo-comercial";
 import NucleoCapitalPage from "@/pages/nucleo-capital";
 import GestaoOpasPage from "@/pages/gestao-opas";
+import GestaoBiasPage from "@/pages/gestao-bias";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
+import AreaAliancasPage from "@/pages/area-aliancas";
 import AreMembroPage from "@/pages/area-membros";
 import MembroDetalhePage from "@/pages/membro-detalhe";
 import ComunidadePage from "@/pages/comunidade";
 import ComunidadeDetalhePage from "@/pages/comunidade-detalhe";
+import ConvitesPage from "@/pages/convites";
 import BuiltCapitalPage from "@/pages/built-capital";
 import LoginPage from "@/pages/login";
 import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
@@ -45,9 +50,10 @@ import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
 import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Loader2, LogOut, MapPin, Navigation, Save, Search, User } from "lucide-react";
+import { Briefcase, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 
 interface OnboardingMembro {
   id: string;
@@ -63,8 +69,24 @@ interface OnboardingMembro {
   empresa?: string;
   cargo?: string;
   especialidade_livre?: string;
+  perfil_aliado?: string | null;
+  ramo_atuacao?: string | null;
+  segmento?: string | null;
+  idiomas?: string[] | null;
+  nucleos_alianca?: string[] | null;
+  tipos_alianca?: string[] | null;
+  link_site?: string | null;
   na_vitrine?: boolean;
 }
+
+const IDIOMAS_DISPONIVEIS = [
+  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
+  "Mandarim", "Japonês", "Árabe", "Russo", "Hindi", "Coreano",
+  "Holandês", "Sueco", "Norueguês", "Dinamarquês", "Finlandês",
+  "Polonês", "Turco", "Hebraico", "Grego", "Tailandês", "Vietnamita",
+  "Indonésio", "Malaio", "Húngaro", "Tcheco", "Romeno", "Búlgaro",
+  "Ucraniano", "Croata", "Sérvio", "Eslovaco", "Catalão", "Persa",
+];
 
 interface NominatimResult {
   place_id: number;
@@ -158,7 +180,7 @@ function PerfilLocationPickerModal({ open, onClose, onSelect }: {
             data-testid="input-onboarding-location-search"
           />
           <Button type="button" onClick={handleSearch} disabled={loading || !search.trim()} data-testid="btn-onboarding-location-search">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {loading ?<Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </div>
 
@@ -168,7 +190,7 @@ function PerfilLocationPickerModal({ open, onClose, onSelect }: {
               key={result.place_id}
               type="button"
               onClick={() => setSelected(result)}
-              className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${selected?.place_id === result.place_id ? "bg-muted" : ""}`}
+              className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${selected?.place_id === result.place_id ?"bg-muted" : ""}`}
             >
               {result.display_name}
             </button>
@@ -192,6 +214,7 @@ function PerfilLocationPickerModal({ open, onClose, onSelect }: {
 function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
   const { toast } = useToast();
   const [form, setForm] = useState<Partial<OnboardingMembro>>({});
+  const [idiomaInput, setIdiomaInput] = useState("");
   const [completed, setCompleted] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
@@ -224,7 +247,7 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
     onError: () => toast({ title: "Erro ao salvar perfil", variant: "destructive" }),
   });
 
-  function setField(field: keyof OnboardingMembro, value: string | boolean) {
+  function setField(field: keyof OnboardingMembro, value: string | boolean | string[] | null) {
     setForm(current => ({ ...current, [field]: value }));
   }
 
@@ -254,13 +277,20 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
       latitude: String(form.latitude || "").trim() || null,
       longitude: String(form.longitude || "").trim() || null,
       especialidade_livre: String(form.especialidade_livre || "").trim() || null,
+      perfil_aliado: String(form.perfil_aliado || "").trim() || null,
+      ramo_atuacao: String(form.ramo_atuacao || "").trim() || null,
+      segmento: String(form.segmento || "").trim() || null,
+      link_site: String(form.link_site || "").trim() || null,
+      idiomas: form.idiomas || [],
+      tipos_alianca: form.tipos_alianca || [],
+      nucleos_alianca: form.nucleos_alianca || [],
       na_vitrine: !!form.na_vitrine,
     });
   }
 
   return (
     <Dialog open={shouldOpen} onOpenChange={() => {}}>
-      <DialogContent className="max-w-xl" onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5 text-brand-gold" />
@@ -273,12 +303,20 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
           <div className="space-y-1.5">
-            <Label>Nome *</Label>
+            <Label>Nome completo *</Label>
             <Input value={form.nome || ""} onChange={e => setField("nome", e.target.value)} data-testid="input-onboarding-nome" />
           </div>
           <div className="space-y-1.5">
             <Label>E-mail *</Label>
             <Input type="email" value={form.email || ""} onChange={e => setField("email", e.target.value)} data-testid="input-onboarding-email" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Telefone</Label>
+            <Input value={form.telefone || ""} onChange={e => setField("telefone", e.target.value)} data-testid="input-onboarding-telefone" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>WhatsApp</Label>
+            <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} data-testid="input-onboarding-whatsapp" />
           </div>
           <div className="space-y-1.5">
             <Label>Empresa *</Label>
@@ -287,6 +325,36 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
           <div className="space-y-1.5">
             <Label>Cargo</Label>
             <Input value={form.cargo || ""} onChange={e => setField("cargo", e.target.value)} data-testid="input-onboarding-cargo" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Ramo de Atuação</Label>
+            <Select value={form.ramo_atuacao || ""} onValueChange={value => setForm(current => ({ ...current, ramo_atuacao: value, segmento: null }))}>
+              <SelectTrigger data-testid="select-onboarding-ramo">
+                <SelectValue placeholder="Selecione o ramo" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {RAMOS_SEGMENTOS.map(ramo => (
+                  <SelectItem key={ramo.codigo} value={ramo.nome}>{ramo.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Segmento</Label>
+            <Select
+              value={form.segmento || ""}
+              onValueChange={value => setForm(current => ({ ...current, segmento: value }))}
+              disabled={!form.ramo_atuacao}
+            >
+              <SelectTrigger data-testid="select-onboarding-segmento">
+                <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento" : "Selecione o ramo primeiro"} />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {getSegmentosForRamo(form.ramo_atuacao || "").map(segmento => (
+                  <SelectItem key={segmento.codigo} value={segmento.nome}>{segmento.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Localização *</Label>
@@ -306,16 +374,110 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
               </p>
             )}
           </div>
-          <div className="space-y-1.5">
-            <Label>WhatsApp</Label>
-            <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} data-testid="input-onboarding-whatsapp" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Especialidade</Label>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Especialidade (texto livre)</Label>
             <Input value={form.especialidade_livre || ""} onChange={e => setField("especialidade_livre", e.target.value)} data-testid="input-onboarding-especialidade" />
           </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Área de Contribuição</Label>
+            {(form.tipos_alianca || []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {(form.tipos_alianca || []).map(tipo => (
+                  <span key={tipo} className="flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
+                    {getTipoDisplayName(tipo)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const novos = (form.tipos_alianca || []).filter(item => item !== tipo);
+                        setForm(current => ({ ...current, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <Select
+              value=""
+              onValueChange={value => {
+                if (!value || (form.tipos_alianca || []).includes(value)) return;
+                const novos = [...(form.tipos_alianca || []), value];
+                setForm(current => ({ ...current, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+              }}
+            >
+              <SelectTrigger className="w-auto" data-testid="select-onboarding-area">
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                <span className="text-xs">Adicionar Área</span>
+              </SelectTrigger>
+              <SelectContent className="max-h-64">
+                {getAllTipos().filter(tipo => !(form.tipos_alianca || []).includes(tipo.nome)).map(tipo => (
+                  <SelectItem key={tipo.nome} value={tipo.nome}>{getTipoDisplayName(tipo.nome)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="flex items-center gap-1.5">
+              <Languages className="h-3.5 w-3.5" />
+              Idiomas Falados
+            </Label>
+            {(form.idiomas || []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {(form.idiomas || []).map(idioma => (
+                  <span key={idioma} className="flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
+                    {idioma}
+                    <button type="button" onClick={() => setForm(current => ({ ...current, idiomas: (current.idiomas || []).filter(item => item !== idioma) }))}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <Input
+              value={idiomaInput}
+              onChange={event => setIdiomaInput(event.target.value)}
+              onKeyDown={event => {
+                if (event.key !== "Enter" || !idiomaInput.trim()) return;
+                const idioma = idiomaInput.trim();
+                if (!(form.idiomas || []).includes(idioma)) {
+                  setForm(current => ({ ...current, idiomas: [...(current.idiomas || []), idioma] }));
+                }
+                setIdiomaInput("");
+                event.preventDefault();
+              }}
+              placeholder="Buscar ou digitar idioma..."
+              data-testid="input-onboarding-idioma"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {IDIOMAS_DISPONIVEIS
+                .filter(idioma => !(form.idiomas || []).includes(idioma))
+                .filter(idioma => !idiomaInput || idioma.toLowerCase().includes(idiomaInput.toLowerCase()))
+                .slice(0, 8)
+                .map(idioma => (
+                  <button
+                    key={idioma}
+                    type="button"
+                    onClick={() => setForm(current => ({ ...current, idiomas: [...(current.idiomas || []), idioma] }))}
+                    className="rounded border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:border-brand-gold/40 hover:text-foreground"
+                  >
+                    {idioma}
+                  </button>
+                ))}
+            </div>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Site / Portfólio</Label>
+            <div className="relative">
+              <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="pl-10" value={form.link_site || ""} onChange={e => setField("link_site", e.target.value)} data-testid="input-onboarding-site" />
+            </div>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Biografia</Label>
+            <Textarea value={form.perfil_aliado || ""} onChange={e => setField("perfil_aliado", e.target.value)} rows={4} data-testid="input-onboarding-biografia" />
+          </div>
         </div>
-
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
           <div>
             <p className="text-sm font-medium">Aparecer na Vitrine</p>
@@ -330,7 +492,7 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
 
         <DialogFooter>
           <Button onClick={handleSave} disabled={salvarMutation.isPending} className="gap-2" data-testid="btn-salvar-onboarding-perfil">
-            {salvarMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {salvarMutation.isPending ?<Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar perfil
           </Button>
         </DialogFooter>
@@ -365,6 +527,29 @@ function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const convite = user.convite_pendente || user.adesao_pendente;
+    if (!convite?.token || !convite.status) return;
+
+    const key = `built-convite-toast:${user.id}:${convite.token}:${convite.status}`;
+    if (window.localStorage.getItem(key)) return;
+
+    const statusText: Record<string, string> = {
+      termos_pendentes: "Você recebeu um convite. Aceite os termos para continuar.",
+      termos_aceitos: "Seus termos foram aceitos. Continue o fluxo de convite.",
+      aguardando_avaliacao_aura: "Seu convite está aguardando avaliação de Aura.",
+      candidato: "Sua candidatura está em análise.",
+      pagamento_pendente: "Seu convite tem pagamento pendente.",
+    };
+
+    toast({
+      title: "Convite recebido",
+      description: statusText[convite.status] || "Há uma atualização no seu convite.",
+    });
+    window.localStorage.setItem(key, "1");
+  }, [toast, user?.id, user?.convite_pendente?.token, user?.convite_pendente?.status, user?.adesao_pendente?.token, user?.adesao_pendente?.status]);
 
   if (isLoading) {
     return (
@@ -442,12 +627,15 @@ function ProtectedApp() {
               <Route path="/nucleo-comercial" component={NucleoComercialPage} />
               <Route path="/nucleo-capital" component={NucleoCapitalPage} />
               <Route path="/gestao-opas" component={GestaoOpasPage} />
+              <Route path="/gestao-bias" component={GestaoBiasPage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
+              <Route path="/area-aliancas" component={AreaAliancasPage} />
               <Route path="/area-membros" component={AreMembroPage} />
               <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />
               <Route path="/comunidade" component={ComunidadePage} />
+              <Route path="/convites" component={ConvitesPage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura" component={AuraPage} />
@@ -484,3 +672,5 @@ function App() {
 }
 
 export default App;
+
+

@@ -101,11 +101,11 @@ export default function ConvitePage() {
         <div className="text-center space-y-4 p-8 max-w-md">
           <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto" />
           <h2 className="text-xl font-bold font-mono text-white">
-            {submitted ? "Candidatura enviada!" : "Candidatura já processada"}
+            {submitted ?"Candidatura enviada!" : "Candidatura já processada"}
           </h2>
           <p className="text-white/60 text-sm font-mono leading-relaxed">
             {submitted
-              ? "Seu formulário foi recebido. O Aliado BUILT da comunidade irá analisar sua candidatura e você receberá uma resposta por e-mail."
+              ?"Seu formulário foi recebido. O Aliado BUILT da comunidade irá analisar sua candidatura e você receberá uma resposta por e-mail."
               : "Sua candidatura para esta comunidade já foi registrada anteriormente."}
           </p>
         </div>
@@ -153,7 +153,7 @@ export default function ConvitePage() {
                 style={{ background: "rgba(215,187,125,0.1)" }}
               >
                 {aliadoFoto
-                  ? <img src={aliadoFoto} alt={aliado.nome} className="w-full h-full object-cover" />
+                  ?<img src={aliadoFoto} alt={aliado.nome} className="w-full h-full object-cover" />
                   : <span className="text-xs font-mono font-bold text-brand-gold">{getInitials(aliado.nome)}</span>
                 }
               </div>
@@ -302,7 +302,7 @@ export default function ConvitePage() {
           style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
           data-testid="btn-enviar-candidatura"
         >
-          {candidaturaMutation.isPending ? (
+          {candidaturaMutation.isPending ?(
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : null}
           Enviar Candidatura

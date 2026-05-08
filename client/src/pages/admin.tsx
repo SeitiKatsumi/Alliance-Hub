@@ -236,7 +236,7 @@ export default function AdminPage() {
       nome: formNome,
       email: formEmail || "",
       role: formRole,
-      membro_directus_id: (formMembro && formMembro !== "none_selected") ? formMembro : "",
+      membro_directus_id: (formMembro && formMembro !== "none_selected") ?formMembro : "",
       ativo: formAtivo,
       permissions: formPermissions,
     };
@@ -329,7 +329,7 @@ export default function AdminPage() {
             </Button>
           </div>
 
-          {appUsers.length === 0 ? (
+          {appUsers.length === 0 ?(
             <Card>
               <CardContent className="p-12 text-center">
                 <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
@@ -346,7 +346,7 @@ export default function AdminPage() {
               {appUsers.map((user) => {
                 const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG.user;
                 const RoleIcon = roleConfig.icon;
-                const linkedMembro = user.membro_directus_id ? membroMap[user.membro_directus_id] : null;
+                const linkedMembro = user.membro_directus_id ?membroMap[user.membro_directus_id] : null;
 
                 return (
                   <Card key={user.id} className="hover-elevate" data-testid={`card-user-${user.id}`}>
@@ -354,7 +354,7 @@ export default function AdminPage() {
                       <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar className="w-10 h-10 shrink-0">
-                            <AvatarFallback className={`${user.ativo ? "bg-brand-navy text-white" : "bg-muted text-muted-foreground"}`}>
+                            <AvatarFallback className={`${user.ativo ?"bg-brand-navy text-white" : "bg-muted text-muted-foreground"}`}>
                               {getInitials(user.nome)}
                             </AvatarFallback>
                           </Avatar>
@@ -396,7 +396,7 @@ export default function AdminPage() {
                           <div className="flex gap-1 flex-wrap">
                             {MODULE_KEYS.map((mod) => {
                               const perm = user.permissions?.[mod] || "none";
-                              const dotColor = perm === "edit" ? "bg-green-500" : perm === "view" ? "bg-blue-500" : "bg-red-500/40";
+                              const dotColor = perm === "edit" ?"bg-green-500" : perm === "view" ?"bg-blue-500" : "bg-red-500/40";
                               return (
                                 <div
                                   key={mod}
@@ -464,7 +464,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {editingId === membro.id ? (
+                      {editingId === membro.id ?(
                         <>
                           <Button
                             size="sm"
@@ -500,7 +500,7 @@ export default function AdminPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {editingId === membro.id ? (
+                  {editingId === membro.id ?(
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-1"><UserIcon className="w-3 h-3" /> Nome</Label>
@@ -566,7 +566,7 @@ export default function AdminPage() {
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {editingUserId ? (
+              {editingUserId ?(
                 <>
                   <Edit2 className="w-5 h-5 text-brand-gold" />
                   Editar Usuário
@@ -625,10 +625,10 @@ export default function AdminPage() {
                 </Label>
                 <div className="relative">
                   <Input
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ?"text" : "password"}
                     value={formPassword}
                     onChange={(e) => setFormPassword(e.target.value)}
-                    placeholder={editingUserId ? "Deixe em branco para manter" : "Mínimo 4 caracteres"}
+                    placeholder={editingUserId ?"Deixe em branco para manter" : "Mínimo 4 caracteres"}
                     data-testid="input-user-password"
                   />
                   <Button
@@ -638,7 +638,7 @@ export default function AdminPage() {
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showPassword ?<EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </Button>
                 </div>
               </div>
@@ -692,8 +692,8 @@ export default function AdminPage() {
                 data-testid="switch-user-ativo"
               />
               <Label className="flex items-center gap-1.5">
-                {formAtivo ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
-                {formAtivo ? "Usuário Ativo" : "Usuário Inativo"}
+                {formAtivo ?<CheckCircle2 className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                {formAtivo ?"Usuário Ativo" : "Usuário Inativo"}
               </Label>
             </div>
 
@@ -730,8 +730,8 @@ export default function AdminPage() {
                           <Button
                             key={level}
                             size="sm"
-                            variant={isActive ? "default" : "outline"}
-                            className={`h-7 text-xs min-w-[90px] ${isActive ? "" : "opacity-60"}`}
+                            variant={isActive ?"default" : "outline"}
+                            className={`h-7 text-xs min-w-[90px] ${isActive ?"" : "opacity-60"}`}
                             onClick={() => setPermission(mod, level)}
                             data-testid={`perm-${mod}-${level}`}
                           >
@@ -756,7 +756,7 @@ export default function AdminPage() {
               data-testid="button-save-user"
             >
               <Save className="w-4 h-4 mr-2" />
-              {editingUserId ? "Salvar Alterações" : "Criar Usuário"}
+              {editingUserId ?"Salvar Alterações" : "Criar Usuário"}
             </Button>
           </DialogFooter>
         </DialogContent>

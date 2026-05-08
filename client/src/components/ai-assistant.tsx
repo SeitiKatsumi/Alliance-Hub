@@ -36,7 +36,7 @@ const presets = [
   {
     icon: Target,
     label: "Oportunidades Quentes",
-    prompt: "Quais são as oportunidades mais promissoras no funil atualmente? Analise por valor e probabilidade de conversão."
+    prompt: "Quais são as oportunidades mais promissoras no funil atualmente?Analise por valor e probabilidade de conversão."
   },
   {
     icon: Lightbulb,
@@ -122,7 +122,7 @@ export function AIAssistant() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {messages.length === 0 ? (
+        {messages.length === 0 ?(
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
               Use os presets abaixo ou faça sua própria pergunta sobre membros, BIAS e oportunidades.
@@ -150,7 +150,7 @@ export function AIAssistant() {
               {messages.map((msg, index) => (
                 <div
                   key={index}
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-3 ${msg.role === "user" ?"justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
                     <div className="p-2 rounded-lg bg-brand-gold/10 h-fit">
@@ -160,7 +160,7 @@ export function AIAssistant() {
                   <div
                     className={`max-w-[85%] rounded-lg p-3 text-sm ${
                       msg.role === "user"
-                        ? "bg-brand-navy text-white"
+                        ?"bg-brand-navy text-white"
                         : "bg-muted"
                     }`}
                   >
@@ -228,7 +228,7 @@ export function AIAssistant() {
             className="shrink-0"
             data-testid="button-send-message"
           >
-            {isLoading ? (
+            {isLoading ?(
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />

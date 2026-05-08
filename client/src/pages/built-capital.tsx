@@ -11,7 +11,7 @@ import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 import {
-  Search, MapPin, Phone, Mail, Building2, Coins, Globe, TrendingUp, Users
+  Search, MapPin, Phone, Mail, Building2, Coins, Globe, TrendingUp, Users, LayoutGrid, List
 } from "lucide-react";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -33,6 +33,7 @@ interface Parceiro {
   email?: string;
   foto?: string | null;
   foto_perfil?: string | null;
+  logo_empresa?: string | { id?: string } | null;
   ramo_atuacao?: string | null;
   segmento?: string | null;
   especialidade?: string | null;
@@ -48,6 +49,13 @@ function fotoUrl(p: Parceiro, size = 200): string | null {
   return `/api/assets/${f}?width=${size}&height=${size}&fit=cover`;
 }
 
+function logoEmpresaUrl(p: Parceiro): string | null {
+  const logo = p.logo_empresa;
+  if (!logo) return null;
+  const id = typeof logo === "string" ?logo : logo.id;
+  return id ?`/api/assets/${id}?width=160&height=80&fit=contain` : null;
+}
+
 function getInitials(nome?: string): string {
   if (!nome) return "?";
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -58,6 +66,31 @@ function avatarColor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
+}
+
+function normalizeFilterText(value?: string | null): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[.,;/|()[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTerritorioKey(value?: string | null): string {
+  return normalizeFilterText(value)
+    .replace(/\b(brasil|brazil|japao|japan|portugal|usa|eua|estados unidos|united states)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatFilterLabel(value: string): string {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  return cleaned
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|\s|[-'/])\p{L}/gu, (letter) => letter.toLocaleUpperCase("pt-BR"));
 }
 
 // ===== MAPA =====
@@ -167,7 +200,7 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
             const isSelected = !isMulti && selected?.id === cluster.items[0]?.id;
             const isClusterSelected = isMulti && clusterItems === cluster.items;
             const r = Math.max(2, 5 / zoom);
-            const foto = !isMulti ? fotoUrl(cluster.items[0], 80) : null;
+            const foto = !isMulti ?fotoUrl(cluster.items[0], 80) : null;
             const photoR = r * 2.2;
             const clipId = `clip-cap-${idx}`;
 
@@ -184,18 +217,18 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
                 }}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isSelected || isClusterSelected ? 5 : 4)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.15 : 0.06}>
+                  <circle r={r * (isSelected || isClusterSelected ?5 : 4)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ?0.15 : 0.06}>
                     <animate attributeName="r" from={r * 2.8} to={r * 5} dur="2s" repeatCount="indefinite" />
                     <animate attributeName="fill-opacity" from="0.35" to="0" dur="2s" repeatCount="indefinite" />
                   </circle>
-                  <circle r={photoR + r * 0.35} fill="none" stroke="#D7BB7D" strokeWidth={r * (isSelected ? 0.55 : 0.28)} strokeOpacity={isSelected || isClusterSelected ? 0.9 : 0.6} />
+                  <circle r={photoR + r * 0.35} fill="none" stroke="#D7BB7D" strokeWidth={r * (isSelected ?0.55 : 0.28)} strokeOpacity={isSelected || isClusterSelected ?0.9 : 0.6} />
                   <defs><clipPath id={clipId}><circle r={photoR} /></clipPath></defs>
-                  {isMulti ? (
+                  {isMulti ?(
                     <>
                       <circle r={photoR} fill="#001D34" clipPath={`url(#${clipId})`} />
                       <text textAnchor="middle" dominantBaseline="central" fontSize={r * 1.4} fontWeight="bold" fontFamily="monospace" fill="#D7BB7D">{cluster.items.length}</text>
                     </>
-                  ) : foto ? (
+                  ) : foto ?(
                     <image href={foto} x={-photoR} y={-photoR} width={photoR * 2} height={photoR * 2} clipPath={`url(#${clipId})`} preserveAspectRatio="xMidYMid slice" />
                   ) : (
                     <>
@@ -308,7 +341,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
 
       {/* Avatar */}
       <div className="flex justify-center pt-6 pb-3">
-        {foto ? (
+        {foto ?(
           <img
             src={foto}
             alt={parceiro.nome}
@@ -382,7 +415,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
         )}
         {parceiro.link_site && (
           <a
-            href={parceiro.link_site.startsWith("http") ? parceiro.link_site : `https://${parceiro.link_site}`}
+            href={parceiro.link_site.startsWith("http") ?parceiro.link_site : `https://${parceiro.link_site}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
@@ -398,12 +431,193 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
   );
 }
 
+function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
+  const [, navigate] = useLocation();
+  const foto = fotoUrl(parceiro);
+  const logo = logoEmpresaUrl(parceiro);
+  const nome = parceiro.nome || "—";
+
+  return (
+    <div
+      className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01]"
+      style={{
+        background: "linear-gradient(145deg, #071626, #040e1c)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+        borderColor: "rgba(255,255,255,0.06)",
+      }}
+      onClick={() => navigate(`/vitrine/${parceiro.id}`)}
+      data-testid={`card-capital-${parceiro.id}`}
+    >
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-gold/30 to-transparent" />
+      <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
+      <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
+
+      <div className="p-4 space-y-3">
+        <div className="flex justify-center">
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
+            style={{
+              background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
+              boxShadow: "0 0 16px rgba(215,187,125,0.1)",
+            }}
+          >
+            {foto ?(
+              <img src={foto} alt={nome} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center space-y-1.5">
+          <p className="text-sm font-semibold text-white font-mono leading-tight line-clamp-2">{nome}</p>
+          {parceiro.segmento && <p className="text-xs text-brand-gold/60 font-mono truncate">{parceiro.segmento}</p>}
+
+          {parceiro.empresa && (
+            <div className="flex items-center justify-center gap-2 min-w-0">
+              {logo ?(
+                <span className="flex h-7 w-12 shrink-0 items-center justify-center">
+                  <img src={logo} alt={`Marca ${parceiro.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
+                </span>
+              ) : (
+                <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+              )}
+              <span className="text-xs text-white/40 truncate">{parceiro.empresa}</span>
+            </div>
+          )}
+
+          {(parceiro.cidade || parceiro.estado) && (
+            <div className="flex items-center justify-center gap-1">
+              <MapPin className="w-3 h-3 text-white/20 shrink-0" />
+              <span className="text-xs text-white/35 truncate">{[parceiro.cidade, parceiro.estado].filter(Boolean).join(", ")}</span>
+            </div>
+          )}
+
+          {parceiro.link_site && (
+            <a
+              href={parceiro.link_site.startsWith("http") ?parceiro.link_site : `https://${parceiro.link_site}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center justify-center gap-1 text-xs text-brand-gold/50 hover:text-brand-gold transition-colors font-mono"
+            >
+              <Globe className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[120px]">{parceiro.link_site.replace(/^https?:\/\/(www\.)?/, "")}</span>
+            </a>
+          )}
+        </div>
+
+        {(parceiro.whatsapp || parceiro.email) && (
+          <div className="flex gap-2 border-t border-white/5 pt-3">
+            {parceiro.whatsapp && (
+              <a
+                href={`https://wa.me/${parceiro.whatsapp.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="flex-1 flex items-center justify-center py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+                title="WhatsApp"
+              >
+                <Phone className="w-3.5 h-3.5 text-[#25D366]" />
+              </a>
+            )}
+            {parceiro.email && (
+              <a
+                href={`mailto:${parceiro.email}`}
+                onClick={e => e.stopPropagation()}
+                className="flex-1 flex items-center justify-center py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+                title="E-mail"
+              >
+                <Mail className="w-3.5 h-3.5 text-brand-gold/60" />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
+  const [, navigate] = useLocation();
+  const foto = fotoUrl(parceiro);
+  const logo = logoEmpresaUrl(parceiro);
+  const nome = parceiro.nome || "—";
+
+  return (
+    <div
+      className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
+      style={{
+        background: "linear-gradient(145deg, #071626, #040e1c)",
+        borderColor: "rgba(255,255,255,0.06)",
+      }}
+      onClick={() => navigate(`/vitrine/${parceiro.id}`)}
+      data-testid={`list-capital-${parceiro.id}`}
+    >
+      <div
+        className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
+        style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}
+      >
+        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-white font-mono truncate">{nome}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
+          {parceiro.empresa && (
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              {logo ?<img src={logo} alt={`Marca ${parceiro.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
+              <span className="truncate max-w-[220px]">{parceiro.empresa}</span>
+            </span>
+          )}
+          {(parceiro.segmento || parceiro.ramo_atuacao || parceiro.cargo) && (
+            <span className="truncate max-w-[260px]">{parceiro.segmento || parceiro.ramo_atuacao || parceiro.cargo}</span>
+          )}
+          {(parceiro.cidade || parceiro.estado) && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {[parceiro.cidade, parceiro.estado].filter(Boolean).join(", ")}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-2 shrink-0">
+        {parceiro.whatsapp && (
+          <a
+            href={`https://wa.me/${parceiro.whatsapp.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-[#25D366] hover:bg-white/5"
+            title="WhatsApp"
+          >
+            <Phone className="w-3.5 h-3.5" />
+          </a>
+        )}
+        {parceiro.email && (
+          <a
+            href={`mailto:${parceiro.email}`}
+            onClick={e => e.stopPropagation()}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-brand-gold/70 hover:bg-white/5"
+            title="E-mail"
+          >
+            <Mail className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ===== MAIN PAGE =====
 export default function BuiltCapitalPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [filterEstado, setFilterEstado] = useState("all");
+  const [filterTerritorio, setFilterTerritorio] = useState("all");
   const [filterRamo, setFilterRamo] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"default" | "az" | "za">("default");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const { data: parceiros = [], isLoading } = useQuery<Parceiro[]>({
     queryKey: ["/api/parceiros-capital"],
@@ -411,33 +625,74 @@ export default function BuiltCapitalPage() {
       const r = await fetch("/api/parceiros-capital");
       if (!r.ok) return [];
       const data = await r.json();
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ?data : [];
     },
   });
 
   const ramos = useMemo(() => {
-    const set = new Set<string>();
-    parceiros.forEach(p => { if (p.ramo_atuacao) set.add(p.ramo_atuacao); });
-    return Array.from(set).sort();
+    const map = new Map<string, string>();
+    parceiros.forEach(p => {
+      const key = normalizeFilterText(p.ramo_atuacao);
+      if (!key) return;
+      const label = formatFilterLabel(p.ramo_atuacao || "");
+      const current = map.get(key);
+      if (!current || label.length < current.length || current === current.toLocaleUpperCase("pt-BR")) {
+        map.set(key, label);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [parceiros]);
+
+  const territorios = useMemo(() => {
+    const map = new Map<string, string>();
+    parceiros.forEach(p => {
+      const key = normalizeTerritorioKey(p.cidade || p.estado || p.pais);
+      if (!key) return;
+      const label = formatFilterLabel(key);
+      const current = map.get(key);
+      if (!current || label.length < current.length) {
+        map.set(key, label);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [parceiros]);
 
   const filtered = useMemo(() => {
-    return parceiros.filter(p => {
-      const nome = (p.nome || "").toLowerCase();
-      const empresa = (p.empresa || "").toLowerCase();
-      const segmento = (p.segmento || "").toLowerCase();
-      const q = search.toLowerCase();
+    const list = parceiros.filter(p => {
+      const nome = normalizeFilterText(p.nome);
+      const empresa = normalizeFilterText(p.empresa);
+      const segmento = normalizeFilterText(p.segmento);
+      const ramo = normalizeFilterText(p.ramo_atuacao);
+      const q = normalizeFilterText(search);
       const matchSearch = !q || nome.includes(q) || empresa.includes(q) || segmento.includes(q);
-      const matchEstado = filterEstado === "all" || (p.estado || "").toUpperCase() === filterEstado;
-      const matchRamo = filterRamo === "all" || (p.ramo_atuacao || "") === filterRamo;
-      return matchSearch && matchEstado && matchRamo;
+      const matchTerritorio = filterTerritorio === "all" || normalizeTerritorioKey(p.cidade || p.estado || p.pais) === filterTerritorio;
+      const matchRamo = filterRamo === "all" || ramo === filterRamo;
+      return matchSearch && matchTerritorio && matchRamo;
     });
-  }, [parceiros, search, filterEstado, filterRamo]);
+    if (sortOrder === "default") return list;
+    return [...list].sort((a, b) => {
+      const compare = (a.nome || a.empresa || "").localeCompare(b.nome || b.empresa || "", "pt-BR", { sensitivity: "base" });
+      return sortOrder === "az" ? compare : -compare;
+    });
+  }, [parceiros, search, filterTerritorio, filterRamo, sortOrder]);
 
   const estadosPresentes = useMemo(() => {
     const set = new Set(parceiros.map(p => p.estado).filter(Boolean));
     return ESTADOS_BR.filter(e => set.has(e));
   }, [parceiros]);
+
+  const hasFilters = search || filterTerritorio !== "all" || filterRamo !== "all" || sortOrder !== "default";
+
+  function clearFilters() {
+    setSearch("");
+    setFilterTerritorio("all");
+    setFilterRamo("all");
+    setSortOrder("default");
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -449,9 +704,12 @@ export default function BuiltCapitalPage() {
             <div className="p-2 rounded-lg text-brand-navy" style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)" }}>
               <Coins className="w-6 h-6" />
             </div>
-            Parceiros Capital
+            BUILT Capital
           </h1>
-          <p className="text-sm text-white/40 font-mono mt-1">Rede de investidores e parceiros estratégicos</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Rede de investidores e parceiros estratégicos
+            {hasFilters && ` · ${filtered.length} exibindo`}
+          </p>
         </div>
 
         {/* Stats bar */}
@@ -483,43 +741,73 @@ export default function BuiltCapitalPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar parceiro..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-brand-gold/40"
+            className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground"
             data-testid="input-busca-capital"
           />
         </div>
-        <Select value={filterEstado} onValueChange={setFilterEstado}>
-          <SelectTrigger className="w-36 bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-estado-capital">
-            <SelectValue placeholder="Estado" />
+        <Select value={filterTerritorio} onValueChange={setFilterTerritorio}>
+          <SelectTrigger className="w-44 bg-background border-border text-foreground" data-testid="select-territorio-capital">
+            <SelectValue placeholder="Território" />
           </SelectTrigger>
-          <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-            <SelectItem value="all" className="text-white/80 focus:bg-brand-gold/10 focus:text-white">Todos os estados</SelectItem>
-            {estadosPresentes.map(e => (
-              <SelectItem key={e} value={e} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{e}</SelectItem>
+          <SelectContent className="max-h-64">
+            <SelectItem value="all">Todos os territórios</SelectItem>
+            {territorios.map(t => (
+              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         {ramos.length > 0 && (
           <Select value={filterRamo} onValueChange={setFilterRamo}>
-            <SelectTrigger className="w-44 bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-ramo-capital">
+            <SelectTrigger className="w-44 bg-background border-border text-foreground" data-testid="select-ramo-capital">
               <SelectValue placeholder="Ramo" />
             </SelectTrigger>
-            <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-              <SelectItem value="all" className="text-white/80 focus:bg-brand-gold/10 focus:text-white">Todos os ramos</SelectItem>
+            <SelectContent className="max-h-64">
+              <SelectItem value="all">Todos os ramos</SelectItem>
               {ramos.map(r => (
-                <SelectItem key={r} value={r} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">{r}</SelectItem>
+                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
-        {(search || filterEstado !== "all" || filterRamo !== "all") && (
+        <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "default" | "az" | "za")}>
+          <SelectTrigger className="w-36 bg-background border-border text-foreground" data-testid="select-ordem-capital">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Ordenar</SelectItem>
+            <SelectItem value="az">A-Z</SelectItem>
+            <SelectItem value="za">Z-A</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex h-9 overflow-hidden rounded-lg border border-border">
+          <button
+            type="button"
+            title="Ver em grade"
+            onClick={() => setViewMode("grid")}
+            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "grid" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            data-testid="btn-capital-view-grid"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Ver em lista"
+            onClick={() => setViewMode("list")}
+            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "list" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            data-testid="btn-capital-view-list"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
+        {hasFilters && (
           <Button variant="ghost" size="sm"
-            onClick={() => { setSearch(""); setFilterEstado("all"); setFilterRamo("all"); }}
-            className="text-white/40 hover:text-white/70 font-mono text-xs"
+            onClick={clearFilters}
+            className="text-muted-foreground hover:text-foreground font-mono text-xs"
             data-testid="btn-limpar-filtros-capital">
             Limpar filtros
           </Button>
@@ -527,23 +815,25 @@ export default function BuiltCapitalPage() {
       </div>
 
       {/* Grid */}
-      {isLoading ? (
+      {isLoading ?(
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-white/5 h-64 animate-pulse" style={{ background: "rgba(255,255,255,0.025)" }} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 ?(
         <div className="text-center py-20">
           <Coins className="w-12 h-12 text-white/10 mx-auto mb-3" />
           <p className="text-white/30 font-mono text-sm">
-            {parceiros.length === 0 ? "Nenhum parceiro de capital cadastrado ainda" : "Nenhum parceiro encontrado com os filtros aplicados"}
+            {parceiros.length === 0 ?"Nenhum parceiro de capital cadastrado ainda" : "Nenhum parceiro encontrado com os filtros aplicados"}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className={viewMode === "list" ?"space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}>
           {filtered.map(p => (
-            <ParceiroCard key={p.id} parceiro={p} />
+            viewMode === "list"
+              ? <CapitalListItem key={p.id} parceiro={p} />
+              : <CapitalCard key={p.id} parceiro={p} />
           ))}
         </div>
       )}

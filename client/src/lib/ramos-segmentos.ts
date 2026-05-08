@@ -1,4 +1,4 @@
-export interface SegmentoItem {
+﻿export interface SegmentoItem {
   codigo: string;
   nome: string;
 }
@@ -335,3 +335,5 @@ export function getRamoNome(ramo_atuacao: string): string {
 export function getSegmentosForRamo(ramo_atuacao: string): SegmentoItem[] {
   return RAMOS_SEGMENTOS.find(r => r.nome === ramo_atuacao)?.segmentos ?? [];
 }
+
+

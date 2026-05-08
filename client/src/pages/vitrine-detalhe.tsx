@@ -69,7 +69,7 @@ function fotoUrl(foto?: string | null): string | null {
 function whatsappLink(w?: string): string | null {
   if (!w) return null;
   const digits = w.replace(/\D/g, "");
-  return `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`;
+  return `https://wa.me/${digits.startsWith("55") ?digits : "55" + digits}`;
 }
 
 function InfoRow({ icon: Icon, label, value, href }: {
@@ -83,7 +83,7 @@ function InfoRow({ icon: Icon, label, value, href }: {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">{label}</p>
-        {href ? (
+        {href ?(
           <a
             href={href}
             target="_blank"
@@ -131,7 +131,7 @@ export default function VitrineDetalhePage() {
 
   const { data: convidador } = useQuery<{ id: string; nome: string } | null>({
     queryKey: ["/api/membros", membro?.id, "convidador"],
-    queryFn: () => fetch(`/api/membros/${membro!.id}/convidador`).then(r => r.ok ? r.json() : null),
+    queryFn: () => fetch(`/api/membros/${membro!.id}/convidador`).then(r => r.ok ?r.json() : null),
     enabled: !!membro?.id,
   });
 
@@ -165,13 +165,13 @@ export default function VitrineDetalhePage() {
   const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   // Communities where the current user is the aliado OR an active member (both can create invites)
   const minhasComunidadesComoAliado = minhasComunidades.filter(c => {
-    const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
+    const aliadoId = typeof c.aliado === "object" && c.aliado !== null ?c.aliado.id : c.aliado;
     if (aliadoId === user?.membro_directus_id) return true;
     // Check if user is a member of this community
-    const membros = Array.isArray(c.membros) ? c.membros : [];
+    const membros = Array.isArray(c.membros) ?c.membros : [];
     return membros.some(m => {
       const mid = typeof m.cadastro_geral_id === "object" && m.cadastro_geral_id !== null
-        ? m.cadastro_geral_id.id
+        ?m.cadastro_geral_id.id
         : m.cadastro_geral_id;
       return mid === user?.membro_directus_id;
     });
@@ -248,11 +248,11 @@ export default function VitrineDetalhePage() {
             <div
               className="w-24 h-24 rounded-2xl shrink-0 flex items-center justify-center overflow-hidden border-2 border-brand-gold/25"
               style={{
-                background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
+                background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
                 boxShadow: "0 0 32px rgba(215,187,125,0.12)",
               }}
             >
-              {foto ? (
+              {foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-3xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
@@ -315,7 +315,7 @@ export default function VitrineDetalhePage() {
             )}
             {canInvite && (
               <button
-                onClick={() => { setConvidarOpen(true); setConviteEnviado(false); setComunidadeSelectedId(minhasComunidadesComoAliado.length === 1 ? minhasComunidadesComoAliado[0].id : ""); }}
+                onClick={() => { setConvidarOpen(true); setConviteEnviado(false); setComunidadeSelectedId(minhasComunidadesComoAliado.length === 1 ?minhasComunidadesComoAliado[0].id : ""); }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-mono border border-brand-gold/25 text-brand-gold hover:bg-brand-gold/10 transition-all"
                 style={{ background: "rgba(215,187,125,0.05)" }}
                 data-testid="btn-convidar-comunidade"
@@ -337,14 +337,14 @@ export default function VitrineDetalhePage() {
             </p>
             <div>
               <InfoRow icon={Phone} label="WhatsApp" value={membro.whatsapp || membro.whatsapp_e164} href={wa || undefined} />
-              <InfoRow icon={Mail} label="E-mail" value={membro.email} href={membro.email ? `mailto:${membro.email}` : undefined} />
+              <InfoRow icon={Mail} label="E-mail" value={membro.email} href={membro.email ?`mailto:${membro.email}` : undefined} />
               <InfoRow icon={MapPin} label="Localização" value={localidade || null} />
               {convidador && (
                 <InfoRow icon={UserCheck} label="Convidado por" value={convidador.nome} href={`/vitrine/${convidador.id}`} />
               )}
               {(membro.link_site || membro.site) && (() => {
                 const site = membro.link_site || membro.site!;
-                return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ? site : `https://${site}`} />;
+                return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ?site : `https://${site}`} />;
               })()}
               {membro.instagram && (
                 <InfoRow icon={ExternalLink} label="Instagram" value={membro.instagram}
@@ -408,15 +408,15 @@ export default function VitrineDetalhePage() {
                     </div>
                   )}
                   {(() => {
-                    const tipos = (membro.tipos_alianca || []).length > 0 ? membro.tipos_alianca! : membro.tipo_alianca ? [membro.tipo_alianca] : [];
+                    const tipos = (membro.tipos_alianca || []).length > 0 ?membro.tipos_alianca! : membro.tipo_alianca ?[membro.tipo_alianca] : [];
                     const nucleos = (membro.nucleos_alianca || []).length > 0
-                      ? membro.nucleos_alianca!
-                      : membro.nucleo_alianca ? [membro.nucleo_alianca] : getNucleosForTipos(tipos);
-                    return (nucleos.length > 0 || tipos.length > 0) ? (
+                      ?membro.nucleos_alianca!
+                      : membro.nucleo_alianca ?[membro.nucleo_alianca] : getNucleosForTipos(tipos);
+                    return (nucleos.length > 0 || tipos.length > 0) ?(
                       <div className="grid grid-cols-1 gap-3">
                         {nucleos.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ? "Núcleos" : "Núcleo"}</p>
+                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ?"Núcleos" : "Núcleo"}</p>
                             <p className="text-sm text-gray-800 font-mono">{nucleos.join(", ")}</p>
                           </div>
                         )}
@@ -478,7 +478,7 @@ export default function VitrineDetalhePage() {
             </DialogDescription>
           </DialogHeader>
 
-          {conviteEnviado ? (
+          {conviteEnviado ?(
             <div className="py-6 text-center space-y-3">
               <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto" />
               <p className="text-sm font-mono text-white">Convite enviado com sucesso!</p>
@@ -521,7 +521,7 @@ export default function VitrineDetalhePage() {
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
                   data-testid="btn-confirmar-convite"
                 >
-                  {convidarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  {convidarMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                   Enviar Convite
                 </Button>
               </DialogFooter>

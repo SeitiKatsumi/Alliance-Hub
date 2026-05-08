@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -123,9 +123,9 @@ function cleanFileName(value?: string | null): string {
   if (!value) return "";
   return value
     .normalize("NFC")
-    .replace(/Ve�neto/gi, "Veneto")
-    .replace(/Ele�trico/gi, "Elétrico")
-    .replace(/Climatiza��o/gi, "Climatização")
+    .replace(/Veneto/gi, "Veneto")
+    .replace(/El?trico/gi, "Elétrico")
+    .replace(/Climatiza??o/gi, "Climatização")
     .replace(/\uFFFD+/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -187,7 +187,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
               className="h-9 text-sm"
             />
             <Button size="sm" onClick={handleSearch} disabled={loading} className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 shrink-0">
-              {loading ? "..." : <Search className="w-4 h-4" />}
+              {loading ?"..." : <Search className="w-4 h-4" />}
             </Button>
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
@@ -196,7 +196,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
               <button
                 key={r.place_id}
                 onClick={() => setSelected(r)}
-                className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors border ${selected?.place_id === r.place_id ? "bg-brand-gold/15 border-brand-gold/40 text-brand-gold" : "border-transparent hover:bg-muted"}`}
+                className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors border ${selected?.place_id === r.place_id ?"bg-brand-gold/15 border-brand-gold/40 text-brand-gold" : "border-transparent hover:bg-muted"}`}
               >
                 <span className="font-medium">{r.display_name}</span>
                 <span className="block text-muted-foreground mt-0.5">{parseFloat(r.lat).toFixed(4)}, {parseFloat(r.lon).toFixed(4)}</span>
@@ -313,7 +313,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
         <div className="mb-2">
           <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Valor Total</p>
           <p className="text-xs font-semibold tabular-nums" style={{ color: "#D7BB7D99" }}>
-            {totalValor > 0 ? brl(totalValor) : "—"}
+            {totalValor > 0 ?brl(totalValor) : "—"}
           </p>
         </div>
         <div>
@@ -392,19 +392,19 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
                 }}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isSelected || isClusterSel ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={0.06}>
+                  <circle r={r * (isSelected || isClusterSel ?5.5 : isHovered ?4.5 : 3.5)} fill="#D7BB7D" fillOpacity={0.06}>
                     <animate attributeName="r" from={r * 2.5} to={r * 5} dur="1.6s" repeatCount="indefinite" />
                     <animate attributeName="fill-opacity" from="0.4" to="0" dur="1.6s" repeatCount="indefinite" />
                   </circle>
-                  <circle r={r * (isSelected || isClusterSel ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSel ? 0.4 : isHovered ? 0.3 : 0.18} />
-                  <circle r={r * (isSelected || isClusterSel ? 1.6 : isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * (isSelected || isClusterSel ?3 : isHovered ?2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSel ?0.4 : isHovered ?0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSel ?1.6 : isHovered ?1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
                   <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
                   {isMulti && (
                     <>
-                      <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2} fill={isClusterSel ? "#D7BB7D" : "#001D34"} stroke="#D7BB7D" strokeWidth={0.5} />
+                      <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2} fill={isClusterSel ?"#D7BB7D" : "#001D34"} stroke="#D7BB7D" strokeWidth={0.5} />
                       <text x={r * 1.6} y={r * -1.6} textAnchor="middle" dominantBaseline="central"
                         fontSize={r * 1.0} fontWeight="bold" fontFamily="monospace"
-                        fill={isClusterSel ? "#001D34" : "#D7BB7D"}>{cluster.items.length}</text>
+                        fill={isClusterSel ?"#001D34" : "#D7BB7D"}>{cluster.items.length}</text>
                     </>
                   )}
                 </g>
@@ -426,14 +426,14 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
           style={{
             background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)",
             padding: "28px 24px 14px",
-            opacity: hoveredCluster ? 1 : 0,
-            transform: hoveredCluster ? "translateY(0)" : "translateY(6px)",
+            opacity: hoveredCluster ?1 : 0,
+            transform: hoveredCluster ?"translateY(0)" : "translateY(6px)",
           }}
         >
           {hoveredCluster && (
             <div className="flex items-end justify-between font-mono">
               <div>
-                {hoveredCluster.items.length > 1 ? (
+                {hoveredCluster.items.length > 1 ?(
                   <>
                     <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para selecionar</p>
                     <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items.length} OPAs neste local</p>
@@ -611,10 +611,10 @@ function EncerramentoDialog({ open, onClose, onConfirm }: {
           </Button>
           <Button
             onClick={handleConfirm}
-            className={tipo === "concluida" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"}
+            className={tipo === "concluida" ?"bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"}
             data-testid="btn-encerramento-confirmar"
           >
-            {tipo === "concluida" ? <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <XCircle className="w-3.5 h-3.5 mr-1.5" />}
+            {tipo === "concluida" ?<CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <XCircle className="w-3.5 h-3.5 mr-1.5" />}
             Confirmar Encerramento
           </Button>
         </DialogFooter>
@@ -639,7 +639,7 @@ function OpaCard({
   return (
     <>
     <Card
-      className={`transition-colors group flex flex-col cursor-pointer ${isClosed ? "opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
+      className={`transition-colors group flex flex-col cursor-pointer ${isClosed ?"opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
       data-testid={`card-opa-${opa.id}`}
       onClick={onViewDetail}
     >
@@ -746,11 +746,11 @@ function OpaCard({
         {/* Footer: data criação + anexos */}
         {(opa.date_created || (opa.Anexos && opa.Anexos.length > 0)) && (
           <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
-            {opa.date_created ? (
+            {opa.date_created ?(
               <span className="text-[10px] text-muted-foreground/50">
                 {(() => {
                   const dias = Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000);
-                  return dias === 0 ? "Publicada hoje" : dias === 1 ? "Publicada há 1 dia" : `Publicada há ${dias} dias`;
+                  return dias === 0 ?"Publicada hoje" : dias === 1 ?"Publicada há 1 dia" : `Publicada há ${dias} dias`;
                 })()}
               </span>
             ) : <span />}
@@ -825,10 +825,10 @@ export function OpaFormDialog({
         status: opa.status || "ativa",
         bia_id: opa.bia_id || "",
         valor_origem_opa: n(opa.valor_origem_opa) > 0
-          ? (n(opa.valor_origem_opa)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+          ?(n(opa.valor_origem_opa)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
           : "",
         Minimo_esforco_multiplicador: n(opa.Minimo_esforco_multiplicador) > 0
-          ? String(n(opa.Minimo_esforco_multiplicador))
+          ?String(n(opa.Minimo_esforco_multiplicador))
           : "",
         nucleo_alianca: opa.nucleo_alianca || "",
         descricao: opa.descricao || "",
@@ -850,11 +850,11 @@ export function OpaFormDialog({
   const saveMutation = useMutation({
     mutationFn: (data: any) =>
       opa
-        ? apiRequest("PATCH", `/api/oportunidades/${opa.id}`, data)
+        ?apiRequest("PATCH", `/api/oportunidades/${opa.id}`, data)
         : apiRequest("POST", "/api/oportunidades", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
-      toast({ title: opa ? "OPA atualizada" : "OPA criada" });
+      toast({ title: opa ?"OPA atualizada" : "OPA criada" });
       onClose();
     },
     onError: (e: any) => {
@@ -914,7 +914,7 @@ export function OpaFormDialog({
         status: form.status || "ativa",
         bia: form.bia_id || null,
         valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
-        Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ? parseFloat(form.Minimo_esforco_multiplicador) : null,
+        Minimo_esforco_multiplicador: form.Minimo_esforco_multiplicador ?parseFloat(form.Minimo_esforco_multiplicador) : null,
         nucleo_alianca: form.nucleo_alianca || null,
         descricao: form.descricao || null,
         perfil_aliado: form.perfil_aliado || null,
@@ -933,7 +933,7 @@ export function OpaFormDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{opa ? "Editar OPA" : "Nova OPA"}</DialogTitle>
+          <DialogTitle>{opa ?"Editar OPA" : "Nova OPA"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -957,7 +957,7 @@ export function OpaFormDialog({
               onValueChange={v => setForm(f => ({ ...f, bia_id: v }))}
             >
               <SelectTrigger
-                className={`h-8 text-sm ${!form.bia_id ? "text-muted-foreground border-destructive/40" : ""}`}
+                className={`h-8 text-sm ${!form.bia_id ?"text-muted-foreground border-destructive/40" : ""}`}
                 data-testid="select-opa-bia"
               >
                 <SelectValue placeholder="Selecione a BIA..." />
@@ -987,7 +987,7 @@ export function OpaFormDialog({
               onValueChange={v => setForm(f => ({ ...f, nucleo_alianca: v }))}
             >
               <SelectTrigger
-                className={`h-8 text-sm ${!form.nucleo_alianca ? "text-muted-foreground border-destructive/40" : ""}`}
+                className={`h-8 text-sm ${!form.nucleo_alianca ?"text-muted-foreground border-destructive/40" : ""}`}
                 data-testid="select-opa-nucleo"
               >
                 <SelectValue placeholder="Selecionar núcleo..." />
@@ -1009,7 +1009,7 @@ export function OpaFormDialog({
               onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
             >
               <SelectTrigger
-                className={`h-8 text-sm ${!form.tipo ? "text-muted-foreground border-destructive/40" : ""}`}
+                className={`h-8 text-sm ${!form.tipo ?"text-muted-foreground border-destructive/40" : ""}`}
                 data-testid="select-opa-tipo"
               >
                 <SelectValue placeholder="Selecionar tipo..." />
@@ -1062,7 +1062,7 @@ export function OpaFormDialog({
                 data-testid="btn-opa-location-picker"
               >
                 <MapPin className="w-3.5 h-3.5 mr-1" />
-                {formLat ? "Alterar" : "📍 Localizar"}
+                {formLat ?"Alterar" : "ðŸ“ Localizar"}
               </Button>
               {formLat !== null && (
                 <Button
@@ -1210,7 +1210,7 @@ export function OpaFormDialog({
               data-testid="btn-upload-opa-anexo"
             >
               <Upload className="w-3.5 h-3.5" />
-              {uploading ? "Enviando..." : "Adicionar arquivos"}
+              {uploading ?"Enviando..." : "Adicionar arquivos"}
             </button>
             <input
               ref={fileInputRef}
@@ -1236,7 +1236,7 @@ export function OpaFormDialog({
             className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
             data-testid="btn-save-opa"
           >
-            {uploading ? "Enviando arquivos..." : saveMutation.isPending ? "Salvando..." : opa ? "Salvar" : "Criar OPA"}
+            {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OPA"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1408,14 +1408,14 @@ export default function OportunidadesPage() {
       )}
 
       {/* Content */}
-      {loading ? (
+      {loading ?(
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-60" />)}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 ?(
         <Card>
           <CardContent className="p-12 text-center">
-            {search || filterBia !== "__all__" ? (
+            {search || filterBia !== "__all__" ?(
               <>
                 <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
                 <p className="text-muted-foreground">Nenhuma OPA encontrada com esses filtros</p>
@@ -1438,7 +1438,7 @@ export default function OportunidadesPage() {
             <OpaCard
               key={opa.id}
               opa={opa}
-              bia={opa.bia_id ? biasMap[opa.bia_id] : undefined}
+              bia={opa.bia_id ?biasMap[opa.bia_id] : undefined}
               onViewDetail={() => navigate(`/opas/${opa.id}`)}
             />
           ))}
@@ -1448,3 +1448,4 @@ export default function OportunidadesPage() {
     </div>
   );
 }
+

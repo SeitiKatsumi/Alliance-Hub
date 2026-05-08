@@ -7,6 +7,7 @@ const config: AliancaDocsPageConfig = {
   subtitulo: "Documentos de execução e fornecimento",
   accentColor: "#E8845A",
   icon: HardHat,
+  theme: "light",
   aliancas: [
     {
       key: "execucao",

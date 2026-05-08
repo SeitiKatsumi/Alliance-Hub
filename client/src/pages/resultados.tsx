@@ -98,7 +98,7 @@ function MetricCard({
   icon: any; color?: string; border?: string; highlight?: boolean;
 }) {
   return (
-    <Card className={`${border} ${highlight ? "bg-gradient-to-br from-brand-gold/5 to-transparent" : ""}`}>
+    <Card className={`${border} ${highlight ?"bg-gradient-to-br from-brand-gold/5 to-transparent" : ""}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         <Icon className={`w-4 h-4 ${color}`} />
@@ -112,9 +112,9 @@ function MetricCard({
 }
 
 function RowItem({ label, value, sub, positive, currency = "BRL", withBorder = true }: { label: string; value: number; sub?: string; positive?: boolean; currency?: string; withBorder?: boolean }) {
-  const cls = positive !== undefined ? (positive ? "text-green-600" : "text-red-600") : colorClass(value);
+  const cls = positive !== undefined ?(positive ?"text-green-600" : "text-red-600") : colorClass(value);
   return (
-    <div className={`flex items-start justify-between gap-4 py-2 ${withBorder ? "border-b border-border/40 last:border-0" : ""}`}>
+    <div className={`flex items-start justify-between gap-4 py-2 ${withBorder ?"border-b border-border/40 last:border-0" : ""}`}>
       <div className="min-w-0">
         <span className="text-sm">{label}</span>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
@@ -151,8 +151,8 @@ export default function ResultadosPage() {
   useEffect(() => {
     if ((biasRaw as BiasProjeto[]).length > 0 && !selectedBiaId) {
       const lastUsed = localStorage.getItem("resultados-bia-id");
-      const found = lastUsed ? (biasRaw as BiasProjeto[]).find((b) => b.id === lastUsed) : null;
-      setSelectedBiaId(found ? lastUsed! : (biasRaw as BiasProjeto[])[0].id);
+      const found = lastUsed ?(biasRaw as BiasProjeto[]).find((b) => b.id === lastUsed) : null;
+      setSelectedBiaId(found ?lastUsed! : (biasRaw as BiasProjeto[])[0].id);
     }
   }, [biasRaw, selectedBiaId]);
 
@@ -166,8 +166,8 @@ export default function ResultadosPage() {
     if (bia) {
       const vgvNum = n(bia.valor_geral_venda_vgv);
       const vrNum = n(bia.valor_realizado_venda);
-      setVgvEdit(vgvNum > 0 ? formatInputBRL(String(Math.round(vgvNum * 100))) : "");
-      setValorRealizadoEdit(vrNum > 0 ? formatInputBRL(String(Math.round(vrNum * 100))) : "");
+      setVgvEdit(vgvNum > 0 ?formatInputBRL(String(Math.round(vgvNum * 100))) : "");
+      setValorRealizadoEdit(vrNum > 0 ?formatInputBRL(String(Math.round(vrNum * 100))) : "");
       setComissaoRealPct(n(bia.comissao_realizada));
       setIrRealPct(n(bia.ir_realizado));
       setInssRealPct(n(bia.inss_realizado));
@@ -247,9 +247,9 @@ export default function ResultadosPage() {
   const receitaLiquida = valorRealizado - totalDeducoesReal;
   const resultadoLiquido = receitaLiquida - custoCPP;
   const lucroValor = resultadoLiquido - totalSaidasPagas;
-  const roi = totalSaidasPagas > 0 ? ((resultadoLiquido - totalSaidasPagas) / totalSaidasPagas) * 100 : 0;
-  const multiplo = totalSaidasPagas > 0 ? resultadoLiquido / totalSaidasPagas : 0;
-  const percVGV = vgv > 0 ? (valorRealizado / vgv) * 100 : 0;
+  const roi = totalSaidasPagas > 0 ?((resultadoLiquido - totalSaidasPagas) / totalSaidasPagas) * 100 : 0;
+  const multiplo = totalSaidasPagas > 0 ?resultadoLiquido / totalSaidasPagas : 0;
+  const percVGV = vgv > 0 ?(valorRealizado / vgv) * 100 : 0;
   const caixaLiquidoReal = totalAportesPagos - totalSaidasPagas;
 
   const loading = loadingBias || loadingFluxo;
@@ -291,7 +291,7 @@ export default function ResultadosPage() {
         </Select>
       </div>
 
-      {!selectedBiaId ? (
+      {!selectedBiaId ?(
         <Card>
           <CardContent className="p-12 text-center">
             <BarChart3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
@@ -306,16 +306,16 @@ export default function ResultadosPage() {
             <MetricCard
               label="Resultado Líquido"
               value={formatMoney(resultadoLiquido, bia?.moeda || "BRL")}
-              icon={resultadoLiquido >= 0 ? TrendingUp : TrendingDown}
-              color={resultadoLiquido >= 0 ? "text-green-600" : "text-red-600"}
-              border={resultadoLiquido >= 0 ? "border-green-500/30" : "border-red-500/30"}
+              icon={resultadoLiquido >= 0 ?TrendingUp : TrendingDown}
+              color={resultadoLiquido >= 0 ?"text-green-600" : "text-red-600"}
+              border={resultadoLiquido >= 0 ?"border-green-500/30" : "border-red-500/30"}
               highlight
             />
             <MetricCard
               label="Lucro"
               value={formatMoney(lucroValor, bia?.moeda || "BRL")}
               icon={Percent}
-              color={lucroValor >= 0 ? "text-brand-gold" : "text-red-600"}
+              color={lucroValor >= 0 ?"text-brand-gold" : "text-red-600"}
               border="border-brand-gold/30"
               highlight
             />
@@ -323,14 +323,14 @@ export default function ResultadosPage() {
               label="ROI"
               value={pct(roi)}
               icon={Target}
-              color={roi >= 0 ? "text-blue-600" : "text-red-600"}
+              color={roi >= 0 ?"text-blue-600" : "text-red-600"}
               border="border-blue-500/30"
             />
             <MetricCard
               label="Múltiplo do Capital"
               value={`${multiplo.toFixed(2)}x`}
               icon={Layers}
-              color={multiplo >= 1 ? "text-green-600" : "text-red-600"}
+              color={multiplo >= 1 ?"text-green-600" : "text-red-600"}
               border="border-green-500/30"
             />
           </div>
@@ -358,8 +358,8 @@ export default function ResultadosPage() {
               value={formatMoney(caixaLiquidoReal, bia?.moeda || "BRL")}
               sub="aportes − saídas pagas"
               icon={PiggyBank}
-              color={caixaLiquidoReal >= 0 ? "text-green-600" : "text-red-600"}
-              border={caixaLiquidoReal >= 0 ? "border-green-500/30" : "border-red-500/30"}
+              color={caixaLiquidoReal >= 0 ?"text-green-600" : "text-red-600"}
+              border={caixaLiquidoReal >= 0 ?"border-green-500/30" : "border-red-500/30"}
             />
             <MetricCard
               label="% VGV Realizado"
@@ -452,7 +452,7 @@ export default function ResultadosPage() {
 
                 <div className="flex items-center justify-between pt-3">
                   <span className="text-sm font-semibold">Realizado vs VGV</span>
-                  <Badge variant={percVGV >= 100 ? "default" : "secondary"} className="text-xs">
+                  <Badge variant={percVGV >= 100 ?"default" : "secondary"} className="text-xs">
                     {pct(percVGV, 1)} do VGV
                   </Badge>
                 </div>
@@ -552,7 +552,7 @@ export default function ResultadosPage() {
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">Múltiplo</p>
-                    <p className={`text-lg font-bold ${multiplo >= 1 ? "text-green-600" : "text-red-600"}`}>{multiplo.toFixed(2)}x</p>
+                    <p className={`text-lg font-bold ${multiplo >= 1 ?"text-green-600" : "text-red-600"}`}>{multiplo.toFixed(2)}x</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">% VGV</p>

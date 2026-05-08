@@ -209,7 +209,7 @@ function getStatusConfig(status: StatusPagamento | null | undefined) {
     case "cancelado": return { label: "Cancelado",         color: "text-gray-500 bg-gray-500/10 border-gray-400/40",     Icon: XCircle };
     case "agendado":  return { label: "Agendado",          color: "text-purple-600 bg-purple-500/10 border-purple-500/40", Icon: CalendarClock };
     case "pendente":
-    default:          return { label: status ? "Pendente" : "—", color: "text-amber-600 bg-amber-500/10 border-amber-500/40", Icon: Clock };
+    default:          return { label: status ?"Pendente" : "—", color: "text-amber-600 bg-amber-500/10 border-amber-500/40", Icon: Clock };
   }
 }
 
@@ -293,7 +293,7 @@ function isDivisorDeibLancamento(item: FluxoCaixaItem, catMap: Record<number, st
   const descricao = normalizeText(item.descricao);
   const hasDivisor = descricao.startsWith("divisor multiplicador");
   const hasDeib = (item.Categoria || []).some((cat) => {
-    const name = normalizeText(typeof cat === "object" && cat !== null ? cat.Nome_da_categoria : catMap[cat]);
+    const name = normalizeText(typeof cat === "object" && cat !== null ?cat.Nome_da_categoria : catMap[cat]);
     return name.includes("direito economico institucional built") && (name.includes("dei-b") || name.includes("built"));
   });
   return hasDivisor && hasDeib;
@@ -350,7 +350,7 @@ function formatInputPercent(value: string): string {
   const integer = integerPart.replace(/\D/g, "");
   const decimal = decimalParts.join("").replace(/\D/g, "").slice(0, 2);
   if (!integer && !decimal) return "";
-  return decimalParts.length > 0 ? `${integer || "0"},${decimal}` : integer;
+  return decimalParts.length > 0 ?`${integer || "0"},${decimal}` : integer;
 }
 
 function getFileIcon(url: string) {
@@ -409,13 +409,13 @@ function SearchableMembroSelect({
   );
 
   const selectedLabel = useMemo(() => {
-    if (!value || value === "__none__") return allowNone ? "Nenhum" : "";
+    if (!value || value === "__none__") return allowNone ?"Nenhum" : "";
     const found = membros.find((m) => m.id === value);
-    return found ? getMembroNome(found) : "";
+    return found ?getMembroNome(found) : "";
   }, [value, membros, allowNone]);
 
   const filtered = useMemo(() => {
-    if (!search || search.length < 3) return search ? [] : sorted;
+    if (!search || search.length < 3) return search ?[] : sorted;
     const s = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return sorted.filter((m) => {
       const nome = getMembroNome(m).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -433,7 +433,7 @@ function SearchableMembroSelect({
   }
 
   async function handleCreate() {
-    const nome = (createMode ? createName : search).trim();
+    const nome = (createMode ?createName : search).trim();
     if (!nome || !onCreateNew) return;
     setCreating(true);
     try {
@@ -494,31 +494,31 @@ function SearchableMembroSelect({
             </div>
           )}
 
-          {!createMode ? (
+          {!createMode ?(
             <>
               <div className="max-h-52 overflow-y-auto py-1" onWheel={handleDropdownWheel}>
                 {allowNone && (
                   <button
                     type="button"
                     onClick={() => handleSelect("__none__")}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === "__none__" ? "font-medium" : ""}`}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === "__none__" ?"font-medium" : ""}`}
                   >
-                    <Check className={`h-4 w-4 ${value === "__none__" ? "opacity-100" : "opacity-0"}`} />
+                    <Check className={`h-4 w-4 ${value === "__none__" ?"opacity-100" : "opacity-0"}`} />
                     Nenhum
                   </button>
                 )}
-                {search && search.length > 0 && search.length < 3 ? (
+                {search && search.length > 0 && search.length < 3 ?(
                   <p className="px-3 py-2 text-sm text-muted-foreground">Digite ao menos 3 letras...</p>
-                ) : filtered.length === 0 && search.length >= 3 ? (
+                ) : filtered.length === 0 && search.length >= 3 ?(
                   <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum membro encontrado.</p>
                 ) : filtered.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => handleSelect(m.id)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === m.id ? "font-medium" : ""}`}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground ${value === m.id ?"font-medium" : ""}`}
                   >
-                    <Check className={`h-4 w-4 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
+                    <Check className={`h-4 w-4 ${value === m.id ?"opacity-100" : "opacity-0"}`} />
                     {getMembroNome(m)}
                   </button>
                 ))}
@@ -532,7 +532,7 @@ function SearchableMembroSelect({
                     data-testid={`${testId}-create-btn`}
                   >
                     <Plus className="h-4 w-4 shrink-0 text-brand-gold" />
-                    {search.length >= 3 ? `Adicionar "${search}" como favorecido` : "Adicionar novo favorecido"}
+                    {search.length >= 3 ?`Adicionar "${search}" como favorecido` : "Adicionar novo favorecido"}
                   </button>
                 </div>
               )}
@@ -566,11 +566,11 @@ function SearchableMembroSelect({
                       onClick={() => setCreateRole(option.value)}
                       className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs text-left transition-colors ${
                         createRole === option.value
-                          ? "border-brand-gold bg-brand-gold/10 text-brand-navy font-medium"
+                          ?"border-brand-gold bg-brand-gold/10 text-brand-navy font-medium"
                           : "border-border hover:bg-muted"
                       }`}
                     >
-                      <Check className={`h-3.5 w-3.5 ${createRole === option.value ? "opacity-100" : "opacity-0"}`} />
+                      <Check className={`h-3.5 w-3.5 ${createRole === option.value ?"opacity-100" : "opacity-0"}`} />
                       {option.label}
                     </button>
                   ))}
@@ -591,7 +591,7 @@ function SearchableMembroSelect({
                   className="flex-1 px-3 py-1.5 text-xs rounded-md bg-brand-navy text-white hover:bg-brand-navy/90 disabled:opacity-50 transition-colors font-medium"
                   data-testid={`${testId}-create-confirm`}
                 >
-                  {creating ? "Criando..." : "Criar favorecido"}
+                  {creating ?"Criando..." : "Criar favorecido"}
                 </button>
               </div>
             </div>
@@ -652,7 +652,7 @@ function CategoriaCombobox({
   }, [filtered]);
 
   async function handleCreate() {
-    const nome = (createMode ? createName : search).trim();
+    const nome = (createMode ?createName : search).trim();
     if (!nome) {
       setCreateMode(true);
       return;
@@ -661,7 +661,7 @@ function CategoriaCombobox({
     try {
       const res = await apiRequest("POST", "/api/categorias", {
         Nome_da_categoria: nome,
-        Tipo_de_categoria: formTipo === "entrada" ? "Entrada" : "Saída",
+        Tipo_de_categoria: formTipo === "entrada" ?"Entrada" : "Saída",
         Descricao_das_categorias: "Categorias da BIA",
         bia_id: biaId || null,
       });
@@ -688,7 +688,7 @@ function CategoriaCombobox({
           data-testid={`${prefix}-select-categoria`}
           className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {selected ? (
+          {selected ?(
             <span className="min-w-0 text-left leading-tight">
               <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {getPlanoContaGroup(selected)}
@@ -702,7 +702,7 @@ function CategoriaCombobox({
         </button>
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[280px]" align="start">
-        {createMode ? (
+        {createMode ?(
           <div className="p-3 space-y-3">
             <p className="text-xs font-medium text-muted-foreground">Nova categoria desta BIA</p>
             <Input
@@ -740,7 +740,7 @@ function CategoriaCombobox({
                 onClick={handleCreate}
                 data-testid={`${prefix}-button-criar-categoria`}
               >
-                {creating ? "Criando..." : "Criar"}
+                {creating ?"Criando..." : "Criar"}
               </Button>
             </div>
           </div>
@@ -757,7 +757,7 @@ function CategoriaCombobox({
                 value="__none__"
                 onSelect={() => { onValueChange(null); setSearch(""); setOpen(false); }}
               >
-                <Check className={`mr-2 h-4 w-4 ${value === null ? "opacity-100" : "opacity-0"}`} />
+                <Check className={`mr-2 h-4 w-4 ${value === null ?"opacity-100" : "opacity-0"}`} />
                 Nenhuma
               </CommandItem>
             </CommandGroup>
@@ -778,7 +778,7 @@ function CategoriaCombobox({
                   value={String(cat.id)}
                   onSelect={() => { onValueChange(cat.id); setSearch(""); setOpen(false); }}
                 >
-                  <Check className={`mr-2 h-4 w-4 ${value === cat.id ? "opacity-100" : "opacity-0"}`} />
+                  <Check className={`mr-2 h-4 w-4 ${value === cat.id ?"opacity-100" : "opacity-0"}`} />
                   {stripPlanoContaCode(cat.Nome_da_categoria)}
                 </CommandItem>
               ))}
@@ -800,9 +800,9 @@ function CategoriaCombobox({
               >
                 <Plus className="mr-2 h-4 w-4" />
                 {creating
-                  ? "Criando..."
+                  ?"Criando..."
                   : search.trim() && !exactMatch
-                    ? `Nova categoria: "${search.trim()}"`
+                    ?`Nova categoria: "${search.trim()}"`
                     : "Nova categoria"}
               </CommandItem>
             </CommandGroup>
@@ -853,7 +853,7 @@ function FilePickerButton({
         data-testid={`${prefix}-button-upload`}
       >
         <Upload className="w-4 h-4" />
-        {uploading ? "Enviando..." : "Selecionar arquivos"}
+        {uploading ?"Enviando..." : "Selecionar arquivos"}
       </button>
     </div>
   );
@@ -898,10 +898,10 @@ function InlineFilePickerButton({
         onClick={() => inputRef.current?.click()}
         className={`h-9 w-9 inline-flex items-center justify-center rounded-md border transition-colors shrink-0 ${
           count > 0
-            ? "border-brand-gold/60 bg-brand-gold/10 text-brand-navy hover:bg-brand-gold/20"
+            ?"border-brand-gold/60 bg-brand-gold/10 text-brand-navy hover:bg-brand-gold/20"
             : "border-border text-muted-foreground hover:text-brand-navy hover:border-brand-gold/50"
         } disabled:opacity-50 disabled:cursor-not-allowed`}
-        title={count > 0 ? `${count} anexo(s) individual(is)` : "Adicionar anexo individual"}
+        title={count > 0 ?`${count} anexo(s) individual(is)` : "Adicionar anexo individual"}
         data-testid={`${prefix}-button-upload`}
       >
         <Paperclip className="w-4 h-4" />
@@ -996,26 +996,26 @@ function LancamentoFormFields({
   }
 
   function updateRateioItem(id: string, field: "membroId" | "valor", value: string) {
-    setRateioItems(rateioItems.map((item) => item.id === id ? { ...item, [field]: value } : item));
+    setRateioItems(rateioItems.map((item) => item.id === id ?{ ...item, [field]: value } : item));
   }
 
   const valorTotal = parseBRLToNumber(formValor);
   const getRateioItemValor = (item: RateioItem) => {
     const rawValue = parseBRLToNumber(item.valor);
-    return rateioModo === "percentual" ? (valorTotal * rawValue) / 100 : rawValue;
+    return rateioModo === "percentual" ?(valorTotal * rawValue) / 100 : rawValue;
   };
   const totalRateado = rateioItems.reduce((acc, item) => acc + getRateioItemValor(item), 0);
 
   function addRateioItemFiles(id: string, files: globalThis.File[]) {
     setRateioItems(rateioItems.map((item) =>
-      item.id === id ? { ...item, anexos: [...(item.anexos || []), ...files] } : item
+      item.id === id ?{ ...item, anexos: [...(item.anexos || []), ...files] } : item
     ));
   }
 
   function removeRateioItemFile(id: string, fileIndex: number) {
     setRateioItems(rateioItems.map((item) =>
       item.id === id
-        ? { ...item, anexos: (item.anexos || []).filter((_, i) => i !== fileIndex) }
+        ?{ ...item, anexos: (item.anexos || []).filter((_, i) => i !== fileIndex) }
         : item
     ));
   }
@@ -1071,7 +1071,7 @@ function LancamentoFormFields({
         </Label>
         <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/50 text-muted-foreground text-sm" data-testid={`${prefix}-input-data`}>
           <Calendar className="w-3.5 h-3.5 shrink-0" />
-          {formData ? new Date(formData + "T12:00:00").toLocaleDateString("pt-BR") : "-"}
+          {formData ?new Date(formData + "T12:00:00").toLocaleDateString("pt-BR") : "-"}
         </div>
       </div>
 
@@ -1119,7 +1119,7 @@ function LancamentoFormFields({
               <button
                 type="button"
                 onClick={() => { setRateioTipo("individual"); }}
-                className={`px-2.5 py-1 text-xs rounded transition-all ${rateioTipo === "individual" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                className={`px-2.5 py-1 text-xs rounded transition-all ${rateioTipo === "individual" ?"bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                 data-testid={`${prefix}-rateio-individual`}
               >
                 Individual
@@ -1127,7 +1127,7 @@ function LancamentoFormFields({
               <button
                 type="button"
                 onClick={() => { setRateioTipo("grupo"); if (rateioItems.length === 0) addRateioItem(); }}
-                className={`px-2.5 py-1 text-xs rounded transition-all ${rateioTipo === "grupo" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                className={`px-2.5 py-1 text-xs rounded transition-all ${rateioTipo === "grupo" ?"bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                 data-testid={`${prefix}-rateio-grupo`}
               >
                 <span className="flex items-center gap-1"><Users className="w-3 h-3" />Em Grupo</span>
@@ -1136,7 +1136,7 @@ function LancamentoFormFields({
           )}
         </div>
 
-        {(!canUseRateio || rateioTipo === "individual") ? (
+        {(!canUseRateio || rateioTipo === "individual") ?(
           <SearchableMembroSelect
             membros={favorecidosOptions}
             value={formFavorecido}
@@ -1154,7 +1154,7 @@ function LancamentoFormFields({
                 <button
                   type="button"
                   onClick={() => setRateioModo("percentual")}
-                  className={`px-2.5 py-1 text-xs rounded transition-all ${rateioModo === "percentual" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`px-2.5 py-1 text-xs rounded transition-all ${rateioModo === "percentual" ?"bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                   data-testid={`${prefix}-rateio-modo-percentual`}
                 >
                   <span className="flex items-center gap-1"><BadgePercent className="w-3 h-3" />%</span>
@@ -1162,7 +1162,7 @@ function LancamentoFormFields({
                 <button
                   type="button"
                   onClick={() => setRateioModo("valor")}
-                  className={`px-2.5 py-1 text-xs rounded transition-all ${rateioModo === "valor" ? "bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`px-2.5 py-1 text-xs rounded transition-all ${rateioModo === "valor" ?"bg-background shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                   data-testid={`${prefix}-rateio-modo-valor`}
                 >
                   <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />R$</span>
@@ -1171,7 +1171,7 @@ function LancamentoFormFields({
             </div>
 
             {valorTotal > 0 && (
-              <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border ${Math.abs(totalRateado - valorTotal) < 0.01 ? "bg-green-50 border-green-200 text-green-700" : totalRateado > valorTotal ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
+              <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border ${Math.abs(totalRateado - valorTotal) < 0.01 ?"bg-green-50 border-green-200 text-green-700" : totalRateado > valorTotal ?"bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
                 <span>Rateado: <strong>{formatBRL(totalRateado)}</strong></span>
                 <span>Valor total: <strong>{formatBRL(valorTotal)}</strong></span>
                 {Math.abs(totalRateado - valorTotal) < 0.01 && <span className="font-medium">✓ Balanceado</span>}
@@ -1202,14 +1202,14 @@ function LancamentoFormFields({
                         onChange={(e) => updateRateioItem(
                           item.id,
                           "valor",
-                          rateioModo === "percentual" ? formatInputPercent(e.target.value) : formatInputBRL(e.target.value)
+                          rateioModo === "percentual" ?formatInputPercent(e.target.value) : formatInputBRL(e.target.value)
                         )}
                         placeholder="0,00"
                         className="text-sm h-9 pr-9"
                         data-testid={`${prefix}-rateio-valor-${idx}`}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        {rateioModo === "percentual" ? "%" : "R$"}
+                        {rateioModo === "percentual" ?"%" : "R$"}
                       </span>
                     </div>
                     <InlineFilePickerButton
@@ -1267,8 +1267,8 @@ function LancamentoFormFields({
       <div className="space-y-2">
         <Label>Tipo de CPP</Label>
         <Select
-          value={formTiposCpp != null ? String(formTiposCpp) : "__none__"}
-          onValueChange={(v) => setFormTiposCpp(v === "__none__" ? null : parseInt(v, 10))}
+          value={formTiposCpp != null ?String(formTiposCpp) : "__none__"}
+          onValueChange={(v) => setFormTiposCpp(v === "__none__" ?null : parseInt(v, 10))}
         >
           <SelectTrigger data-testid={`${prefix}-select-tipo-cpp`}>
             <SelectValue placeholder="Selecione um tipo de CPP..." />
@@ -1294,7 +1294,7 @@ function LancamentoFormFields({
             <Label className="flex items-center gap-1">Status do Pagamento <span className="text-red-500 text-xs">*obrigatório</span></Label>
             <Select
               value={formStatus || "__none__"}
-              onValueChange={(v) => setFormStatus(v === "__none__" ? "" : v as StatusPagamento)}
+              onValueChange={(v) => setFormStatus(v === "__none__" ?"" : v as StatusPagamento)}
             >
               <SelectTrigger data-testid={`${prefix}-select-status`}>
                 <SelectValue placeholder="Selecione o status..." />
@@ -1471,8 +1471,8 @@ export default function FluxoCaixaPage() {
   useEffect(() => {
     if (bias.length > 0 && !selectedBiaId) {
       const lastUsed = localStorage.getItem("fluxo-caixa-bia-id");
-      const found = lastUsed ? bias.find((b) => b.id === lastUsed) : null;
-      setSelectedBiaId(found ? lastUsed! : bias[0].id);
+      const found = lastUsed ?bias.find((b) => b.id === lastUsed) : null;
+      setSelectedBiaId(found ?lastUsed! : bias[0].id);
     }
   }, [bias, selectedBiaId]);
 
@@ -1491,7 +1491,7 @@ export default function FluxoCaixaPage() {
 
   const { data: categorias = [] } = useQuery<CategoriaItem[]>({
     queryKey: ["/api/categorias", selectedBiaId],
-    queryFn: () => fetch(`/api/categorias${selectedBiaId ? `?bia_id=${encodeURIComponent(selectedBiaId)}` : ""}`).then((r) => {
+    queryFn: () => fetch(`/api/categorias${selectedBiaId ?`?bia_id=${encodeURIComponent(selectedBiaId)}` : ""}`).then((r) => {
       if (!r.ok) throw new Error("Erro ao buscar categorias");
       return r.json();
     }),
@@ -1576,10 +1576,10 @@ export default function FluxoCaixaPage() {
       const n = destinatarios.length;
       resetTransferForm();
       toast({
-        title: wasEditing ? "Solicitação atualizada" : "Solicitação enviada",
+        title: wasEditing ?"Solicitação atualizada" : "Solicitação enviada",
         description: wasEditing
-          ? "A solicitação de transferência foi atualizada."
-          : `${n} solicitaç${n === 1 ? "ão criada" : "ões criadas"}. Aguardando aprovação do Diretor de Aliança ou Aliado BUILT.`,
+          ?"A solicitação de transferência foi atualizada."
+          : `${n} solicitaç${n === 1 ?"ão criada" : "ões criadas"}. Aguardando aprovação do Diretor de Aliança ou Aliado BUILT.`,
       });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -1590,11 +1590,11 @@ export default function FluxoCaixaPage() {
     if (n === 0) return;
     const base = Math.floor(100 / n);
     const resto = 100 - base * n;
-    setDestinatarios(destinatarios.map((d, i) => ({ ...d, percentual: i === n - 1 ? base + resto : base })));
+    setDestinatarios(destinatarios.map((d, i) => ({ ...d, percentual: i === n - 1 ?base + resto : base })));
   }
 
   function updateDestinatario(idx: number, field: "membroId" | "percentual", value: string | number) {
-    setDestinatarios((prev) => prev.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+    setDestinatarios((prev) => prev.map((d, i) => i === idx ?{ ...d, [field]: value } : d));
   }
 
   function addDestinatario() {
@@ -1638,7 +1638,7 @@ export default function FluxoCaixaPage() {
     if (!selectedBiaId) return [];
     return allFluxo
       .filter((item) => {
-        const biaId = typeof item.bia === "object" && item.bia !== null ? (item.bia as any).id : item.bia;
+        const biaId = typeof item.bia === "object" && item.bia !== null ?(item.bia as any).id : item.bia;
         return biaId === selectedBiaId;
       })
       .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
@@ -1675,14 +1675,14 @@ export default function FluxoCaixaPage() {
       if (filterDataDe && item.data_vencimento && item.data_vencimento < filterDataDe) return false;
       if (filterDataAte && item.data_vencimento && item.data_vencimento > filterDataAte) return false;
       if (filterStatus !== "todos") {
-        const effectiveStatus = isVencido(item) ? "vencido" : (item.status || "pendente");
+        const effectiveStatus = isVencido(item) ?"vencido" : (item.status || "pendente");
         if (effectiveStatus !== filterStatus) return false;
       }
       return true;
     });
 
     const statusPriority = (item: FluxoCaixaItem): number => {
-      const effective = isVencido(item) ? "vencido" : (item.status || "pendente");
+      const effective = isVencido(item) ?"vencido" : (item.status || "pendente");
       if (effective === "agendado") return 0;
       if (effective === "vencido") return 1;
       return 2;
@@ -1694,7 +1694,7 @@ export default function FluxoCaixaPage() {
       if (pa !== pb) return pa - pb;
       const da = a.data_vencimento || "";
       const db = b.data_vencimento || "";
-      if (da && db) return db < da ? -1 : db > da ? 1 : 0;
+      if (da && db) return db < da ?-1 : db > da ?1 : 0;
       if (da) return -1;
       if (db) return 1;
       return 0;
@@ -1776,7 +1776,7 @@ export default function FluxoCaixaPage() {
         membroId,
         inlineName: nameMap[membroId] || null,
         valor,
-        percentual: totalAportesComMembro > 0 ? (valor / totalAportesComMembro) * 100 : 0,
+        percentual: totalAportesComMembro > 0 ?(valor / totalAportesComMembro) * 100 : 0,
       }))
       .sort((a, b) => b.valor - a.valor);
   }, [fluxoItemsContabeis]);
@@ -1844,10 +1844,10 @@ export default function FluxoCaixaPage() {
     const percentual = parseFloat(transfer.percentual_transferencia || "0") || 0;
     const valor = parseFloat(transfer.valor_total || "0") || 0;
     const aporteOrigem = aportesPorMembro.find((a) => a.membroId === transfer.membro_origem_id)?.valor;
-    const valorRef = percentual > 0 ? valor / (percentual / 100) : (aporteOrigem || valor);
+    const valorRef = percentual > 0 ?valor / (percentual / 100) : (aporteOrigem || valor);
     setEditingTransferId(transfer.id);
     setTransferOrigemId(transfer.membro_origem_id);
-    setTransferValorRef(Number.isFinite(valorRef) ? valorRef : 0);
+    setTransferValorRef(Number.isFinite(valorRef) ?valorRef : 0);
     setDestinatarios([{ membroId: transfer.membro_destino_id, percentual }]);
     setTransferObservacoes(transfer.observacoes || "");
     setTransferPendingFiles([]);
@@ -1876,9 +1876,9 @@ export default function FluxoCaixaPage() {
       status: formStatus || null,
       data_vencimento: formDataVencimento || null,
       data_pagamento: formDataPagamento || null,
-      Categoria: formCategorias != null ? [formCategorias] : [],
-      tipo_de_cpp: formTiposCpp != null ? [formTiposCpp] : [],
-      Favorecido: formFavorecido && formFavorecido !== "__none__" ? [formFavorecido] : [],
+      Categoria: formCategorias != null ?[formCategorias] : [],
+      tipo_de_cpp: formTiposCpp != null ?[formTiposCpp] : [],
+      Favorecido: formFavorecido && formFavorecido !== "__none__" ?[formFavorecido] : [],
       anexos: allIds,
     };
     return payload;
@@ -1887,7 +1887,7 @@ export default function FluxoCaixaPage() {
   function getRateioValorFinal(item: RateioItem) {
     const rawValue = parseBRLToNumber(item.valor);
     const valorTotal = parseBRLToNumber(formValor);
-    return rateioModo === "percentual" ? Number(((valorTotal * rawValue) / 100).toFixed(2)) : rawValue;
+    return rateioModo === "percentual" ?Number(((valorTotal * rawValue) / 100).toFixed(2)) : rawValue;
   }
 
   const createMutation = useMutation({
@@ -1902,7 +1902,7 @@ export default function FluxoCaixaPage() {
             const payload = {
               ...base,
               valor: getRateioValorFinal(item),
-              Favorecido: item.membroId && item.membroId !== "__none__" ? [item.membroId] : [],
+              Favorecido: item.membroId && item.membroId !== "__none__" ?[item.membroId] : [],
               anexos: [...newFileIds, ...itemFileIds],
             };
             await apiRequest("POST", "/api/fluxo-caixa", payload);
@@ -1916,8 +1916,8 @@ export default function FluxoCaixaPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
-      const count = rateioTipo === "grupo" ? rateioItems.length : 1;
-      toast({ title: count > 1 ? `${count} lançamentos criados com sucesso` : "Lançamento criado com sucesso" });
+      const count = rateioTipo === "grupo" ?rateioItems.length : 1;
+      toast({ title: count > 1 ?`${count} lançamentos criados com sucesso` : "Lançamento criado com sucesso" });
       resetForm();
       setDialogOpen(false);
     },
@@ -1939,7 +1939,7 @@ export default function FluxoCaixaPage() {
           await apiRequest("PATCH", `/api/fluxo-caixa/${id}`, {
             ...payload,
             valor: getRateioValorFinal(firstItem),
-            Favorecido: firstItem.membroId && firstItem.membroId !== "__none__" ? [firstItem.membroId] : [],
+            Favorecido: firstItem.membroId && firstItem.membroId !== "__none__" ?[firstItem.membroId] : [],
             anexos: payload.anexos,
           });
 
@@ -1948,7 +1948,7 @@ export default function FluxoCaixaPage() {
             await apiRequest("POST", "/api/fluxo-caixa", {
               ...basePayload,
               valor: getRateioValorFinal(item),
-              Favorecido: item.membroId && item.membroId !== "__none__" ? [item.membroId] : [],
+              Favorecido: item.membroId && item.membroId !== "__none__" ?[item.membroId] : [],
               anexos: [...((basePayload.anexos as string[]) || []), ...itemFileIds],
             });
           }
@@ -2042,7 +2042,7 @@ export default function FluxoCaixaPage() {
       const res = await apiRequest("POST", "/api/membros/criar-favorecido", { nome });
       const newMembro: Membro = await res.json();
       queryClient.setQueryData<Membro[]>(["/api/membros"], (prev) =>
-        prev ? [...prev, newMembro] : [newMembro]
+        prev ?[...prev, newMembro] : [newMembro]
       );
       const multiplicadores = parseMemberList(selectedBia.socios_multiplicadores).filter((id) => id !== newMembro.id);
       const guardioes = parseMemberList(selectedBia.socios_guardioes).filter((id) => id !== newMembro.id);
@@ -2057,7 +2057,7 @@ export default function FluxoCaixaPage() {
       });
       queryClient.setQueryData<BiasProjeto[]>(["/api/bias"], (prev = []) =>
         prev.map((b) => b.id === selectedBia.id
-          ? { ...b, socios_multiplicadores: multiplicadores, socios_guardioes: guardioes, terceiros }
+          ?{ ...b, socios_multiplicadores: multiplicadores, socios_guardioes: guardioes, terceiros }
           : b
         )
       );
@@ -2074,23 +2074,23 @@ export default function FluxoCaixaPage() {
     setEditingItemId(item.id);
     setFormTipo(item.tipo);
     const numVal = parseFloat(String(item.valor)) || 0;
-    setFormValor(numVal > 0 ? numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
+    setFormValor(numVal > 0 ?numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
     setFormData(item.data || new Date().toISOString().split("T")[0]);
     setFormDescricao(item.descricao || "");
 
     const catArr = item.Categoria || [];
-    const firstCat = catArr.length > 0 ? getRelId(catArr[0] as any) : null;
-    setFormCategorias(firstCat ? parseInt(firstCat, 10) : null);
+    const firstCat = catArr.length > 0 ?getRelId(catArr[0] as any) : null;
+    setFormCategorias(firstCat ?parseInt(firstCat, 10) : null);
 
     setFormMembro(getRelId(item.membro_responsavel as any) || "");
 
     const favArr = item.Favorecido || [];
-    const firstFav = favArr.length > 0 ? getRelId(favArr[0] as any) : null;
+    const firstFav = favArr.length > 0 ?getRelId(favArr[0] as any) : null;
     setFormFavorecido(firstFav || "__none__");
 
     const cppArr = item.tipo_de_cpp || [];
-    const firstCpp = cppArr.length > 0 ? getRelId(cppArr[0] as any) : null;
-    setFormTiposCpp(firstCpp ? parseInt(firstCpp, 10) : null);
+    const firstCpp = cppArr.length > 0 ?getRelId(cppArr[0] as any) : null;
+    setFormTiposCpp(firstCpp ?parseInt(firstCpp, 10) : null);
 
     setFormStatus((item.status as StatusPagamento) || "");
     setFormDataVencimento(item.data_vencimento || "");
@@ -2100,7 +2100,7 @@ export default function FluxoCaixaPage() {
     const rawAnexos = item.anexos || [];
     const normalizedAnexos: AnexoFile[] = rawAnexos.map((a: any) =>
       typeof a === "string"
-        ? { id: a, url: a, filename: a.split("/").pop() || a }
+        ?{ id: a, url: a, filename: a.split("/").pop() || a }
         : a
     );
     setExistingAnexos(normalizedAnexos);
@@ -2298,12 +2298,12 @@ export default function FluxoCaixaPage() {
                     disabled={createMutation.isPending || uploading}
                     data-testid="button-salvar-lancamento"
                   >
-                    {createMutation.isPending || uploading ? (
+                    {createMutation.isPending || uploading ?(
                       <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
                       <Plus className="w-4 h-4 mr-2" />
                     )}
-                    {uploading ? "Enviando..." : "Salvar"}
+                    {uploading ?"Enviando..." : "Salvar"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -2312,7 +2312,7 @@ export default function FluxoCaixaPage() {
         </div>
       </div>
 
-      {!selectedBiaId ? (
+      {!selectedBiaId ?(
         <Card>
           <CardContent className="p-12 text-center">
             <Wallet className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
@@ -2332,11 +2332,11 @@ export default function FluxoCaixaPage() {
               );
               const valorOrigemPago = fluxoItemsContabeis
                 .filter((i) => i.tipo === "saida" && i.status === "pago" && i.Categoria.some((c) => {
-                  const id = typeof c === "object" && c !== null ? (c as CategoriaItem).id : c;
+                  const id = typeof c === "object" && c !== null ?(c as CategoriaItem).id : c;
                   return catValorOrigemIds.has(Number(id));
                 }))
                 .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
-              const percPago = valorOrigemTotal > 0 ? (valorOrigemPago / valorOrigemTotal) * 100 : 0;
+              const percPago = valorOrigemTotal > 0 ?(valorOrigemPago / valorOrigemTotal) * 100 : 0;
               return (
                 <Card className="border-brand-gold/40 bg-brand-gold/5" data-testid="panel-valor-origem">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
@@ -2381,13 +2381,13 @@ export default function FluxoCaixaPage() {
               </CardContent>
             </Card>
 
-            <Card className={totals.saldo >= 0 ? "border-brand-gold/30" : "border-red-500/30"} data-testid="panel-saldo">
+            <Card className={totals.saldo >= 0 ?"border-brand-gold/30" : "border-red-500/30"} data-testid="panel-saldo">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                 <CardTitle className="text-sm font-medium">Saldo</CardTitle>
-                <BarChart3 className={`w-4 h-4 ${totals.saldo >= 0 ? "text-brand-gold" : "text-red-500"}`} />
+                <BarChart3 className={`w-4 h-4 ${totals.saldo >= 0 ?"text-brand-gold" : "text-red-500"}`} />
               </CardHeader>
               <CardContent>
-                <p className={`text-2xl font-bold ${totals.saldo >= 0 ? "text-brand-gold" : "text-red-600"}`} data-testid="text-saldo">
+                <p className={`text-2xl font-bold ${totals.saldo >= 0 ?"text-brand-gold" : "text-red-600"}`} data-testid="text-saldo">
                   {formatBRL(totals.saldo)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Entradas − Saídas</p>
@@ -2512,7 +2512,7 @@ export default function FluxoCaixaPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
-                  {editingTransferId ? "Editar Transferência de Cotas" : "Solicitar Transferência de Cotas"}
+                  {editingTransferId ?"Editar Transferência de Cotas" : "Solicitar Transferência de Cotas"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-5 py-2">
@@ -2573,7 +2573,7 @@ export default function FluxoCaixaPage() {
                             value={dest.membroId}
                             onValueChange={(v) => updateDestinatario(idx, "membroId", v)}
                           >
-                            <SelectTrigger className={`flex-1 h-8 text-sm ${isDuplicate ? "border-red-500" : ""}`} data-testid={`select-dest-${idx}`}>
+                            <SelectTrigger className={`flex-1 h-8 text-sm ${isDuplicate ?"border-red-500" : ""}`} data-testid={`select-dest-${idx}`}>
                               <SelectValue placeholder="Selecione o membro..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -2634,13 +2634,13 @@ export default function FluxoCaixaPage() {
 
                   {/* Barra de total */}
                   <div className={`flex items-center justify-between rounded-md px-3 py-2 border text-sm ${
-                    totalPercentual > 100 ? "bg-red-500/10 border-red-500/40" :
-                    totalPercentual === 100 ? "bg-green-500/10 border-green-500/40" :
+                    totalPercentual > 100 ?"bg-red-500/10 border-red-500/40" :
+                    totalPercentual === 100 ?"bg-green-500/10 border-green-500/40" :
                     "bg-muted/60"
                   }`}>
                     <span className="text-xs text-muted-foreground">Total alocado</span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold ${totalPercentual > 100 ? "text-red-500" : totalPercentual === 100 ? "text-green-600" : ""}`}>
+                      <span className={`text-sm font-bold ${totalPercentual > 100 ?"text-red-500" : totalPercentual === 100 ?"text-green-600" : ""}`}>
                         {totalPercentual}%
                       </span>
                       {totalPercentual < 100 && totalPercentual > 0 && (
@@ -2720,7 +2720,7 @@ export default function FluxoCaixaPage() {
 
                 <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
                   {destinatarios.length === 1
-                    ? <>Serão transferidos <strong>{destinatarios[0].percentual}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
+                    ?<>Serão transferidos <strong>{destinatarios[0].percentual}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
                     : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{totalPercentual}%</strong> das cotas ({formatBRL(parseFloat(((totalPercentual / 100) * transferValorRef).toFixed(2)))}).</>
                   } Necessária aprovação do Diretor de Aliança ou Aliado BUILT.
                 </div>
@@ -2739,11 +2739,11 @@ export default function FluxoCaixaPage() {
                 >
                   <SendHorizontal className="w-4 h-4 mr-1.5" />
                   {createTransferMutation.isPending || transferUploading
-                    ? "Salvando..."
+                    ?"Salvando..."
                     : editingTransferId
-                      ? "Salvar Alterações"
+                      ?"Salvar Alterações"
                     : destinatarios.length > 1
-                      ? `Solicitar (${destinatarios.length} destinatários)`
+                      ?`Solicitar (${destinatarios.length} destinatários)`
                       : "Solicitar Transferência"}
                 </Button>
               </DialogFooter>
@@ -2815,9 +2815,9 @@ export default function FluxoCaixaPage() {
                     const transferAnexos = normalizeTransferAnexos(t.anexos);
                     const statusConfig =
                       t.status === "aceita"
-                        ? { label: "Aceita", cls: "text-green-600 bg-green-500/10 border-green-500/40" }
+                        ?{ label: "Aceita", cls: "text-green-600 bg-green-500/10 border-green-500/40" }
                         : t.status === "rejeitada"
-                        ? { label: "Rejeitada", cls: "text-red-600 bg-red-500/10 border-red-500/40" }
+                        ?{ label: "Rejeitada", cls: "text-red-600 bg-red-500/10 border-red-500/40" }
                         : { label: "Pendente", cls: "text-amber-600 bg-amber-500/10 border-amber-500/40" };
                     return (
                       <div key={t.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg border bg-muted/30" data-testid={`transfer-item-${t.id}`}>
@@ -3111,13 +3111,13 @@ export default function FluxoCaixaPage() {
               )}
             </CardHeader>
             <CardContent>
-              {loadingFluxo ? (
+              {loadingFluxo ?(
                 <div className="space-y-2">
                   <Skeleton className="h-12" />
                   <Skeleton className="h-12" />
                   <Skeleton className="h-12" />
                 </div>
-              ) : fluxoItems.length === 0 ? (
+              ) : fluxoItems.length === 0 ?(
                 <div className="text-center py-8">
                   <Wallet className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
                   <p className="text-muted-foreground">Nenhum lançamento registrado</p>
@@ -3144,8 +3144,8 @@ export default function FluxoCaixaPage() {
                         <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lancamento-${item.id}`}>
                           {/* Vencimento */}
                           <td className="py-3 px-3 text-sm whitespace-nowrap" data-testid={`text-vencimento-${item.id}`}>
-                            {item.data_vencimento ? (
-                              <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
+                            {item.data_vencimento ?(
+                              <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ?"text-red-500 font-medium" : "text-muted-foreground"}`}>
                                 <CalendarClock className="w-3 h-3" />
                                 {formatDate(item.data_vencimento)}
                               </span>
@@ -3154,7 +3154,7 @@ export default function FluxoCaixaPage() {
                           {/* Status */}
                           <td className="py-3 px-3 whitespace-nowrap" data-testid={`text-status-${item.id}`}>
                             {(() => {
-                              const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ? "vencido" : (item.status || null);
+                              const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ?"vencido" : (item.status || null);
                               const { label, color, Icon } = getStatusConfig(effective as StatusPagamento | null);
                               return (
                                 <Badge variant="outline" className={`gap-1 ${color}`}>
@@ -3165,14 +3165,14 @@ export default function FluxoCaixaPage() {
                             })()}
                           </td>
                           {/* Valor */}
-                          <td className={`py-3 px-3 text-right font-semibold whitespace-nowrap ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
-                            {item.tipo === "entrada" ? "+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
+                          <td className={`py-3 px-3 text-right font-semibold whitespace-nowrap ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
+                            {item.tipo === "entrada" ?"+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
                           {/* Descrição */}
                           <td className="py-3 px-3" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           {/* Categoria */}
                           <td className="py-3 px-3">
-                            {item.Categoria && item.Categoria.length > 0 ? (
+                            {item.Categoria && item.Categoria.length > 0 ?(
                               <Badge variant="secondary" className="gap-1 whitespace-nowrap">
                                 <Tag className="w-3 h-3" />
                                 {item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}
@@ -3181,7 +3181,7 @@ export default function FluxoCaixaPage() {
                           </td>
                           {/* Favorecido */}
                           <td className="py-3 px-3" data-testid={`text-favorecido-${item.id}`}>
-                            {item.Favorecido && item.Favorecido.length > 0 ? (
+                            {item.Favorecido && item.Favorecido.length > 0 ?(
                               <span className="flex flex-col gap-0.5">
                                 {item.Favorecido.map((f, idx) => {
                                   const favId = getRelId(f as any) || "";
@@ -3204,7 +3204,7 @@ export default function FluxoCaixaPage() {
                           </td>
                           {/* Tipo CPP */}
                           <td className="py-3 px-3" data-testid={`text-tipo-cpp-${item.id}`}>
-                            {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ? (
+                            {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ?(
                               <Badge variant="secondary" className="gap-1 whitespace-nowrap">
                                 <Layers className="w-3 h-3" />
                                 {item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}
@@ -3213,7 +3213,7 @@ export default function FluxoCaixaPage() {
                           </td>
                           {/* Anexos */}
                           <td className="py-3 px-2 text-center" data-testid={`text-anexos-${item.id}`}>
-                            {item.anexos && item.anexos.length > 0 ? (
+                            {item.anexos && item.anexos.length > 0 ?(
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -3235,7 +3235,7 @@ export default function FluxoCaixaPage() {
                                   className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
                                   onClick={() => openBoletoDialog(item)}
                                   data-testid={`button-gerar-boleto-${item.id}`}
-                                  title={item.pagamento_url ? "Ver ou gerar novo pagamento" : "Gerar boleto"}
+                                  title={item.pagamento_url ?"Ver ou gerar novo pagamento" : "Gerar boleto"}
                                 >
                                   <Receipt className="w-4 h-4" />
                                 </Button>
@@ -3321,12 +3321,12 @@ export default function FluxoCaixaPage() {
                   disabled={updateMutation.isPending || uploading}
                   data-testid="button-salvar-edit"
                 >
-                  {updateMutation.isPending || uploading ? (
+                  {updateMutation.isPending || uploading ?(
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <Pencil className="w-4 h-4 mr-2" />
                   )}
-                  {uploading ? "Enviando..." : "Salvar Alterações"}
+                  {uploading ?"Enviando..." : "Salvar Alterações"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -3443,14 +3443,14 @@ export default function FluxoCaixaPage() {
                   }
                   data-testid="button-confirmar-gerar-boleto"
                 >
-                  {gerarBoletoMutation.isPending ? (
+                  {gerarBoletoMutation.isPending ?(
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : boletoPais === "brasil" ? (
+                  ) : boletoPais === "brasil" ?(
                     <Receipt className="w-4 h-4 mr-2" />
                   ) : (
                     <CreditCard className="w-4 h-4 mr-2" />
                   )}
-                  {boletoPais === "brasil" ? "Gerar boleto" : "Gerar fatura"}
+                  {boletoPais === "brasil" ?"Gerar boleto" : "Gerar fatura"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -3479,7 +3479,7 @@ export default function FluxoCaixaPage() {
                   }}
                   data-testid="button-confirm-delete"
                 >
-                  {deleteMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  {deleteMutation.isPending ?<RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
                   Excluir
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -3578,12 +3578,12 @@ export default function FluxoCaixaPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-1">
-                {loadingHistorico ? (
+                {loadingHistorico ?(
                   <div className="space-y-2">
                     <Skeleton className="h-20" />
                     <Skeleton className="h-20" />
                   </div>
-                ) : historico.length === 0 ? (
+                ) : historico.length === 0 ?(
                   <p className="text-sm text-muted-foreground">Nenhum histórico registrado para este lançamento.</p>
                 ) : (
                   historico.map((evento) => {
@@ -3591,7 +3591,7 @@ export default function FluxoCaixaPage() {
                     const valorDepois = evento.dados_depois?.valor;
                     const statusAntes = evento.dados_antes?.status;
                     const statusDepois = evento.dados_depois?.status;
-                    const anexos = Array.isArray(evento.anexos) ? evento.anexos : [];
+                    const anexos = Array.isArray(evento.anexos) ?evento.anexos : [];
                     return (
                       <div key={evento.id} className="rounded-lg border p-3 space-y-2 bg-card">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3607,13 +3607,13 @@ export default function FluxoCaixaPage() {
                           <div className="rounded border bg-muted/30 p-2">
                             <span className="text-muted-foreground">Valor</span>
                             <p className="font-medium">
-                              {valorAntes ? formatCurrency(valorAntes) : "-"} {valorDepois && valorDepois !== valorAntes ? `→ ${formatCurrency(valorDepois)}` : ""}
+                              {valorAntes ?formatCurrency(valorAntes) : "-"} {valorDepois && valorDepois !== valorAntes ?`→ ${formatCurrency(valorDepois)}` : ""}
                             </p>
                           </div>
                           <div className="rounded border bg-muted/30 p-2">
                             <span className="text-muted-foreground">Status</span>
                             <p className="font-medium">
-                              {statusAntes || "-"} {statusDepois && statusDepois !== statusAntes ? `→ ${statusDepois}` : ""}
+                              {statusAntes || "-"} {statusDepois && statusDepois !== statusAntes ?`→ ${statusDepois}` : ""}
                             </p>
                           </div>
                           <div className="rounded border bg-muted/30 p-2">
@@ -3645,13 +3645,13 @@ export default function FluxoCaixaPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Paperclip className="w-5 h-5 text-brand-gold" />
-                  Anexos ({anexosModal?.anexos.length ?? 0})
+                    Anexos ({anexosModal?.anexos.length ?? 0})
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-2 max-h-[60vh] overflow-y-auto py-1">
                 {anexosModal?.anexos.map((anexo: any, ai: number) => {
-                  const name = typeof anexo === "string" ? anexo : (anexo.filename || anexo.title || anexo.id);
-                  const href = typeof anexo === "string" ? anexo : anexo.url;
+                  const name = typeof anexo === "string" ?anexo : (anexo.filename || anexo.title || anexo.id);
+                  const href = typeof anexo === "string" ?anexo : anexo.url;
                   const IconComp = getFileIcon(name);
                   return (
                     <a

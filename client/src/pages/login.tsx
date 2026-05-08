@@ -155,7 +155,7 @@ export default function LoginPage() {
 
   function toggleInteresse(valor: string) {
     setInteressesSelecionados(prev =>
-      prev.includes(valor) ? prev.filter(v => v !== valor) : [...prev, valor]
+      prev.includes(valor) ?prev.filter(v => v !== valor) : [...prev, valor]
     );
   }
 
@@ -178,11 +178,11 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
       setShowInteressesModal(false);
-      if (data.pagamento_token) {
-        navigate(`/pagamento/${data.pagamento_token}`);
-      } else if (data.vitrine_token) {
+      if (data.vitrine_token) {
         await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
         navigate(`/adesao/${data.vitrine_token}`);
+      } else if (data.pagamento_token) {
+        navigate(`/pagamento/${data.pagamento_token}`);
       } else {
         toast({ title: "Conta criada!", description: "Você já pode fazer login." });
         setEmail(regEmail);
@@ -271,8 +271,8 @@ export default function LoginPage() {
               onClick={() => setMode("login")}
               className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
               style={{
-                background: mode === "login" ? "#D7BB7D" : "transparent",
-                color: mode === "login" ? "#001D34" : "rgba(255,255,255,0.4)",
+                background: mode === "login" ?"#D7BB7D" : "transparent",
+                color: mode === "login" ?"#001D34" : "rgba(255,255,255,0.4)",
               }}
             >
               Entrar
@@ -281,8 +281,8 @@ export default function LoginPage() {
               onClick={() => setMode("register")}
               className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
               style={{
-                background: mode === "register" ? "#D7BB7D" : "transparent",
-                color: mode === "register" ? "#001D34" : "rgba(255,255,255,0.4)",
+                background: mode === "register" ?"#D7BB7D" : "transparent",
+                color: mode === "register" ?"#001D34" : "rgba(255,255,255,0.4)",
               }}
             >
               Novo Cadastro
@@ -291,7 +291,7 @@ export default function LoginPage() {
         )}
 
         <Card className="bg-white/5 border-white/10 backdrop-blur">
-          {mode === "forgot" ? (
+          {mode === "forgot" ?(
             <>
               <CardHeader className="pb-2 pt-6 px-6">
                 <button onClick={() => setMode("login")} className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs mb-3 transition-colors">
@@ -301,23 +301,23 @@ export default function LoginPage() {
                 <p className="text-white/40 text-xs mt-0.5">Informe seu e-mail e enviaremos um link para redefinir a senha.</p>
               </CardHeader>
               <CardContent className="px-6 pb-6">
-                {forgotSent ? (
+                {forgotSent ?(
                   <div className="text-center py-4 space-y-3">
                     <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
                     <p className="text-white/80 text-sm">Se existe uma conta com este e-mail, você receberá um link em instantes.</p>
-                    <p className="text-white/40 text-xs">Não recebeu? Verifique sua caixa de spam ou reenvie abaixo.</p>
+                    <p className="text-white/40 text-xs">Não recebeu?Verifique sua caixa de spam ou reenvie abaixo.</p>
                     <button
                       onClick={handleResend}
                       disabled={forgotResending}
                       data-testid="btn-reenviar-email"
                       className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-[#D7BB7D]/30 text-[#D7BB7D] text-sm font-semibold hover:bg-[#D7BB7D]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {forgotResending ? (
+                      {forgotResending ?(
                         <>
                           <span className="w-4 h-4 border-2 border-[#D7BB7D]/40 border-t-[#D7BB7D] rounded-full animate-spin" />
                           Reenviando…
                         </>
-                      ) : forgotResentOk ? (
+                      ) : forgotResentOk ?(
                         <>
                           <CheckCircle className="w-4 h-4 text-green-400" />
                           E-mail reenviado!
@@ -341,20 +341,20 @@ export default function LoginPage() {
                       </div>
                     </div>
                     <Button type="submit" disabled={forgotLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-forgot-submit">
-                      {forgotLoading ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Enviando...</span> : <span className="flex items-center gap-2"><Mail className="w-4 h-4" />Enviar link de redefinição</span>}
+                      {forgotLoading ?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Enviando...</span> : <span className="flex items-center gap-2"><Mail className="w-4 h-4" />Enviar link de redefinição</span>}
                     </Button>
                   </form>
                 )}
               </CardContent>
             </>
-          ) : mode === "reset" ? (
+          ) : mode === "reset" ?(
             <>
               <CardHeader className="pb-2 pt-6 px-6">
                 <h2 className="text-white text-lg font-semibold flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#D7BB7D]" />Nova senha</h2>
                 <p className="text-white/40 text-xs mt-0.5">Defina sua nova senha de acesso à plataforma.</p>
               </CardHeader>
               <CardContent className="px-6 pb-6">
-                {resetDone ? (
+                {resetDone ?(
                   <div className="text-center py-4 space-y-3">
                     <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
                     <p className="text-white/80 text-sm">Senha redefinida com sucesso!</p>
@@ -366,26 +366,26 @@ export default function LoginPage() {
                       <div className="space-y-1.5">
                         <Label className="text-white/70 text-sm">Nova senha</Label>
                         <div className="relative">
-                          <Input type={showResetPass ? "text" : "password"} value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Mín. 4 chars" className={`${inputCls} pr-8`} required data-testid="input-reset-password" />
+                          <Input type={showResetPass ?"text" : "password"} value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Mín. 4 chars" className={`${inputCls} pr-8`} required data-testid="input-reset-password" />
                           <button type="button" onClick={() => setShowResetPass(v => !v)} className="absolute right-2.5 top-2.5 text-white/30 hover:text-white/60">
-                            {showResetPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            {showResetPass ?<EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-white/70 text-sm">Confirmar</Label>
-                        <Input type="password" value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${resetPassword2 && resetPassword !== resetPassword2 ? "border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
+                        <Input type="password" value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${resetPassword2 && resetPassword !== resetPassword2 ?"border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
                       </div>
                     </div>
                     {resetError && <p className="text-red-400 text-sm text-center">{resetError}</p>}
                     <Button type="submit" disabled={resetLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-reset-submit">
-                      {resetLoading ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Salvando...</span> : <span className="flex items-center gap-2"><KeyRound className="w-4 h-4" />Salvar nova senha</span>}
+                      {resetLoading ?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Salvando...</span> : <span className="flex items-center gap-2"><KeyRound className="w-4 h-4" />Salvar nova senha</span>}
                     </Button>
                   </form>
                 )}
               </CardContent>
             </>
-          ) : mode === "login" ? (
+          ) : mode === "login" ?(
             <>
               <CardHeader className="pb-2 pt-6 px-6">
                 <h2 className="text-white text-lg font-semibold">Entrar na plataforma</h2>
@@ -412,7 +412,7 @@ export default function LoginPage() {
                       <Input
                         id="password"
                         data-testid="input-password"
-                        type={showPassword ? "text" : "password"}
+                        type={showPassword ?"text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Sua senha"
@@ -425,7 +425,7 @@ export default function LoginPage() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ?<EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -441,7 +441,7 @@ export default function LoginPage() {
                     disabled={loginPending}
                     className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10 mt-2"
                   >
-                    {loginPending ? (
+                    {loginPending ?(
                       <span className="flex items-center gap-2">
                         <span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />
                         Entrando...
@@ -492,7 +492,7 @@ export default function LoginPage() {
                         value={regConviteToken}
                         onChange={e => setRegConviteToken(e.target.value.trim())}
                         placeholder="Cole o código do seu convite"
-                        className={`${inputCls} pr-8 ${conviteStatus === "valid" ? "border-green-500/50" : conviteStatus === "invalid" ? "border-red-500/50" : ""}`}
+                        className={`${inputCls} pr-8 ${conviteStatus === "valid" ?"border-green-500/50" : conviteStatus === "invalid" ?"border-red-500/50" : ""}`}
                         data-testid="input-reg-convite"
                       />
                       {conviteChecking && (
@@ -510,7 +510,7 @@ export default function LoginPage() {
                     {conviteStatus === "valid" && conviteInfo && (
                       <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs text-green-300">
                         Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>
-                        {conviteInfo.comunidade_nome ? ` · ${conviteInfo.comunidade_nome}` : ""}
+                        {conviteInfo.comunidade_nome ?` · ${conviteInfo.comunidade_nome}` : ""}
                       </div>
                     )}
                     {conviteStatus === "invalid" && (
@@ -546,7 +546,7 @@ export default function LoginPage() {
                     <Input
                       value={regUsername}
                       onChange={e => setRegUsername(e.target.value)}
-                      placeholder={regEmail ? regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"}
+                      placeholder={regEmail ?regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"}
                       className={inputCls}
                       data-testid="input-reg-username"
                     />
@@ -556,7 +556,7 @@ export default function LoginPage() {
                       <Label className="text-white/70 text-sm">Senha</Label>
                       <div className="relative">
                         <Input
-                          type={showRegPass ? "text" : "password"}
+                          type={showRegPass ?"text" : "password"}
                           value={regPassword}
                           onChange={e => setRegPassword(e.target.value)}
                           placeholder="Mín. 4 chars"
@@ -565,7 +565,7 @@ export default function LoginPage() {
                           required
                         />
                         <button type="button" onClick={() => setShowRegPass(v => !v)} className="absolute right-2.5 top-2.5 text-white/30 hover:text-white/60">
-                          {showRegPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {showRegPass ?<EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -576,7 +576,7 @@ export default function LoginPage() {
                         value={regPassword2}
                         onChange={e => setRegPassword2(e.target.value)}
                         placeholder="Repita"
-                        className={`${inputCls} ${regPassword2 && regPassword !== regPassword2 ? "border-red-500/40" : ""}`}
+                        className={`${inputCls} ${regPassword2 && regPassword !== regPassword2 ?"border-red-500/40" : ""}`}
                         data-testid="input-reg-password2"
                         required
                       />
@@ -589,7 +589,7 @@ export default function LoginPage() {
                     disabled={regLoading || conviteStatus === "invalid"}
                     className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10 mt-1"
                   >
-                    {regLoading ? (
+                    {regLoading ?(
                       <span className="flex items-center gap-2">
                         <span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />
                         Criando conta...
@@ -655,17 +655,17 @@ export default function LoginPage() {
                   onClick={() => toggleInteresse(valor)}
                   className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
                     selecionado
-                      ? "border-[#D7BB7D] bg-[#D7BB7D]/10"
+                      ?"border-[#D7BB7D] bg-[#D7BB7D]/10"
                       : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
                   }`}
                 >
-                  <span className={`shrink-0 ${selecionado ? "text-[#D7BB7D]" : "text-white/40"}`}>
+                  <span className={`shrink-0 ${selecionado ?"text-[#D7BB7D]" : "text-white/40"}`}>
                     {icone}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className={`font-semibold text-sm ${selecionado ? "text-[#D7BB7D]" : "text-white"}`}>{titulo}</p>
-                      {gratuito ? (
+                      <p className={`font-semibold text-sm ${selecionado ?"text-[#D7BB7D]" : "text-white"}`}>{titulo}</p>
+                      {gratuito ?(
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
                           Gratuito
                         </span>
@@ -678,7 +678,7 @@ export default function LoginPage() {
                     <p className="text-white/50 text-xs mt-0.5">{descricao}</p>
                   </div>
                   <span className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                    selecionado ? "border-[#D7BB7D] bg-[#D7BB7D]" : "border-white/20"
+                    selecionado ?"border-[#D7BB7D] bg-[#D7BB7D]" : "border-white/20"
                   }`}>
                     {selecionado && <span className="w-2 h-2 rounded-full bg-[#001D34]" />}
                   </span>
@@ -708,7 +708,7 @@ export default function LoginPage() {
               disabled={regLoading || interessesSelecionados.length === 0}
               className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold disabled:opacity-50"
             >
-              {regLoading ? (
+              {regLoading ?(
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />
                   Criando...

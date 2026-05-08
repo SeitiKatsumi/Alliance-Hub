@@ -121,7 +121,7 @@ function situacaoBadge(s?: string | null) {
 
 function fmtPercent(value: number): string {
   return `${new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: value > 0 && value < 1 ? 2 : 1,
+    minimumFractionDigits: value > 0 && value < 1 ?2 : 1,
     maximumFractionDigits: 2,
   }).format(value)}%`;
 }
@@ -139,22 +139,40 @@ const INVITE_APP_URL = "https://built.dna11.com.br";
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
   if (/^https?:\/\//i.test(link)) return link;
-  return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
+  return `${INVITE_APP_URL}${link.startsWith("/") ?"" : "/"}${link}`;
 }
 
 function compactLabel(value?: string | null): string {
   return String(value || "Não definido").trim() || "Não definido";
 }
 
+function canonicalChartLabel(value?: string | null): { key: string; label: string } {
+  const label = compactLabel(value);
+  const key = normalizeText(label).replace(/\s+/g, " ").trim();
+  const aliases: Record<string, string> = {
+    operacao: "Operação",
+    venda: "Venda",
+    vendas: "Vendas",
+    renda: "Renda",
+    residencial: "Residencial",
+    hospedagem: "Hospedagem",
+    industrial: "Industrial",
+    "nao definido": "Não definido",
+  };
+  return { key: key || "nao definido", label: aliases[key] || label };
+}
+
 function groupCurrencyBy(items: DashboardBia[], key: keyof DashboardBia) {
-  const grouped = new Map<string, number>();
+  const grouped = new Map<string, { name: string; value: number }>();
   items.forEach((item) => {
-    const label = compactLabel(item[key] as string | null);
-    grouped.set(label, (grouped.get(label) || 0) + n(item.investimento_usuario_valor));
+    const { key: groupKey, label } = canonicalChartLabel(item[key] as string | null);
+    const current = grouped.get(groupKey);
+    grouped.set(groupKey, { name: current?.name || label, value: (current?.value || 0) + n(item.investimento_usuario_valor) });
   });
-  const total = Array.from(grouped.values()).reduce((sum, value) => sum + value, 0);
-  return Array.from(grouped.entries())
-    .map(([name, value]) => ({ name, value, percent: total > 0 ? (value / total) * 100 : 0 }))
+  const rows = Array.from(grouped.values());
+  const total = rows.reduce((sum, item) => sum + item.value, 0);
+  return rows
+    .map(({ name, value }) => ({ name, value, percent: total > 0 ?(value / total) * 100 : 0 }))
     .filter((item) => item.value > 0)
     .sort((a, b) => b.value - a.value);
 }
@@ -173,7 +191,7 @@ function PieDistributionCard({ title, data }: { title: string; data: Array<{ nam
       <CardContent className="p-4">
         <p className="text-sm font-semibold text-foreground">{title}</p>
         <p className="text-[11px] text-muted-foreground">Percentual do capital investido</p>
-        {data.length === 0 ? (
+        {data.length === 0 ?(
           <EmptyChart />
         ) : (
           <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[180px_1fr]">
@@ -249,9 +267,9 @@ function BiaCardSkeleton() {
 
 function deriveRole(user: any): string | null {
   if (!user) return null;
-  const redes: string[] = Array.isArray(user.Outras_redes_as_quais_pertenco) ? user.Outras_redes_as_quais_pertenco : [];
+  const redes: string[] = Array.isArray(user.Outras_redes_as_quais_pertenco) ?user.Outras_redes_as_quais_pertenco : [];
   if (redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER")) return "Aliado BUILT";
-  const tipos: string[] = Array.isArray(user.tipos_alianca) ? user.tipos_alianca : [];
+  const tipos: string[] = Array.isArray(user.tipos_alianca) ?user.tipos_alianca : [];
   if (tipos.includes("Liderança")) return "Diretor de Aliança";
   if (user.role === "admin") return "Administrador";
   if (user.role === "manager") return "Gestor";
@@ -371,7 +389,7 @@ export default function PainelPage() {
   const receitaVsInvestimentoData = useMemo(
     () => bias
       .map((b) => ({
-        name: b.nome_bia?.length > 18 ? `${b.nome_bia.slice(0, 18)}...` : b.nome_bia,
+        name: b.nome_bia?.length > 18 ?`${b.nome_bia.slice(0, 18)}...` : b.nome_bia,
         investimento: n(b.investimento_usuario_valor),
         receita: n(b.receita_usuario_valor),
       }))
@@ -411,7 +429,7 @@ export default function PainelPage() {
 
   const nomeExibido = user?.nome || user?.username || "membro";
   const roleLabel = deriveRole(user);
-  const comunidadeLabel = comunidades.length > 0 ? comunidades[0].nome : null;
+  const comunidadeLabel = comunidades.length > 0 ?comunidades[0].nome : null;
 
   const avatarInitials = nomeExibido
     .split(" ")
@@ -482,7 +500,7 @@ export default function PainelPage() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {isLoading ? (
+        {isLoading ?(
           Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
@@ -522,7 +540,7 @@ export default function PainelPage() {
 
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate(comunidades[0]?.id ? `/comunidade/${comunidades[0].id}?from=dashboard` : "/comunidade")}
+              onClick={() => navigate(comunidades[0]?.id ?`/comunidade/${comunidades[0].id}?from=dashboard` : "/comunidade")}
               data-testid="stat-card-comunidades"
             >
               <CardContent className="p-5">
@@ -540,15 +558,15 @@ export default function PainelPage() {
                     </p>
                   )}
                 </div>
-                {comunidades[0] ? (
+                {comunidades[0] ?(
                   <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Users className="w-3 h-3" />
-                      {Array.isArray(comunidades[0].membros) ? comunidades[0].membros.length : 0} membros
+                      {Array.isArray(comunidades[0].membros) ?comunidades[0].membros.length : 0} membros
                     </span>
                     <span className="flex items-center gap-1">
                       <Briefcase className="w-3 h-3" />
-                      {Array.isArray(comunidades[0].bias) ? comunidades[0].bias.length : 0} BIAs
+                      {Array.isArray(comunidades[0].bias) ?comunidades[0].bias.length : 0} BIAs
                     </span>
                   </div>
                 ) : (
@@ -559,7 +577,7 @@ export default function PainelPage() {
 
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              style={{ borderColor: auraData?.score != null ? `${getFaixaColor(auraData.score)}30` : undefined }}
+              style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
               onClick={() => navigate("/aura")}
               data-testid="stat-card-aura"
             >
@@ -571,11 +589,11 @@ export default function PainelPage() {
                 <div className="flex items-center gap-3">
                   <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
                   <div className="min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: auraData?.score != null ? getFaixaColor(auraData.score) : undefined }}>
-                      {auraData?.score != null ? auraData.faixa : "Aguardando avaliações"}
+                    <p className="text-xs font-medium truncate" style={{ color: auraData?.score != null ?getFaixaColor(auraData.score) : undefined }}>
+                      {auraData?.score != null ?auraData.faixa : "Aguardando avaliações"}
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {auraData?.score != null ? "resultado atual" : "sem avaliações"}
+                      {auraData?.score != null ?"resultado atual" : "sem avaliações"}
                     </p>
                   </div>
                 </div>
@@ -669,7 +687,7 @@ export default function PainelPage() {
                   <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-[#D7BB7D]"
-                      style={{ width: `${Math.min(100, Math.max(6, totalInvestimentoUsuario > 0 ? 100 : 0))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(6, totalInvestimentoUsuario > 0 ?100 : 0))}%` }}
                     />
                   </div>
                 </CardContent>
@@ -681,7 +699,7 @@ export default function PainelPage() {
                   <p className="text-[11px] text-muted-foreground">
                     Capital Total Alocado: {fmt(totalInvestimentoUsuario)} vs Receita total: {fmt(totalReceitaUsuario)}
                   </p>
-                  {receitaVsInvestimentoData.length === 0 ? (
+                  {receitaVsInvestimentoData.length === 0 ?(
                     <EmptyChart />
                   ) : (
                     <div className="mt-3 h-[210px]">
@@ -709,11 +727,11 @@ export default function PainelPage() {
             </div>
           )}
 
-          {isLoading ? (
+          {isLoading ?(
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Array.from({ length: 4 }).map((_, i) => <BiaCardSkeleton key={i} />)}
             </div>
-          ) : bias.length === 0 ? (
+          ) : bias.length === 0 ?(
             <Card className="border border-dashed border-border/60">
               <CardContent className="p-8 text-center space-y-3">
                 <Briefcase className="w-8 h-8 text-muted-foreground/40 mx-auto" />
@@ -728,7 +746,7 @@ export default function PainelPage() {
                 </Button>
               </CardContent>
             </Card>
-          ) : filteredBias.length === 0 ? (
+          ) : filteredBias.length === 0 ?(
             <Card className="border border-dashed border-border/60">
               <CardContent className="p-6 text-center space-y-2">
                 <SlidersHorizontal className="w-7 h-7 text-muted-foreground/40 mx-auto" />
@@ -786,19 +804,19 @@ export default function PainelPage() {
                       <div>
                         <p className="text-[10px] text-muted-foreground">Investido</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`investido-usuario-${b.id}`}>
-                          {n(b.investimento_usuario_valor) > 0 ? fmt(n(b.investimento_usuario_valor), b.moeda || "BRL") : "-"}
+                          {n(b.investimento_usuario_valor) > 0 ?fmt(n(b.investimento_usuario_valor), b.moeda || "BRL") : "-"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground">CPP</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`participacao-usuario-${b.id}`}>
-                          {n(b.investimento_usuario_percentual) > 0 ? fmtPercent(n(b.investimento_usuario_percentual)) : "-"}
+                          {n(b.investimento_usuario_percentual) > 0 ?fmtPercent(n(b.investimento_usuario_percentual)) : "-"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground">Receita</p>
                         <p className="text-xs font-medium tabular-nums" data-testid={`receita-usuario-${b.id}`}>
-                          {n(b.receita_usuario_valor) > 0 ? fmt(n(b.receita_usuario_valor), b.moeda || "BRL") : "-"}
+                          {n(b.receita_usuario_valor) > 0 ?fmt(n(b.receita_usuario_valor), b.moeda || "BRL") : "-"}
                         </p>
                       </div>
                     </div>
@@ -895,11 +913,11 @@ export default function PainelPage() {
               </Select>
             </div>
 
-            {isLoading ? (
+            {isLoading ?(
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {Array.from({ length: 2 }).map((_, i) => <BiaCardSkeleton key={i} />)}
               </div>
-            ) : convergencias.length === 0 ? (
+            ) : convergencias.length === 0 ?(
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-6 text-center space-y-2">
                   <Target className="w-7 h-7 text-muted-foreground/40 mx-auto" />
@@ -907,7 +925,7 @@ export default function PainelPage() {
                   <p className="text-xs text-muted-foreground/70">Atualize suas áreas em Meu Perfil para melhorar as recomendações.</p>
                 </CardContent>
               </Card>
-            ) : filteredConvergencias.length === 0 ? (
+            ) : filteredConvergencias.length === 0 ?(
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-6 text-center space-y-2">
                   <SlidersHorizontal className="w-7 h-7 text-muted-foreground/40 mx-auto" />
@@ -955,13 +973,13 @@ export default function PainelPage() {
                         <div>
                           <p className="text-[10px] text-muted-foreground">Valor da OPA</p>
                           <p className="text-xs font-medium tabular-nums">
-                            {n(opa.valor_origem_opa) > 0 ? fmt(n(opa.valor_origem_opa)) : "-"}
+                            {n(opa.valor_origem_opa) > 0 ?fmt(n(opa.valor_origem_opa)) : "-"}
                           </p>
                         </div>
                         <div>
                           <p className="text-[10px] text-muted-foreground">Mín. esforço</p>
                           <p className="text-xs font-medium tabular-nums">
-                            {n(opa.Minimo_esforco_multiplicador) > 0 ? fmtPercent(n(opa.Minimo_esforco_multiplicador)) : "-"}
+                            {n(opa.Minimo_esforco_multiplicador) > 0 ?fmtPercent(n(opa.Minimo_esforco_multiplicador)) : "-"}
                           </p>
                         </div>
                       </div>
@@ -992,7 +1010,7 @@ export default function PainelPage() {
               </Button>
             </div>
 
-            {isLoading ? (
+            {isLoading ?(
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/60">
@@ -1004,7 +1022,7 @@ export default function PainelPage() {
                   </div>
                 ))}
               </div>
-            ) : opas.length === 0 ? (
+            ) : opas.length === 0 ?(
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-5 text-center">
                   <Target className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
@@ -1028,20 +1046,20 @@ export default function PainelPage() {
                       <p className="text-[10px] text-muted-foreground truncate">
                         {[
                           o.tipo,
-                          n(o.valor_origem_opa) > 0 ? fmt(n(o.valor_origem_opa)) : null,
-                          o.nome_bia_vinculada ? `BIA: ${o.nome_bia_vinculada}` : null,
+                          n(o.valor_origem_opa) > 0 ?fmt(n(o.valor_origem_opa)) : null,
+                          o.nome_bia_vinculada ?`BIA: ${o.nome_bia_vinculada}` : null,
                         ].filter(Boolean).join(" · ")}
                       </p>
                     </div>
-                    {o.status && o.status !== "concluida" && o.status !== "desistencia" ? (
+                    {o.status && o.status !== "concluida" && o.status !== "desistencia" ?(
                       <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] shrink-0 h-4">
                         Aberta
                       </Badge>
-                    ) : o.status === "concluida" ? (
+                    ) : o.status === "concluida" ?(
                       <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[9px] shrink-0 h-4">
                         Concluída
                       </Badge>
-                    ) : o.status === "desistencia" ? (
+                    ) : o.status === "desistencia" ?(
                       <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[9px] shrink-0 h-4">
                         Desistência
                       </Badge>
@@ -1066,7 +1084,7 @@ export default function PainelPage() {
       </Tabs>
 
       <Dialog open={conviteDialogOpen} onOpenChange={setConviteDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Ticket className="w-5 h-5 text-[#D7BB7D]" />
@@ -1077,10 +1095,10 @@ export default function PainelPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {meuConviteLink ? (
-            <div className="space-y-3">
-              <div className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
-                <span className="min-w-0 flex-1 truncate text-xs font-mono text-muted-foreground" data-testid="text-dashboard-convite-link">
+          {meuConviteLink ?(
+            <div className="w-full min-w-0 space-y-3">
+              <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+                <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-mono text-muted-foreground" data-testid="text-dashboard-convite-link">
                   {meuConviteLink}
                 </span>
                 <button
@@ -1108,7 +1126,7 @@ export default function PainelPage() {
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 data-testid="btn-dashboard-renovar-convite"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${gerarConviteMutation.isPending ? "animate-spin" : ""}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${gerarConviteMutation.isPending ?"animate-spin" : ""}`} />
                 Gerar novo link
               </button>
             </div>
@@ -1122,7 +1140,7 @@ export default function PainelPage() {
                 className="gap-2 bg-[#D7BB7D] text-[#001D34] hover:bg-[#D7BB7D]/90"
                 data-testid="btn-dashboard-gerar-convite"
               >
-                {gerarConviteMutation.isPending ? (
+                {gerarConviteMutation.isPending ?(
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Ticket className="w-4 h-4" />
@@ -1143,3 +1161,5 @@ export default function PainelPage() {
     </div>
   );
 }
+
+

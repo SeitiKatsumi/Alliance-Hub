@@ -223,7 +223,7 @@ export default function AdesaoPage() {
           </div>
           <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-aceite-termos">
             <div
-              className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ?"bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
               onClick={() => setChecked(c => !c)}
             >
               {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -236,10 +236,10 @@ export default function AdesaoPage() {
             onClick={() => adesaoMutation.mutate()}
             disabled={!checked || adesaoMutation.isPending}
             className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
-            style={{ background: checked ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
+            style={{ background: checked ?"linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
             data-testid="btn-aceitar-termos"
           >
-            {adesaoMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            {adesaoMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Aceitar Termos e Continuar
           </Button>
           {adesaoMutation.isError && (
@@ -283,7 +283,7 @@ export default function AdesaoPage() {
 
           <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-aceite-termos">
             <div
-              className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${checked ?"bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
               onClick={() => setChecked(c => !c)}
             >
               {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -297,10 +297,10 @@ export default function AdesaoPage() {
             onClick={() => aceitarTermosMutation.mutate()}
             disabled={!checked || aceitarTermosMutation.isPending}
             className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
-            style={{ background: checked ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
+            style={{ background: checked ?"linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
             data-testid="btn-aceitar-termos"
           >
-            {aceitarTermosMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            {aceitarTermosMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Aceitar Termos e Avançar
           </Button>
           {aceitarTermosMutation.isError && (
@@ -338,7 +338,7 @@ export default function AdesaoPage() {
             style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
             data-testid="btn-solicitar-acesso"
           >
-            {solicitarAcessoMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+            {solicitarAcessoMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Enviar Solicitação de Acesso
           </Button>
 

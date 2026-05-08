@@ -95,14 +95,14 @@ export default function AvaliarAuraCandidatoPage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
         <div className="text-center space-y-4 p-8 max-w-md">
           {already
-            ? <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
+            ?<CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
             : <AlertCircle className="w-12 h-12 text-amber-400 mx-auto" />}
           <h2 className="text-xl font-bold font-mono text-white">
-            {already ? "Avaliação já registrada" : "Avaliação não disponível"}
+            {already ?"Avaliação já registrada" : "Avaliação não disponível"}
           </h2>
           <p className="text-white/50 text-sm font-mono">
             {already
-              ? "A avaliação de Aura para este candidato já foi registrada."
+              ?"A avaliação de Aura para este candidato já foi registrada."
               : "Este link não está mais disponível para avaliação."}
           </p>
         </div>
@@ -144,9 +144,9 @@ export default function AvaliarAuraCandidatoPage() {
   const toggleWord = (word: string) => {
     setSelected(prev =>
       prev.includes(word)
-        ? prev.filter(w => w !== word)
+        ?prev.filter(w => w !== word)
         : prev.length < 3
-          ? [...prev, word]
+          ?[...prev, word]
           : prev
     );
   };
@@ -184,7 +184,7 @@ export default function AvaliarAuraCandidatoPage() {
                   <button
                     key={p}
                     onClick={() => toggleWord(p)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all ${item ? DIMENSAO_COLOR[item.dimensao] : "text-brand-gold border-brand-gold/30 bg-brand-gold/10"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all ${item ?DIMENSAO_COLOR[item.dimensao] : "text-brand-gold border-brand-gold/30 bg-brand-gold/10"}`}
                     data-testid={`chip-selecionada-${p}`}
                   >
                     {p}
@@ -218,12 +218,12 @@ export default function AvaliarAuraCandidatoPage() {
                 onClick={() => !isDisabled && toggleWord(item.canonico)}
                 disabled={isDisabled}
                 className={`flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-mono ${isSelected
-                  ? `${DIMENSAO_COLOR[item.dimensao]} border-opacity-60`
+                  ?`${DIMENSAO_COLOR[item.dimensao]} border-opacity-60`
                   : isDisabled
-                    ? "border-white/5 text-white/20 cursor-not-allowed"
+                    ?"border-white/5 text-white/20 cursor-not-allowed"
                     : "border-white/10 text-white/60 hover:border-white/20 hover:text-white/80 hover:bg-white/5"}`}
                 data-testid={`btn-palavra-${item.canonico}`}
-                style={{ background: isSelected ? undefined : "rgba(255,255,255,0.02)" }}
+                style={{ background: isSelected ?undefined : "rgba(255,255,255,0.02)" }}
               >
                 <span className="font-semibold">{item.canonico}</span>
                 <span className="text-[10px] opacity-60">{DIMENSAO_LABEL[item.dimensao]}</span>
@@ -237,14 +237,14 @@ export default function AvaliarAuraCandidatoPage() {
           disabled={selected.length === 0 || avaliarMutation.isPending}
           className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
           style={{
-            background: selected.length > 0 ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)",
+            background: selected.length > 0 ?"linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)",
             color: "#001D34",
           }}
           data-testid="btn-enviar-aura"
         >
-          {avaliarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+          {avaliarMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
           Registrar Percepção de Aura
-          {selected.length > 0 && ` (${selected.length} palavra${selected.length > 1 ? "s" : ""})`}
+          {selected.length > 0 && ` (${selected.length} palavra${selected.length > 1 ?"s" : ""})`}
         </Button>
 
         {avaliarMutation.isError && (

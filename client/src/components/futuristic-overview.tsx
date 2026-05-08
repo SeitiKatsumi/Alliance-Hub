@@ -74,7 +74,7 @@ export function FuturisticOverview({ data, type }: FuturisticOverviewProps) {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-brand-gold/20 border border-brand-gold/30">
-              {type === "oportunidades" ? (
+              {type === "oportunidades" ?(
                 <Target className="w-6 h-6 text-brand-gold" />
               ) : (
                 <Briefcase className="w-6 h-6 text-brand-gold" />
@@ -82,7 +82,7 @@ export function FuturisticOverview({ data, type }: FuturisticOverviewProps) {
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">
-                {type === "oportunidades" ? "Overview de Oportunidades" : "Overview das Alianças"}
+                {type === "oportunidades" ?"Overview de Oportunidades" : "Overview das Alianças"}
               </h2>
               <p className="text-sm text-white/60">Visão geral em tempo real</p>
             </div>
@@ -102,7 +102,7 @@ export function FuturisticOverview({ data, type }: FuturisticOverviewProps) {
             </div>
             <p className="text-3xl font-bold text-white">{data.total}</p>
             <p className="text-xs text-white/40 mt-1">
-              {type === "oportunidades" ? "oportunidades ativas" : "alianças ativas"}
+              {type === "oportunidades" ?"oportunidades ativas" : "alianças ativas"}
             </p>
           </div>
 
@@ -131,12 +131,12 @@ export function FuturisticOverview({ data, type }: FuturisticOverviewProps) {
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-orange-400" />
               <span className="text-xs text-white/60 uppercase tracking-wider">
-                {type === "oportunidades" ? "BIAs" : "Membros"}
+                {type === "oportunidades" ?"BIAs" : "Membros"}
               </span>
             </div>
             <p className="text-3xl font-bold text-white">{data.bias || 0}</p>
             <p className="text-xs text-white/40 mt-1">
-              {type === "oportunidades" ? "alianças vinculadas" : "participantes"}
+              {type === "oportunidades" ?"alianças vinculadas" : "participantes"}
             </p>
           </div>
         </div>
@@ -155,7 +155,7 @@ export function FuturisticOverview({ data, type }: FuturisticOverviewProps) {
                 style={{
                   width: `${nucleo.percentage}%`,
                   backgroundColor: nucleo.color,
-                  marginLeft: index > 0 ? "2px" : 0,
+                  marginLeft: index > 0 ?"2px" : 0,
                 }}
                 title={`${nucleo.label}: ${nucleo.count}`}
               >

@@ -153,7 +153,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nucleo-tecnico-docs"] });
-      toast({ title: doc ? "Documento atualizado" : "Documento registrado", description: "Salvo com sucesso." });
+      toast({ title: doc ?"Documento atualizado" : "Documento registrado", description: "Salvo com sucesso." });
       onClose();
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -172,7 +172,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-white/5 shrink-0">
           <SheetTitle className="text-white flex items-center gap-2 text-base">
             <Wrench className="w-4 h-4" style={{ color: ACCENT }} />
-            {doc ? "Editar Documento" : "Novo Documento"}
+            {doc ?"Editar Documento" : "Novo Documento"}
           </SheetTitle>
           <p className="text-xs text-white/40 mt-1">{ABA_LABELS[aliancaTipo]}</p>
         </SheetHeader>
@@ -281,7 +281,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
             style={{ background: ACCENT, color: "#001D34" }}
             data-testid="btn-salvar-doc"
           >
-            {mutation.isPending || uploading ? "Salvando..." : doc ? "Atualizar" : "Registrar"}
+            {mutation.isPending || uploading ?"Salvando..." : doc ?"Atualizar" : "Registrar"}
           </Button>
         </div>
       </SheetContent>
@@ -301,14 +301,14 @@ interface TabContentProps {
 }
 
 function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, onDelete }: TabContentProps) {
-  const filtered = biaId ? docs.filter(d => d.bia_id === biaId && d.alianca_tipo === aliancaTipo) : docs.filter(d => d.alianca_tipo === aliancaTipo);
+  const filtered = biaId ?docs.filter(d => d.bia_id === biaId && d.alianca_tipo === aliancaTipo) : docs.filter(d => d.alianca_tipo === aliancaTipo);
   const biaName = (id?: string) => bias.find(b => b.id === id)?.nome_bia || id || "—";
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <span className="text-sm text-white/40">{filtered.length} documento{filtered.length !== 1 ? "s" : ""}</span>
+          <span className="text-sm text-white/40">{filtered.length} documento{filtered.length !== 1 ?"s" : ""}</span>
         </div>
         <Button
           onClick={onNew}
@@ -342,15 +342,15 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
             <div
               key={doc.id}
               className="rounded-xl p-4 transition-all duration-200 hover:border-[#5B9BD5]/20"
-              style={{ background: "linear-gradient(135deg, #050f1c, #030812)", border: `1px solid ${verde ? "#22c55e20" : "#ffffff08"}` }}
+              style={{ background: "linear-gradient(135deg, #050f1c, #030812)", border: `1px solid ${verde ?"#22c55e20" : "#ffffff08"}` }}
               data-testid={`card-doc-${doc.id}`}
             >
               <div className="flex items-start gap-3">
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: verde ? "#22c55e15" : `${ACCENT}10`, border: `1px solid ${verde ? "#22c55e30" : `${ACCENT}20`}` }}
+                  style={{ background: verde ?"#22c55e15" : `${ACCENT}10`, border: `1px solid ${verde ?"#22c55e30" : `${ACCENT}20`}` }}
                 >
-                  {verde ? <Star className="w-3.5 h-3.5 text-green-400" /> : <FileText className="w-3.5 h-3.5" style={{ color: ACCENT }} />}
+                  {verde ?<Star className="w-3.5 h-3.5 text-green-400" /> : <FileText className="w-3.5 h-3.5" style={{ color: ACCENT }} />}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -417,7 +417,7 @@ export default function NucleoTecnicoPage() {
   });
 
   const verdeTotal = docs.filter(d => isVerde(d.tipo_documento, d.alianca_tipo || "")).length;
-  const docsFiltered = biaId ? docs.filter(d => d.bia_id === biaId) : docs;
+  const docsFiltered = biaId ?docs.filter(d => d.bia_id === biaId) : docs;
 
   return (
     <div className="min-h-screen p-6" style={{ background: "linear-gradient(135deg, #001020 0%, #000c18 100%)" }}>
@@ -452,7 +452,7 @@ export default function NucleoTecnicoPage() {
       {/* BIA Filter */}
       <div className="mb-6 flex items-center gap-3">
         <span className="text-xs text-white/40 uppercase tracking-wider shrink-0">Filtrar por BIA:</span>
-        <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ? null : v)}>
+        <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ?null : v)}>
           <SelectTrigger className="max-w-xs bg-white/5 border-white/10 text-white text-sm h-9" data-testid="select-filter-bia">
             <SelectValue placeholder="Todas as BIAs" />
           </SelectTrigger>
@@ -467,7 +467,7 @@ export default function NucleoTecnicoPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap" style={{ background: "#050f1c", border: `1px solid ${ACCENT}15` }}>
           {Object.entries(ABA_LABELS).map(([key, label]) => {
-            const count = (biaId ? docs.filter(d => d.bia_id === biaId) : docs).filter(d => d.alianca_tipo === key).length;
+            const count = (biaId ?docs.filter(d => d.bia_id === biaId) : docs).filter(d => d.alianca_tipo === key).length;
             const isActive = activeTab === key;
             return (
               <button
@@ -475,9 +475,9 @@ export default function NucleoTecnicoPage() {
                 onClick={() => setActiveTab(key)}
                 className="flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all"
                 style={{
-                  background: isActive ? ACCENT : "transparent",
-                  color: isActive ? "#ffffff" : "#ffffff60",
-                  fontWeight: isActive ? 600 : 400,
+                  background: isActive ?ACCENT : "transparent",
+                  color: isActive ?"#ffffff" : "#ffffff60",
+                  fontWeight: isActive ?600 : 400,
                   minWidth: 0,
                 }}
                 data-testid={`tab-${key}`}

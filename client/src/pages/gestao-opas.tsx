@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import type { ComponentType } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -189,7 +189,7 @@ function KanbanClientCard({
             <p className="text-sm font-semibold leading-snug text-foreground">{interesse.membro_nome || "Membro sem nome"}</p>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {formatDate(interesse.criado_em)}
-              {interesse.multiplicador ? ` · ${percent(interesse.multiplicador)}` : ""}
+              {interesse.multiplicador ?` · ${percent(interesse.multiplicador)}` : ""}
             </p>
           </div>
           <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/50" />
@@ -323,7 +323,7 @@ export default function GestaoOpasPage() {
     return acc;
   }, {} as Record<CrmStatus, number>);
 
-  const biaId = selectedOpa ? String(selectedOpa.bia || selectedOpa.bia_id || "") : "";
+  const biaId = selectedOpa ?String(selectedOpa.bia || selectedOpa.bia_id || "") : "";
 
   function handleDrop(status: CrmStatus, droppedId?: string) {
     const interesseId = droppedId || draggedId;
@@ -381,7 +381,7 @@ export default function GestaoOpasPage() {
         <CardContent className="space-y-4">
           <Select value={selectedOpaId || undefined} onValueChange={setSelectedOpaId}>
             <SelectTrigger data-testid="select-opa-gestao-opas">
-              <SelectValue placeholder={loadingOpas ? "Carregando OPAs..." : "Selecione uma OPA para gerenciar as manifestações"} />
+              <SelectValue placeholder={loadingOpas ?"Carregando OPAs..." : "Selecione uma OPA para gerenciar as manifestações"} />
             </SelectTrigger>
             <SelectContent>
               {opas.map(opa => (
@@ -429,7 +429,7 @@ export default function GestaoOpasPage() {
         </CardContent>
       </Card>
 
-      {!selectedOpaId ? (
+      {!selectedOpaId ?(
         <Card className="border border-dashed border-border/60">
           <CardContent className="p-10 text-center">
             <Target className="w-9 h-9 text-muted-foreground/40 mx-auto mb-3" />
@@ -463,7 +463,7 @@ export default function GestaoOpasPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-5">
-              {loadingInteresses ? (
+              {loadingInteresses ?(
                 <div className="grid grid-cols-1 gap-3 xl:grid-cols-6">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <Skeleton key={index} className="h-80 w-full" />
@@ -481,7 +481,7 @@ export default function GestaoOpasPage() {
                         <section
                           key={status.value}
                           className={`min-h-[520px] w-[290px] shrink-0 rounded-lg border bg-muted/15 p-3 transition-colors ${
-                            isDragOver ? "border-[#D7BB7D] bg-[#D7BB7D]/10" : "border-border/60"
+                            isDragOver ?"border-[#D7BB7D] bg-[#D7BB7D]/10" : "border-border/60"
                           }`}
                           onDragOver={(event) => {
                             event.preventDefault();
@@ -507,7 +507,7 @@ export default function GestaoOpasPage() {
                           </div>
 
                           <div className="max-h-[460px] space-y-3 overflow-y-auto pr-1">
-                            {items.length === 0 ? (
+                            {items.length === 0 ?(
                               <div className="rounded-md border border-dashed border-border/60 p-5 text-center">
                                 <p className="text-[11px] text-muted-foreground">Arraste cards para cá</p>
                               </div>
@@ -544,3 +544,4 @@ export default function GestaoOpasPage() {
     </div>
   );
 }
+

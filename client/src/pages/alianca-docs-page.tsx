@@ -20,6 +20,9 @@ export interface AliancaDocsPageConfig {
   accentColor: string;
   icon: LucideIcon;
   aliancas: AliancaConfig[];
+  theme?: "dark" | "light";
+  hideHeaderIcon?: boolean;
+  hideHeaderChrome?: boolean;
 }
 
 type Bia = { id: string; nome_bia: string };
@@ -89,7 +92,7 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetPr
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/alianca-docs", modulo] });
-      toast({ title: doc ? "Documento atualizado" : "Documento registrado" });
+      toast({ title: doc ?"Documento atualizado" : "Documento registrado" });
       onClose();
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -106,7 +109,7 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetPr
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-white/5 shrink-0">
           <SheetTitle className="text-white flex items-center gap-2 text-base">
             <config.icon className="w-4 h-4" style={{ color: accentColor }} />
-            {doc ? "Editar Documento" : "Novo Documento"}
+            {doc ?"Editar Documento" : "Novo Documento"}
           </SheetTitle>
           <p className="text-xs text-white/40 mt-1">{alianca.label}</p>
         </SheetHeader>
@@ -191,7 +194,7 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetPr
             style={{ background: accentColor, color: "#001D34" }}
             data-testid="btn-salvar-doc"
           >
-            {mutation.isPending || uploading ? "Salvando..." : doc ? "Atualizar" : "Registrar"}
+            {mutation.isPending || uploading ?"Salvando..." : doc ?"Atualizar" : "Registrar"}
           </Button>
         </div>
       </SheetContent>
@@ -202,6 +205,7 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetPr
 export default function AliancaDocsPage({ config }: { config: AliancaDocsPageConfig }) {
   const { toast } = useToast();
   const { accentColor, modulo, titulo, subtitulo, aliancas } = config;
+  const isLight = config.theme === "light";
   const [biaId, setBiaId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(aliancas[0]?.key || "");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -224,34 +228,43 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
     onError: (e: any) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
   });
 
-  const docsFiltered = biaId ? docs.filter(d => d.bia_id === biaId) : docs;
+  const docsFiltered = biaId ?docs.filter(d => d.bia_id === biaId) : docs;
   const activeAlianca = aliancas.find(a => a.key === activeTab);
   const tabDocs = docsFiltered.filter(d => d.alianca_tipo === activeTab);
   const biaName = (id?: string) => bias.find(b => b.id === id)?.nome_bia || id || "—";
 
   return (
-    <div className="min-h-screen p-6" style={{ background: "linear-gradient(135deg, #001020 0%, #000c18 100%)" }}>
+    <div
+      className={`min-h-screen p-6 ${isLight ? "text-foreground" : ""}`}
+      style={{ background: isLight ? "transparent" : "linear-gradient(135deg, #001020 0%, #000c18 100%)" }}
+    >
       {/* Header */}
       <div className="relative mb-8">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-24 h-px" style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }} />
-          <div className="absolute top-0 left-0 w-px h-24" style={{ background: `linear-gradient(180deg, ${accentColor}, transparent)` }} />
-        </div>
+        {!config.hideHeaderChrome && (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-0 left-0 w-24 h-px" style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }} />
+            <div className="absolute top-0 left-0 w-px h-24" style={{ background: `linear-gradient(180deg, ${accentColor}, transparent)` }} />
+          </div>
+        )}
         <div className="flex items-center justify-between pt-2 pl-2">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${accentColor}20, #001D34)`, border: `1px solid ${accentColor}40` }}>
-              <config.icon className="w-6 h-6" style={{ color: accentColor }} />
-            </div>
+            {!config.hideHeaderIcon && (
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: isLight ? `${accentColor}30` : `linear-gradient(135deg, ${accentColor}20, #001D34)`, border: `1px solid ${accentColor}40` }}>
+                <config.icon className="w-6 h-6" style={{ color: accentColor }} />
+              </div>
+            )}
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: `${accentColor}60` }}>BUILT ALLIANCES</div>
-              <h1 className="text-2xl font-bold text-white">{titulo}</h1>
-              <p className="text-sm mt-0.5" style={{ color: `${accentColor}70` }}>{subtitulo}</p>
+              {!config.hideHeaderChrome && (
+                <div className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: `${accentColor}60` }}>BUILT ALLIANCES</div>
+              )}
+              <h1 className={isLight ? "text-2xl font-bold text-foreground" : "text-2xl font-bold text-white"}>{titulo}</h1>
+              <p className={isLight ? "text-sm mt-0.5 text-muted-foreground" : "text-sm mt-0.5"} style={isLight ? undefined : { color: `${accentColor}70` }}>{subtitulo}</p>
             </div>
           </div>
           <div className="hidden md:flex">
-            <div className="rounded-xl px-4 py-3 text-center" style={{ background: "#050f1c", border: `1px solid ${accentColor}15` }}>
-              <div className="text-lg font-bold text-white">{docsFiltered.length}</div>
-              <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">Documentos</div>
+            <div className="rounded-xl px-4 py-3 text-center" style={{ background: isLight ? "#fff" : "#050f1c", border: `1px solid ${accentColor}30` }}>
+              <div className={isLight ? "text-lg font-bold text-foreground" : "text-lg font-bold text-white"}>{docsFiltered.length}</div>
+              <div className={isLight ? "text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5" : "text-[10px] text-white/30 uppercase tracking-wider mt-0.5"}>Documentos</div>
             </div>
           </div>
         </div>
@@ -259,9 +272,9 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
 
       {/* BIA Filter */}
       <div className="mb-6 flex items-center gap-3">
-        <span className="text-xs text-white/40 uppercase tracking-wider shrink-0">Filtrar por BIA:</span>
-        <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ? null : v)}>
-          <SelectTrigger className="max-w-xs bg-white/5 border-white/10 text-white text-sm h-9" data-testid="select-filter-bia">
+        <span className={isLight ? "text-xs text-muted-foreground uppercase tracking-wider shrink-0" : "text-xs text-white/40 uppercase tracking-wider shrink-0"}>Filtrar por BIA:</span>
+        <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ?null : v)}>
+          <SelectTrigger className={isLight ? "max-w-xs bg-background border-border text-foreground text-sm h-9" : "max-w-xs bg-white/5 border-white/10 text-white text-sm h-9"} data-testid="select-filter-bia">
             <SelectValue placeholder="Todas as BIAs" />
           </SelectTrigger>
           <SelectContent>
@@ -272,7 +285,7 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
       </div>
 
       {/* Custom tabs */}
-      <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap" style={{ background: "#050f1c", border: `1px solid ${accentColor}15` }}>
+      <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap" style={{ background: isLight ? "#fff" : "#050f1c", border: `1px solid ${accentColor}30` }}>
         {aliancas.map(a => {
           const count = docsFiltered.filter(d => d.alianca_tipo === a.key).length;
           const isActive = activeTab === a.key;
@@ -281,7 +294,7 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
               key={a.key}
               onClick={() => setActiveTab(a.key)}
               className="flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all"
-              style={{ background: isActive ? accentColor : "transparent", color: isActive ? "#fff" : "#ffffff60", fontWeight: isActive ? 600 : 400, minWidth: 0 }}
+              style={{ background: isActive ?accentColor : "transparent", color: isActive ?"#001D34" : isLight ?"#64748b" : "#ffffff60", fontWeight: isActive ?600 : 400, minWidth: 0 }}
               data-testid={`tab-${a.key}`}
             >
               {a.label.replace("Alianças de ", "").replace("Alianças ", "")}
@@ -294,7 +307,7 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
       {/* Tab content */}
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className="text-sm text-white/40">{tabDocs.length} documento{tabDocs.length !== 1 ? "s" : ""}</span>
+          <span className={isLight ? "text-sm text-muted-foreground" : "text-sm text-white/40"}>{tabDocs.length} documento{tabDocs.length !== 1 ?"s" : ""}</span>
           <Button
             onClick={() => { setEditingDoc(undefined); setSheetOpen(true); }}
             size="sm"
@@ -308,14 +321,14 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
 
         {isLoading && (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" style={{ background: "#0a1929" }} />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" style={isLight ? undefined : { background: "#0a1929" }} />)}
           </div>
         )}
 
         {!isLoading && tabDocs.length === 0 && (
           <div className="text-center py-14 rounded-xl" style={{ border: `1px dashed ${accentColor}25` }}>
             <FileText className="w-10 h-10 mx-auto mb-3 opacity-20" style={{ color: accentColor }} />
-            <p className="text-sm text-white/30">Nenhum documento registrado</p>
+            <p className={isLight ? "text-sm text-muted-foreground" : "text-sm text-white/30"}>Nenhum documento registrado</p>
             <p className="text-xs text-white/20 mt-1">Clique em Adicionar para começar</p>
           </div>
         )}
@@ -325,7 +338,7 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
             <div
               key={doc.id}
               className="rounded-xl p-4 transition-all duration-200"
-              style={{ background: "linear-gradient(135deg, #050f1c, #030812)", border: "1px solid #ffffff08" }}
+              style={{ background: isLight ? "#fff" : "linear-gradient(135deg, #050f1c, #030812)", border: isLight ? "1px solid hsl(var(--border))" : "1px solid #ffffff08" }}
               data-testid={`card-doc-${doc.id}`}
             >
               <div className="flex items-start gap-3">
@@ -333,9 +346,9 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
                   <FileText className="w-3.5 h-3.5" style={{ color: accentColor }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white/90 leading-tight mb-1">{doc.tipo_documento}</p>
-                  {!biaId && <p className="text-[11px] text-white/30 mb-1">{biaName(doc.bia_id)}</p>}
-                  {doc.descricao && <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{doc.descricao}</p>}
+                  <p className={isLight ? "text-sm font-medium text-foreground leading-tight mb-1" : "text-sm font-medium text-white/90 leading-tight mb-1"}>{doc.tipo_documento}</p>
+                  {!biaId && <p className={isLight ? "text-[11px] text-muted-foreground mb-1" : "text-[11px] text-white/30 mb-1"}>{biaName(doc.bia_id)}</p>}
+                  {doc.descricao && <p className={isLight ? "text-xs text-muted-foreground leading-relaxed line-clamp-2" : "text-xs text-white/40 leading-relaxed line-clamp-2"}>{doc.descricao}</p>}
                   {(doc.arquivos || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {(doc.arquivos || []).map(a => (
@@ -349,7 +362,7 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
                       ))}
                     </div>
                   )}
-                  <p className="text-[10px] text-white/20 mt-2">{formatDate(doc.created_at)}</p>
+                  <p className={isLight ? "text-[10px] text-muted-foreground mt-2" : "text-[10px] text-white/20 mt-2"}>{formatDate(doc.created_at)}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => { setEditingDoc(doc); setSheetOpen(true); }} className="w-7 h-7 rounded flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors" data-testid={`btn-editar-doc-${doc.id}`}>

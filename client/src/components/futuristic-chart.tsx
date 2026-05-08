@@ -17,12 +17,12 @@ export function FuturisticChart({ data, type, title, height = 200 }: FuturisticC
   const maxValue = useMemo(() => {
     if (data.length === 0) return 1;
     const max = Math.max(...data.map(d => d.value));
-    return max > 0 ? max : 1;
+    return max > 0 ?max : 1;
   }, [data]);
   
   const total = useMemo(() => {
     const sum = data.reduce((acc, d) => acc + d.value, 0);
-    return sum > 0 ? sum : 1;
+    return sum > 0 ?sum : 1;
   }, [data]);
   
   const colors = ["hsl(208, 100%, 10%)", "hsl(38, 48%, 67%)", "hsl(204, 11%, 47%)", "hsl(0, 2%, 71%)", "hsl(208, 60%, 25%)"];
@@ -77,7 +77,7 @@ export function FuturisticChart({ data, type, title, height = 200 }: FuturisticC
               const startAngle = cumulativeAngle;
               cumulativeAngle += angle;
               
-              const largeArcFlag = angle > 180 ? 1 : 0;
+              const largeArcFlag = angle > 180 ?1 : 0;
               const startRad = (startAngle * Math.PI) / 180;
               const endRad = ((startAngle + angle) * Math.PI) / 180;
               

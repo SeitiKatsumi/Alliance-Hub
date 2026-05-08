@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
@@ -162,7 +162,7 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
             className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 shrink-0"
             data-testid="btn-comunidade-search-location"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ?<Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </Button>
         </div>
 
@@ -177,7 +177,7 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
                 <button
                   key={r.place_id}
                   onClick={() => setSelected(r)}
-                  className={`w-full text-left p-2.5 rounded-lg text-sm transition-colors ${selected?.place_id === r.place_id ? "bg-brand-gold/20 border border-brand-gold/40" : "hover:bg-white/5 border border-transparent"}`}
+                  className={`w-full text-left p-2.5 rounded-lg text-sm transition-colors ${selected?.place_id === r.place_id ?"bg-brand-gold/20 border border-brand-gold/40" : "hover:bg-white/5 border border-transparent"}`}
                   data-testid={`comunidade-location-result-${r.place_id}`}
                 >
                   <p className="font-medium text-white leading-tight">{city}</p>
@@ -193,9 +193,9 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
             <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest mb-1.5">Localização selecionada</p>
             <p className="text-sm text-white font-medium">{selected.display_name}</p>
             <div className="flex gap-4 mt-2 text-xs text-white/50 font-mono">
-              {selected.address?.country && <span>🌎 {selected.address.country}</span>}
+              {selected.address?.country && <span>ðŸŒŽ {selected.address.country}</span>}
               {(selected.address?.city || selected.address?.town) && (
-                <span>📍 {selected.address.city || selected.address.town}</span>
+                <span>ðŸ“ {selected.address.city || selected.address.town}</span>
               )}
             </div>
           </div>
@@ -332,12 +332,75 @@ function CandidatoAuraBadge({ membroId }: { membroId?: string | null }) {
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-semibold border border-violet-400/30 bg-violet-400/10 text-violet-300">
       <Sparkles className="w-2 h-2" />
-      {data.score !== null ? Number(data.score).toFixed(1) : "—"}
+      {data.score !== null ?Number(data.score).toFixed(1) : "—"}
     </span>
   );
 }
 
-export default function ComunidadePage() {
+function candidateValue(value: any) {
+  if (value === null || value === undefined) return "—";
+  const text = String(value).trim();
+  return text || "—";
+}
+
+function CandidateInfoPanel({
+  convite,
+  compact = false,
+}: {
+  convite: any;
+  compact?: boolean;
+}) {
+  const dados = (convite?.dados_contratuais || {}) as any;
+  const rows = [
+    ["Nome completo", dados.nome_completo || convite?.candidato_nome],
+    ["CPF", dados.cpf || dados.cpf_cnpj],
+    ["Nome da empresa", dados.nome_empresa || dados.empresa],
+    ["CNPJ", dados.cnpj],
+    ["Telefone", dados.telefone],
+    ["E-mail", dados.email || convite?.candidato_email],
+    ["Endereço", dados.endereco],
+    ["Cidade", dados.cidade],
+    ["Estado", dados.estado],
+    ["País", dados.pais],
+  ];
+  const visibleRows = rows.filter(([, value]) => candidateValue(value) !== "—");
+
+  if (visibleRows.length === 0 && !dados.mensagem) return null;
+
+  return (
+    <div
+      className={`rounded-xl border border-brand-gold/15 ${compact ?"mt-3 p-3" : "p-4"} space-y-3`}
+      style={{ background: "rgba(215,187,125,0.045)" }}
+    >
+      <div className="flex items-center gap-2">
+        <FileText className="w-3.5 h-3.5 text-brand-gold/60" />
+        <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest">Dados da candidatura</p>
+      </div>
+      {visibleRows.length > 0 && (
+        <div className={`grid grid-cols-1 ${compact ?"sm:grid-cols-2" : "sm:grid-cols-2"} gap-2`}>
+          {visibleRows.map(([label, value]) => (
+            <div key={label} className="min-w-0 rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
+              <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">{label}</p>
+              <p className="mt-0.5 text-xs font-mono text-white/75 break-words">{candidateValue(value)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {dados.mensagem && (
+        <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">Mensagem</p>
+          <p className="mt-1 text-xs font-mono text-white/65 italic leading-relaxed break-words">"{dados.mensagem}"</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ComunidadePageProps {
+  convitesOnly?: boolean;
+}
+
+export default function ComunidadePage({ convitesOnly = false }: ComunidadePageProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -345,8 +408,8 @@ export default function ComunidadePage() {
   const searchParams = useSearch();
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"comunidades" | "convites">("comunidades");
-  const [filtroConvitesComunidade, setFiltroConvitesComunidade] = useState<string>("todas");
+  const [activeTab, setActiveTab] = useState<"comunidades" | "convites">(convitesOnly ?"convites" : "comunidades");
+  const [aprovacoesSearch, setAprovacoesSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
@@ -354,6 +417,10 @@ export default function ComunidadePage() {
   const [codigoLoading, setCodigoLoading] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [selectedConvite, setSelectedConvite] = useState<any | null>(null);
+
+  useEffect(() => {
+    setActiveTab(convitesOnly ?"convites" : "comunidades");
+  }, [convitesOnly]);
 
   const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades"],
@@ -386,7 +453,7 @@ export default function ComunidadePage() {
     if (pais && territorio) {
       const nome = `BUILT ${pais} | ${territorio} | Comunidade ${codigo_sequencial || ""}`.trim();
       const sigla = sigla_pais && sigla_territorio && codigo_sequencial
-        ? `${sigla_pais.toUpperCase()}-${sigla_territorio.toUpperCase()}-COM-${codigo_sequencial}`
+        ?`${sigla_pais.toUpperCase()}-${sigla_territorio.toUpperCase()}-COM-${codigo_sequencial}`
         : "";
       setForm(f => ({ ...f, nome, sigla }));
     }
@@ -402,7 +469,7 @@ export default function ComunidadePage() {
       .then(d => setForm(f => ({
         ...f,
         codigo_sequencial: d.codigo,
-        ...(d.sigla_territorio ? { sigla_territorio: d.sigla_territorio } : {}),
+        ...(d.sigla_territorio ?{ sigla_territorio: d.sigla_territorio } : {}),
       })))
       .catch(() => {})
       .finally(() => setCodigoLoading(false));
@@ -486,14 +553,14 @@ export default function ComunidadePage() {
   function toggleMembro(id: string) {
     setForm(f => {
       const ids = f.membros_ids || [];
-      return { ...f, membros_ids: ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id] };
+      return { ...f, membros_ids: ids.includes(id) ?ids.filter(x => x !== id) : [...ids, id] };
     });
   }
 
   function toggleBia(id: string) {
     setForm(f => {
       const ids = f.bias_ids || [];
-      return { ...f, bias_ids: ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id] };
+      return { ...f, bias_ids: ids.includes(id) ?ids.filter(x => x !== id) : [...ids, id] };
     });
   }
 
@@ -509,12 +576,12 @@ export default function ComunidadePage() {
 
   // Communities where the current user is the Aliado BUILT
   const minhasComunidadesComoAliado = comunidades.filter(c => {
-    const aId = typeof c.aliado === "string" ? c.aliado : (c.aliado as any)?.id;
+    const aId = typeof c.aliado === "string" ?c.aliado : (c.aliado as any)?.id;
     return aId && aId === user?.membro_directus_id;
   });
 
   // Admins/managers see all communities; aliados see only their own
-  const comunidadesParaConvites = (isAdmin || isManager) ? comunidades : minhasComunidadesComoAliado;
+  const comunidadesParaConvites = (isAdmin || isManager) ?comunidades : minhasComunidadesComoAliado;
 
   // Fetch convites for relevant communities
   const { data: convitesPorComunidade } = useQuery<Record<string, any[]>>({
@@ -597,7 +664,7 @@ export default function ComunidadePage() {
   });
 
   // Aura evaluation state for Aliado evaluating a candidate directly from the panel
-  const [auraDialogConvite, setAuraDialogConvite] = useState<{ candidatoMembroId: string; candidatoNome: string } | null>(null);
+  const [auraDialogConvite, setAuraDialogConvite] = useState<{ avaliacaoToken: string; candidatoNome: string } | null>(null);
   const [auraSelectedWords, setAuraSelectedWords] = useState<string[]>([]);
   const [auraSearch, setAuraSearch] = useState("");
 
@@ -608,8 +675,8 @@ export default function ComunidadePage() {
   });
 
   const avaliarAuraMutation = useMutation({
-    mutationFn: ({ avaliado_id, palavras }: { avaliado_id: string; palavras: string[] }) =>
-      apiRequest("POST", "/api/aura/avaliar", { avaliado_id, palavras }),
+    mutationFn: ({ avaliacaoToken, palavras }: { avaliacaoToken: string; palavras: string[] }) =>
+      apiRequest("POST", `/api/avaliacao-aura/${avaliacaoToken}`, { palavras }),
     onSuccess: () => {
       toast({ title: "Percepção de Aura registrada!" });
       setAuraDialogConvite(null);
@@ -621,17 +688,13 @@ export default function ComunidadePage() {
 
   const toggleAuraWord = (word: string) => {
     setAuraSelectedWords(prev =>
-      prev.includes(word) ? prev.filter(w => w !== word) : prev.length < 3 ? [...prev, word] : prev
+      prev.includes(word) ?prev.filter(w => w !== word) : prev.length < 3 ?[...prev, word] : prev
     );
   };
 
   const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
-  const vitrineCandidatosFiltrados = filtroConvitesComunidade === "todas"
-    ? vitrineCandidatos
-    : vitrineCandidatos.filter(c => String(c.comunidade_id) === filtroConvitesComunidade);
-  const todosCandidatosFiltrados = filtroConvitesComunidade === "todas"
-    ? todosCandidatos
-    : todosCandidatos.filter(c => String(c.comunidade_id) === filtroConvitesComunidade);
+  const vitrineCandidatosFiltrados = vitrineCandidatos;
+  const todosCandidatosFiltrados = todosCandidatos;
   const candidatosPendentes = todosCandidatosFiltrados.filter(c => c.status === "candidato");
   const vitrinePendentes = vitrineCandidatosFiltrados.filter(c => ["candidato", "aguardando_avaliacao_aura"].includes(c.status));
   const outrosConvites = todosCandidatosFiltrados.filter(c => c.status !== "candidato" && c.status !== "convidado");
@@ -657,7 +720,7 @@ export default function ComunidadePage() {
       // In-app toast
       const nomes = novos.map(id => candidatosPendentes.find((c: any) => c.id === id)?.candidato_nome || "Novo candidato").join(", ");
       toast({
-        title: `📋 ${novos.length === 1 ? "Novo candidato" : `${novos.length} novos candidatos`}`,
+        title: `ðŸ“‹ ${novos.length === 1 ?"Novo candidato" : `${novos.length} novos candidatos`}`,
         description: nomes,
       });
 
@@ -689,10 +752,46 @@ export default function ComunidadePage() {
     vitrine_ativo: { label: "Vitrine ativa", color: "text-emerald-400" },
   };
 
-  const showConvitesTab = isAdmin || isManager || minhasComunidadesComoAliado.length > 0;
+  const showConvitesTab = false;
   const todosCandidatosCompleto = todosCandidatosFiltrados.filter(c => c.tipo !== "vitrine");
-  // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const PENDING_DECISION_STATUSES = ["candidato", "aguardando_avaliacao_aura"];
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const convitesUnificados = Array.from(
+    new Map(
+      [...vitrineCandidatosFiltrados, ...todosCandidatosCompleto].map((convite: any) => [
+        String(convite.id),
+        convite,
+      ])
+    ).values()
+  ).sort((a: any, b: any) => {
+    const priorityA = PENDING_DECISION_STATUSES.includes(a.status) ?0 : 1;
+    const priorityB = PENDING_DECISION_STATUSES.includes(b.status) ?0 : 1;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    const dateA = new Date(a.criado_em || a.created_at || 0).getTime();
+    const dateB = new Date(b.criado_em || b.created_at || 0).getTime();
+    return dateB - dateA;
+  });
+  const aprovacoesQuery = normalize(aprovacoesSearch);
+  const aprovacoesFiltradas = convitesUnificados.filter((convite: any) => {
+    if (!aprovacoesQuery) return true;
+    const dados = convite.dados_contratuais as any;
+    const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || "";
+    return normalize([
+      convite.candidato_nome,
+      dados?.nome_completo,
+      convite.candidato_email,
+      comNome,
+      convite.status,
+    ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
+  });
+  const convitesPendentes = aprovacoesFiltradas.filter((c: any) =>
+    ["candidato", "aguardando_avaliacao_aura"].includes(c.status)
+  );
+  // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
     vitrineCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length +
     todosCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length;
@@ -702,15 +801,22 @@ export default function ComunidadePage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
-            <MessageCircle className="w-6 h-6" />
+          <div
+            className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy"
+            data-testid="icon-comunidade-title"
+          >
+            {convitesOnly ?<Ticket className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
           </div>
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">Comunidades</h1>
-            <p className="text-sm text-white/40 font-mono mt-0.5">{comunidades.length} comunidade{comunidades.length !== 1 ? "s" : ""} ativa{comunidades.length !== 1 ? "s" : ""}</p>
+            <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">{convitesOnly ?"Aprovações" : "Comunidades"}</h1>
+            <p className="text-sm text-white/40 font-mono mt-0.5">
+              {convitesOnly
+                ?"Gerencie aprovações, candidaturas e avaliações de Aura"
+                : `${comunidades.length} comunidade${comunidades.length !== 1 ?"s" : ""} ativa${comunidades.length !== 1 ?"s" : ""}`}
+            </p>
           </div>
         </div>
-        {activeTab === "comunidades" && (
+        {!convitesOnly && activeTab === "comunidades" && (
           <Button
             onClick={openCreate}
             className="font-mono"
@@ -731,9 +837,9 @@ export default function ComunidadePage() {
             data-testid="tab-comunidades"
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: activeTab === "comunidades" ? "rgba(215,187,125,0.18)" : "transparent",
-              color: activeTab === "comunidades" ? "#D7BB7D" : "rgba(255,255,255,0.7)",
-              border: activeTab === "comunidades" ? "1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
+              background: activeTab === "comunidades" ?"rgba(215,187,125,0.18)" : "transparent",
+              color: activeTab === "comunidades" ?"#D7BB7D" : "rgba(255,255,255,0.7)",
+              border: activeTab === "comunidades" ?"1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
             }}
           >
             <MessageCircle className="w-3.5 h-3.5" />
@@ -744,9 +850,9 @@ export default function ComunidadePage() {
             data-testid="tab-convites"
             className="relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: activeTab === "convites" ? "rgba(215,187,125,0.18)" : "transparent",
-              color: activeTab === "convites" ? "#D7BB7D" : "rgba(255,255,255,0.7)",
-              border: activeTab === "convites" ? "1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
+              background: activeTab === "convites" ?"rgba(215,187,125,0.18)" : "transparent",
+              color: activeTab === "convites" ?"#D7BB7D" : "rgba(255,255,255,0.7)",
+              border: activeTab === "convites" ?"1px solid rgba(215,187,125,0.35)" : "1px solid transparent",
             }}
           >
             <Ticket className="w-3.5 h-3.5" />
@@ -760,7 +866,7 @@ export default function ComunidadePage() {
         </div>
       )}
 
-      {activeTab === "comunidades" && (
+      {!convitesOnly && activeTab === "comunidades" && (
         <>
       {/* Search */}
       <div className="relative max-w-md">
@@ -780,23 +886,23 @@ export default function ComunidadePage() {
       </div>
 
       {/* List */}
-      {isLoading ? (
+      {isLoading ?(
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
             <div key={i} className="rounded-2xl h-48 animate-pulse" style={{ background: "rgba(255,255,255,0.03)" }} />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 ?(
         <div
           className="rounded-2xl border border-white/8 p-12 flex flex-col items-center justify-center text-center"
           style={{ background: "linear-gradient(145deg, #071626, #040e1c)", minHeight: 280 }}
         >
           <MessageCircle className="w-10 h-10 text-brand-gold/20 mb-4" />
           <p className="text-brand-gold/40 font-mono text-xs tracking-[0.3em] uppercase mb-1">
-            {search ? "// Nenhum resultado" : "// Sem comunidades"}
+            {search ?"// Nenhum resultado" : "// Sem comunidades"}
           </p>
           <p className="text-white/20 font-mono text-sm">
-            {search ? "Tente outro termo de busca." : "Crie a primeira comunidade BUILT."}
+            {search ?"Tente outro termo de busca." : "Crie a primeira comunidade BUILT."}
           </p>
         </div>
       ) : (
@@ -818,57 +924,54 @@ export default function ComunidadePage() {
       {/* Convites Tab */}
       {activeTab === "convites" && (
         <div className="space-y-6">
-          {/* Community filter — only shown when admin/manager sees multiple communities */}
-          {(isAdmin || isManager) && comunidadesParaConvites.length > 1 && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-mono text-white/40 uppercase tracking-widest">Filtrar por comunidade:</span>
-              <select
-                className="text-xs font-mono bg-background border border-border rounded-md px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand-gold/50"
-                value={filtroConvitesComunidade}
-                onChange={(e) => setFiltroConvitesComunidade(e.target.value)}
-                data-testid="select-filtro-comunidade-convites"
-              >
-                <option value="todas">Todas as comunidades</option>
-                {comunidadesParaConvites.map(c => (
-                  <option key={String(c.id)} value={String(c.id)}>{c.nome}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {/* Acesso à Vitrine */}
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-navy/50" />
+            <Input
+              value={aprovacoesSearch}
+              onChange={(event) => setAprovacoesSearch(event.target.value)}
+              placeholder="Buscar por nome, e-mail, comunidade ou status..."
+              className="h-10 pl-9 bg-white border-brand-gold/40 text-brand-navy placeholder:text-brand-navy/45 focus-visible:ring-brand-gold/40"
+              data-testid="input-busca-aprovacoes"
+            />
+          </div>
+          {/* Aprovações e candidaturas */}
           <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
             <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
-              <Link2 className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Acesso à Vitrine</span>
-              {vitrinePendentes.length > 0 && (
+              <Ticket className="w-4 h-4 text-brand-gold" />
+              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Aprovações e Candidaturas</span>
+              {convitesPendentes.length > 0 && (
                 <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {vitrinePendentes.length} aguardando
+                  {convitesPendentes.length} aguardando
                 </span>
               )}
             </div>
-            {vitrineCandidatosFiltrados.length === 0 ? (
+            {aprovacoesFiltradas.length === 0 ?(
               <div className="p-8 flex flex-col items-center text-center gap-2">
-                <Link2 className="w-8 h-8 text-white/10" />
-                <p className="text-white/30 text-xs font-mono">Nenhum candidato via link de convite</p>
+                <Ticket className="w-8 h-8 text-white/10" />
+                <p className="text-white/30 text-xs font-mono">Nenhuma aprovação ou candidatura encontrada</p>
               </div>
             ) : (
               <div className="divide-y divide-white/5">
-                {vitrineCandidatosFiltrados.map((convite: any) => {
-                  const isP = convite.status === "candidato";
+                {aprovacoesFiltradas.map((convite: any) => {
+                  const isVitrine = convite.tipo === "vitrine";
+                  const isPendente = convite.status === "candidato";
                   const isAguardandoAura = convite.status === "aguardando_avaliacao_aura";
-                  const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || "—";
+                  const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || ("Comunidade #" + convite.comunidade_id);
                   const invitador = membros.find(m => String(m.id) === String(convite.invitador_membro_id));
                   const nomeConvidador = invitador?.nome || null;
                   const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/40" };
+                  const dados = convite.dados_contratuais as any;
                   return (
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-mono font-bold text-white">{convite.candidato_nome || "—"}</p>
-                          <span className={`text-[10px] font-mono ${statusInfo.color}`}>
-                            • {statusInfo.label}
+                          <p className="text-sm font-mono font-bold text-white">
+                            {convite.candidato_nome || dados?.nome_completo || "-"}
+                          </p>
+                          <span className={"text-[10px] font-mono " + statusInfo.color}>
+                            - {statusInfo.label}
                           </span>
-                          {isP && <CandidatoAuraBadge membroId={convite.candidato_membro_id} />}
+                          {isPendente && <CandidatoAuraBadge membroId={convite.candidato_membro_id} />}
                         </div>
                         {convite.candidato_email && (
                           <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
@@ -879,157 +982,123 @@ export default function ComunidadePage() {
                           </p>
                         )}
                         <p className="text-[10px] font-mono text-white/25">{comNome}</p>
-                        {isAguardandoAura && (
-                          <p className="text-[10px] font-mono text-violet-400/70 mt-0.5">
-                            Aguardando avaliação de Aura do convidador
-                          </p>
-                        )}
-                      </div>
-                      {isP && (
-                        <div className="flex flex-col gap-2 shrink-0">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => aprovarVitrineMutation.mutate(convite.token)}
-                              disabled={aprovarVitrineMutation.isPending}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
-                              data-testid={`btn-aprovar-vitrine-${convite.id}`}
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              Aprovar acesso
-                            </button>
-                            <button
-                              onClick={() => rejeitarVitrineMutation.mutate(convite.token)}
-                              disabled={rejeitarVitrineMutation.isPending}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
-                              data-testid={`btn-rejeitar-vitrine-${convite.id}`}
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              Rejeitar
-                            </button>
-                          </div>
-                          {convite.candidato_membro_id && (
-                            <button
-                              onClick={() => {
-                                setAuraDialogConvite({ candidatoMembroId: convite.candidato_membro_id, candidatoNome: convite.candidato_nome || "Candidato" });
-                                setAuraSelectedWords([]);
-                                setAuraSearch("");
-                              }}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-brand-gold/80 border border-brand-gold/20 hover:bg-brand-gold/5 transition-colors"
-                              data-testid={`btn-avaliar-aura-${convite.id}`}
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              Registrar Percepção de Aura
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Acesso à Comunidade */}
-          <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
-              <Bell className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Acesso à Comunidade</span>
-              {todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length > 0 && (
-                <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length} pendente{todosCandidatosCompleto.filter((c: any) => c.status === "candidato").length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-            {todosCandidatosCompleto.length === 0 ? (
-              <div className="p-8 flex flex-col items-center text-center gap-2">
-                <Bell className="w-8 h-8 text-white/10" />
-                <p className="text-white/30 text-xs font-mono">Nenhum convite de associação enviado</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-white/5">
-                {todosCandidatosCompleto.map(convite => {
-                  const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/50" };
-                  const dados = convite.dados_contratuais as any;
-                  const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || `Comunidade #${convite.comunidade_id}`;
-                  return (
-                    <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-mono font-bold text-white">
-                            {convite.candidato_nome || dados?.nome_completo || "—"}
-                          </p>
-                          <span className={`text-[10px] font-mono ${statusInfo.color}`}>
-                            • {statusInfo.label}
-                          </span>
-                        </div>
-                        {convite.candidato_email && (
-                          <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
-                        )}
-                        {dados && (
+                        {!isVitrine && dados && (
                           <div className="flex flex-wrap gap-3 mt-1">
                             {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-white/30">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
                             {dados.cnpj && <span className="text-[10px] font-mono text-white/30">CNPJ: {dados.cnpj}</span>}
                             {dados.telefone && <span className="text-[10px] font-mono text-white/30">Tel: {dados.telefone}</span>}
-                            {dados.cidade && <span className="text-[10px] font-mono text-white/30">📍 {dados.cidade}, {dados.estado}</span>}
+                            {dados.cidade && <span className="text-[10px] font-mono text-white/30">Local: {dados.cidade}, {dados.estado}</span>}
                           </div>
                         )}
-                        {dados?.mensagem && (
+                        {!isVitrine && dados?.mensagem && (
                           <p className="text-[11px] font-mono text-white/50 italic mt-1 leading-relaxed">"{dados.mensagem}"</p>
+                        )}
+                        {isAguardandoAura && (
+                          <p className="text-[10px] font-mono text-violet-400/70 mt-0.5">
+                            Aguardando avaliacao de Aura do convidador
+                          </p>
+                        )}
+                        {!isVitrine && convite.status === "candidato" && (
+                          <CandidateInfoPanel convite={convite} compact />
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        <button
-                          onClick={() => setSelectedConvite({ ...convite, comNome })}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-white/50 border border-white/10 hover:bg-white/5 transition-colors"
-                          data-testid={`btn-ver-candidato-tab-${convite.id}`}
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          Ver detalhes
-                        </button>
-                        {convite.status === "candidato" && (
+                        {!isVitrine && (
+                          <button
+                            onClick={() => setSelectedConvite({ ...convite, comNome })}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-white/50 border border-white/10 hover:bg-white/5 transition-colors"
+                            data-testid={"btn-ver-candidato-tab-" + convite.id}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Ver detalhes
+                          </button>
+                        )}
+                        {isVitrine ?(
                           <>
-                            <button
-                              onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "aprovado" })}
-                              disabled={decisaoMutation.isPending}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
-                              data-testid={`btn-aprovar-tab-${convite.id}`}
-                            >
-                              <UserCheck className="w-3.5 h-3.5" />
-                              Aprovar
-                            </button>
-                            <button
-                              onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "rejeitado" })}
-                              disabled={decisaoMutation.isPending}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
-                              data-testid={`btn-rejeitar-tab-${convite.id}`}
-                            >
-                              <UserX className="w-3.5 h-3.5" />
-                              Rejeitar
-                            </button>
+                            {isPendente && (
+                              <>
+                                <button
+                                  onClick={() => aprovarVitrineMutation.mutate(convite.token)}
+                                  disabled={aprovarVitrineMutation.isPending}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                                  data-testid={"btn-aprovar-vitrine-" + convite.id}
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  Aprovar acesso
+                                </button>
+                                <button
+                                  onClick={() => rejeitarVitrineMutation.mutate(convite.token)}
+                                  disabled={rejeitarVitrineMutation.isPending}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                                  data-testid={"btn-rejeitar-vitrine-" + convite.id}
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  Rejeitar
+                                </button>
+                              </>
+                            )}
+                            {(isPendente || isAguardandoAura) && convite.avaliacao_token && (
+                              <button
+                                onClick={() => {
+                                  setAuraDialogConvite({ avaliacaoToken: convite.avaliacao_token, candidatoNome: convite.candidato_nome || "Candidato" });
+                                  setAuraSelectedWords([]);
+                                  setAuraSearch("");
+                                }}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-brand-gold/80 border border-brand-gold/20 hover:bg-brand-gold/5 transition-colors"
+                                data-testid={"btn-avaliar-aura-" + convite.id}
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Registrar Aura
+                              </button>
+                            )}
                           </>
-                        )}
-                        {["aprovado", "termos_enviados"].includes(convite.status) && (
-                          <button
-                            onClick={() => lembretesMutation.mutate(convite.token)}
-                            disabled={lembretesMutation.isPending}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
-                            data-testid={`btn-lembrete-tab-${convite.id}`}
-                          >
-                            <Clock className="w-3.5 h-3.5" />
-                            Reenviar Termos
-                          </button>
-                        )}
-                        {["termos_aceitos", "pagamento_pendente"].includes(convite.status) && (
-                          <button
-                            onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
-                            disabled={confirmarPagamentoMutation.isPending}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
-                            data-testid={`btn-confirmar-pagamento-tab-${convite.id}`}
-                          >
-                            <Shield className="w-3.5 h-3.5" />
-                            Confirmar Pagamento
-                          </button>
+                        ) : (
+                          <>
+                            {convite.status === "candidato" && (
+                              <>
+                                <button
+                                  onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "aprovado" })}
+                                  disabled={decisaoMutation.isPending}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                                  data-testid={"btn-aprovar-tab-" + convite.id}
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  Aprovar
+                                </button>
+                                <button
+                                  onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "rejeitado" })}
+                                  disabled={decisaoMutation.isPending}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                                  data-testid={"btn-rejeitar-tab-" + convite.id}
+                                >
+                                  <UserX className="w-3.5 h-3.5" />
+                                  Rejeitar
+                                </button>
+                              </>
+                            )}
+                            {["aprovado", "termos_enviados"].includes(convite.status) && (
+                              <button
+                                onClick={() => lembretesMutation.mutate(convite.token)}
+                                disabled={lembretesMutation.isPending}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
+                                data-testid={"btn-lembrete-tab-" + convite.id}
+                              >
+                                <Clock className="w-3.5 h-3.5" />
+                                Reenviar Termos
+                              </button>
+                            )}
+                            {["termos_aceitos", "pagamento_pendente"].includes(convite.status) && (
+                              <button
+                                onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
+                                disabled={confirmarPagamentoMutation.isPending}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                                data-testid={"btn-confirmar-pagamento-tab-" + convite.id}
+                              >
+                                <Shield className="w-3.5 h-3.5" />
+                                Confirmar Pagamento
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -1049,7 +1118,7 @@ export default function ComunidadePage() {
         >
           <DialogHeader>
             <DialogTitle className="font-mono text-brand-gold text-lg">
-              {editing ? "Editar Comunidade" : "Nova Comunidade"}
+              {editing ?"Editar Comunidade" : "Nova Comunidade"}
             </DialogTitle>
           </DialogHeader>
 
@@ -1078,7 +1147,7 @@ export default function ComunidadePage() {
                 value={form.pais || ""}
                 onChange={e => {
                   const pais = capitalizeWords(e.target.value);
-                  const sigla_pais = pais.trim() ? abbrevCountry(pais) : "";
+                  const sigla_pais = pais.trim() ?abbrevCountry(pais) : "";
                   setForm(f => ({ ...f, pais, sigla_pais }));
                 }}
                 placeholder="Ex: Brasil"
@@ -1094,7 +1163,7 @@ export default function ComunidadePage() {
                 value={form.territorio || ""}
                 onChange={e => {
                   const territorio = capitalizeWords(e.target.value);
-                  const sigla_territorio = territorio.trim() ? abbrevTerritory(territorio) : "";
+                  const sigla_territorio = territorio.trim() ?abbrevTerritory(territorio) : "";
                   setForm(f => ({ ...f, territorio, sigla_territorio }));
                 }}
                 placeholder="Ex: Belo Horizonte"
@@ -1117,7 +1186,7 @@ export default function ComunidadePage() {
             {/* Aliado BUILT */}
             <div>
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">Aliado BUILT</Label>
-              <Select value={form.aliado_id || ""} onValueChange={v => setForm(f => ({ ...f, aliado_id: v === "_none" ? "" : v }))}>
+              <Select value={form.aliado_id || ""} onValueChange={v => setForm(f => ({ ...f, aliado_id: v === "_none" ?"" : v }))}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-comunidade-aliado">
                   <SelectValue placeholder="Selecione o Aliado BUILT" />
                 </SelectTrigger>
@@ -1143,10 +1212,10 @@ export default function ComunidadePage() {
                       key={m.id}
                       type="button"
                       onClick={() => toggleMembro(m.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${selected ? "bg-brand-gold/10" : "hover:bg-white/5"}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${selected ?"bg-brand-gold/10" : "hover:bg-white/5"}`}
                       data-testid={`btn-membro-${m.id}`}
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selected ? "bg-brand-gold border-brand-gold" : "border-white/20"}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selected ?"bg-brand-gold border-brand-gold" : "border-white/20"}`}>
                         {selected && <span className="text-brand-navy text-[10px] font-bold">✓</span>}
                       </div>
                       <span className="text-sm text-white/80 font-mono truncate">{m.nome}</span>
@@ -1170,10 +1239,10 @@ export default function ComunidadePage() {
                       key={b.id}
                       type="button"
                       onClick={() => toggleBia(b.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${selected ? "bg-brand-gold/10" : "hover:bg-white/5"}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${selected ?"bg-brand-gold/10" : "hover:bg-white/5"}`}
                       data-testid={`btn-bia-${b.id}`}
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selected ? "bg-brand-gold border-brand-gold" : "border-white/20"}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selected ?"bg-brand-gold border-brand-gold" : "border-white/20"}`}>
                         {selected && <span className="text-brand-navy text-[10px] font-bold">✓</span>}
                       </div>
                       <span className="text-sm text-white/80 font-mono truncate">{b.nome_bia || b.id}</span>
@@ -1212,7 +1281,7 @@ export default function ComunidadePage() {
               style={{ background: "#D7BB7D", color: "#001D34" }}
               data-testid="btn-salvar-comunidade"
             >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (editing ? "Salvar alterações" : "Criar Comunidade")}
+              {isPending ?<Loader2 className="w-4 h-4 animate-spin" /> : (editing ?"Salvar alterações" : "Criar Comunidade")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1255,14 +1324,14 @@ export default function ComunidadePage() {
                   if (!invitadorId) return null;
                   const comunidadeDoConvite = comunidades.find(c => String(c.id) === String(sc.comunidade_id));
                   const aliadoId = typeof comunidadeDoConvite?.aliado === "object"
-                    ? comunidadeDoConvite?.aliado?.id
+                    ?comunidadeDoConvite?.aliado?.id
                     : comunidadeDoConvite?.aliado;
                   const ehOProprioAliado = aliadoId && String(aliadoId) === String(invitadorId);
                   const invitadorMembro = membros.find(m => String(m.id) === String(invitadorId));
                   const nomeInvitador = ehOProprioAliado
-                    ? (invitadorMembro?.nome || "Aliado BUILT")
+                    ?(invitadorMembro?.nome || "Aliado BUILT")
                     : (invitadorMembro?.nome || invitadorId);
-                  const labelInvitador = ehOProprioAliado ? "Aliado BUILT (próprio)" : "Membro";
+                  const labelInvitador = ehOProprioAliado ?"Aliado BUILT (próprio)" : "Membro";
                   return (
                     <div className="rounded-lg border border-white/8 px-4 py-3 flex items-center gap-3" style={{ background: "rgba(255,255,255,0.03)" }}>
                       <UserCheck className="w-4 h-4 text-brand-gold/50 shrink-0" />
@@ -1274,6 +1343,8 @@ export default function ComunidadePage() {
                     </div>
                   );
                 })()}
+
+                <CandidateInfoPanel convite={sc} />
 
                 {/* Contact */}
                 <div className="space-y-2.5">
@@ -1345,7 +1416,7 @@ export default function ComunidadePage() {
                       <Calendar className="w-3 h-3 text-white/20 shrink-0 mt-0.5" />
                       <div>
                         <p className="text-white/30 font-mono">Candidatura</p>
-                        <p className="text-white/60 font-mono">{sc.criado_em ? new Date(sc.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</p>
+                        <p className="text-white/60 font-mono">{sc.criado_em ?new Date(sc.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</p>
                       </div>
                     </div>
                     {sc.expires_at && (
@@ -1444,7 +1515,7 @@ export default function ComunidadePage() {
               Percepção de Aura
             </DialogTitle>
             <DialogDescription className="text-white/40 font-mono text-xs">
-              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT? Escolha até 3 palavras.
+              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT?Escolha até 3 palavras.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1467,20 +1538,25 @@ export default function ComunidadePage() {
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
               />
             </div>
-            <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
               {auraLexico
-                .filter(item => !auraSearch || item.canonico.toLowerCase().includes(auraSearch.toLowerCase()))
-                .map(item => {
-                  const isSelected = auraSelectedWords.includes(item.canonico);
+                .map((item: any) =>
+                  typeof item === "string"
+                    ?item.trim()
+                    : String(item.canonico || item.palavra || item.nome || item.label || item.termo || "").trim()
+                )
+                .filter(word => word && (!auraSearch || word.toLowerCase().includes(auraSearch.toLowerCase())))
+                .map(word => {
+                  const isSelected = auraSelectedWords.includes(word);
                   const isDisabled = auraSelectedWords.length >= 3 && !isSelected;
                   return (
                     <button
-                      key={item.canonico}
-                      onClick={() => !isDisabled && toggleAuraWord(item.canonico)}
+                      key={word}
+                      onClick={() => !isDisabled && toggleAuraWord(word)}
                       disabled={isDisabled}
-                      className={`text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-all ${isSelected ? "border-brand-gold/50 bg-brand-gold/10 text-brand-gold" : isDisabled ? "border-white/5 text-white/20 cursor-not-allowed" : "border-white/10 text-white/60 hover:border-white/20 hover:text-white/80 hover:bg-white/5"}`}
+                      className={`min-h-8 text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono leading-snug transition-all ${isSelected ?"border-brand-gold/60 bg-brand-gold/15 text-brand-gold" : isDisabled ?"border-white/10 text-white/35 cursor-not-allowed" : "border-white/15 bg-white/[0.03] text-white/75 hover:border-brand-gold/35 hover:text-white hover:bg-white/[0.07]"}`}
                     >
-                      {item.canonico}
+                      {word}
                     </button>
                   );
                 })}
@@ -1495,13 +1571,13 @@ export default function ComunidadePage() {
               Cancelar
             </Button>
             <Button
-              onClick={() => auraDialogConvite && avaliarAuraMutation.mutate({ avaliado_id: auraDialogConvite.candidatoMembroId, palavras: auraSelectedWords })}
+              onClick={() => auraDialogConvite && avaliarAuraMutation.mutate({ avaliacaoToken: auraDialogConvite.avaliacaoToken, palavras: auraSelectedWords })}
               disabled={auraSelectedWords.length === 0 || avaliarAuraMutation.isPending}
               className="text-xs font-mono font-bold"
               style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
               data-testid="btn-confirmar-aura-aliado"
             >
-              {avaliarAuraMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Sparkles className="w-3 h-3 mr-1.5" />}
+              {avaliarAuraMutation.isPending ?<Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Sparkles className="w-3 h-3 mr-1.5" />}
               Registrar Percepção
             </Button>
           </DialogFooter>
@@ -1548,7 +1624,7 @@ function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
               {c.nome || "—"}
             </h3>
           </div>
-          <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-mono border ${c.status === "ativa" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : "border-white/10 text-white/30"}`}>
+          <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-mono border ${c.status === "ativa" ?"border-emerald-500/30 text-emerald-400 bg-emerald-500/10" : "border-white/10 text-white/30"}`}>
             {c.status || "ativa"}
           </span>
         </div>
@@ -1563,8 +1639,8 @@ function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
         {aliado && (
           <div className="flex items-center gap-2.5 py-2 border-t border-white/5">
             <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-brand-gold/20"
-              style={{ background: foto ? "transparent" : "rgba(215,187,125,0.08)" }}>
-              {foto ? (
+              style={{ background: foto ?"transparent" : "rgba(215,187,125,0.08)" }}>
+              {foto ?(
                 <img src={foto} alt={aliado.nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-[9px] font-bold text-brand-gold/60">{getInitials(aliado.nome)}</span>
@@ -1581,11 +1657,11 @@ function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
         <div className="flex items-center gap-4 text-xs text-white/30 font-mono">
           <span className="flex items-center gap-1">
             <Users className="w-3 h-3 text-brand-gold/30" />
-            {membros.length} membro{membros.length !== 1 ? "s" : ""}
+            {membros.length} membro{membros.length !== 1 ?"s" : ""}
           </span>
           <span className="flex items-center gap-1">
             <Briefcase className="w-3 h-3 text-brand-gold/30" />
-            {bias.length} BIA{bias.length !== 1 ? "s" : ""}
+            {bias.length} BIA{bias.length !== 1 ?"s" : ""}
           </span>
         </div>
       </div>
@@ -1615,3 +1691,4 @@ function ComunidadeCard({ comunidade: c, canEdit, onEdit, onDelete }: {
     </div>
   );
 }
+

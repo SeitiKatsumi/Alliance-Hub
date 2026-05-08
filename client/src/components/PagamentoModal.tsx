@@ -96,8 +96,8 @@ export function PagamentoModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao processar arquivo");
       const parsedN: number = data.numeroParcelas || 0;
-      const parsedDates: string[] = Array.isArray(data.vencimentos) ? data.vencimentos : [];
-      const parsedValues: number[] = Array.isArray(data.valores) ? data.valores : [];
+      const parsedDates: string[] = Array.isArray(data.vencimentos) ?data.vencimentos : [];
+      const parsedValues: number[] = Array.isArray(data.valores) ?data.valores : [];
       if (parsedN > 0) {
         setForma("parcelado");
         setNParcelas(String(parsedN));
@@ -179,7 +179,7 @@ export function PagamentoModal({
               className="w-full border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10"
               data-testid="button-ai-parse"
             >
-              {aiLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Lendo arquivo...</> : <><Upload className="w-4 h-4 mr-2" /> Enviar arquivo</>}
+              {aiLoading ?<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Lendo arquivo...</> : <><Upload className="w-4 h-4 mr-2" /> Enviar arquivo</>}
             </Button>
             {aiObs && <p className="text-xs text-brand-gold/80 italic">IA: {aiObs}</p>}
           </div>
@@ -206,7 +206,7 @@ export function PagamentoModal({
               <Label className="text-sm font-medium flex items-center gap-1">
                 <CalendarClock className="w-4 h-4" /> Vencimento <span className="text-muted-foreground text-xs">(opcional)</span>
               </Label>
-              {venc ? (
+              {venc ?(
                 <div className="flex items-center gap-2">
                   <Input type="date" value={venc} onChange={e => setVenc(e.target.value)} className="flex-1" />
                   <button type="button" onClick={() => setVenc("")} className="p-1 text-muted-foreground hover:text-foreground">
@@ -236,7 +236,7 @@ export function PagamentoModal({
                     <div key={idx} className="space-y-1 rounded-md bg-muted/30 p-2">
                       <span className="text-[11px] font-mono text-muted-foreground">Parcela {idx + 1}/{n}</span>
                       <div className="flex items-center gap-1.5">
-                        {v ? (
+                        {v ?(
                           <div className="flex items-center gap-1 flex-1">
                             <Input type="date" value={v} onChange={e => setVencParcela(idx, e.target.value)} className="h-7 text-xs flex-1" />
                             <button type="button" onClick={() => setVencParcela(idx, "")} className="p-1 text-muted-foreground hover:text-foreground shrink-0">

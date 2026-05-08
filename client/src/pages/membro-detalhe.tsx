@@ -57,7 +57,7 @@ function fotoUrl(foto?: string | null): string | null {
 function whatsappLink(w?: string): string | null {
   if (!w) return null;
   const digits = w.replace(/\D/g, "");
-  return `https://wa.me/${digits.startsWith("55") ? digits : "55" + digits}`;
+  return `https://wa.me/${digits.startsWith("55") ?digits : "55" + digits}`;
 }
 
 function InfoRow({ icon: Icon, label, value, href }: {
@@ -71,7 +71,7 @@ function InfoRow({ icon: Icon, label, value, href }: {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">{label}</p>
-        {href ? (
+        {href ?(
           <a
             href={href}
             target="_blank"
@@ -109,10 +109,10 @@ function getAliadoNome(c: Comunidade): string | null {
   return (c.aliado as { id: string; nome?: string }).nome || null;
 }
 function getMembrosCount(c: Comunidade): number {
-  return Array.isArray(c.membros) ? c.membros.length : 0;
+  return Array.isArray(c.membros) ?c.membros.length : 0;
 }
 function getBiasCount(c: Comunidade): number {
-  return Array.isArray(c.bias) ? c.bias.length : 0;
+  return Array.isArray(c.bias) ?c.bias.length : 0;
 }
 
 export default function MembroDetalhePage() {
@@ -208,11 +208,11 @@ export default function MembroDetalhePage() {
             <div
               className="w-24 h-24 rounded-2xl shrink-0 flex items-center justify-center overflow-hidden border-2 border-brand-gold/25"
               style={{
-                background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
+                background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
                 boxShadow: "0 0 32px rgba(215,187,125,0.12)",
               }}
             >
-              {foto ? (
+              {foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-3xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
@@ -281,11 +281,11 @@ export default function MembroDetalhePage() {
             </p>
             <div>
               <InfoRow icon={Phone} label="WhatsApp" value={membro.whatsapp || membro.whatsapp_e164} href={wa || undefined} />
-              <InfoRow icon={Mail} label="E-mail" value={membro.email} href={membro.email ? `mailto:${membro.email}` : undefined} />
+              <InfoRow icon={Mail} label="E-mail" value={membro.email} href={membro.email ?`mailto:${membro.email}` : undefined} />
               <InfoRow icon={MapPin} label="Localização" value={localidade || null} />
               {(membro.link_site || membro.site) && (() => {
                 const site = membro.link_site || membro.site!;
-                return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ? site : `https://${site}`} />;
+                return <InfoRow icon={Globe} label="Site" value={site.replace(/^https?:\/\/(www\.)?/, "")} href={site.startsWith("http") ?site : `https://${site}`} />;
               })()}
               {membro.instagram && (
                 <InfoRow icon={ExternalLink} label="Instagram" value={membro.instagram}
@@ -349,15 +349,15 @@ export default function MembroDetalhePage() {
                     </div>
                   )}
                   {(() => {
-                    const tipos = (membro.tipos_alianca || []).length > 0 ? membro.tipos_alianca! : membro.tipo_alianca ? [membro.tipo_alianca] : [];
+                    const tipos = (membro.tipos_alianca || []).length > 0 ?membro.tipos_alianca! : membro.tipo_alianca ?[membro.tipo_alianca] : [];
                     const nucleos = (membro.nucleos_alianca || []).length > 0
-                      ? membro.nucleos_alianca!
-                      : membro.nucleo_alianca ? [membro.nucleo_alianca] : getNucleosForTipos(tipos);
-                    return (nucleos.length > 0 || tipos.length > 0) ? (
+                      ?membro.nucleos_alianca!
+                      : membro.nucleo_alianca ?[membro.nucleo_alianca] : getNucleosForTipos(tipos);
+                    return (nucleos.length > 0 || tipos.length > 0) ?(
                       <div className="grid grid-cols-1 gap-3">
                         {nucleos.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ? "Núcleos" : "Núcleo"}</p>
+                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ?"Núcleos" : "Núcleo"}</p>
                             <p className="text-sm text-gray-800 font-mono">{nucleos.join(", ")}</p>
                           </div>
                         )}
@@ -410,7 +410,7 @@ export default function MembroDetalhePage() {
             <MessageCircle className="w-3 h-3 text-brand-gold" />
             Comunidade
           </p>
-          {comunidades.length === 0 ? (
+          {comunidades.length === 0 ?(
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <MessageCircle className="w-7 h-7 text-gray-200 mb-2" />
               <p className="text-xs text-gray-400 font-mono">Não integra nenhuma comunidade</p>
@@ -430,13 +430,13 @@ export default function MembroDetalhePage() {
                   )}
                   <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-gray-400 font-mono">
                     {getMembrosCount(c) > 0 && (
-                      <span>{getMembrosCount(c)} membro{getMembrosCount(c) !== 1 ? "s" : ""}</span>
+                      <span>{getMembrosCount(c)} membro{getMembrosCount(c) !== 1 ?"s" : ""}</span>
                     )}
                     {getBiasCount(c) > 0 && (
-                      <span>{getBiasCount(c)} BIA{getBiasCount(c) !== 1 ? "s" : ""}</span>
+                      <span>{getBiasCount(c)} BIA{getBiasCount(c) !== 1 ?"s" : ""}</span>
                     )}
                     {c.status && (
-                      <span className={c.status === "ativa" ? "text-emerald-500" : "text-gray-400"}>{c.status}</span>
+                      <span className={c.status === "ativa" ?"text-emerald-500" : "text-gray-400"}>{c.status}</span>
                     )}
                   </div>
                 </div>

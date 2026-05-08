@@ -141,7 +141,7 @@ export function AIAnalyzer({ type, id, title }: AIAnalyzerProps) {
             <Textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder={`Pergunte sobre ${type === "bia" ? "este projeto BIA" : "esta oportunidade"}...`}
+              placeholder={`Pergunte sobre ${type === "bia" ?"este projeto BIA" : "esta oportunidade"}...`}
               className="min-h-[44px] max-h-[100px] resize-none"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -159,7 +159,7 @@ export function AIAnalyzer({ type, id, title }: AIAnalyzerProps) {
               className="shrink-0"
               data-testid="button-send-analysis"
             >
-              {isLoading ? (
+              {isLoading ?(
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />

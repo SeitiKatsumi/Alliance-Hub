@@ -30,7 +30,7 @@ export function AuraScore({ score, size = "md", showLabel = true, className }: A
   const textMap = { sm: "text-sm", md: "text-2xl", lg: "text-4xl" };
 
   const circumference = 2 * Math.PI * 45;
-  const pct = score !== null ? Math.min(score, 100) / 100 : 0;
+  const pct = score !== null ?Math.min(score, 100) / 100 : 0;
   const strokeDashoffset = circumference - pct * circumference;
   const color = getFaixaColor(score);
 
@@ -75,12 +75,12 @@ export function AuraScore({ score, size = "md", showLabel = true, className }: A
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
           <span className={cn("font-bold font-mono", textMap[size])} style={{ color }}>
-            {score !== null ? score : "—"}
+            {score !== null ?score : "—"}
           </span>
         </div>
       </div>
       {showLabel && (
-        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: score !== null ? color : "#6B7280" }}>
+        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: score !== null ?color : "#6B7280" }}>
           {getFaixaNome(score)}
         </span>
       )}

@@ -83,7 +83,7 @@ function fotoUrl(foto?: string | null, size = 160): string | null {
 }
 
 function logoEmpresaUrl(logo?: string | { id?: string } | null): string | null {
-  const id = typeof logo === "string" ? logo : logo?.id;
+  const id = typeof logo === "string" ?logo : logo?.id;
   if (!id) return null;
   return `/api/assets/${id}?width=160&height=80&fit=contain`;
 }
@@ -153,7 +153,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 
   const { data: membroComunidade } = useQuery<{ id: string; nome?: string; sigla?: string } | null>({
     queryKey: ["/api/membros", membro.id, "comunidade"],
-    queryFn: () => membro.id ? fetch(`/api/membros/${membro.id}/comunidade`).then(r => r.json()) : Promise.resolve(null),
+    queryFn: () => membro.id ?fetch(`/api/membros/${membro.id}/comunidade`).then(r => r.json()) : Promise.resolve(null),
     enabled: !!membro.id,
     staleTime: 30000,
   });
@@ -167,7 +167,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 
   const { data: linkedUser, refetch: refetchLinkedUser } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
     queryKey: ["/api/users/by-membro", membro.id],
-    queryFn: () => membro.id ? fetch(`/api/users/by-membro/${membro.id}`).then(r => r.json()) : Promise.resolve(null),
+    queryFn: () => membro.id ?fetch(`/api/users/by-membro/${membro.id}`).then(r => r.json()) : Promise.resolve(null),
     enabled: !!membro.id,
     staleTime: 30000,
   });
@@ -176,13 +176,13 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const membroEmail = (membro as any).email || "";
   const { data: matchedByEmail } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
     queryKey: ["/api/users/by-email", membroEmail],
-    queryFn: () => membroEmail ? fetch(`/api/users/by-email?email=${encodeURIComponent(membroEmail)}`).then(r => r.json()) : Promise.resolve(null),
+    queryFn: () => membroEmail ?fetch(`/api/users/by-email?email=${encodeURIComponent(membroEmail)}`).then(r => r.json()) : Promise.resolve(null),
     enabled: !linkedUser && !!membroEmail,
     staleTime: 30000,
   });
 
   // Only show the match suggestion if the found user is not linked to another membro
-  const suggestedLink = !linkedUser && matchedByEmail && !matchedByEmail.membro_directus_id ? matchedByEmail : null;
+  const suggestedLink = !linkedUser && matchedByEmail && !matchedByEmail.membro_directus_id ?matchedByEmail : null;
 
   const linkAccountMutation = useMutation({
     mutationFn: (userId: string) => apiRequest("PATCH", `/api/users/${userId}`, { membro_directus_id: membro.id }),
@@ -199,7 +199,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   useEffect(() => {
     if (!linkedUser) return;
     if (selectedRole === null) setSelectedRole(linkedUser.role);
-    if (linkedUser.email) setNewAccEmail(prev => prev === (membro.email || "") ? linkedUser.email! : prev);
+    if (linkedUser.email) setNewAccEmail(prev => prev === (membro.email || "") ?linkedUser.email! : prev);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedUser?.id]);
 
@@ -214,7 +214,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   function toggleSelo(selo: string) {
     setForm(f => {
       const current: string[] = (f as any).Outras_redes_as_quais_pertenco || [];
-      const next = current.includes(selo) ? current.filter(s => s !== selo) : [...current, selo];
+      const next = current.includes(selo) ?current.filter(s => s !== selo) : [...current, selo];
       return { ...f, Outras_redes_as_quais_pertenco: next };
     });
   }
@@ -336,7 +336,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/area-membros"] });
-      toast({ title: membro.id ? "Membro atualizado com sucesso!" : "Membro criado com sucesso!" });
+      toast({ title: membro.id ?"Membro atualizado com sucesso!" : "Membro criado com sucesso!" });
       onClose();
     },
     onError: (e: any) => {
@@ -364,7 +364,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     color: accentColor,
                   }}
                 >
-                  {photoPreview ? (
+                  {photoPreview ?(
                     <img src={photoPreview} alt={nome} className="w-full h-full object-cover" />
                   ) : (
                     getInitials(nome)
@@ -389,7 +389,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 />
               </div>
               <div>
-                <SheetTitle className="text-brand-gold font-mono text-lg">{membro.id ? nome : "Novo Membro"}</SheetTitle>
+                <SheetTitle className="text-brand-gold font-mono text-lg">{membro.id ?nome : "Novo Membro"}</SheetTitle>
                 <SheetDescription className="text-white/40 text-xs mt-0.5">
                   Clique no avatar para alterar a foto
                 </SheetDescription>
@@ -437,7 +437,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <label className={labelCls}>Comunidade</label>
                 <Select
                   value={selectedComunidadeId}
-                  onValueChange={v => setSelectedComunidadeId(v === "none" ? "" : v)}
+                  onValueChange={v => setSelectedComunidadeId(v === "none" ?"" : v)}
                 >
                   <SelectTrigger className={inputCls} data-testid="select-edit-comunidade">
                     <SelectValue placeholder="Selecione uma comunidade..." />
@@ -625,7 +625,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     disabled={!form.ramo_atuacao}
                   >
                     <SelectTrigger className={`${inputCls} disabled:opacity-40`} data-testid="select-edit-segmento">
-                      <SelectValue placeholder={form.ramo_atuacao ? "Selecione o segmento" : "Selecione o ramo primeiro"} />
+                      <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento" : "Selecione o ramo primeiro"} />
                     </SelectTrigger>
                     <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
                       {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
@@ -662,8 +662,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       data-testid={`toggle-${field}`}
                       className="w-full flex items-center justify-between rounded-lg border px-4 py-2.5 text-left transition-all"
                       style={{
-                        borderColor: active ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.07)",
-                        background: active ? "rgba(215,187,125,0.06)" : "rgba(255,255,255,0.02)",
+                        borderColor: active ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.07)",
+                        background: active ?"rgba(215,187,125,0.06)" : "rgba(255,255,255,0.02)",
                       }}
                     >
                       <div>
@@ -672,11 +672,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       </div>
                       <div
                         className="w-9 h-5 rounded-full relative transition-all flex-shrink-0"
-                        style={{ background: active ? "#D7BB7D" : "rgba(255,255,255,0.1)" }}
+                        style={{ background: active ?"#D7BB7D" : "rgba(255,255,255,0.1)" }}
                       >
                         <div
                           className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
-                          style={{ left: active ? "calc(100% - 18px)" : "2px" }}
+                          style={{ left: active ?"calc(100% - 18px)" : "2px" }}
                         />
                       </div>
                     </button>
@@ -711,12 +711,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       data-testid={`toggle-selo-${selo.value}`}
                       className="flex flex-col items-center gap-2 rounded-lg border px-2 py-3 transition-all"
                       style={{
-                        borderColor: active ? "rgba(215,187,125,0.4)" : "rgba(255,255,255,0.07)",
-                        background: active ? "rgba(215,187,125,0.08)" : "rgba(255,255,255,0.02)",
+                        borderColor: active ?"rgba(215,187,125,0.4)" : "rgba(255,255,255,0.07)",
+                        background: active ?"rgba(215,187,125,0.08)" : "rgba(255,255,255,0.02)",
                       }}
                     >
-                      <img src={selo.img} alt={selo.label} className={`h-10 object-contain transition-all ${active ? "opacity-100" : "opacity-25 grayscale"}`} />
-                      <span className="text-[10px] font-mono text-center" style={{ color: active ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.2)" }}>
+                      <img src={selo.img} alt={selo.label} className={`h-10 object-contain transition-all ${active ?"opacity-100" : "opacity-25 grayscale"}`} />
+                      <span className="text-[10px] font-mono text-center" style={{ color: active ?"rgba(215,187,125,0.8)" : "rgba(255,255,255,0.2)" }}>
                         {selo.label}
                       </span>
                     </button>
@@ -733,7 +733,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <Shield className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Permissões da Plataforma</span>
               </div>
-              {linkedUser ? (
+              {linkedUser ?(
                 <div className="space-y-3">
                   {/* Account info */}
                   <div className="rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3 flex items-center gap-3">
@@ -764,7 +764,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     <label className={labelCls}>Nova Senha (deixe em branco para manter)</label>
                     <div className="relative">
                       <input
-                        type={showPass ? "text" : "password"}
+                        type={showPass ?"text" : "password"}
                         value={changePassword}
                         onChange={e => setChangePassword(e.target.value)}
                         placeholder="Nova senha..."
@@ -772,7 +772,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                         data-testid="input-change-password"
                       />
                       <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
-                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPass ?<EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -789,13 +789,13 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                           data-testid={`btn-role-${opt.value}`}
                           className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
                           style={{
-                            borderColor: isSelected ? opt.color : "rgba(255,255,255,0.07)",
-                            background: isSelected ? `${opt.color}12` : "rgba(255,255,255,0.02)",
+                            borderColor: isSelected ?opt.color : "rgba(255,255,255,0.07)",
+                            background: isSelected ?`${opt.color}12` : "rgba(255,255,255,0.02)",
                           }}
                         >
                           <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full" style={{ background: isSelected ? opt.color : "rgba(255,255,255,0.15)" }} />
-                            <span className="text-xs font-semibold font-mono" style={{ color: isSelected ? opt.color : "rgba(255,255,255,0.5)" }}>
+                            <div className="w-2 h-2 rounded-full" style={{ background: isSelected ?opt.color : "rgba(255,255,255,0.15)" }} />
+                            <span className="text-xs font-semibold font-mono" style={{ color: isSelected ?opt.color : "rgba(255,255,255,0.5)" }}>
                               {opt.label}
                             </span>
                           </div>
@@ -813,14 +813,14 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {suggestedLink ? (
+                  {suggestedLink ?(
                     <div className="rounded-lg border border-brand-gold/30 bg-brand-gold/5 px-4 py-3 space-y-2">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-brand-gold/70 shrink-0" />
                         <span className="text-xs text-brand-gold/80 font-mono font-semibold">Conta existente encontrada</span>
                       </div>
                       <div className="text-xs text-white/60 pl-6">
-                        @{suggestedLink.username}{suggestedLink.email ? ` · ${suggestedLink.email}` : ""}
+                        @{suggestedLink.username}{suggestedLink.email ?` · ${suggestedLink.email}` : ""}
                       </div>
                       <button
                         type="button"
@@ -829,10 +829,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                         className="ml-6 text-xs font-semibold text-brand-gold hover:text-brand-gold/80 underline underline-offset-2 transition-colors disabled:opacity-50"
                         data-testid="btn-link-account"
                       >
-                        {linkAccountMutation.isPending ? "Vinculando..." : "Vincular esta conta ao membro"}
+                        {linkAccountMutation.isPending ?"Vinculando..." : "Vincular esta conta ao membro"}
                       </button>
                     </div>
-                  ) : matchedByEmail && matchedByEmail.membro_directus_id ? (
+                  ) : matchedByEmail && matchedByEmail.membro_directus_id ?(
                     <div className="rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 px-4 py-3 space-y-1">
                       <div className="flex items-center gap-2 text-xs text-amber-400/80 font-semibold">
                         <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -864,7 +864,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       <Input
                         value={newAccUsername}
                         onChange={e => setNewAccUsername(e.target.value)}
-                        placeholder={newAccEmail ? newAccEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "usuario"}
+                        placeholder={newAccEmail ?newAccEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "usuario"}
                         className={inputCls}
                         data-testid="input-new-acc-username"
                       />
@@ -873,7 +873,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       <label className={labelCls}>Senha</label>
                       <div className="relative">
                         <input
-                          type={showPass ? "text" : "password"}
+                          type={showPass ?"text" : "password"}
                           value={newAccPassword}
                           onChange={e => setNewAccPassword(e.target.value)}
                           placeholder="Mín. 4 caracteres"
@@ -881,7 +881,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                           data-testid="input-new-acc-password"
                         />
                         <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
-                          {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {showPass ?<EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
@@ -889,15 +889,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       <label className={labelCls}>Confirmar senha</label>
                       <div className="relative">
                         <input
-                          type={showPass2 ? "text" : "password"}
+                          type={showPass2 ?"text" : "password"}
                           value={newAccPassword2}
                           onChange={e => setNewAccPassword2(e.target.value)}
                           placeholder="Repita a senha"
-                          className={`w-full bg-white/5 border h-9 text-sm rounded-md px-3 pr-9 outline-none text-white placeholder:text-white/20 focus:border-brand-gold/40 ${newAccPassword2 && newAccPassword !== newAccPassword2 ? "border-red-500/40" : "border-white/10"}`}
+                          className={`w-full bg-white/5 border h-9 text-sm rounded-md px-3 pr-9 outline-none text-white placeholder:text-white/20 focus:border-brand-gold/40 ${newAccPassword2 && newAccPassword !== newAccPassword2 ?"border-red-500/40" : "border-white/10"}`}
                           data-testid="input-new-acc-password2"
                         />
                         <button type="button" onClick={() => setShowPass2(v => !v)} className="absolute right-2.5 top-2 text-white/30 hover:text-white/60">
-                          {showPass2 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {showPass2 ?<EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                       {newAccPassword2 && newAccPassword !== newAccPassword2 && (
@@ -919,13 +919,13 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                             data-testid={`btn-role-new-${opt.value}`}
                             className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
                             style={{
-                              borderColor: isSelected ? opt.color : "rgba(255,255,255,0.07)",
-                              background: isSelected ? `${opt.color}12` : "rgba(255,255,255,0.02)",
+                              borderColor: isSelected ?opt.color : "rgba(255,255,255,0.07)",
+                              background: isSelected ?`${opt.color}12` : "rgba(255,255,255,0.02)",
                             }}
                           >
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full" style={{ background: isSelected ? opt.color : "rgba(255,255,255,0.15)" }} />
-                              <span className="text-xs font-semibold font-mono" style={{ color: isSelected ? opt.color : "rgba(255,255,255,0.5)" }}>
+                              <div className="w-2 h-2 rounded-full" style={{ background: isSelected ?opt.color : "rgba(255,255,255,0.15)" }} />
+                              <span className="text-xs font-semibold font-mono" style={{ color: isSelected ?opt.color : "rgba(255,255,255,0.5)" }}>
                                 {opt.label}
                               </span>
                             </div>
@@ -1001,8 +1001,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
             className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
             data-testid="btn-salvar-membro"
           >
-            {(saveMutation.isPending || uploading) ? (
-              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />{uploading ? "Enviando foto..." : "Salvando..."}</>
+            {(saveMutation.isPending || uploading) ?(
+              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />{uploading ?"Enviando foto..." : "Salvando..."}</>
             ) : (
               <><Save className="w-3.5 h-3.5 mr-2" />Salvar alterações</>
             )}
@@ -1080,7 +1080,7 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
                 boxShadow: `0 0 12px ${accentColor}20`,
               }}
             >
-              {foto ? (
+              {foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 initials
@@ -1099,12 +1099,12 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
             {(membro.especialidades?.length || membro.especialidade) && (
               <p className="text-xs text-white/50 truncate mt-0.5 flex items-center gap-1">
                 <Briefcase className="w-2.5 h-2.5 shrink-0" />
-                {(membro.especialidades?.length ? membro.especialidades[0] : membro.especialidade)}
+                {(membro.especialidades?.length ?membro.especialidades[0] : membro.especialidade)}
               </p>
             )}
             {membro.empresa && (
               <div className="mt-1 flex items-center gap-2 min-w-0">
-                {logo ? (
+                {logo ?(
                   <span className="flex h-7 w-12 shrink-0 items-center justify-center">
                     <img src={logo} alt={`Marca ${membro.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
                   </span>
@@ -1151,8 +1151,8 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
 
         {/* Tags bottom */}
         {(() => {
-          const esps = (membro.especialidades?.length ? membro.especialidades : membro.especialidade ? [membro.especialidade] : []);
-          return (esps.length > 0 || membro.estado) ? (
+          const esps = (membro.especialidades?.length ?membro.especialidades : membro.especialidade ?[membro.especialidade] : []);
+          return (esps.length > 0 || membro.estado) ?(
             <div className="flex flex-wrap gap-1 mt-3">
               {esps.map((e) => (
                 <span
@@ -1235,8 +1235,8 @@ export default function MembrosPage() {
     const q = search.toLowerCase().trim();
     return membros.filter(m => {
       const allEsps = Array.isArray(m.especialidades) && m.especialidades.length > 0
-        ? m.especialidades
-        : m.especialidade ? [m.especialidade] : [];
+        ?m.especialidades
+        : m.especialidade ?[m.especialidade] : [];
       const matchSearch = !q || [
         m._nome, ...allEsps, m.empresa, m.cidade, m.estado, m.email
       ].some(f => f?.toLowerCase().includes(q));
@@ -1343,7 +1343,7 @@ export default function MembrosPage() {
             CADASTRO GERAL
           </h1>
           <p className="text-sm text-white/30 font-mono mb-6">
-            &gt; {isLoading ? "carregando perfis..." : `${membros.length} nós ativos na rede`}
+            &gt; {isLoading ?"carregando perfis..." : `${membros.length} nós ativos na rede`}
           </p>
           <div className="inline-flex items-center rounded-lg border border-brand-gold/10 py-3" style={{ background: "rgba(0,10,20,0.6)", backdropFilter: "blur(8px)" }}>
             <StatItem label="Cadastros" value={stats.total} icon={Users} />
@@ -1373,7 +1373,7 @@ export default function MembrosPage() {
         </div>
 
         {especialidades.length > 0 && (
-          <Select value={filterEspecialidade || "__all__"} onValueChange={v => setFilterEspecialidade(v === "__all__" ? "" : v)}>
+          <Select value={filterEspecialidade || "__all__"} onValueChange={v => setFilterEspecialidade(v === "__all__" ?"" : v)}>
             <SelectTrigger className="h-8 w-52 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40" data-testid="select-filter-especialidade">
               <SelectValue placeholder="Todas as especialidades" />
             </SelectTrigger>
@@ -1385,7 +1385,7 @@ export default function MembrosPage() {
         )}
 
         {estados.length > 0 && (
-          <Select value={filterEstado || "__all__"} onValueChange={v => setFilterEstado(v === "__all__" ? "" : v)}>
+          <Select value={filterEstado || "__all__"} onValueChange={v => setFilterEstado(v === "__all__" ?"" : v)}>
             <SelectTrigger className="h-8 w-36 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40" data-testid="select-filter-estado">
               <SelectValue placeholder="Todos os estados" />
             </SelectTrigger>
@@ -1397,7 +1397,7 @@ export default function MembrosPage() {
         )}
 
         {tiposCadastro.length > 0 && (
-          <Select value={filterTipoCadastro || "__all__"} onValueChange={v => setFilterTipoCadastro(v === "__all__" ? "" : v)}>
+          <Select value={filterTipoCadastro || "__all__"} onValueChange={v => setFilterTipoCadastro(v === "__all__" ?"" : v)}>
             <SelectTrigger className="h-8 w-40 text-xs border-white/10 bg-white/5 text-white/60 font-mono focus:border-brand-gold/40" data-testid="select-filter-tipo-cadastro">
               <SelectValue placeholder="Tipo de cadastro" />
             </SelectTrigger>
@@ -1436,7 +1436,7 @@ export default function MembrosPage() {
 
       {/* ── Grid ── */}
       <div className="p-6">
-        {isLoading ? (
+        {isLoading ?(
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="rounded-xl border border-white/5 p-5 space-y-4" style={{ background: "#050f1c" }}>
@@ -1455,14 +1455,14 @@ export default function MembrosPage() {
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 ?(
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="relative mb-6">
               <Cpu className="w-16 h-16 text-white/10" />
               <Wifi className="w-6 h-6 text-brand-gold/20 absolute -top-1 -right-1" />
             </div>
             <p className="text-white/30 font-mono text-sm">
-              {hasFilters ? "// nenhum nó encontrado para os filtros aplicados" : "// rede vazia"}
+              {hasFilters ?"// nenhum nó encontrado para os filtros aplicados" : "// rede vazia"}
             </p>
             {hasFilters && (
               <button

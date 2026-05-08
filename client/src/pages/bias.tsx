@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -313,7 +313,7 @@ function BRLInput({ label, field, form, setForm, testId, required }: {
           value={form[field] as string}
           onChange={(e) => setForm({ ...form, [field]: formatInputBRL(e.target.value) })}
           className="pl-9 h-8 text-sm tabular-nums"
-          data-testid={testId ?? `input-${field}`}
+          data-testid={testId ? `input-${field}` : undefined}
         />
       </div>
       {isEmpty && (
@@ -369,13 +369,13 @@ type FormState = typeof EMPTY_FORM;
 function biaToForm(b: BiasProjeto): FormState {
   return {
     nome_bia: b.nome_bia || "",
-    situacao: (b.situacao === "em_formacao" ? "em_formacao" : "ativa") as "ativa" | "em_formacao",
+    situacao: (b.situacao === "em_formacao" ?"em_formacao" : "ativa") as "ativa" | "em_formacao",
     bia_publica: b.bia_publica !== false,
     destinacao: b.destinacao || "",
     selo_certified_alliance: !!b.selo_certified_alliance,
     localizacao: b.localizacao || "",
-    latitude: b.latitude != null ? String(b.latitude) : "",
-    longitude: b.longitude != null ? String(b.longitude) : "",
+    latitude: b.latitude != null ?String(b.latitude) : "",
+    longitude: b.longitude != null ?String(b.longitude) : "",
     objetivo_alianca: b.objetivo_alianca || "",
     observacoes: b.observacoes || "",
     autor_bia: b.autor_bia || "",
@@ -389,19 +389,19 @@ function biaToForm(b: BiasProjeto): FormState {
     socios_guardioes: parseMemberList(b.socios_guardioes),
     terceiros: parseMemberList(b.terceiros),
     valor_origem: numToBRLStr(b.valor_origem),
-    perc_autor_opa: b.perc_autor_opa != null ? String(b.perc_autor_opa) : "",
-    perc_aliado_built: b.perc_aliado_built != null ? String(b.perc_aliado_built) : "",
-    perc_built: b.perc_built != null ? String(b.perc_built) : "",
-    perc_dir_tecnico: b.perc_dir_tecnico != null ? String(b.perc_dir_tecnico) : "",
-    perc_dir_obras: b.perc_dir_obras != null ? String(b.perc_dir_obras) : "",
-    perc_dir_comercial: b.perc_dir_comercial != null ? String(b.perc_dir_comercial) : "",
-    perc_dir_capital: b.perc_dir_capital != null ? String(b.perc_dir_capital) : "",
+    perc_autor_opa: b.perc_autor_opa != null ?String(b.perc_autor_opa) : "",
+    perc_aliado_built: b.perc_aliado_built != null ?String(b.perc_aliado_built) : "",
+    perc_built: b.perc_built != null ?String(b.perc_built) : "",
+    perc_dir_tecnico: b.perc_dir_tecnico != null ?String(b.perc_dir_tecnico) : "",
+    perc_dir_obras: b.perc_dir_obras != null ?String(b.perc_dir_obras) : "",
+    perc_dir_comercial: b.perc_dir_comercial != null ?String(b.perc_dir_comercial) : "",
+    perc_dir_capital: b.perc_dir_capital != null ?String(b.perc_dir_capital) : "",
     valor_geral_venda_vgv: numToBRLStr(b.valor_geral_venda_vgv),
     valor_realizado_venda: numToBRLStr(b.valor_realizado_venda),
-    comissao_prevista_corretor: b.comissao_prevista_corretor != null ? String(b.comissao_prevista_corretor) : "",
-    ir_previsto: b.ir_previsto != null ? String(b.ir_previsto) : "",
-    inss_previsto: b.inss_previsto != null ? String(b.inss_previsto) : "",
-    manutencao_pos_obra_prevista: b.manutencao_pos_obra_prevista != null ? String(b.manutencao_pos_obra_prevista) : "",
+    comissao_prevista_corretor: b.comissao_prevista_corretor != null ?String(b.comissao_prevista_corretor) : "",
+    ir_previsto: b.ir_previsto != null ?String(b.ir_previsto) : "",
+    inss_previsto: b.inss_previsto != null ?String(b.inss_previsto) : "",
+    manutencao_pos_obra_prevista: b.manutencao_pos_obra_prevista != null ?String(b.manutencao_pos_obra_prevista) : "",
     inicio_aportes: b.inicio_aportes || "",
     total_aportes: numToBRLStr(b.total_aportes),
     moeda: b.moeda || "BRL",
@@ -422,7 +422,7 @@ function CurrencyCombobox({ value, onChange }: { value: string; onChange: (v: st
         >
           <div className="flex items-center gap-2">
             <DollarSign className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            {selected ? (
+            {selected ?(
               <span><span className="font-medium">{selected.code}</span> — {selected.name}</span>
             ) : (
               <span className="text-muted-foreground">Selecionar moeda...</span>
@@ -444,7 +444,7 @@ function CurrencyCombobox({ value, onChange }: { value: string; onChange: (v: st
                   onSelect={() => { onChange(c.code); setOpen(false); }}
                   className="flex items-center gap-2 cursor-pointer"
                 >
-                  <Check className={`w-3.5 h-3.5 shrink-0 ${value === c.code ? "opacity-100 text-brand-gold" : "opacity-0"}`} />
+                  <Check className={`w-3.5 h-3.5 shrink-0 ${value === c.code ?"opacity-100 text-brand-gold" : "opacity-0"}`} />
                   <span className="font-mono text-xs text-muted-foreground w-10 shrink-0">{c.code}</span>
                   <span className="text-sm">{c.name}</span>
                 </CommandItem>
@@ -467,8 +467,8 @@ function FieldInput({ label, field, form, setForm, placeholder, type = "text" }:
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Input
         type={type}
-        step={type === "number" ? "0.01" : undefined}
-        min={type === "number" ? "0" : undefined}
+        step={type === "number" ?"0.01" : undefined}
+        min={type === "number" ?"0" : undefined}
         placeholder={placeholder}
         value={String(form[field] ?? "")}
         onChange={(e) => setForm({ ...form, [field]: e.target.value })}
@@ -484,7 +484,7 @@ function PercField({ label, field, form, setForm, baseValue }: {
   setForm: (f: FormState) => void; baseValue?: number;
 }) {
   const pct = parseFloat(form[field] as string) || 0;
-  const equiv = baseValue && baseValue > 0 ? (pct / 100) * baseValue : null;
+  const equiv = baseValue && baseValue > 0 ?(pct / 100) * baseValue : null;
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -519,7 +519,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
   filterFn?: (m: Membro) => boolean;
 }) {
   const isEmpty = required && !form[field];
-  const options = filterFn ? membros.filter(filterFn) : membros;
+  const options = filterFn ?membros.filter(filterFn) : membros;
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -528,10 +528,10 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
       </Label>
       <Select
         value={(form[field] as string) || "none"}
-        onValueChange={(v) => setForm({ ...form, [field]: v === "none" ? "" : v })}
+        onValueChange={(v) => setForm({ ...form, [field]: v === "none" ?"" : v })}
       >
         <SelectTrigger
-          className={`h-8 text-sm ${isEmpty ? "border-red-400/50 focus:border-red-400" : ""}`}
+          className={`h-8 text-sm ${isEmpty ?"border-red-400/50 focus:border-red-400" : ""}`}
           data-testid={`select-${field}`}
         >
           <SelectValue placeholder="Selecionar..." />
@@ -539,7 +539,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
         <SelectContent>
           <SelectItem value="none">— Nenhum —</SelectItem>
           {options.map((m) => (
-            <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}{m.empresa ? ` · ${m.empresa}` : ""}</SelectItem>
+            <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}{m.empresa ?` · ${m.empresa}` : ""}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -562,12 +562,12 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
   const selectedIds = parseMemberList(form[field] as string[] | string);
   const selectedSet = new Set(selectedIds);
   const oppositeField = field === "socios_multiplicadores"
-    ? "socios_guardioes"
+    ?"socios_guardioes"
     : field === "socios_guardioes"
-      ? "socios_multiplicadores"
+      ?"socios_multiplicadores"
       : null;
-  const blockedIds = oppositeField ? new Set(parseMemberList(form[oppositeField] as string[] | string)) : new Set<string>();
-  const blockedLabel = field === "socios_multiplicadores" ? "guardião" : "multiplicador";
+  const blockedIds = oppositeField ?new Set(parseMemberList(form[oppositeField] as string[] | string)) : new Set<string>();
+  const blockedLabel = field === "socios_multiplicadores" ?"guardião" : "multiplicador";
   const selectedMembros = selectedIds
     .map((id) => membros.find((m) => m.id === id))
     .filter(Boolean) as Membro[];
@@ -575,7 +575,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
   function toggleMembro(id: string) {
     if (!selectedSet.has(id) && blockedIds.has(id)) return;
     const next = selectedSet.has(id)
-      ? selectedIds.filter((current) => current !== id)
+      ?selectedIds.filter((current) => current !== id)
       : [...selectedIds, id];
     const nextForm = { ...form, [field]: next };
     if (oppositeField) {
@@ -605,9 +605,9 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
             className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-left"
             data-testid={`select-${field}`}
           >
-            <span className={selectedMembros.length ? "line-clamp-2" : "text-muted-foreground"}>
+            <span className={selectedMembros.length ?"line-clamp-2" : "text-muted-foreground"}>
               {selectedMembros.length
-                ? selectedMembros.map((m) => getMembroNome(m)).join(", ")
+                ?selectedMembros.map((m) => getMembroNome(m)).join(", ")
                 : "Selecionar membros..."}
             </span>
             <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
@@ -636,8 +636,8 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
                       disabled={blocked}
                       onSelect={() => toggleMembro(m.id)}
                     >
-                      <Check className={`mr-2 h-4 w-4 ${checked ? "opacity-100" : "opacity-0"}`} />
-                      <span className="truncate">{getMembroNome(m)}{m.empresa ? ` · ${m.empresa}` : ""}</span>
+                      <Check className={`mr-2 h-4 w-4 ${checked ?"opacity-100" : "opacity-0"}`} />
+                      <span className="truncate">{getMembroNome(m)}{m.empresa ?` · ${m.empresa}` : ""}</span>
                       {blocked && <span className="text-[10px] text-muted-foreground">já é {blockedLabel}</span>}
                     </CommandItem>
                   );
@@ -743,7 +743,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
             className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 shrink-0"
             data-testid="btn-search-location"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ?<Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </Button>
         </div>
 
@@ -759,7 +759,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
                 onClick={() => setSelected(r)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors border ${
                   selected?.place_id === r.place_id
-                    ? "bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
+                    ?"bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
                     : "hover:bg-muted border-transparent"
                 }`}
                 data-testid={`location-result-${r.place_id}`}
@@ -827,12 +827,14 @@ function LocationField({ form, setForm, onPickerOpen }: {
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 w-full border-brand-gold/30 hover:border-brand-gold hover:text-brand-gold gap-1.5 justify-center"
+        className="min-h-9 h-auto w-full max-w-full border-brand-gold/30 hover:border-brand-gold hover:text-brand-gold gap-1.5 justify-start whitespace-normal px-3 py-2 text-left"
         onClick={onPickerOpen}
         data-testid="btn-pick-location"
       >
-        <Navigation className="w-3.5 h-3.5" />
-        {form.localizacao ? form.localizacao : "Selecionar no Mapa"}
+        <Navigation className="w-3.5 h-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 break-words leading-snug">
+          {form.localizacao ?form.localizacao : "Selecionar no Mapa"}
+        </span>
       </Button>
       {hasCoords && (
         <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
@@ -929,7 +931,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
         <div>
           <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">VGV Total</p>
           <p className="text-xs font-semibold" style={{ color: "#D7BB7D99" }}>
-            {totalVgv > 0 ? brl(totalVgv) : "—"}
+            {totalVgv > 0 ?brl(totalVgv) : "—"}
           </p>
         </div>
         <p className="text-[9px] text-brand-gold/30 mt-2">{biasWithCoords.length} geolocalizadas</p>
@@ -1042,12 +1044,12 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
               >
                 <g style={{ cursor: "pointer" }}>
                   {/* Pulse ring */}
-                  <circle r={r * (isSelected || isClusterSelected ? 5.5 : isHovered ? 4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.12 : 0.06}>
-                    <animate attributeName="r" from={r * (isSelected || isClusterSelected ? 4 : 2.5)} to={r * (isSelected || isClusterSelected ? 7 : 5)} dur={isSelected || isClusterSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
-                    <animate attributeName="fill-opacity" from="0.4" to="0" dur={isSelected || isClusterSelected ? "1.2s" : "1.6s"} repeatCount="indefinite" />
+                  <circle r={r * (isSelected || isClusterSelected ?5.5 : isHovered ?4.5 : 3.5)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ?0.12 : 0.06}>
+                    <animate attributeName="r" from={r * (isSelected || isClusterSelected ?4 : 2.5)} to={r * (isSelected || isClusterSelected ?7 : 5)} dur={isSelected || isClusterSelected ?"1.2s" : "1.6s"} repeatCount="indefinite" />
+                    <animate attributeName="fill-opacity" from="0.4" to="0" dur={isSelected || isClusterSelected ?"1.2s" : "1.6s"} repeatCount="indefinite" />
                   </circle>
-                  <circle r={r * (isSelected || isClusterSelected ? 3 : isHovered ? 2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ? 0.4 : isHovered ? 0.3 : 0.18} />
-                  <circle r={r * (isSelected || isClusterSelected ? 1.6 : isHovered ? 1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * (isSelected || isClusterSelected ?3 : isHovered ?2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ?0.4 : isHovered ?0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSelected ?1.6 : isHovered ?1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
                   <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
                   {/* Count badge for clusters */}
                   {isMulti && (
@@ -1056,7 +1058,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                         cx={r * 1.6}
                         cy={r * -1.6}
                         r={r * 1.2}
-                        fill={isClusterSelected ? "#D7BB7D" : "#001D34"}
+                        fill={isClusterSelected ?"#D7BB7D" : "#001D34"}
                         stroke="#D7BB7D"
                         strokeWidth={0.5}
                       />
@@ -1068,7 +1070,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                         fontSize={r * 1.0}
                         fontWeight="bold"
                         fontFamily="monospace"
-                        fill={isClusterSelected ? "#001D34" : "#D7BB7D"}
+                        fill={isClusterSelected ?"#001D34" : "#D7BB7D"}
                       >
                         {cluster.items.length}
                       </text>
@@ -1088,14 +1090,14 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
           style={{
             background: "linear-gradient(to top, rgba(0,8,18,0.92) 0%, transparent 100%)",
             padding: "28px 24px 14px",
-            opacity: hoveredCluster ? 1 : 0,
-            transform: hoveredCluster ? "translateY(0)" : "translateY(6px)",
+            opacity: hoveredCluster ?1 : 0,
+            transform: hoveredCluster ?"translateY(0)" : "translateY(6px)",
           }}
         >
           {hoveredCluster && (
             <div className="flex items-end justify-between font-mono">
               <div>
-                {hoveredCluster.items.length > 1 ? (
+                {hoveredCluster.items.length > 1 ?(
                   <>
                     <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para selecionar</p>
                     <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items.length} BIAs neste local</p>
@@ -1224,7 +1226,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                 {n(selectedBia.resultado_liquido) !== 0 && (
                   <div>
                     <p className="text-[8px] text-brand-gold/35 tracking-widest uppercase">Resultado</p>
-                    <p className={`text-xs font-semibold tabular-nums ${n(selectedBia.resultado_liquido) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    <p className={`text-xs font-semibold tabular-nums ${n(selectedBia.resultado_liquido) >= 0 ?"text-green-400" : "text-red-400"}`}>
                       {formatMoney(n(selectedBia.resultado_liquido), selectedBia.moeda || "BRL")}
                     </p>
                   </div>
@@ -1280,7 +1282,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
               <div className="text-right shrink-0 space-y-0.5">
                 {(() => {
                   const autor = membros.find(m => m.id === selectedBia.autor_bia);
-                  return autor ? (
+                  return autor ?(
                     <p className="text-[9px] text-brand-gold/40">
                       <span className="text-brand-gold/25">Autor: </span>{getMembroNome(autor)}
                     </p>
@@ -1346,8 +1348,8 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
   const valorRealizado = n(bia.valor_realizado_venda);
   const vgv = n(bia.valor_geral_venda_vgv);
 
-  const dirAlianca = bia.diretor_alianca ? membroMap[bia.diretor_alianca] : null;
-  const aliadoBuilt = bia.aliado_built ? membroMap[bia.aliado_built] : null;
+  const dirAlianca = bia.diretor_alianca ?membroMap[bia.diretor_alianca] : null;
+  const aliadoBuilt = bia.aliado_built ?membroMap[bia.aliado_built] : null;
 
   return (
     <Card
@@ -1367,7 +1369,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
                   <Clock className="w-2.5 h-2.5" /> Aguardando aprovação
                 </Badge>
               )}
-              {bia.situacao === "em_formacao" ? (
+              {bia.situacao === "em_formacao" ?(
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 bg-amber-500/10 shrink-0">
                   Em Formação
                 </Badge>
@@ -1524,10 +1526,12 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const [vencimentosParcelas, setVencimentosParcelas] = useState<string[]>([]);
   const [valoresParcelas, setValoresParcelas] = useState<number[]>([]);
   const [valorAVista, setValorAVista] = useState(0);
+  const [cppSummary, setCppSummary] = useState<{ cppCount: number; parcelas: number; contributorLabels: string[] } | null>(null);
+  const [cppError, setCppError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setForm(bia ? biaToForm(bia) : EMPTY_FORM);
+      setForm(bia ?biaToForm(bia) : EMPTY_FORM);
       setInfoForm(EMPTY_INFO);
       setActiveTab("geral");
       setExistingAnexos(bia?.Anexos ?? []);
@@ -1539,9 +1543,11 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       setVencimentosParcelas([]);
       setValoresParcelas([]);
       setValorAVista(0);
+      setCppSummary(null);
+      setCppError(null);
       if (bia?.id) {
         fetch(`/api/bias/${bia.id}/info-comercial`, { credentials: "include" })
-          .then(r => r.ok ? r.json() : {})
+          .then(r => r.ok ?r.json() : {})
           .then(data => {
             setInfoForm({
               razao_social: data.razao_social || "",
@@ -1588,9 +1594,39 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     (s, k) => s + (parseFloat(form[k as keyof FormState] as string) || 0), 0
   );
   const custoOrigemPreview = valorOrigem + (valorOrigem * percTotal / 100);
+  const activeContributors = 1
+    + (form.aliado_built && (parseFloat(form.perc_aliado_built) || 0) > 0 ?1 : 0)
+    + (form.diretor_nucleo_tecnico && (parseFloat(form.perc_dir_tecnico) || 0) > 0 ?1 : 0)
+    + (form.diretor_execucao && (parseFloat(form.perc_dir_obras) || 0) > 0 ?1 : 0)
+    + (form.diretor_comercial && (parseFloat(form.perc_dir_comercial) || 0) > 0 ?1 : 0)
+    + (form.diretor_capital && (parseFloat(form.perc_dir_capital) || 0) > 0 ?1 : 0);
+  const parcelasSync = formaPagamento === "parcelado" ?numParcelasInt : 1;
+  const estimatedCppEntries = parcelasSync * activeContributors;
+  const estimatedBaseEntries = parcelasSync;
+  const estimatedEntries = parcelasSync * (1 + activeContributors);
+  const estimatedSeconds = Math.max(5, Math.round(estimatedEntries * 0.5));
+  const estimatedLabel = estimatedSeconds >= 60 ?`~${Math.ceil(estimatedSeconds / 60)} min` : `~${estimatedSeconds}s`;
+  const hasIncompleteInstallments = formaPagamento === "parcelado" && (
+    numParcelasInt <= 1 ||
+    valoresParcelas.filter(v => v > 0).length !== numParcelasInt ||
+    vencimentosParcelas.filter(Boolean).length !== numParcelasInt
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      setCppError(null);
+      setCppSummary(null);
+      if (formaPagamento === "parcelado") {
+        if (numParcelasInt <= 1) {
+          throw new Error("Informe a quantidade de parcelas do ativo de origem.");
+        }
+        if (valoresParcelas.filter(v => v > 0).length !== numParcelasInt) {
+          throw new Error("Preencha o valor de todas as parcelas antes de salvar.");
+        }
+        if (vencimentosParcelas.filter(Boolean).length !== numParcelasInt) {
+          throw new Error("Preencha a data de vencimento de todas as parcelas antes de salvar.");
+        }
+      }
       setUploading(pendingFiles.length > 0);
       let newFileIds: string[] = [];
       if (pendingFiles.length > 0) {
@@ -1611,8 +1647,8 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         destinacao: form.destinacao.trim() || null,
         selo_certified_alliance: form.selo_certified_alliance,
         localizacao: form.localizacao.trim() || null,
-        latitude: form.latitude ? parseFloat(form.latitude) : null,
-        longitude: form.longitude ? parseFloat(form.longitude) : null,
+        latitude: form.latitude ?parseFloat(form.latitude) : null,
+        longitude: form.longitude ?parseFloat(form.longitude) : null,
         objetivo_alianca: form.objetivo_alianca.trim() || null,
         observacoes: form.observacoes.trim() || null,
         autor_bia: form.autor_bia || null,
@@ -1627,27 +1663,29 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         terceiros,
         valor_origem: valorOrigem || null,
         _forma_pagamento: formaPagamento || null,
-        _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
-        _vencimento_origem: formaPagamento === "a_vista" ? (vencimento || null) : null,
-        _vencimentos_parcelas: formaPagamento === "parcelado" ? vencimentosParcelas : [],
-        _valores_parcelas: formaPagamento === "parcelado" ? valoresParcelas : [],
+        _numero_parcelas: formaPagamento === "parcelado" ?numParcelasInt : null,
+        _vencimento_origem: formaPagamento === "a_vista" ?(vencimento || null) : null,
+        _vencimentos_parcelas: formaPagamento === "parcelado" ?vencimentosParcelas : [],
+        _valores_parcelas: formaPagamento === "parcelado" ?valoresParcelas : [],
         perc_aliado_built: form.perc_aliado_built || null,
         perc_built: form.perc_built || null,
         perc_dir_tecnico: form.perc_dir_tecnico || null,
         perc_dir_obras: form.perc_dir_obras || null,
         perc_dir_comercial: form.perc_dir_comercial || null,
         perc_dir_capital: form.perc_dir_capital || null,
-        valor_geral_venda_vgv: form.valor_geral_venda_vgv ? parseBRLToNumber(form.valor_geral_venda_vgv) : null,
-        valor_realizado_venda: form.valor_realizado_venda ? parseBRLToNumber(form.valor_realizado_venda) : null,
+        valor_geral_venda_vgv: form.valor_geral_venda_vgv ?parseBRLToNumber(form.valor_geral_venda_vgv) : null,
+        valor_realizado_venda: form.valor_realizado_venda ?parseBRLToNumber(form.valor_realizado_venda) : null,
         comissao_prevista_corretor: form.comissao_prevista_corretor || null,
         ir_previsto: form.ir_previsto || null,
         inss_previsto: form.inss_previsto || null,
         manutencao_pos_obra_prevista: form.manutencao_pos_obra_prevista || null,
         inicio_aportes: form.inicio_aportes || null,
-        total_aportes: form.total_aportes ? parseBRLToNumber(form.total_aportes) : null,
+        total_aportes: form.total_aportes ?parseBRLToNumber(form.total_aportes) : null,
         moeda: form.moeda || "BRL",
-        Anexos: allAnexoIds,
       };
+      if (pendingFiles.length > 0 || allAnexoIds.length > 0) {
+        payload.Anexos = allAnexoIds;
+      }
       if (isEdit) {
         return apiRequest("PATCH", `/api/bias/${bia!.id}`, payload);
       } else {
@@ -1666,7 +1704,27 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         }).catch(() => {});
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
-      toast({ title: isEdit ? "BIA atualizada!" : "BIA criada!", description: form.nome_bia });
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      if (saved?._cppError) {
+        const msg = String(saved._cppError).slice(0, 240);
+        setCppError(msg);
+        toast({
+          title: "BIA salva, mas os lançamentos não foram gerados",
+          description: msg,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (saved?._cppSummary) {
+        setCppSummary(saved._cppSummary);
+        const s = saved._cppSummary;
+        toast({
+          title: isEdit ?"BIA atualizada!" : "BIA criada!",
+          description: `${s.cppCount} lançamento${s.cppCount !== 1 ?"s" : ""} CPP gerado${s.cppCount !== 1 ?"s" : ""} para ${s.parcelas} parcela${s.parcelas !== 1 ?"s" : ""}.`,
+        });
+      } else {
+        toast({ title: isEdit ?"BIA atualizada!" : "BIA criada!", description: form.nome_bia });
+      }
       onClose();
     },
     onError: (e: any) => {
@@ -1748,10 +1806,10 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
           <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              {isEdit ? <Pencil className="w-4 h-4 text-brand-gold" /> : <Plus className="w-4 h-4 text-brand-gold" />}
-              {isEdit ? `Editar BIA` : "Nova BIA"}
+              {isEdit ?<Pencil className="w-4 h-4 text-brand-gold" /> : <Plus className="w-4 h-4 text-brand-gold" />}
+              {isEdit ?`Editar BIA` : "Nova BIA"}
             </SheetTitle>
-            <SheetDescription>{isEdit ? bia?.nome_bia : "Preencha os dados da nova aliança"}</SheetDescription>
+            <SheetDescription>{isEdit ?bia?.nome_bia : "Preencha os dados da nova aliança"}</SheetDescription>
           </SheetHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
@@ -1822,7 +1880,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                 <Label className="text-xs text-muted-foreground">Visibilidade da BIA</Label>
                 <ToggleGroup
                   type="single"
-                  value={form.bia_publica ? "publica" : "privada"}
+                  value={form.bia_publica ?"publica" : "privada"}
                   onValueChange={(v) => {
                     if (v) setForm({ ...form, bia_publica: v === "publica" });
                   }}
@@ -1985,7 +2043,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   data-testid="btn-add-anexo"
                 >
                   <Upload className="w-4 h-4" />
-                  {uploading ? "Enviando..." : "Adicionar arquivos"}
+                  {uploading ?"Enviando..." : "Adicionar arquivos"}
                 </button>
               </div>
             </TabsContent>
@@ -2059,9 +2117,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                     </span>
                     {formaPagamento && <span className="text-[10px] text-muted-foreground">✎ editar</span>}
                   </div>
-                  {formaPagamento ? (
+                  {formaPagamento ?(
                     <div className="text-xs text-muted-foreground space-y-0.5">
-                      <div>{formaPagamento === "a_vista" ? "À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
+                      <div>{formaPagamento === "a_vista" ?"À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
                       {formaPagamento === "parcelado" && numParcelasInt > 0 && (
                         <div>{vencimentosParcelas.filter(v => v).length}/{numParcelasInt} datas · {valoresParcelas.filter(v => v > 0).length}/{numParcelasInt} valores</div>
                       )}
@@ -2099,10 +2157,53 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               </div>
               {valorOrigem > 0 && (
                 <div className="rounded-lg bg-muted/40 p-3 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Total DM (Σ percentuais = {percTotal.toFixed(2)}%)</span>
+                  <span className="text-muted-foreground">Total DM (Î£ percentuais = {percTotal.toFixed(2)}%)</span>
                   <span className="font-semibold text-orange-600 tabular-nums">{brl(custoOrigemPreview - valorOrigem)}</span>
                 </div>
               )}
+              {formaPagamento && valorOrigem > 0 && (
+                <div className={`rounded-lg border px-3 py-2 text-xs ${hasIncompleteInstallments ?"border-amber-300 bg-amber-50 text-amber-800" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
+                  <div className="flex items-start gap-2">
+                    <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="font-medium">
+                        Serão gerados {estimatedEntries} lançamento{estimatedEntries !== 1 ?"s" : ""} no financeiro
+                      </p>
+                      <p>
+                        {estimatedBaseEntries} parcela{estimatedBaseEntries !== 1 ?"s" : ""} do Valor de Origem + {estimatedCppEntries} lançamento{estimatedCppEntries !== 1 ?"s" : ""} CPP. Tempo estimado: {estimatedLabel}.
+                      </p>
+                      {hasIncompleteInstallments && (
+                        <p className="font-medium">Preencha todas as datas e valores das parcelas para gerar corretamente.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {saveMutation.isPending && formaPagamento && (
+                <div className="rounded-lg border border-brand-gold/40 bg-brand-gold/10 px-3 py-2 text-xs text-amber-800">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Gerando lançamentos no financeiro. Não feche esta janela.
+                  </div>
+                </div>
+              )}
+              {cppError && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>Erro ao gerar lançamentos: {cppError}</span>
+                  </div>
+                </div>
+              )}
+              {cppSummary && !cppError && (
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{cppSummary.cppCount} lançamento{cppSummary.cppCount !== 1 ?"s" : ""} CPP gerado{cppSummary.cppCount !== 1 ?"s" : ""} para {cppSummary.parcelas} parcela{cppSummary.parcelas !== 1 ?"s" : ""}.</span>
+                  </div>
+                </div>
+              )}
+
             </TabsContent>
 
             {/* Tab Receita */}
@@ -2263,11 +2364,11 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             </Button>
             <Button
               onClick={handleSaveClick}
-              disabled={saveMutation.isPending || uploading || isLoading}
+              disabled={saveMutation.isPending || uploading || isLoading || hasIncompleteInstallments}
               className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
               data-testid="btn-save-bia"
             >
-              {uploading ? "Enviando arquivos..." : saveMutation.isPending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar BIA"}
+              {uploading ?"Enviando arquivos..." : saveMutation.isPending && formaPagamento ?"Gerando lançamentos..." : saveMutation.isPending ?"Salvando..." : isEdit ?"Salvar alterações" : "Criar BIA"}
             </Button>
           </div>
         </SheetContent>
@@ -2326,7 +2427,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
               data-testid="btn-save-quick-member"
             >
-              {createQuickMemberMutation.isPending ? "Criando..." : "Criar membro"}
+              {createQuickMemberMutation.isPending ?"Criando..." : "Criar membro"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2494,13 +2595,13 @@ export default function BiasPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-page-title">
+          <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-bias-title">
             <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
               <Briefcase className="w-6 h-6" />
             </div>
             BIAs
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Alianças Integradas BUILT — {total} BIA{total !== 1 ? "s" : ""} cadastrada{total !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-muted-foreground mt-1">Alianças Integradas BUILT — {total} BIA{total !== 1 ?"s" : ""} cadastrada{total !== 1 ?"s" : ""}</p>
         </div>
         {canCreateBia && (
           <Button
@@ -2543,7 +2644,7 @@ export default function BiasPage() {
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Resultado Líquido</p>
-              <p className={`text-lg font-bold tabular-nums ${totalResultado >= 0 ? "text-green-600" : "text-red-600"}`}>
+              <p className={`text-lg font-bold tabular-nums ${totalResultado >= 0 ?"text-green-600" : "text-red-600"}`}>
                 {brl(totalResultado)}
               </p>
             </CardContent>
@@ -2567,7 +2668,7 @@ export default function BiasPage() {
                   <p className="font-medium text-sm truncate">{ap.bia_nome || ap.bia_id}</p>
                   <p className="text-xs text-muted-foreground">
                     Solicitado por <strong>{ap.solicitante_nome || ap.solicitante_email}</strong>
-                    {ap.comunidade_nome ? ` · ${ap.comunidade_nome}` : ""}
+                    {ap.comunidade_nome ?` · ${ap.comunidade_nome}` : ""}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -2578,7 +2679,7 @@ export default function BiasPage() {
                     disabled={aprovarMutation.isPending}
                     data-testid={`btn-aprovar-bia-${ap.id}`}
                   >
-                    {aprovarMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1" />}
+                    {aprovarMutation.isPending ?<Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1" />}
                     Aprovar
                   </Button>
                   <Button
@@ -2622,14 +2723,14 @@ export default function BiasPage() {
       )}
 
       {/* Content */}
-      {loading ? (
+      {loading ?(
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-56" />)}
         </div>
-      ) : bias.length === 0 ? (
+      ) : bias.length === 0 ?(
         <Card>
           <CardContent className="p-12 text-center">
-            {search ? (
+            {search ?(
               <>
                 <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
                 <p className="text-muted-foreground">Nenhuma BIA encontrada para "{search}"</p>
@@ -2696,7 +2797,7 @@ export default function BiasPage() {
               disabled={deleteMutation.isPending}
               data-testid="btn-confirm-delete"
             >
-              {deleteMutation.isPending ? "Removendo..." : "Sim, remover"}
+              {deleteMutation.isPending ?"Removendo..." : "Sim, remover"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2735,7 +2836,7 @@ export default function BiasPage() {
               disabled={rejeitarMutation.isPending}
               data-testid="btn-confirm-rejeitar"
             >
-              {rejeitarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {rejeitarMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Confirmar rejeição
             </Button>
           </DialogFooter>
@@ -2744,3 +2845,4 @@ export default function BiasPage() {
     </div>
   );
 }
+

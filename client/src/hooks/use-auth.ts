@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+﻿import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export interface AppUser {
@@ -29,6 +29,7 @@ export function useAuth() {
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 30 * 1000,
   });
 
   const loginMutation = useMutation({
@@ -68,3 +69,4 @@ export function useAuth() {
     loginError: loginMutation.error,
   };
 }
+

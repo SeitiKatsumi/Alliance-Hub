@@ -70,7 +70,7 @@ function membroNome(m: Membro): string {
 }
 
 function membroFoto(m: Membro): string | null {
-  return m.foto ? `/api/assets/${m.foto}?width=40&height=40&fit=cover` : null;
+  return m.foto ?`/api/assets/${m.foto}?width=40&height=40&fit=cover` : null;
 }
 
 function MemberSelect({
@@ -87,9 +87,9 @@ function MemberSelect({
           className="w-full flex items-center gap-2 text-left rounded-md border border-input bg-background px-2 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors min-h-[30px]"
           data-testid={`member-select-${label.replace(/\s+/g, "-").toLowerCase()}`}
         >
-          {selected ? (
+          {selected ?(
             <>
-              {membroFoto(selected) ? (
+              {membroFoto(selected) ?(
                 <img src={membroFoto(selected)!} className="w-5 h-5 rounded-full object-cover shrink-0" />
               ) : (
                 <div className="w-5 h-5 rounded-full bg-brand-gold/20 flex items-center justify-center shrink-0">
@@ -132,8 +132,8 @@ function MemberSelect({
                   onSelect={() => { onChange(m.id); setOpen(false); }}
                   className="text-xs"
                 >
-                  <Check className={`w-3 h-3 mr-2 ${m.id === value ? "opacity-100" : "opacity-0"}`} />
-                  {membroFoto(m) ? (
+                  <Check className={`w-3 h-3 mr-2 ${m.id === value ?"opacity-100" : "opacity-0"}`} />
+                  {membroFoto(m) ?(
                     <img src={membroFoto(m)!} className="w-5 h-5 rounded-full object-cover mr-2 shrink-0" />
                   ) : (
                     <div className="w-5 h-5 rounded-full bg-brand-gold/20 flex items-center justify-center mr-2 shrink-0">
@@ -261,7 +261,7 @@ function NumInput({
 function PercInput({
   label, value, onChange, testId, hint, baseValue
 }: { label: string; value: number; onChange: (v: number) => void; testId?: string; hint?: string; baseValue?: number }) {
-  const brlEquiv = baseValue && baseValue > 0 ? (value / 100) * baseValue : null;
+  const brlEquiv = baseValue && baseValue > 0 ?(value / 100) * baseValue : null;
   return (
     <div className="space-y-1">
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -361,18 +361,18 @@ export default function BiasCalculadoraPage() {
 
   // Estimate how many Directus entries will be created/deleted during sync
   const activeContributors = 1 // BUILT always
-    + (membroAliadoBuilt && percAliado > 0 ? 1 : 0)
-    + (membroDirTecnico && percAlianca > 0 ? 1 : 0)
-    + (membroDirNucleoTecnico && percTecnico > 0 ? 1 : 0)
-    + (membroDirObras && percObras > 0 ? 1 : 0)
-    + (membroDirComercial && percComercial > 0 ? 1 : 0)
-    + (membroDirCapital && percCapital > 0 ? 1 : 0);
-  const estimatedEntries = (formaPagamento === "parcelado" ? numParcelasInt : 1) * (1 + activeContributors);
+    + (membroAliadoBuilt && percAliado > 0 ?1 : 0)
+    + (membroDirTecnico && percAlianca > 0 ?1 : 0)
+    + (membroDirNucleoTecnico && percTecnico > 0 ?1 : 0)
+    + (membroDirObras && percObras > 0 ?1 : 0)
+    + (membroDirComercial && percComercial > 0 ?1 : 0)
+    + (membroDirCapital && percCapital > 0 ?1 : 0);
+  const estimatedEntries = (formaPagamento === "parcelado" ?numParcelasInt : 1) * (1 + activeContributors);
   // ~0.5s per entry (create + amortised cleanup): conservative estimate
   const estimatedSeconds = Math.round(estimatedEntries * 0.5);
   const needsWarning = formaPagamento === "parcelado" && numParcelasInt > 10;
   const estimatedLabel = estimatedSeconds >= 60
-    ? `~${Math.ceil(estimatedSeconds / 60)} min`
+    ?`~${Math.ceil(estimatedSeconds / 60)} min`
     : `~${estimatedSeconds}s`;
 
   useEffect(() => {
@@ -467,11 +467,11 @@ export default function BiasCalculadoraPage() {
 
   // Total Aporte do Fator de Multiplicação — entrada entries generated per director with a member assigned
   const totalAporteFatorMultiplicacao =
-    (membroDirTecnico ? cppAlianca : 0) +
-    (membroDirNucleoTecnico ? cppTecnico : 0) +
-    (membroDirObras ? cppObras : 0) +
-    (membroDirComercial ? cppComercial : 0) +
-    (membroDirCapital ? cppCapital : 0);
+    (membroDirTecnico ?cppAlianca : 0) +
+    (membroDirNucleoTecnico ?cppTecnico : 0) +
+    (membroDirObras ?cppObras : 0) +
+    (membroDirComercial ?cppComercial : 0) +
+    (membroDirCapital ?cppCapital : 0);
 
   // Deduções são percentuais sobre o valor realizado de venda
   const comissaoValor    = (comissaoCorretor / 100) * valorRealizadoVenda;
@@ -481,7 +481,7 @@ export default function BiasCalculadoraPage() {
   const totalDeducoes = comissaoValor + irValor + inssValor + manutencaoValor;
   const totalReceita = valorRealizadoVenda - totalDeducoes;
   const resultadoLiquido = totalReceita - custoFinalPrevisto;
-  const lucroPrevisto = valorRealizadoVenda > 0 ? ((resultadoLiquido / valorRealizadoVenda) * 100) : 0;
+  const lucroPrevisto = valorRealizadoVenda > 0 ?((resultadoLiquido / valorRealizadoVenda) * 100) : 0;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -520,11 +520,11 @@ export default function BiasCalculadoraPage() {
       const res = await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,
         valor_origem: r(valorOrigem),
-        _vencimento_origem: formaPagamento === "parcelado" ? null : (vencimento || null),
+        _vencimento_origem: formaPagamento === "parcelado" ?null : (vencimento || null),
         _forma_pagamento: formaPagamento || null,
-        _numero_parcelas: formaPagamento === "parcelado" ? numParcelasInt : null,
-        _vencimentos_parcelas: formaPagamento === "parcelado" ? vencimentosParcelas : [],
-        _valores_parcelas: formaPagamento === "parcelado" ? valoresParcelas : [],
+        _numero_parcelas: formaPagamento === "parcelado" ?numParcelasInt : null,
+        _vencimentos_parcelas: formaPagamento === "parcelado" ?vencimentosParcelas : [],
+        _valores_parcelas: formaPagamento === "parcelado" ?valoresParcelas : [],
         // Member selections needed for CPP lançamentos generation
         aliado_built: membroAliadoBuilt || null,
         diretor_alianca: membroDirTecnico || null,
@@ -541,15 +541,15 @@ export default function BiasCalculadoraPage() {
       setShowCppDetails(false);
       if (data?._cppError) {
         setCppSummary(null);
-        const safeErr = typeof data._cppError === "string" ? data._cppError.slice(0, 200) : "Erro desconhecido";
+        const safeErr = typeof data._cppError === "string" ?data._cppError.slice(0, 200) : "Erro desconhecido";
         setCppError(safeErr);
         toast({ title: "Salvo com sucesso", description: "Os cálculos foram salvos, mas houve um erro ao gerar os lançamentos CPP.", variant: "destructive" });
       } else if (data?._cppSummary) {
         const s = data._cppSummary;
         setCppSummary(s);
-        const parcelasText = s.parcelas > 1 ? `${s.parcelas} parcelas` : "1 parcela";
+        const parcelasText = s.parcelas > 1 ?`${s.parcelas} parcelas` : "1 parcela";
         const countText = s.cppCount > 0
-          ? `${s.cppCount} lançamento${s.cppCount !== 1 ? "s" : ""} CPP gerado${s.cppCount !== 1 ? "s" : ""} para ${parcelasText}`
+          ?`${s.cppCount} lançamento${s.cppCount !== 1 ?"s" : ""} CPP gerado${s.cppCount !== 1 ?"s" : ""} para ${parcelasText}`
           : "Nenhum lançamento CPP gerado";
         toast({ title: "Salvo com sucesso", description: countText });
       } else {
@@ -611,11 +611,11 @@ export default function BiasCalculadoraPage() {
           </Select>
 
           <Button
-            onClick={() => needsWarning ? setShowSaveConfirm(true) : saveMutation.mutate()}
+            onClick={() => needsWarning ?setShowSaveConfirm(true) : saveMutation.mutate()}
             disabled={!selectedBiaId || saveMutation.isPending}
             data-testid="button-save"
           >
-            {saveMutation.isPending ? (
+            {saveMutation.isPending ?(
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <Save className="w-4 h-4 mr-2" />
@@ -660,22 +660,22 @@ export default function BiasCalculadoraPage() {
       {/* CPP Lançamentos status panel */}
       {(cppSummary || cppError) && (
         <div
-          className={`rounded-lg border px-4 py-3 text-sm ${cppError ? "border-destructive/50 bg-destructive/10 text-destructive" : "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400"}`}
+          className={`rounded-lg border px-4 py-3 text-sm ${cppError ?"border-destructive/50 bg-destructive/10 text-destructive" : "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400"}`}
           data-testid="panel-cpp-status"
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              {cppError ? (
+              {cppError ?(
                 <AlertTriangle className="w-4 h-4 shrink-0" />
               ) : (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
               )}
-              {cppError ? (
+              {cppError ?(
                 <span>Erro ao gerar lançamentos CPP: {cppError}</span>
-              ) : cppSummary && cppSummary.cppCount > 0 ? (
+              ) : cppSummary && cppSummary.cppCount > 0 ?(
                 <span>
-                  <strong>{cppSummary.cppCount}</strong> lançamento{cppSummary.cppCount !== 1 ? "s" : ""} CPP gerado{cppSummary.cppCount !== 1 ? "s" : ""} para{" "}
-                  <strong>{cppSummary.parcelas}</strong> parcela{cppSummary.parcelas !== 1 ? "s" : ""}
+                  <strong>{cppSummary.cppCount}</strong> lançamento{cppSummary.cppCount !== 1 ?"s" : ""} CPP gerado{cppSummary.cppCount !== 1 ?"s" : ""} para{" "}
+                  <strong>{cppSummary.parcelas}</strong> parcela{cppSummary.parcelas !== 1 ?"s" : ""}
                 </span>
               ) : (
                 <span>Nenhum lançamento CPP gerado (sem contribuidores configurados ou percentuais zerados)</span>
@@ -688,8 +688,8 @@ export default function BiasCalculadoraPage() {
                 className="flex items-center gap-1 text-xs font-medium opacity-70 hover:opacity-100 transition-opacity shrink-0"
                 data-testid="button-toggle-cpp-details"
               >
-                {showCppDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {showCppDetails ? "Ocultar" : "Ver"} detalhes
+                {showCppDetails ?<ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showCppDetails ?"Ocultar" : "Ver"} detalhes
               </button>
             )}
           </div>
@@ -703,7 +703,7 @@ export default function BiasCalculadoraPage() {
         </div>
       )}
 
-      {!selectedBiaId ? (
+      {!selectedBiaId ?(
         <Card>
           <CardContent className="p-12 text-center">
             <Calculator className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
@@ -736,9 +736,9 @@ export default function BiasCalculadoraPage() {
                       </span>
                       {formaPagamento && <span className="text-[10px] text-muted-foreground">✎ editar</span>}
                     </div>
-                    {formaPagamento ? (
+                    {formaPagamento ?(
                       <div className="text-xs text-muted-foreground space-y-0.5">
-                        <div>{formaPagamento === "a_vista" ? "À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
+                        <div>{formaPagamento === "a_vista" ?"À Vista" : `Parcelado em ${numeroParcelas}x`}</div>
                         {formaPagamento === "parcelado" && numParcelasInt > 0 && (
                           <div>{vencimentosParcelas.filter(v => v).length}/{numParcelasInt} datas · {valoresParcelas.filter(v => v > 0).length}/{numParcelasInt} valores</div>
                         )}
@@ -758,7 +758,7 @@ export default function BiasCalculadoraPage() {
                       {valorOrigem.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 })}
                     </p>
                     <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                      {formaPagamento === "parcelado" ? "Soma das parcelas" : formaPagamento === "a_vista" ? "Valor à vista" : "Valor salvo no projeto"}
+                      {formaPagamento === "parcelado" ?"Soma das parcelas" : formaPagamento === "a_vista" ?"Valor à vista" : "Valor salvo no projeto"}
                     </p>
                   </div>
                 </div>
@@ -905,7 +905,7 @@ export default function BiasCalculadoraPage() {
                 <Separator />
                 <div className="flex items-center justify-between py-1">
                   <span className="text-sm font-medium text-muted-foreground">Total de Receita</span>
-                  <span className={`text-lg font-bold ${totalReceita >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-total-receita">
+                  <span className={`text-lg font-bold ${totalReceita >= 0 ?"text-green-600" : "text-red-600"}`} data-testid="text-total-receita">
                     {formatBRL(totalReceita)}
                   </span>
                 </div>
@@ -1014,15 +1014,15 @@ export default function BiasCalculadoraPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Total Receita</p>
-                  <p className={`text-lg font-bold ${totalReceita >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-receita-final">{formatBRL(totalReceita)}</p>
+                  <p className={`text-lg font-bold ${totalReceita >= 0 ?"text-green-600" : "text-red-600"}`} data-testid="text-receita-final">{formatBRL(totalReceita)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Resultado Líquido</p>
-                  <p className={`text-lg font-bold ${resultadoLiquido >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="text-resultado">{formatBRL(resultadoLiquido)}</p>
+                  <p className={`text-lg font-bold ${resultadoLiquido >= 0 ?"text-green-600" : "text-red-600"}`} data-testid="text-resultado">{formatBRL(resultadoLiquido)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Lucro Previsto</p>
-                  <p className={`text-lg font-bold ${lucroPrevisto >= 0 ? "text-brand-gold" : "text-red-600"}`} data-testid="text-lucro">{formatPerc(lucroPrevisto)}</p>
+                  <p className={`text-lg font-bold ${lucroPrevisto >= 0 ?"text-brand-gold" : "text-red-600"}`} data-testid="text-lucro">{formatPerc(lucroPrevisto)}</p>
                 </div>
               </div>
 

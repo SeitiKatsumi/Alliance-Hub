@@ -2601,6 +2601,7 @@ export async function registerRoutes(
 
       let lastError: any = null;
       const newlySkipped: string[] = [];
+      const genericRetryFields = ["Anexos", "socios_multiplicadores", "socios_guardioes", "terceiros"];
       const maxAttempts = Object.keys(payload).length + 5;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -2643,7 +2644,22 @@ export async function registerRoutes(
             .filter((e: any) => e.extensions?.code === "VALUE_OUT_OF_RANGE")
             .map((e: any) => e.extensions?.field)
             .filter(Boolean);
-          if (outOfRange.length === 0) { lastError = err; break; }
+          const isInternalDirectusError = (parsed?.errors || []).some((e: any) =>
+            e.extensions?.code === "INTERNAL_SERVER_ERROR" || /unexpected error/i.test(e.message || "")
+          );
+          if (outOfRange.length === 0) {
+            if (isInternalDirectusError) {
+              const retryField = genericRetryFields.find((field) => Object.prototype.hasOwnProperty.call(payload, field));
+              if (retryField) {
+                newlySkipped.push(retryField);
+                delete (payload as any)[retryField];
+                lastError = err;
+                continue;
+              }
+            }
+            lastError = err;
+            break;
+          }
           for (const f of outOfRange) {
             biasBlockedFields.add(f);
             newlySkipped.push(f);

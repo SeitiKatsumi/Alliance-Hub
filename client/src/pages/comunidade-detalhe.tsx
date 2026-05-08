@@ -130,8 +130,8 @@ export default function ComunidadeDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
   const fromDashboard = new URLSearchParams(location.split("?")[1] || "").get("from") === "dashboard";
-  const backHref = fromDashboard ? "/" : "/comunidade";
-  const backLabel = fromDashboard ? "Voltar para Dashboard" : "Voltar para Comunidades";
+  const backHref = fromDashboard ?"/" : "/comunidade";
+  const backLabel = fromDashboard ?"Voltar para Dashboard" : "Voltar para Comunidades";
 
   const { data: comunidade, isLoading, isError } = useQuery<Comunidade>({
     queryKey: ["/api/comunidades", id],
@@ -256,7 +256,7 @@ export default function ComunidadeDetalhePage() {
           <div className="flex flex-col items-end gap-2">
             <span className={`px-3 py-1 rounded-full text-xs font-mono border ${
               comunidade.status === "ativa"
-                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                ?"border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                 : "border-white/10 text-white/30 bg-white/5"
             }`} data-testid="text-status">
               {comunidade.status || "ativa"}
@@ -318,7 +318,7 @@ export default function ComunidadeDetalhePage() {
             style={{ height: 56, width: "auto" }}
           />
 
-          {aliado ? (
+          {aliado ?(
             <button
               onClick={() => navigate(`/membro/${aliado.id}`)}
               className="w-full flex items-center gap-4 p-3 rounded-xl transition-colors hover:bg-white/5 text-left"
@@ -326,10 +326,10 @@ export default function ComunidadeDetalhePage() {
             >
               <div
                 className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-brand-gold/25"
-                style={{ background: aliadoFoto ? "transparent" : "rgba(215,187,125,0.08)" }}
+                style={{ background: aliadoFoto ?"transparent" : "rgba(215,187,125,0.08)" }}
               >
                 {aliadoFoto
-                  ? <img src={aliadoFoto} alt={aliado.nome} className="w-full h-full object-cover" />
+                  ?<img src={aliadoFoto} alt={aliado.nome} className="w-full h-full object-cover" />
                   : <span className="text-sm font-bold text-brand-gold/60">{getInitials(aliado.nome)}</span>
                 }
               </div>
@@ -444,7 +444,7 @@ export default function ComunidadeDetalhePage() {
           </Badge>
         </div>
 
-        {membros.length === 0 ? (
+        {membros.length === 0 ?(
           <p className="text-xs text-white/25 font-mono italic">Nenhum membro associado</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -460,10 +460,10 @@ export default function ComunidadeDetalhePage() {
                 >
                   <div
                     className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-white/10"
-                    style={{ background: foto ? "transparent" : "rgba(215,187,125,0.06)" }}
+                    style={{ background: foto ?"transparent" : "rgba(215,187,125,0.06)" }}
                   >
                     {foto
-                      ? <img src={foto} alt={m.nome} className="w-full h-full object-cover" />
+                      ?<img src={foto} alt={m.nome} className="w-full h-full object-cover" />
                       : <span className="text-[10px] font-bold text-brand-gold/50">{getInitials(m.nome)}</span>
                     }
                   </div>
@@ -496,7 +496,7 @@ export default function ComunidadeDetalhePage() {
           </Badge>
         </div>
 
-        {bias.length === 0 ? (
+        {bias.length === 0 ?(
           <p className="text-xs text-white/25 font-mono italic">Nenhuma BIA associada</p>
         ) : (
           <div className="space-y-2">

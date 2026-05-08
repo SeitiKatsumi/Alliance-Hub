@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Target, Building2, Globe, Pencil,
@@ -82,7 +82,7 @@ function brl(value: number, currency = "BRL"): string {
 
 function fixMojibakeText(value?: string | null): string {
   if (!value) return "";
-  if (!/[ÃÂÌÍÎÏ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
+  if (!/[ÃƒÃ‚ÃŒÍÃŽÏ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
   try {
     return decodeURIComponent(escape(value)).normalize("NFC");
   } catch {
@@ -151,7 +151,7 @@ export default function OpaDetalhePage() {
     mutationFn: async ({ msg, mult: multVal }: { msg: string; mult: string }) => {
       return apiRequest("POST", `/api/oportunidades/${id}/interesse`, {
         mensagem: msg || null,
-        multiplicador: multVal ? parseFloat(multVal) || null : null,
+        multiplicador: multVal ?parseFloat(multVal) || null : null,
       });
     },
     onSuccess: () => {
@@ -221,7 +221,7 @@ export default function OpaDetalhePage() {
   );
 
   const bia = useMemo(
-    () => opa?.bia_id ? (biasRaw as BiasProjeto[]).find(b => b.id === opa.bia_id) : undefined,
+    () => opa?.bia_id ?(biasRaw as BiasProjeto[]).find(b => b.id === opa.bia_id) : undefined,
     [biasRaw, opa]
   );
 
@@ -236,7 +236,7 @@ export default function OpaDetalhePage() {
   }, [interesseDialog]);
 
   const dias = opa?.date_created
-    ? Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000)
+    ?Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000)
     : null;
 
   const jaInteressado = !!interesseData?.meuInteresse;
@@ -342,7 +342,7 @@ export default function OpaDetalhePage() {
             )}
             {dias !== null && (
               <p className="text-xs text-brand-gold/35 font-mono">
-                {dias === 0 ? "Publicada hoje" : dias === 1 ? "Publicada há 1 dia" : `Publicada há ${dias} dias`}
+                {dias === 0 ?"Publicada hoje" : dias === 1 ?"Publicada há 1 dia" : `Publicada há ${dias} dias`}
               </p>
             )}
           </div>
@@ -382,10 +382,10 @@ export default function OpaDetalhePage() {
                 <SectionTitle icon={Layers}>BIA Vinculada</SectionTitle>
                 <div
                   className={`flex items-center gap-3 rounded-xl px-4 py-3 border border-brand-gold/20 transition-colors ${
-                    hasSeal ? "cursor-pointer hover:border-brand-gold/40" : "cursor-default"
+                    hasSeal ?"cursor-pointer hover:border-brand-gold/40" : "cursor-default"
                   }`}
                   style={{ background: "rgba(215,187,125,0.04)" }}
-                  onClick={hasSeal ? () => navigate(`/bias/${bia.id}`) : undefined}
+                  onClick={hasSeal ?() => navigate(`/bias/${bia.id}`) : undefined}
                   data-testid="link-bia-vinculada"
                 >
                   <Layers className="w-4 h-4 text-brand-gold/50 shrink-0" />
@@ -509,11 +509,11 @@ export default function OpaDetalhePage() {
 
           {/* Manifestar Interesse */}
           {!isClosed && (
-            <Card className={jaInteressado ? "border-brand-gold/30" : "border-border/50"}>
+            <Card className={jaInteressado ?"border-brand-gold/30" : "border-border/50"}>
               <CardContent className="pt-5 pb-4 space-y-3">
                 <SectionTitle icon={HandHeart}>Interesse</SectionTitle>
 
-                {jaInteressado ? (
+                {jaInteressado ?(
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 rounded-lg bg-brand-gold/8 border border-brand-gold/25 px-3 py-2.5">
                       <UserCheck className="w-4 h-4 text-brand-gold shrink-0" />
@@ -532,7 +532,7 @@ export default function OpaDetalhePage() {
                       disabled={removerInteresseMutation.isPending}
                       data-testid="btn-remover-interesse"
                     >
-                      {removerInteresseMutation.isPending ? (
+                      {removerInteresseMutation.isPending ?(
                         <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                       ) : (
                         <XCircle className="w-3.5 h-3.5 mr-1.5" />
@@ -543,12 +543,12 @@ export default function OpaDetalhePage() {
                 ) : (
                   <div className="space-y-3">
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Tem interesse nesta oportunidade? Notifique o responsável pela OPA.
+                      Tem interesse nesta oportunidade?Notifique o responsável pela OPA.
                     </p>
-                    {true ? (
+                    {true ?(
                       <Button
                         className="w-full gap-2 bg-brand-gold hover:bg-brand-gold/90 text-brand-navy font-semibold"
-                        onClick={() => hasSeal ? setInteresseDialog(true) : setSemSeloDialog(true)}
+                        onClick={() => hasSeal ?setInteresseDialog(true) : setSemSeloDialog(true)}
                         data-testid="btn-manifestar-interesse"
                       >
                         <HandHeart className="w-4 h-4" />
@@ -571,7 +571,7 @@ export default function OpaDetalhePage() {
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-3.5 h-3.5 text-brand-gold/60" />
                         <span className="text-xs text-muted-foreground font-medium">
-                          {totalInteresses === 1 ? "1 membro interessado" : `${totalInteresses} membros interessados`}
+                          {totalInteresses === 1 ?"1 membro interessado" : `${totalInteresses} membros interessados`}
                         </span>
                       </div>
                       <div className="space-y-1.5">
@@ -619,12 +619,12 @@ export default function OpaDetalhePage() {
               <div className="flex items-center gap-3">
                 <input
                   type="number"
-                  min={mult > 0 ? mult : 0}
+                  min={mult > 0 ?mult : 0}
                   step={0.1}
                   value={multiplicadorInput}
                   onChange={(e) => setMultiplicadorInput(e.target.value)}
-                  placeholder={mult > 0 ? String(mult) : "Ex: 1.5"}
-                  className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult ? "border-destructive focus-visible:ring-destructive" : "border-input"}`}
+                  placeholder={mult > 0 ?String(mult) : "Ex: 1.5"}
+                  className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult ?"border-destructive focus-visible:ring-destructive" : "border-input"}`}
                   data-testid="input-multiplicador-interesse"
                 />
                 <span className="text-sm text-muted-foreground shrink-0">%</span>
@@ -683,12 +683,12 @@ export default function OpaDetalhePage() {
               disabled={interesseMutation.isPending}
               data-testid="btn-confirm-interesse"
             >
-              {interesseMutation.isPending ? (
+              {interesseMutation.isPending ?(
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <HandHeart className="w-4 h-4" />
               )}
-              {interesseMutation.isPending ? "Registrando..." : "Confirmar Interesse"}
+              {interesseMutation.isPending ?"Registrando..." : "Confirmar Interesse"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -721,7 +721,7 @@ export default function OpaDetalhePage() {
               disabled={solicitarAdesaoMutation.isPending}
               data-testid="btn-ir-adesao-opa"
             >
-              {solicitarAdesaoMutation.isPending ? (
+              {solicitarAdesaoMutation.isPending ?(
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <HandHeart className="w-4 h-4 mr-2" />
@@ -734,3 +734,5 @@ export default function OpaDetalhePage() {
     </div>
   );
 }
+
+

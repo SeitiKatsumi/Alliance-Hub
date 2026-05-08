@@ -93,9 +93,9 @@ export default function ValidationPage() {
                 https://app.builtalliances.com
               </CardDescription>
             </div>
-            {validationQuery.isLoading ? (
+            {validationQuery.isLoading ?(
               <Skeleton className="h-6 w-24" />
-            ) : validationQuery.data?.success ? (
+            ) : validationQuery.data?.success ?(
               <Badge variant="default" className="bg-green-600" data-testid="badge-status-success">
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Conectado
@@ -108,12 +108,12 @@ export default function ValidationPage() {
             )}
           </CardHeader>
           <CardContent>
-            {validationQuery.isLoading ? (
+            {validationQuery.isLoading ?(
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
               </div>
-            ) : validationQuery.data?.success ? (
+            ) : validationQuery.data?.success ?(
               <div className="text-sm text-muted-foreground" data-testid="text-connection-message">
                 {validationQuery.data.message}
               </div>
@@ -139,13 +139,13 @@ export default function ValidationPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {collectionsQuery.isLoading ? (
+              {collectionsQuery.isLoading ?(
                 <div className="space-y-2">
                   {[...Array(5)].map((_, i) => (
                     <Skeleton key={i} className="h-10 w-full" />
                   ))}
                 </div>
-              ) : userCollections.length > 0 ? (
+              ) : userCollections.length > 0 ?(
                 <div className="space-y-1">
                   {userCollections.map((collection) => (
                     <button
@@ -153,7 +153,7 @@ export default function ValidationPage() {
                       onClick={() => setSelectedCollection(collection.collection)}
                       className={`w-full flex items-center justify-between p-3 rounded-md text-left transition-colors hover-elevate ${
                         selectedCollection === collection.collection
-                          ? "bg-accent"
+                          ?"bg-accent"
                           : "bg-muted/50"
                       }`}
                       data-testid={`button-collection-${collection.collection}`}
@@ -181,27 +181,27 @@ export default function ValidationPage() {
               <Database className="h-5 w-5 text-muted-foreground" />
               <div>
                 <CardTitle className="text-lg" data-testid="text-fields-title">
-                  {selectedCollection ? `Campos: ${selectedCollection}` : "Campos da Coleção"}
+                  {selectedCollection ?`Campos: ${selectedCollection}` : "Campos da Coleção"}
                 </CardTitle>
                 <CardDescription>
                   {selectedCollection 
-                    ? `${fieldsQuery.data?.fields?.length || 0} campos` 
+                    ?`${fieldsQuery.data?.fields?.length || 0} campos` 
                     : "Selecione uma coleção"}
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent>
-              {!selectedCollection ? (
+              {!selectedCollection ?(
                 <div className="text-sm text-muted-foreground text-center py-8" data-testid="text-select-collection">
                   Selecione uma coleção para ver seus campos
                 </div>
-              ) : fieldsQuery.isLoading ? (
+              ) : fieldsQuery.isLoading ?(
                 <div className="space-y-2">
                   {[...Array(5)].map((_, i) => (
                     <Skeleton key={i} className="h-10 w-full" />
                   ))}
                 </div>
-              ) : fieldsQuery.data?.fields && fieldsQuery.data.fields.length > 0 ? (
+              ) : fieldsQuery.data?.fields && fieldsQuery.data.fields.length > 0 ?(
                 <div className="space-y-1">
                   {fieldsQuery.data.fields.map((field) => (
                     <div

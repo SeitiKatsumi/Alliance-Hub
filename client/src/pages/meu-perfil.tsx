@@ -44,7 +44,7 @@ const INVITE_APP_URL = "https://built.dna11.com.br";
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
   if (/^https?:\/\//i.test(link)) return link;
-  return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
+  return `${INVITE_APP_URL}${link.startsWith("/") ?"" : "/"}${link}`;
 }
 
 function LocationPickerModal({ open, onClose, onSelect }: {
@@ -117,7 +117,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
             className="px-3 py-2 rounded-md bg-brand-gold text-brand-navy hover:bg-brand-gold/90 disabled:opacity-50 shrink-0"
             data-testid="btn-search-location"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ?<Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </button>
         </div>
         {error && <p className="text-sm text-muted-foreground text-center py-2">{error}</p>}
@@ -129,7 +129,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
                 onClick={() => setSelected(r)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors border ${
                   selected?.place_id === r.place_id
-                    ? "bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
+                    ?"bg-brand-gold/10 border-brand-gold/40 text-brand-gold"
                     : "hover:bg-muted border-transparent"
                 }`}
                 data-testid={`location-result-${r.place_id}`}
@@ -372,7 +372,7 @@ export default function MeuPerfilPage() {
     const payload: Record<string, any> = { ...rest };
     // Send Especialidades as Directus M2M array
     payload.Especialidades = especialidade_id
-      ? [{ especialidades_id: especialidade_id }]
+      ?[{ especialidades_id: especialidade_id }]
       : [];
     updateMutation.mutate(payload as any);
   }
@@ -430,9 +430,9 @@ export default function MeuPerfilPage() {
               title="Clique para trocar a foto"
               data-testid="btn-trocar-foto"
             >
-              {uploadingFoto ? (
+              {uploadingFoto ?(
                 <Loader2 className="w-6 h-6 text-brand-gold animate-spin" />
-              ) : foto ? (
+              ) : foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-2xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
@@ -446,7 +446,7 @@ export default function MeuPerfilPage() {
             </button>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#020b16] border border-brand-gold/30 flex items-center justify-center pointer-events-none">
               {uploadingFoto
-                ? <Loader2 className="w-3 h-3 text-brand-gold animate-spin" />
+                ?<Loader2 className="w-3 h-3 text-brand-gold animate-spin" />
                 : <Camera className="w-3 h-3 text-brand-gold/50" />
               }
             </div>
@@ -471,7 +471,7 @@ export default function MeuPerfilPage() {
 
       {/* Form */}
       <div className="max-w-3xl mx-auto p-6 space-y-6">
-        {isLoading ? (
+        {isLoading ?(
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 bg-white/5" />)}
           </div>
@@ -532,7 +532,7 @@ export default function MeuPerfilPage() {
                 >
                   <MapPin className="w-4 h-4 text-brand-gold/50 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    {form.cidade ? (
+                    {form.cidade ?(
                       <p className="text-sm text-white truncate">
                         {[form.cidade, form.estado, form.pais].filter(Boolean).join(", ")}
                       </p>
@@ -568,16 +568,16 @@ export default function MeuPerfilPage() {
                   <div
                     className="relative w-20 h-20 rounded-xl border-2 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer group/logo"
                     style={{
-                      borderColor: form.logo_empresa ? "rgba(215,187,125,0.35)" : "rgba(255,255,255,0.1)",
-                      background: form.logo_empresa ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
+                      borderColor: form.logo_empresa ?"rgba(215,187,125,0.35)" : "rgba(255,255,255,0.1)",
+                      background: form.logo_empresa ?"rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
                     }}
                     onClick={() => !uploadingLogo && logoInputRef.current?.click()}
                     title="Clique para enviar a logo"
                     data-testid="btn-upload-logo-empresa"
                   >
-                    {uploadingLogo ? (
+                    {uploadingLogo ?(
                       <Loader2 className="w-6 h-6 text-brand-gold animate-spin" />
-                    ) : form.logo_empresa ? (
+                    ) : form.logo_empresa ?(
                       <>
                         <img
                           src={`/api/assets/${form.logo_empresa}?width=160&height=160&fit=contain`}
@@ -606,7 +606,7 @@ export default function MeuPerfilPage() {
                       data-testid="btn-trocar-logo-empresa"
                     >
                       <Upload className="w-3 h-3" />
-                      {form.logo_empresa ? "Trocar logo" : "Enviar logo"}
+                      {form.logo_empresa ?"Trocar logo" : "Enviar logo"}
                     </button>
                     {form.logo_empresa && (
                       <button
@@ -678,7 +678,7 @@ export default function MeuPerfilPage() {
                         className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40 disabled:opacity-40"
                         data-testid="select-perfil-segmento"
                       >
-                        <SelectValue placeholder={form.ramo_atuacao ? "Selecione o segmento" : "Selecione o ramo primeiro"} />
+                        <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento" : "Selecione o ramo primeiro"} />
                       </SelectTrigger>
                       <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
                         {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
@@ -829,7 +829,7 @@ export default function MeuPerfilPage() {
                             i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
                           ),
                           ...(IDIOMAS_DISPONIVEIS.some(i => i.toLowerCase() === idiomaInput.trim().toLowerCase()) || (form.idiomas || []).includes(idiomaInput.trim())
-                            ? []
+                            ?[]
                             : [idiomaInput.trim()]
                           ),
                         ].map(sugestao => (
@@ -846,7 +846,7 @@ export default function MeuPerfilPage() {
                             data-testid={`opt-idioma-${sugestao}`}
                           >
                             {sugestao === idiomaInput.trim() && !IDIOMAS_DISPONIVEIS.some(i => i.toLowerCase() === sugestao.toLowerCase())
-                              ? `+ Adicionar "${sugestao}"`
+                              ?`+ Adicionar "${sugestao}"`
                               : sugestao}
                           </button>
                         ))}
@@ -920,39 +920,39 @@ export default function MeuPerfilPage() {
                             setForm(f => ({
                               ...f,
                               Outras_redes_as_quais_pertenco: selected
-                                ? current.filter(r => r !== rede.value)
+                                ?current.filter(r => r !== rede.value)
                                 : [...current, rede.value],
                             }));
                           }}
                           data-testid={`btn-rede-${rede.value.toLowerCase()}`}
                           className="relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-all"
                           style={{
-                            background: selected ? "rgba(215,187,125,0.1)" : "rgba(255,255,255,0.03)",
-                            borderColor: selected ? "rgba(215,187,125,0.4)" : "rgba(255,255,255,0.08)",
-                            boxShadow: selected ? "0 0 12px rgba(215,187,125,0.1)" : "none",
-                            cursor: locked ? "not-allowed" : "pointer",
-                            opacity: locked && !selected ? 0.4 : 1,
+                            background: selected ?"rgba(215,187,125,0.1)" : "rgba(255,255,255,0.03)",
+                            borderColor: selected ?"rgba(215,187,125,0.4)" : "rgba(255,255,255,0.08)",
+                            boxShadow: selected ?"0 0 12px rgba(215,187,125,0.1)" : "none",
+                            cursor: locked ?"not-allowed" : "pointer",
+                            opacity: locked && !selected ?0.4 : 1,
                           }}
                         >
                           <img
                             src={rede.badge}
                             alt={rede.label}
                             className="h-10 w-auto object-contain rounded"
-                            style={{ opacity: selected ? 1 : 0.4, filter: selected ? "none" : "grayscale(0.5)" }}
+                            style={{ opacity: selected ?1 : 0.4, filter: selected ?"none" : "grayscale(0.5)" }}
                           />
                           {/* Badge de estado */}
-                          {selected ? (
+                          {selected ?(
                             <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
                               style={{ background: "#D7BB7D" }}>
                               <CheckCircle2 className="w-3 h-3 text-[#001D34]" />
                             </span>
-                          ) : locked ? (
+                          ) : locked ?(
                             <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
                               style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)" }}>
                               <Lock className="w-2.5 h-2.5 text-white/50" />
                             </span>
                           ) : null}
-                          <span className="text-[10px] font-mono" style={{ color: selected ? "#D7BB7D" : "rgba(255,255,255,0.3)" }}>
+                          <span className="text-[10px] font-mono" style={{ color: selected ?"#D7BB7D" : "rgba(255,255,255,0.3)" }}>
                             {rede.label}
                           </span>
                         </button>
@@ -1001,7 +1001,7 @@ export default function MeuPerfilPage() {
                 <p className="text-xs text-white/40 leading-relaxed">
                   Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 1 dia.
                 </p>
-                {meuConviteLink ? (
+                {meuConviteLink ?(
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
                       <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConviteLink}</span>
@@ -1029,7 +1029,7 @@ export default function MeuPerfilPage() {
                       className="flex items-center gap-1.5 text-xs font-mono text-white/30 hover:text-white/50 transition-colors"
                       data-testid="btn-renovar-convite"
                     >
-                      <RefreshCw className={`w-3 h-3 ${gerarConviteMutation.isPending ? "animate-spin" : ""}`} />
+                      <RefreshCw className={`w-3 h-3 ${gerarConviteMutation.isPending ?"animate-spin" : ""}`} />
                       Gerar novo link
                     </button>
                   </div>
@@ -1042,7 +1042,7 @@ export default function MeuPerfilPage() {
                     style={{ background: "rgba(215,187,125,0.15)", color: "#D7BB7D", border: "1px solid rgba(215,187,125,0.3)" }}
                     data-testid="btn-gerar-convite"
                   >
-                    {gerarConviteMutation.isPending ? (
+                    {gerarConviteMutation.isPending ?(
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Ticket className="w-3.5 h-3.5" />
@@ -1060,20 +1060,20 @@ export default function MeuPerfilPage() {
                 disabled={updateMutation.isPending}
                 className="gap-2 px-6"
                 style={{
-                  background: saved ? "rgba(74,222,128,0.15)" : "linear-gradient(135deg, #D7BB7D, #b89a50)",
-                  color: saved ? "#4ade80" : "#001D34",
-                  border: saved ? "1px solid rgba(74,222,128,0.3)" : "none",
+                  background: saved ?"rgba(74,222,128,0.15)" : "linear-gradient(135deg, #D7BB7D, #b89a50)",
+                  color: saved ?"#4ade80" : "#001D34",
+                  border: saved ?"1px solid rgba(74,222,128,0.3)" : "none",
                 }}
                 data-testid="btn-salvar-perfil"
               >
-                {updateMutation.isPending ? (
+                {updateMutation.isPending ?(
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : saved ? (
+                ) : saved ?(
                   <CheckCircle2 className="w-4 h-4" />
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                {saved ? "Salvo!" : updateMutation.isPending ? "Salvando..." : "Salvar perfil"}
+                {saved ?"Salvo!" : updateMutation.isPending ?"Salvando..." : "Salvar perfil"}
               </Button>
             </div>
           </>

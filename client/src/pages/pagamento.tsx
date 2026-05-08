@@ -90,7 +90,7 @@ export default function PagamentoPage() {
   }
 
   const brasil = isBrazil(convite.comunidade?.pais);
-  const stripeUrl = `${STRIPE_PAYMENT_LINK}?client_reference_id=${token}${convite.candidato_email ? `&prefilled_email=${encodeURIComponent(convite.candidato_email)}` : ""}`;
+  const stripeUrl = `${STRIPE_PAYMENT_LINK}?client_reference_id=${token}${convite.candidato_email ?`&prefilled_email=${encodeURIComponent(convite.candidato_email)}` : ""}`;
 
   return (
     <div className="min-h-screen" style={{ background: "#001D34" }}>
@@ -114,7 +114,7 @@ export default function PagamentoPage() {
           )}
         </div>
 
-        {brasil ? (
+        {brasil ?(
           /* Asaas — Brazilian users */
           <div className="space-y-3">
             {/* Cartão de crédito à vista */}
@@ -146,7 +146,7 @@ export default function PagamentoPage() {
               </div>
               <div className="p-5 space-y-4">
                 <p className="text-sm font-mono text-white/60">
-                  Prefere parcelar? Escolha a quantidade de parcelas e pague de forma cômoda.
+                  Prefere parcelar?Escolha a quantidade de parcelas e pague de forma cômoda.
                 </p>
                 <Button
                   variant="outline"

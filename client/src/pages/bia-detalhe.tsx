@@ -123,7 +123,7 @@ function formatMoney(value: number, currency = "BRL"): string {
 
 function pct(v?: string | number | null): string {
   const val = n(v);
-  return val > 0 ? `${val.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : "—";
+  return val > 0 ?`${val.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : "—";
 }
 
 function getMembroNome(m: Membro): string {
@@ -158,19 +158,19 @@ function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; i
   return (
     <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 relative overflow-hidden ${
       isAliadoBuilt && !unassigned
-        ? "border-brand-gold/30 bg-brand-gold/[0.04]"
+        ?"border-brand-gold/30 bg-brand-gold/[0.04]"
         : unassigned
-        ? "border-border/30 bg-muted/10 opacity-60"
+        ?"border-border/30 bg-muted/10 opacity-60"
         : "border-border/60 bg-muted/20"
     }`}>
       <div className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 ${
-        isAliadoBuilt && !unassigned ? "bg-brand-gold/15 border-brand-gold/30" : "bg-brand-gold/10 border-brand-gold/20"
+        isAliadoBuilt && !unassigned ?"bg-brand-gold/15 border-brand-gold/30" : "bg-brand-gold/10 border-brand-gold/20"
       }`}>
         <Icon className="w-3.5 h-3.5 text-brand-gold/70" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider leading-none">{role}</p>
-        <p className={`text-xs font-medium truncate mt-0.5 ${unassigned ? "text-muted-foreground/50 italic" : ""}`}>{nome || "Não atribuído"}</p>
+        <p className={`text-xs font-medium truncate mt-0.5 ${unassigned ?"text-muted-foreground/50 italic" : ""}`}>{nome || "Não atribuído"}</p>
       </div>
       {isAliadoBuilt && !unassigned && (
         <img
@@ -380,7 +380,7 @@ export default function BiaDetalhePage() {
             {opas.length > 0 && (
               <Badge className="gap-1 bg-brand-gold/15 text-brand-gold/80 border-brand-gold/25 hover:bg-brand-gold/20">
                 <Target className="w-3 h-3" />
-                {opas.length} OPA{opas.length !== 1 ? "s" : ""}
+                {opas.length} OPA{opas.length !== 1 ?"s" : ""}
               </Badge>
             )}
           </div>
@@ -399,7 +399,7 @@ export default function BiaDetalhePage() {
           <StatBox
             label="Resultado Líquido"
             value={formatMoney(resultado, bia.moeda || "BRL")}
-            color={resultado >= 0 ? "text-green-600" : "text-red-600"}
+            color={resultado >= 0 ?"text-green-600" : "text-red-600"}
           />
         )}
         {lucro !== 0 && <StatBox label="Lucro Previsto" value={formatMoney(lucro, bia.moeda || "BRL")} />}
@@ -419,7 +419,7 @@ export default function BiaDetalhePage() {
                 {equipe.map((e, i) => (
                   <MembroChip
                     key={i}
-                    nome={e.id ? membros[e.id] : undefined}
+                    nome={e.id ?membros[e.id] : undefined}
                     role={e.role}
                     icon={e.icon}
                   />
@@ -437,7 +437,7 @@ export default function BiaDetalhePage() {
                   <Badge variant="secondary" className="ml-2 text-xs">{opas.length}</Badge>
                 )}
               </SectionTitle>
-              {opas.length === 0 ? (
+              {opas.length === 0 ?(
                 <div className="text-center py-8 text-muted-foreground/50">
                   <Target className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Nenhuma OPA vinculada a esta BIA</p>
@@ -624,7 +624,7 @@ export default function BiaDetalhePage() {
                   <div className="space-y-2">
                     {aporteFMEntries.map((entry) => {
                       const favNome = entry.favorecido_id
-                        ? (entry.favorecido_id.Nome_de_usuario || entry.favorecido_id.nome || "")
+                        ?(entry.favorecido_id.Nome_de_usuario || entry.favorecido_id.nome || "")
                         : "";
                       const parcela = entry.descricao.replace("Aporte do Fator de Multiplicação - ", "");
                       return (

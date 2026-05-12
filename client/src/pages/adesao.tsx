@@ -1,7 +1,7 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
-import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles } from "lucide-react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles, Store, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ConviteData {
@@ -19,6 +19,12 @@ interface ConviteData {
     pais?: string;
     territorio?: string;
   };
+  dados_contratuais?: {
+    interesses?: string[];
+    termos_aceitos?: Record<string, boolean>;
+    termos_versoes?: Record<string, string>;
+    aceito_em?: string;
+  } | null;
 }
 
 const TERMOS_ADESAO = `
@@ -103,10 +109,391 @@ e) usar o nome BUILT para assumir obrigações com terceiros sem autorização.
 Ao aceitar este Termo, o usuário declara ter lido, compreendido e concordado integralmente com todas as cláusulas acima.
 `.trim();
 
+const CODIGO_ETICA_BUILT = `
+CÓDIGO DE ÉTICA BUILT
+
+Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.
+
+Eu agirei com transparência, lealdade e respeito em todas as relações.
+
+Eu protegerei a confiança construída e a reputação coletiva.
+
+Eu assumirei responsabilidade integral por minhas ações, decisões e conduta.
+
+Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.
+
+Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.
+`.trim();
+
+const POLITICAS_PARTICIPACAO_PROTECAO = `
+POLÍTICAS DE PARTICIPAÇÃO E PROTEÇÃO — BUILT
+
+OBJETIVO
+
+Estas Políticas definem as regras gerais de acesso, participação, permanência, conduta, proteção institucional e uso do ecossistema BUILT.
+
+Seu objetivo é proteger a BUILT, seus membros, comunidades, OPAs — Ofertas Públicas de Aliança, BIAs — BUILT Integrated Alliances, parceiros, ativos, registros, metodologia, plataforma, marca e reputação.
+
+Estas Políticas se aplicam a usuários, parceiros, Membros, Membros Aliados, Aliados Licenciados, Diretores, participantes de BIAs, Parceiros de Capital e demais pessoas que acessem ou utilizem ambientes, oportunidades ou instrumentos vinculados à BUILT.
+
+PRINCÍPIOS DA REDE BUILT
+
+A BUILT opera com base em boa-fé objetiva, lealdade, comprometimento, transparência, rastreabilidade, responsabilidade individual, validação reputacional, cooperação estratégica, proteção institucional, integridade patrimonial e disciplina relacional.
+
+No ecossistema BUILT, cada participante responde individualmente pelo que assumir formalmente e coletivamente pela preservação da aliança, da confiança, da rastreabilidade e da integridade da BIA, sem responsabilidade solidária automática por obrigações de outros participantes.
+
+Confiança, reputação e capacidade de entrega são condições essenciais para acesso, permanência, elegibilidade e crescimento na rede BUILT.
+
+CAMADAS DE ACESSO AO ECOSSISTEMA BUILT
+
+A BUILT Vitrine é o ambiente de acesso inicial, informativo e institucional, destinado à exposição controlada de perfis, categorias, empresas, profissionais, OPAs, conteúdos públicos ou informações expressamente autorizadas pela BUILT.
+
+A BUILT Capital é o ambiente restrito destinado à identificação, qualificação, análise e eventual conexão de pessoas físicas ou jurídicas interessadas em investir, coinvestir, estruturar ou participar financeiramente de BIAs.
+
+A Área de Alianças é o ambiente restrito destinado a membros aprovados pela BUILT ou por Aliado Licenciado BUILT autorizado, com acesso a comunidades, funcionalidades, análises, manifestações de interesse em OPAs, registros, validações, interações e recursos compatíveis com seu perfil, plano, reputação, função e permissões.
+
+ACEITES E INSTRUMENTOS APLICÁVEIS
+
+O acesso aos ambientes da BUILT poderá depender de aceite eletrônico ou físico dos Termos de Acesso, Código de Ética, Políticas de Participação e Proteção e demais instrumentos aplicáveis.
+
+O aceite poderá ocorrer por assinatura, clique, checkbox, autenticação, registro de acesso ou outro meio idôneo, com validade jurídica e prova por logs, carimbo temporal, trilhas de auditoria e registros eletrônicos.
+
+O aceite geral à Plataforma BUILT ou a qualquer área de acesso não implica adesão automática a BIA específica, obrigação de aporte, assunção de função, aquisição de CPP, Direito Econômico, participação patrimonial, sociedade, mandato, representação ou garantia de resultado.
+
+ELEGIBILIDADE, VALIDAÇÃO E PERMANÊNCIA
+
+A BUILT poderá condicionar o acesso e a permanência à aprovação cadastral, documental, técnica, reputacional, financeira, regulatória ou institucional.
+
+O participante deverá manter seus dados e documentos atualizados e comunicar fatos relevantes que possam afetar sua reputação, habilitação, elegibilidade, função ou participação.
+
+DEVERES DOS PARTICIPANTES
+
+Todo participante deverá atuar com ética, boa-fé, lealdade, comprometimento, transparência, diligência, cooperação, respeito à legislação e aderência ao Código de Ética, a estas Políticas e aos instrumentos aplicáveis.
+
+O participante é responsável pelos dados, documentos, declarações, conteúdos, propostas, entregas, prazos, obrigações e compromissos que assumir no ecossistema BUILT.
+
+CONFIDENCIALIDADE E NÃO CIRCUNVENÇÃO
+
+São confidenciais as informações estratégicas, comerciais, técnicas, financeiras, jurídicas, societárias, patrimoniais, reputacionais, operacionais, metodológicas, documentais ou negociais acessadas no ecossistema BUILT, salvo quando expressamente classificadas como públicas.
+
+É vedado copiar, compartilhar, encaminhar, publicar, vender, transferir, explorar ou utilizar informações da BUILT, de membros, parceiros, OPAs, BIAs, MAPs, ativos ou documentos fora dos fluxos autorizados.
+
+OPAs E BIAs
+
+A manifestação de interesse em OPA é ato preliminar e dependerá de análise, seleção, aprovação, aceite específico, registro na Plataforma BUILT e instrumentos aplicáveis da respectiva BIA.
+
+A participação em BIA específica dependerá de aprovação da governança competente, aceite próprio, registro na Plataforma BUILT, definição de função, aporte, entrega ou responsabilidade, e vinculação aos instrumentos aplicáveis.
+
+LIMITES DA ATUAÇÃO DA BUILT
+
+A BUILT atua como plataforma privada de método, rede, governança, rastreabilidade, validação reputacional, organização informacional e proteção institucional.
+
+A BUILT não executa obras, não elabora projetos técnicos, não administra caixa de BIAs, não capta recursos em nome de BIAs, não intermedeia investimentos, não garante retorno financeiro, não fiscaliza tecnicamente obras e não assume obrigações dos participantes.
+
+SANÇÕES E MEDIDAS DE PROTEÇÃO
+
+A violação do Código de Ética, destas Políticas, dos Termos de Acesso, instrumentos de BIA, regras de confidencialidade, não circunvenção, governança, registros ou compliance poderá gerar medidas proporcionais de proteção.
+
+ATUALIZAÇÃO DAS POLÍTICAS
+
+A BUILT poderá atualizar estas Políticas para aprimorar governança, segurança jurídica, proteção da rede, conformidade regulatória, mitigação de riscos e evolução do ecossistema.
+
+DISPOSIÇÕES FINAIS
+
+Estas Políticas integram, por referência, os Termos de Acesso da Plataforma BUILT, fluxos de OPA, MOUs de BIA, MAPs, termos de adesão, atas, registros, anexos e demais instrumentos aplicáveis.
+`.trim();
+
+const TERMOS_VITRINE = `
+TERMO DE ACESSO E USO DA VITRINE PÚBLICA BUILT
+
+Pelo presente Termo de Acesso e Uso da Vitrine Pública BUILT, a pessoa física ou jurídica que realizar cadastro, acesso, autenticação social, navegação identificada ou uso de funcionalidades da vitrine pública da plataforma BUILT declara ter lido, compreendido e aceito integralmente as disposições abaixo.
+
+1. OBJETO
+
+1.1. Este Termo regula o acesso à vitrine pública da BUILT, ambiente digital destinado à exposição institucional, descoberta de perfis, consulta de categorias, apresentação pública controlada de empresas e profissionais formalmente habilitados e demais funcionalidades abertas pela BUILT.
+
+1.2. A vitrine pública é destinada exclusivamente a pessoas físicas e jurídicas com atuação legítima no ecossistema da construção, do desenvolvimento imobiliário, da engenharia, da arquitetura, do fornecimento, da governança, da operação e de áreas correlatas admitidas pela BUILT.
+
+1.3. O acesso à vitrine pública não confere, por si só, a condição de membro, investidor aprovado, participante de BIA, aliado licenciado, diretor ou líder de comunidade.
+
+2. ELEGIBILIDADE E CADASTRO
+
+2.1. O usuário declara que possui capacidade civil e legitimidade para realizar o cadastro em nome próprio ou em representação válida de pessoa jurídica.
+
+2.2. Quando aplicável, o usuário deverá informar dados cadastrais verdadeiros, completos e atualizados, inclusive nome, e-mail, telefone, país de origem, número de registro profissional, número de registro empresarial ou equivalente.
+
+2.3. Profissionais formalmente habilitados deverão informar registro oficial verificável em sua jurisdição de origem.
+
+3. NATUREZA DA VITRINE PÚBLICA
+
+3.1. A vitrine pública possui natureza informativa, institucional e relacional.
+
+3.2. A presença do usuário na vitrine pública não constitui certificação absoluta, endosso profissional, promessa de contratação, garantia de reputação, garantia de capacidade técnica ou aval financeiro.
+
+4. COMUNIDADES E ALIADOS BUILT
+
+4.1. O Usuário deverá ser vinculado a uma comunidade, de acordo com regras da plataforma e da governança local.
+
+5. RESPONSABILIDADE PELAS INFORMAÇÕES
+
+5.1. O usuário é integralmente responsável pelos dados, documentos, imagens, currículos, registros, marcas, portfólios, links, descrições e demais conteúdos inseridos.
+
+5.2. O usuário declara possuir todos os direitos, autorizações e bases legais para uso e divulgação das informações disponibilizadas.
+
+6. REGRAS DE USO
+
+6.1. O acesso é pessoal, revogável, não exclusivo e intransferível.
+
+6.2. O usuário não poderá copiar, raspar, minerar, revender, sublicenciar, reproduzir em massa, treinar modelos com dados da plataforma sem autorização, nem utilizar a vitrine pública para spam, prospecção abusiva, fraude, engenharia social, concorrência desleal ou desvio de oportunidades.
+
+7. DADOS PESSOAIS E PRIVACIDADE
+
+7.1. Os dados pessoais tratados no âmbito deste Termo serão utilizados para autenticação, prevenção a fraude, gestão de acesso, segurança, comunicação, auditoria, melhoria da plataforma, cumprimento contratual, exercício regular de direitos e legítimo interesse da BUILT.
+
+8. PROPRIEDADE INTELECTUAL
+
+8.1. A plataforma, seus layouts, fluxos, bancos de dados, metodologias, marcas, nomenclaturas, manuais, elementos visuais e sistemas são de titularidade da BUILT ou de terceiros licenciantes.
+
+9. LIMITAÇÃO DE RESPONSABILIDADE
+
+9.1. A BUILT atua como plataforma digital de conexão, organização e governança relacional, não sendo parte automática de negócios, contratações, alianças, investimentos ou obrigações assumidas entre usuários.
+
+10. ACEITE ELETRÔNICO
+
+10.1. O aceite deste Termo poderá ocorrer por clique, checkbox, autenticação social, assinatura eletrônica, fluxo de cadastro ou outro mecanismo eletrônico apto a demonstrar manifestação inequívoca de vontade.
+
+11. SUSPENSÃO E ENCERRAMENTO
+
+11.1. A BUILT poderá recusar, limitar, suspender ou encerrar acessos em caso de suspeita de fraude, uso indevido, risco reputacional, violação ética, inconsistência cadastral, descumprimento deste Termo ou necessidade regulatória.
+
+12. FORO E LEI APLICÁVEL
+
+12.1. Este Termo será regido pela lei do país da pessoa jurídica da BUILT que presta os serviços da plataforma ao usuário.
+`.trim();
+
+const TERMOS_BUILT_CAPITAL = `
+TERMO BUILT CAPITAL - VERSAO PROVISORIA V1
+
+Este Termo disciplina o acesso e a participacao no BUILT Capital, ambiente voltado a conexao com parceiros de capital, investidores, originadores e participantes estrategicos da rede BUILT.
+
+1. FINALIDADE
+
+1.1. O BUILT Capital facilita conexoes, mapeamento de interesses e relacionamento institucional entre participantes elegiveis.
+
+1.2. A participacao no BUILT Capital nao constitui oferta publica de valores mobiliarios, promessa de rentabilidade, consultoria financeira, recomendacao individualizada de investimento ou garantia de retorno.
+
+2. RESPONSABILIDADE E ELEGIBILIDADE
+
+2.1. O participante deve informar dados verdadeiros, manter seu perfil atualizado e respeitar as regras de confidencialidade, governanca e registro da plataforma.
+
+2.2. Toda decisao de aporte, credito, parceria ou investimento dependera de analise propria, instrumentos especificos, diligencia e aprovacao das partes envolvidas.
+
+3. CONDUTA
+
+3.1. E vedado captar recursos de forma irregular, prometer retorno garantido, omitir riscos, compartilhar informacoes restritas sem autorizacao ou induzir terceiros a erro.
+
+4. REGISTRO E COMPLIANCE
+
+4.1. Interacoes relevantes devem ser registradas pelos meios indicados pela BUILT, preservando rastreabilidade, transparencia e seguranca juridica.
+
+Ao aceitar este Termo, o usuario declara estar ciente das regras provisorias do BUILT Capital.
+`.trim();
+
+type TermKey = "codigo_etica" | "politicas_participacao_protecao" | "area_aliancas" | "vitrine" | "built_capital";
+
+const TERM_CONFIG: Record<TermKey, {
+  title: string;
+  label: string;
+  version: string;
+  body: string;
+  icon: typeof Shield;
+}> = {
+  codigo_etica: {
+    title: "Código de Ética BUILT",
+    label: "Código de Ética BUILT",
+    version: "BUILT JUR - 1",
+    body: CODIGO_ETICA_BUILT,
+    icon: Shield,
+  },
+  politicas_participacao_protecao: {
+    title: "Políticas de Participação e Proteção BUILT",
+    label: "Políticas de Participação e Proteção BUILT",
+    version: "BUILT JUR - 1",
+    body: POLITICAS_PARTICIPACAO_PROTECAO,
+    icon: FileText,
+  },
+  area_aliancas: {
+    title: "Termo de Acesso à Área de Alianças",
+    label: "Termo de Acesso à Área de Alianças BUILT",
+    version: "area_aliancas_v1",
+    body: TERMOS_ADESAO,
+    icon: Shield,
+  },
+  vitrine: {
+    title: "Termo BUILT Vitrine",
+    label: "Termo BUILT Vitrine",
+    version: "BUILT JUR - 2",
+    body: TERMOS_VITRINE,
+    icon: Store,
+  },
+  built_capital: {
+    title: "Termo BUILT Capital",
+    label: "Termo BUILT Capital",
+    version: "built_capital_v1_provisorio",
+    body: TERMOS_BUILT_CAPITAL,
+    icon: TrendingUp,
+  },
+};
+
+function getConviteInteresses(convite?: ConviteData): string[] {
+  const raw = convite?.dados_contratuais?.interesses;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return Array.from(new Set(raw.map((item) => String(item).toLowerCase())));
+  }
+  if (convite?.tipo === "vitrine") return ["vitrine"];
+  if (convite?.tipo === "associacao_completa") return ["membros"];
+  return ["membros"];
+}
+
+function getRequiredTermKeys(interesses: string[]): TermKey[] {
+  return ["codigo_etica", "politicas_participacao_protecao"];
+}
+
+function TermosAceiteView({
+  convite,
+  requiredTerms,
+  checkedTerms,
+  setCheckedTerms,
+  activeTerm,
+  setActiveTerm,
+  onAccept,
+  isPending,
+  errorMessage,
+  buttonText,
+}: {
+  convite: ConviteData;
+  requiredTerms: TermKey[];
+  checkedTerms: Record<string, boolean>;
+  setCheckedTerms: Dispatch<SetStateAction<Record<string, boolean>>>;
+  activeTerm: TermKey;
+  setActiveTerm: Dispatch<SetStateAction<TermKey>>;
+  onAccept: () => void;
+  isPending: boolean;
+  errorMessage?: string;
+  buttonText: string;
+}) {
+  const activeKey = requiredTerms.includes(activeTerm) ? activeTerm : requiredTerms[0];
+  const activeConfig = TERM_CONFIG[activeKey];
+  const ActiveIcon = activeConfig.icon;
+  const allAccepted = requiredTerms.every((key) => checkedTerms[key]);
+
+  const toggleTerm = (key: TermKey) => {
+    setCheckedTerms((current) => ({ ...current, [key]: !current[key] }));
+  };
+
+  return (
+    <div className="min-h-screen" style={{ background: "#001D34" }}>
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
+        <div className="text-center">
+          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+          <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termos de Acesso BUILT</h1>
+          <p className="text-white/50 text-sm font-mono mt-1">
+            Bem-vindo(a), <strong className="text-brand-gold">{convite.candidato_nome}</strong>! Leia e aceite os termos para continuar.
+          </p>
+        </div>
+
+        <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
+          <Shield className="w-5 h-5 text-brand-gold shrink-0" />
+          <div>
+            <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
+            <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome || "Rede BUILT"}</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
+            <ActiveIcon className="w-4 h-4 text-brand-gold" />
+            <span className="text-xs font-mono text-white/60 uppercase tracking-wider">{activeConfig.title}</span>
+          </div>
+          <div className="p-5 max-h-[28rem] overflow-y-auto">
+            <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">{activeConfig.body}</pre>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-brand-gold/20 p-4 space-y-3" style={{ background: "rgba(215,187,125,0.04)" }}>
+          <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-[0.2em]">Termos aplicáveis</p>
+          <div className="flex flex-wrap gap-2">
+            {requiredTerms.map((key) => {
+              const config = TERM_CONFIG[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTerm(key)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-mono transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-brand-gold" : "border-white/15 text-white/60 hover:border-brand-gold/50 hover:text-brand-gold"}`}
+                >
+                  {config.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {requiredTerms.map((key) => {
+            const config = TERM_CONFIG[key];
+            const accepted = !!checkedTerms[key];
+            return (
+              <label key={key} className="flex items-start gap-3 cursor-pointer group" data-testid={`label-aceite-${key}`}>
+                <div
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${accepted ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
+                  onClick={() => toggleTerm(key)}
+                >
+                  {accepted && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                </div>
+                <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => toggleTerm(key)}>
+                  Li e concordo com o{" "}
+                  <button
+                    type="button"
+                    className="font-bold text-brand-gold hover:underline"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setActiveTerm(key);
+                    }}
+                  >
+                    {config.label}
+                  </button>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        <Button
+          onClick={onAccept}
+          disabled={!allAccepted || isPending}
+          className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
+          style={{ background: allAccepted ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
+          data-testid="btn-aceitar-termos"
+        >
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          {buttonText}
+        </Button>
+        {errorMessage && (
+          <p className="text-red-400 text-xs font-mono text-center">{errorMessage}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdesaoPage() {
   const { token } = useParams<{ token: string }>();
   const [, navigate] = useLocation();
   const [checked, setChecked] = useState(false);
+  const [checkedTerms, setCheckedTerms] = useState<Record<string, boolean>>({});
+  const [activeTerm, setActiveTerm] = useState<TermKey>("codigo_etica");
   const [localStatus, setLocalStatus] = useState<string | null>(null);
 
   const { data: convite, isLoading, error } = useQuery<ConviteData>({
@@ -119,12 +506,22 @@ export default function AdesaoPage() {
     retry: false,
   });
 
+  const interesses = getConviteInteresses(convite);
+  const requiredTerms = getRequiredTermKeys(interesses);
+  const termosAceitosPayload = Object.fromEntries(requiredTerms.map((key) => [key, true]));
+  const termosVersoesPayload = Object.fromEntries(requiredTerms.map((key) => [key, TERM_CONFIG[key].version]));
+
   const aceitarTermosMutation = useMutation({
     mutationFn: async () => {
       const r = await fetch(`/api/convites/${token}/aceitar-termos`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aceito: true }),
+        body: JSON.stringify({
+          aceito: true,
+          termos_aceitos: termosAceitosPayload,
+          termos_versoes: termosVersoesPayload,
+          aceito_em: new Date().toISOString(),
+        }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
@@ -156,7 +553,12 @@ export default function AdesaoPage() {
       const r = await fetch(`/api/convites/${token}/adesao`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aceito: true }),
+        body: JSON.stringify({
+          aceito: true,
+          termos_aceitos: termosAceitosPayload,
+          termos_versoes: termosVersoesPayload,
+          aceito_em: new Date().toISOString(),
+        }),
       });
       if (!r.ok) throw new Error("Erro ao registrar aceite");
       return r.json();
@@ -193,6 +595,40 @@ export default function AdesaoPage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
         <Loader2 className="w-8 h-8 animate-spin text-brand-gold" />
       </div>
+    );
+  }
+
+  if (["aprovado", "termos_enviados"].includes(status)) {
+    return (
+      <TermosAceiteView
+        convite={convite}
+        requiredTerms={requiredTerms}
+        checkedTerms={checkedTerms}
+        setCheckedTerms={setCheckedTerms}
+        activeTerm={activeTerm}
+        setActiveTerm={setActiveTerm}
+        onAccept={() => adesaoMutation.mutate()}
+        isPending={adesaoMutation.isPending}
+        errorMessage={adesaoMutation.isError ? (adesaoMutation.error as Error).message : undefined}
+        buttonText="Aceitar Termos e Continuar"
+      />
+    );
+  }
+
+  if (status === "termos_pendentes") {
+    return (
+      <TermosAceiteView
+        convite={convite}
+        requiredTerms={requiredTerms}
+        checkedTerms={checkedTerms}
+        setCheckedTerms={setCheckedTerms}
+        activeTerm={activeTerm}
+        setActiveTerm={setActiveTerm}
+        onAccept={() => aceitarTermosMutation.mutate()}
+        isPending={aceitarTermosMutation.isPending}
+        errorMessage={aceitarTermosMutation.isError ? (aceitarTermosMutation.error as Error).message : undefined}
+        buttonText="Aceitar Termos e Avançar"
+      />
     );
   }
 

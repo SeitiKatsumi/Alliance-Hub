@@ -302,6 +302,16 @@ async function ensureVitrineFields() {
     { field: "idiomas", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Idiomas falados" }, schema: { is_nullable: true } },
     { field: "nucleos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos núcleos de aliança" }, schema: { is_nullable: true } },
     { field: "tipos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos tipos de aliança" }, schema: { is_nullable: true } },
+    { field: "codigo_etica_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Codigo de Etica BUILT" }, schema: { is_nullable: true } },
+    { field: "codigo_etica_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Codigo de Etica aceito" }, schema: { is_nullable: true } },
+    { field: "politicas_participacao_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite das Politicas de Participacao e Protecao BUILT" }, schema: { is_nullable: true } },
+    { field: "politicas_participacao_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao das Politicas de Participacao e Protecao aceitas" }, schema: { is_nullable: true } },
+    { field: "vitrine_termo_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Termo BUILT Vitrine" }, schema: { is_nullable: true } },
+    { field: "vitrine_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo BUILT Vitrine aceito" }, schema: { is_nullable: true } },
+    { field: "built_capital_termo_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Termo BUILT Capital" }, schema: { is_nullable: true } },
+    { field: "built_capital_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo BUILT Capital aceito" }, schema: { is_nullable: true } },
+    { field: "area_aliancas_termo_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Termo Area de Aliancas" }, schema: { is_nullable: true } },
+    { field: "area_aliancas_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo Area de Aliancas aceito" }, schema: { is_nullable: true } },
   ];
   for (const fieldDef of fields) {
     try {
@@ -2043,6 +2053,22 @@ export async function registerRoutes(
             payload[f] = isNaN(n) ? null : n;
           }
         }
+      }
+
+      const termFields = [
+        "codigo_etica_aceito_em",
+        "codigo_etica_versao",
+        "politicas_participacao_aceito_em",
+        "politicas_participacao_versao",
+        "vitrine_termo_aceito_em",
+        "vitrine_termo_versao",
+        "built_capital_termo_aceito_em",
+        "built_capital_termo_versao",
+        "area_aliancas_termo_aceito_em",
+        "area_aliancas_termo_versao",
+      ];
+      if (Object.keys(payload).some(key => termFields.includes(key))) {
+        await ensureVitrineFields();
       }
 
       console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(payload));
@@ -4218,7 +4244,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           invitador_membro_id: conviteLink.gerador_membro_id || null,
           status: "termos_pendentes",
           tipo: "vitrine",
-          dados_contratuais: null,
+          dados_contratuais: {
+            interesses: interessesArr,
+            origem: "cadastro_inicial",
+            termos_aceitos: {},
+            termos_versoes: {},
+          },
           expires_at: null,
         });
         vitrineToken = vitrineConvite.token;
@@ -4233,7 +4264,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
             invitador_membro_id: conviteLink.gerador_membro_id || null,
             status: "convidado",
             tipo: "associacao_completa",
-            dados_contratuais: null,
+            dados_contratuais: {
+              interesses: ["membros"],
+              origem_interesses: interessesArr,
+              termos_aceitos: {},
+              termos_versoes: {},
+            },
             expires_at: null,
           });
           pagamentoToken = assocConvite.token;
@@ -5627,7 +5663,32 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Give 24h for payment after accepting terms; move to explicit pagamento_pendente state
       const paymentExpiry = new Date();
       paymentExpiry.setHours(paymentExpiry.getHours() + 24);
-      const updated = await storage.updateConvite(convite.id, { status: "pagamento_pendente", expires_at: paymentExpiry });
+      const now = new Date();
+      const body = req.body || {};
+      const currentDados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
+        ? convite.dados_contratuais as Record<string, any>
+        : {};
+      const dadosContratuais = {
+        ...currentDados,
+        termos_aceitos: body.termos_aceitos && typeof body.termos_aceitos === "object" ? body.termos_aceitos : currentDados.termos_aceitos || {},
+        termos_versoes: body.termos_versoes && typeof body.termos_versoes === "object" ? body.termos_versoes : currentDados.termos_versoes || {},
+        aceito_em: body.aceito_em || now.toISOString(),
+      };
+      const updated = await storage.updateConvite(convite.id, {
+        status: "pagamento_pendente",
+        expires_at: paymentExpiry,
+        termos_aceitos_em: now,
+        dados_contratuais: dadosContratuais as any,
+      });
+
+      if (convite.candidato_membro_id) {
+        await directusUpdate("cadastro_geral", convite.candidato_membro_id, {
+          codigo_etica_aceito_em: now.toISOString(),
+          codigo_etica_versao: dadosContratuais.termos_versoes?.codigo_etica || "BUILT JUR - 1",
+          politicas_participacao_aceito_em: now.toISOString(),
+          politicas_participacao_versao: dadosContratuais.termos_versoes?.politicas_participacao_protecao || "BUILT JUR - 1",
+        }).catch((err: any) => console.warn("[adesao] Codigo de Etica nao atualizado no cadastro:", err?.message || err));
+      }
 
       // Notify about payment
       const col = await getComunidadeCol();
@@ -5658,10 +5719,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
       if (convite.status !== "termos_pendentes") return res.status(400).json({ error: "Termos não disponíveis para aceite neste momento" });
 
+      const now = new Date();
+      const body = req.body || {};
+      const currentDados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
+        ? convite.dados_contratuais as Record<string, any>
+        : {};
+      const dadosContratuais = {
+        ...currentDados,
+        termos_aceitos: body.termos_aceitos && typeof body.termos_aceitos === "object" ? body.termos_aceitos : currentDados.termos_aceitos || {},
+        termos_versoes: body.termos_versoes && typeof body.termos_versoes === "object" ? body.termos_versoes : currentDados.termos_versoes || {},
+        aceito_em: body.aceito_em || now.toISOString(),
+      };
       const updated = await storage.updateConvite(convite.id, {
         status: "termos_aceitos",
-        termos_aceitos_em: new Date(),
+        termos_aceitos_em: now,
+        dados_contratuais: dadosContratuais as any,
       });
+
+      if (convite.candidato_membro_id) {
+        await directusUpdate("cadastro_geral", convite.candidato_membro_id, {
+          codigo_etica_aceito_em: now.toISOString(),
+          codigo_etica_versao: dadosContratuais.termos_versoes?.codigo_etica || "BUILT JUR - 1",
+          politicas_participacao_aceito_em: now.toISOString(),
+          politicas_participacao_versao: dadosContratuais.termos_versoes?.politicas_participacao_protecao || "BUILT JUR - 1",
+        }).catch((err: any) => console.warn("[aceitar-termos] Codigo de Etica nao atualizado no cadastro:", err?.message || err));
+      }
 
       res.json(updated);
     } catch (error: any) {

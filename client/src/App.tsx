@@ -50,7 +50,7 @@ import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
 import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, User, X } from "lucide-react";
+import { Briefcase, CheckCircle2, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, ScrollText, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
@@ -77,7 +77,141 @@ interface OnboardingMembro {
   tipos_alianca?: string[] | null;
   link_site?: string | null;
   na_vitrine?: boolean;
+  codigo_etica_aceito_em?: string | null;
+  codigo_etica_versao?: string | null;
+  vitrine_termo_aceito_em?: string | null;
+  vitrine_termo_versao?: string | null;
+  area_aliancas_termo_aceito_em?: string | null;
+  area_aliancas_termo_versao?: string | null;
+  built_capital_termo_aceito_em?: string | null;
+  built_capital_termo_versao?: string | null;
 }
+
+const CODIGO_ETICA_BUILT_VERSAO = "BUILT JUR - 1";
+const CODIGO_ETICA_BUILT = [
+  "Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.",
+  "Eu agirei com transparência, lealdade e respeito em todas as relações.",
+  "Eu protegerei a confiança construída e a reputação coletiva.",
+  "Eu assumirei responsabilidade integral por minhas ações, decisões e conduta.",
+  "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.",
+  "Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.",
+];
+const TERMO_VITRINE_BUILT_VERSAO = "BUILT JUR - 2";
+const TERMO_VITRINE_BUILT = `
+TERMO DE ACESSO E USO DA VITRINE PÚBLICA BUILT
+
+Pelo presente Termo de Acesso e Uso da Vitrine Pública BUILT, a pessoa física ou jurídica que realizar cadastro, acesso, autenticação social, navegação identificada ou uso de funcionalidades da vitrine pública da plataforma BUILT declara ter lido, compreendido e aceito integralmente as disposições abaixo.
+
+1. OBJETO
+
+1.1. Este Termo regula o acesso à vitrine pública da BUILT, ambiente digital destinado à exposição institucional, descoberta de perfis, consulta de categorias, apresentação pública controlada de empresas e profissionais formalmente habilitados e demais funcionalidades abertas pela BUILT.
+
+1.2. A vitrine pública é destinada exclusivamente a pessoas físicas e jurídicas com atuação legítima no ecossistema da construção, do desenvolvimento imobiliário, da engenharia, da arquitetura, do fornecimento, da governança, da operação e de áreas correlatas admitidas pela BUILT.
+
+1.3. O acesso à vitrine pública não confere, por si só, a condição de membro, investidor aprovado, participante de BIA, aliado licenciado, diretor ou líder de comunidade.
+
+2. ELEGIBILIDADE E CADASTRO
+
+2.1. O usuário declara que possui capacidade civil e legitimidade para realizar o cadastro em nome próprio ou em representação válida de pessoa jurídica.
+
+2.2. Quando aplicável, o usuário deverá informar dados cadastrais verdadeiros, completos e atualizados, inclusive nome, e-mail, telefone, país de origem, número de registro profissional, número de registro empresarial ou equivalente.
+
+2.3. Profissionais formalmente habilitados deverão informar registro oficial verificável em sua jurisdição de origem.
+
+2.4. Empresas vinculadas a entidade de classe, conselho, ordem, registro mercantil, autoridade fiscal ou órgão equivalente deverão informar inscrição oficial verificável em seu país de origem.
+
+3. NATUREZA DA VITRINE PÚBLICA
+
+3.1. A vitrine pública possui natureza informativa, institucional e relacional.
+
+3.2. A BUILT não garante a exatidão permanente de dados fornecidos por terceiros, embora possa empregar mecanismos de verificação, moderação, auditoria ou suspensão.
+
+3.3. A presença do usuário na vitrine pública não constitui certificação absoluta, endosso profissional, promessa de contratação, garantia de reputação, garantia de capacidade técnica ou aval financeiro.
+
+4. COMUNIDADES E ALIADOS BUILT
+
+4.1. O Usuário deverá ser vinculado a uma comunidade, de acordo com regras da plataforma e da governança local.
+
+4.2. As comunidades são compostas por Usuários associados a um Aliado BUILT, sem que isso elimine a autonomia contratual da BUILT nem crie vínculo societário automático entre Usuário, aliado e plataforma.
+
+5. RESPONSABILIDADE PELAS INFORMAÇÕES
+
+5.1. O usuário é integralmente responsável pelos dados, documentos, imagens, currículos, registros, marcas, portfólios, links, descrições e demais conteúdos inseridos.
+
+5.2. O usuário declara possuir todos os direitos, autorizações e bases legais para uso e divulgação das informações disponibilizadas.
+
+5.3. É vedado inserir informação falsa, enganosa, desatualizada de forma relevante, ofensiva, difamatória, ilícita ou que induza terceiros a erro.
+
+6. REGRAS DE USO
+
+6.1. O acesso é pessoal, revogável, não exclusivo e intransferível.
+
+6.2. O usuário não poderá copiar, raspar, minerar, revender, sublicenciar, reproduzir em massa, treinar modelos com dados da plataforma sem autorização, nem utilizar a vitrine pública para spam, prospecção abusiva, fraude, engenharia social, concorrência desleal ou desvio de oportunidades.
+
+6.3. A BUILT poderá limitar visualizações, exigir autenticação, ocultar campos, modular visibilidade por país, suspender contas ou remover conteúdo para preservar segurança, privacidade, compliance e integridade do ecossistema.
+
+7. DADOS PESSOAIS E PRIVACIDADE
+
+7.1. Os dados pessoais tratados no âmbito deste Termo serão utilizados para autenticação, prevenção a fraude, gestão de acesso, segurança, comunicação, auditoria, melhoria da plataforma, cumprimento contratual, exercício regular de direitos e legítimo interesse da BUILT, nos limites da legislação aplicável.
+
+8. PROPRIEDADE INTELECTUAL
+
+8.1. A plataforma, seus layouts, fluxos, bancos de dados, metodologias, marcas, nomenclaturas, manuais, elementos visuais e sistemas são de titularidade da BUILT ou de terceiros licenciantes.
+
+9. LIMITAÇÃO DE RESPONSABILIDADE
+
+9.1. A BUILT atua como plataforma digital de conexão, organização e governança relacional, não sendo parte automática de negócios, contratações, alianças, investimentos ou obrigações assumidas entre usuários.
+
+10. ACEITE ELETRÔNICO
+
+10.1. O aceite deste Termo poderá ocorrer por clique, checkbox, autenticação social, assinatura eletrônica, fluxo de cadastro ou outro mecanismo eletrônico apto a demonstrar manifestação inequívoca de vontade.
+
+11. SUSPENSÃO E ENCERRAMENTO
+
+11.1. A BUILT poderá recusar, limitar, suspender ou encerrar acessos em caso de suspeita de fraude, uso indevido, risco reputacional, violação ética, inconsistência cadastral, descumprimento deste Termo ou necessidade regulatória.
+
+12. FORO E LEI APLICÁVEL
+
+12.1. Este Termo será regido pela lei do país da pessoa jurídica da BUILT que presta os serviços da plataforma ao usuário.
+`.trim();
+
+const TERMO_AREA_ALIANCAS_VERSAO = "area_aliancas_v1_provisorio";
+const TERMO_AREA_ALIANCAS = `
+TERMO PROVISÓRIO DE ACESSO À ÁREA DE ALIANÇAS BUILT
+
+Este termo regula o acesso inicial à Área de Alianças BUILT, ambiente restrito destinado a membros aliados, comunidades, OPAs, manifestações de interesse, registros de participação, validações e interações da rede BUILT.
+
+1. O acesso à Área de Alianças não garante participação em BIAs, aprovação em OPAs, contratação, remuneração, CPPs, Direitos Econômicos, função de governança ou retorno financeiro.
+
+2. O usuário compromete-se a atuar com boa-fé, transparência, respeito à confidencialidade, não circunvenção, proteção reputacional e observância ao Código de Ética e às Políticas de Participação e Proteção BUILT.
+
+3. Manifestações de interesse em OPAs são atos preliminares e dependem de análise, seleção, aprovação, aceite específico e registros próprios.
+
+4. Informações acessadas na Área de Alianças podem envolver oportunidades, comunidades, membros, OPAs, BIAs, documentos e dados sensíveis, devendo ser usadas apenas nos fluxos autorizados.
+
+5. A BUILT poderá limitar, suspender ou encerrar o acesso em caso de risco reputacional, uso indevido, inconsistência cadastral, violação ética, violação de confidencialidade ou descumprimento de regras internas.
+
+Ao aceitar este termo, o usuário declara estar ciente das regras provisórias de acesso à Área de Alianças BUILT.
+`.trim();
+
+const TERMO_BUILT_CAPITAL_VERSAO = "built_capital_v1_provisorio";
+const TERMO_BUILT_CAPITAL = `
+TERMO PROVISÓRIO DE ACESSO AO BUILT CAPITAL
+
+Este termo regula o acesso inicial ao BUILT Capital, ambiente restrito voltado à conexão, qualificação e relacionamento com parceiros de capital, investidores, originadores e participantes estratégicos da rede BUILT.
+
+1. O acesso ao BUILT Capital não constitui recomendação de investimento, oferta pública, intermediação financeira, promessa de retorno, garantia de rentabilidade ou aprovação automática de aporte.
+
+2. Toda decisão de aporte, crédito, investimento, financiamento ou parceria dependerá de análise própria, diligência, instrumentos específicos, registro e aprovação das partes envolvidas.
+
+3. O usuário compromete-se a fornecer informações verdadeiras, manter seus dados atualizados, respeitar confidencialidade, compliance, origem lícita de recursos e legislação aplicável.
+
+4. É vedado prometer retorno garantido, omitir riscos, captar recursos de forma irregular, compartilhar informações restritas sem autorização ou induzir terceiros a erro.
+
+5. A BUILT atua como plataforma privada de método, rede, governança, rastreabilidade, organização informacional e proteção institucional, não assumindo obrigações financeiras dos participantes.
+
+Ao aceitar este termo, o usuário declara estar ciente das regras provisórias de acesso ao BUILT Capital.
+`.trim();
 
 const IDIOMAS_DISPONIVEIS = [
   "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
@@ -213,10 +347,15 @@ function PerfilLocationPickerModal({ open, onClose, onSelect }: {
 
 function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
   const { toast } = useToast();
+  const [location] = useLocation();
   const [form, setForm] = useState<Partial<OnboardingMembro>>({});
   const [idiomaInput, setIdiomaInput] = useState("");
   const [completed, setCompleted] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [codigoEticaAceito, setCodigoEticaAceito] = useState(false);
+  const [termoVitrineAceito, setTermoVitrineAceito] = useState(false);
+  const [termoAreaAliancasAceito, setTermoAreaAliancasAceito] = useState(false);
+  const [termoBuiltCapitalAceito, setTermoBuiltCapitalAceito] = useState(false);
 
   const { data: membro, isLoading } = useQuery<OnboardingMembro>({
     queryKey: ["/api/membros", membroId],
@@ -225,20 +364,84 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
   });
 
   useEffect(() => {
-    if (membro) setForm(membro);
+    if (membro) {
+      setForm(membro);
+      setCodigoEticaAceito(!!membro.codigo_etica_aceito_em);
+      setTermoVitrineAceito(!!membro.vitrine_termo_aceito_em);
+      setTermoAreaAliancasAceito(!!membro.area_aliancas_termo_aceito_em);
+      setTermoBuiltCapitalAceito(!!membro.built_capital_termo_aceito_em);
+    }
   }, [membro]);
 
   const requiredMissing = [membro?.nome, membro?.email, membro?.empresa, membro?.cidade]
     .some(value => !String(value || "").trim());
-  const shouldOpen = !!membroId && !completed && !isLoading && !!membro && requiredMissing;
+  const isVitrineRoute = location.startsWith("/vitrine");
+  const isAreaAliancasRoute = location.startsWith("/area-aliancas");
+  const isBuiltCapitalRoute = location.startsWith("/built-capital");
+  const termoVitrinePendente = !!membro && isVitrineRoute && !membro.vitrine_termo_aceito_em;
+  const termoAreaAliancasPendente = !!membro && isAreaAliancasRoute && !membro.area_aliancas_termo_aceito_em;
+  const termoBuiltCapitalPendente = !!membro && isBuiltCapitalRoute && !membro.built_capital_termo_aceito_em;
+  const termoModuloPendente = termoVitrinePendente || termoAreaAliancasPendente || termoBuiltCapitalPendente;
+  const shouldOpen = !!membroId && !completed && !isLoading && !!membro && (requiredMissing || termoModuloPendente);
+  const mostrarPerfilCompleto = requiredMissing;
+  const termoModulo = termoVitrinePendente
+    ? {
+      titulo: "Termo BUILT Vitrine",
+      descricao: "Para acessar a Vitrine pela primeira vez, confirme que leu e concorda com o Termo BUILT Vitrine.",
+      texto: TERMO_VITRINE_BUILT,
+      checked: termoVitrineAceito,
+      setChecked: setTermoVitrineAceito,
+      checkboxTestId: "checkbox-onboarding-termo-vitrine",
+      wrapperTestId: "onboarding-termo-vitrine",
+      accepted: !!membro?.vitrine_termo_aceito_em,
+      payload: {
+        vitrine_termo_aceito_em: new Date().toISOString(),
+        vitrine_termo_versao: TERMO_VITRINE_BUILT_VERSAO,
+      },
+    }
+    : termoAreaAliancasPendente
+      ? {
+        titulo: "Termo Área de Alianças",
+        descricao: "Para acessar a Área de Alianças pela primeira vez, confirme que leu e concorda com o termo provisório.",
+        texto: TERMO_AREA_ALIANCAS,
+        checked: termoAreaAliancasAceito,
+        setChecked: setTermoAreaAliancasAceito,
+        checkboxTestId: "checkbox-onboarding-termo-area-aliancas",
+        wrapperTestId: "onboarding-termo-area-aliancas",
+        accepted: !!membro?.area_aliancas_termo_aceito_em,
+        payload: {
+          area_aliancas_termo_aceito_em: new Date().toISOString(),
+          area_aliancas_termo_versao: TERMO_AREA_ALIANCAS_VERSAO,
+        },
+      }
+      : termoBuiltCapitalPendente
+        ? {
+          titulo: "Termo BUILT Capital",
+          descricao: "Para acessar o BUILT Capital pela primeira vez, confirme que leu e concorda com o termo provisório.",
+          texto: TERMO_BUILT_CAPITAL,
+          checked: termoBuiltCapitalAceito,
+          setChecked: setTermoBuiltCapitalAceito,
+          checkboxTestId: "checkbox-onboarding-termo-built-capital",
+          wrapperTestId: "onboarding-termo-built-capital",
+          accepted: !!membro?.built_capital_termo_aceito_em,
+          payload: {
+            built_capital_termo_aceito_em: new Date().toISOString(),
+            built_capital_termo_versao: TERMO_BUILT_CAPITAL_VERSAO,
+          },
+        }
+        : null;
 
   const salvarMutation = useMutation({
     mutationFn: async (payload: Partial<OnboardingMembro>) => {
       const response = await apiRequest("PATCH", `/api/membros/${membroId}`, payload);
       return response.json().catch(() => null);
     },
-    onSuccess: () => {
-      setCompleted(true);
+    onSuccess: (_data, variables) => {
+      setCompleted(!(
+        (isVitrineRoute && !membro?.vitrine_termo_aceito_em && !variables.vitrine_termo_aceito_em) ||
+        (isAreaAliancasRoute && !membro?.area_aliancas_termo_aceito_em && !variables.area_aliancas_termo_aceito_em) ||
+        (isBuiltCapitalRoute && !membro?.built_capital_termo_aceito_em && !variables.built_capital_termo_aceito_em)
+      ));
       queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
@@ -252,6 +455,17 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
   }
 
   function handleSave() {
+    if (!mostrarPerfilCompleto) {
+      if (!termoModulo) return;
+      if (!termoModulo.checked) {
+        toast({ title: `Aceite o ${termoModulo.titulo} para continuar`, variant: "destructive" });
+        return;
+      }
+
+      salvarMutation.mutate(termoModulo.payload);
+      return;
+    }
+
     const required = [
       { field: "nome" as const, label: "Nome" },
       { field: "email" as const, label: "E-mail" },
@@ -263,7 +477,6 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
       toast({ title: `Preencha o campo: ${missing.label}`, variant: "destructive" });
       return;
     }
-
     salvarMutation.mutate({
       nome: String(form.nome || "").trim(),
       email: String(form.email || "").trim(),
@@ -285,6 +498,7 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
       tipos_alianca: form.tipos_alianca || [],
       nucleos_alianca: form.nucleos_alianca || [],
       na_vitrine: !!form.na_vitrine,
+      ...(termoModulo?.checked ? termoModulo.payload : {}),
     });
   }
 
@@ -293,14 +507,21 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-brand-gold" />
-            Complete seu perfil
+            {mostrarPerfilCompleto ?(
+              <Briefcase className="h-5 w-5 text-brand-gold" />
+            ) : (
+              <ScrollText className="h-5 w-5 text-brand-gold" />
+            )}
+            {mostrarPerfilCompleto ?"Complete seu perfil" : termoModulo?.titulo}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Antes de continuar, preencha as informacoes principais. Esses dados tambem alimentam seu card, caso voce escolha aparecer na Vitrine.
+            {mostrarPerfilCompleto
+              ?"Antes de continuar, preencha as informacoes principais. Esses dados tambem alimentam seu card, caso voce escolha aparecer na Vitrine."
+              : termoModulo?.descricao}
           </p>
         </DialogHeader>
 
+        {mostrarPerfilCompleto && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
           <div className="space-y-1.5">
             <Label>Nome completo *</Label>
@@ -478,6 +699,40 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
             <Textarea value={form.perfil_aliado || ""} onChange={e => setField("perfil_aliado", e.target.value)} rows={4} data-testid="input-onboarding-biografia" />
           </div>
         </div>
+        )}
+        {!mostrarPerfilCompleto && termoModulo && (
+        <div className="rounded-xl border border-brand-gold/25 bg-brand-gold/5 p-4 space-y-3" data-testid={termoModulo.wrapperTestId}>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-lg bg-brand-gold/15 p-2 text-brand-gold">
+              <ScrollText className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{termoModulo.titulo}</p>
+              <p className="text-xs text-muted-foreground">Leia e confirme para liberar o acesso.</p>
+            </div>
+          </div>
+          <div className="max-h-44 overflow-y-auto rounded-lg border border-border bg-background p-3">
+            <pre className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">{termoModulo.texto}</pre>
+          </div>
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={termoModulo.checked}
+              onChange={event => termoModulo.setChecked(event.target.checked)}
+              disabled={termoModulo.accepted}
+              className="mt-1 h-4 w-4 accent-brand-gold"
+              data-testid={termoModulo.checkboxTestId}
+            />
+            <span className="text-muted-foreground">
+              Li e concordo com o {termoModulo.titulo}.
+              {termoModulo.accepted && (
+                <span className="block text-xs text-emerald-600 mt-1">Aceite já registrado.</span>
+              )}
+            </span>
+          </label>
+        </div>
+        )}
+        {mostrarPerfilCompleto && (
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
           <div>
             <p className="text-sm font-medium">Aparecer na Vitrine</p>
@@ -489,11 +744,12 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
             data-testid="switch-onboarding-na-vitrine"
           />
         </div>
+        )}
 
         <DialogFooter>
           <Button onClick={handleSave} disabled={salvarMutation.isPending} className="gap-2" data-testid="btn-salvar-onboarding-perfil">
             {salvarMutation.isPending ?<Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Salvar perfil
+            {mostrarPerfilCompleto ?"Salvar perfil" : "Aceitar e continuar"}
           </Button>
         </DialogFooter>
       </DialogContent>

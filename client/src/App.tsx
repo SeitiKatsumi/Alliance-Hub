@@ -891,6 +891,7 @@ function ProtectedApp() {
               <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />
               <Route path="/comunidade" component={ComunidadePage} />
+              <Route path="/notificacoes" component={ConvitesPage} />
               <Route path="/convites" component={ConvitesPage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />
               <Route path="/membros" component={MembrosPage} />

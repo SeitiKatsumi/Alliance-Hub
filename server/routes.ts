@@ -295,6 +295,8 @@ async function ensureVitrineFields() {
     { field: "link_site", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "latitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
     { field: "longitude", type: "float", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
+    { field: "foto_posicao_x", type: "float", meta: { interface: "input", hidden: false, note: "Posicao horizontal da foto de perfil (0 a 100)" }, schema: { is_nullable: true, default_value: 50 } },
+    { field: "foto_posicao_y", type: "float", meta: { interface: "input", hidden: false, note: "Posicao vertical da foto de perfil (0 a 100)" }, schema: { is_nullable: true, default_value: 50 } },
     { field: "logo_empresa", type: "uuid", meta: { interface: "file-image", display: "image", hidden: false, note: "Logo ou marca da empresa" }, schema: { is_nullable: true } },
     { field: "especialidade_livre", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Especialidade em texto livre" }, schema: { is_nullable: true } },
     { field: "ramo_atuacao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Ramo de atuação (cascata)" }, schema: { is_nullable: true } },
@@ -1491,7 +1493,7 @@ export async function registerRoutes(
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
       // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
@@ -1518,6 +1520,7 @@ export async function registerRoutes(
       if (needGeo.length > 0) geocodeMembrosCadastro(needGeo).catch(() => {});
       res.json(items);
     } catch (error: any) {
+      console.error(`[comunidades DELETE ${req.params.id}] error:`, error.message);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1528,7 +1531,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
+      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
       const m = await directusFetchOne("cadastro_geral", req.params.id, `fields=${fields}`);
       if (!m) return res.status(404).json({ error: "Membro não encontrado" });
       const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
@@ -1553,7 +1556,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
       const json = await response.json();
@@ -1587,7 +1590,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
       const json = await response.json();
@@ -2042,7 +2045,7 @@ export async function registerRoutes(
       }
 
       // Sanitize numeric fields: convert empty strings to null so Directus doesn't reject them
-      const NUMERIC_FIELDS = ["latitude", "longitude"];
+      const NUMERIC_FIELDS = ["latitude", "longitude", "foto_posicao_x", "foto_posicao_y"];
       for (const f of NUMERIC_FIELDS) {
         if (f in payload) {
           const v = payload[f];
@@ -2067,7 +2070,7 @@ export async function registerRoutes(
         "area_aliancas_termo_aceito_em",
         "area_aliancas_termo_versao",
       ];
-      if (Object.keys(payload).some(key => termFields.includes(key))) {
+      if (Object.keys(payload).some(key => termFields.includes(key) || key === "foto_posicao_x" || key === "foto_posicao_y")) {
         await ensureVitrineFields();
       }
 
@@ -2132,6 +2135,66 @@ export async function registerRoutes(
   });
 
   // POST /api/membros/:id/comunidade — assign member to a community (and remove from old one)
+  app.get("/api/membros/:id/convites-comunidade", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+    try {
+      const membroId = req.params.id;
+      const col = await getComunidadeCol();
+      const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,membros.cadastro_geral_id&limit=200`;
+      const comunidadesRes = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!comunidadesRes.ok) return res.json([]);
+      const comunidadesData = await comunidadesRes.json();
+      const comunidades: any[] = comunidadesData.data || [];
+      const comunidade = comunidades.find((c: any) => {
+        const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+        return membros.some((m: any) => {
+          const cgId = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id;
+          return String(cgId) === String(membroId);
+        });
+      });
+      if (!comunidade) return res.json([]);
+
+      const idsDaComunidade = new Set<string>(
+        (Array.isArray(comunidade.membros) ? comunidade.membros : [])
+          .map((m: any) => typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id)
+          .filter(Boolean)
+          .map((memberId: any) => String(memberId))
+      );
+
+      const convites = await storage.getAllConvites();
+      const porCandidato = new Map<string, any>();
+      for (const convite of convites as any[]) {
+        const candidatoId = convite.candidato_membro_id ? String(convite.candidato_membro_id) : "";
+        const invitadorId = convite.invitador_membro_id ? String(convite.invitador_membro_id) : "";
+        if (!candidatoId || invitadorId !== String(membroId)) continue;
+        if (!idsDaComunidade.has(candidatoId)) continue;
+        if (!porCandidato.has(candidatoId)) porCandidato.set(candidatoId, convite);
+      }
+
+      const convidados = await Promise.all(
+        Array.from(porCandidato.entries()).map(async ([candidatoId, convite]) => {
+          const candidato = await getDirectusMembro(candidatoId).catch(() => null);
+          return {
+            id: candidatoId,
+            nome: candidato?.nome || candidato?.Nome_de_usuario || convite.candidato_nome || "Membro BUILT",
+            email: candidato?.email || convite.candidato_email || null,
+            empresa: candidato?.empresa || candidato?.nome_fantasia || null,
+            foto_perfil: candidato?.foto_perfil || null,
+            status: convite.status || null,
+            tipo: convite.tipo || null,
+            comunidade_id: comunidade.id,
+            comunidade_nome: comunidade.nome || comunidade.sigla || null,
+          };
+        })
+      );
+
+      convidados.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR", { sensitivity: "base" }));
+      res.json(convidados);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/membros/:id/comunidade", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;
     try {
@@ -5218,6 +5281,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const col = await getComunidadeCol();
+      await directusUpdate(col, req.params.id, {
+        aliado: null,
+        membros: [],
+        bias: [],
+      }).catch((clearError: any) => {
+        console.warn(`[comunidades DELETE ${req.params.id}] Nao foi possivel limpar vinculos antes de remover:`, clearError?.message || clearError);
+      });
       await directusDelete(col, req.params.id);
       res.json({ success: true });
     } catch (error: any) {

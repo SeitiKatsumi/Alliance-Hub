@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
+import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
 import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 interface NominatimResult {
@@ -43,6 +44,8 @@ interface NominatimResult {
 }
 
 const INVITE_APP_URL = "https://built.dna11.com.br";
+const FOTO_CROP_BOX = 320;
+const FOTO_CROP_OUTPUT = 640;
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -207,6 +210,9 @@ interface Membro {
   especialidade?: string;
   especialidade_id?: string | null;
   foto?: string | null;
+  foto_perfil?: string | null;
+  foto_posicao_x?: number | string | null;
+  foto_posicao_y?: number | string | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
   tipo_alianca?: string;
@@ -259,6 +265,16 @@ export default function MeuPerfilPage() {
   const [idiomaInput, setIdiomaInput] = useState("");
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const fotoCropRef = useRef<HTMLDivElement>(null);
+  const fotoCropImageRef = useRef<HTMLImageElement>(null);
+  const fotoDragRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
+  const [isDraggingFoto, setIsDraggingFoto] = useState(false);
+  const [fotoCropOpen, setFotoCropOpen] = useState(false);
+  const [fotoCropSrc, setFotoCropSrc] = useState<string | null>(null);
+  const [fotoCropFileName, setFotoCropFileName] = useState("foto-perfil.jpg");
+  const [fotoCropNatural, setFotoCropNatural] = useState({ width: 1, height: 1 });
+  const [fotoCropZoom, setFotoCropZoom] = useState(1);
+  const [fotoCropOffset, setFotoCropOffset] = useState({ x: 0, y: 0 });
 
   function handleLocationSelect(cidade: string, estado: string, pais: string, lat: number, lng: number) {
     setForm(f => ({ ...f, cidade, estado, pais, latitude: String(lat), longitude: String(lng) }));
@@ -267,6 +283,12 @@ export default function MeuPerfilPage() {
   useEffect(() => {
     if (membro) setForm(membro);
   }, [membro]);
+
+  useEffect(() => {
+    return () => {
+      if (fotoCropSrc) URL.revokeObjectURL(fotoCropSrc);
+    };
+  }, [fotoCropSrc]);
 
   const { data: especialidadesOptions = [] } = useQuery<EspecialidadeOption[]>({
     queryKey: ["/api/especialidades"],
@@ -318,27 +340,90 @@ export default function MeuPerfilPage() {
     },
   });
 
+  function getCropDrawSize(zoom = fotoCropZoom, natural = fotoCropNatural) {
+    const width = Math.max(1, natural.width);
+    const height = Math.max(1, natural.height);
+    const aspect = width / height;
+    if (aspect >= 1) return { width: FOTO_CROP_BOX * zoom * aspect, height: FOTO_CROP_BOX * zoom };
+    return { width: FOTO_CROP_BOX * zoom, height: (FOTO_CROP_BOX * zoom) / aspect };
+  }
+
+  function clampCropOffset(offset: { x: number; y: number }, zoom = fotoCropZoom, natural = fotoCropNatural) {
+    const draw = getCropDrawSize(zoom, natural);
+    const maxX = Math.max(0, (draw.width - FOTO_CROP_BOX) / 2);
+    const maxY = Math.max(0, (draw.height - FOTO_CROP_BOX) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, offset.x)),
+      y: Math.max(-maxY, Math.min(maxY, offset.y)),
+    };
+  }
+
+  function resetFotoCrop() {
+    setFotoCropZoom(1);
+    setFotoCropOffset({ x: 0, y: 0 });
+    setFotoCropNatural({ width: 1, height: 1 });
+    fotoDragRef.current = null;
+    setIsDraggingFoto(false);
+  }
+
+  function closeFotoCropModal() {
+    setFotoCropOpen(false);
+    setFotoCropSrc((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+    resetFotoCrop();
+    if (fotoInputRef.current) fotoInputRef.current.value = "";
+  }
 
   async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !membroId) return;
+    if (fotoCropSrc) URL.revokeObjectURL(fotoCropSrc);
+    resetFotoCrop();
+    setFotoCropFileName(file.name || "foto-perfil.jpg");
+    setFotoCropSrc(URL.createObjectURL(file));
+    setFotoCropOpen(true);
+  }
+
+  async function uploadCroppedFoto() {
+    if (!membroId || !fotoCropImageRef.current) return;
     setUploadingFoto(true);
     try {
+      const img = fotoCropImageRef.current;
+      const draw = getCropDrawSize();
+      const canvas = document.createElement("canvas");
+      canvas.width = FOTO_CROP_OUTPUT;
+      canvas.height = FOTO_CROP_OUTPUT;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas indisponível");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const ratio = FOTO_CROP_OUTPUT / FOTO_CROP_BOX;
+      const dx = (FOTO_CROP_BOX / 2 - draw.width / 2 + fotoCropOffset.x) * ratio;
+      const dy = (FOTO_CROP_BOX / 2 - draw.height / 2 + fotoCropOffset.y) * ratio;
+      ctx.drawImage(img, dx, dy, draw.width * ratio, draw.height * ratio);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Não foi possível recortar a foto")), "image/jpeg", 0.92);
+      });
       const fd = new FormData();
-      fd.append("files", file);
+      const safeName = fotoCropFileName.replace(/\.[^.]+$/, "") || "foto-perfil";
+      fd.append("files", blob, `${safeName}-recortada.jpg`);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok || !json.fileIds?.[0]) throw new Error(json.error || "Upload falhou");
       const uuid = json.fileIds[0];
-      await apiRequest("PATCH", `/api/membros/${membroId}`, { foto_perfil: uuid });
+      await apiRequest("PATCH", `/api/membros/${membroId}`, { foto_perfil: uuid, foto_posicao_x: 50, foto_posicao_y: 50 });
+      setForm(f => ({ ...f, foto_perfil: uuid, foto: uuid, foto_posicao_x: 50, foto_posicao_y: 50 }));
       queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros-built"] });
       toast({ title: "Foto de perfil atualizada!" });
+      closeFotoCropModal();
     } catch {
       toast({ title: "Erro ao enviar foto", variant: "destructive" });
     } finally {
       setUploadingFoto(false);
-      if (fotoInputRef.current) fotoInputRef.current.value = "";
     }
   }
 
@@ -396,6 +481,8 @@ export default function MeuPerfilPage() {
 
   const foto = fotoUrl(membro?.foto);
   const nome = form.nome || membro?.nome || user?.nome || "";
+  const fotoPosition = getPhotoObjectPosition(form);
+  const fotoCropDraw = getCropDrawSize();
 
   return (
     <div className="profile-light-page min-h-screen bg-slate-50 text-brand-navy">
@@ -507,7 +594,7 @@ export default function MeuPerfilPage() {
               {uploadingFoto ?(
                 <Loader2 className="w-6 h-6 text-brand-gold animate-spin" />
               ) : foto ?(
-                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+                <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: fotoPosition }} />
               ) : (
                 <span className="text-2xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
               )}
@@ -1164,6 +1251,120 @@ export default function MeuPerfilPage() {
         onClose={() => setLocationPickerOpen(false)}
         onSelect={handleLocationSelect}
       />
+
+      <Dialog open={fotoCropOpen} onOpenChange={(open) => { if (!open && !uploadingFoto) closeFotoCropModal(); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-brand-gold" />
+              Ajustar foto de perfil
+            </DialogTitle>
+            <DialogDescription>
+              Arraste a imagem até encaixar a parte importante dentro do círculo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div
+              ref={fotoCropRef}
+              className={`relative mx-auto overflow-hidden rounded-xl bg-slate-950 ${isDraggingFoto ? "cursor-grabbing" : "cursor-grab"}`}
+              style={{ width: FOTO_CROP_BOX, height: FOTO_CROP_BOX, maxWidth: "100%", touchAction: "none" }}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                fotoDragRef.current = {
+                  x: e.clientX,
+                  y: e.clientY,
+                  offsetX: fotoCropOffset.x,
+                  offsetY: fotoCropOffset.y,
+                };
+                setIsDraggingFoto(true);
+              }}
+              onPointerMove={(e) => {
+                const start = fotoDragRef.current;
+                if (!start) return;
+                setFotoCropOffset(clampCropOffset({
+                  x: start.offsetX + e.clientX - start.x,
+                  y: start.offsetY + e.clientY - start.y,
+                }));
+              }}
+              onPointerUp={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }
+                fotoDragRef.current = null;
+                setIsDraggingFoto(false);
+              }}
+              onPointerCancel={() => {
+                fotoDragRef.current = null;
+                setIsDraggingFoto(false);
+              }}
+              onWheel={(e) => {
+                e.preventDefault();
+                const direction = e.deltaY > 0 ? -1 : 1;
+                const nextZoom = Math.max(1, Math.min(3, fotoCropZoom + direction * 0.08));
+                setFotoCropZoom(nextZoom);
+                setFotoCropOffset((offset) => clampCropOffset(offset, nextZoom));
+              }}
+              data-testid="modal-crop-foto"
+            >
+              {fotoCropSrc && (
+                <img
+                  ref={fotoCropImageRef}
+                  src={fotoCropSrc}
+                  alt="Prévia da foto"
+                  draggable={false}
+                  onLoad={(event) => {
+                    const img = event.currentTarget;
+                    setFotoCropNatural({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
+                    setFotoCropOffset({ x: 0, y: 0 });
+                  }}
+                  className="absolute left-1/2 top-1/2 max-w-none select-none"
+                  style={{
+                    width: fotoCropDraw.width,
+                    height: fotoCropDraw.height,
+                    transform: `translate(-50%, -50%) translate(${fotoCropOffset.x}px, ${fotoCropOffset.y}px)`,
+                  }}
+                />
+              )}
+              <div className="pointer-events-none absolute inset-0 bg-black/45" />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div
+                  className="rounded-full border-2 border-white shadow-[0_0_0_999px_rgba(0,0,0,0.45)]"
+                  style={{ width: FOTO_CROP_BOX - 28, height: FOTO_CROP_BOX - 28 }}
+                />
+              </div>
+              <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-45">
+                {Array.from({ length: 9 }).map((_, index) => (
+                  <div key={index} className="border border-white/35" />
+                ))}
+              </div>
+              <div className="pointer-events-none absolute left-4 top-4 h-5 w-5 border-l-2 border-t-2 border-white" />
+              <div className="pointer-events-none absolute right-4 top-4 h-5 w-5 border-r-2 border-t-2 border-white" />
+              <div className="pointer-events-none absolute bottom-4 left-4 h-5 w-5 border-b-2 border-l-2 border-white" />
+              <div className="pointer-events-none absolute bottom-4 right-4 h-5 w-5 border-b-2 border-r-2 border-white" />
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground">
+              Use o scroll do mouse sobre a imagem para aproximar ou afastar.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeFotoCropModal} disabled={uploadingFoto}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={uploadCroppedFoto}
+              disabled={uploadingFoto || !fotoCropSrc}
+              className="gap-2 bg-brand-navy text-white hover:bg-brand-navy/90"
+              data-testid="btn-confirmar-recorte-foto"
+            >
+              {uploadingFoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {uploadingFoto ? "Salvando..." : "Salvar foto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

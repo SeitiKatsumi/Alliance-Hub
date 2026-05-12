@@ -566,6 +566,16 @@ export default function AdesaoPage() {
     onSuccess: () => navigate(`/pagamento/${token}`),
   });
 
+  async function voltarParaCadastroInicial() {
+    await fetch("/api/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({}),
+    }).catch(() => null);
+    window.location.href = "/";
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
@@ -777,6 +787,15 @@ export default function AdesaoPage() {
             {solicitarAcessoMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Enviar Solicitação de Acesso
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={voltarParaCadastroInicial}
+            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white font-mono text-sm"
+            data-testid="btn-voltar-cadastro-termos"
+          >
+            Voltar para cadastro
+          </Button>
 
           {solicitarAcessoMutation.isError && (
             <p className="text-red-400 text-xs font-mono text-center">{(solicitarAcessoMutation.error as Error).message}</p>
@@ -808,6 +827,15 @@ export default function AdesaoPage() {
             <Clock className="w-5 h-5 text-brand-gold shrink-0" />
             <p className="text-xs font-mono text-white/50">Você receberá um e-mail assim que a análise for concluída. Fique atento à sua caixa de entrada.</p>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={voltarParaCadastroInicial}
+            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white font-mono text-sm"
+            data-testid="btn-voltar-cadastro-aura"
+          >
+            Voltar para cadastro
+          </Button>
         </div>
       </div>
     );
@@ -829,6 +857,15 @@ export default function AdesaoPage() {
             </p>
             <p className="text-white/40 text-xs font-mono mt-3">Você receberá um e-mail com a decisão em breve.</p>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={voltarParaCadastroInicial}
+            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white font-mono text-sm"
+            data-testid="btn-voltar-cadastro-candidato"
+          >
+            Voltar para cadastro
+          </Button>
         </div>
       </div>
     );

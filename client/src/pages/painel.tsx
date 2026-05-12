@@ -570,15 +570,15 @@ export default function PainelPage() {
           <>
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate("/convites")}
-              data-testid="stat-card-aprovacoes"
+              onClick={() => navigate("/notificacoes")}
+              data-testid="stat-card-notificacoes"
             >
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Ticket className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">Aprovações</span>
+                  <span className="text-xs text-muted-foreground">Notificações</span>
                 </div>
-                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-aprovacoes">
+                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-notificacoes">
                   {isLoadingAprovacoes ?"-" : aprovacoesPendentes.length}
                 </p>
               </CardContent>
@@ -652,7 +652,7 @@ export default function PainelPage() {
 
       {/* Dashboard tabs */}
       <Tabs defaultValue="bias" className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/40 p-1 sm:grid-cols-3">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/40 p-1 sm:grid-cols-4">
           <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-bias">
             <Briefcase className="w-4 h-4" />
             Minhas BIAs
@@ -664,6 +664,10 @@ export default function PainelPage() {
           <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
             <Target className="w-4 h-4" />
             OPAs de Interesse
+          </TabsTrigger>
+          <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
+            <SlidersHorizontal className="w-4 h-4" />
+            Gestão
           </TabsTrigger>
         </TabsList>
 
@@ -1123,6 +1127,92 @@ export default function PainelPage() {
                     +{opasAbertas - 5} mais
                   </button>
                 )}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="gestao" className="space-y-4 mt-0">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[#D7BB7D]" />
+                Gestão de comunidade
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => navigate(comunidades[0]?.id ?`/comunidade/${comunidades[0].id}?from=dashboard` : "/comunidade")}
+                data-testid="link-gestao-comunidade"
+              >
+                Abrir <ChevronRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+
+            {isLoading ?(
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Array.from({ length: 2 }).map((_, i) => <StatCardSkeleton key={i} />)}
+              </div>
+            ) : comunidades.length === 0 ?(
+              <Card className="border border-dashed border-border/60">
+                <CardContent className="p-6 text-center space-y-2">
+                  <Globe className="w-7 h-7 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">Nenhuma comunidade vinculada ao seu perfil.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {comunidades.map((comunidade) => {
+                  const membrosCount = Array.isArray(comunidade.membros) ? comunidade.membros.length : 0;
+                  const biasCount = Array.isArray(comunidade.bias) ? comunidade.bias.length : 0;
+                  return (
+                    <Card
+                      key={comunidade.id}
+                      className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/comunidade/${comunidade.id}?from=dashboard`)}
+                      data-testid={`card-gestao-comunidade-${comunidade.id}`}
+                    >
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {comunidade.nome || "Comunidade"}
+                            </p>
+                            {comunidade.sigla && (
+                              <p className="mt-0.5 text-[10px] font-mono text-[#D7BB7D] truncate">
+                                {comunidade.sigla}
+                              </p>
+                            )}
+                            {(comunidade.territorio || comunidade.pais) && (
+                              <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{[comunidade.territorio, comunidade.pais].filter(Boolean).join(", ")}</span>
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 border-t border-border/50 pt-3">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Membros</p>
+                            <p className="text-sm font-semibold tabular-nums text-foreground">{membrosCount}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">BIAs</p>
+                            <p className="text-sm font-semibold tabular-nums text-foreground">{biasCount}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Pendências</p>
+                            <p className="text-sm font-semibold tabular-nums text-foreground">
+                              {isLoadingAprovacoes ?"-" : aprovacoesPendentes.length}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>

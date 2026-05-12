@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
+import { getPhotoObjectPosition } from "@/lib/photo-position";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -50,6 +51,8 @@ interface MembroVitrine {
   email?: string;
   foto?: string | null;
   foto_perfil?: string | null;
+  foto_posicao_x?: number | string | null;
+  foto_posicao_y?: number | string | null;
   logo_empresa?: string | { id?: string } | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
@@ -331,7 +334,7 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
             <div className="w-12 h-12 rounded-full overflow-hidden border border-brand-gold/30 shrink-0 flex items-center justify-center"
               style={{ background: "rgba(215,187,125,0.08)" }}>
               {fotoUrlMap(selectedMembro) ?(
-                <img src={fotoUrlMap(selectedMembro)!} alt="" className="w-full h-full object-cover" />
+                <img src={fotoUrlMap(selectedMembro)!} alt="" className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(selectedMembro) }} />
               ) : (
                 <span className="text-sm font-bold text-brand-gold/70">{getInitialsMap(selectedMembro.nome)}</span>
               )}
@@ -1916,7 +1919,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
     >
       <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
         style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
-        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(m) }} /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -2043,7 +2046,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
               }}
             >
               {foto ?(
-                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+                <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(m) }} />
               ) : (
                 <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
               )}

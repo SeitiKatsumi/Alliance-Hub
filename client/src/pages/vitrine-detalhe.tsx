@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
+import { getPhotoObjectPosition } from "@/lib/photo-position";
 
 interface MembroDetalhe {
   id: string;
@@ -40,6 +41,8 @@ interface MembroDetalhe {
   link_site?: string;
   instagram?: string;
   foto_perfil?: string | null;
+  foto_posicao_x?: number | string | null;
+  foto_posicao_y?: number | string | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
   tipo_alianca?: string;
@@ -253,7 +256,7 @@ export default function VitrineDetalhePage() {
               }}
             >
               {foto ?(
-                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+                <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(membro) }} />
               ) : (
                 <span className="text-3xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
               )}

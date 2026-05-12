@@ -11,7 +11,7 @@ import {
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
   Navigation, Globe, UserCheck, UserX, Bell, Clock,
   Eye, FileText, Phone, Mail, Building, Calendar, Hash,
-  Ticket, Link2, CheckCircle, XCircle, Copy, Sparkles
+  Ticket, Link2, CheckCircle, XCircle, Copy, Sparkles, Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -608,12 +608,15 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"comunidades" | "convites">(convitesOnly ?"convites" : "comunidades");
+  const [notificacoesTab, setNotificacoesTab] = useState<"aprovacoes" | "chamadas" | "opas">("aprovacoes");
   const [aprovacoesSearch, setAprovacoesSearch] = useState("");
   const [mostrarHistoricoAprovacoes, setMostrarHistoricoAprovacoes] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
   const [form, setForm] = useState<ComunidadeForm>(emptyForm());
+  const [membrosSearch, setMembrosSearch] = useState("");
+  const [biasSearch, setBiasSearch] = useState("");
   const [codigoLoading, setCodigoLoading] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [selectedConvite, setSelectedConvite] = useState<any | null>(null);
@@ -636,6 +639,39 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     queryKey: ["/api/bias"],
     queryFn: () => fetch("/api/bias").then(r => { if (!r.ok) throw new Error("Erro ao buscar BIAs"); return r.json(); }),
   });
+
+  const { data: opasNotificacoes = [] } = useQuery<any[]>({
+    queryKey: ["/api/oportunidades"],
+    enabled: convitesOnly || activeTab === "convites",
+  });
+
+  const membrosOrdenados = useMemo(() => {
+    return [...membros].sort((a, b) =>
+      (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" })
+    );
+  }, [membros]);
+
+  const biasOrdenadas = useMemo(() => {
+    return [...bias].sort((a, b) =>
+      (a.nome_bia || a.id || "").localeCompare(b.nome_bia || b.id || "", "pt-BR", { sensitivity: "base" })
+    );
+  }, [bias]);
+
+  const membrosAssociadosFiltrados = useMemo(() => {
+    const q = membrosSearch.trim().toLowerCase();
+    if (!q) return membrosOrdenados;
+    return membrosOrdenados.filter(m =>
+      [m.nome, m.empresa, m.cargo].filter(Boolean).some(value => String(value).toLowerCase().includes(q))
+    );
+  }, [membrosOrdenados, membrosSearch]);
+
+  const biasAssociadasFiltradas = useMemo(() => {
+    const q = biasSearch.trim().toLowerCase();
+    if (!q) return biasOrdenadas;
+    return biasOrdenadas.filter(b =>
+      [b.nome_bia, b.id].filter(Boolean).some(value => String(value).toLowerCase().includes(q))
+    );
+  }, [biasOrdenadas, biasSearch]);
 
   // Open edit dialog when ?edit=:id is in the URL
   useEffect(() => {
@@ -702,17 +738,25 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       toast({ title: "Comunidade removida." });
       setDeleteTarget(null);
     },
-    onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
+    onError: (error: any) => toast({
+      title: "Erro ao remover",
+      description: error?.message || "Não foi possível remover esta comunidade.",
+      variant: "destructive",
+    }),
   });
 
   function openCreate() {
     setEditing(null);
+    setMembrosSearch("");
+    setBiasSearch("");
     setForm({ ...emptyForm(), aliado_id: user?.membro_directus_id || "" });
     setDialogOpen(true);
   }
 
   function openEdit(c: Comunidade) {
     setEditing(c);
+    setMembrosSearch("");
+    setBiasSearch("");
     setForm({
       pais: c.pais || "",
       sigla_pais: c.sigla_pais || "",
@@ -1006,6 +1050,27 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     !ACTIONABLE_APPROVAL_STATUSES.includes(c.status)
   );
   const aprovacoesExibidas = mostrarHistoricoAprovacoes ?aprovacoesHistorico : aprovacoesImportantes;
+  const opasPublicasFiltradas = (opasNotificacoes || [])
+    .filter((opa: any) => {
+      const status = String(opa.status || "").toLowerCase();
+      return !["cancelado", "cancelada", "encerrada", "encerrado", "concluida", "concluída", "desistencia"].includes(status);
+    })
+    .filter((opa: any) => {
+      if (!aprovacoesQuery) return true;
+      return normalize([
+        opa.nome_oportunidade,
+        opa.tipo,
+        opa.nucleo_alianca,
+        opa.status,
+        opa.localizacao,
+      ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
+    })
+    .sort((a: any, b: any) => {
+      const dateA = new Date(a.date_created || a.criado_em || a.data_publicacao || 0).getTime();
+      const dateB = new Date(b.date_created || b.criado_em || b.data_publicacao || 0).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 12);
   // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
     vitrineCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length +
@@ -1020,13 +1085,13 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
             className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy"
             data-testid="icon-comunidade-title"
           >
-            {convitesOnly ?<Ticket className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+            {convitesOnly ?<Bell className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
           </div>
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">{convitesOnly ?"Aprovações" : "Comunidades"}</h1>
+            <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">{convitesOnly ?"Notificações" : "Comunidades"}</h1>
             <p className="text-sm text-white/40 font-mono mt-0.5">
               {convitesOnly
-                ?"Gerencie aprovações, candidaturas e avaliações de Aura"
+                ?"Acompanhe aprovações, chamadas para aliança e novas ofertas públicas"
                 : `${comunidades.length} comunidade${comunidades.length !== 1 ?"s" : ""} ativa${comunidades.length !== 1 ?"s" : ""}`}
             </p>
           </div>
@@ -1141,28 +1206,61 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       {/* Convites Tab */}
       {activeTab === "convites" && (
         <div className="space-y-6">
+          <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-brand-gold/20 bg-white p-1 shadow-sm sm:grid-cols-3">
+            {[
+              { key: "aprovacoes", label: "Aprovações pendentes", count: convitesPendentes.length },
+              { key: "chamadas", label: "Chamadas para aliança", count: 0 },
+              { key: "opas", label: "Novas Ofertas públicas", count: opasPublicasFiltradas.length },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => {
+                  setNotificacoesTab(tab.key as "aprovacoes" | "chamadas" | "opas");
+                  setMostrarHistoricoAprovacoes(false);
+                }}
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  notificacoesTab === tab.key
+                    ?"bg-brand-gold/15 text-brand-navy shadow-sm"
+                    :"text-slate-500 hover:bg-slate-50 hover:text-brand-navy"
+                }`}
+                data-testid={`tab-notificacoes-${tab.key}`}
+              >
+                <span>{tab.label}</span>
+                {tab.count > 0 && (
+                  <span className="rounded-full border border-brand-gold/30 bg-brand-gold/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#9B7A32]">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative max-w-xl flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-navy/50" />
               <Input
                 value={aprovacoesSearch}
                 onChange={(event) => setAprovacoesSearch(event.target.value)}
-                placeholder="Buscar por nome, e-mail, comunidade ou status..."
+                placeholder={notificacoesTab === "opas" ?"Buscar por OPA, tipo, núcleo ou status..." : "Buscar por nome, e-mail, comunidade ou status..."}
                 className="h-10 pl-9 bg-white border-brand-gold/40 text-brand-navy placeholder:text-brand-navy/45 focus-visible:ring-brand-gold/40"
                 data-testid="input-busca-aprovacoes"
               />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setMostrarHistoricoAprovacoes((current) => !current)}
-              className="w-full border-brand-gold/40 text-brand-navy hover:bg-brand-gold/10 lg:w-auto"
-              data-testid="btn-toggle-historico-aprovacoes"
-            >
-              {mostrarHistoricoAprovacoes ?"Voltar" : "Ver histórico"}
-            </Button>
+            {notificacoesTab === "aprovacoes" && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMostrarHistoricoAprovacoes((current) => !current)}
+                className="w-full border-brand-gold/40 text-brand-navy hover:bg-brand-gold/10 lg:w-auto"
+                data-testid="btn-toggle-historico-aprovacoes"
+              >
+                {mostrarHistoricoAprovacoes ?"Voltar" : "Ver histórico"}
+              </Button>
+            )}
           </div>
           {/* Aprovações e candidaturas */}
+          {notificacoesTab === "aprovacoes" && (
           <div className="rounded-2xl border border-brand-gold/25 bg-white overflow-hidden shadow-sm">
             <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/20 bg-brand-gold/5">
               <Ticket className="w-4 h-4 text-brand-gold" />
@@ -1346,6 +1444,73 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               </div>
             )}
           </div>
+          )}
+
+          {notificacoesTab === "chamadas" && (
+            <div className="rounded-2xl border border-brand-gold/25 bg-white overflow-hidden shadow-sm">
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/20 bg-brand-gold/5">
+                <Bell className="w-4 h-4 text-brand-gold" />
+                <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
+                  Chamadas para Aliança
+                </span>
+              </div>
+              <div className="p-8 flex flex-col items-center text-center gap-2">
+                <Bell className="w-8 h-8 text-brand-gold/30" />
+                <p className="text-slate-500 text-xs font-mono">
+                  Nenhuma chamada para aliança no momento.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {notificacoesTab === "opas" && (
+            <div className="rounded-2xl border border-brand-gold/25 bg-white overflow-hidden shadow-sm">
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/20 bg-brand-gold/5">
+                <Target className="w-4 h-4 text-brand-gold" />
+                <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
+                  Novas Ofertas Públicas
+                </span>
+                {opasPublicasFiltradas.length > 0 && (
+                  <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-brand-gold/10 text-[#9B7A32] border border-brand-gold/30">
+                    {opasPublicasFiltradas.length} no radar
+                  </span>
+                )}
+              </div>
+              {opasPublicasFiltradas.length === 0 ?(
+                <div className="p-8 flex flex-col items-center text-center gap-2">
+                  <Target className="w-8 h-8 text-brand-gold/30" />
+                  <p className="text-slate-500 text-xs font-mono">
+                    Nenhuma nova oferta pública encontrada.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {opasPublicasFiltradas.map((opa: any) => (
+                    <button
+                      key={opa.id}
+                      type="button"
+                      onClick={() => navigate(`/opas/${opa.id}`)}
+                      className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50"
+                      data-testid={`btn-notificacao-opa-${opa.id}`}
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gold/10 text-brand-gold">
+                        <Target className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-brand-navy">
+                          {opa.nome_oportunidade || "OPA sem título"}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
+                          {[opa.tipo, opa.nucleo_alianca, opa.status].filter(Boolean).join(" · ") || "Oferta pública"}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1431,7 +1596,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 </SelectTrigger>
                 <SelectContent className="bg-[#001428] border-white/10 text-white">
                   <SelectItem value="_none">— Nenhum —</SelectItem>
-                  {membros.map(m => (
+                  {membrosOrdenados.map(m => (
                     <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
                   ))}
                 </SelectContent>
@@ -1443,8 +1608,18 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">
                 Membros Associados ({(form.membros_ids || []).length} selecionados)
               </Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-gold/60" />
+                <Input
+                  value={membrosSearch}
+                  onChange={(e) => setMembrosSearch(e.target.value)}
+                  placeholder="Buscar membro por nome, empresa ou cargo..."
+                  className="h-9 bg-white/5 border-white/10 pl-9 text-sm text-white placeholder:text-white/25 focus:border-brand-gold/40"
+                  data-testid="input-buscar-membros-associados"
+                />
+              </div>
               <div className="max-h-40 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
-                {membros.map(m => {
+                {membrosAssociadosFiltrados.map(m => {
                   const selected = (form.membros_ids || []).includes(m.id);
                   return (
                     <button
@@ -1462,6 +1637,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     </button>
                   );
                 })}
+                {membrosAssociadosFiltrados.length === 0 && (
+                  <p className="text-xs text-white/20 font-mono p-3">Nenhum membro encontrado</p>
+                )}
               </div>
             </div>
 
@@ -1470,8 +1648,18 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <Label className="text-xs font-mono text-white/50 mb-1.5 block">
                 BIAs Associadas ({(form.bias_ids || []).length} selecionadas)
               </Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-gold/60" />
+                <Input
+                  value={biasSearch}
+                  onChange={(e) => setBiasSearch(e.target.value)}
+                  placeholder="Buscar BIA..."
+                  className="h-9 bg-white/5 border-white/10 pl-9 text-sm text-white placeholder:text-white/25 focus:border-brand-gold/40"
+                  data-testid="input-buscar-bias-associadas"
+                />
+              </div>
               <div className="max-h-40 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
-                {bias.map(b => {
+                {biasAssociadasFiltradas.map(b => {
                   const selected = (form.bias_ids || []).includes(b.id);
                   return (
                     <button
@@ -1488,8 +1676,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     </button>
                   );
                 })}
-                {bias.length === 0 && (
-                  <p className="text-xs text-white/20 font-mono p-3">Nenhuma BIA disponível</p>
+                {biasAssociadasFiltradas.length === 0 && (
+                  <p className="text-xs text-white/20 font-mono p-3">Nenhuma BIA encontrada</p>
                 )}
               </div>
             </div>

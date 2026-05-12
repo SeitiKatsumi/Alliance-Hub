@@ -13,15 +13,21 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription
 } from "@/components/ui/sheet";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getTipoDisplayName, getNucleoForTipo } from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
-  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle
+  Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle,
+  CheckCircle2, FileText
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
+import { getPhotoObjectPosition } from "@/lib/photo-position";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
 
@@ -69,6 +75,9 @@ interface Membro {
   perfil_aliado?: string;
   observacoes?: string;
   foto?: string | null;
+  foto_perfil?: string | null;
+  foto_posicao_x?: number | string | null;
+  foto_posicao_y?: number | string | null;
   logo_empresa?: string | { id?: string } | null;
   ativo?: boolean;
   na_vitrine?: boolean;
@@ -79,6 +88,16 @@ interface Membro {
   convidado_por_nome?: string | null;
   convite_origem_status?: string | null;
   convite_origem_tipo?: string | null;
+  codigo_etica_aceito_em?: string | null;
+  codigo_etica_versao?: string | null;
+  politicas_participacao_aceito_em?: string | null;
+  politicas_participacao_versao?: string | null;
+  vitrine_termo_aceito_em?: string | null;
+  vitrine_termo_versao?: string | null;
+  area_aliancas_termo_aceito_em?: string | null;
+  area_aliancas_termo_versao?: string | null;
+  built_capital_termo_aceito_em?: string | null;
+  built_capital_termo_versao?: string | null;
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -125,6 +144,90 @@ const ROLE_OPTIONS = [
   { value: "investidor", label: "Investidor", desc: "Acesso a módulos de capital e resultados", color: "#10b981" },
   { value: "admin", label: "Super Admin", desc: "Acesso total à plataforma", color: "#D7BB7D" },
 ];
+
+const TERM_ACCEPTANCE_FIELDS = [
+  {
+    key: "codigo_etica",
+    label: "Código de Ética BUILT",
+    acceptedAt: "codigo_etica_aceito_em",
+    version: "codigo_etica_versao",
+  },
+  {
+    key: "politicas_participacao",
+    label: "Políticas de Participação e Proteção",
+    acceptedAt: "politicas_participacao_aceito_em",
+    version: "politicas_participacao_versao",
+  },
+  {
+    key: "vitrine",
+    label: "Termo BUILT Vitrine",
+    acceptedAt: "vitrine_termo_aceito_em",
+    version: "vitrine_termo_versao",
+  },
+  {
+    key: "area_aliancas",
+    label: "Termo Área de Alianças",
+    acceptedAt: "area_aliancas_termo_aceito_em",
+    version: "area_aliancas_termo_versao",
+  },
+  {
+    key: "built_capital",
+    label: "Termo BUILT Capital",
+    acceptedAt: "built_capital_termo_aceito_em",
+    version: "built_capital_termo_versao",
+  },
+] as const;
+
+const TERM_ACCEPTANCE_FIELD_NAMES = new Set<string>(
+  TERM_ACCEPTANCE_FIELDS.flatMap(term => [term.acceptedAt, term.version])
+);
+
+function formatAcceptanceDate(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function TermAcceptanceReadOnly({ membro }: { membro: Membro }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <FileText className="w-3.5 h-3.5 text-brand-gold/70" />
+        <span className="text-[11px] font-mono text-brand-gold/70 uppercase tracking-widest">Aceites de termos</span>
+      </div>
+      <div className="rounded-xl border border-brand-gold/25 bg-slate-50 divide-y divide-slate-200 overflow-hidden" data-testid="readonly-termos-aceitos">
+        {TERM_ACCEPTANCE_FIELDS.map(term => {
+          const acceptedAt = (membro as any)[term.acceptedAt] as string | null | undefined;
+          const version = (membro as any)[term.version] as string | null | undefined;
+          const formattedDate = formatAcceptanceDate(acceptedAt);
+          return (
+            <div key={term.key} className="flex items-start gap-3 px-3 py-3">
+              <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${formattedDate ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-400"}`}>
+                {formattedDate ? <CheckCircle2 className="h-4 w-4" /> : <Lock className="h-3.5 w-3.5" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-brand-navy">{term.label}</p>
+                <p className={`mt-0.5 text-xs ${formattedDate ? "text-slate-600" : "text-slate-400"}`}>
+                  {formattedDate ? `Aceito em ${formattedDate}` : "Não aceito"}
+                </p>
+                {version && (
+                  <p className="mt-0.5 text-[11px] text-slate-400">Versão: {version}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => void }) {
   const { toast } = useToast();
@@ -259,6 +362,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       const { _nome, ...cleanRest } = rest as any;
       const payload: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(cleanRest)) {
+        if (TERM_ACCEPTANCE_FIELD_NAMES.has(key)) continue;
         if (typeof value === "boolean") {
           payload[key] = value;
         } else if (Array.isArray(value)) {
@@ -396,7 +500,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   }}
                 >
                   {photoPreview ?(
-                    <img src={photoPreview} alt={nome} className="w-full h-full object-cover" />
+                    <img src={photoPreview} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(form as Membro) }} />
                   ) : (
                     getInitials(nome)
                   )}
@@ -503,6 +607,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </p>
               </div>
             </div>
+
+            <Separator className="bg-brand-gold/20" />
+
+            <TermAcceptanceReadOnly membro={membro} />
 
             <Separator className="bg-brand-gold/20" />
 
@@ -1054,7 +1162,17 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 }
 
 // ---- Membro Card ----
-function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: string }; index: number; onEdit: (m: Membro) => void }) {
+function MembroCard({
+  membro,
+  index,
+  onEdit,
+  onDelete,
+}: {
+  membro: Membro & { _nome?: string };
+  index: number;
+  onEdit: (m: Membro) => void;
+  onDelete: (m: Membro) => void;
+}) {
   const nome = getDisplayNome(membro);
   const initials = getInitials(nome);
   const accentColor = hashColor(membro.id);
@@ -1089,16 +1207,26 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
         NODE_{String(index + 1).padStart(3, "0")}
       </div>
 
-      {/* Edit button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onEdit(membro); }}
-        className="absolute bottom-3 right-3 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 hover:scale-110"
-        style={{ background: `${accentColor}20`, border: `1px solid ${accentColor}40` }}
-        data-testid={`btn-editar-membro-${membro.id}`}
-        title="Editar membro"
-      >
-        <Pencil className="w-3.5 h-3.5" style={{ color: accentColor }} />
-      </button>
+      <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(membro); }}
+          className="w-7 h-7 rounded-md flex items-center justify-center transition-transform hover:scale-110"
+          style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)" }}
+          data-testid={`btn-excluir-membro-${membro.id}`}
+          title="Excluir membro"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-red-300" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(membro); }}
+          className="w-7 h-7 rounded-md flex items-center justify-center transition-transform hover:scale-110"
+          style={{ background: `${accentColor}20`, border: `1px solid ${accentColor}40` }}
+          data-testid={`btn-editar-membro-${membro.id}`}
+          title="Editar membro"
+        >
+          <Pencil className="w-3.5 h-3.5" style={{ color: accentColor }} />
+        </button>
+      </div>
 
       <div className="p-5">
         {/* Avatar + name */}
@@ -1121,7 +1249,7 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
               }}
             >
               {foto ?(
-                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+                <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(membro) }} />
               ) : (
                 initials
               )}
@@ -1237,11 +1365,13 @@ function StatItem({ label, value, icon: Icon }: { label: string; value: number |
 
 export default function MembrosPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("");
   const [filterEstado, setFilterEstado] = useState("");
   const [filterTipoCadastro, setFilterTipoCadastro] = useState("");
   const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Membro | null>(null);
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
@@ -1301,6 +1431,24 @@ export default function MembrosPage() {
   }), [membros, empresas, estados, especialidades]);
 
   const hasFilters = search || filterEspecialidade || filterEstado || filterTipoCadastro;
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/membros/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      toast({ title: "Membro excluído com sucesso." });
+      setDeleteTarget(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao excluir membro",
+        description: error?.message || "Não foi possível excluir este membro.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Restrict to Super Admin only
   if (user && user.role !== "admin") {
@@ -1614,6 +1762,7 @@ export default function MembrosPage() {
                 membro={membro}
                 index={i}
                 onEdit={setEditingMembro}
+                onDelete={setDeleteTarget}
               />
             ))}
           </div>
@@ -1627,6 +1776,35 @@ export default function MembrosPage() {
           onClose={() => setEditingMembro(null)}
         />
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir membro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação vai remover o cadastro de <strong>{deleteTarget ?getDisplayNome(deleteTarget) : ""}</strong> do Cadastro Geral. Confirme apenas se tiver certeza.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget?.id) deleteMutation.mutate(deleteTarget.id);
+              }}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 text-white hover:bg-red-700"
+              data-testid="btn-confirmar-excluir-membro"
+            >
+              {deleteMutation.isPending ?(
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Excluindo...</>
+              ) : (
+                "Excluir membro"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

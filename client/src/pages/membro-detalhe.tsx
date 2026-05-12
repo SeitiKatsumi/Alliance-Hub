@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
-  User, Globe, MessageSquare, Shield, ExternalLink, Languages, MessageCircle
+  User, Globe, MessageSquare, Shield, ExternalLink, Languages, MessageCircle, UserPlus
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
+import { getPhotoObjectPosition } from "@/lib/photo-position";
 
 interface MembroDetalhe {
   id: string;
@@ -29,6 +30,8 @@ interface MembroDetalhe {
   link_site?: string;
   instagram?: string;
   foto_perfil?: string | null;
+  foto_posicao_x?: number | string | null;
+  foto_posicao_y?: number | string | null;
   perfil_aliado?: string;
   nucleo_alianca?: string;
   tipo_alianca?: string;
@@ -103,6 +106,22 @@ interface Comunidade {
   bias?: Array<{ bias_projetos_id: { id: string; nome_bia?: string } | string | null }>;
 }
 
+interface ConvidadorInfo {
+  id: string;
+  nome?: string;
+}
+
+interface ConvidadoComunidade {
+  id: string;
+  nome?: string;
+  email?: string | null;
+  empresa?: string | null;
+  foto_perfil?: string | null;
+  status?: string | null;
+  tipo?: string | null;
+  comunidade_nome?: string | null;
+}
+
 function getAliadoNome(c: Comunidade): string | null {
   if (!c.aliado) return null;
   if (typeof c.aliado === "string") return null;
@@ -127,6 +146,18 @@ export default function MembroDetalhePage() {
   const { data: comunidades = [] } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades", { membro_id: id }],
     queryFn: () => fetch(`/api/comunidades?membro_id=${id}`).then(r => r.json()),
+    enabled: !!id,
+  });
+
+  const { data: convidador = null } = useQuery<ConvidadorInfo | null>({
+    queryKey: ["/api/membros", id, "convidador"],
+    queryFn: () => fetch(`/api/membros/${id}/convidador`).then(r => r.ok ? r.json() : null),
+    enabled: !!id,
+  });
+
+  const { data: convidadosComunidade = [] } = useQuery<ConvidadoComunidade[]>({
+    queryKey: ["/api/membros", id, "convites-comunidade"],
+    queryFn: () => fetch(`/api/membros/${id}/convites-comunidade`).then(r => r.ok ? r.json() : []),
     enabled: !!id,
   });
 
@@ -213,7 +244,7 @@ export default function MembroDetalhePage() {
               }}
             >
               {foto ?(
-                <img src={foto} alt={nome} className="w-full h-full object-cover" />
+                <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(membro) }} />
               ) : (
                 <span className="text-3xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
               )}
@@ -443,6 +474,74 @@ export default function MembroDetalhePage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Convites */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <UserPlus className="w-3 h-3 text-brand-gold" />
+            Rede de Convites
+          </p>
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 mb-3" data-testid="membro-convidado-por">
+            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Convidado por</p>
+            {convidador ? (
+              <Link href={`/membro/${convidador.id}`}>
+                <button className="text-sm font-mono font-semibold text-gray-800 hover:text-brand-gold transition-colors">
+                  {convidador.nome || "Membro BUILT"}
+                </button>
+              </Link>
+            ) : (
+              <p className="text-xs text-gray-400 font-mono">Sem registro de convidador</p>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Pessoas que convidou nesta comunidade</p>
+              <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-mono text-gray-500">
+                {convidadosComunidade.length}
+              </span>
+            </div>
+            {convidadosComunidade.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-xs text-gray-400 font-mono">
+                Nenhum convidado registrado nesta comunidade.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {convidadosComunidade.map(convidado => {
+                  const convidadoFoto = fotoUrl(convidado.foto_perfil);
+                  return (
+                    <Link key={convidado.id} href={`/membro/${convidado.id}`}>
+                      <button
+                        className="w-full flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-left hover:border-brand-gold/40 hover:bg-amber-50/40 transition-colors"
+                        data-testid={`membro-convidado-${convidado.id}`}
+                      >
+                        <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                          {convidadoFoto ? (
+                            <img src={convidadoFoto} alt={convidado.nome || "Convidado"} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] font-bold text-brand-gold/70">{getInitials(convidado.nome)}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-mono font-semibold text-gray-800 truncate">{convidado.nome || "Membro BUILT"}</p>
+                          {(convidado.empresa || convidado.email) && (
+                            <p className="text-[11px] font-mono text-gray-400 truncate">{convidado.empresa || convidado.email}</p>
+                          )}
+                        </div>
+                        {convidado.status && (
+                          <span className="shrink-0 rounded-full border border-brand-gold/20 bg-brand-gold/10 px-2 py-0.5 text-[10px] font-mono text-brand-gold">
+                            {convidado.status.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </button>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>

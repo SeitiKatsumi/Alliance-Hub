@@ -1,6 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { useParams, useLocation } from "wouter";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   ArrowLeft, MapPin, Users, Briefcase, Shield,
   MessageCircle, Pencil, Globe, Calendar, Hash
@@ -8,6 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import {
   Bar,
   BarChart,
@@ -90,6 +101,27 @@ function resolveBias(c: Comunidade): Bia[] {
     return [v as Bia];
   });
 }
+function resolveAliadoId(c: Comunidade): string {
+  if (!c.aliado) return "";
+  if (typeof c.aliado === "string") return c.aliado;
+  return c.aliado.id || "";
+}
+function resolveMembrosIds(c: Comunidade): string[] {
+  if (!Array.isArray(c.membros)) return [];
+  return c.membros.flatMap((m) => {
+    const v = m.cadastro_geral_id;
+    if (!v) return [];
+    return [typeof v === "string" ? v : v.id];
+  }).filter(Boolean);
+}
+function resolveBiasIds(c: Comunidade): string[] {
+  if (!Array.isArray(c.bias)) return [];
+  return c.bias.flatMap((b) => {
+    const v = b.bias_projetos_id;
+    if (!v) return [];
+    return [typeof v === "string" ? v : v.id];
+  }).filter(Boolean);
+}
 function fotoUrl(foto?: string | null): string | null {
   if (!foto) return null;
   return `/api/assets/${foto}?width=80&height=80&fit=cover`;
@@ -101,6 +133,15 @@ function getInitials(nome?: string): string {
 function formatDate(d?: string): string {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+interface ComunidadeEditForm {
+  pais: string;
+  territorio: string;
+  aliado_id: string;
+  membros_ids: string[];
+  bias_ids: string[];
+  status: string;
 }
 
 function DarkPanel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -129,6 +170,16 @@ function SectionTitle({ icon: Icon, children }: { icon: any; children: React.Rea
 export default function ComunidadeDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
+  const { toast } = useToast();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<ComunidadeEditForm>({
+    pais: "",
+    territorio: "",
+    aliado_id: "",
+    membros_ids: [],
+    bias_ids: [],
+    status: "ativa",
+  });
   const fromDashboard = new URLSearchParams(location.split("?")[1] || "").get("from") === "dashboard";
   const backHref = fromDashboard ?"/" : "/area-aliancas?tab=comunidades";
   const backLabel = fromDashboard ?"Voltar para Dashboard" : "Voltar para Área de Alianças";
@@ -142,6 +193,74 @@ export default function ComunidadeDetalhePage() {
       }),
     enabled: !!id,
   });
+
+  const { data: membrosDisponiveis = [] } = useQuery<Membro[]>({
+    queryKey: ["/api/membros", "comunidade-detalhe-edit"],
+    queryFn: () => fetch("/api/membros").then(r => r.ok ? r.json() : []),
+    enabled: editOpen,
+  });
+
+  const { data: biasDisponiveis = [] } = useQuery<Bia[]>({
+    queryKey: ["/api/bias", "comunidade-detalhe-edit"],
+    queryFn: () => fetch("/api/bias").then(r => r.ok ? r.json() : []),
+    enabled: editOpen,
+  });
+
+  const membrosOrdenados = useMemo(() => [...membrosDisponiveis].sort((a, b) =>
+    (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" })
+  ), [membrosDisponiveis]);
+
+  const biasOrdenadas = useMemo(() => [...biasDisponiveis].sort((a, b) =>
+    (a.nome_bia || a.id || "").localeCompare(b.nome_bia || b.id || "", "pt-BR", { sensitivity: "base" })
+  ), [biasDisponiveis]);
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: any) => apiRequest("PATCH", `/api/comunidades/${id}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/comunidades", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      toast({ title: "Comunidade atualizada!" });
+      setEditOpen(false);
+    },
+    onError: () => toast({ title: "Erro ao atualizar comunidade", variant: "destructive" }),
+  });
+
+  function openEditModal(c: Comunidade) {
+    setEditForm({
+      pais: c.pais || "",
+      territorio: c.territorio || "",
+      aliado_id: resolveAliadoId(c),
+      membros_ids: resolveMembrosIds(c),
+      bias_ids: resolveBiasIds(c),
+      status: c.status || "ativa",
+    });
+    setEditOpen(true);
+  }
+
+  function toggleEditMembro(membroId: string) {
+    setEditForm((current) => {
+      const ids = current.membros_ids || [];
+      return { ...current, membros_ids: ids.includes(membroId) ? ids.filter(x => x !== membroId) : [...ids, membroId] };
+    });
+  }
+
+  function toggleEditBia(biaId: string) {
+    setEditForm((current) => {
+      const ids = current.bias_ids || [];
+      return { ...current, bias_ids: ids.includes(biaId) ? ids.filter(x => x !== biaId) : [...ids, biaId] };
+    });
+  }
+
+  function saveEdit() {
+    updateMutation.mutate({
+      pais: editForm.pais,
+      territorio: editForm.territorio,
+      aliado_id: editForm.aliado_id || null,
+      membros_ids: editForm.membros_ids || [],
+      bias_ids: editForm.bias_ids || [],
+      status: editForm.status || "ativa",
+    });
+  }
 
   if (isLoading) {
     return (
@@ -264,7 +383,7 @@ export default function ComunidadeDetalhePage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate(`/area-aliancas?tab=comunidades&edit=${id}`)}
+              onClick={() => openEditModal(comunidade)}
               className="border-brand-gold/30 text-brand-gold hover:bg-brand-gold/10 font-mono text-xs"
               data-testid="btn-edit-from-detail"
             >
@@ -530,6 +649,131 @@ export default function ComunidadeDetalhePage() {
           </div>
         )}
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-brand-gold/20 text-white" style={{ background: "#001428" }}>
+          <DialogHeader>
+            <DialogTitle className="font-mono text-brand-gold text-lg">Editar Comunidade</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-mono text-white/50 mb-1.5 block">País</Label>
+                <Input
+                  value={editForm.pais}
+                  onChange={(e) => setEditForm(f => ({ ...f, pais: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                  data-testid="input-detail-comunidade-pais"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-mono text-white/50 mb-1.5 block">Território</Label>
+                <Input
+                  value={editForm.territorio}
+                  onChange={(e) => setEditForm(f => ({ ...f, territorio: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                  data-testid="input-detail-comunidade-territorio"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">Aliado BUILT</Label>
+              <Select value={editForm.aliado_id || "_none"} onValueChange={(value) => setEditForm(f => ({ ...f, aliado_id: value === "_none" ? "" : value }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-detail-comunidade-aliado">
+                  <SelectValue placeholder="Selecione o Aliado BUILT" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#001428] border-white/10 text-white">
+                  <SelectItem value="_none">— Nenhum —</SelectItem>
+                  {membrosOrdenados.map(membro => (
+                    <SelectItem key={membro.id} value={membro.id}>{membro.nome || membro.id}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">
+                Membros Associados ({editForm.membros_ids.length} selecionados)
+              </Label>
+              <div className="max-h-44 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
+                {membrosOrdenados.map(membro => {
+                  const selected = editForm.membros_ids.includes(membro.id);
+                  return (
+                    <button
+                      key={membro.id}
+                      type="button"
+                      onClick={() => toggleEditMembro(membro.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${selected ? "bg-brand-gold/10" : "hover:bg-white/5"}`}
+                      data-testid={`btn-detail-membro-${membro.id}`}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selected ? "bg-brand-gold border-brand-gold" : "border-white/20"}`}>
+                        {selected && <span className="text-brand-navy text-[10px] font-bold">✓</span>}
+                      </div>
+                      <span className="text-sm text-white/80 font-mono truncate">{membro.nome || membro.id}</span>
+                      {membro.empresa && <span className="text-xs text-white/30 font-mono ml-auto truncate">{membro.empresa}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">
+                BIAs Associadas ({editForm.bias_ids.length} selecionadas)
+              </Label>
+              <div className="max-h-44 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
+                {biasOrdenadas.map(bia => {
+                  const selected = editForm.bias_ids.includes(bia.id);
+                  return (
+                    <button
+                      key={bia.id}
+                      type="button"
+                      onClick={() => toggleEditBia(bia.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${selected ? "bg-brand-gold/10" : "hover:bg-white/5"}`}
+                      data-testid={`btn-detail-bia-${bia.id}`}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selected ? "bg-brand-gold border-brand-gold" : "border-white/20"}`}>
+                        {selected && <span className="text-brand-navy text-[10px] font-bold">✓</span>}
+                      </div>
+                      <span className="text-sm text-white/80 font-mono truncate">{bia.nome_bia || bia.id}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-mono text-white/50 mb-1.5 block">Status</Label>
+              <Select value={editForm.status || "ativa"} onValueChange={(value) => setEditForm(f => ({ ...f, status: value }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40" data-testid="select-detail-comunidade-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#001428] border-white/10 text-white">
+                  <SelectItem value="ativa">Ativa</SelectItem>
+                  <SelectItem value="inativa">Inativa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setEditOpen(false)} className="text-white/50 hover:text-white">
+              Cancelar
+            </Button>
+            <Button
+              onClick={saveEdit}
+              disabled={updateMutation.isPending}
+              className="font-mono"
+              style={{ background: "#D7BB7D", color: "#001D34" }}
+              data-testid="btn-salvar-comunidade-detalhe"
+            >
+              {updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

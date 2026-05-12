@@ -88,9 +88,6 @@ function AliadosTab() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Aliados Licenciados</h2>
-          <p className="text-sm text-muted-foreground">
-            Visão dos Aliados BUILT.
-          </p>
         </div>
         <Badge variant="outline" className="w-fit border-brand-gold/30 text-brand-gold">
           {aliados.length} aliado{aliados.length !== 1 ? "s" : ""}
@@ -192,9 +189,6 @@ export default function AreaAliancasPage() {
           </div>
           Área de Alianças
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Navegue pela rede BUILT em uma visão única: aliados licenciados, membros aliados, comunidades e BIAs.
-        </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">

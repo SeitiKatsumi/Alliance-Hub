@@ -130,8 +130,8 @@ export default function ComunidadeDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
   const fromDashboard = new URLSearchParams(location.split("?")[1] || "").get("from") === "dashboard";
-  const backHref = fromDashboard ?"/" : "/comunidade";
-  const backLabel = fromDashboard ?"Voltar para Dashboard" : "Voltar para Comunidades";
+  const backHref = fromDashboard ?"/" : "/area-aliancas?tab=comunidades";
+  const backLabel = fromDashboard ?"Voltar para Dashboard" : "Voltar para Área de Alianças";
 
   const { data: comunidade, isLoading, isError } = useQuery<Comunidade>({
     queryKey: ["/api/comunidades", id],
@@ -264,7 +264,7 @@ export default function ComunidadeDetalhePage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate(`/comunidade?edit=${id}`)}
+              onClick={() => navigate(`/area-aliancas?tab=comunidades&edit=${id}`)}
               className="border-brand-gold/30 text-brand-gold hover:bg-brand-gold/10 font-mono text-xs"
               data-testid="btn-edit-from-detail"
             >

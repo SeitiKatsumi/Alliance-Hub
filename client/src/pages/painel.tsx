@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
+import { InviteQrCode } from "@/components/invite-qr-code";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,10 +18,13 @@ import {
   Briefcase, Globe, Users, TrendingUp, TrendingDown,
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
-  Ticket, Copy, RefreshCw, Loader2,
+  Ticket, Copy, RefreshCw, Loader2, Quote,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
+import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import {
   Bar,
   BarChart,
@@ -60,6 +64,11 @@ interface DashboardComunidade {
   sigla_territorio?: string;
   membros?: any[];
   bias?: any[];
+}
+
+interface DashboardApproval {
+  id: string | number;
+  status?: string | null;
 }
 
 interface DashboardOpa {
@@ -135,6 +144,7 @@ function normalizeText(value?: string | number | null): string {
 
 const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#64748B"];
 const INVITE_APP_URL = "https://built.dna11.com.br";
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -144,6 +154,11 @@ function normalizeInviteLink(link?: string | null) {
 
 function compactLabel(value?: string | null): string {
   return String(value || "Não definido").trim() || "Não definido";
+}
+
+function getDailyQuoteIndex(date = new Date()) {
+  const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return Math.abs(Math.floor(localMidnight / DAY_IN_MS)) % DASHBOARD_DAILY_QUOTES.length;
 }
 
 function canonicalChartLabel(value?: string | null): { key: string; label: string } {
@@ -348,6 +363,29 @@ export default function PainelPage() {
   const [convergenciaNucleo, setConvergenciaNucleo] = useState("__all__");
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
   const opasAbertas = data?.opas_abertas ?? opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").length;
+  const comunidadeIds = useMemo(() => comunidades.map((c) => String(c.id)).filter(Boolean), [comunidades]);
+
+  const { data: aprovacoesPendentes = [], isLoading: isLoadingAprovacoes } = useQuery<DashboardApproval[]>({
+    queryKey: ["/api/dashboard/aprovacoes-pendentes", comunidadeIds.join(",")],
+    enabled: comunidadeIds.length > 0,
+    queryFn: async () => {
+      const responses = await Promise.all(
+        comunidadeIds.map(async (id) => {
+          const res = await fetch(`/api/convites?comunidade_id=${encodeURIComponent(id)}`, {
+            credentials: "include",
+          });
+          if (!res.ok) return [];
+          return res.json();
+        }),
+      );
+      return responses
+        .flat()
+        .filter((convite: DashboardApproval) =>
+          ["candidato", "aguardando_avaliacao_aura"].includes(String(convite.status || "")),
+        );
+    },
+    staleTime: 60000,
+  });
 
   const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
   const biaPapelOptions = useMemo(
@@ -438,6 +476,7 @@ export default function PainelPage() {
     .map((w: string) => w[0])
     .join("")
     .toUpperCase();
+  const dailyQuote = useMemo(() => DASHBOARD_DAILY_QUOTES[getDailyQuoteIndex()], []);
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -498,43 +537,50 @@ export default function PainelPage() {
         </div>
       </div>
 
+      {dailyQuote && (
+        <Card className="border border-[#D7BB7D]/30 bg-[#D7BB7D]/5">
+          <CardContent className="p-4">
+            <div className="flex gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#D7BB7D]/15 text-[#D7BB7D]">
+                <Quote className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#9B7A32]">
+                  Frase do dia
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-foreground">
+                  “{dailyQuote.text}”
+                </p>
+                {dailyQuote.author && (
+                  <p className="mt-2 text-xs font-medium text-muted-foreground">
+                    {dailyQuote.author}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {isLoading ?(
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate("/bias")}
-              data-testid="stat-card-bias"
+              onClick={() => navigate("/convites")}
+              data-testid="stat-card-aprovacoes"
             >
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Briefcase className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">BIAs ativas</span>
+                  <Ticket className="w-4 h-4 text-[#D7BB7D]" />
+                  <span className="text-xs text-muted-foreground">Aprovações</span>
                 </div>
-                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-bias">
-                  {biasAtivas}
+                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-aprovacoes">
+                  {isLoadingAprovacoes ?"-" : aprovacoesPendentes.length}
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{bias.length} total</p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate("/opas")}
-              data-testid="stat-card-opas"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Target className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">OPAs no radar</span>
-                </div>
-                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-opas">
-                  {opasAbertas}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{opas.length} com interesse</p>
               </CardContent>
             </Card>
 
@@ -1104,9 +1150,13 @@ export default function PainelPage() {
                 <button
                   type="button"
                   title="Copiar link"
-                  onClick={() => {
-                    navigator.clipboard.writeText(meuConviteLink);
-                    toast({ title: "Link copiado!", description: "Compartilhe com quem quiser convidar." });
+                  onClick={async () => {
+                    const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink));
+                    if (copied) {
+                      toast({ title: "Convite copiado!", description: "A mensagem completa está pronta para compartilhar." });
+                    } else {
+                      toast({ title: "Não foi possível copiar", description: "Selecione o link e copie manualmente.", variant: "destructive" });
+                    }
                   }}
                   className="shrink-0 rounded-md p-1.5 text-[#D7BB7D] hover:bg-[#D7BB7D]/10"
                   data-testid="btn-dashboard-copiar-convite"
@@ -1119,6 +1169,7 @@ export default function PainelPage() {
                   Expira em: {new Date(meuConvite.expires_at).toLocaleDateString("pt-BR")}
                 </p>
               )}
+              <InviteQrCode link={meuConviteLink} variant="light" />
               <button
                 type="button"
                 onClick={() => gerarConviteMutation.mutate(true)}

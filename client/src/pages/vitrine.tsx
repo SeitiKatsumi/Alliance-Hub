@@ -128,9 +128,9 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
 
       {/* Top-left header */}
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Vitrine</p>
         <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
-          MAPA DA REDE
+          MAPA DE PARCEIROS DE MERCADO
         </h2>
         <div className="flex items-center gap-2 mt-2">
           <span className="relative flex h-2 w-2">
@@ -1107,7 +1107,7 @@ export default function VitrinePage() {
             BUILT Vitrine
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Encontre fornecedores, prestadores e empresas da rede BUILT
+            Encontre fornecedores e profissionais do mercado imobiliário
             {hasFilters && ` · ${filtered.length} exibindo`}
           </p>
         </div>

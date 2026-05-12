@@ -609,6 +609,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"comunidades" | "convites">(convitesOnly ?"convites" : "comunidades");
   const [aprovacoesSearch, setAprovacoesSearch] = useState("");
+  const [mostrarHistoricoAprovacoes, setMostrarHistoricoAprovacoes] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Comunidade | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Comunidade | null>(null);
@@ -954,6 +955,14 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const showConvitesTab = false;
   const todosCandidatosCompleto = todosCandidatosFiltrados.filter(c => c.tipo !== "vitrine");
   const PENDING_DECISION_STATUSES = ["candidato", "aguardando_avaliacao_aura"];
+  const ACTIONABLE_APPROVAL_STATUSES = [
+    "candidato",
+    "aguardando_avaliacao_aura",
+    "aprovado",
+    "termos_enviados",
+    "termos_aceitos",
+    "pagamento_pendente",
+  ];
   const normalize = (value: string) =>
     value
       .toLowerCase()
@@ -990,6 +999,13 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const convitesPendentes = aprovacoesFiltradas.filter((c: any) =>
     ["candidato", "aguardando_avaliacao_aura"].includes(c.status)
   );
+  const aprovacoesImportantes = aprovacoesFiltradas.filter((c: any) =>
+    ACTIONABLE_APPROVAL_STATUSES.includes(c.status)
+  );
+  const aprovacoesHistorico = aprovacoesFiltradas.filter((c: any) =>
+    !ACTIONABLE_APPROVAL_STATUSES.includes(c.status)
+  );
+  const aprovacoesExibidas = mostrarHistoricoAprovacoes ?aprovacoesHistorico : aprovacoesImportantes;
   // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
     vitrineCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length +
@@ -1125,35 +1141,57 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       {/* Convites Tab */}
       {activeTab === "convites" && (
         <div className="space-y-6">
-          <div className="relative max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-navy/50" />
-            <Input
-              value={aprovacoesSearch}
-              onChange={(event) => setAprovacoesSearch(event.target.value)}
-              placeholder="Buscar por nome, e-mail, comunidade ou status..."
-              className="h-10 pl-9 bg-white border-brand-gold/40 text-brand-navy placeholder:text-brand-navy/45 focus-visible:ring-brand-gold/40"
-              data-testid="input-busca-aprovacoes"
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-xl flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-navy/50" />
+              <Input
+                value={aprovacoesSearch}
+                onChange={(event) => setAprovacoesSearch(event.target.value)}
+                placeholder="Buscar por nome, e-mail, comunidade ou status..."
+                className="h-10 pl-9 bg-white border-brand-gold/40 text-brand-navy placeholder:text-brand-navy/45 focus-visible:ring-brand-gold/40"
+                data-testid="input-busca-aprovacoes"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMostrarHistoricoAprovacoes((current) => !current)}
+              className="w-full border-brand-gold/40 text-brand-navy hover:bg-brand-gold/10 lg:w-auto"
+              data-testid="btn-toggle-historico-aprovacoes"
+            >
+              {mostrarHistoricoAprovacoes ?"Voltar" : "Ver histórico"}
+            </Button>
           </div>
           {/* Aprovações e candidaturas */}
-          <div className="rounded-2xl border border-brand-gold/15 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/10" style={{ background: "rgba(215,187,125,0.04)" }}>
+          <div className="rounded-2xl border border-brand-gold/25 bg-white overflow-hidden shadow-sm">
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/20 bg-brand-gold/5">
               <Ticket className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-brand-gold/80 uppercase tracking-widest">Aprovações e Candidaturas</span>
-              {convitesPendentes.length > 0 && (
+              <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
+                {mostrarHistoricoAprovacoes ?"Histórico de Aprovações" : "Aprovações Pendentes"}
+              </span>
+              {!mostrarHistoricoAprovacoes && convitesPendentes.length > 0 && (
                 <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   {convitesPendentes.length} aguardando
                 </span>
               )}
+              {mostrarHistoricoAprovacoes && aprovacoesHistorico.length > 0 && (
+                <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                  {aprovacoesHistorico.length} registro{aprovacoesHistorico.length !== 1 ?"s" : ""}
+                </span>
+              )}
             </div>
-            {aprovacoesFiltradas.length === 0 ?(
+            {aprovacoesExibidas.length === 0 ?(
               <div className="p-8 flex flex-col items-center text-center gap-2">
-                <Ticket className="w-8 h-8 text-white/10" />
-                <p className="text-white/30 text-xs font-mono">Nenhuma aprovação ou candidatura encontrada</p>
+                <Ticket className="w-8 h-8 text-brand-gold/30" />
+                <p className="text-slate-500 text-xs font-mono">
+                  {mostrarHistoricoAprovacoes
+                    ?"Nenhum registro no histórico encontrado"
+                    : "Nenhuma aprovação pendente no momento"}
+                </p>
               </div>
             ) : (
-              <div className="divide-y divide-white/5">
-                {aprovacoesFiltradas.map((convite: any) => {
+              <div className="divide-y divide-slate-100">
+                {aprovacoesExibidas.map((convite: any) => {
                   const isVitrine = convite.tipo === "vitrine";
                   const isPendente = convite.status === "candidato";
                   const isAguardandoAura = convite.status === "aguardando_avaliacao_aura";
@@ -1166,7 +1204,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-mono font-bold text-white">
+                          <p className="text-sm font-mono font-bold text-brand-navy">
                             {convite.candidato_nome || dados?.nome_completo || "-"}
                           </p>
                           <span className={"text-[10px] font-mono " + statusInfo.color}>
@@ -1175,27 +1213,27 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                           {isPendente && <CandidatoAuraBadge membroId={convite.candidato_membro_id} />}
                         </div>
                         {convite.candidato_email && (
-                          <p className="text-xs font-mono text-white/40">{convite.candidato_email}</p>
+                          <p className="text-xs font-mono text-slate-500">{convite.candidato_email}</p>
                         )}
                         {nomeConvidador && (
-                          <p className="text-[10px] font-mono text-brand-gold/50">
+                          <p className="text-[10px] font-mono text-[#9B7A32]">
                             Convidado por {nomeConvidador}
                           </p>
                         )}
-                        <p className="text-[10px] font-mono text-white/25">{comNome}</p>
+                        <p className="text-[10px] font-mono text-slate-400">{comNome}</p>
                         {!isVitrine && dados && (
                           <div className="flex flex-wrap gap-3 mt-1">
-                            {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-white/30">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
-                            {dados.cnpj && <span className="text-[10px] font-mono text-white/30">CNPJ: {dados.cnpj}</span>}
-                            {dados.telefone && <span className="text-[10px] font-mono text-white/30">Tel: {dados.telefone}</span>}
-                            {dados.cidade && <span className="text-[10px] font-mono text-white/30">Local: {dados.cidade}, {dados.estado}</span>}
+                            {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-slate-500">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
+                            {dados.cnpj && <span className="text-[10px] font-mono text-slate-500">CNPJ: {dados.cnpj}</span>}
+                            {dados.telefone && <span className="text-[10px] font-mono text-slate-500">Tel: {dados.telefone}</span>}
+                            {dados.cidade && <span className="text-[10px] font-mono text-slate-500">Local: {dados.cidade}, {dados.estado}</span>}
                           </div>
                         )}
                         {!isVitrine && dados?.mensagem && (
-                          <p className="text-[11px] font-mono text-white/50 italic mt-1 leading-relaxed">"{dados.mensagem}"</p>
+                          <p className="text-[11px] font-mono text-slate-600 italic mt-1 leading-relaxed">"{dados.mensagem}"</p>
                         )}
                         {isAguardandoAura && (
-                          <p className="text-[10px] font-mono text-violet-400/70 mt-0.5">
+                          <p className="text-[10px] font-mono text-violet-700 mt-0.5">
                             Aguardando avaliacao de Aura do convidador
                           </p>
                         )}
@@ -1207,7 +1245,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         {!isVitrine && (
                           <button
                             onClick={() => setSelectedConvite({ ...convite, comNome })}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-white/50 border border-white/10 hover:bg-white/5 transition-colors"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
                             data-testid={"btn-ver-candidato-tab-" + convite.id}
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -1221,7 +1259,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                                 <button
                                   onClick={() => aprovarVitrineMutation.mutate(convite.token)}
                                   disabled={aprovarVitrineMutation.isPending}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-50 transition-colors"
                                   data-testid={"btn-aprovar-vitrine-" + convite.id}
                                 >
                                   <CheckCircle className="w-3.5 h-3.5" />
@@ -1230,7 +1268,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                                 <button
                                   onClick={() => rejeitarVitrineMutation.mutate(convite.token)}
                                   disabled={rejeitarVitrineMutation.isPending}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-700 border border-red-200 hover:bg-red-50 transition-colors"
                                   data-testid={"btn-rejeitar-vitrine-" + convite.id}
                                 >
                                   <XCircle className="w-3.5 h-3.5" />
@@ -1245,7 +1283,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                                   setAuraSelectedWords([]);
                                   setAuraSearch("");
                                 }}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-brand-gold/80 border border-brand-gold/20 hover:bg-brand-gold/5 transition-colors"
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-[#9B7A32] border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
                                 data-testid={"btn-avaliar-aura-" + convite.id}
                               >
                                 <Sparkles className="w-3.5 h-3.5" />
@@ -1260,7 +1298,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                                 <button
                                   onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "aprovado" })}
                                   disabled={decisaoMutation.isPending}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-50 transition-colors"
                                   data-testid={"btn-aprovar-tab-" + convite.id}
                                 >
                                   <UserCheck className="w-3.5 h-3.5" />
@@ -1269,7 +1307,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                                 <button
                                   onClick={() => decisaoMutation.mutate({ token: convite.token, decisao: "rejeitado" })}
                                   disabled={decisaoMutation.isPending}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-700 border border-red-200 hover:bg-red-50 transition-colors"
                                   data-testid={"btn-rejeitar-tab-" + convite.id}
                                 >
                                   <UserX className="w-3.5 h-3.5" />
@@ -1281,7 +1319,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                               <button
                                 onClick={() => lembretesMutation.mutate(convite.token)}
                                 disabled={lembretesMutation.isPending}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-700 border border-purple-200 hover:bg-purple-50 transition-colors"
                                 data-testid={"btn-lembrete-tab-" + convite.id}
                               >
                                 <Clock className="w-3.5 h-3.5" />
@@ -1292,7 +1330,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                               <button
                                 onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
                                 disabled={confirmarPagamentoMutation.isPending}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-[#9B7A32] border border-brand-gold/35 hover:bg-brand-gold/10 transition-colors"
                                 data-testid={"btn-confirmar-pagamento-tab-" + convite.id}
                               >
                                 <Shield className="w-3.5 h-3.5" />

@@ -131,9 +131,9 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
       ))}
 
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Capital</p>
         <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
-          MAPA DE INVESTIDORES
+          MAPA DE PARCEIROS DE CAPITAL
         </h2>
       </div>
 
@@ -696,10 +696,6 @@ export default function BuiltCapitalPage() {
             </div>
             BUILT Capital
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Rede de investidores e parceiros estratégicos
-            {hasFilters && ` · ${filtered.length} exibindo`}
-          </p>
         </div>
       </div>
 

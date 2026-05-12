@@ -72,7 +72,7 @@ function getInitials(nome?: string): string {
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ===== MAPA DE MEMBROS =====
+// ===== MAPA DE MEMBROS ALIADOS =====
 function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
   const [, navigate] = useLocation();
   const [hoveredMembro, setHoveredMembro] = useState<MembroBuilt | null>(null);
@@ -121,7 +121,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
       <div className="absolute top-5 left-6 z-20">
         <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
         <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
-          MAPA DE MEMBROS
+          MAPA DE MEMBROS ALIADOS
         </h2>
       </div>
 
@@ -773,7 +773,7 @@ export default function AreMembroPage() {
             <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
               <Shield className="w-6 h-6" />
             </div>
-            Membros BUILT
+            Membros Aliados
           </h1>
           <p className="text-sm text-white/40 font-mono mt-1">Área exclusiva BUILT Proud Members</p>
         </div>

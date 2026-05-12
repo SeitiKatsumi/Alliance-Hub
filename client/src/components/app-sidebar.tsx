@@ -70,6 +70,16 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              {/* OPAs — sempre visível */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/opas"} data-testid="nav-opas" className="text-sm">
+                  <Link href="/opas">
+                    <Target className="w-3.5 h-3.5" />
+                    <span>OPAs</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {hasSeal && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/area-aliancas"} className="text-sm" data-testid="nav-area-aliancas">
@@ -164,16 +174,6 @@ export function AppSidebar() {
                 </Collapsible>
               )}
 
-              {/* OPAs — sempre visível */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/opas"} data-testid="nav-opas" className="text-sm">
-                  <Link href="/opas">
-                    <Target className="w-3.5 h-3.5" />
-                    <span>OPAs</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
               {/* Cadastro Geral — Super Admin only */}
               {isSuperAdmin && (
                 <SidebarMenuItem>
@@ -186,19 +186,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Aprovações — requer qualquer selo */}
               {/* Aura — requer qualquer selo */}
-              {hasSeal && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/convites"} data-testid="nav-convites" className="text-sm">
-                    <Link href="/convites">
-                      <Ticket className="w-3.5 h-3.5" />
-                      <span>Aprovações</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
               {hasSeal && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/aura"} data-testid="nav-aura" className="text-sm">

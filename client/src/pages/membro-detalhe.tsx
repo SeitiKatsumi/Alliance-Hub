@@ -160,7 +160,7 @@ export default function MembroDetalhePage() {
         <div className="text-center space-y-4">
           <Shield className="w-12 h-12 text-gray-200 mx-auto" />
           <p className="text-gray-400 font-mono text-sm">Membro não encontrado</p>
-          <Link href="/area-membros">
+          <Link href="/area-aliancas">
             <Button variant="outline" size="sm" className="border-gray-200 text-gray-400 hover:text-gray-700">
               <ArrowLeft className="w-3.5 h-3.5 mr-2" />
               Voltar
@@ -175,13 +175,13 @@ export default function MembroDetalhePage() {
     <div className="min-h-screen bg-white">
       {/* Back nav */}
       <div className="px-6 pt-5 pb-2">
-        <Link href="/area-membros">
+        <Link href="/area-aliancas">
           <button
             className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-gray-700 transition-colors"
             data-testid="btn-back-membros"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Voltar aos Membros BUILT
+            Voltar para Área de Alianças
           </button>
         </Link>
       </div>

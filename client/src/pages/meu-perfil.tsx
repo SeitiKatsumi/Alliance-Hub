@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InviteQrCode } from "@/components/invite-qr-code";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +22,8 @@ import {
   Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
   Upload, ImageIcon, X, Languages, ChevronDown, Lock, Ticket, Copy, RefreshCw
 } from "lucide-react";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 interface NominatimResult {
@@ -971,9 +974,9 @@ export default function MeuPerfilPage() {
                   />
                 </Field>
 
-                {/* Redes de Negócios */}
+                {/* Selos */}
                 <div className="space-y-2">
-                  <Label className="text-xs text-white/40 font-mono">Outras redes de negócios</Label>
+                  <Label className="text-xs text-white/40 font-mono">Selos</Label>
                   <div className="flex flex-wrap gap-3">
                     {REDES_DISPONIVEIS.map(rede => {
                       const redes = form.Outras_redes_as_quais_pertenco || [];
@@ -1031,7 +1034,7 @@ export default function MeuPerfilPage() {
                     })}
                   </div>
                   <p className="text-[10px] text-white/20 font-mono">
-                    Selecione as redes de negócios das quais você é membro. Os selos aparecerão no seu perfil.
+                    Selecione selos para exibir no seu perfil.
                   </p>
                 </div>
               </CardContent>
@@ -1077,9 +1080,13 @@ export default function MeuPerfilPage() {
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
                       <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConviteLink}</span>
                       <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(meuConviteLink);
-                          toast({ title: "Link copiado!", description: "Compartilhe com quem quiser convidar." });
+                        onClick={async () => {
+                          const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink));
+                          if (copied) {
+                            toast({ title: "Convite copiado!", description: "A mensagem completa está pronta para compartilhar." });
+                          } else {
+                            toast({ title: "Não foi possível copiar", description: "Selecione o link e copie manualmente.", variant: "destructive" });
+                          }
                         }}
                         className="text-brand-gold hover:text-brand-gold/70 transition-colors"
                         data-testid="btn-copiar-convite"
@@ -1094,6 +1101,7 @@ export default function MeuPerfilPage() {
                         {meuConvite.status === "usado" && <span className="ml-2 text-amber-400/60">· utilizado</span>}
                       </p>
                     )}
+                    <InviteQrCode link={meuConviteLink} />
                     <button
                       onClick={() => gerarConviteMutation.mutate(true)}
                       disabled={gerarConviteMutation.isPending}

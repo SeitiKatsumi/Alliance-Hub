@@ -1885,6 +1885,28 @@ export async function registerRoutes(
     }
     try {
       const items = await directusFetch("cadastro_geral", "fields=*,Especialidades.*.*");
+      const nomePorMembroId = new Map<string, string>();
+      for (const m of items) {
+        if (m?.id) {
+          nomePorMembroId.set(
+            String(m.id),
+            m.nome || m.nome_completo || m.Nome_de_usuario || m.email || "Membro BUILT"
+          );
+        }
+      }
+      const convitePorCandidato = new Map<string, any>();
+      try {
+        const convites = await storage.getAllConvites();
+        for (const convite of convites) {
+          if (!convite.candidato_membro_id || !convite.invitador_membro_id) continue;
+          const candidatoId = String(convite.candidato_membro_id);
+          if (!convitePorCandidato.has(candidatoId)) {
+            convitePorCandidato.set(candidatoId, convite);
+          }
+        }
+      } catch (conviteError: any) {
+        console.warn("[membros] Nao foi possivel carregar convidadores:", conviteError?.message || conviteError);
+      }
       const mapped = items.map((m: any) => {
         // Parse relational Especialidades (M2M or O2M from Directus)
         let especialidades_arr: string[] = [];
@@ -1910,12 +1932,18 @@ export async function registerRoutes(
         if (especialidades_arr.length === 0 && m.especialidade) {
           especialidades_arr = [m.especialidade];
         }
+        const conviteOrigem = convitePorCandidato.get(String(m.id));
+        const convidadorId = conviteOrigem?.invitador_membro_id ? String(conviteOrigem.invitador_membro_id) : null;
         return {
           ...m,
           cargo: m.cargo || m.responsavel_cargo || null,
           especialidade: especialidades_arr[0] || m.especialidade || null,
           especialidades: especialidades_arr,
           foto: m.foto_perfil || m.foto || null,
+          convidado_por_id: convidadorId,
+          convidado_por_nome: convidadorId ? (nomePorMembroId.get(convidadorId) || "Membro BUILT") : null,
+          convite_origem_status: conviteOrigem?.status || null,
+          convite_origem_tipo: conviteOrigem?.tipo || null,
         };
       });
       res.json(mapped);

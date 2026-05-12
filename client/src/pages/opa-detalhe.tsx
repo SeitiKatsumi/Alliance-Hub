@@ -705,10 +705,13 @@ export default function OpaDetalhePage() {
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Para manifestar interesse em OPAs, você precisa estar ativo como membro da Rede BUILT com o selo <strong className="text-foreground">Proud Member</strong>.
+              Para manifestar interesse em OPAs e participar alianças, é necessário acesso à área de alianças BUILT.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Como seu perfil já passou pela Vitrine, falta apenas efetuar o pagamento de adesão. Após a confirmação automática, seu selo será liberado e a comunidade será notificada.
+              Ao acessar a Vitrine, seu perfil já foi aprovado por um Aliado licenciado, portanto, para desbloquear seu acesso à área de alianças, conclua o pagamento da adesão.
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Após a confirmação, seu acesso será liberado e a comunidade será notificada.
             </p>
           </div>
           <DialogFooter>

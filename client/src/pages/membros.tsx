@@ -75,6 +75,10 @@ interface Membro {
   em_membros_built?: boolean;
   em_built_capital?: boolean;
   Outras_redes_as_quais_pertenco?: string[];
+  convidado_por_id?: string | null;
+  convidado_por_nome?: string | null;
+  convite_origem_status?: string | null;
+  convite_origem_tipo?: string | null;
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -488,6 +492,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     ✕ Obrigatório: membros com o selo BUILT Proud Member devem pertencer a uma comunidade.
                   </p>
                 )}
+              </div>
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2" data-testid="info-convidado-por">
+                <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 uppercase tracking-widest">
+                  <UserPlus className="w-3.5 h-3.5 text-brand-gold" />
+                  Convidado por
+                </div>
+                <p className="mt-1 text-sm font-medium text-brand-navy">
+                  {membro.convidado_por_nome || "Sem registro de convite"}
+                </p>
               </div>
             </div>
 
@@ -1167,6 +1180,12 @@ function MembroCard({ membro, index, onEdit }: { membro: Membro & { _nome?: stri
             <div className="flex items-center gap-2 text-white/40">
               <MapPin className="w-3 h-3 shrink-0 text-white/20" />
               <span className="text-[11px]">{location}</span>
+            </div>
+          )}
+          {membro.convidado_por_nome && (
+            <div className="flex items-center gap-2 text-white/40">
+              <UserPlus className="w-3 h-3 shrink-0 text-white/20" />
+              <span className="text-[11px] truncate">Convidado por {membro.convidado_por_nome}</span>
             </div>
           )}
         </div>

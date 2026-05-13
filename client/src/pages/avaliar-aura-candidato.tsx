@@ -1,6 +1,6 @@
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,56 @@ interface ConviteData {
 
 interface LexicoItem {
   canonico: string;
-  dimensao: "T" | "R" | "C";
+  dimensao?: "T" | "R" | "C";
+}
+
+type RawLexicoItem = string | (Partial<LexicoItem> & Record<string, unknown>);
+
+const AURA_FALLBACK_LEXICO: LexicoItem[] = [
+  { canonico: "Adaptabilidade", dimensao: "T" },
+  { canonico: "Aliança", dimensao: "R" },
+  { canonico: "Autenticidade", dimensao: "C" },
+  { canonico: "Colaboração", dimensao: "R" },
+  { canonico: "Comprometimento", dimensao: "C" },
+  { canonico: "Comunicação", dimensao: "R" },
+  { canonico: "Confiança", dimensao: "R" },
+  { canonico: "Coragem", dimensao: "C" },
+  { canonico: "Criatividade", dimensao: "T" },
+  { canonico: "Disciplina", dimensao: "T" },
+  { canonico: "Eficiência", dimensao: "T" },
+  { canonico: "Empatia", dimensao: "R" },
+  { canonico: "Entendimento", dimensao: "R" },
+  { canonico: "Entusiasmo", dimensao: "C" },
+  { canonico: "Equilíbrio", dimensao: "C" },
+  { canonico: "Estabilidade", dimensao: "T" },
+  { canonico: "Evolução", dimensao: "C" },
+  { canonico: "Excelência", dimensao: "T" },
+  { canonico: "Foco", dimensao: "T" },
+  { canonico: "Generosidade", dimensao: "R" },
+  { canonico: "Gratidão", dimensao: "C" },
+  { canonico: "Honra", dimensao: "C" },
+  { canonico: "Humildade", dimensao: "C" },
+  { canonico: "Iniciativa", dimensao: "C" },
+  { canonico: "Inovação", dimensao: "T" },
+  { canonico: "Integridade", dimensao: "C" },
+  { canonico: "Lealdade", dimensao: "R" },
+  { canonico: "Liderança", dimensao: "C" },
+  { canonico: "Organização", dimensao: "T" },
+  { canonico: "Persistência", dimensao: "C" },
+  { canonico: "Responsabilidade", dimensao: "T" },
+  { canonico: "Transparência", dimensao: "C" },
+  { canonico: "Visão", dimensao: "T" },
+];
+
+function extractLexicoWord(item: RawLexicoItem): string {
+  if (typeof item === "string") return item.trim();
+  return String(item.canonico || item.palavra || item.nome || item.label || item.termo || item.value || "").trim();
+}
+
+function extractLexicoDimension(item: RawLexicoItem): LexicoItem["dimensao"] {
+  if (typeof item === "string") return undefined;
+  const value = String(item.dimensao || "").toUpperCase();
+  return value === "T" || value === "R" || value === "C" ? value : undefined;
 }
 
 const DIMENSAO_LABEL: Record<string, string> = {
@@ -48,10 +97,27 @@ export default function AvaliarAuraCandidatoPage() {
     retry: false,
   });
 
-  const { data: lexico = [] } = useQuery<LexicoItem[]>({
+  const { data: lexicoRaw = [] } = useQuery<RawLexicoItem[]>({
     queryKey: ["/api/aura/lexico"],
     queryFn: () => fetch("/api/aura/lexico").then(r => r.json()),
   });
+
+  const lexico = useMemo<LexicoItem[]>(() => {
+    const deduped = new Map<string, LexicoItem>();
+
+    const rawItems = Array.isArray(lexicoRaw) ? lexicoRaw : [];
+    for (const item of rawItems) {
+      const canonico = extractLexicoWord(item);
+      if (!canonico) continue;
+      const key = canonico.toLocaleLowerCase("pt-BR");
+      if (!deduped.has(key)) {
+        deduped.set(key, { canonico, dimensao: extractLexicoDimension(item) });
+      }
+    }
+
+    const items = Array.from(deduped.values());
+    return items.length > 0 ? items : AURA_FALLBACK_LEXICO;
+  }, [lexicoRaw]);
 
   const avaliarMutation = useMutation({
     mutationFn: async () => {
@@ -180,11 +246,12 @@ export default function AvaliarAuraCandidatoPage() {
             <div className="flex flex-wrap gap-2">
               {selected.map(p => {
                 const item = lexico.find(l => l.canonico === p);
+                const dimensao = item?.dimensao || "C";
                 return (
                   <button
                     key={p}
                     onClick={() => toggleWord(p)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all ${item ?DIMENSAO_COLOR[item.dimensao] : "text-brand-gold border-brand-gold/30 bg-brand-gold/10"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all ${item ?DIMENSAO_COLOR[dimensao] : "text-brand-gold border-brand-gold/30 bg-brand-gold/10"}`}
                     data-testid={`chip-selecionada-${p}`}
                   >
                     {p}
@@ -212,13 +279,14 @@ export default function AvaliarAuraCandidatoPage() {
           {filtered.map(item => {
             const isSelected = selected.includes(item.canonico);
             const isDisabled = selected.length >= 3 && !isSelected;
+            const dimensao = item.dimensao || "C";
             return (
               <button
                 key={item.canonico}
                 onClick={() => !isDisabled && toggleWord(item.canonico)}
                 disabled={isDisabled}
                 className={`flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-mono ${isSelected
-                  ?`${DIMENSAO_COLOR[item.dimensao]} border-opacity-60`
+                  ?`${DIMENSAO_COLOR[dimensao]} border-opacity-60`
                   : isDisabled
                     ?"border-white/5 text-white/20 cursor-not-allowed"
                     : "border-white/10 text-white/60 hover:border-white/20 hover:text-white/80 hover:bg-white/5"}`}
@@ -226,7 +294,7 @@ export default function AvaliarAuraCandidatoPage() {
                 style={{ background: isSelected ?undefined : "rgba(255,255,255,0.02)" }}
               >
                 <span className="font-semibold">{item.canonico}</span>
-                <span className="text-[10px] opacity-60">{DIMENSAO_LABEL[item.dimensao]}</span>
+                <span className="text-[10px] opacity-60">{DIMENSAO_LABEL[dimensao]}</span>
               </button>
             );
           })}

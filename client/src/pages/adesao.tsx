@@ -415,8 +415,8 @@ function TermosAceiteView({
             <ActiveIcon className="w-4 h-4 text-brand-gold" />
             <span className="text-xs font-mono text-white/60 uppercase tracking-wider">{activeConfig.title}</span>
           </div>
-          <div className="p-5 max-h-[28rem] overflow-y-auto">
-            <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">{activeConfig.body}</pre>
+          <div className="p-5 max-h-[32rem] overflow-y-auto">
+            <pre className="text-sm md:text-base font-mono text-white/75 leading-7 md:leading-8 whitespace-pre-wrap">{activeConfig.body}</pre>
           </div>
         </div>
 
@@ -430,7 +430,7 @@ function TermosAceiteView({
                   key={key}
                   type="button"
                   onClick={() => setActiveTerm(key)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-mono transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-brand-gold" : "border-white/15 text-white/60 hover:border-brand-gold/50 hover:text-brand-gold"}`}
+                  className={`rounded-full border px-4 py-2 text-sm font-mono transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-brand-gold" : "border-white/15 text-white/60 hover:border-brand-gold/50 hover:text-brand-gold"}`}
                 >
                   {config.label}
                 </button>

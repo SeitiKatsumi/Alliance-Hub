@@ -852,16 +852,6 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     onError: () => toast({ title: "Erro ao processar decisão", variant: "destructive" }),
   });
 
-  const confirmarPagamentoMutation = useMutation({
-    mutationFn: (token: string) =>
-      apiRequest("PATCH", `/api/convites/${token}/pagamento`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
-      toast({ title: "Pagamento confirmado! Membro ativado." });
-    },
-    onError: () => toast({ title: "Erro ao confirmar pagamento", variant: "destructive" }),
-  });
-
   const lembretesMutation = useMutation({
     mutationFn: (token: string) =>
       apiRequest("POST", `/api/convites/${token}/lembrete`, {}),
@@ -1208,7 +1198,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         <div className="space-y-6">
           <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-brand-gold/20 bg-white p-1 shadow-sm sm:grid-cols-3">
             {[
-              { key: "aprovacoes", label: "Aprovações pendentes", count: convitesPendentes.length },
+              { key: "aprovacoes", label: "Aprovações pendentes", count: aprovacoesImportantes.length },
               { key: "chamadas", label: "Chamadas para aliança", count: 0 },
               { key: "opas", label: "Novas Ofertas públicas", count: opasPublicasFiltradas.length },
             ].map((tab) => (
@@ -1267,9 +1257,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
                 {mostrarHistoricoAprovacoes ?"Histórico de Aprovações" : "Aprovações Pendentes"}
               </span>
-              {!mostrarHistoricoAprovacoes && convitesPendentes.length > 0 && (
+              {!mostrarHistoricoAprovacoes && aprovacoesImportantes.length > 0 && (
                 <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {convitesPendentes.length} aguardando
+                  {aprovacoesImportantes.length} item{aprovacoesImportantes.length !== 1 ?"s" : ""}
                 </span>
               )}
               {mostrarHistoricoAprovacoes && aprovacoesHistorico.length > 0 && (
@@ -1422,17 +1412,6 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                               >
                                 <Clock className="w-3.5 h-3.5" />
                                 Reenviar Termos
-                              </button>
-                            )}
-                            {["termos_aceitos", "pagamento_pendente"].includes(convite.status) && (
-                              <button
-                                onClick={() => confirmarPagamentoMutation.mutate(convite.token)}
-                                disabled={confirmarPagamentoMutation.isPending}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-[#9B7A32] border border-brand-gold/35 hover:bg-brand-gold/10 transition-colors"
-                                data-testid={"btn-confirmar-pagamento-tab-" + convite.id}
-                              >
-                                <Shield className="w-3.5 h-3.5" />
-                                Confirmar Pagamento
                               </button>
                             )}
                           </>
@@ -1889,16 +1868,6 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   >
                     <Clock className="w-3.5 h-3.5" />
                     Reenviar Termos
-                  </button>
-                )}
-                {["termos_aceitos", "pagamento_pendente"].includes(sc.status) && (
-                  <button
-                    onClick={() => { confirmarPagamentoMutation.mutate(sc.token); setSelectedConvite(null); }}
-                    disabled={confirmarPagamentoMutation.isPending}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
-                  >
-                    <Shield className="w-3.5 h-3.5" />
-                    Confirmar Pagamento
                   </button>
                 )}
                 <button

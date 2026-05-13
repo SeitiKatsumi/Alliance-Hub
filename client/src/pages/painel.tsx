@@ -381,7 +381,7 @@ export default function PainelPage() {
       return responses
         .flat()
         .filter((convite: DashboardApproval) =>
-          ["candidato", "aguardando_avaliacao_aura"].includes(String(convite.status || "")),
+          ["candidato", "aguardando_avaliacao_aura", "termos_aceitos", "pagamento_pendente"].includes(String(convite.status || "")),
         );
     },
     staleTime: 60000,

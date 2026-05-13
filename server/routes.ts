@@ -916,6 +916,11 @@ const upload = multer({
   },
 });
 
+const auraAudioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+});
+
 async function grantCollectionPermissions(collection: string) {
   try {
     const refRes = await fetch(`${DIRECTUS_URL}/permissions?filter[collection][_eq]=bias_projetos&limit=10`, {
@@ -6937,6 +6942,28 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   // POST /api/aura/avaliar — submit an evaluation (one per pair, no updates)
+  app.post("/api/aura/transcrever-audio", auraAudioUpload.single("audio"), async (req: any, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "Nenhum áudio enviado." });
+
+    try {
+      const { toFile } = await import("openai");
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
+      const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: "gpt-4o-mini-transcribe",
+      });
+      const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
+      if (texto.length < 3) return res.status(400).json({ error: "Não foi possível transcrever o áudio." });
+      return res.json({ texto: texto.length > 4000 ?texto.slice(0, 4000) + "..." : texto });
+    } catch (err: any) {
+      console.error("[aura-audio]", err?.message);
+      return res.status(500).json({ error: "Erro ao transcrever áudio. Tente novamente." });
+    }
+  });
+
   app.post("/api/aura/avaliar", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     const membroId = (req.session as any).membroId as string | null;

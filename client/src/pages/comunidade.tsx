@@ -11,11 +11,13 @@ import {
   Briefcase, MapPin, Shield, ChevronRight, Loader2, X,
   Navigation, Globe, UserCheck, UserX, Bell, Clock,
   Eye, FileText, Phone, Mail, Building, Calendar, Hash,
-  Ticket, Link2, CheckCircle, XCircle, Copy, Sparkles, Target
+  Ticket, Link2, CheckCircle, XCircle, Copy, Sparkles, Target,
+  Bot, Tags, Paperclip, Mic, Square
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -901,6 +903,13 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [auraDialogConvite, setAuraDialogConvite] = useState<{ avaliacaoToken: string; candidatoNome: string } | null>(null);
   const [auraSelectedWords, setAuraSelectedWords] = useState<string[]>([]);
   const [auraSearch, setAuraSearch] = useState("");
+  const [auraEvalMode, setAuraEvalMode] = useState<"palavras" | "ia">("palavras");
+  const [auraTextoIA, setAuraTextoIA] = useState("");
+  const [auraArquivoNome, setAuraArquivoNome] = useState<string | null>(null);
+  const [auraRecording, setAuraRecording] = useState(false);
+  const auraFileInputRef = useRef<HTMLInputElement>(null);
+  const auraMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const auraAudioChunksRef = useRef<Blob[]>([]);
 
   const { data: auraLexico = [] } = useQuery<{ canonico: string; dimensao: string }[]>({
     queryKey: ["/api/aura/lexico"],
@@ -913,12 +922,134 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       apiRequest("POST", `/api/avaliacao-aura/${avaliacaoToken}`, { palavras }),
     onSuccess: () => {
       toast({ title: "Percepção de Aura registrada!" });
-      setAuraDialogConvite(null);
-      setAuraSelectedWords([]);
-      setAuraSearch("");
+      resetAuraDialog();
     },
     onError: () => toast({ title: "Erro ao registrar Aura", variant: "destructive" }),
   });
+
+  const extrairAuraArquivoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("arquivo", file);
+      const res = await fetch("/api/aura/extrair-arquivo", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao processar arquivo." }));
+        throw new Error(err.error || "Erro ao processar arquivo.");
+      }
+      return res.json() as Promise<{ texto: string }>;
+    },
+    onSuccess: data => {
+      setAuraTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
+      toast({ title: "Arquivo processado", description: "O texto foi adicionado para análise." });
+    },
+    onError: (err: Error) => toast({ title: "Erro no arquivo", description: err.message, variant: "destructive" }),
+  });
+
+  const transcreverAuraAudioMutation = useMutation({
+    mutationFn: async (blob: Blob) => {
+      const form = new FormData();
+      form.append("audio", blob, "percepcao-aura.webm");
+      const res = await fetch("/api/aura/transcrever-audio", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao transcrever áudio." }));
+        throw new Error(err.error || "Erro ao transcrever áudio.");
+      }
+      return res.json() as Promise<{ texto: string }>;
+    },
+    onSuccess: data => {
+      setAuraTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
+      setAuraEvalMode("ia");
+      toast({ title: "Áudio transcrito", description: "Revise o texto antes de analisar com IA." });
+    },
+    onError: (err: Error) => toast({ title: "Erro no áudio", description: err.message, variant: "destructive" }),
+  });
+
+  const analisarAuraTextoMutation = useMutation({
+    mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
+      const res = await apiRequest("POST", "/api/aura/analisar-texto", { texto, membro_nome });
+      return res.json() as Promise<{ palavras: string[] }>;
+    },
+    onSuccess: data => {
+      if (!data.palavras?.length) {
+        toast({
+          title: "Nenhuma palavra identificada",
+          description: "Descreva com mais detalhes a reputação, confiança e forma de relacionamento.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAuraSelectedWords(data.palavras.slice(0, 3));
+      setAuraEvalMode("palavras");
+      toast({ title: "IA sugeriu palavras", description: `Sugestão: ${data.palavras.slice(0, 3).join(", ")}` });
+    },
+    onError: (err: Error) => toast({ title: "Erro na análise", description: err.message, variant: "destructive" }),
+  });
+
+  const resetAuraDialog = () => {
+    const recorder = auraMediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        recorder.stream.getTracks().forEach(track => track.stop());
+        recorder.stop();
+      } catch {
+        // Recorder may already be stopping.
+      }
+    }
+    auraMediaRecorderRef.current = null;
+    auraAudioChunksRef.current = [];
+    setAuraDialogConvite(null);
+    setAuraSelectedWords([]);
+    setAuraSearch("");
+    setAuraEvalMode("palavras");
+    setAuraTextoIA("");
+    setAuraArquivoNome(null);
+    setAuraRecording(false);
+  };
+
+  const startAuraRecording = async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        toast({ title: "Áudio indisponível", description: "Este navegador não permite gravação de áudio aqui.", variant: "destructive" });
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      auraAudioChunksRef.current = [];
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) auraAudioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(auraAudioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        auraAudioChunksRef.current = [];
+        setAuraRecording(false);
+        if (blob.size > 0 && auraDialogConvite) {
+          transcreverAuraAudioMutation.mutate(blob);
+        }
+      };
+      auraMediaRecorderRef.current = recorder;
+      recorder.start();
+      setAuraRecording(true);
+      setAuraEvalMode("ia");
+    } catch (err: any) {
+      toast({ title: "Não foi possível gravar", description: err?.message || "Verifique a permissão do microfone.", variant: "destructive" });
+    }
+  };
+
+  const stopAuraRecording = () => {
+    const recorder = auraMediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
+  };
 
   const toggleAuraWord = (word: string) => {
     setAuraSelectedWords(prev =>
@@ -1903,15 +2034,15 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       </AlertDialog>
 
       {/* Aura Evaluation Dialog — Aliado registers their own Aura perception for a vitrine candidate */}
-      <Dialog open={!!auraDialogConvite} onOpenChange={open => { if (!open) { setAuraDialogConvite(null); setAuraSelectedWords([]); setAuraSearch(""); } }}>
-        <DialogContent className="max-w-lg border-brand-gold/20 text-white" style={{ background: "#001428" }}>
+      <Dialog open={!!auraDialogConvite} onOpenChange={open => { if (!open) resetAuraDialog(); }}>
+        <DialogContent className="max-w-2xl border-brand-gold/20 text-white" style={{ background: "#001428" }}>
           <DialogHeader>
             <DialogTitle className="font-mono text-brand-gold flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               Percepção de Aura
             </DialogTitle>
             <DialogDescription className="text-white/40 font-mono text-xs">
-              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT?Escolha até 3 palavras.
+              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT? Escolha até 3 palavras ou use a análise com IA.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1924,44 +2055,159 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 ))}
               </div>
             )}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-              <Input
-                value={auraSearch}
-                onChange={e => setAuraSearch(e.target.value)}
-                placeholder="Buscar..."
-                className="pl-8 h-8 text-xs font-mono"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
-              />
+
+            <div className="flex rounded-lg border border-brand-gold/25 overflow-hidden text-xs font-semibold" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <button
+                type="button"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all"
+                style={auraEvalMode === "palavras"
+                  ?{ background: "rgba(215,187,125,0.18)", color: "#D7BB7D", borderRight: "1px solid rgba(215,187,125,0.18)" }
+                  : { color: "rgba(255,255,255,0.58)", borderRight: "1px solid rgba(255,255,255,0.08)" }}
+                onClick={() => setAuraEvalMode("palavras")}
+                data-testid="btn-aura-modo-palavras-notificacoes"
+              >
+                <Tags className="w-3.5 h-3.5" />
+                Escolher palavras
+              </button>
+              <button
+                type="button"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all"
+                style={auraEvalMode === "ia" ?{ background: "rgba(215,187,125,0.18)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.58)" }}
+                onClick={() => setAuraEvalMode("ia")}
+                data-testid="btn-aura-modo-ia-notificacoes"
+              >
+                <Bot className="w-3.5 h-3.5" />
+                Analisar com IA
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-              {auraLexico
-                .map((item: any) =>
-                  typeof item === "string"
-                    ?item.trim()
-                    : String(item.canonico || item.palavra || item.nome || item.label || item.termo || "").trim()
-                )
-                .filter(word => word && (!auraSearch || word.toLowerCase().includes(auraSearch.toLowerCase())))
-                .map(word => {
-                  const isSelected = auraSelectedWords.includes(word);
-                  const isDisabled = auraSelectedWords.length >= 3 && !isSelected;
-                  return (
-                    <button
-                      key={word}
-                      onClick={() => !isDisabled && toggleAuraWord(word)}
-                      disabled={isDisabled}
-                      className={`min-h-8 text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono leading-snug transition-all ${isSelected ?"border-brand-gold/60 bg-brand-gold/15 text-brand-gold" : isDisabled ?"border-white/10 text-white/35 cursor-not-allowed" : "border-white/15 bg-white/[0.03] text-white/75 hover:border-brand-gold/35 hover:text-white hover:bg-white/[0.07]"}`}
+
+            {auraEvalMode === "ia" && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-white/50">
+                    Descreva a pessoa, anexe um arquivo ou grave um áudio. A IA sugerirá até 3 palavras do léxico.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 border-white/10 bg-transparent text-xs text-white/65 hover:text-white"
+                      onClick={() => auraFileInputRef.current?.click()}
+                      disabled={extrairAuraArquivoMutation.isPending}
+                      data-testid="btn-aura-anexar-notificacoes"
                     >
-                      {word}
+                      {extrairAuraArquivoMutation.isPending ?<Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Paperclip className="w-3.5 h-3.5 mr-1.5" />}
+                      {extrairAuraArquivoMutation.isPending ?"Lendo..." : "Anexar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 border-white/10 bg-transparent text-xs text-white/65 hover:text-white"
+                      onClick={auraRecording ? stopAuraRecording : startAuraRecording}
+                      disabled={transcreverAuraAudioMutation.isPending}
+                      data-testid="btn-aura-audio-notificacoes"
+                    >
+                      {transcreverAuraAudioMutation.isPending ?(
+                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                      ) : auraRecording ?(
+                        <Square className="w-3.5 h-3.5 mr-1.5 text-red-300" />
+                      ) : (
+                        <Mic className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      {transcreverAuraAudioMutation.isPending ?"Transcrevendo..." : auraRecording ?"Parar áudio" : "Gravar áudio"}
+                    </Button>
+                    <input
+                      ref={auraFileInputRef}
+                      type="file"
+                      accept=".pdf,.txt,.md,.csv,text/plain,application/pdf"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setAuraArquivoNome(file.name);
+                          extrairAuraArquivoMutation.mutate(file);
+                        }
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {auraArquivoNome && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-xs text-white/60" style={{ background: "rgba(255,255,255,0.04)" }}>
+                    <FileText className="w-3.5 h-3.5 text-brand-gold shrink-0" />
+                    <span className="truncate flex-1">{auraArquivoNome}</span>
+                    <button type="button" onClick={() => setAuraArquivoNome(null)} className="text-white/40 hover:text-white">
+                      <X className="w-3 h-3" />
                     </button>
-                  );
-                })}
-            </div>
+                  </div>
+                )}
+
+                <Textarea
+                  value={auraTextoIA}
+                  onChange={e => setAuraTextoIA(e.target.value)}
+                  rows={5}
+                  placeholder={`Ex: ${auraDialogConvite?.candidatoNome?.split(" ")[0] || "Esta pessoa"} demonstra confiança, entrega combinados, se relaciona bem e contribui para a comunidade...`}
+                  className="resize-none text-sm"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.86)" }}
+                  data-testid="textarea-aura-ia-notificacoes"
+                />
+                <Button
+                  type="button"
+                  className="w-full text-xs font-mono font-bold"
+                  style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
+                  disabled={auraTextoIA.trim().length < 10 || analisarAuraTextoMutation.isPending}
+                  onClick={() => auraDialogConvite && analisarAuraTextoMutation.mutate({ texto: auraTextoIA, membro_nome: auraDialogConvite.candidatoNome })}
+                  data-testid="btn-aura-analisar-ia-notificacoes"
+                >
+                  {analisarAuraTextoMutation.isPending ?<Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+                  Analisar com IA
+                </Button>
+              </div>
+            )}
+
+            {auraEvalMode === "palavras" && (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                  <Input
+                    value={auraSearch}
+                    onChange={e => setAuraSearch(e.target.value)}
+                    placeholder="Buscar..."
+                    className="pl-8 h-8 text-xs font-mono"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                  {auraLexico
+                    .map((item: any) =>
+                      typeof item === "string"
+                        ?item.trim()
+                        : String(item.canonico || item.palavra || item.nome || item.label || item.termo || "").trim()
+                    )
+                    .filter(word => word && (!auraSearch || word.toLowerCase().includes(auraSearch.toLowerCase())))
+                    .map(word => {
+                      const isSelected = auraSelectedWords.includes(word);
+                      const isDisabled = auraSelectedWords.length >= 3 && !isSelected;
+                      return (
+                        <button
+                          key={word}
+                          onClick={() => !isDisabled && toggleAuraWord(word)}
+                          disabled={isDisabled}
+                          className={`min-h-8 text-left px-2.5 py-1.5 rounded-lg border text-xs font-mono leading-snug transition-all ${isSelected ?"border-brand-gold/60 bg-brand-gold/15 text-brand-gold" : isDisabled ?"border-white/10 text-white/35 cursor-not-allowed" : "border-white/15 bg-white/[0.03] text-white/75 hover:border-brand-gold/35 hover:text-white hover:bg-white/[0.07]"}`}
+                        >
+                          {word}
+                        </button>
+                      );
+                    })}
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => { setAuraDialogConvite(null); setAuraSelectedWords([]); }}
+              onClick={resetAuraDialog}
               className="border-white/10 text-white/50 hover:text-white bg-transparent text-xs font-mono"
             >
               Cancelar

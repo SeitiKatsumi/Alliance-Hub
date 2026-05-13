@@ -1862,7 +1862,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
                   className="justify-start flex-wrap gap-2"
                   data-testid="toggle-destinacao"
                 >
-                  {["Residencial", "Comercial", "Industrial", "Misto", "Hospedagem"].map((opt) => (
+                  {["Residencial", "Comercial", "Industrial", "Misto", "Hospedagem", "Rural"].map((opt) => (
                     <ToggleGroupItem
                       key={opt}
                       value={opt}

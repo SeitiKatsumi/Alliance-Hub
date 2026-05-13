@@ -125,13 +125,20 @@ export function classificarPalavra(palavra: string): PalavraClassificada | null 
   return entry ? { canonico: entry.canonico, dimensao: entry.dimensao, valorBuilt: entry.valorBuilt } : null;
 }
 
-export const PALAVRAS_SUGERIDAS = Array.from(
-  new Set([
-    ...RAW.map((r) => r.canonico),
-    ...RAW.flatMap((r) => r.sinonimos),
-    ...Object.values(LISTA_VIVA).flat(),
-  ])
-).sort((a, b) => a.localeCompare(b, "pt-BR"));
+const PALAVRAS_SUGERIDAS_MAP = new Map<string, string>();
+
+for (const palavra of [
+  ...RAW.map((r) => r.canonico),
+  ...RAW.flatMap((r) => r.sinonimos),
+  ...Object.values(LISTA_VIVA).flat(),
+]) {
+  const key = normalize(palavra);
+  if (!key || PALAVRAS_SUGERIDAS_MAP.has(key)) continue;
+  PALAVRAS_SUGERIDAS_MAP.set(key, palavra.toLocaleUpperCase("pt-BR"));
+}
+
+export const PALAVRAS_SUGERIDAS = Array.from(PALAVRAS_SUGERIDAS_MAP.values())
+  .sort((a, b) => a.localeCompare(b, "pt-BR"));
 
 export function getSugestoes(prefix: string): string[] {
   const norm = normalize(prefix);

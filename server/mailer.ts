@@ -31,7 +31,7 @@ function baseTemplate(content: string): string {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#001D34;color:#fff;border-radius:12px;overflow:hidden">
       <div style="background:linear-gradient(135deg,#001D34,#0a2a4a);padding:28px 24px;text-align:center;border-bottom:1px solid rgba(215,187,125,0.2)">
-        <img src="${BASE_URL}/built-alliances-logo.png" alt="BUILT Alliances" style="height:40px;width:auto;display:inline-block" />
+        <img src="${BASE_URL}/built-logo-horizontal-branca-email.png?v=20260514" alt="BUILT Alliances" style="width:280px;max-width:88%;height:auto;display:inline-block" />
       </div>
       <div style="padding:32px">
         ${content}
@@ -112,7 +112,7 @@ export async function notificarAliadoCandidatura(opts: {
       ${aliancasNote}
       <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para revisar a candidatura e tomar uma decisão:</p>
       <div style="text-align:center;margin:32px 0">
-        <a href="${BASE_URL}/comunidade" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
+        <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
       </div>
     `)
   );
@@ -389,9 +389,9 @@ export async function notificarInvitadorAvaliarAura(opts: {
   const link = `${BASE_URL}/avaliar-aura/${opts.avaliacaoToken}`;
   await send(
     opts.invitadorEmail,
-    `Avalie a Percepção de Aura de ${opts.candidatoNome} — BUILT Alliances`,
+    `Registre a Percepção de Aura de ${opts.candidatoNome} — BUILT Alliances`,
     baseTemplate(`
-      <h2 style="color:#D7BB7D;margin-top:0">✨ Avalie a Percepção de Aura</h2>
+      <h2 style="color:#D7BB7D;margin-top:0">✨ Registre a Percepção de Aura</h2>
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.invitadorNome}</strong>!</p>
       <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong> e solicitou acesso à plataforma.</p>
       <p style="color:rgba(255,255,255,0.7)">Como pessoa que convidou ${opts.candidatoNome}, você precisa registrar sua percepção de Aura antes que o Aliado BUILT analise a candidatura.</p>
@@ -420,7 +420,7 @@ export async function notificarAliadoAposAuraInvitador(opts: {
   comunidadeId: string;
 }) {
   const candidatoLink = `${BASE_URL}/vitrine/${opts.candidatoId}`;
-  const painelLink = `${BASE_URL}/comunidade`;
+  const painelLink = `${BASE_URL}/notificacoes`;
   const auraBlock = opts.auraFaixa
     ? `<div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
         <p style="color:rgba(255,255,255,0.5);font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.1em">Percepção de Aura registrada pelo convidador</p>

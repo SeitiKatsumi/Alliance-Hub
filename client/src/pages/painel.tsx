@@ -172,6 +172,7 @@ function canonicalChartLabel(value?: string | null): { key: string; label: strin
     residencial: "Residencial",
     hospedagem: "Hospedagem",
     industrial: "Industrial",
+    rural: "Rural",
     "nao definido": "Não definido",
   };
   return { key: key || "nao definido", label: aliases[key] || label };

@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail, Store, TrendingUp, Handshake } from "lucide-react";
+import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail, Store, TrendingUp, Handshake, Shield, Send } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
+import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -86,7 +87,13 @@ export default function LoginPage() {
 
   // Interests modal state
   const [showInteressesModal, setShowInteressesModal] = useState(false);
+  const [primeiroAcessoStep, setPrimeiroAcessoStep] = useState<"interesses" | "termos" | "solicitacao" | "final">("interesses");
   const [interessesSelecionados, setInteressesSelecionados] = useState<string[]>([]);
+  const [adesaoToken, setAdesaoToken] = useState("");
+  const [adesaoConvite, setAdesaoConvite] = useState<any>(null);
+  const [checkedTerms, setCheckedTerms] = useState<Record<string, boolean>>({});
+  const [activeTerm, setActiveTerm] = useState<TermKey>("codigo_etica");
+  const [aceiteLoading, setAceiteLoading] = useState(false);
 
   // Validate convite token when it changes
   useEffect(() => {
@@ -150,6 +157,11 @@ export default function LoginPage() {
       return;
     }
     setInteressesSelecionados([]);
+    setPrimeiroAcessoStep("interesses");
+    setAdesaoToken("");
+    setAdesaoConvite(null);
+    setCheckedTerms({});
+    setActiveTerm("codigo_etica");
     setShowInteressesModal(true);
   }
 
@@ -177,10 +189,16 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
-      setShowInteressesModal(false);
       if (data.vitrine_token) {
         await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-        navigate(`/adesao/${data.vitrine_token}`);
+        setAdesaoToken(data.vitrine_token);
+        const conviteRes = await fetch(`/api/convites/${data.vitrine_token}`);
+        const conviteData = conviteRes.ok ? await conviteRes.json() : null;
+        setAdesaoConvite(conviteData);
+        const required = getRequiredTermKeys(interessesSelecionados);
+        setActiveTerm(required[0] || "codigo_etica");
+        setCheckedTerms({});
+        setPrimeiroAcessoStep("termos");
       } else if (data.pagamento_token) {
         navigate(`/pagamento/${data.pagamento_token}`);
       } else {
@@ -190,9 +208,58 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       setRegError(err.message);
-      setShowInteressesModal(false);
     } finally {
       setRegLoading(false);
+    }
+  }
+
+  const requiredTermKeys = getRequiredTermKeys(interessesSelecionados);
+  const activeTermKey = requiredTermKeys.includes(activeTerm) ? activeTerm : requiredTermKeys[0] || "codigo_etica";
+  const activeTermConfig = TERM_CONFIG[activeTermKey];
+  const allTermsAccepted = requiredTermKeys.every((key) => checkedTerms[key]);
+
+  async function handleAceitarTermosCadastro() {
+    if (!adesaoToken || !allTermsAccepted) return;
+    setAceiteLoading(true);
+    setRegError("");
+    try {
+      const now = new Date().toISOString();
+      const termosAceitos = Object.fromEntries(requiredTermKeys.map((key) => [key, true]));
+      const termosVersoes = Object.fromEntries(requiredTermKeys.map((key) => [key, TERM_CONFIG[key].version]));
+      const res = await fetch(`/api/convites/${adesaoToken}/aceitar-termos`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          termos_aceitos: termosAceitos,
+          termos_versoes: termosVersoes,
+          aceito_em: now,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao aceitar termos");
+      setAdesaoConvite(data);
+      setPrimeiroAcessoStep("solicitacao");
+    } catch (err: any) {
+      setRegError(err.message);
+    } finally {
+      setAceiteLoading(false);
+    }
+  }
+
+  async function handleEnviarSolicitacaoCadastro() {
+    if (!adesaoToken) return;
+    setAceiteLoading(true);
+    setRegError("");
+    try {
+      const res = await fetch(`/api/convites/${adesaoToken}/solicitar-acesso`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao enviar solicitaÃ§Ã£o");
+      setAdesaoConvite(data);
+      setPrimeiroAcessoStep("final");
+    } catch (err: any) {
+      setRegError(err.message);
+    } finally {
+      setAceiteLoading(false);
     }
   }
 
@@ -614,15 +681,51 @@ export default function LoginPage() {
 
       {/* Interests modal — step 2 of registration */}
       <Dialog open={showInteressesModal} onOpenChange={(open) => { if (!regLoading) setShowInteressesModal(open); }}>
-        <DialogContent className="bg-[#001D34] border-white/10 text-white max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-6xl border-0 bg-white p-0 text-[#001D34] shadow-2xl overflow-hidden">
+          <div className="grid min-h-[560px] md:grid-cols-[220px_1fr]">
+            <aside className="hidden md:flex flex-col justify-between bg-[#001D34] p-6 text-white">
+              <div>
+                <img src={builtLogo} alt="BUILT" className="w-28" />
+                <div className="mt-12 space-y-3">
+                  <p className="text-xs text-white/70">Primeiro acesso</p>
+                  <p className="text-sm font-semibold">Etapa {primeiroAcessoStep === "interesses" ? "1" : "2"} de 2</p>
+                  <div className="flex items-center gap-2 pt-1">
+                    {primeiroAcessoStep === "interesses" ? (
+                      <span className="h-3 w-3 rounded-full bg-[#D7BB7D]" />
+                    ) : (
+                      <span className="grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs">1</span>
+                    )}
+                    <span className="h-px flex-1 bg-[#D7BB7D]" />
+                    {primeiroAcessoStep === "interesses" ? (
+                      <span className="grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs">2</span>
+                    ) : (
+                      <span className="grid h-6 w-6 place-items-center rounded-full bg-[#D7BB7D] text-xs font-bold text-[#001D34]">2</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-white/60">Precisa de ajuda? Fale com nosso time.</p>
+            </aside>
+
+            <div className="p-6 md:p-8">
+          <DialogHeader className="hidden">
             <DialogTitle className="text-white text-lg font-semibold">Onde você quer participar?</DialogTitle>
             <DialogDescription className="text-white/50 text-sm">
               Selecione uma ou mais áreas de interesse. Isso determina seu fluxo de adesão.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 mt-2">
+          {primeiroAcessoStep === "interesses" ? (
+            <>
+              <div className="mb-6 space-y-2">
+                <p className="text-xs text-slate-500">Inicio / Primeiro acesso</p>
+                <h2 className="text-2xl font-bold text-[#001D34]">Ola, {regNome || "bem-vindo(a)"}!</h2>
+                <p className="max-w-2xl text-sm text-slate-600">
+                  Escolha a area que mais combina com seu objetivo atual. Voce podera acessar outras areas depois.
+                </p>
+              </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
             {[
               {
                 valor: "vitrine",
@@ -653,20 +756,27 @@ export default function LoginPage() {
                   type="button"
                   data-testid={`interesse-${valor}`}
                   onClick={() => toggleInteresse(valor)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                  className={`w-full min-h-48 flex flex-col gap-4 p-4 rounded-xl border bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
                     selecionado
-                      ?"border-[#D7BB7D] bg-[#D7BB7D]/10"
-                      : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                      ?"border-blue-500 ring-2 ring-blue-500/20"
+                      : "border-slate-200 hover:border-[#D7BB7D]"
                   }`}
                 >
-                  <span className={`shrink-0 ${selecionado ?"text-[#D7BB7D]" : "text-white/40"}`}>
-                    {icone}
-                  </span>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className={`font-semibold text-sm ${selecionado ?"text-[#D7BB7D]" : "text-white"}`}>{titulo}</p>
+                    <div className="h-24 -m-4 mb-4 rounded-t-xl border-b border-slate-200 bg-gradient-to-br from-slate-100 via-white to-[#D7BB7D]/20 relative overflow-hidden">
+                      <div className="absolute right-5 top-4 flex items-end gap-1">
+                        <span className="h-8 w-2 rounded-full bg-[#D7BB7D]/70" />
+                        <span className="h-14 w-2 rounded-full bg-[#0B6F91]/70" />
+                        <span className="h-10 w-2 rounded-full bg-slate-400/60" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={`grid h-10 w-10 place-items-center rounded-full ${selecionado ?"bg-blue-600 text-white" : "bg-[#001D34] text-[#D7BB7D]"}`}>
+                        {icone}
+                      </span>
+                      <p className="text-lg font-bold text-[#001D34]">{titulo}</p>
                       {gratuito ?(
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-700 border border-green-500/20">
                           Gratuito
                         </span>
                       ) : (
@@ -675,28 +785,28 @@ export default function LoginPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-white/50 text-xs mt-0.5">{descricao}</p>
+                    <p className="text-slate-600 text-sm mt-3 leading-relaxed">{descricao}</p>
                   </div>
-                  <span className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                    selecionado ?"border-[#D7BB7D] bg-[#D7BB7D]" : "border-white/20"
+                  <span className={`shrink-0 w-full rounded-md border px-3 py-2 text-center text-sm font-semibold transition-all ${
+                    selecionado ?"border-blue-600 bg-blue-600 text-white" : "border-[#001D34] text-[#001D34]"
                   }`}>
-                    {selecionado && <span className="w-2 h-2 rounded-full bg-[#001D34]" />}
+                    {selecionado ? "Selecionado" : `Escolher ${titulo.replace("BUILT ", "")}`}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {regError && <p className="text-red-400 text-sm text-center mt-1">{regError}</p>}
+          {regError && <p className="text-red-600 text-sm text-center mt-3">{regError}</p>}
 
-          <div className="flex gap-3 mt-4">
+          <div className="flex gap-3 mt-6">
             <Button
               type="button"
               variant="ghost"
               data-testid="button-voltar-interesses"
               onClick={() => setShowInteressesModal(false)}
               disabled={regLoading}
-              className="flex-1 border border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+              className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
             >
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               Voltar
@@ -714,9 +824,151 @@ export default function LoginPage() {
                   Criando...
                 </span>
               ) : (
-                "Confirmar e Criar Conta"
+                "Continuar para aceites"
               )}
             </Button>
+          </div>
+            </>
+          ) : primeiroAcessoStep === "termos" ? (
+            <>
+              <div className="mb-6 space-y-2">
+                <p className="text-xs text-slate-500">Inicio / Primeiro acesso / Aceites</p>
+                <h2 className="text-2xl font-bold text-[#001D34]">Termos de Acesso BUILT</h2>
+                <p className="max-w-2xl text-sm text-slate-600">
+                  Leia e confirme os termos aplicaveis para continuar seu primeiro acesso.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[#D7BB7D]/40 bg-[#D7BB7D]/10 p-4 mb-4 flex items-center gap-3">
+                <Shield className="w-5 h-5 text-[#D7BB7D]" />
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[#A8843A]">Aderindo a</p>
+                  <p className="text-sm font-bold text-[#001D34]">{adesaoConvite?.comunidade?.nome || conviteInfo?.comunidade_nome || "Rede BUILT"}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D7BB7D]/30 bg-white overflow-hidden shadow-sm">
+                <div className="flex items-center gap-2 px-5 py-3 border-b border-[#D7BB7D]/30 bg-[#FCFAF5]">
+                  {(() => {
+                    const ActiveIcon = activeTermConfig.icon;
+                    return <ActiveIcon className="w-4 h-4 text-[#D7BB7D]" />;
+                  })()}
+                  <span className="text-xs font-mono text-slate-600 uppercase tracking-wider">{activeTermConfig.title}</span>
+                </div>
+                <div className="p-5 max-h-72 overflow-y-auto">
+                  <pre className="text-sm md:text-base font-mono text-slate-700 leading-7 whitespace-pre-wrap">{activeTermConfig.body}</pre>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-[#D7BB7D]/30 bg-white p-4 space-y-3 shadow-sm">
+                <p className="text-[10px] font-mono text-[#A8843A] uppercase tracking-[0.2em]">Termos aplicaveis</p>
+                <div className="flex flex-wrap gap-2">
+                  {requiredTermKeys.map((key) => {
+                    const config = TERM_CONFIG[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setActiveTerm(key)}
+                        className={`rounded-full border px-4 py-2 text-sm font-mono transition-colors ${activeTermKey === key ? "border-[#D7BB7D] bg-[#D7BB7D]/20 text-[#001D34]" : "border-slate-200 text-slate-600 hover:border-[#D7BB7D]/50 hover:text-[#001D34]"}`}
+                      >
+                        {config.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {requiredTermKeys.map((key) => {
+                  const config = TERM_CONFIG[key];
+                  const accepted = !!checkedTerms[key];
+                  return (
+                    <label key={key} className="flex items-start gap-3 cursor-pointer group">
+                      <button
+                        type="button"
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${accepted ? "bg-[#D7BB7D] border-[#D7BB7D]" : "border-slate-300 group-hover:border-[#D7BB7D]"}`}
+                        onClick={() => setCheckedTerms((current) => ({ ...current, [key]: !current[key] }))}
+                      >
+                        {accepted && <CheckCircle className="w-3.5 h-3.5 text-[#001D34]" />}
+                      </button>
+                      <span className="text-sm text-slate-700 leading-relaxed">
+                        Li e concordo com o{" "}
+                        <button
+                          type="button"
+                          className="font-bold text-[#A8843A] hover:underline"
+                          onClick={() => setActiveTerm(key)}
+                        >
+                          {config.label}
+                        </button>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {regError && <p className="text-red-600 text-sm text-center mt-3">{regError}</p>}
+
+              <div className="flex gap-3 mt-5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setPrimeiroAcessoStep("interesses")}
+                  disabled={aceiteLoading}
+                  className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1.5" />
+                  Voltar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAceitarTermosCadastro}
+                  disabled={aceiteLoading || !allTermsAccepted}
+                  className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold disabled:opacity-50"
+                >
+                  {aceiteLoading ? "Salvando..." : "Aceitar termos e avancar"}
+                </Button>
+              </div>
+            </>
+          ) : primeiroAcessoStep === "solicitacao" ? (
+            <div className="flex min-h-[430px] flex-col justify-center text-center">
+              <CheckCircle className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+              <h2 className="text-2xl font-bold text-[#001D34]">Termos aceitos</h2>
+              <p className="mx-auto mt-3 max-w-lg text-sm text-slate-600">
+                Agora envie sua solicitacao para o membro que te convidou registrar a percepcao de Aura.
+              </p>
+              {regError && <p className="text-red-600 text-sm text-center mt-4">{regError}</p>}
+              <div className="mx-auto mt-6 flex w-full max-w-xl gap-3">
+                <Button variant="ghost" onClick={() => setPrimeiroAcessoStep("termos")} className="flex-1 border border-slate-200">
+                  <ArrowLeft className="w-4 h-4 mr-1.5" />
+                  Voltar
+                </Button>
+                <Button onClick={handleEnviarSolicitacaoCadastro} disabled={aceiteLoading} className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold">
+                  <Send className="w-4 h-4 mr-1.5" />
+                  {aceiteLoading ? "Enviando..." : "Enviar solicitacao"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-[430px] flex-col justify-center text-center">
+              <CheckCircle className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+              <h2 className="text-2xl font-bold text-[#001D34]">Solicitacao enviada</h2>
+              <p className="mx-auto mt-3 max-w-lg text-sm text-slate-600">
+                Sua solicitacao foi enviada. Acompanhe seu e-mail para os proximos passos.
+              </p>
+              <Button
+                onClick={() => {
+                  setShowInteressesModal(false);
+                  setMode("login");
+                  setEmail(regEmail);
+                }}
+                className="mx-auto mt-6 bg-[#001D34] text-white hover:bg-[#002946]"
+              >
+                Voltar para login
+              </Button>
+            </div>
+          )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

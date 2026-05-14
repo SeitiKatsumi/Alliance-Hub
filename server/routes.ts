@@ -6868,6 +6868,51 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       return res.status(400).json({ error: "Texto muito curto. Descreva o membro com pelo menos 10 caracteres." });
     }
     const { PALAVRAS_SUGERIDAS: lexico } = await import("./aura-lexico.js");
+    const normalizeAuraText = (value: string) =>
+      value
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const lexicoPorNormalizado = new Map(lexico.map((palavra) => [normalizeAuraText(palavra), palavra]));
+    const resolvePalavraLexico = (palavra: string) => lexicoPorNormalizado.get(normalizeAuraText(palavra));
+    const pushPalavra = (lista: string[], palavra: string) => {
+      const resolvida = resolvePalavraLexico(palavra);
+      if (resolvida && !lista.includes(resolvida) && lista.length < 3) {
+        lista.push(resolvida);
+      }
+    };
+    const textoNormalizado = normalizeAuraText(texto);
+    const inferirPalavrasPorTexto = () => {
+      const palavras: string[] = [];
+      const regras: Array<{ palavra: string; pistas: string[] }> = [
+        { palavra: "LEALDADE", pistas: ["leal", "fiel", "lealdade", "veste a camisa", "vestir a camisa"] },
+        { palavra: "COMPROMETIMENTO", pistas: ["comprometida", "comprometido", "trabalhadora", "trabalhador", "dedicada", "dedicado", "entrega", "veste a camisa", "vestir a camisa"] },
+        { palavra: "ATENCIOSO", pistas: ["atenciosa", "atencioso", "atencao", "cuidadosa", "cuidadoso"] },
+        { palavra: "EMPATIA", pistas: ["empatica", "empatico", "acolhedora", "acolhedor", "pessoas", "relaciona bem"] },
+        { palavra: "LIDERANÇA", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
+        { palavra: "ALIANÇA", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+        { palavra: "RESPONSABILIDADE", pistas: ["responsavel", "responsabilidade", "cumpre", "presta contas"] },
+        { palavra: "EFICIÊNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
+      ];
+      for (const regra of regras) {
+        if (regra.pistas.some((pista) => textoNormalizado.includes(normalizeAuraText(pista)))) {
+          pushPalavra(palavras, regra.palavra);
+        }
+        if (palavras.length >= 3) break;
+      }
+      if (palavras.length < 3) {
+        for (const palavra of lexico) {
+          if (textoNormalizado.includes(normalizeAuraText(palavra))) {
+            pushPalavra(palavras, palavra);
+          }
+          if (palavras.length >= 3) break;
+        }
+      }
+      return palavras;
+    };
     try {
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -6889,13 +6934,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          palavras = parsed
-            .filter((p: unknown) => typeof p === "string" && lexico.includes(p))
-            .slice(0, 3);
+          for (const p of parsed) {
+            if (typeof p === "string") pushPalavra(palavras, p);
+          }
         }
       } catch {
         // try to extract words from malformed response
-        palavras = lexico.filter(w => raw.includes(w)).slice(0, 3);
+        for (const palavra of lexico) {
+          if (normalizeAuraText(raw).includes(normalizeAuraText(palavra))) {
+            pushPalavra(palavras, palavra);
+          }
+        }
+      }
+      if (palavras.length === 0) {
+        palavras = inferirPalavrasPorTexto();
       }
       return res.json({ palavras });
     } catch (err: any) {

@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles, Store, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 
 interface ConviteData {
   id: string;
@@ -299,9 +300,9 @@ Este Termo disciplina o acesso e a participacao no BUILT Capital, ambiente volta
 Ao aceitar este Termo, o usuario declara estar ciente das regras provisorias do BUILT Capital.
 `.trim();
 
-type TermKey = "codigo_etica" | "politicas_participacao_protecao" | "area_aliancas" | "vitrine" | "built_capital";
+export type TermKey = "codigo_etica" | "politicas_participacao_protecao" | "area_aliancas" | "vitrine" | "built_capital";
 
-const TERM_CONFIG: Record<TermKey, {
+export const TERM_CONFIG: Record<TermKey, {
   title: string;
   label: string;
   version: string;
@@ -355,7 +356,7 @@ function getConviteInteresses(convite?: ConviteData): string[] {
   return ["membros"];
 }
 
-function getRequiredTermKeys(interesses: string[]): TermKey[] {
+export function getRequiredTermKeys(interesses: string[]): TermKey[] {
   return ["codigo_etica", "politicas_participacao_protecao"];
 }
 
@@ -392,35 +393,53 @@ function TermosAceiteView({
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#001D34" }}>
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
-        <div className="text-center">
+    <div className="min-h-screen bg-[#F7F8FA] text-[#001D34]">
+      <div className="grid min-h-screen md:grid-cols-[220px_1fr]">
+        <aside className="hidden md:flex flex-col justify-between bg-[#001D34] p-6 text-white">
+          <div>
+            <img src={builtLogo} alt="BUILT" className="w-28" />
+            <div className="mt-12 space-y-3">
+              <p className="text-xs text-white/70">Primeiro acesso</p>
+              <p className="text-sm font-semibold">Etapa 2 de 2</p>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="h-3 w-3 rounded-full bg-[#D7BB7D]" />
+                <span className="h-px flex-1 bg-[#D7BB7D]" />
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-[#D7BB7D] text-xs font-bold text-[#001D34]">2</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-white/60">Precisa de ajuda? Fale com nosso time.</p>
+        </aside>
+
+        <main className="px-6 py-10">
+          <div className="max-w-5xl mx-auto space-y-6">
+        <div>
           <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
-          <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termos de Acesso BUILT</h1>
-          <p className="text-white/50 text-sm font-mono mt-1">
+          <h1 className="text-3xl font-bold text-[#001D34] mt-1">Termos de Acesso BUILT</h1>
+          <p className="text-slate-600 text-sm mt-1">
             Bem-vindo(a), <strong className="text-brand-gold">{convite.candidato_nome}</strong>! Leia e aceite os termos para continuar.
           </p>
         </div>
 
-        <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
+        <div className="rounded-xl p-4 border border-[#D7BB7D]/40 bg-white flex items-center gap-3 shadow-sm">
           <Shield className="w-5 h-5 text-brand-gold shrink-0" />
           <div>
             <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
-            <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome || "Rede BUILT"}</p>
+            <p className="text-sm font-bold text-[#001D34]">{convite.comunidade?.nome || "Rede BUILT"}</p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
+        <div className="rounded-2xl border border-[#D7BB7D]/30 bg-white overflow-hidden shadow-sm">
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-[#D7BB7D]/30 bg-[#FCFAF5]">
             <ActiveIcon className="w-4 h-4 text-brand-gold" />
-            <span className="text-xs font-mono text-white/60 uppercase tracking-wider">{activeConfig.title}</span>
+            <span className="text-xs font-mono text-slate-600 uppercase tracking-wider">{activeConfig.title}</span>
           </div>
           <div className="p-5 max-h-[32rem] overflow-y-auto">
-            <pre className="text-sm md:text-base font-mono text-white/75 leading-7 md:leading-8 whitespace-pre-wrap">{activeConfig.body}</pre>
+            <pre className="text-base md:text-lg font-mono text-slate-700 leading-8 md:leading-9 whitespace-pre-wrap">{activeConfig.body}</pre>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-brand-gold/20 p-4 space-y-3" style={{ background: "rgba(215,187,125,0.04)" }}>
+        <div className="rounded-2xl border border-[#D7BB7D]/30 bg-white p-4 space-y-3 shadow-sm">
           <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-[0.2em]">Termos aplicáveis</p>
           <div className="flex flex-wrap gap-2">
             {requiredTerms.map((key) => {
@@ -430,7 +449,7 @@ function TermosAceiteView({
                   key={key}
                   type="button"
                   onClick={() => setActiveTerm(key)}
-                  className={`rounded-full border px-4 py-2 text-sm font-mono transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-brand-gold" : "border-white/15 text-white/60 hover:border-brand-gold/50 hover:text-brand-gold"}`}
+                  className={`rounded-full border px-4 py-2 text-sm font-mono transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-[#001D34]" : "border-slate-200 text-slate-600 hover:border-brand-gold/50 hover:text-[#001D34]"}`}
                 >
                   {config.label}
                 </button>
@@ -446,12 +465,12 @@ function TermosAceiteView({
             return (
               <label key={key} className="flex items-start gap-3 cursor-pointer group" data-testid={`label-aceite-${key}`}>
                 <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${accepted ? "bg-brand-gold border-brand-gold" : "border-white/30 group-hover:border-white/50"}`}
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${accepted ? "bg-brand-gold border-brand-gold" : "border-slate-300 group-hover:border-brand-gold"}`}
                   onClick={() => toggleTerm(key)}
                 >
                   {accepted && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </div>
-                <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => toggleTerm(key)}>
+                <span className="text-sm font-mono text-slate-700 leading-relaxed select-none" onClick={() => toggleTerm(key)}>
                   Li e concordo com o{" "}
                   <button
                     type="button"
@@ -481,8 +500,10 @@ function TermosAceiteView({
           {buttonText}
         </Button>
         {errorMessage && (
-          <p className="text-red-400 text-xs font-mono text-center">{errorMessage}</p>
+          <p className="text-red-600 text-xs font-mono text-center">{errorMessage}</p>
         )}
+          </div>
+        </main>
       </div>
     </div>
   );

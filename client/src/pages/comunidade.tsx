@@ -908,6 +908,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [auraArquivoNome, setAuraArquivoNome] = useState<string | null>(null);
   const [auraRecording, setAuraRecording] = useState(false);
   const auraFileInputRef = useRef<HTMLInputElement>(null);
+  const auraAudioFileInputRef = useRef<HTMLInputElement>(null);
   const auraMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const auraAudioChunksRef = useRef<Blob[]>([]);
 
@@ -950,9 +951,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   });
 
   const transcreverAuraAudioMutation = useMutation({
-    mutationFn: async (blob: Blob) => {
+    mutationFn: async ({ blob, filename = "percepcao-aura.webm" }: { blob: Blob; filename?: string }) => {
       const form = new FormData();
-      form.append("audio", blob, "percepcao-aura.webm");
+      form.append("audio", blob, filename);
       const res = await fetch("/api/aura/transcrever-audio", {
         method: "POST",
         body: form,
@@ -1032,7 +1033,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         auraAudioChunksRef.current = [];
         setAuraRecording(false);
         if (blob.size > 0 && auraDialogConvite) {
-          transcreverAuraAudioMutation.mutate(blob);
+          transcreverAuraAudioMutation.mutate({ blob, filename: "percepcao-aura.webm" });
         }
       };
       auraMediaRecorderRef.current = recorder;
@@ -1040,7 +1041,17 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       setAuraRecording(true);
       setAuraEvalMode("ia");
     } catch (err: any) {
-      toast({ title: "Não foi possível gravar", description: err?.message || "Verifique a permissão do microfone.", variant: "destructive" });
+      const permissionDenied = err?.name === "NotAllowedError" || /permission|denied|permiss/i.test(err?.message || "");
+      toast({
+        title: permissionDenied ? "Microfone bloqueado" : "Não foi possível gravar",
+        description: permissionDenied
+          ? "Permita o microfone nas configurações do navegador ou use Enviar áudio para selecionar uma gravação do celular."
+          : err?.message || "Verifique a permissão do microfone ou envie um áudio já gravado.",
+        variant: "destructive",
+      });
+      if (permissionDenied) {
+        window.setTimeout(() => auraAudioFileInputRef.current?.click(), 150);
+      }
     }
   };
 
@@ -2085,7 +2096,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs text-white/50">
-                    Descreva a pessoa, anexe um arquivo ou grave um áudio. A IA sugerirá até 3 palavras do léxico.
+                    Descreva a pessoa, anexe um arquivo, grave ou envie um áudio. A IA sugerirá até 3 palavras do léxico.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -2116,6 +2127,21 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                       )}
                       {transcreverAuraAudioMutation.isPending ?"Transcrevendo..." : auraRecording ?"Parar áudio" : "Gravar áudio"}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 border-white/10 bg-transparent text-xs text-white/65 hover:text-white"
+                      onClick={() => auraAudioFileInputRef.current?.click()}
+                      disabled={transcreverAuraAudioMutation.isPending || auraRecording}
+                      data-testid="btn-aura-enviar-audio-notificacoes"
+                    >
+                      {transcreverAuraAudioMutation.isPending ?(
+                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                      ) : (
+                        <Paperclip className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Enviar áudio
+                    </Button>
                     <input
                       ref={auraFileInputRef}
                       type="file"
@@ -2126,6 +2152,21 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         if (file) {
                           setAuraArquivoNome(file.name);
                           extrairAuraArquivoMutation.mutate(file);
+                        }
+                        e.target.value = "";
+                      }}
+                    />
+                    <input
+                      ref={auraAudioFileInputRef}
+                      type="file"
+                      accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setAuraArquivoNome(file.name);
+                          setAuraEvalMode("ia");
+                          transcreverAuraAudioMutation.mutate({ blob: file, filename: file.name });
                         }
                         e.target.value = "";
                       }}

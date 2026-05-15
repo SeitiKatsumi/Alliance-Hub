@@ -192,6 +192,15 @@ interface FluxoCaixaHistoricoItem {
   criado_em: string;
 }
 
+type AportePorMembro = {
+  membroId: string;
+  inlineName: string | null;
+  valor: number;
+  percentual: number;
+};
+
+type PapelAlocacao = "guardioes" | "multiplicadores" | "naoClassificados";
+
 const STATUS_OPTIONS: { value: StatusPagamento; label: string }[] = [
   { value: "pendente",  label: "Pendente" },
   { value: "agendado",  label: "Agendado" },
@@ -1755,7 +1764,7 @@ export default function FluxoCaixaPage() {
     return membros.filter((m) => ids.has(m.id));
   }, [membros, selectedBia]);
 
-  const aportesPorMembro = useMemo(() => {
+  const aportesPorMembro = useMemo<AportePorMembro[]>(() => {
     const entradas = fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
     const map: Record<string, number> = {};
     const nameMap: Record<string, string> = {};
@@ -1781,15 +1790,65 @@ export default function FluxoCaixaPage() {
       .sort((a, b) => b.valor - a.valor);
   }, [fluxoItemsContabeis]);
 
+  const aportesComTransferencias = useMemo(() => {
+    const map = new Map<string, AportePorMembro>();
+    aportesPorMembro.forEach((item) => map.set(item.membroId, { ...item }));
+
+    const papelPorMembro = new Map<string, PapelAlocacao>();
+    parseMemberList(selectedBia?.socios_guardioes).forEach((id) => papelPorMembro.set(id, "guardioes"));
+    parseMemberList(selectedBia?.socios_multiplicadores).forEach((id) => papelPorMembro.set(id, "multiplicadores"));
+
+    const nomePorMembro = new Map(membros.map((m) => [m.id, getMembroNome(m)]));
+
+    transferencias
+      .filter((transfer) => transfer.status === "aceita")
+      .forEach((transfer) => {
+        const origem = map.get(transfer.membro_origem_id);
+        if (!origem) return;
+
+        const valorSolicitado = parseFloat(String(transfer.valor_total || "0")) || 0;
+        const valorTransferido = Math.min(valorSolicitado, Math.max(0, origem.valor));
+        if (valorTransferido <= 0) return;
+
+        origem.valor = Math.max(0, origem.valor - valorTransferido);
+
+        const destino =
+          map.get(transfer.membro_destino_id) ||
+          {
+            membroId: transfer.membro_destino_id,
+            inlineName: nomePorMembro.get(transfer.membro_destino_id) || null,
+            valor: 0,
+            percentual: 0,
+          };
+
+        destino.valor += valorTransferido;
+        if (!map.has(destino.membroId)) map.set(destino.membroId, destino);
+
+        if (!papelPorMembro.has(destino.membroId)) {
+          papelPorMembro.set(destino.membroId, papelPorMembro.get(transfer.membro_origem_id) || "naoClassificados");
+        }
+      });
+
+    const total = Array.from(map.values()).reduce((sum, item) => sum + item.valor, 0);
+    const rows = Array.from(map.values())
+      .filter((item) => item.valor > 0.005)
+      .map((item) => ({
+        ...item,
+        percentual: total > 0 ?(item.valor / total) * 100 : 0,
+      }))
+      .sort((a, b) => b.valor - a.valor);
+
+    return { rows, papelPorMembro };
+  }, [aportesPorMembro, membros, selectedBia, transferencias]);
+
   const alocacaoPorPapel = useMemo(() => {
-    const multiplicadores = new Set(parseMemberList(selectedBia?.socios_multiplicadores));
-    const guardioes = new Set(parseMemberList(selectedBia?.socios_guardioes));
+    const { rows, papelPorMembro } = aportesComTransferencias;
     return {
-      guardioes: aportesPorMembro.filter((item) => guardioes.has(item.membroId)),
-      multiplicadores: aportesPorMembro.filter((item) => multiplicadores.has(item.membroId)),
-      naoClassificados: aportesPorMembro.filter((item) => !guardioes.has(item.membroId) && !multiplicadores.has(item.membroId)),
+      guardioes: rows.filter((item) => papelPorMembro.get(item.membroId) === "guardioes"),
+      multiplicadores: rows.filter((item) => papelPorMembro.get(item.membroId) === "multiplicadores"),
+      naoClassificados: rows.filter((item) => !papelPorMembro.has(item.membroId) || papelPorMembro.get(item.membroId) === "naoClassificados"),
     };
-  }, [aportesPorMembro, selectedBia]);
+  }, [aportesComTransferencias]);
 
   async function uploadFiles(files: globalThis.File[]): Promise<string[]> {
     if (files.length === 0) return [];
@@ -1843,7 +1902,7 @@ export default function FluxoCaixaPage() {
   function openEditTransferDialog(transfer: TransferenciaCotas) {
     const percentual = parseFloat(transfer.percentual_transferencia || "0") || 0;
     const valor = parseFloat(transfer.valor_total || "0") || 0;
-    const aporteOrigem = aportesPorMembro.find((a) => a.membroId === transfer.membro_origem_id)?.valor;
+    const aporteOrigem = aportesComTransferencias.rows.find((a) => a.membroId === transfer.membro_origem_id)?.valor;
     const valorRef = percentual > 0 ?valor / (percentual / 100) : (aporteOrigem || valor);
     setEditingTransferId(transfer.id);
     setTransferOrigemId(transfer.membro_origem_id);

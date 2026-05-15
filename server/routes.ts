@@ -4912,7 +4912,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== TRANSFERÊNCIA DE COTAS ==========
-  await db.execute(sql`ALTER TABLE transferencias_cotas ADD COLUMN IF NOT EXISTS anexos text[] DEFAULT '{}'::text[]`);
+  await db.execute(sql`ALTER TABLE transferencias_cotas ADD COLUMN IF NOT EXISTS anexos text[] DEFAULT '{}'::text[]`)
+    .catch((err: any) => {
+      console.warn(`[transferencias_cotas] Campo anexos nao sincronizado: ${err.message}`);
+    });
 
   app.get("/api/transferencia-cotas", async (req, res) => {
     try {
@@ -5052,49 +5055,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.json(updated);
       }
 
-      // action === "aceitar": update all Directus fluxo_caixa entradas for this BIA from origem to destino
-      const filterParams = [
-        `filter[bia][_eq]=${transfer.bia_id}`,
-        `filter[tipo][_eq]=entrada`,
-        `filter[favorecido_id][_eq]=${transfer.membro_origem_id}`,
-        `fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.*,membro_responsavel.*`,
-      ].join("&");
-      const url = `${DIRECTUS_URL}/items/fluxo_caixa?${filterParams}`;
-      const fetchRes = await fetch(url, {
-        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-      });
-      if (!fetchRes.ok) {
-        const text = await fetchRes.text();
-        throw new Error(`Directus fetch error ${fetchRes.status}: ${text}`);
-      }
-      const fetchJson = await fetchRes.json();
-      const entradas: any[] = fetchJson.data || [];
-
-      for (const entrada of entradas) {
-        await directusUpdate("fluxo_caixa", entrada.id, {
-          favorecido_id: transfer.membro_destino_id,
-        });
-        const depois = await fetchFluxoSnapshot(entrada.id).catch(() => null);
-        await registrarFluxoHistorico({
-          fluxoId: entrada.id,
-          biaId: transfer.bia_id,
-          acao: "favorecido_transferido",
-          req,
-          origem: "transferencia_cotas",
-          antes: entrada,
-          depois,
-          payload: {
-            transferencia_id: transfer.id,
-            membro_origem_id: transfer.membro_origem_id,
-            membro_destino_id: transfer.membro_destino_id,
-          },
-        }).catch((err: any) => console.error("[fluxo_historico] favorecido_transferido:", err.message));
-      }
-
+      // action === "aceitar": a transferência é parcial e deve ser aplicada no MAP,
+      // sem alterar os lançamentos financeiros originais do Directus.
       const updated = await storage.updateTransferenciaCotas(req.params.id, {
         status: "aceita",
       });
-      res.json({ ...updated, transferidos: entradas.length });
+      res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

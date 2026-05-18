@@ -2095,6 +2095,21 @@ export async function registerRoutes(
 
       // Directus blocks deleting cadastro_geral rows while the member is still
       // referenced by the community M2M junction.
+      const comunidadeLinks = await directusFetchScoped(
+        "comunidade_membros",
+        `fields=id&filter[cadastro_geral_id][_eq]=${encodeURIComponent(membroId)}`
+      ).catch((cleanupError: any) => {
+        console.warn(`[membros DELETE ${membroId}] Directus comunidade_membros lookup failed:`, cleanupError?.message || cleanupError);
+        return [];
+      });
+
+      for (const link of comunidadeLinks) {
+        if (!link?.id) continue;
+        await directusDelete("comunidade_membros", String(link.id)).catch((cleanupError: any) => {
+          console.warn(`[membros DELETE ${membroId}] Directus comunidade_membros link ${link.id} cleanup failed:`, cleanupError?.message || cleanupError);
+        });
+      }
+
       await db.execute(sql`
         DELETE FROM comunidade_membros
         WHERE cadastro_geral_id = ${membroId}
@@ -6578,13 +6593,27 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // POST /api/webhooks/asaas — handle Asaas payment webhook events
   app.post("/api/webhooks/asaas", async (req, res) => {
     // Mandatory token verification — ASAAS_WEBHOOK_TOKEN must be set in env
-    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    if (!webhookToken) {
+    const webhookTokens = [process.env.ASAAS_WEBHOOK_TOKEN, process.env.ASAAS_WEBHOOK_SECRET].filter((token): token is string => Boolean(token));
+    if (webhookTokens.length === 0) {
       console.error("[asaas/webhook] ASAAS_WEBHOOK_TOKEN not configured — rejecting request");
       return res.status(503).json({ error: "Webhook not configured" });
     }
-    const incomingToken = req.headers["asaas-access-token"] as string | undefined;
-    if (!incomingToken || incomingToken !== webhookToken) {
+    const getHeader = (name: string) => {
+      const value = req.headers[name.toLowerCase()];
+      return Array.isArray(value) ? value[0] : value;
+    };
+    const authorization = getHeader("authorization");
+    const bearerToken = authorization?.toLowerCase().startsWith("bearer ")
+      ? authorization.slice(7).trim()
+      : undefined;
+    const incomingToken =
+      getHeader("asaas-access-token") ||
+      getHeader("x-asaas-access-token") ||
+      getHeader("asaas_access_token") ||
+      bearerToken ||
+      (typeof req.query.token === "string" ? req.query.token : undefined) ||
+      (typeof req.query.access_token === "string" ? req.query.access_token : undefined);
+    if (!incomingToken || !webhookTokens.includes(incomingToken)) {
       console.error("[asaas/webhook] invalid or missing access token");
       return res.status(401).json({ error: "Unauthorized" });
     }

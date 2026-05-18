@@ -511,6 +511,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPasswordResetToken(userId: string, expiresAt: Date): Promise<PasswordResetToken> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(and(eq(passwordResetTokens.user_id, userId), eq(passwordResetTokens.used, false)));
+
     const [item] = await db.insert(passwordResetTokens).values({ user_id: userId, expires_at: expiresAt }).returning();
     return item;
   }

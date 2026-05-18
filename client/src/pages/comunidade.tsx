@@ -907,6 +907,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [auraTextoIA, setAuraTextoIA] = useState("");
   const [auraArquivoNome, setAuraArquivoNome] = useState<string | null>(null);
   const [auraRecording, setAuraRecording] = useState(false);
+  const [auraMicBlocked, setAuraMicBlocked] = useState(false);
+  const [auraMicPromptOpen, setAuraMicPromptOpen] = useState(false);
   const auraFileInputRef = useRef<HTMLInputElement>(null);
   const auraAudioFileInputRef = useRef<HTMLInputElement>(null);
   const auraMediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1013,6 +1015,16 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     setAuraTextoIA("");
     setAuraArquivoNome(null);
     setAuraRecording(false);
+    setAuraMicBlocked(false);
+    setAuraMicPromptOpen(false);
+  };
+
+  const requestAuraRecording = () => {
+    if (auraRecording) {
+      stopAuraRecording();
+      return;
+    }
+    setAuraMicPromptOpen(true);
   };
 
   const startAuraRecording = async () => {
@@ -1039,19 +1051,18 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       auraMediaRecorderRef.current = recorder;
       recorder.start();
       setAuraRecording(true);
+      setAuraMicBlocked(false);
       setAuraEvalMode("ia");
     } catch (err: any) {
       const permissionDenied = err?.name === "NotAllowedError" || /permission|denied|permiss/i.test(err?.message || "");
+      if (permissionDenied) setAuraMicBlocked(true);
       toast({
         title: permissionDenied ? "Microfone bloqueado" : "Não foi possível gravar",
         description: permissionDenied
-          ? "Permita o microfone nas configurações do navegador ou use Enviar áudio para selecionar uma gravação do celular."
+          ? "Permita o microfone nas configurações do navegador ou toque em Enviar áudio para selecionar uma gravação do celular."
           : err?.message || "Verifique a permissão do microfone ou envie um áudio já gravado.",
         variant: "destructive",
       });
-      if (permissionDenied) {
-        window.setTimeout(() => auraAudioFileInputRef.current?.click(), 150);
-      }
     }
   };
 
@@ -2114,9 +2125,10 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                       type="button"
                       variant="outline"
                       className="h-8 border-white/10 bg-transparent text-xs text-white/65 hover:text-white"
-                      onClick={auraRecording ? stopAuraRecording : startAuraRecording}
+                      onClick={requestAuraRecording}
                       disabled={transcreverAuraAudioMutation.isPending}
                       data-testid="btn-aura-audio-notificacoes"
+                      title={auraMicBlocked ? "Microfone bloqueado. Use Enviar áudio para escolher uma gravação." : undefined}
                     >
                       {transcreverAuraAudioMutation.isPending ?(
                         <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
@@ -2125,7 +2137,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                       ) : (
                         <Mic className="w-3.5 h-3.5 mr-1.5" />
                       )}
-                      {transcreverAuraAudioMutation.isPending ?"Transcrevendo..." : auraRecording ?"Parar áudio" : "Gravar áudio"}
+                      {transcreverAuraAudioMutation.isPending ?"Transcrevendo..." : auraRecording ?"Parar áudio" : auraMicBlocked ?"Ativar microfone" : "Gravar áudio"}
                     </Button>
                     <Button
                       type="button"
@@ -2159,11 +2171,21 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     <input
                       ref={auraAudioFileInputRef}
                       type="file"
-                      accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg"
+                      accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/webm,audio/ogg,audio/3gpp,audio/amr,.mp3,.m4a,.aac,.wav,.webm,.ogg,.3gp,.amr"
                       className="hidden"
                       onChange={e => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          const isAudio = file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|webm|ogg|3gp|amr)$/i.test(file.name);
+                          if (!isAudio) {
+                            toast({
+                              title: "Arquivo inválido",
+                              description: "Selecione uma gravação de áudio do celular.",
+                              variant: "destructive",
+                            });
+                            e.target.value = "";
+                            return;
+                          }
                           setAuraArquivoNome(file.name);
                           setAuraEvalMode("ia");
                           transcreverAuraAudioMutation.mutate({ blob: file, filename: file.name });
@@ -2266,6 +2288,55 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={auraMicPromptOpen} onOpenChange={setAuraMicPromptOpen}>
+        <AlertDialogContent className="border-brand-gold/20 text-white" style={{ background: "#001428" }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-mono text-brand-gold flex items-center gap-2">
+              <Mic className="w-4 h-4" />
+              Ativar microfone?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-3 text-sm text-white/65">
+            <p>
+              Para gravar a percepção de Aura por áudio, o navegador precisa liberar o microfone deste aparelho.
+            </p>
+            {auraMicBlocked && (
+              <p className="rounded-lg border border-red-400/25 bg-red-500/10 p-3 text-red-100">
+                O microfone parece bloqueado. Se o navegador não mostrar a permissão novamente, libere o microfone nas configurações do site ou use Enviar áudio.
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-white/10 bg-transparent text-white/70 hover:text-white"
+              onClick={() => {
+                setAuraMicPromptOpen(false);
+                window.setTimeout(() => auraAudioFileInputRef.current?.click(), 50);
+              }}
+            >
+              <Paperclip className="w-4 h-4 mr-2" />
+              Enviar áudio
+            </Button>
+            <AlertDialogAction
+              className="font-mono font-bold"
+              style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
+              onClick={() => {
+                setAuraMicPromptOpen(false);
+                startAuraRecording();
+              }}
+            >
+              <Mic className="w-4 h-4 mr-2" />
+              Ativar microfone
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -269,7 +269,7 @@ export async function enviarResetSenha(opts: {
   token: string;
 }) {
   const link = `${BASE_URL}/login?reset=${opts.token}`;
-  await send(
+  return send(
     opts.email,
     "Redefinição de senha — BUILT Alliances",
     baseTemplate(`

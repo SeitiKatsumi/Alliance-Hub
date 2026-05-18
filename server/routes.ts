@@ -2091,9 +2091,28 @@ export async function registerRoutes(
   app.delete("/api/membros/:id", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;
     try {
+      const membroId = req.params.id;
+
+      // Directus blocks deleting cadastro_geral rows while the member is still
+      // referenced by the community M2M junction.
+      await db.execute(sql`
+        DELETE FROM comunidade_membros
+        WHERE cadastro_geral_id = ${membroId}
+      `).catch((cleanupError: any) => {
+        console.warn(`[membros DELETE ${membroId}] comunidade_membros cleanup failed:`, cleanupError?.message || cleanupError);
+      });
+
+      await db.execute(sql`
+        DELETE FROM users
+        WHERE membro_directus_id = ${membroId}
+      `).catch((cleanupError: any) => {
+        console.warn(`[membros DELETE ${membroId}] local user cleanup failed:`, cleanupError?.message || cleanupError);
+      });
+
       await directusDelete("cadastro_geral", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
+      console.error(`[membros DELETE ${req.params.id}] error:`, error.message);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4388,11 +4407,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const resetToken = await storage.createPasswordResetToken(user.id, expires);
         const { enviarResetSenha } = await import("./mailer");
         try {
-          await enviarResetSenha({ email: user.email || trimmed, nome: user.nome || user.username || "", token: resetToken.token });
+          const mailResult = await enviarResetSenha({ email: user.email || trimmed, nome: user.nome || user.username || "", token: resetToken.token });
+          if (!mailResult.ok) {
+            return res.status(502).json({ error: "Não foi possível enviar o e-mail de redefinição agora. Tente novamente em instantes." });
+          }
           console.log("[forgot-password] Reset email sent to:", user.email || trimmed);
         } catch (mailErr: any) {
           console.error("[forgot-password] Failed to send email:", mailErr.message);
-          // Still return success to avoid user enumeration, but log the failure
+          return res.status(502).json({ error: "Não foi possível enviar o e-mail de redefinição agora. Tente novamente em instantes." });
         }
       } else {
         console.log("[forgot-password] No local account found for email:", trimmed);

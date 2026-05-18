@@ -42,6 +42,7 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState("");
   const [forgotResending, setForgotResending] = useState(false);
   const [forgotResentOk, setForgotResentOk] = useState(false);
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get("reset") || "");
@@ -60,8 +61,9 @@ export default function LoginPage() {
     } else if (params.get("error") === "google_no_invite") {
       setError("Para acessar a plataforma é necessário um convite de um membro da rede BUILT. Acesse via e-mail e senha ou solicite seu convite.");
     }
-    // Remove query string from URL bar so tokens aren't visible / bookmarked
-    if (window.location.search) {
+    // Keep reset token in the URL until the password is actually changed.
+    // Removing it on mount can leave the user stuck if the page reloads mid-flow.
+    if (window.location.search && !params.get("reset")) {
       window.history.replaceState({}, "", "/login");
     }
   }, []);
@@ -265,16 +267,19 @@ export default function LoginPage() {
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
+    setForgotError("");
     setForgotLoading(true);
     try {
-      await fetch("/api/forgot-password", {
+      const res = await fetch("/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Não foi possível enviar o e-mail agora.");
       setForgotSent(true);
-    } catch {
-      // silently fail — user still sees success message
+    } catch (err: any) {
+      setForgotError(err.message || "Não foi possível enviar o e-mail agora.");
     } finally {
       setForgotLoading(false);
     }
@@ -283,17 +288,20 @@ export default function LoginPage() {
   async function handleResend() {
     if (forgotResending) return;
     setForgotResending(true);
+    setForgotError("");
     setForgotResentOk(false);
     try {
-      await fetch("/api/forgot-password", {
+      const res = await fetch("/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Não foi possível reenviar o e-mail agora.");
       setForgotResentOk(true);
       setTimeout(() => setForgotResentOk(false), 4000);
-    } catch {
-      // silently ignore
+    } catch (err: any) {
+      setForgotError(err.message || "Não foi possível reenviar o e-mail agora.");
     } finally {
       setForgotResending(false);
     }
@@ -314,6 +322,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao redefinir senha");
       setResetDone(true);
+      window.history.replaceState({}, "", "/login");
     } catch (err: any) {
       setResetError(err.message);
     } finally {
@@ -373,6 +382,7 @@ export default function LoginPage() {
                     <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
                     <p className="text-white/80 text-sm">Se existe uma conta com este e-mail, você receberá um link em instantes.</p>
                     <p className="text-white/40 text-xs">Não recebeu?Verifique sua caixa de spam ou reenvie abaixo.</p>
+                    {forgotError && <p className="text-red-400 text-sm">{forgotError}</p>}
                     <button
                       onClick={handleResend}
                       disabled={forgotResending}
@@ -410,6 +420,7 @@ export default function LoginPage() {
                     <Button type="submit" disabled={forgotLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-forgot-submit">
                       {forgotLoading ?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Enviando...</span> : <span className="flex items-center gap-2"><Mail className="w-4 h-4" />Enviar link de redefinição</span>}
                     </Button>
+                    {forgotError && <p className="text-red-400 text-sm text-center">{forgotError}</p>}
                   </form>
                 )}
               </CardContent>
@@ -426,6 +437,12 @@ export default function LoginPage() {
                     <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
                     <p className="text-white/80 text-sm">Senha redefinida com sucesso!</p>
                     <button onClick={() => { setMode("login"); setResetDone(false); }} className="text-[#D7BB7D] text-xs hover:underline">Fazer login</button>
+                  </div>
+                ) : !resetToken ? (
+                  <div className="text-center py-4 space-y-3">
+                    <XCircle className="w-10 h-10 text-red-400 mx-auto" />
+                    <p className="text-white/80 text-sm">Link de redefinição inválido ou incompleto.</p>
+                    <button onClick={() => { setMode("forgot"); setResetError(""); }} className="text-[#D7BB7D] text-xs hover:underline">Solicitar novo link</button>
                   </div>
                 ) : (
                   <form onSubmit={handleResetPassword} className="space-y-4">

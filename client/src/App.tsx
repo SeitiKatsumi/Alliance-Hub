@@ -345,10 +345,17 @@ function PerfilLocationPickerModal({ open, onClose, onSelect }: {
   );
 }
 
-function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
+function PerfilOnboardingModal({
+  membroId,
+  fallbackUser,
+}: {
+  membroId?: string | null;
+  fallbackUser?: { nome?: string | null; email?: string | null } | null;
+}) {
   const { toast } = useToast();
   const [location] = useLocation();
   const [form, setForm] = useState<Partial<OnboardingMembro>>({});
+  const [profileCompletedLocally, setProfileCompletedLocally] = useState(false);
   const [idiomaInput, setIdiomaInput] = useState("");
   const [completed, setCompleted] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -364,16 +371,33 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
   });
 
   useEffect(() => {
+    if (!membroId) {
+      setProfileCompletedLocally(false);
+      return;
+    }
+    setProfileCompletedLocally(window.localStorage.getItem(`built-profile-onboarding-completed:${membroId}`) === "1");
+  }, [membroId]);
+
+  useEffect(() => {
     if (membro) {
-      setForm(membro);
+      setForm({
+        ...membro,
+        nome: membro.nome || fallbackUser?.nome || "",
+        email: membro.email || fallbackUser?.email || "",
+      });
       setCodigoEticaAceito(!!membro.codigo_etica_aceito_em);
       setTermoVitrineAceito(!!membro.vitrine_termo_aceito_em);
       setTermoAreaAliancasAceito(!!membro.area_aliancas_termo_aceito_em);
       setTermoBuiltCapitalAceito(!!membro.built_capital_termo_aceito_em);
     }
-  }, [membro]);
+  }, [membro, fallbackUser?.nome, fallbackUser?.email]);
 
-  const requiredMissing = [membro?.nome, membro?.email, membro?.empresa, membro?.cidade]
+  const requiredMissing = !profileCompletedLocally && [
+    membro?.nome || fallbackUser?.nome,
+    membro?.email || fallbackUser?.email,
+    membro?.empresa,
+    membro?.cidade,
+  ]
     .some(value => !String(value || "").trim());
   const isVitrineRoute = location.startsWith("/vitrine");
   const isAreaAliancasRoute = location.startsWith("/area-aliancas");
@@ -437,6 +461,10 @@ function PerfilOnboardingModal({ membroId }: { membroId?: string | null }) {
       return response.json().catch(() => null);
     },
     onSuccess: (_data, variables) => {
+      if (mostrarPerfilCompleto && membroId) {
+        window.localStorage.setItem(`built-profile-onboarding-completed:${membroId}`, "1");
+        setProfileCompletedLocally(true);
+      }
       setCompleted(!(
         (isVitrineRoute && !membro?.vitrine_termo_aceito_em && !variables.vitrine_termo_aceito_em) ||
         (isAreaAliancasRoute && !membro?.area_aliancas_termo_aceito_em && !variables.area_aliancas_termo_aceito_em) ||
@@ -845,7 +873,7 @@ function ProtectedApp() {
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
-        <PerfilOnboardingModal membroId={user?.membro_directus_id} />
+        <PerfilOnboardingModal membroId={user?.membro_directus_id} fallbackUser={user} />
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center gap-2 p-3 border-b border-border bg-background">

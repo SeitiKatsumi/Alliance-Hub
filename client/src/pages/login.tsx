@@ -698,8 +698,8 @@ export default function LoginPage() {
 
       {/* Interests modal — step 2 of registration */}
       <Dialog open={showInteressesModal} onOpenChange={(open) => { if (!regLoading) setShowInteressesModal(open); }}>
-        <DialogContent className="max-w-6xl border-0 bg-white p-0 text-[#001D34] shadow-2xl overflow-hidden">
-          <div className="grid min-h-[560px] md:grid-cols-[220px_1fr]">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl border-0 bg-white p-0 text-[#001D34] shadow-2xl overflow-hidden">
+          <div className="grid max-h-[calc(100dvh-1rem)] min-h-0 md:min-h-[560px] md:grid-cols-[220px_1fr]">
             <aside className="hidden md:flex flex-col justify-between bg-[#001D34] p-6 text-white">
               <div>
                 <img src={builtLogo} alt="BUILT" className="w-28" />
@@ -724,7 +724,7 @@ export default function LoginPage() {
               <p className="text-xs text-white/60">Precisa de ajuda? Fale com nosso time.</p>
             </aside>
 
-            <div className="p-6 md:p-8">
+            <div className="flex min-h-0 flex-col">
           <DialogHeader className="hidden">
             <DialogTitle className="text-white text-lg font-semibold">Onde você quer participar?</DialogTitle>
             <DialogDescription className="text-white/50 text-sm">
@@ -734,15 +734,16 @@ export default function LoginPage() {
 
           {primeiroAcessoStep === "interesses" ? (
             <>
-              <div className="mb-6 space-y-2">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-6 md:px-8 md:py-8">
+              <div className="mb-4 space-y-2 md:mb-6">
                 <p className="text-xs text-slate-500">Inicio / Primeiro acesso</p>
-                <h2 className="text-2xl font-bold text-[#001D34]">Ola, {regNome || "bem-vindo(a)"}!</h2>
+                <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Ola, {regNome || "bem-vindo(a)"}!</h2>
                 <p className="max-w-2xl text-sm text-slate-600">
                   Escolha a area que mais combina com seu objetivo atual. Voce podera acessar outras areas depois.
                 </p>
               </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
             {[
               {
                 valor: "vitrine",
@@ -773,25 +774,25 @@ export default function LoginPage() {
                   type="button"
                   data-testid={`interesse-${valor}`}
                   onClick={() => toggleInteresse(valor)}
-                  className={`w-full min-h-48 flex flex-col gap-4 p-4 rounded-xl border bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+                  className={`w-full flex flex-col gap-3 rounded-xl border bg-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg md:min-h-48 md:gap-4 md:p-4 ${
                     selecionado
                       ?"border-blue-500 ring-2 ring-blue-500/20"
                       : "border-slate-200 hover:border-[#D7BB7D]"
                   }`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="h-24 -m-4 mb-4 rounded-t-xl border-b border-slate-200 bg-gradient-to-br from-slate-100 via-white to-[#D7BB7D]/20 relative overflow-hidden">
-                      <div className="absolute right-5 top-4 flex items-end gap-1">
-                        <span className="h-8 w-2 rounded-full bg-[#D7BB7D]/70" />
-                        <span className="h-14 w-2 rounded-full bg-[#0B6F91]/70" />
-                        <span className="h-10 w-2 rounded-full bg-slate-400/60" />
+                    <div className="relative -m-3 mb-3 h-14 overflow-hidden rounded-t-xl border-b border-slate-200 bg-gradient-to-br from-slate-100 via-white to-[#D7BB7D]/20 md:-m-4 md:mb-4 md:h-24">
+                      <div className="absolute right-4 top-3 flex items-end gap-1 md:right-5 md:top-4">
+                        <span className="h-6 w-2 rounded-full bg-[#D7BB7D]/70 md:h-8" />
+                        <span className="h-10 w-2 rounded-full bg-[#0B6F91]/70 md:h-14" />
+                        <span className="h-7 w-2 rounded-full bg-slate-400/60 md:h-10" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className={`grid h-10 w-10 place-items-center rounded-full ${selecionado ?"bg-blue-600 text-white" : "bg-[#001D34] text-[#D7BB7D]"}`}>
+                    <div className="flex items-center gap-2.5 flex-wrap md:gap-3">
+                      <span className={`grid h-9 w-9 place-items-center rounded-full md:h-10 md:w-10 ${selecionado ?"bg-blue-600 text-white" : "bg-[#001D34] text-[#D7BB7D]"}`}>
                         {icone}
                       </span>
-                      <p className="text-lg font-bold text-[#001D34]">{titulo}</p>
+                      <p className="text-base font-bold text-[#001D34] md:text-lg">{titulo}</p>
                       {gratuito ?(
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-700 border border-green-500/20">
                           Gratuito
@@ -802,7 +803,7 @@ export default function LoginPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-slate-600 text-sm mt-3 leading-relaxed">{descricao}</p>
+                    <p className="text-slate-600 text-sm mt-2 leading-relaxed md:mt-3">{descricao}</p>
                   </div>
                   <span className={`shrink-0 w-full rounded-md border px-3 py-2 text-center text-sm font-semibold transition-all ${
                     selecionado ?"border-blue-600 bg-blue-600 text-white" : "border-[#001D34] text-[#001D34]"
@@ -816,7 +817,9 @@ export default function LoginPage() {
 
           {regError && <p className="text-red-600 text-sm text-center mt-3">{regError}</p>}
 
-          <div className="flex gap-3 mt-6">
+              </div>
+
+          <div className="sticky bottom-0 z-10 mt-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row md:static md:mt-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0">
             <Button
               type="button"
               variant="ghost"
@@ -848,9 +851,10 @@ export default function LoginPage() {
             </>
           ) : primeiroAcessoStep === "termos" ? (
             <>
-              <div className="mb-6 space-y-2">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-6 md:px-8 md:py-8">
+              <div className="mb-4 space-y-2 md:mb-6">
                 <p className="text-xs text-slate-500">Inicio / Primeiro acesso / Aceites</p>
-                <h2 className="text-2xl font-bold text-[#001D34]">Termos de Acesso BUILT</h2>
+                <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Termos de Acesso BUILT</h2>
                 <p className="max-w-2xl text-sm text-slate-600">
                   Leia e confirme os termos aplicaveis para continuar seu primeiro acesso.
                 </p>
@@ -872,7 +876,7 @@ export default function LoginPage() {
                   })()}
                   <span className="text-xs font-mono text-slate-600 uppercase tracking-wider">{activeTermConfig.title}</span>
                 </div>
-                <div className="p-5 max-h-72 overflow-y-auto">
+                <div className="max-h-56 overflow-y-auto p-4 md:max-h-72 md:p-5">
                   <pre className="text-sm md:text-base font-mono text-slate-700 leading-7 whitespace-pre-wrap">{activeTermConfig.body}</pre>
                 </div>
               </div>
@@ -926,7 +930,9 @@ export default function LoginPage() {
 
               {regError && <p className="text-red-600 text-sm text-center mt-3">{regError}</p>}
 
-              <div className="flex gap-3 mt-5">
+              </div>
+
+              <div className="sticky bottom-0 z-10 mt-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row md:static md:mt-5 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0">
                 <Button
                   type="button"
                   variant="ghost"

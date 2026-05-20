@@ -1,7 +1,7 @@
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, Search } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, Search, Bot, Paperclip, Mic, StopCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -86,6 +86,16 @@ export default function AvaliarAuraCandidatoPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [evalMode, setEvalMode] = useState<"palavras" | "ia">("palavras");
+  const [textoIA, setTextoIA] = useState("");
+  const [arquivoNome, setArquivoNome] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [micBlocked, setMicBlocked] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const { data: convite, isLoading, error } = useQuery<ConviteData>({
     queryKey: ["/api/avaliacao-aura", token],
@@ -133,6 +143,76 @@ export default function AvaliarAuraCandidatoPage() {
       return r.json();
     },
     onSuccess: () => setSubmitted(true),
+    onError: (err: Error) => setPageError(err.message),
+  });
+
+  const extrairArquivoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("arquivo", file);
+      const res = await fetch(`/api/avaliacao-aura/${token}/extrair-arquivo`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao processar arquivo." }));
+        throw new Error(err.error || "Erro ao processar arquivo.");
+      }
+      return res.json() as Promise<{ texto: string }>;
+    },
+    onSuccess: data => {
+      setTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
+      setEvalMode("ia");
+      setPageError(null);
+    },
+    onError: (err: Error) => setPageError(err.message),
+  });
+
+  const transcreverAudioMutation = useMutation({
+    mutationFn: async ({ blob, filename = "percepcao-aura.webm" }: { blob: Blob; filename?: string }) => {
+      const form = new FormData();
+      form.append("audio", blob, filename);
+      const res = await fetch(`/api/avaliacao-aura/${token}/transcrever-audio`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao transcrever áudio." }));
+        throw new Error(err.error || "Erro ao transcrever áudio.");
+      }
+      return res.json() as Promise<{ texto: string }>;
+    },
+    onSuccess: data => {
+      setTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
+      setEvalMode("ia");
+      setPageError(null);
+    },
+    onError: (err: Error) => setPageError(err.message),
+  });
+
+  const analisarTextoMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/avaliacao-aura/${token}/analisar-texto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: textoIA, membro_nome: convite?.candidato_nome }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro na análise com IA." }));
+        throw new Error(err.error || "Erro na análise com IA.");
+      }
+      return res.json() as Promise<{ palavras: string[] }>;
+    },
+    onSuccess: data => {
+      if (!data.palavras?.length) {
+        setPageError("Nenhuma palavra identificada. Descreva com mais detalhes a reputação, confiança e forma de relacionamento.");
+        return;
+      }
+      setSelected(data.palavras.slice(0, 3));
+      setEvalMode("palavras");
+      setPageError(null);
+    },
+    onError: (err: Error) => setPageError(err.message),
   });
 
   if (isLoading) {
@@ -217,6 +297,51 @@ export default function AvaliarAuraCandidatoPage() {
     );
   };
 
+  const startRecording = async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        setPageError("Este navegador não permite gravação de áudio aqui. Use Enviar áudio para selecionar uma gravação.");
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        audioChunksRef.current = [];
+        setRecording(false);
+        if (blob.size > 0) {
+          transcreverAudioMutation.mutate({ blob, filename: "percepcao-aura.webm" });
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+      setMicBlocked(false);
+      setEvalMode("ia");
+      setPageError(null);
+    } catch (err: any) {
+      const permissionDenied = err?.name === "NotAllowedError" || /permission|denied|permiss/i.test(err?.message || "");
+      if (permissionDenied) setMicBlocked(true);
+      setPageError(
+        permissionDenied
+          ? "Microfone bloqueado. Permita o microfone nas configurações do navegador ou use Enviar áudio para selecionar uma gravação do celular."
+          : err?.message || "Não foi possível gravar. Verifique a permissão do microfone ou envie um áudio já gravado."
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "#001D34" }}>
       <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
@@ -263,6 +388,124 @@ export default function AvaliarAuraCandidatoPage() {
           </div>
         )}
 
+        <div className="rounded-xl border border-white/10 overflow-hidden" style={{ background: "rgba(255,255,255,0.03)" }}>
+          <div className="grid grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setEvalMode("palavras")}
+              className="h-12 flex items-center justify-center gap-2 text-xs font-mono font-semibold transition-colors"
+              style={evalMode === "palavras" ?{ background: "rgba(215,187,125,0.18)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.58)" }}
+              data-testid="btn-modo-palavras-publico"
+            >
+              <Sparkles className="w-4 h-4" />
+              Escolher palavras
+            </button>
+            <button
+              type="button"
+              onClick={() => setEvalMode("ia")}
+              className="h-12 flex items-center justify-center gap-2 text-xs font-mono font-semibold transition-colors"
+              style={evalMode === "ia" ?{ background: "rgba(215,187,125,0.18)", color: "#D7BB7D" } : { color: "rgba(255,255,255,0.58)" }}
+              data-testid="btn-modo-ia-publico"
+            >
+              <Bot className="w-4 h-4" />
+              Analisar com IA
+            </button>
+          </div>
+        </div>
+
+        {evalMode === "ia" && (
+          <div className="space-y-4 rounded-xl border border-white/10 p-4" style={{ background: "rgba(255,255,255,0.03)" }}>
+            <p className="text-xs font-mono text-white/55">
+              Descreva a pessoa, anexe um arquivo, grave ou envie um áudio. A IA sugerirá até 3 palavras do léxico.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={extrairArquivoMutation.isPending}
+                className="h-10 rounded-lg border border-white/10 text-white/65 text-xs font-mono flex items-center justify-center gap-2"
+                data-testid="btn-anexar-publico"
+              >
+                <Paperclip className="w-4 h-4" />
+                Anexar
+              </button>
+              <button
+                type="button"
+                onClick={() => recording ?stopRecording() : startRecording()}
+                disabled={transcreverAudioMutation.isPending}
+                className="h-10 rounded-lg border border-white/10 text-white/65 text-xs font-mono flex items-center justify-center gap-2"
+                data-testid="btn-audio-publico"
+                title={micBlocked ? "Microfone bloqueado. Use Enviar áudio para escolher uma gravação." : undefined}
+              >
+                {recording ?<StopCircle className="w-4 h-4 text-red-300" /> : <Mic className="w-4 h-4" />}
+                {transcreverAudioMutation.isPending ?"Transcrevendo..." : recording ?"Parar" : "Gravar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => audioFileInputRef.current?.click()}
+                disabled={transcreverAudioMutation.isPending || recording}
+                className="h-10 rounded-lg border border-white/10 text-white/65 text-xs font-mono flex items-center justify-center gap-2"
+                data-testid="btn-enviar-audio-publico"
+              >
+                <Upload className="w-4 h-4" />
+                Enviar áudio
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.txt,.md,.csv,text/plain,application/pdf"
+              onChange={event => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) return;
+                setArquivoNome(file.name);
+                extrairArquivoMutation.mutate(file);
+              }}
+            />
+            <input
+              ref={audioFileInputRef}
+              type="file"
+              className="hidden"
+              accept="audio/*,video/mp4,video/quicktime"
+              onChange={event => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) return;
+                setArquivoNome(file.name);
+                transcreverAudioMutation.mutate({ blob: file, filename: file.name });
+              }}
+            />
+            {arquivoNome && (
+              <div className="text-[11px] font-mono text-brand-gold/80 border border-brand-gold/20 rounded-lg px-3 py-2 truncate">
+                {arquivoNome}
+              </div>
+            )}
+            <textarea
+              value={textoIA}
+              onChange={event => setTextoIA(event.target.value)}
+              placeholder={`Ex: ${convite.candidato_nome?.split(" ")[0] || "Esta pessoa"} demonstra confiança, entrega combinados, se relaciona bem e contribui para a comunidade...`}
+              className="w-full min-h-[150px] rounded-lg px-3 py-3 text-sm font-mono resize-y outline-none"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(215,187,125,0.18)", color: "rgba(255,255,255,0.82)" }}
+              data-testid="textarea-ia-publico"
+            />
+            <Button
+              type="button"
+              disabled={textoIA.trim().length < 10 || analisarTextoMutation.isPending}
+              onClick={() => analisarTextoMutation.mutate()}
+              className="w-full h-11 font-mono font-bold text-sm disabled:opacity-40"
+              style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
+              data-testid="btn-analisar-ia-publico"
+            >
+              {analisarTextoMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              Analisar com IA
+            </Button>
+          </div>
+        )}
+
+        {evalMode === "palavras" && (
+          <>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(215,187,125,0.5)" }} />
           <Input
@@ -299,6 +542,8 @@ export default function AvaliarAuraCandidatoPage() {
             );
           })}
         </div>
+          </>
+        )}
 
         <Button
           onClick={() => avaliarMutation.mutate()}
@@ -315,8 +560,8 @@ export default function AvaliarAuraCandidatoPage() {
           {selected.length > 0 && ` (${selected.length} palavra${selected.length > 1 ?"s" : ""})`}
         </Button>
 
-        {avaliarMutation.isError && (
-          <p className="text-red-400 text-xs font-mono text-center">{(avaliarMutation.error as Error).message}</p>
+        {pageError && (
+          <p className="text-red-300 text-xs font-mono text-center rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2">{pageError}</p>
         )}
       </div>
     </div>

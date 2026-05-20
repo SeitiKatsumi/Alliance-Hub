@@ -5892,6 +5892,154 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  const validarAvaliacaoAuraPublica = async (avaliacaoToken: string) => {
+    const convite = await storage.getConviteByAvaliacaoToken(avaliacaoToken);
+    if (!convite) return { error: "Link de avaliação inválido", status: 404 as const };
+    if (convite.status !== "aguardando_avaliacao_aura") {
+      return { error: "Avaliação de Aura não está disponível neste momento", status: 400 as const };
+    }
+    return { convite };
+  };
+
+  app.post("/api/avaliacao-aura/:avaliacaoToken/analisar-texto", async (req, res) => {
+    try {
+      const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
+      if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
+      const { texto, membro_nome } = req.body;
+      if (!texto || typeof texto !== "string" || texto.trim().length < 10) {
+        return res.status(400).json({ error: "Texto muito curto. Descreva a pessoa com pelo menos 10 caracteres." });
+      }
+      const { PALAVRAS_SUGERIDAS: lexico } = await import("./aura-lexico.js");
+      const normalizeAuraText = (value: string) =>
+        value
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      const lexicoPorNormalizado = new Map(lexico.map((palavra) => [normalizeAuraText(palavra), palavra]));
+      const resolvePalavraLexico = (palavra: string) => lexicoPorNormalizado.get(normalizeAuraText(palavra));
+      const pushPalavra = (lista: string[], palavra: string) => {
+        const resolvida = resolvePalavraLexico(palavra);
+        if (resolvida && !lista.includes(resolvida) && lista.length < 3) lista.push(resolvida);
+      };
+      const textoNormalizado = normalizeAuraText(texto);
+      const inferirPalavrasPorTexto = () => {
+        const palavras: string[] = [];
+        const regras: Array<{ palavra: string; pistas: string[] }> = [
+          { palavra: "LEALDADE", pistas: ["leal", "fiel", "lealdade", "veste a camisa", "vestir a camisa", "parceira leal", "parceiro leal"] },
+          { palavra: "COMPROMETIMENTO", pistas: ["comprometida", "comprometido", "trabalhadora", "trabalhador", "dedicada", "dedicado", "entrega", "veste a camisa", "vestir a camisa"] },
+          { palavra: "ATENCIOSO", pistas: ["atenciosa", "atencioso", "atencao", "cuidadosa", "cuidadoso", "cuida das pessoas"] },
+          { palavra: "EMPATIA", pistas: ["empatica", "empatico", "acolhedora", "acolhedor", "pessoas", "relaciona bem"] },
+          { palavra: "LIDERANÇA", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
+          { palavra: "ALIANÇA", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+          { palavra: "RESPONSABILIDADE", pistas: ["responsavel", "responsabilidade", "cumpre", "presta contas"] },
+          { palavra: "EFICIÊNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
+        ];
+        for (const regra of regras) {
+          if (regra.pistas.some((pista) => textoNormalizado.includes(normalizeAuraText(pista)))) pushPalavra(palavras, regra.palavra);
+          if (palavras.length >= 3) break;
+        }
+        if (palavras.length < 3) {
+          for (const palavra of lexico) {
+            if (textoNormalizado.includes(normalizeAuraText(palavra))) pushPalavra(palavras, palavra);
+            if (palavras.length >= 3) break;
+          }
+        }
+        return palavras;
+      };
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `Você é um assistente de avaliação de perfil profissional. Dado um texto descritivo sobre uma pessoa, selecione 1 a 3 palavras mais relevantes de um léxico fixo. Responda APENAS com um array JSON de strings. Léxico disponível: ${lexico.join(", ")}.`,
+            },
+            {
+              role: "user",
+              content: `Pessoa avaliada: ${membro_nome || validacao.convite.candidato_nome || "membro"}\n\nDescrição: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do léxico.`,
+            },
+          ],
+          temperature: 0.2,
+          max_tokens: 80,
+        });
+        const raw = completion.choices[0]?.message?.content?.trim() || "[]";
+        let palavras: string[] = [];
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            for (const p of parsed) if (typeof p === "string") pushPalavra(palavras, p);
+          }
+        } catch {
+          for (const palavra of lexico) {
+            if (normalizeAuraText(raw).includes(normalizeAuraText(palavra))) pushPalavra(palavras, palavra);
+          }
+        }
+        if (palavras.length === 0) palavras = inferirPalavrasPorTexto();
+        return res.json({ palavras });
+      } catch (err: any) {
+        console.error("[aura-ai-publica]", err?.message);
+        const palavras = inferirPalavrasPorTexto();
+        if (palavras.length > 0) return res.json({ palavras });
+        return res.status(500).json({ error: "Erro ao analisar texto com IA. Tente novamente." });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/avaliacao-aura/:avaliacaoToken/extrair-arquivo", upload.single("arquivo"), async (req, res) => {
+    try {
+      const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
+      if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+      const mime = file.mimetype;
+      const name = (file.originalname || "").toLowerCase();
+      let texto = "";
+      if (mime === "application/pdf" || name.endsWith(".pdf")) {
+        const pdfParse = (await import("pdf-parse")).default;
+        const data = await pdfParse(file.buffer);
+        texto = data.text || "";
+      } else if (mime.startsWith("text/") || name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) {
+        texto = file.buffer.toString("utf-8");
+      } else {
+        return res.status(400).json({ error: "Tipo de arquivo não suportado. Use PDF ou TXT." });
+      }
+      texto = texto.replace(/\s+/g, " ").trim();
+      if (texto.length > 4000) texto = texto.slice(0, 4000) + "...";
+      if (texto.length < 5) return res.status(400).json({ error: "Não foi possível extrair texto do arquivo." });
+      res.json({ texto });
+    } catch (error: any) {
+      console.error("[aura-arquivo-publico]", error?.message);
+      res.status(500).json({ error: "Erro ao processar o arquivo." });
+    }
+  });
+
+  app.post("/api/avaliacao-aura/:avaliacaoToken/transcrever-audio", auraAudioUpload.single("audio"), async (req, res) => {
+    try {
+      const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
+      if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "Nenhum áudio enviado." });
+      const { toFile } = await import("openai");
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
+      const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: "gpt-4o-mini-transcribe",
+      });
+      const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
+      if (texto.length < 3) return res.status(400).json({ error: "Não foi possível transcrever o áudio." });
+      res.json({ texto: texto.length > 4000 ?texto.slice(0, 4000) + "..." : texto });
+    } catch (error: any) {
+      console.error("[aura-audio-publico]", error?.message);
+      res.status(500).json({ error: "Erro ao transcrever áudio. Tente novamente." });
+    }
+  });
+
   // POST /api/avaliacao-aura/:avaliacaoToken — inviting member submits Aura evaluation (public via dedicated one-time token)
   app.post("/api/avaliacao-aura/:avaliacaoToken", async (req, res) => {
     try {

@@ -5,18 +5,88 @@ import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail, Store, TrendingUp, Handshake, Shield, Send } from "lucide-react";
+import {
+  Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail,
+  Store, TrendingUp, Handshake, Shield, Send, Crown, FolderKanban, Scale, Lightbulb,
+  ShieldCheck, CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Building2, Users,
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera,
+} from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
+import { getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 
 interface ConviteInfo {
   gerador_nome: string | null;
   comunidade_nome: string | null;
+  tipo?: "vitrine" | "capital" | "membros" | null;
   expires_at: string | null;
+}
+
+const CONVITE_INTERESSES: Record<string, string[]> = {
+  vitrine: ["vitrine"],
+  capital: ["capital"],
+  membros: ["membros"],
+};
+
+const CONVITE_TIPO_LABEL: Record<string, string> = {
+  vitrine: "Vitrine BUILT",
+  capital: "BUILT Capital",
+  membros: "Área de Alianças",
+};
+
+const BUILT_CAPITAL_TIPO = "Alianças de Investimento";
+const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário, Investimento & Negócios";
+const BUILT_CAPITAL_SEGMENTO = "Investimentos estruturados em ativos reais";
+const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
+const DEFAULT_AREAS: string[] = [];
+const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: string }> = {
+  "Liderança": { icon: Crown, color: "text-amber-600", bg: "bg-amber-50" },
+  "Projeto": { icon: FolderKanban, color: "text-blue-600", bg: "bg-blue-50" },
+  "Jurídicas": { icon: Scale, color: "text-blue-600", bg: "bg-blue-50" },
+  "Inteligência": { icon: Lightbulb, color: "text-blue-600", bg: "bg-blue-50" },
+  "Governança": { icon: ShieldCheck, color: "text-blue-600", bg: "bg-blue-50" },
+  "Execução": { icon: CircleCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Fornecimento": { icon: Truck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Comerciais": { icon: BriefcaseBusiness, color: "text-purple-600", bg: "bg-purple-50" },
+  "Vendas e Locação": { icon: Tags, color: "text-purple-600", bg: "bg-purple-50" },
+  "Marketing": { icon: Megaphone, color: "text-purple-600", bg: "bg-purple-50" },
+  "Operações e Facilities": { icon: Building2, color: "text-purple-600", bg: "bg-purple-50" },
+  "Gestão de Relacionamento com Cliente": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+  "Relacionamento": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+  "Investimento": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
+  "Contábeis e Tributárias": { icon: ReceiptText, color: "text-orange-600", bg: "bg-orange-50" },
+  "Gestão Financeira": { icon: CircleDollarSign, color: "text-orange-600", bg: "bg-orange-50" },
+};
+
+const PAIS_OPTIONS = [
+  "Brasil", "Argentina", "Chile", "Colômbia", "Estados Unidos", "México", "Paraguai", "Peru", "Portugal", "Uruguai",
+];
+
+const ESTADO_OPTIONS = [
+  "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", "Espírito Santo", "Goiás", "Maranhão",
+  "Mato Grosso", "Mato Grosso do Sul", "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí",
+  "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia", "Roraima", "Santa Catarina", "São Paulo",
+  "Sergipe", "Tocantins",
+];
+
+const CIDADE_OPTIONS = [
+  "São Paulo", "Rio de Janeiro", "Belo Horizonte", "Brasília", "Curitiba", "Porto Alegre", "Florianópolis", "Salvador",
+  "Recife", "Fortaleza", "Goiânia", "Manaus", "Belém", "Vitória", "Campinas", "Santos", "Ribeirão Preto", "Sorocaba",
+  "São José dos Campos", "Joinville", "Londrina", "Maringá", "Cuiabá", "Campo Grande", "Natal", "João Pessoa",
+];
+
+const IDIOMA_OPTIONS = [
+  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano", "Mandarim", "Japonês", "Russo", "Árabe",
+];
+
+function getInteressesFromConvite(info?: ConviteInfo | null): string[] {
+  return CONVITE_INTERESSES[info?.tipo || "vitrine"] || ["vitrine"];
 }
 
 export default function LoginPage() {
@@ -87,10 +157,30 @@ export default function LoginPage() {
   const [conviteStatus, setConviteStatus] = useState<"idle" | "valid" | "invalid">("idle");
   const [conviteChecking, setConviteChecking] = useState(false);
 
-  // Interests modal state
+  // Primeiro acesso modal state
   const [showInteressesModal, setShowInteressesModal] = useState(false);
-  const [primeiroAcessoStep, setPrimeiroAcessoStep] = useState<"interesses" | "termos" | "solicitacao" | "final">("interesses");
+  const [primeiroAcessoStep, setPrimeiroAcessoStep] = useState<"perfil" | "perfil_antigo" | "termos" | "solicitacao" | "final">("perfil");
   const [interessesSelecionados, setInteressesSelecionados] = useState<string[]>([]);
+  const [regEmpresa, setRegEmpresa] = useState("");
+  const [regCargo, setRegCargo] = useState("");
+  const [regTelefone, setRegTelefone] = useState("");
+  const [regWhatsapp, setRegWhatsapp] = useState("");
+  const [regCidade, setRegCidade] = useState("");
+  const [regEstado, setRegEstado] = useState("");
+  const [regPais, setRegPais] = useState("Brasil");
+  const [regIdiomas, setRegIdiomas] = useState("");
+  const [regIdiomaInput, setRegIdiomaInput] = useState("");
+  const [regLinkSite, setRegLinkSite] = useState("");
+  const [regFotoPerfil, setRegFotoPerfil] = useState("");
+  const [regFotoPreview, setRegFotoPreview] = useState("");
+  const [regFotoUploading, setRegFotoUploading] = useState(false);
+  const [regLogoEmpresa, setRegLogoEmpresa] = useState("");
+  const [regLogoPreview, setRegLogoPreview] = useState("");
+  const [regLogoUploading, setRegLogoUploading] = useState(false);
+  const [regRamoAtuacao, setRegRamoAtuacao] = useState("");
+  const [regSegmento, setRegSegmento] = useState("");
+  const [regPerfilAliado, setRegPerfilAliado] = useState("");
+  const [regTiposAlianca, setRegTiposAlianca] = useState<string[]>(DEFAULT_AREAS);
   const [adesaoToken, setAdesaoToken] = useState("");
   const [adesaoConvite, setAdesaoConvite] = useState<any>(null);
   const [checkedTerms, setCheckedTerms] = useState<Record<string, boolean>>({});
@@ -126,6 +216,20 @@ export default function LoginPage() {
     return () => clearTimeout(timeout);
   }, [regConviteToken]);
 
+  useEffect(() => {
+    if (!interessesSelecionados.includes("capital")) return;
+    setRegRamoAtuacao(current => current || BUILT_CAPITAL_RAMO);
+    setRegSegmento(current => current || BUILT_CAPITAL_SEGMENTO);
+    setRegTiposAlianca([BUILT_CAPITAL_TIPO]);
+  }, [interessesSelecionados]);
+
+  useEffect(() => {
+    return () => {
+      if (regFotoPreview) URL.revokeObjectURL(regFotoPreview);
+      if (regLogoPreview) URL.revokeObjectURL(regLogoPreview);
+    };
+  }, [regFotoPreview, regLogoPreview]);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -158,8 +262,14 @@ export default function LoginPage() {
       setRegError("Senha deve ter pelo menos 4 caracteres");
       return;
     }
-    setInteressesSelecionados([]);
-    setPrimeiroAcessoStep("interesses");
+    const interessesDoConvite = getInteressesFromConvite(conviteInfo);
+    setInteressesSelecionados(interessesDoConvite);
+    if (interessesDoConvite.includes("capital")) {
+      setRegTiposAlianca([BUILT_CAPITAL_TIPO]);
+      setRegRamoAtuacao(BUILT_CAPITAL_RAMO);
+      setRegSegmento(BUILT_CAPITAL_SEGMENTO);
+    }
+    setPrimeiroAcessoStep("perfil");
     setAdesaoToken("");
     setAdesaoConvite(null);
     setCheckedTerms({});
@@ -173,8 +283,107 @@ export default function LoginPage() {
     );
   }
 
-  async function handleConfirmarCadastro() {
-    if (interessesSelecionados.length === 0) return;
+  function toggleAreaContribuicao(tipo: string) {
+    if (interessesSelecionados.includes("capital")) return;
+    setRegTiposAlianca(prev => prev.includes(tipo) ? prev.filter(item => item !== tipo) : [...prev, tipo]);
+  }
+
+  async function handleRegFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (regFotoPreview) URL.revokeObjectURL(regFotoPreview);
+    setRegFotoPreview(URL.createObjectURL(file));
+    setRegFotoUploading(true);
+    setRegError("");
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.fileIds?.[0]) throw new Error(json.error || "Upload da foto falhou");
+      setRegFotoPerfil(json.fileIds[0]);
+    } catch (err: any) {
+      setRegFotoPerfil("");
+      setRegFotoPreview("");
+      setRegError(err.message || "Nao foi possivel enviar a foto de perfil.");
+    } finally {
+      setRegFotoUploading(false);
+    }
+  }
+
+  async function handleRegLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (regLogoPreview) URL.revokeObjectURL(regLogoPreview);
+    setRegLogoPreview(URL.createObjectURL(file));
+    setRegLogoUploading(true);
+    setRegError("");
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.fileIds?.[0]) throw new Error(json.error || "Upload da marca falhou");
+      setRegLogoEmpresa(json.fileIds[0]);
+    } catch (err: any) {
+      setRegLogoEmpresa("");
+      setRegLogoPreview("");
+      setRegError(err.message || "Nao foi possivel enviar a marca da empresa.");
+    } finally {
+      setRegLogoUploading(false);
+    }
+  }
+
+  function getRegIdiomasList() {
+    return regIdiomas.split(",").map(idioma => idioma.trim()).filter(Boolean);
+  }
+
+  function addRegIdioma(idioma?: string) {
+    const value = (idioma || regIdiomaInput).trim();
+    if (!value) return;
+    const atuais = getRegIdiomasList();
+    if (!atuais.some(item => item.toLowerCase() === value.toLowerCase())) {
+      setRegIdiomas([...atuais, value].join(", "));
+    }
+    setRegIdiomaInput("");
+  }
+
+  function removeRegIdioma(idioma: string) {
+    setRegIdiomas(getRegIdiomasList().filter(item => item !== idioma).join(", "));
+  }
+
+  async function handleConfirmarCadastro(interessesOverride?: string[]) {
+    const selectedInteresses = interessesOverride && interessesOverride.length > 0 ? interessesOverride : interessesSelecionados;
+    if (selectedInteresses.length === 0) return;
+    const isInvestidor = selectedInteresses.includes("capital");
+    if (!regTelefone.trim()) {
+      setRegError("Informe seu telefone para continuar.");
+      return;
+    }
+    if (!regCidade.trim()) {
+      setRegError("Informe sua cidade para continuar.");
+      return;
+    }
+    if (!regEstado.trim()) {
+      setRegError("Informe seu estado para continuar.");
+      return;
+    }
+    if (!regPais.trim()) {
+      setRegError("Informe seu país para continuar.");
+      return;
+    }
+    if (!regRamoAtuacao.trim()) {
+      setRegError("Selecione seu ramo de atuação.");
+      return;
+    }
+    if (!regSegmento.trim()) {
+      setRegError("Selecione seu segmento.");
+      return;
+    }
+    if (regTiposAlianca.length === 0) {
+      setRegError("Selecione pelo menos uma área de contribuição.");
+      return;
+    }
     setRegLoading(true);
     try {
       const res = await fetch("/api/register", {
@@ -186,20 +395,38 @@ export default function LoginPage() {
           username: regUsername || regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase(),
           password: regPassword,
           convite_token: regConviteToken,
-          interesses: interessesSelecionados,
+          interesses: selectedInteresses,
+          telefone: regTelefone,
+          whatsapp: regWhatsapp,
+          empresa: regEmpresa,
+          cargo: regCargo,
+          cidade: regCidade,
+          estado: regEstado,
+          pais: regPais,
+          idiomas: regIdiomas.split(",").map(idioma => idioma.trim()).filter(Boolean),
+          link_site: regLinkSite,
+          foto_perfil: regFotoPerfil,
+          logo_empresa: regLogoEmpresa,
+          ramo_atuacao: regRamoAtuacao,
+          segmento: regSegmento,
+          especialidade_livre: regPerfilAliado,
+          tipos_alianca: regTiposAlianca,
+          nucleos_alianca: getNucleosForTipos(regTiposAlianca),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
-      if (data.vitrine_token) {
+      if (data.onboarding_token || data.vitrine_token) {
         await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-        setAdesaoToken(data.vitrine_token);
-        const conviteRes = await fetch(`/api/convites/${data.vitrine_token}`);
+        const token = data.onboarding_token || data.vitrine_token;
+        setAdesaoToken(token);
+        const conviteRes = await fetch(`/api/convites/${token}`);
         const conviteData = conviteRes.ok ? await conviteRes.json() : null;
         setAdesaoConvite(conviteData);
-        const required = getRequiredTermKeys(interessesSelecionados);
+        const required = getRequiredTermKeys(selectedInteresses);
         setActiveTerm(required[0] || "codigo_etica");
         setCheckedTerms({});
+        setShowInteressesModal(true);
         setPrimeiroAcessoStep("termos");
       } else if (data.pagamento_token) {
         navigate(`/pagamento/${data.pagamento_token}`);
@@ -698,22 +925,22 @@ export default function LoginPage() {
 
       {/* Interests modal — step 2 of registration */}
       <Dialog open={showInteressesModal} onOpenChange={(open) => { if (!regLoading) setShowInteressesModal(open); }}>
-        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl border-0 bg-white p-0 text-[#001D34] shadow-2xl overflow-hidden">
-          <div className="grid max-h-[calc(100dvh-1rem)] min-h-0 md:min-h-[560px] md:grid-cols-[220px_1fr]">
+        <DialogContent className="!fixed !inset-0 !left-0 !top-0 !h-dvh !max-h-dvh !w-screen !max-w-none !translate-x-0 !translate-y-0 overflow-hidden border-0 bg-white p-0 text-[#001D34] shadow-none sm:!rounded-none [&>button.absolute]:hidden">
+          <div className="grid h-dvh max-h-dvh min-h-0 md:grid-cols-[220px_1fr]">
             <aside className="hidden md:flex flex-col justify-between bg-[#001D34] p-6 text-white">
               <div>
                 <img src={builtLogo} alt="BUILT" className="w-28" />
                 <div className="mt-12 space-y-3">
                   <p className="text-xs text-white/70">Primeiro acesso</p>
-                  <p className="text-sm font-semibold">Etapa {primeiroAcessoStep === "interesses" ? "1" : "2"} de 2</p>
+                  <p className="text-sm font-semibold">Aceites do convite</p>
                   <div className="flex items-center gap-2 pt-1">
-                    {primeiroAcessoStep === "interesses" ? (
+                    {primeiroAcessoStep === "perfil" ? (
                       <span className="h-3 w-3 rounded-full bg-[#D7BB7D]" />
                     ) : (
                       <span className="grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs">1</span>
                     )}
                     <span className="h-px flex-1 bg-[#D7BB7D]" />
-                    {primeiroAcessoStep === "interesses" ? (
+                    {primeiroAcessoStep === "perfil" ? (
                       <span className="grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs">2</span>
                     ) : (
                       <span className="grid h-6 w-6 place-items-center rounded-full bg-[#D7BB7D] text-xs font-bold text-[#001D34]">2</span>
@@ -732,7 +959,214 @@ export default function LoginPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {primeiroAcessoStep === "interesses" ? (
+          {primeiroAcessoStep === "perfil" ? (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-6 md:px-8 md:py-8">
+                <div className="mb-4 space-y-2 md:mb-6">
+                  <p className="text-xs text-slate-500">Inicio / Primeiro acesso</p>
+                  <h2 className="flex items-center gap-3 text-xl font-bold text-[#001D34] md:text-2xl"><span aria-hidden="true" className="text-2xl md:text-3xl">👋</span>Vamos personalizar sua experiência</h2>
+                  <p className="max-w-2xl text-sm text-slate-600">Conte-nos mais sobre você para recomendarmos oportunidades, BIAs e conexões mais relevantes.</p>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
+                  <div className="space-y-4">
+                    <section className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-bold text-[#001D34]">1. Qual o seu papel na BUILT?</h3>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {[
+                          { id: "prestador", titulo: "Prestador de serviços, fornecedor ou profissional independente", desc: "Atuo oferecendo serviços, insumos ou experiência profissional.", icon: <Store className="h-5 w-5" />, color: "blue" },
+                          { id: "capital", titulo: "Parceiro de Capital", desc: "Atuo como investidor ou parceiro de capital.", icon: <TrendingUp className="h-5 w-5" />, color: "green" },
+                        ].map((papel) => {
+                          const selected = interessesSelecionados.includes("capital") ? papel.id === "capital" : papel.id === "prestador";
+                          const selectedCardClass = papel.color === "green" ? "border-emerald-500 bg-emerald-50/50" : "border-blue-500 bg-blue-50/50";
+                          const iconClass = papel.color === "green"
+                            ? selected ? "bg-emerald-100 text-emerald-700" : "bg-emerald-50 text-emerald-700"
+                            : selected ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-700";
+                          const checkClass = papel.color === "green" ? "text-emerald-600" : "text-blue-600";
+                          return (
+                            <div key={papel.id} className={`rounded-lg border p-3 ${selected ? selectedCardClass : "border-slate-200"}`}>
+                              <div className="flex gap-3">
+                                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${iconClass}`}>{papel.icon}</span>
+                                <div>
+                                  <p className="text-sm font-bold text-[#001D34]">{papel.titulo}</p>
+                                  <p className="mt-1 text-xs leading-relaxed text-slate-600">{papel.desc}</p>
+                                </div>
+                                {selected && <CheckCircle className={`ml-auto h-4 w-4 shrink-0 ${checkClass}`} />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
+                      <p className="mt-1 text-xs text-slate-500">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Investimento é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS).map((tipo) => {
+                          const selected = interessesSelecionados.includes("capital") || regTiposAlianca.includes(tipo);
+                          const label = getTipoDisplayName(tipo);
+                          const iconConfig = AREA_ICON_CONFIG[label] || { icon: FolderKanban, color: "text-slate-600", bg: "bg-slate-50" };
+                          const AreaIcon = iconConfig.icon;
+                          return (
+                            <button key={tipo} type="button" onClick={() => toggleAreaContribuicao(tipo)} className={`relative flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}>
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${iconConfig.bg} ${iconConfig.color}`}>
+                                  <AreaIcon className="h-4 w-4" />
+                                </span>
+                                <span className="truncate">{label}</span>
+                              </span>
+                              {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length}</p>
+                    </section>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <section className="rounded-xl border border-slate-200 bg-white p-4">
+                        <h3 className="text-sm font-bold text-[#001D34]">3. Ramo de atuação</h3>
+                        <Select value={regRamoAtuacao} onValueChange={(value) => { setRegRamoAtuacao(value); setRegSegmento(""); }}>
+                          <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o ramo" /></SelectTrigger>
+                          <SelectContent className="max-h-72">{RAMOS_SEGMENTOS.map(ramo => <SelectItem key={ramo.codigo} value={ramo.nome}>{ramo.nome}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <h3 className="mt-4 text-sm font-bold text-[#001D34]">4. Segmento</h3>
+                        <Select value={regSegmento} onValueChange={setRegSegmento} disabled={!regRamoAtuacao}>
+                          <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o segmento" /></SelectTrigger>
+                          <SelectContent className="max-h-72">{getSegmentosForRamo(regRamoAtuacao).map(segmento => <SelectItem key={segmento.codigo} value={segmento.nome}>{segmento.nome}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </section>
+                      <section className="rounded-xl border border-slate-200 bg-white p-4">
+                        <h3 className="text-sm font-bold text-[#001D34]">5. Perfil Técnico</h3>
+                        <Textarea value={regPerfilAliado} onChange={e => setRegPerfilAliado(e.target.value.slice(0, 500))} rows={6} placeholder="Descreva suas principais competências, especialidades e diferenciais técnicos." className="mt-2 resize-none" />
+                        <p className="mt-1 text-right text-[11px] text-slate-400">{regPerfilAliado.length}/500</p>
+                      </section>
+                    </div>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-bold text-[#001D34]">Dados complementares</h3>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-[#001D34]">
+                          {regFotoPreview ? (
+                            <img src={regFotoPreview} alt="Foto de perfil" className="h-full w-full object-cover" />
+                          ) : (
+                            <Camera className="h-5 w-5 text-blue-600" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-[#001D34]">Foto de perfil</p>
+                          <p className="text-[11px] text-slate-500">Adicione uma imagem para aparecer no seu perfil.</p>
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">
+                          {regFotoUploading ? "Enviando..." : regFotoPerfil ? "Trocar foto" : "Adicionar foto"}
+                          <input type="file" accept="image/*" onChange={handleRegFotoChange} disabled={regFotoUploading} className="hidden" />
+                        </label>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-lg bg-white text-sm font-bold text-[#001D34]">
+                          {regLogoPreview ? (
+                            <img src={regLogoPreview} alt="Marca da empresa" className="h-full w-full object-contain p-1" />
+                          ) : (
+                            <Building2 className="h-5 w-5 text-slate-500" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-[#001D34]">Marca da empresa</p>
+                          <p className="text-[11px] text-slate-500">Adicione o logo que aparecerá junto ao nome da empresa.</p>
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">
+                          {regLogoUploading ? "Enviando..." : regLogoEmpresa ? "Trocar marca" : "Adicionar marca"}
+                          <input type="file" accept="image/*" onChange={handleRegLogoChange} disabled={regLogoUploading} className="hidden" />
+                        </label>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <Input value={regEmpresa} onChange={e => setRegEmpresa(e.target.value)} placeholder="Empresa" />
+                        <Input value={regCargo} onChange={e => setRegCargo(e.target.value)} placeholder="Cargo" />
+                        <Input value={regTelefone} onChange={e => setRegTelefone(e.target.value)} placeholder="Telefone *" />
+                        <Input value={regWhatsapp} onChange={e => setRegWhatsapp(e.target.value)} placeholder="WhatsApp" />
+                        <Input value={regCidade} onChange={e => setRegCidade(e.target.value)} placeholder="Cidade *" list="cadastro-cidades" />
+                        <Input value={regEstado} onChange={e => setRegEstado(e.target.value)} placeholder="Estado *" list="cadastro-estados" />
+                        <Input value={regPais} onChange={e => setRegPais(e.target.value)} placeholder="País *" list="cadastro-paises" />
+                        <Input value={regLinkSite} onChange={e => setRegLinkSite(e.target.value)} placeholder="Site / Portfolio" />
+                        <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                          {getRegIdiomasList().length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {getRegIdiomasList().map(idioma => (
+                                <span key={idioma} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                  {idioma}
+                                  <button type="button" onClick={() => removeRegIdioma(idioma)} className="text-blue-500 hover:text-blue-800">×</button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Input
+                              value={regIdiomaInput}
+                              onChange={e => setRegIdiomaInput(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === ",") {
+                                  e.preventDefault();
+                                  addRegIdioma();
+                                }
+                              }}
+                              placeholder="Idiomas falados"
+                              list="cadastro-idiomas"
+                            />
+                            <Button type="button" variant="outline" onClick={() => addRegIdioma()} className="shrink-0">Adicionar</Button>
+                          </div>
+                        </div>
+                      </div>
+                      <datalist id="cadastro-cidades">{CIDADE_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
+                      <datalist id="cadastro-estados">{ESTADO_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
+                      <datalist id="cadastro-paises">{PAIS_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
+                      <datalist id="cadastro-idiomas">{IDIOMA_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
+                    </section>
+                  </div>
+                  <aside className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-sm font-bold text-[#001D34]">Resumo do seu perfil</p>
+                      <div className="mt-4 flex items-center gap-3 border-b border-slate-100 pb-4">
+                        <span className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 text-lg font-bold text-[#001D34]">{(regNome || "BU").split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase()}</span>
+                        <div className="min-w-0">
+                          <p className="font-bold text-[#001D34]">{regNome || "Seu nome"}</p>
+                          {(regEmpresa || regLogoPreview) && (
+                            <div className="mt-1 flex min-w-0 items-center gap-2">
+                              <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded border border-slate-200 bg-white">
+                                {regLogoPreview ? (
+                                  <img src={regLogoPreview} alt="Marca da empresa" className="h-full w-full object-contain p-0.5" />
+                                ) : (
+                                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                )}
+                              </span>
+                              <span className="truncate text-xs font-semibold text-slate-700">{regEmpresa || "Empresa"}</span>
+                            </div>
+                          )}
+                          <p className="mt-1 text-xs text-slate-500">{regCargo || CONVITE_TIPO_LABEL[conviteInfo?.tipo || interessesSelecionados[0] || "vitrine"]}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-3 text-xs">
+                        <div><p className="font-bold text-slate-700">Papel na BUILT</p><p className="mt-1 text-slate-600">{interessesSelecionados.includes("capital") ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p></div>
+                        <div><p className="font-bold text-slate-700">Áreas de contribuição ({interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : regTiposAlianca).map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>
+                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{regSegmento || "-"}</p><p className="font-bold text-slate-700">Área de atuação</p><p className="text-slate-600">{regCidade || "-"}</p></div>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-sm font-bold text-[#001D34]">Permissões iniciais</p>
+                      <div className="mt-3 space-y-2 text-xs text-slate-600">{["Receber recomendações personalizadas", "Acessar oportunidades e BIAs compatíveis", "Conectar-se com aliados recomendados", "Receber comunicações da BUILT"].map(item => <p key={item} className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600" />{item}</p>)}</div>
+                    </div>
+                  </aside>
+                </div>
+                {regError && <p className="text-red-600 text-sm text-center mt-3">{regError}</p>}
+                <p className="mt-4 text-center text-xs text-slate-500">
+                  Você poderá alterar essas informações depois nas configurações do seu perfil.
+                </p>
+              </div>
+              <div className="sticky bottom-0 z-10 mt-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row md:static md:mt-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0">
+                <Button type="button" variant="ghost" onClick={() => setShowInteressesModal(false)} disabled={regLoading} className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50"><ArrowLeft className="w-4 h-4 mr-1.5" />Voltar</Button>
+                <Button type="button" onClick={() => handleConfirmarCadastro()} disabled={regLoading || regFotoUploading || regLogoUploading} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50">{regFotoUploading ? "Enviando foto..." : regLogoUploading ? "Enviando marca..." : regLoading ? "Criando..." : "Concluir e acessar a BUILT"}</Button>
+              </div>
+            </>
+          ) : primeiroAcessoStep === "perfil_antigo" ? (
             <>
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-6 md:px-8 md:py-8">
               <div className="mb-4 space-y-2 md:mb-6">
@@ -834,7 +1268,7 @@ export default function LoginPage() {
             <Button
               type="button"
               data-testid="button-confirmar-cadastro"
-              onClick={handleConfirmarCadastro}
+              onClick={() => handleConfirmarCadastro()}
               disabled={regLoading || interessesSelecionados.length === 0}
               className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold disabled:opacity-50"
             >
@@ -856,7 +1290,7 @@ export default function LoginPage() {
                 <p className="text-xs text-slate-500">Inicio / Primeiro acesso / Aceites</p>
                 <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Termos de Acesso BUILT</h2>
                 <p className="max-w-2xl text-sm text-slate-600">
-                  Leia e confirme os termos aplicaveis para continuar seu primeiro acesso.
+                  Seu convite foi definido para {CONVITE_TIPO_LABEL[conviteInfo?.tipo || interessesSelecionados[0] || "vitrine"] || "Vitrine BUILT"}. Leia e confirme os termos aplicaveis para continuar.
                 </p>
               </div>
 
@@ -936,7 +1370,7 @@ export default function LoginPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setPrimeiroAcessoStep("interesses")}
+                  onClick={() => setShowInteressesModal(false)}
                   disabled={aceiteLoading}
                   className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
                 >

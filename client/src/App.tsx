@@ -59,16 +59,16 @@ interface OnboardingMembro {
   id: string;
   nome?: string;
   email?: string;
-  telefone?: string;
-  whatsapp?: string;
-  cidade?: string;
-  estado?: string;
-  pais?: string;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  pais?: string | null;
   latitude?: string | null;
   longitude?: string | null;
-  empresa?: string;
-  cargo?: string;
-  especialidade_livre?: string;
+  empresa?: string | null;
+  cargo?: string | null;
+  especialidade_livre?: string | null;
   perfil_aliado?: string | null;
   ramo_atuacao?: string | null;
   segmento?: string | null;
@@ -77,6 +77,7 @@ interface OnboardingMembro {
   tipos_alianca?: string[] | null;
   link_site?: string | null;
   na_vitrine?: boolean;
+  em_built_capital?: boolean | null;
   codigo_etica_aceito_em?: string | null;
   codigo_etica_versao?: string | null;
   vitrine_termo_aceito_em?: string | null;
@@ -87,6 +88,8 @@ interface OnboardingMembro {
   built_capital_termo_versao?: string | null;
 }
 
+const BUILT_CAPITAL_NUCLEO = "Núcleo de Capital";
+const BUILT_CAPITAL_TIPO = "Alianças de Investimento";
 const CODIGO_ETICA_BUILT_VERSAO = "BUILT JUR - 1";
 const CODIGO_ETICA_BUILT = [
   "Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.",
@@ -380,10 +383,21 @@ function PerfilOnboardingModal({
 
   useEffect(() => {
     if (membro) {
+      const isBuiltCapitalMember = !!membro.em_built_capital;
+      const tiposAlianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
+      const nucleosAlianca = Array.isArray(membro.nucleos_alianca) ? membro.nucleos_alianca : [];
+      const tiposComCapital = isBuiltCapitalMember && !tiposAlianca.includes(BUILT_CAPITAL_TIPO)
+        ? [...tiposAlianca, BUILT_CAPITAL_TIPO]
+        : tiposAlianca;
+      const nucleosComCapital = isBuiltCapitalMember && !nucleosAlianca.includes(BUILT_CAPITAL_NUCLEO)
+        ? [...nucleosAlianca, BUILT_CAPITAL_NUCLEO]
+        : nucleosAlianca;
       setForm({
         ...membro,
         nome: membro.nome || fallbackUser?.nome || "",
         email: membro.email || fallbackUser?.email || "",
+        tipos_alianca: tiposComCapital,
+        nucleos_alianca: nucleosComCapital,
       });
       setCodigoEticaAceito(!!membro.codigo_etica_aceito_em);
       setTermoVitrineAceito(!!membro.vitrine_termo_aceito_em);
@@ -392,13 +406,7 @@ function PerfilOnboardingModal({
     }
   }, [membro, fallbackUser?.nome, fallbackUser?.email]);
 
-  const requiredMissing = !profileCompletedLocally && [
-    membro?.nome || fallbackUser?.nome,
-    membro?.email || fallbackUser?.email,
-    membro?.empresa,
-    membro?.cidade,
-  ]
-    .some(value => !String(value || "").trim());
+  const requiredMissing = false;
   const isVitrineRoute = location.startsWith("/vitrine");
   const isAreaAliancasRoute = location.startsWith("/area-aliancas");
   const isBuiltCapitalRoute = location.startsWith("/built-capital");
@@ -505,6 +513,14 @@ function PerfilOnboardingModal({
       toast({ title: `Preencha o campo: ${missing.label}`, variant: "destructive" });
       return;
     }
+    const isBuiltCapitalMember = !!form.em_built_capital;
+    const tiposAlianca = isBuiltCapitalMember
+      ? Array.from(new Set([...(form.tipos_alianca || []), BUILT_CAPITAL_TIPO]))
+      : form.tipos_alianca || [];
+    const nucleosAlianca = isBuiltCapitalMember
+      ? Array.from(new Set([...(form.nucleos_alianca || []), BUILT_CAPITAL_NUCLEO]))
+      : form.nucleos_alianca || [];
+
     salvarMutation.mutate({
       nome: String(form.nome || "").trim(),
       email: String(form.email || "").trim(),
@@ -523,8 +539,8 @@ function PerfilOnboardingModal({
       segmento: String(form.segmento || "").trim() || null,
       link_site: String(form.link_site || "").trim() || null,
       idiomas: form.idiomas || [],
-      tipos_alianca: form.tipos_alianca || [],
-      nucleos_alianca: form.nucleos_alianca || [],
+      tipos_alianca: tiposAlianca,
+      nucleos_alianca: nucleosAlianca,
       na_vitrine: !!form.na_vitrine,
       ...(termoModulo?.checked ? termoModulo.payload : {}),
     });
@@ -629,42 +645,52 @@ function PerfilOnboardingModal({
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>Área de Contribuição</Label>
-            {(form.tipos_alianca || []).length > 0 && (
+            {form.em_built_capital ? (
               <div className="flex flex-wrap gap-1.5">
-                {(form.tipos_alianca || []).map(tipo => (
-                  <span key={tipo} className="flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
-                    {getTipoDisplayName(tipo)}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const novos = (form.tipos_alianca || []).filter(item => item !== tipo);
-                        setForm(current => ({ ...current, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
+                <span className="rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
+                  {getTipoDisplayName(BUILT_CAPITAL_TIPO)}
+                </span>
               </div>
+            ) : (
+              <>
+                {(form.tipos_alianca || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(form.tipos_alianca || []).map(tipo => (
+                      <span key={tipo} className="flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
+                        {getTipoDisplayName(tipo)}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const novos = (form.tipos_alianca || []).filter(item => item !== tipo);
+                            setForm(current => ({ ...current, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <Select
+                  value=""
+                  onValueChange={value => {
+                    if (!value || (form.tipos_alianca || []).includes(value)) return;
+                    const novos = [...(form.tipos_alianca || []), value];
+                    setForm(current => ({ ...current, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                  }}
+                >
+                  <SelectTrigger className="w-auto" data-testid="select-onboarding-area">
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    <span className="text-xs">Adicionar Área</span>
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {getAllTipos().filter(tipo => !(form.tipos_alianca || []).includes(tipo.nome)).map(tipo => (
+                      <SelectItem key={tipo.nome} value={tipo.nome}>{getTipoDisplayName(tipo.nome)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
             )}
-            <Select
-              value=""
-              onValueChange={value => {
-                if (!value || (form.tipos_alianca || []).includes(value)) return;
-                const novos = [...(form.tipos_alianca || []), value];
-                setForm(current => ({ ...current, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
-              }}
-            >
-              <SelectTrigger className="w-auto" data-testid="select-onboarding-area">
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                <span className="text-xs">Adicionar Área</span>
-              </SelectTrigger>
-              <SelectContent className="max-h-64">
-                {getAllTipos().filter(tipo => !(form.tipos_alianca || []).includes(tipo.nome)).map(tipo => (
-                  <SelectItem key={tipo.nome} value={tipo.nome}>{getTipoDisplayName(tipo.nome)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label className="flex items-center gap-1.5">

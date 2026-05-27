@@ -352,6 +352,7 @@ function getConviteInteresses(convite?: ConviteData): string[] {
     return Array.from(new Set(raw.map((item) => String(item).toLowerCase())));
   }
   if (convite?.tipo === "vitrine") return ["vitrine"];
+  if (convite?.tipo === "capital") return ["capital"];
   if (convite?.tipo === "associacao_completa") return ["membros"];
   return ["membros"];
 }

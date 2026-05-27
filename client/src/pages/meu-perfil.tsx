@@ -46,6 +46,12 @@ interface NominatimResult {
 const INVITE_APP_URL = "https://built.dna11.com.br";
 const FOTO_CROP_BOX = 320;
 const FOTO_CROP_OUTPUT = 640;
+const INVITE_TYPE_OPTIONS = [
+  { value: "vitrine", label: "BUILT Vitrine" },
+  { value: "capital", label: "Investidor (Capital)" },
+  { value: "membros", label: "Área de Alianças" },
+];
+const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -246,6 +252,7 @@ export default function MeuPerfilPage() {
   const isSuperAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const [saved, setSaved] = useState(false);
+  const [conviteTipo, setConviteTipo] = useState("vitrine");
 
   const membroId = user?.membro_directus_id;
 
@@ -307,12 +314,12 @@ export default function MeuPerfilPage() {
   const meuConviteLink = normalizeInviteLink(meuConvite?.link);
 
   const gerarConviteMutation = useMutation({
-    mutationFn: async (force?: boolean) => {
+    mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
       const res = await fetch("/api/meu-convite", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: !!force }),
+        body: JSON.stringify({ force: !!force, tipo }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao gerar convite");
@@ -323,6 +330,11 @@ export default function MeuPerfilPage() {
     },
     onError: (err: any) => toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" }),
   });
+
+  function handleConviteTipoChange(tipo: string) {
+    setConviteTipo(tipo);
+    gerarConviteMutation.mutate({ force: true, tipo });
+  }
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Membro>) =>
@@ -1160,8 +1172,26 @@ export default function MeuPerfilPage() {
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Compartilhe seu link de convite para que novas pessoas se cadastrem na rede BUILT. O link é válido por 1 dia.
+                  Escolha o tipo de acesso e compartilhe seu link de convite. O link é válido por 1 dia.
                 </p>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-mono uppercase tracking-widest text-white/30">Tipo de convite</Label>
+                  <Select value={conviteTipo} onValueChange={handleConviteTipoChange}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white/70" data-testid="select-perfil-tipo-convite">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INVITE_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {meuConvite?.tipo && (
+                    <p className="text-[10px] font-mono text-white/25">
+                      Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "BUILT Vitrine"}
+                    </p>
+                  )}
+                </div>
                 {meuConviteLink ?(
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
@@ -1190,7 +1220,7 @@ export default function MeuPerfilPage() {
                     )}
                     <InviteQrCode link={meuConviteLink} />
                     <button
-                      onClick={() => gerarConviteMutation.mutate(true)}
+                      onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
                       disabled={gerarConviteMutation.isPending}
                       className="flex items-center gap-1.5 text-xs font-mono text-white/30 hover:text-white/50 transition-colors"
                       data-testid="btn-renovar-convite"
@@ -1201,7 +1231,7 @@ export default function MeuPerfilPage() {
                   </div>
                 ) : (
                   <Button
-                    onClick={() => gerarConviteMutation.mutate()}
+                    onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
                     disabled={gerarConviteMutation.isPending}
                     size="sm"
                     className="gap-2 font-mono text-xs"

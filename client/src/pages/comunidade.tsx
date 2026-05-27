@@ -861,16 +861,16 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     onError: () => toast({ title: "Erro ao enviar lembrete", variant: "destructive" }),
   });
 
-  // Query for vitrine candidates (tipo=vitrine from convitesComunidade)
+  // Query for vitrine/capital candidates from convitesComunidade
   const { data: vitrineCandidatos = [] } = useQuery<any[]>({
     queryKey: ["/api/convites/vitrine", isAdmin, isManager, comunidadesParaConvites.map(c => c.id).join(",")],
     queryFn: async () => {
       const results: any[] = [];
       for (const com of comunidadesParaConvites) {
-        const r = await fetch(`/api/convites?comunidade_id=${com.id}&tipo=vitrine`);
+        const r = await fetch(`/api/convites?comunidade_id=${com.id}`);
         if (r.ok) {
           const data = await r.json();
-          results.push(...(data || []));
+          results.push(...(data || []).filter((convite: any) => ["vitrine", "capital"].includes(String(convite.tipo || ""))));
         }
       }
       return results;

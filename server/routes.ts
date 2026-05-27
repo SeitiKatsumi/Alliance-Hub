@@ -1121,6 +1121,10 @@ async function ensureOpaInteressesCrmFields() {
   `);
 }
 
+async function ensureConvitesLinkTipoField() {
+  await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS tipo text DEFAULT 'vitrine' NOT NULL`);
+}
+
 async function ensureComunidadeM2O(col: string, field: string, relatedCollection: string) {
   const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
   const fr = await directusFieldPost(col, {
@@ -1414,6 +1418,7 @@ export async function registerRoutes(
   ensureEstudosViabilidadeCollection().catch(console.error);
   ensureNucleoTecnicoCollection().catch(console.error);
   ensureOpaInteressesCrmFields().catch(console.error);
+  ensureConvitesLinkTipoField().catch((err: any) => console.warn("[convites_link] Campo tipo nao sincronizado:", err?.message || err));
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -4210,7 +4215,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // ── Self-registration ──────────────────────────────────────────────
   app.post("/api/register", async (req, res) => {
     try {
-      const { nome, email, username, password, telefone, empresa, cidade, estado, convite_token, interesses } = req.body;
+      const {
+        nome,
+        email,
+        username,
+        password,
+        telefone,
+        whatsapp,
+        empresa,
+        cargo,
+        cidade,
+        estado,
+        pais,
+        idiomas,
+        link_site,
+        foto_perfil,
+        logo_empresa,
+        convite_token,
+        interesses,
+        ramo_atuacao,
+        segmento,
+        perfil_aliado,
+        especialidade_livre,
+        tipos_alianca,
+        nucleos_alianca,
+      } = req.body;
       if (!nome || !email || !password)
         return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
       if (password.length < 4)
@@ -4235,14 +4264,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const existingByEmail = await storage.getUserByEmail(email);
       if (existingByEmail) return res.status(409).json({ error: "E-mail já cadastrado" });
 
-      // Parse and validate interesses
+      // The inviter chooses the destination when generating the invite link.
       const INTERESSES_VALIDOS = ["vitrine", "capital", "membros"];
-      const interessesArr: string[] = Array.isArray(interesses)
+      const conviteLinkTipo = INTERESSES_VALIDOS.includes(String((conviteLink as any).tipo || ""))
+        ? String((conviteLink as any).tipo)
+        : "";
+      const fallbackInteresses: string[] = Array.isArray(interesses)
         ? interesses.filter((v: any) => typeof v === "string" && INTERESSES_VALIDOS.includes(v))
         : [];
-      if (interessesArr.length === 0) {
-        return res.status(400).json({ error: "Selecione pelo menos uma área de interesse para continuar." });
-      }
+      const conviteDestino = conviteLinkTipo || fallbackInteresses[0] || "vitrine";
+      const interessesArr: string[] = [conviteDestino];
       const naVitrine = interessesArr.includes("vitrine");
       const emBuiltCapital = interessesArr.includes("capital");
       const emMembrosBuilt = interessesArr.includes("membros");
@@ -4256,10 +4287,46 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         em_built_capital: emBuiltCapital,
         em_membros_built: emMembrosBuilt,
       };
+      if (emBuiltCapital) {
+        directusPayload.nucleo_alianca = "Núcleo de Capital";
+        directusPayload.tipo_alianca = "Alianças de Investimento";
+        directusPayload.nucleos_alianca = ["Núcleo de Capital"];
+        directusPayload.tipos_alianca = ["Alianças de Investimento"];
+      } else {
+        const tiposAlianca = Array.isArray(tipos_alianca)
+          ? tipos_alianca.filter((item: any) => typeof item === "string" && item.trim())
+          : [];
+        const nucleosAlianca = Array.isArray(nucleos_alianca)
+          ? nucleos_alianca.filter((item: any) => typeof item === "string" && item.trim())
+          : [];
+        if (tiposAlianca.length > 0) {
+          directusPayload.tipos_alianca = tiposAlianca;
+          directusPayload.tipo_alianca = tiposAlianca[0];
+        }
+        if (nucleosAlianca.length > 0) {
+          directusPayload.nucleos_alianca = nucleosAlianca;
+          directusPayload.nucleo_alianca = nucleosAlianca[0];
+        }
+      }
       if (telefone) directusPayload.telefone = telefone;
+      if (whatsapp) directusPayload.whatsapp = whatsapp;
       if (empresa) directusPayload.empresa = empresa;
+      if (cargo) directusPayload.cargo = cargo;
       if (cidade) directusPayload.cidade = cidade;
       if (estado) directusPayload.estado = estado;
+      if (pais) directusPayload.pais = pais;
+      if (Array.isArray(idiomas) && idiomas.length > 0) directusPayload.idiomas = idiomas;
+      if (link_site) directusPayload.link_site = link_site;
+      if (foto_perfil) {
+        directusPayload.foto_perfil = foto_perfil;
+        directusPayload.foto_posicao_x = 50;
+        directusPayload.foto_posicao_y = 50;
+      }
+      if (logo_empresa) directusPayload.logo_empresa = logo_empresa;
+      if (ramo_atuacao) directusPayload.ramo_atuacao = ramo_atuacao;
+      if (segmento) directusPayload.segmento = segmento;
+      if (perfil_aliado) directusPayload.perfil_aliado = perfil_aliado;
+      if (especialidade_livre) directusPayload.especialidade_livre = especialidade_livre;
 
       const directusRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
         method: "POST",
@@ -4324,12 +4391,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         ativo: true,
       });
 
-      // 4. Mark convite_link as used, create vitrine candidatura, and optionally associacao_completa.
+      // 4. Mark convite_link as used and create the destination-specific onboarding invite.
       // These steps are mandatory — if they fail we roll back both the user creation
       // AND the token consumption so the invite can still be used on retry.
       let tokenConsumed = false;
-      let pagamentoToken: string | null = null;
-      let vitrineToken: string | null = null;
+      let onboardingToken: string | null = null;
       try {
         await storage.updateConviteLink(conviteLink.id, {
           status: "usado",
@@ -4338,45 +4404,26 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         });
         tokenConsumed = true;
 
-        const vitrineConvite = await storage.createConvite({
+        const conviteTipo = conviteDestino === "membros" ? "associacao_completa" : conviteDestino;
+        const conviteCriado = await storage.createConvite({
           comunidade_id: conviteLink.comunidade_id!,
           candidato_membro_id: membroDirectusId,
           candidato_nome: nome,
           candidato_email: email,
           invitador_membro_id: conviteLink.gerador_membro_id || null,
           status: "termos_pendentes",
-          tipo: "vitrine",
+          tipo: conviteTipo,
           dados_contratuais: {
             interesses: interessesArr,
             origem: "cadastro_inicial",
+            convite_link_tipo: conviteDestino,
             termos_aceitos: {},
             termos_versoes: {},
           },
           expires_at: null,
         });
-        vitrineToken = vitrineConvite.token;
-
-        // If user chose Área de Alianças, create an associacao_completa convite for payment
-        if (emMembrosBuilt && conviteLink.comunidade_id) {
-          const assocConvite = await storage.createConvite({
-            comunidade_id: conviteLink.comunidade_id,
-            candidato_membro_id: membroDirectusId,
-            candidato_nome: nome,
-            candidato_email: email,
-            invitador_membro_id: conviteLink.gerador_membro_id || null,
-            status: "convidado",
-            tipo: "associacao_completa",
-            dados_contratuais: {
-              interesses: ["membros"],
-              origem_interesses: interessesArr,
-              termos_aceitos: {},
-              termos_versoes: {},
-            },
-            expires_at: null,
-          });
-          pagamentoToken = assocConvite.token;
-          console.log("[register] associacao_completa convite created:", assocConvite.id, "token:", pagamentoToken);
-        }
+        onboardingToken = conviteCriado.token;
+        console.log("[register] onboarding convite created:", conviteCriado.id, "tipo:", conviteTipo);
       } catch (postUserErr: any) {
         // Roll back: delete the newly created user so they cannot log in
         // in an unapproved state, and restore the token to "ativo" if it was already consumed.
@@ -4401,8 +4448,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       res.json({
         success: true,
         user: safe,
-        ...(pagamentoToken ? { pagamento_token: pagamentoToken } : {}),
-        ...(vitrineToken ? { vitrine_token: vitrineToken } : {}),
+        ...(onboardingToken ? { onboarding_token: onboardingToken, vitrine_token: onboardingToken } : {}),
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -4661,7 +4707,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const localUser = await storage.getUserByEmail(email);
         if (localUser?.membro_directus_id) {
           const vitrineConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "vitrine");
-          const blocking = vitrineConvites.find(c => PENDING_VITRINE_STATUSES.includes(c.status));
+          const capitalConvites = await storage.getConvitesByCandidatoMembro(localUser.membro_directus_id, "capital");
+          const blocking = [...vitrineConvites, ...capitalConvites].find(c => PENDING_VITRINE_STATUSES.includes(c.status));
           if (blocking) {
             pending_vitrine = true;
             convite_pendente = { token: blocking.token, status: blocking.status };
@@ -5655,7 +5702,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
-      const isVitrine = convite.tipo === "vitrine";
+      const isVitrine = ["vitrine", "capital"].includes(convite.tipo);
 
       let newStatus: string;
       let updated: any;
@@ -6259,11 +6306,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Any authenticated member may generate a personal invite link (requires community membership)
 
       const forceNew = req.body?.force === true;
+      const tiposConviteValidos = ["vitrine", "capital", "membros"];
+      const tipoConvite = tiposConviteValidos.includes(String(req.body?.tipo || ""))
+        ? String(req.body.tipo)
+        : "vitrine";
 
       // Check if there's already an active invite (skip if force=true)
       if (!forceNew) {
         const existing = await storage.getActiveConviteLinkByUserId(userId);
-        if (existing && new Date() < new Date(existing.expires_at)) {
+        if (existing && new Date() < new Date(existing.expires_at) && ((existing as any).tipo || "vitrine") === tipoConvite) {
           const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
           return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
         }
@@ -6318,6 +6369,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         gerador_nome: nome || null,
         comunidade_id: comunidadeId || null,
         comunidade_nome: comunidadeNome || null,
+        tipo: tipoConvite,
         status: "ativo",
         usado_por_user_id: null,
         expires_at: expires,
@@ -6362,6 +6414,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       res.json({
         gerador_nome: convite.gerador_nome,
         comunidade_nome: convite.comunidade_nome,
+        tipo: (convite as any).tipo || "vitrine",
         expires_at: convite.expires_at,
       });
     } catch (error: any) {
@@ -6375,7 +6428,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     try {
       const convite = await storage.getConviteByToken(req.params.token);
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.tipo !== "vitrine") return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine" });
+      if (!["vitrine", "capital"].includes(convite.tipo)) return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine ou capital" });
       if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
 
       // Get comunidade for authorization
@@ -6438,7 +6491,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     try {
       const convite = await storage.getConviteByToken(req.params.token);
       if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.tipo !== "vitrine") return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine" });
+      if (!["vitrine", "capital"].includes(convite.tipo)) return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine ou capital" });
       if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
 
       const col = await getComunidadeCol();

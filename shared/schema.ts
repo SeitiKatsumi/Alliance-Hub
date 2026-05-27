@@ -410,6 +410,7 @@ export const convitesLink = pgTable("convites_link", {
   gerador_nome: text("gerador_nome"),
   comunidade_id: text("comunidade_id"),
   comunidade_nome: text("comunidade_nome"),
+  tipo: text("tipo").notNull().default("vitrine"),
   status: text("status").notNull().default("ativo"),
   usado_por_user_id: varchar("usado_por_user_id"),
   criado_em: timestamp("criado_em").defaultNow(),

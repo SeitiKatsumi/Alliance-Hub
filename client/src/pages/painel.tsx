@@ -18,7 +18,7 @@ import {
   Briefcase, Globe, Users, TrendingUp, TrendingDown,
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
-  Ticket, Copy, RefreshCw, Loader2, Quote,
+  Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -145,6 +145,13 @@ function normalizeText(value?: string | number | null): string {
 const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#64748B"];
 const INVITE_APP_URL = "https://built.dna11.com.br";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const INVITE_TYPE_OPTIONS = [
+  { value: "vitrine", label: "BUILT Vitrine" },
+  { value: "capital", label: "Investidor (Capital)" },
+  { value: "membros", label: "Área de Alianças" },
+];
+const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+const DASHBOARD_ENV_IMAGES = Array.from({ length: 10 }, (_, index) => `/dashboard-env/built-env-${String(index + 1).padStart(2, "0")}.png`);
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -159,6 +166,13 @@ function compactLabel(value?: string | null): string {
 function getDailyQuoteIndex(date = new Date()) {
   const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   return Math.abs(Math.floor(localMidnight / DAY_IN_MS)) % DASHBOARD_DAILY_QUOTES.length;
+}
+
+function getDailyEnvironmentImages(date = new Date()) {
+  const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const dayIndex = Math.abs(Math.floor(localMidnight / DAY_IN_MS));
+  const start = dayIndex % DASHBOARD_ENV_IMAGES.length;
+  return [0, 3, 6].map((offset) => DASHBOARD_ENV_IMAGES[(start + offset) % DASHBOARD_ENV_IMAGES.length]);
 }
 
 function canonicalChartLabel(value?: string | null): { key: string; label: string } {
@@ -297,6 +311,7 @@ export default function PainelPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
+  const [conviteTipo, setConviteTipo] = useState("vitrine");
 
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
@@ -315,12 +330,12 @@ export default function PainelPage() {
   const meuConviteLink = normalizeInviteLink(meuConvite?.link);
 
   const gerarConviteMutation = useMutation({
-    mutationFn: async (force?: boolean) => {
+    mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
       const res = await fetch("/api/meu-convite", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: !!force }),
+        body: JSON.stringify({ force: !!force, tipo }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao gerar convite");
@@ -333,6 +348,11 @@ export default function PainelPage() {
       toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" });
     },
   });
+
+  function handleConviteTipoChange(tipo: string) {
+    setConviteTipo(tipo);
+    gerarConviteMutation.mutate({ force: true, tipo });
+  }
 
   const { data: auraData } = useQuery<{ score: number | null; T: number | null; R: number | null; C: number | null; n: number; faixa: string | null }>({
     queryKey: ["/api/aura/score", user?.membro_directus_id],
@@ -478,6 +498,7 @@ export default function PainelPage() {
     .join("")
     .toUpperCase();
   const dailyQuote = useMemo(() => DASHBOARD_DAILY_QUOTES[getDailyQuoteIndex()], []);
+  const environmentImages = useMemo(() => getDailyEnvironmentImages(), []);
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -563,12 +584,138 @@ export default function PainelPage() {
         </Card>
       )}
 
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <Card className="border border-border/60">
+          <CardContent className="p-4">
+            <h2 className="text-sm font-semibold text-foreground">Seus ambientes BUILT</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {[
+                {
+                  title: "BUILT Vitrine",
+                  subtitle: "Conecte-se. Apresente-se.",
+                  action: "Entrar na Vitrine",
+                  path: "/vitrine",
+                  icon: Gem,
+                  accent: "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.9)]",
+                  border: "border-yellow-300/90",
+                  button: "text-yellow-200 hover:bg-yellow-300/20",
+                  glow: "bg-yellow-300/45",
+                  line: "bg-yellow-300/90",
+                  bg: "from-[#020617] via-[#00375A] to-[#050B1E]",
+                  image: environmentImages[0],
+                },
+                {
+                  title: "BUILT Alliances",
+                  subtitle: "Estruture. Execute.",
+                  action: "Entrar em Alliances",
+                  path: "/area-aliancas",
+                  icon: Users,
+                  accent: "text-emerald-300 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]",
+                  border: "border-emerald-300/90",
+                  button: "text-emerald-200 hover:bg-emerald-300/20",
+                  glow: "bg-emerald-300/45",
+                  line: "bg-emerald-300/90",
+                  bg: "from-[#031B2D] via-[#00605F] to-[#06121D]",
+                  image: environmentImages[1],
+                },
+                {
+                  title: "BUILT Capital",
+                  subtitle: "Invista. Acompanhe.",
+                  action: "Entrar no Capital",
+                  path: "/built-capital",
+                  icon: TrendingUp,
+                  accent: "text-cyan-300 drop-shadow-[0_0_10px_rgba(103,232,249,0.9)]",
+                  border: "border-cyan-300/90",
+                  button: "text-cyan-200 hover:bg-cyan-300/20",
+                  glow: "bg-cyan-300/45",
+                  line: "bg-cyan-300/90",
+                  bg: "from-[#050B2A] via-[#0044B8] to-[#090E2D]",
+                  image: environmentImages[2],
+                },
+              ].map((ambiente) => {
+                const Icon = ambiente.icon;
+                return (
+                  <button
+                    key={ambiente.title}
+                    type="button"
+                    onClick={() => navigate(ambiente.path)}
+                    className={`group relative min-h-[156px] overflow-hidden rounded-lg border bg-gradient-to-br ${ambiente.bg} p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.24)]`}
+                    style={{
+                      backgroundImage: `linear-gradient(120deg, rgba(0, 10, 24, 0.62), rgba(0, 20, 42, 0.38) 48%, rgba(0, 8, 20, 0.52)), url(${ambiente.image})`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                    }}
+                    data-testid={`dashboard-ambiente-${ambiente.path.replace("/", "")}`}
+                  >
+                    <span className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full blur-3xl ${ambiente.glow}`} />
+                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+                    <span className={`pointer-events-none absolute bottom-8 right-8 h-24 w-px rotate-45 ${ambiente.line}`} />
+                    <span className={`pointer-events-none absolute bottom-8 right-14 h-16 w-px rotate-45 ${ambiente.line}`} />
+                    <span className={`pointer-events-none absolute bottom-8 right-20 h-10 w-px rotate-45 ${ambiente.line}`} />
+                    <div className="relative flex h-full flex-col justify-between">
+                      <div>
+                        <Icon className={`h-8 w-8 ${ambiente.accent}`} />
+                        <p className="mt-6 text-base font-bold text-white">{ambiente.title}</p>
+                        <p className="mt-1 text-xs font-medium text-white/75">{ambiente.subtitle}</p>
+                      </div>
+                      <span className={`mt-4 inline-flex items-center justify-between rounded-md border px-3 py-2 text-xs font-semibold ${ambiente.border} ${ambiente.button}`}>
+                        {ambiente.action}
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <Card
+            className="border border-border/60 cursor-pointer transition-colors hover:border-[#D7BB7D]/40"
+            style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
+            onClick={() => navigate("/aura")}
+            data-testid="dashboard-aura-panel"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-foreground">Seu perfil</p>
+                <Button variant="link" className="h-auto p-0 text-xs text-blue-600" onClick={(event) => { event.stopPropagation(); navigate("/meu-perfil"); }}>
+                  Ver perfil completo
+                </Button>
+              </div>
+              <div className="mt-5 flex items-center gap-4">
+                <AuraScore score={auraData?.score ?? null} size="lg" showLabel={false} />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground">Aura Percebida</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {auraData?.score != null ?auraData.faixa : "Aguardando avaliações"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {auraData?.score != null ?"resultado atual da rede" : "sem avaliações"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
+                  Perfil validado
+                </div>
+                <div className="rounded-md border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700">
+                  Membro ativo
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {isLoading ?(
-          Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
-        ) : (
-          <>
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {isLoading ?(
+            Array.from({ length: 2 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ) : (
+            <>
             <Card
               className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
               onClick={() => navigate("/notificacoes")}
@@ -622,33 +769,37 @@ export default function PainelPage() {
               </CardContent>
             </Card>
 
-            <Card
-              className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
-              onClick={() => navigate("/aura")}
-              data-testid="stat-card-aura"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">Aura Percebida</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: auraData?.score != null ?getFaixaColor(auraData.score) : undefined }}>
-                      {auraData?.score != null ?auraData.faixa : "Aguardando avaliações"}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {auraData?.score != null ?"resultado atual" : "sem avaliações"}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            </>
+          )}
+        </div>
 
-          </>
-        )}
+        <Card className="border border-border/60" data-testid="dashboard-acoes-rapidas">
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold text-foreground">Ações rápidas</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                { label: "Nova BIA", icon: Plus, path: "/bias?criar=true" },
+                { label: "Nova OPA", icon: Target, path: "/opas?criar=true" },
+                { label: "Criar anúncio", icon: Megaphone, path: "/vitrine" },
+                { label: "Registrar aporte", icon: Wallet, path: "/built-capital" },
+              ].map((acao) => {
+                const Icon = acao.icon;
+                return (
+                  <button
+                    key={acao.label}
+                    type="button"
+                    onClick={() => navigate(acao.path)}
+                    className="group flex aspect-[1.25] min-h-[88px] flex-col items-center justify-center gap-2 rounded-lg border border-border/70 bg-background text-center text-xs font-semibold text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
+                    data-testid={`acao-rapida-${acao.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  >
+                    <Icon className="h-7 w-7 text-blue-700 transition-transform group-hover:scale-110" />
+                    <span>{acao.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Dashboard tabs */}
@@ -1232,6 +1383,25 @@ export default function PainelPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Tipo de convite</p>
+            <Select value={conviteTipo} onValueChange={handleConviteTipoChange}>
+              <SelectTrigger data-testid="select-dashboard-tipo-convite">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INVITE_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {meuConvite?.tipo && (
+              <p className="text-[11px] text-muted-foreground">
+                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "BUILT Vitrine"}
+              </p>
+            )}
+          </div>
+
           {meuConviteLink ?(
             <div className="w-full min-w-0 space-y-3">
               <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
@@ -1263,7 +1433,7 @@ export default function PainelPage() {
               <InviteQrCode link={meuConviteLink} variant="light" />
               <button
                 type="button"
-                onClick={() => gerarConviteMutation.mutate(true)}
+                onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
                 disabled={gerarConviteMutation.isPending}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 data-testid="btn-dashboard-renovar-convite"
@@ -1277,7 +1447,7 @@ export default function PainelPage() {
               <Ticket className="w-7 h-7 text-[#D7BB7D]/60 mx-auto" />
               <p className="text-sm text-muted-foreground">Nenhum link ativo no momento.</p>
               <Button
-                onClick={() => gerarConviteMutation.mutate(false)}
+                onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
                 disabled={gerarConviteMutation.isPending}
                 className="gap-2 bg-[#D7BB7D] text-[#001D34] hover:bg-[#D7BB7D]/90"
                 data-testid="btn-dashboard-gerar-convite"

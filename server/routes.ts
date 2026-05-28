@@ -4280,7 +4280,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       // 1. Create entry in Directus cadastro_geral (mandatory — registration fails if this fails)
       const directusPayload: Record<string, any> = {
-        Nome_de_usuario: nome,
+        Nome_de_usuario: finalUsername,
         nome,
         email,
         na_vitrine: naVitrine,

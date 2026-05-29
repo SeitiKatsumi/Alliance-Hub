@@ -23,7 +23,7 @@ function getCallbackURL(req?: Request): string {
       return `${protocol}://${host}/auth/google/callback`;
     }
   }
-  return "http://localhost:5000/auth/google/callback";
+  return `http://localhost:${process.env.PORT || "5000"}/auth/google/callback`;
 }
 
 export function setupGoogleAuth(app: Express) {

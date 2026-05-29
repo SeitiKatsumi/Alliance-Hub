@@ -1,6 +1,6 @@
 import { db } from "./db";
 import {
-  users, type User, type InsertUser, type ModulePermissions, DEFAULT_PERMISSIONS, ADMIN_PERMISSIONS,
+  users, type User, type InsertUser, type ModulePermissions, permissionsForRole,
   membros, type Membro, type InsertMembro,
   biasProjetos, type BiasProjeto, type InsertBiasProjeto,
   fluxoCaixa, type FluxoCaixa, type InsertFluxoCaixa,
@@ -166,7 +166,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         ...insertUser,
         password: hashedPassword,
-        permissions: insertUser.permissions || (insertUser.role === "admin" ? ADMIN_PERMISSIONS : DEFAULT_PERMISSIONS),
+        permissions: insertUser.permissions || permissionsForRole(insertUser.role),
       })
       .returning();
     return user;

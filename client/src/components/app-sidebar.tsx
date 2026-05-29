@@ -51,12 +51,12 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
 
-              {/* Dashboard */}
+              {/* Inicio */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/"} data-testid="nav-dashboard" className="text-sm">
                   <Link href="/">
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>Dashboard</span>
+                    <span>Início</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

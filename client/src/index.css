@@ -162,6 +162,10 @@
     @apply border-border;
   }
 
+  html {
+    font-size: 110%;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }

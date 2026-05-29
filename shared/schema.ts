@@ -51,6 +51,52 @@ export const ADMIN_PERMISSIONS: ModulePermissions = {
   admin: "edit",
 };
 
+export const ROLE_PERMISSIONS: Record<string, ModulePermissions> = {
+  user: DEFAULT_PERMISSIONS,
+  manager: {
+    ...DEFAULT_PERMISSIONS,
+    oportunidades: "edit",
+    bias: "edit",
+    membros: "edit",
+    painel: "edit",
+  },
+  membro: {
+    oportunidades: "edit",
+    bias: "edit",
+    calculadora: "view",
+    fluxo_caixa: "edit",
+    membros: "view",
+    aura: "view",
+    painel: "view",
+    admin: "none",
+  },
+  investidor: {
+    oportunidades: "view",
+    bias: "view",
+    calculadora: "view",
+    fluxo_caixa: "view",
+    membros: "view",
+    aura: "view",
+    painel: "view",
+    admin: "none",
+  },
+  aliado: {
+    oportunidades: "edit",
+    bias: "edit",
+    calculadora: "view",
+    fluxo_caixa: "edit",
+    membros: "edit",
+    aura: "view",
+    painel: "view",
+    admin: "none",
+  },
+  admin: ADMIN_PERMISSIONS,
+};
+
+export function permissionsForRole(role?: string | null): ModulePermissions {
+  return ROLE_PERMISSIONS[role || "user"] || DEFAULT_PERMISSIONS;
+}
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -76,7 +122,7 @@ export const createUserSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   membro_directus_id: z.string().optional().or(z.literal("")),
-  role: z.enum(["admin", "manager", "user", "membro", "investidor"]).default("user"),
+  role: z.enum(["admin", "manager", "user", "membro", "investidor", "aliado"]).default("user"),
   permissions: z.record(z.enum(["none", "view", "edit"])).optional(),
   ativo: z.boolean().default(true),
 });

@@ -19,6 +19,7 @@ import {
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
+  AlertTriangle, Clock, FileWarning, AlarmClock,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -69,6 +70,10 @@ interface DashboardComunidade {
 interface DashboardApproval {
   id: string | number;
   status?: string | null;
+  tipo?: string | null;
+  candidato_nome?: string | null;
+  candidato_email?: string | null;
+  comunidade_nome?: string | null;
 }
 
 interface DashboardOpa {
@@ -407,6 +412,35 @@ export default function PainelPage() {
     },
     staleTime: 60000,
   });
+  const alertasPendencias = useMemo(() => {
+    const convites = aprovacoesPendentes.slice(0, 4).map((convite) => {
+      const status = String(convite.status || "");
+      const nome = convite.candidato_nome || convite.candidato_email || "Candidato";
+      const tituloPorStatus: Record<string, string> = {
+        candidato: `${nome} aguardando aprovação`,
+        aguardando_avaliacao_aura: `${nome} aguardando avaliação AURA`,
+        termos_aceitos: `${nome} com termos aceitos`,
+        pagamento_pendente: `${nome} com pagamento pendente`,
+      };
+      return {
+        title: tituloPorStatus[status] || `${nome} requer atenção`,
+        subtitle: convite.comunidade_nome || (convite.tipo ?`Convite ${convite.tipo}` : "Convite pendente"),
+        icon: status === "pagamento_pendente" ?Clock : status === "termos_aceitos" ?FileWarning : AlertTriangle,
+        tone: status === "pagamento_pendente" ? "orange" : status === "termos_aceitos" ? "amber" : "red",
+      };
+    });
+
+    if (convites.length > 0) return convites;
+
+    return [
+      {
+        title: "Nenhum alerta pendente",
+        subtitle: "Tudo certo no momento",
+        icon: AlarmClock,
+        tone: "blue",
+      },
+    ];
+  }, [aprovacoesPendentes]);
 
   const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
   const biaPapelOptions = useMemo(
@@ -499,6 +533,36 @@ export default function PainelPage() {
     .toUpperCase();
   const dailyQuote = useMemo(() => DASHBOARD_DAILY_QUOTES[getDailyQuoteIndex()], []);
   const environmentImages = useMemo(() => getDailyEnvironmentImages(), []);
+  const proximasAcoes = [
+    {
+      dia: "20",
+      mes: "MAI",
+      titulo: "Reunião semanal da BIA",
+      subtitulo: "BIA Residencial Harmonia",
+      hora: "09:00",
+    },
+    {
+      dia: "21",
+      mes: "MAI",
+      titulo: "Aprovar candidatos de OPA",
+      subtitulo: "Núcleo de Obra",
+      hora: "14:00",
+    },
+    {
+      dia: "22",
+      mes: "MAI",
+      titulo: "Revisão orçamentária",
+      subtitulo: "BIA Business Tower",
+      hora: "10:30",
+    },
+    {
+      dia: "23",
+      mes: "MAI",
+      titulo: "Rodada de Captação",
+      subtitulo: "BIA Mixed-Use Vila Nova",
+      hora: "15:00",
+    },
+  ];
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -522,8 +586,7 @@ export default function PainelPage() {
           </div>
           {user?.membro_directus_id && (
             <Button
-              variant="outline"
-              className="gap-2 border-[#D7BB7D]/35 text-[#D7BB7D] hover:bg-[#D7BB7D]/10 hover:text-[#D7BB7D]"
+              className="gap-2 border border-[#005BFF] bg-[#005BFF] text-white shadow-sm hover:bg-[#004FE0] hover:text-white"
               onClick={() => setConviteDialogOpen(true)}
               data-testid="btn-dashboard-convidar-parceiro"
             >
@@ -536,20 +599,27 @@ export default function PainelPage() {
           {roleLabel && (
             <Badge
               variant="outline"
-              className="text-[11px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5"
+              className="text-[11px] text-[#005BFF] border-[#005BFF]/35 bg-[#005BFF]/10"
               data-testid="badge-role"
             >
               {roleLabel}
             </Badge>
           )}
           {comunidadeLabel && (
-            <Badge
-              variant="outline"
-              className="text-[11px] text-muted-foreground border-border/60"
-              data-testid="badge-comunidade"
+            <button
+              type="button"
+              onClick={() => navigate(comunidades[0]?.id ?`/comunidade/${comunidades[0].id}?from=dashboard` : "/comunidade")}
+              className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid="btn-comunidade-header"
             >
-              {comunidadeLabel}
-            </Badge>
+              <Badge
+                variant="outline"
+                className="cursor-pointer text-[11px] text-muted-foreground border-border/60 transition-colors hover:border-[#D7BB7D]/50 hover:text-[#001D34]"
+                data-testid="badge-comunidade"
+              >
+                {comunidadeLabel}
+              </Badge>
+            </button>
           )}
           {!roleLabel && !comunidadeLabel && (
             <p className="text-sm text-muted-foreground">
@@ -559,32 +629,60 @@ export default function PainelPage() {
         </div>
       </div>
 
-      {dailyQuote && (
-        <Card className="border border-[#D7BB7D]/30 bg-[#D7BB7D]/5">
-          <CardContent className="p-4">
-            <div className="flex gap-3">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#D7BB7D]/15 text-[#D7BB7D]">
-                <Quote className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#9B7A32]">
-                  Frase do dia
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  “{dailyQuote.text}”
-                </p>
-                {dailyQuote.author && (
-                  <p className="mt-2 text-xs font-medium text-muted-foreground">
-                    {dailyQuote.author}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Tabs defaultValue="inicio" className="space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/40 p-1 sm:grid-cols-5">
+          <TabsTrigger value="inicio" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-inicio">
+            <LayoutDashboard className="w-4 h-4 text-blue-600" />
+            Início
+          </TabsTrigger>
+          <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-bias">
+            <Briefcase className="w-4 h-4 text-[#D7BB7D]" />
+            Minhas BIAs
+          </TabsTrigger>
+          <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
+            <Target className="w-4 h-4 text-emerald-600" />
+            Painel de Convergência
+          </TabsTrigger>
+          <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
+            <Target className="w-4 h-4 text-cyan-600" />
+            OPAs de Interesse
+          </TabsTrigger>
+          <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
+            <SlidersHorizontal className="w-4 h-4 text-purple-600" />
+            Gestão
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <TabsContent value="inicio" className="space-y-4 mt-0">
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_280px]">
+        <div className="space-y-4">
+        {dailyQuote ? (
+          <Card className="border border-[#D7BB7D]/30 bg-[#D7BB7D]/5">
+            <CardContent className="p-4">
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#D7BB7D]/15 text-[#D7BB7D]">
+                  <Quote className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#9B7A32]">
+                    Frase do dia
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground">
+                    “{dailyQuote.text}”
+                  </p>
+                  {dailyQuote.author && (
+                    <p className="mt-2 text-xs font-medium text-muted-foreground">
+                      {dailyQuote.author}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div />
+        )}
+
         <Card className="border border-border/60">
           <CardContent className="p-4">
             <h2 className="text-sm font-semibold text-foreground">Seus ambientes BUILT</h2>
@@ -610,12 +708,12 @@ export default function PainelPage() {
                   action: "Entrar em Alliances",
                   path: "/area-aliancas",
                   icon: Users,
-                  accent: "text-emerald-300 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]",
-                  border: "border-emerald-300/90",
-                  button: "text-emerald-200 hover:bg-emerald-300/20",
-                  glow: "bg-emerald-300/45",
-                  line: "bg-emerald-300/90",
-                  bg: "from-[#031B2D] via-[#00605F] to-[#06121D]",
+                  accent: "text-cyan-300 drop-shadow-[0_0_10px_rgba(103,232,249,0.9)]",
+                  border: "border-cyan-300/90",
+                  button: "text-cyan-200 hover:bg-cyan-300/20",
+                  glow: "bg-cyan-300/45",
+                  line: "bg-cyan-300/90",
+                  bg: "from-[#050B2A] via-[#0044B8] to-[#090E2D]",
                   image: environmentImages[1],
                 },
                 {
@@ -624,12 +722,12 @@ export default function PainelPage() {
                   action: "Entrar no Capital",
                   path: "/built-capital",
                   icon: TrendingUp,
-                  accent: "text-cyan-300 drop-shadow-[0_0_10px_rgba(103,232,249,0.9)]",
-                  border: "border-cyan-300/90",
-                  button: "text-cyan-200 hover:bg-cyan-300/20",
-                  glow: "bg-cyan-300/45",
-                  line: "bg-cyan-300/90",
-                  bg: "from-[#050B2A] via-[#0044B8] to-[#090E2D]",
+                  accent: "text-emerald-300 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]",
+                  border: "border-emerald-300/90",
+                  button: "text-emerald-200 hover:bg-emerald-300/20",
+                  glow: "bg-emerald-300/45",
+                  line: "bg-emerald-300/90",
+                  bg: "from-[#031B2D] via-[#00605F] to-[#06121D]",
                   image: environmentImages[2],
                 },
               ].map((ambiente) => {
@@ -669,114 +767,49 @@ export default function PainelPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
 
         <div className="space-y-4">
-          <Card
-            className="border border-border/60 cursor-pointer transition-colors hover:border-[#D7BB7D]/40"
-            style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
-            onClick={() => navigate("/aura")}
-            data-testid="dashboard-aura-panel"
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-foreground">Seu perfil</p>
-                <Button variant="link" className="h-auto p-0 text-xs text-blue-600" onClick={(event) => { event.stopPropagation(); navigate("/meu-perfil"); }}>
-                  Ver perfil completo
-                </Button>
-              </div>
-              <div className="mt-5 flex items-center gap-4">
-                <AuraScore score={auraData?.score ?? null} size="lg" showLabel={false} />
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground">Aura Percebida</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {auraData?.score != null ?auraData.faixa : "Aguardando avaliações"}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {auraData?.score != null ?"resultado atual da rede" : "sem avaliações"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
-                  Perfil validado
-                </div>
-                <div className="rounded-md border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-700">
-                  Membro ativo
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {isLoading ?(
-            Array.from({ length: 2 }).map((_, i) => <StatCardSkeleton key={i} />)
-          ) : (
-            <>
-            <Card
-              className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate("/notificacoes")}
-              data-testid="stat-card-notificacoes"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Ticket className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">Notificações</span>
-                </div>
-                <p className="text-2xl font-bold text-foreground" data-testid="stat-value-notificacoes">
-                  {isLoadingAprovacoes ?"-" : aprovacoesPendentes.length}
+        <Card
+          className="border border-border/60 cursor-pointer transition-colors hover:border-[#D7BB7D]/40"
+          style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
+          onClick={() => navigate("/aura")}
+          data-testid="dashboard-aura-panel"
+        >
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-foreground">Seu perfil</p>
+              <Button variant="link" className="h-auto p-0 text-xs text-blue-600" onClick={(event) => { event.stopPropagation(); navigate("/meu-perfil"); }}>
+                Ver perfil completo
+              </Button>
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground">Aura Percebida</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {auraData?.score != null ?auraData.faixa : "Aguardando avaliações"}
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
-              onClick={() => navigate(comunidades[0]?.id ?`/comunidade/${comunidades[0].id}?from=dashboard` : "/comunidade")}
-              data-testid="stat-card-comunidades"
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Globe className="w-4 h-4 text-[#D7BB7D]" />
-                  <span className="text-xs text-muted-foreground">Minha Comunidade</span>
-                </div>
-                <div className="space-y-0.5" data-testid="stat-value-comunidades">
-                  <p className="text-base font-bold text-foreground truncate">
-                    {comunidades[0]?.nome || "-"}
-                  </p>
-                  {comunidades[0]?.sigla && (
-                    <p className="text-[10px] font-mono text-[#D7BB7D] truncate">
-                      {comunidades[0].sigla}
-                    </p>
-                  )}
-                </div>
-                {comunidades[0] ?(
-                  <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {Array.isArray(comunidades[0].membros) ?comunidades[0].membros.length : 0} membros
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Briefcase className="w-3 h-3" />
-                      {Array.isArray(comunidades[0].bias) ?comunidades[0].bias.length : 0} BIAs
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground mt-0.5">nenhuma comunidade</p>
-                )}
-              </CardContent>
-            </Card>
-
-            </>
-          )}
-        </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {auraData?.score != null ?"resultado atual da rede" : "sem avaliações"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-center text-xs font-semibold text-emerald-700">
+                Perfil validado
+              </div>
+              <div className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-1.5 text-center text-xs font-semibold text-blue-700">
+                Membro ativo
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border border-border/60" data-testid="dashboard-acoes-rapidas">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <p className="text-sm font-semibold text-foreground">Ações rápidas</p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {[
                 { label: "Nova BIA", icon: Plus, path: "/bias?criar=true" },
                 { label: "Nova OPA", icon: Target, path: "/opas?criar=true" },
@@ -789,10 +822,10 @@ export default function PainelPage() {
                     key={acao.label}
                     type="button"
                     onClick={() => navigate(acao.path)}
-                    className="group flex aspect-[1.25] min-h-[88px] flex-col items-center justify-center gap-2 rounded-lg border border-border/70 bg-background text-center text-xs font-semibold text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
+                    className="group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-background text-center text-xs font-semibold text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
                     data-testid={`acao-rapida-${acao.label.toLowerCase().replace(/\s+/g, "-")}`}
                   >
-                    <Icon className="h-7 w-7 text-blue-700 transition-transform group-hover:scale-110" />
+                    <Icon className="h-6 w-6 text-blue-700 transition-transform group-hover:scale-110" />
                     <span>{acao.label}</span>
                   </button>
                 );
@@ -800,28 +833,101 @@ export default function PainelPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
-      {/* Dashboard tabs */}
-      <Tabs defaultValue="bias" className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/40 p-1 sm:grid-cols-4">
-          <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-bias">
-            <Briefcase className="w-4 h-4" />
-            Minhas BIAs
-          </TabsTrigger>
-          <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
-            <Target className="w-4 h-4" />
-            Painel de Convergência
-          </TabsTrigger>
-          <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
-            <Target className="w-4 h-4" />
-            OPAs de Interesse
-          </TabsTrigger>
-          <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
-            <SlidersHorizontal className="w-4 h-4" />
-            Gestão
-          </TabsTrigger>
-        </TabsList>
+      {/* Stats cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {isLoading ?(
+          Array.from({ length: 2 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+          <Card
+            className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
+            onClick={() => navigate("/notificacoes")}
+            data-testid="stat-card-notificacoes"
+          >
+            <CardContent className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-foreground">Alertas e pendências</h2>
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-xs text-blue-600"
+                  onClick={(event) => { event.stopPropagation(); navigate("/notificacoes"); }}
+                >
+                  Ver todos
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {isLoadingAprovacoes ?(
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Skeleton className="h-3 w-2/3" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  alertasPendencias.map((alerta, index) => {
+                    const Icon = alerta.icon;
+                    const toneClass = alerta.tone === "red"
+                      ? "bg-red-500/10 text-red-600"
+                      : alerta.tone === "orange"
+                        ? "bg-orange-500/10 text-orange-600"
+                        : alerta.tone === "amber"
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-blue-500/10 text-blue-600";
+                    return (
+                      <div key={`${alerta.title}-${index}`} className="flex items-center gap-3 rounded-lg py-1.5">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-foreground">{alerta.title}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">{alerta.subtitle}</p>
+                        </div>
+                        {aprovacoesPendentes.length > 0 && (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border/60" data-testid="stat-card-proximas-acoes">
+            <CardContent className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-foreground">Próximas ações</h2>
+                <span className="text-xs font-medium text-blue-600">Ver agenda</span>
+              </div>
+              <div className="space-y-2">
+                {proximasAcoes.map((acao) => (
+                  <div key={`${acao.dia}-${acao.titulo}`} className="flex items-center gap-3 rounded-lg py-1">
+                    <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-900">
+                      <span className="text-sm font-bold leading-none">{acao.dia}</span>
+                      <span className="mt-0.5 text-[9px] font-semibold uppercase leading-none">{acao.mes}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-foreground">{acao.titulo}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{acao.subtitulo}</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-muted-foreground">{acao.hora}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          </>
+        )}
+      </div>
+
+        </TabsContent>
 
         <TabsContent value="bias" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">

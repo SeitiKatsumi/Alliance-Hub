@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
+import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -4277,6 +4277,17 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const naVitrine = interessesArr.includes("vitrine");
       const emBuiltCapital = interessesArr.includes("capital");
       const emMembrosBuilt = interessesArr.includes("membros");
+      const rolePorConvite: Record<string, "user" | "investidor" | "membro"> = {
+        vitrine: "user",
+        capital: "investidor",
+        membros: "membro",
+      };
+      const roleInicial = rolePorConvite[conviteDestino] || "user";
+      const selosPorRole: Record<string, string[]> = {
+        membro: ["BUILT_PROUD_MEMBER"],
+        investidor: ["BUILT_CAPITAL_PARTNER"],
+      };
+      const selosIniciais = selosPorRole[roleInicial] || [];
 
       // 1. Create entry in Directus cadastro_geral (mandatory — registration fails if this fails)
       const directusPayload: Record<string, any> = {
@@ -4287,6 +4298,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         em_built_capital: emBuiltCapital,
         em_membros_built: emMembrosBuilt,
       };
+      if (selosIniciais.length > 0) {
+        directusPayload.Outras_redes_as_quais_pertenco = selosIniciais;
+      }
       if (emBuiltCapital) {
         directusPayload.nucleo_alianca = "Núcleo de Capital";
         directusPayload.tipo_alianca = "Alianças de Investimento";
@@ -4386,8 +4400,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         nome,
         email,
         membro_directus_id: membroDirectusId,
-        role: "user",
-        permissions: {},
+        role: roleInicial,
+        permissions: permissionsForRole(roleInicial),
         ativo: true,
       });
 

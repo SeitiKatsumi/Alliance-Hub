@@ -139,11 +139,30 @@ function hashColor(str: string): string {
 
 // ---- Membro Edit Sheet ----
 const ROLE_OPTIONS = [
-  { value: "user", label: "Usuário (Padrão)", desc: "Acesso básico à plataforma", color: "#6b7280" },
-  { value: "membro", label: "Membro", desc: "Acesso a módulos de membro ativo", color: "#3b82f6" },
-  { value: "investidor", label: "Investidor", desc: "Acesso a módulos de capital e resultados", color: "#10b981" },
+  { value: "user", label: "BUILT Vitrine", desc: "Acesso ao ambiente de vitrine", color: "#facc15" },
+  { value: "membro", label: "BUILT Alliances", desc: "Acesso ao ambiente de alianças", color: "#22c55e" },
+  { value: "investidor", label: "BUILT Capital", desc: "Acesso ao ambiente de capital", color: "#2563eb" },
+  { value: "aliado", label: "Aliado", desc: "Acesso de parceiro de alianças", color: "#a855f7" },
   { value: "admin", label: "Super Admin", desc: "Acesso total à plataforma", color: "#D7BB7D" },
 ];
+
+const ROLE_AUTO_SELOS: Record<string, string[]> = {
+  membro: ["BUILT_PROUD_MEMBER"],
+  investidor: ["BUILT_CAPITAL_PARTNER"],
+  aliado: ["BUILT_ALLIANCE_PARTNER"],
+  admin: [
+    "BUILT_PROUD_MEMBER",
+    "BUILT_FOUNDING_MEMBER",
+    "BUILT_ALLIANCE_PARTNER",
+    "BUILT_CAPITAL_PARTNER",
+  ],
+};
+
+const ROLE_MANAGED_SELOS = new Set(
+  Object.values(ROLE_AUTO_SELOS).flat(),
+);
+
+const ROLE_PRIORITY = ["admin", "aliado", "membro", "investidor", "user"];
 
 const TERM_ACCEPTANCE_FIELDS = [
   {
@@ -242,6 +261,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [photoPreview, setPhotoPreview] = useState<string | null>(currentFoto);
   const [uploading, setUploading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [newAccEmail, setNewAccEmail] = useState(membro.email || "");
   const [newAccUsername, setNewAccUsername] = useState("");
   const [newAccPassword, setNewAccPassword] = useState("");
@@ -305,7 +325,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   // Set initial role and email when linkedUser first loads (must be useEffect, not render body)
   useEffect(() => {
     if (!linkedUser) return;
-    if (selectedRole === null) setSelectedRole(linkedUser.role);
+    if (selectedRole === null) {
+      const selos: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
+      const initialRoles = new Set<string>([linkedUser.role || "user"]);
+      if (selos.includes("BUILT_PROUD_MEMBER")) initialRoles.add("membro");
+      if (selos.includes("BUILT_CAPITAL_PARTNER")) initialRoles.add("investidor");
+      if (selos.includes("BUILT_ALLIANCE_PARTNER")) initialRoles.add("aliado");
+      setSelectedRole(linkedUser.role);
+      setSelectedRoles(Array.from(initialRoles));
+    }
     if (linkedUser.email) setNewAccEmail(prev => prev === (membro.email || "") ?linkedUser.email! : prev);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedUser?.id]);
@@ -323,6 +351,43 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       const current: string[] = (f as any).Outras_redes_as_quais_pertenco || [];
       const next = current.includes(selo) ?current.filter(s => s !== selo) : [...current, selo];
       return { ...f, Outras_redes_as_quais_pertenco: next };
+    });
+  }
+
+  function getPrimaryRole(roles: string[]) {
+    return ROLE_PRIORITY.find(role => roles.includes(role)) || "user";
+  }
+
+  function mergeRolePermissions(roles: string[], rolePerms: Record<string, Record<string, string>>) {
+    const levels: Record<string, number> = { none: 0, view: 1, edit: 2 };
+    const byLevel: Record<number, string> = { 0: "none", 1: "view", 2: "edit" };
+    const merged: Record<string, string> = { ...rolePerms.user };
+    roles.forEach(role => {
+      const perms = rolePerms[role] || {};
+      Object.entries(perms).forEach(([key, value]) => {
+        const currentLevel = levels[merged[key] || "none"] ?? 0;
+        const nextLevel = levels[value] ?? 0;
+        if (nextLevel > currentLevel) merged[key] = byLevel[nextLevel];
+      });
+    });
+    return merged;
+  }
+
+  function applyRoleSelection(role: string) {
+    const nextRoles = selectedRoles.includes(role)
+      ? selectedRoles.filter(item => item !== role)
+      : [...selectedRoles, role];
+    const normalizedRoles = nextRoles.length > 0 ? nextRoles : ["user"];
+    setSelectedRoles(normalizedRoles);
+    setSelectedRole(getPrimaryRole(normalizedRoles));
+    const automaticSelos = normalizedRoles.flatMap(item => ROLE_AUTO_SELOS[item] || []);
+    setForm(f => {
+      const current: string[] = (f as any).Outras_redes_as_quais_pertenco || [];
+      const manualSelos = current.filter(selo => !ROLE_MANAGED_SELOS.has(selo));
+      return {
+        ...f,
+        Outras_redes_as_quais_pertenco: Array.from(new Set([...manualSelos, ...automaticSelos])),
+      };
     });
   }
 
@@ -384,15 +449,18 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         admin: { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
         membro: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "view" },
         investidor: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "view", calculadora: "view", fluxo_caixa: "view", oportunidades: "view", cadastro_geral: "view" },
+        aliado: { aura: "view", bias: "edit", admin: "none", painel: "view", membros: "edit", calculadora: "view", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" },
         user: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
       };
 
       if (linkedUser) {
         // Update role, email and/or password if changed
         const roleUpdate: Record<string, any> = {};
-        if (selectedRole && selectedRole !== linkedUser.role) {
-          roleUpdate.role = selectedRole;
-          roleUpdate.permissions = rolePerms[selectedRole] || rolePerms.user;
+        const rolesToSave = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser.role || "user"];
+        const primaryRole = getPrimaryRole(rolesToSave);
+        if (selectedRole || selectedRoles.length > 0) {
+          roleUpdate.role = primaryRole;
+          roleUpdate.permissions = mergeRolePermissions(rolesToSave, rolePerms);
         }
         // Update email if it changed
         if (newAccEmail && newAccEmail !== linkedUser.email) {
@@ -411,7 +479,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         // Create new user account linked to this membro
         if (newAccPassword !== newAccPassword2) throw new Error("As senhas não coincidem");
         const username = newAccUsername || newAccEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
-        const role = selectedRole || "user";
+        const rolesToSave = selectedRoles.length > 0 ? selectedRoles : [selectedRole || "user"];
+        const role = getPrimaryRole(rolesToSave);
         await apiRequest("POST", "/api/users", {
           username,
           password: newAccPassword,
@@ -419,7 +488,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
           email: newAccEmail,
           membro_directus_id: membro.id,
           role,
-          permissions: rolePerms[role] || rolePerms.user,
+          permissions: mergeRolePermissions(rolesToSave, rolePerms),
           ativo: true,
         });
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -928,12 +997,13 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   {/* Role selector */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     {ROLE_OPTIONS.map(opt => {
-                      const isSelected = (selectedRole ?? linkedUser.role) === opt.value;
+                      const activeRoles = selectedRoles.length > 0 ? selectedRoles : [linkedUser.role || "user"];
+                      const isSelected = activeRoles.includes(opt.value);
                       return (
                         <button
                           key={opt.value}
                           type="button"
-                          onClick={() => setSelectedRole(opt.value)}
+                          onClick={() => applyRoleSelection(opt.value)}
                           data-testid={`btn-role-${opt.value}`}
                           className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
                           style={{
@@ -952,7 +1022,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                       );
                     })}
                   </div>
-                  {((selectedRole && selectedRole !== linkedUser.role) || changePassword.length >= 4) && (
+                  {((selectedRoles.length > 0 && (selectedRole !== linkedUser.role || selectedRoles.length > 1)) || changePassword.length >= 4) && (
                     <div className="flex items-center gap-2 rounded-md border border-brand-gold/20 bg-brand-gold/5 px-3 py-2">
                       <Shield className="w-3 h-3 text-brand-gold/60 shrink-0" />
                       <span className="text-xs text-brand-gold/70">Alterações serão aplicadas ao salvar</span>
@@ -1058,12 +1128,13 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   {newAccEmail && newAccPassword.length >= 4 && (
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       {ROLE_OPTIONS.map(opt => {
-                        const isSelected = (selectedRole || "user") === opt.value;
+                        const activeRoles = selectedRoles.length > 0 ? selectedRoles : [selectedRole || "user"];
+                        const isSelected = activeRoles.includes(opt.value);
                         return (
                           <button
                             key={opt.value}
                             type="button"
-                            onClick={() => setSelectedRole(opt.value)}
+                            onClick={() => applyRoleSelection(opt.value)}
                             data-testid={`btn-role-new-${opt.value}`}
                             className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all"
                             style={{

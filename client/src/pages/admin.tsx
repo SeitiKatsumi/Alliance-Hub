@@ -85,9 +85,12 @@ const PERMISSION_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const ROLE_CONFIG: Record<string, { label: string; icon: typeof Shield; color: string }> = {
-  admin: { label: "Administrador", icon: ShieldCheck, color: "text-amber-500 bg-amber-500/10 border-amber-500/30" },
+  admin: { label: "Super Admin", icon: ShieldCheck, color: "text-amber-500 bg-amber-500/10 border-amber-500/30" },
   manager: { label: "Gerente", icon: ShieldAlert, color: "text-blue-500 bg-blue-500/10 border-blue-500/30" },
-  user: { label: "Usuário", icon: Shield, color: "text-slate-500 bg-slate-500/10 border-slate-500/30" },
+  user: { label: "BUILT Vitrine", icon: Shield, color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/30" },
+  membro: { label: "BUILT Alliances", icon: Shield, color: "text-green-500 bg-green-500/10 border-green-500/30" },
+  investidor: { label: "BUILT Capital", icon: Shield, color: "text-blue-500 bg-blue-500/10 border-blue-500/30" },
+  aliado: { label: "Aliado", icon: ShieldAlert, color: "text-purple-500 bg-purple-500/10 border-purple-500/30" },
 };
 
 const DEFAULT_PERMISSIONS: Record<string, string> = {
@@ -99,6 +102,13 @@ const DEFAULT_PERMISSIONS: Record<string, string> = {
   aura: "view",
   painel: "view",
   admin: "none",
+};
+
+const ROLE_DEFAULT_PERMISSIONS: Record<string, Record<string, string>> = {
+  user: { ...DEFAULT_PERMISSIONS, membros: "none", oportunidades: "none", calculadora: "none", fluxo_caixa: "none" },
+  membro: { ...DEFAULT_PERMISSIONS, oportunidades: "edit", bias: "edit", calculadora: "view", fluxo_caixa: "edit" },
+  investidor: { ...DEFAULT_PERMISSIONS, calculadora: "view", fluxo_caixa: "view" },
+  aliado: { ...DEFAULT_PERMISSIONS, oportunidades: "edit", bias: "edit", calculadora: "view", fluxo_caixa: "edit", membros: "edit" },
 };
 
 export default function AdminPage() {
@@ -655,15 +665,20 @@ export default function AdminPage() {
                     const allEdit: Record<string, string> = {};
                     MODULE_KEYS.forEach((k) => { allEdit[k] = "edit"; });
                     setFormPermissions(allEdit);
+                  } else if (ROLE_DEFAULT_PERMISSIONS[v]) {
+                    setFormPermissions({ ...ROLE_DEFAULT_PERMISSIONS[v] });
                   }
                 }}>
                   <SelectTrigger data-testid="select-user-role">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="admin">Super Admin</SelectItem>
                     <SelectItem value="manager">Gerente</SelectItem>
-                    <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="user">BUILT Vitrine</SelectItem>
+                    <SelectItem value="membro">BUILT Alliances</SelectItem>
+                    <SelectItem value="investidor">BUILT Capital</SelectItem>
+                    <SelectItem value="aliado">Aliado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -568,11 +568,36 @@ export default function MeuPerfilPage() {
         .profile-light-page .bg-black\\/50 svg {
           color: #ffffff !important;
         }
+        .profile-light-page .profile-onboarding-card {
+          border: 1px solid #e2e8f0 !important;
+          background: #ffffff !important;
+          border-radius: 0.75rem !important;
+          box-shadow: none !important;
+        }
+        .profile-light-page .profile-onboarding-card .rounded-xl[style],
+        .profile-light-page .profile-onboarding-card .rounded-lg[style] {
+          background: #f8fafc !important;
+          border-color: #e2e8f0 !important;
+        }
+        .profile-light-page input,
+        .profile-light-page textarea,
+        .profile-light-page button[role="combobox"] {
+          background: #f8fafc !important;
+          border-color: #d8dee8 !important;
+          color: #001d34 !important;
+          min-height: 2.5rem;
+        }
+        .profile-light-page input:focus,
+        .profile-light-page textarea:focus,
+        .profile-light-page button[role="combobox"]:focus {
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+        }
       `}</style>
       {/* Header */}
       <div
-        className="relative overflow-hidden border-b border-brand-gold/10 px-6 py-8"
-        style={{ background: "radial-gradient(ellipse at 20% 50%, #001225 0%, #000c1f 40%, #020b16 100%)" }}
+        className="mx-auto max-w-6xl px-6 pt-8"
+        style={{ background: "transparent" }}
       >
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: "linear-gradient(rgba(215,187,125,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.03) 1px, transparent 1px)",
@@ -583,7 +608,8 @@ export default function MeuPerfilPage() {
         <div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-brand-gold/40" />
         <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-brand-gold/40" />
 
-        <div className="relative z-10 flex items-center gap-6">
+        <p className="relative z-10 text-xs text-slate-500">Início / Meu perfil</p>
+        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-4">
           {/* Avatar — click to upload */}
           <div className="relative shrink-0">
             <input
@@ -598,8 +624,8 @@ export default function MeuPerfilPage() {
               type="button"
               onClick={() => fotoInputRef.current?.click()}
               disabled={uploadingFoto}
-              className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-brand-gold/30 flex items-center justify-center group/avatar cursor-pointer"
-              style={{ background: "radial-gradient(circle at 30% 30%, #D7BB7D20, #030812)", boxShadow: "0 0 24px rgba(215,187,125,0.15)" }}
+              className="relative flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-blue-100 text-[#001D34] group/avatar"
+              style={{ background: "#dbeafe", boxShadow: "none" }}
               title="Clique para trocar a foto"
               data-testid="btn-trocar-foto"
             >
@@ -608,7 +634,7 @@ export default function MeuPerfilPage() {
               ) : foto ?(
                 <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: fotoPosition }} />
               ) : (
-                <span className="text-2xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
+                <span className="text-lg font-bold text-[#001D34]">{getInitials(nome)}</span>
               )}
               {/* Hover overlay */}
               {!uploadingFoto && (
@@ -617,24 +643,25 @@ export default function MeuPerfilPage() {
                 </div>
               )}
             </button>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#020b16] border border-brand-gold/30 flex items-center justify-center pointer-events-none">
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-blue-200 flex items-center justify-center pointer-events-none">
               {uploadingFoto
-                ?<Loader2 className="w-3 h-3 text-brand-gold animate-spin" />
-                : <Camera className="w-3 h-3 text-brand-gold/50" />
+                ?<Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
+                : <Camera className="w-3 h-3 text-blue-600" />
               }
             </div>
           </div>
 
-          <div>
-            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.35em] uppercase mb-1">
-              // MEU PERFIL
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-[#001D34]">Meu perfil</h1>
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">
+              Atualize suas informações para melhorar recomendações, conexões e oportunidades na BUILT.
             </p>
-            <h1 className="text-2xl font-bold text-brand-gold font-mono">{nome || "—"}</h1>
+            <p className="mt-2 truncate text-base font-semibold text-[#001D34]">{nome || "—"}</p>
             {(form.especialidade || form.cargo) && (
-              <p className="text-sm text-white/40 mt-0.5">{form.especialidade || form.cargo}</p>
+              <p className="text-sm text-slate-500 mt-0.5">{form.especialidade || form.cargo}</p>
             )}
             {form.empresa && (
-              <p className="text-xs text-white/30 flex items-center gap-1 mt-0.5">
+              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                 <Building2 className="w-3 h-3" />{form.empresa}
               </p>
             )}
@@ -643,7 +670,7 @@ export default function MeuPerfilPage() {
       </div>
 
       {/* Form */}
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="max-w-6xl mx-auto p-6 space-y-4">
         {isLoading ?(
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 bg-white/5" />)}
@@ -651,7 +678,7 @@ export default function MeuPerfilPage() {
         ) : (
           <>
             {/* Dados pessoais */}
-            <Card className="border-white/5" style={{ background: "#050f1c" }}>
+            <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={User} label="Dados Pessoais" />
 
@@ -694,7 +721,7 @@ export default function MeuPerfilPage() {
             </Card>
 
             {/* Localização */}
-            <Card className="border-white/5" style={{ background: "#050f1c" }}>
+            <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={MapPin} label="Localização" />
                 <div
@@ -724,7 +751,7 @@ export default function MeuPerfilPage() {
             </Card>
 
             {/* Profissional */}
-            <Card className="border-white/5" style={{ background: "#050f1c" }}>
+            <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Briefcase} label="Perfil Profissional" />
 
@@ -1140,7 +1167,7 @@ export default function MeuPerfilPage() {
             </Card>
 
             {/* Vitrine BUILT */}
-            <Card className="border-white/5" style={{ background: "#050f1c" }}>
+            <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Globe} label="Vitrine BUILT" />
                 <div
@@ -1164,7 +1191,7 @@ export default function MeuPerfilPage() {
             </Card>
 
             {/* Meu Convite */}
-            <Card className="border-transparent" style={{ background: "linear-gradient(145deg,rgba(215,187,125,0.04),rgba(7,22,38,0.8))" }}>
+            <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Ticket className="w-3.5 h-3.5 text-brand-gold/50" />
@@ -1402,9 +1429,9 @@ export default function MeuPerfilPage() {
 function SectionLabel({ icon: Icon, label }: { icon: any; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-1">
-      <Icon className="w-3.5 h-3.5 text-brand-gold/50" />
-      <span className="text-xs font-mono uppercase tracking-widest text-white/30">{label}</span>
-      <div className="flex-1 h-px bg-white/5" />
+      <Icon className="w-3.5 h-3.5 text-[#9a7430]" />
+      <span className="text-xs font-mono uppercase tracking-widest text-[#001D34]/70">{label}</span>
+      <div className="flex-1 h-px bg-slate-200" />
     </div>
   );
 }
@@ -1412,7 +1439,7 @@ function SectionLabel({ icon: Icon, label }: { icon: any; label: string }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-white/40 font-mono">{label}</Label>
+      <Label className="text-xs text-slate-600 font-mono">{label}</Label>
       {children}
     </div>
   );

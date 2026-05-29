@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Calculator, Wallet, Target, ChevronDown, Landmark, BarChart3, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Network, Coins, MessageCircle, ClipboardList, Ticket } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Target, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Coins, ClipboardList } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,

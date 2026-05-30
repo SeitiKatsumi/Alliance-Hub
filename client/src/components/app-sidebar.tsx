@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Target, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Coins, ClipboardList } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Target, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Coins, ClipboardList, CalendarDays } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -57,6 +57,15 @@ export function AppSidebar() {
                   <Link href="/">
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     <span>Início</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/agenda"} data-testid="nav-agenda" className="text-sm">
+                  <Link href="/agenda">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    <span>Agenda</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

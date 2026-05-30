@@ -335,6 +335,40 @@ export const insertOpaInteresseSchema = createInsertSchema(opaInteresses).omit({
 export type InsertOpaInteresse = z.infer<typeof insertOpaInteresseSchema>;
 export type OpaInteresse = typeof opaInteresses.$inferSelect;
 
+export const agendaTarefas = pgTable("agenda_tarefas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: text("user_id").notNull(),
+  membro_id: text("membro_id"),
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao"),
+  data: date("data").notNull(),
+  hora: text("hora"),
+  status: text("status").notNull().default("pendente"),
+  prioridade: text("prioridade").notNull().default("media"),
+  contexto_tipo: text("contexto_tipo"),
+  contexto_id: text("contexto_id"),
+  origem_tarefa_id: text("origem_tarefa_id"),
+  atribuido_por_user_id: text("atribuido_por_user_id"),
+  atribuido_por_membro_id: text("atribuido_por_membro_id"),
+  atribuido_por_nome: text("atribuido_por_nome"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  atualizado_em: timestamp("atualizado_em").defaultNow(),
+});
+
+export const insertAgendaTarefaSchema = createInsertSchema(agendaTarefas).omit({
+  id: true,
+  criado_em: true,
+  atualizado_em: true,
+}).extend({
+  titulo: z.string().min(1, "Título é obrigatório"),
+  data: z.string().min(1, "Data é obrigatória"),
+  status: z.enum(["pendente", "em_andamento", "concluida", "cancelada"]).default("pendente"),
+  prioridade: z.enum(["baixa", "media", "alta"]).default("media"),
+});
+
+export type InsertAgendaTarefa = z.infer<typeof insertAgendaTarefaSchema>;
+export type AgendaTarefa = typeof agendaTarefas.$inferSelect;
+
 export const transferenciasCotas = pgTable("transferencias_cotas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bia_id: varchar("bia_id").notNull(),

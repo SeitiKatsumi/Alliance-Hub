@@ -67,6 +67,15 @@ interface DashboardComunidade {
   bias?: any[];
 }
 
+interface AgendaTarefa {
+  id: string;
+  titulo: string;
+  descricao?: string | null;
+  data: string;
+  hora?: string | null;
+  status: "pendente" | "em_andamento" | "concluida" | "cancelada";
+}
+
 interface DashboardApproval {
   id: string | number;
   status?: string | null;
@@ -147,7 +156,7 @@ function normalizeText(value?: string | number | null): string {
     .toLowerCase();
 }
 
-const CHART_COLORS = ["#D7BB7D", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#64748B"];
+const CHART_COLORS = ["#0B4EA2", "#0B63F6", "#12B981", "#38BDF8", "#22C55E", "#1E40AF", "#64748B"];
 const INVITE_APP_URL = "https://built.dna11.com.br";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const INVITE_TYPE_OPTIONS = [
@@ -333,6 +342,10 @@ export default function PainelPage() {
     staleTime: 60000,
   });
   const meuConviteLink = normalizeInviteLink(meuConvite?.link);
+
+  const { data: agendaTarefas = [] } = useQuery<AgendaTarefa[]>({
+    queryKey: ["/api/agenda"],
+  });
 
   const gerarConviteMutation = useMutation({
     mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
@@ -533,36 +546,22 @@ export default function PainelPage() {
     .toUpperCase();
   const dailyQuote = useMemo(() => DASHBOARD_DAILY_QUOTES[getDailyQuoteIndex()], []);
   const environmentImages = useMemo(() => getDailyEnvironmentImages(), []);
-  const proximasAcoes = [
-    {
-      dia: "20",
-      mes: "MAI",
-      titulo: "Reunião semanal da BIA",
-      subtitulo: "BIA Residencial Harmonia",
-      hora: "09:00",
-    },
-    {
-      dia: "21",
-      mes: "MAI",
-      titulo: "Aprovar candidatos de OPA",
-      subtitulo: "Núcleo de Obra",
-      hora: "14:00",
-    },
-    {
-      dia: "22",
-      mes: "MAI",
-      titulo: "Revisão orçamentária",
-      subtitulo: "BIA Business Tower",
-      hora: "10:30",
-    },
-    {
-      dia: "23",
-      mes: "MAI",
-      titulo: "Rodada de Captação",
-      subtitulo: "BIA Mixed-Use Vila Nova",
-      hora: "15:00",
-    },
-  ];
+  const proximasAcoes = useMemo(() => agendaTarefas
+    .filter(acao => acao.status !== "concluida" && acao.status !== "cancelada")
+    .sort((a, b) => `${a.data} ${a.hora || "99:99"}`.localeCompare(`${b.data} ${b.hora || "99:99"}`))
+    .slice(0, 4)
+    .map((acao) => {
+      const [year, month, day] = acao.data.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return {
+        id: acao.id,
+        dia: date.toLocaleDateString("pt-BR", { day: "2-digit" }),
+        mes: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase(),
+        titulo: acao.titulo,
+        subtitulo: acao.descricao || (acao.status === "em_andamento" ? "Em andamento" : "Pendente"),
+        hora: acao.hora || "--:--",
+      };
+    }), [agendaTarefas]);
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -570,11 +569,11 @@ export default function PainelPage() {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10 ring-2 ring-[#D7BB7D]/30" data-testid="avatar-profile">
+            <Avatar className="w-10 h-10 ring-2 ring-blue-500/30" data-testid="avatar-profile">
               {user?.foto_perfil && (
                 <AvatarImage src={user.foto_perfil} alt={nomeExibido} />
               )}
-              <AvatarFallback className="bg-[#D7BB7D]/15 text-[#D7BB7D] text-sm font-semibold">
+              <AvatarFallback className="bg-blue-50 text-blue-600 text-sm font-semibold">
                 {avatarInitials || <LayoutDashboard className="w-4 h-4" />}
               </AvatarFallback>
             </Avatar>
@@ -614,7 +613,7 @@ export default function PainelPage() {
             >
               <Badge
                 variant="outline"
-                className="cursor-pointer text-[11px] text-muted-foreground border-border/60 transition-colors hover:border-[#D7BB7D]/50 hover:text-[#001D34]"
+                className="cursor-pointer text-[11px] text-muted-foreground border-border/60 transition-colors hover:border-blue-500/40 hover:text-blue-700"
                 data-testid="badge-comunidade"
               >
                 {comunidadeLabel}
@@ -636,7 +635,7 @@ export default function PainelPage() {
             Início
           </TabsTrigger>
           <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-bias">
-            <Briefcase className="w-4 h-4 text-[#D7BB7D]" />
+            <Briefcase className="w-4 h-4 text-amber-500" />
             Minhas BIAs
           </TabsTrigger>
           <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
@@ -648,7 +647,7 @@ export default function PainelPage() {
             OPAs de Interesse
           </TabsTrigger>
           <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
-            <SlidersHorizontal className="w-4 h-4 text-purple-600" />
+            <SlidersHorizontal className="w-4 h-4 text-violet-600" />
             Gestão
           </TabsTrigger>
         </TabsList>
@@ -657,14 +656,14 @@ export default function PainelPage() {
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_280px]">
         <div className="space-y-4">
         {dailyQuote ? (
-          <Card className="border border-[#D7BB7D]/30 bg-[#D7BB7D]/5">
+          <Card className="border border-border/60 bg-card">
             <CardContent className="p-4">
               <div className="flex gap-3">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#D7BB7D]/15 text-[#D7BB7D]">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                   <Quote className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#9B7A32]">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-foreground">
                     Frase do dia
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-foreground">
@@ -771,7 +770,7 @@ export default function PainelPage() {
 
         <div className="space-y-4">
         <Card
-          className="border border-border/60 cursor-pointer transition-colors hover:border-[#D7BB7D]/40"
+          className="border border-border/60 cursor-pointer transition-colors hover:border-blue-500/40"
           style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
           onClick={() => navigate("/aura")}
           data-testid="dashboard-aura-panel"
@@ -812,8 +811,8 @@ export default function PainelPage() {
             <div className="mt-3 grid grid-cols-2 gap-3">
               {[
                 { label: "Nova BIA", icon: Plus, path: "/bias?criar=true" },
-                { label: "Nova OPA", icon: Target, path: "/opas?criar=true" },
-                { label: "Criar anúncio", icon: Megaphone, path: "/vitrine" },
+                { label: "Nova OPA", icon: Target, path: "/gestao-opas?criar=true" },
+                { label: "Criar anúncio", icon: Megaphone, path: "/vitrine?criarAnuncio=true" },
                 { label: "Registrar aporte", icon: Wallet, path: "/built-capital" },
               ].map((acao) => {
                 const Icon = acao.icon;
@@ -843,7 +842,7 @@ export default function PainelPage() {
         ) : (
           <>
           <Card
-            className="border border-border/60 cursor-pointer hover:border-[#D7BB7D]/40 transition-colors"
+            className="border border-border/60 cursor-pointer hover:border-blue-500/40 transition-colors"
             onClick={() => navigate("/notificacoes")}
             data-testid="stat-card-notificacoes"
           >
@@ -903,11 +902,21 @@ export default function PainelPage() {
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold text-foreground">Próximas ações</h2>
-                <span className="text-xs font-medium text-blue-600">Ver agenda</span>
+                <button type="button" onClick={() => navigate("/agenda")} className="text-xs font-medium text-blue-600 hover:text-blue-700">
+                  Ver agenda
+                </button>
               </div>
               <div className="space-y-2">
-                {proximasAcoes.map((acao) => (
-                  <div key={`${acao.dia}-${acao.titulo}`} className="flex items-center gap-3 rounded-lg py-1">
+                {proximasAcoes.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/agenda")}
+                    className="w-full rounded-lg border border-dashed border-border px-3 py-5 text-center text-xs text-muted-foreground hover:border-blue-300 hover:text-blue-700"
+                  >
+                    Nenhuma ação pendente. Criar na agenda.
+                  </button>
+                ) : proximasAcoes.map((acao) => (
+                  <div key={acao.id} className="flex items-center gap-3 rounded-lg py-1">
                     <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-900">
                       <span className="text-sm font-bold leading-none">{acao.dia}</span>
                       <span className="mt-0.5 text-[9px] font-semibold uppercase leading-none">{acao.mes}</span>
@@ -932,7 +941,7 @@ export default function PainelPage() {
         <TabsContent value="bias" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-[#D7BB7D]" />
+              <Briefcase className="w-4 h-4 text-amber-500" />
               Minhas BIAs
             </h2>
             <Button
@@ -985,7 +994,7 @@ export default function PainelPage() {
               <Card className="border border-border/60 xl:col-span-1">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-[#D7BB7D]" />
+                    <Wallet className="w-4 h-4 text-blue-600" />
                     <p className="text-sm font-semibold text-foreground">Capital Total Alocado</p>
                   </div>
                   <p className="mt-5 text-2xl font-bold tabular-nums text-foreground" data-testid="chart-total-investimento">
@@ -994,7 +1003,7 @@ export default function PainelPage() {
                   <p className="mt-1 text-[11px] text-muted-foreground">capital alocado nas suas BIAs</p>
                   <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-[#D7BB7D]"
+                      className="h-full rounded-full bg-blue-600"
                       style={{ width: `${Math.min(100, Math.max(6, totalInvestimentoUsuario > 0 ?100 : 0))}%` }}
                     />
                   </div>
@@ -1017,8 +1026,8 @@ export default function PainelPage() {
                           <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                           <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value) / 1000}k`} />
                           <Tooltip formatter={(value: number) => fmt(Number(value))} />
-                          <Bar dataKey="investimento" name="Alocação" fill="#D7BB7D" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="receita" name="Receita" fill="#10B981" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="investimento" name="Alocação" fill="#0B63F6" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="receita" name="Receita" fill="#12B981" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1066,7 +1075,7 @@ export default function PainelPage() {
               {filteredBias.map(b => (
                 <Card
                   key={b.id}
-                  className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
+                  className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
                   onClick={() => navigate(`/bias/${b.id}`)}
                   data-testid={`card-bia-${b.id}`}
                 >
@@ -1078,12 +1087,12 @@ export default function PainelPage() {
                       {situacaoBadge(b.situacao)}
                     </div>
 
-                    {(b.papel_usuario || b.objetivo_alianca) && (
+                    {(b.papel_usuario || b.objetivo_alianca || b.destinacao) && (
                       <div className="flex flex-wrap gap-1.5">
                         {b.papel_usuario && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5"
+                            className="text-[10px] text-blue-700 border-blue-200 bg-blue-50"
                             data-testid={`badge-papel-${b.id}`}
                           >
                             {b.papel_usuario}
@@ -1096,6 +1105,15 @@ export default function PainelPage() {
                             data-testid={`badge-objetivo-${b.id}`}
                           >
                             {b.objetivo_alianca}
+                          </Badge>
+                        )}
+                        {b.destinacao && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-blue-700 border-blue-200 bg-blue-50"
+                            data-testid={`badge-destinacao-${b.id}`}
+                          >
+                            {b.destinacao}
                           </Badge>
                         )}
                       </div>
@@ -1140,7 +1158,7 @@ export default function PainelPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Target className="w-4 h-4 text-[#D7BB7D]" />
+                <Target className="w-4 h-4 text-emerald-600" />
                 Painel de Convergência
               </h2>
               <Button
@@ -1167,7 +1185,7 @@ export default function PainelPage() {
                           <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                           <Tooltip formatter={(value: number) => [Number(value), "Quantidade"]} />
-                          <Bar dataKey="value" name="Quantidade" fill="#D7BB7D" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="value" name="Quantidade" fill="#0B63F6" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1245,7 +1263,7 @@ export default function PainelPage() {
                 {filteredConvergencias.map((opa) => (
                   <Card
                     key={opa.id}
-                    className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
+                    className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
                     onClick={() => navigate(`/opas/${opa.id}`)}
                     data-testid={`card-convergencia-${opa.id}`}
                   >
@@ -1255,7 +1273,7 @@ export default function PainelPage() {
                           {opa.nome_oportunidade || "OPA sem nome"}
                         </p>
                         {opa.tipo && (
-                          <Badge variant="outline" className="text-[10px] text-[#D7BB7D] border-[#D7BB7D]/40 bg-[#D7BB7D]/5">
+                          <Badge variant="outline" className="text-[10px] text-blue-700 border-blue-200 bg-blue-50">
                             {opa.tipo}
                           </Badge>
                         )}
@@ -1304,7 +1322,7 @@ export default function PainelPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Target className="w-4 h-4 text-[#D7BB7D]" />
+                <Target className="w-4 h-4 text-cyan-600" />
                 OPAs com Interesse Manifestado
               </h2>
               <Button
@@ -1342,11 +1360,11 @@ export default function PainelPage() {
                 {opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").slice(0, 5).map(o => (
                   <div
                     key={o.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
                     onClick={() => navigate(`/opas/${o.id}`)}
                     data-testid={`item-opa-${o.id}`}
                   >
-                    <Target className="w-3.5 h-3.5 text-[#D7BB7D] shrink-0" />
+                    <Target className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">
                         {o.nome_oportunidade || "OPA sem nome"}
@@ -1394,7 +1412,7 @@ export default function PainelPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Globe className="w-4 h-4 text-[#D7BB7D]" />
+                <Globe className="w-4 h-4 text-violet-600" />
                 Gestão de comunidade
               </h2>
               <Button
@@ -1427,7 +1445,7 @@ export default function PainelPage() {
                   return (
                     <Card
                       key={comunidade.id}
-                      className="border border-border/60 hover:border-[#D7BB7D]/40 cursor-pointer transition-colors"
+                      className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
                       onClick={() => navigate(`/comunidade/${comunidade.id}?from=dashboard`)}
                       data-testid={`card-gestao-comunidade-${comunidade.id}`}
                     >
@@ -1438,7 +1456,7 @@ export default function PainelPage() {
                               {comunidade.nome || "Comunidade"}
                             </p>
                             {comunidade.sigla && (
-                              <p className="mt-0.5 text-[10px] font-mono text-[#D7BB7D] truncate">
+                              <p className="mt-0.5 text-[10px] font-mono text-blue-600 truncate">
                                 {comunidade.sigla}
                               </p>
                             )}
@@ -1481,7 +1499,7 @@ export default function PainelPage() {
         <DialogContent className="w-[calc(100vw-2rem)] max-w-lg overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Ticket className="w-5 h-5 text-[#D7BB7D]" />
+              <Ticket className="w-5 h-5 text-blue-600" />
               Convidar parceiro
             </DialogTitle>
             <DialogDescription className="leading-relaxed">
@@ -1525,7 +1543,7 @@ export default function PainelPage() {
                       toast({ title: "Não foi possível copiar", description: "Selecione o link e copie manualmente.", variant: "destructive" });
                     }
                   }}
-                  className="shrink-0 rounded-md p-1.5 text-[#D7BB7D] hover:bg-[#D7BB7D]/10"
+                  className="shrink-0 rounded-md p-1.5 text-blue-600 hover:bg-blue-50"
                   data-testid="btn-dashboard-copiar-convite"
                 >
                   <Copy className="w-4 h-4" />
@@ -1550,12 +1568,12 @@ export default function PainelPage() {
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-5 text-center space-y-3">
-              <Ticket className="w-7 h-7 text-[#D7BB7D]/60 mx-auto" />
+              <Ticket className="w-7 h-7 text-blue-600/70 mx-auto" />
               <p className="text-sm text-muted-foreground">Nenhum link ativo no momento.</p>
               <Button
                 onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
                 disabled={gerarConviteMutation.isPending}
-                className="gap-2 bg-[#D7BB7D] text-[#001D34] hover:bg-[#D7BB7D]/90"
+                className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
                 data-testid="btn-dashboard-gerar-convite"
               >
                 {gerarConviteMutation.isPending ?(

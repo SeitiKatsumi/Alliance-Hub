@@ -22,7 +22,6 @@ import {
   Megaphone, CalendarDays, ExternalLink, ImageIcon, Tag, CheckCircle2, XCircle, Upload,
   ShieldCheck, Check, LayoutGrid, List,
 } from "lucide-react";
-import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import {
@@ -750,6 +749,7 @@ function AnuncioCard({
 export default function VitrinePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [location, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
   const [filterTerritorio, setFilterTerritorio] = useState("all");
@@ -901,6 +901,14 @@ export default function VitrinePage() {
     setAnuncioPagamentoPais("brasil");
     setAnuncioDialogOpen(true);
   }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("criarAnuncio") === "true") {
+      openAnuncioCreate();
+      navigate("/vitrine", { replace: true });
+    }
+  }, [location, navigate]);
 
   function openAnuncioEdit(alvo: AnuncioVitrine) {
     setAnuncioEditMode(true);
@@ -1947,7 +1955,6 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
       </div>
 
       <div className="hidden sm:flex items-center gap-3 shrink-0">
-        <AuraBadge membroId={m.id} />
         {!isOwn && (
           <Button
             type="button"
@@ -2080,10 +2087,6 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
                 <span className="text-xs text-white/35 truncate">{m.cidade}</span>
               </div>
             )}
-
-            <div className="flex justify-center">
-              <AuraBadge membroId={m.id} />
-            </div>
 
             {m.link_site && (
               <a

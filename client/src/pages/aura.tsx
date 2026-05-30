@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,11 +14,12 @@ import {
   Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
   TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
   ShieldCheck, Target, Briefcase, CalendarDays, BarChart3,
-  AlertTriangle, Lock, Activity, BookOpen, Handshake,
+  AlertTriangle, Lock, Activity, BookOpen, Handshake, Settings,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useParams } from "wouter";
 
 interface AuraResult {
   score: number | null;
@@ -177,6 +178,7 @@ function getInitials(nome: string): string {
 export default function AuraPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { membroId: routeMembroId } = useParams<{ membroId?: string }>();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMembro, setSelectedMembro] = useState<MembroBusca | null>(null);
@@ -190,10 +192,29 @@ export default function AuraPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const myId = user?.membro_directus_id;
+  const viewedMembroId = routeMembroId || myId;
+  const isOwnAura = !routeMembroId || routeMembroId === myId;
 
-  const { data: myAura, isLoading: loadingMyAura } = useQuery<AuraResult>({
-    queryKey: ["/api/aura/score", myId],
-    enabled: !!myId,
+  const { data: viewedMembro } = useQuery<MembroBusca | null>({
+    queryKey: ["/api/membros", routeMembroId],
+    queryFn: async () => {
+      const res = await fetch(`/api/membros/${routeMembroId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return {
+        id: data.id,
+        nome: data.nome,
+        cargo: data.cargo || data.responsavel_cargo || null,
+        empresa: data.empresa || data.nome_fantasia || null,
+        foto: data.foto_perfil || null,
+      };
+    },
+    enabled: !!routeMembroId,
+  });
+
+  const { data: viewedAura } = useQuery<AuraResult>({
+    queryKey: ["/api/aura/score", viewedMembroId],
+    enabled: !!viewedMembroId,
   });
 
   const { data: lexico = [] } = useQuery<string[]>({
@@ -206,7 +227,7 @@ export default function AuraPage() {
   });
   const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
   const minhasAvaliacoesRecebidas: MinhaAvaliacao[] = minhasAvaliacoesData?.recebidas ?? [];
-  const evolucaoDados = useMemo(() => calcularEvolucao(minhasAvaliacoesRecebidas), [minhasAvaliacoesRecebidas]);
+  const evolucaoDados = useMemo(() => isOwnAura ? calcularEvolucao(minhasAvaliacoesRecebidas) : [], [isOwnAura, minhasAvaliacoesRecebidas]);
 
   const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
     queryKey: ["/api/aura/membros/busca"],
@@ -219,6 +240,16 @@ export default function AuraPage() {
     enabled: !!myId,
     staleTime: 5 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (!routeMembroId || routeMembroId === myId || !viewedMembro) return;
+    setSelectedMembro(viewedMembro);
+    setSelectedPalavras([]);
+    setSearchQuery("");
+    setTextoIA("");
+    setArquivoNome(null);
+    setEvalMode("palavras");
+  }, [routeMembroId, myId, viewedMembro]);
 
   const memberSearchTerm = searchQuery.trim();
   const memberSearchActive = memberSearchTerm.length >= 2;
@@ -245,7 +276,8 @@ export default function AuraPage() {
       toast({ title: "Avaliação enviada!", description: "Obrigado por contribuir com a Aura da comunidade." });
       queryClient.invalidateQueries({ queryKey: ["/api/aura/minhas-avaliacoes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/aura/avaliacao", selectedMembro?.id] });
-      setSelectedMembro(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/aura/score", selectedMembro?.id] });
+      if (!routeMembroId) setSelectedMembro(null);
       setSelectedPalavras([]);
       setSearchQuery("");
       setTextoIA("");
@@ -322,12 +354,15 @@ export default function AuraPage() {
     setShowSugestoes(false);
   }
 
-  const score = myAura?.score ?? null;
-  const T = myAura?.T ?? 0;
-  const R = myAura?.R ?? 0;
-  const C = myAura?.C ?? 0;
-  const n = myAura?.n ?? 0;
-  const palavrasRecebidas = myAura?.palavras_recebidas ?? [];
+  const score = viewedAura?.score ?? null;
+  const T = viewedAura?.T ?? 0;
+  const R = viewedAura?.R ?? 0;
+  const C = viewedAura?.C ?? 0;
+  const n = viewedAura?.n ?? 0;
+  const palavrasRecebidas = viewedAura?.palavras_recebidas ?? [];
+  const viewedName = isOwnAura ? (user?.nome || user?.username || "Membro BUILT") : (viewedMembro?.nome || "Membro BUILT");
+  const viewedEmail = isOwnAura ? user?.email : "";
+  const viewedFoto = isOwnAura ? user?.foto_perfil : viewedMembro?.foto;
   const pontoMax = Math.max(n * 2, 1);
   const dimensoesAura = [
     {
@@ -367,6 +402,9 @@ export default function AuraPage() {
     { label: "Propósito Alinhado", value: dimensoesAura[2].pontuacao },
   ];
   const nucleoMaisForte = [...dimensoesAura].sort((a, b) => b.pontuacao - a.pontuacao)[0];
+  const horizonteProjeto = score !== null && score >= 70 ? "Longo prazo" : score !== null && score >= 50 ? "Médio prazo" : "Curto prazo";
+  const nivelResponsabilidade = score !== null && score >= 70 ? "Alta" : score !== null && score >= 50 ? "Média" : "Baixa";
+  const compatibilidadeCultural = convergencia === "Alta" ? "Alta" : convergencia === "Média" ? "Média" : "Baixa";
   const leiturasPorNucleo: Record<string, string> = {
     "Técnico": "Sua Aura indica leitura para núcleos técnicos: organização, qualidade de entrega e sustentação de decisões com método.",
     "Obra": "Sua Aura aplicada ao núcleo de obra observa disciplina de execução, compromisso com prazos, consistência operacional e capacidade de resolver problemas no campo.",
@@ -376,10 +414,10 @@ export default function AuraPage() {
   };
   const leituraNucleo = leiturasPorNucleo[selectedNucleoLeitura] ?? leiturasPorNucleo["Técnico"];
   const matrizAplicabilidade = [
-    { icon: CalendarDays, label: "Horizonte de Projeto", value: score !== null && score >= 70 ? "Longo prazo" : "Em formação", color: "#22C55E" },
-    { icon: BarChart3, label: "Nível de Responsabilidade", value: score !== null && score >= 70 ? "Alta" : "Moderada", color: "#3B82F6" },
+    { icon: CalendarDays, label: "Horizonte de Projeto", value: horizonteProjeto, color: "#22C55E" },
+    { icon: BarChart3, label: "Nível de Responsabilidade", value: nivelResponsabilidade, color: "#3B82F6" },
     { icon: Handshake, label: "Tipo de Aliança Recomendada", value: nucleoMaisForte.dim === "T" ? "Técnica e liderança" : nucleoMaisForte.dim === "R" ? "Relacionamento e comunidade" : "Governança e liderança", color: "#D7BB7D" },
-    { icon: Users, label: "Compatibilidade Cultural", value: convergencia === "Alta" ? "Alta" : "Em validação", color: "#22C55E" },
+    { icon: Users, label: "Compatibilidade Cultural", value: compatibilidadeCultural, color: "#22C55E" },
   ];
 
   return (
@@ -395,22 +433,22 @@ export default function AuraPage() {
         </p>
       </div>
 
-      {myId && (
+      {viewedMembroId && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4" data-testid="section-aura-dashboard">
           <Card className="border border-border/60 xl:col-span-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(0,29,52,0.04), rgba(215,187,125,0.04))" }}>
             <CardContent className="p-5 space-y-4">
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center bg-[#001D34]/10 text-[#D7BB7D] text-lg font-bold shrink-0">
-                  {user?.foto_perfil ?(
-                    <img src={fotoUrl(user.foto_perfil) || ""} alt="" className="w-full h-full object-cover" />
+                  {viewedFoto ?(
+                    <img src={fotoUrl(viewedFoto) || ""} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    getInitials(user?.nome || user?.username || "BU")
+                    getInitials(viewedName || "BU")
                   )}
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-[#D7BB7D]">Perfil reputacional</p>
-                  <h2 className="text-xl font-semibold text-foreground truncate">{user?.nome || user?.username || "Membro BUILT"}</h2>
-                  <p className="text-sm text-muted-foreground">{user?.email || "E-mail não informado"}</p>
+                  <h2 className="text-xl font-semibold text-foreground truncate">{viewedName}</h2>
+                  <p className="text-sm text-muted-foreground">{viewedEmail || (isOwnAura ? "E-mail não informado" : "Aura do membro aliado")}</p>
                   <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs" style={{ color: "#22C55E", borderColor: "rgba(34,197,94,0.25)", background: "rgba(34,197,94,0.08)" }}>
                     <ShieldCheck className="w-3.5 h-3.5" />
                     {user?.ativo ? "Membro validado" : "Em validação"}
@@ -482,11 +520,19 @@ export default function AuraPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {dimensoesAura.map(d => (
-                <div key={d.dim} className="grid grid-cols-[1fr_52px] gap-3 items-center">
+              {dimensoesAura.map(d => {
+                const DimensionIcon = d.dim === "T" ? Settings : d.dim === "R" ? Users : ShieldCheck;
+                return (
+                <div key={d.dim} className="grid grid-cols-[40px_1fr_52px] gap-3 items-center">
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-lg"
+                    style={{ color: dimColor(d.dim), background: `${dimColor(d.dim)}14` }}
+                  >
+                    <DimensionIcon className="h-4 w-4" />
+                  </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold" style={{ color: dimColor(d.dim) }}>{d.label}</p>
                         <p className="text-[11px] text-muted-foreground">{d.descricao}</p>
                       </div>
@@ -498,7 +544,8 @@ export default function AuraPage() {
                   </div>
                   <strong className="text-lg text-right text-foreground">{d.pontuacao}</strong>
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -645,7 +692,7 @@ export default function AuraPage() {
       )}
 
       {/* Received evaluations list */}
-      {myId && minhasAvaliacoesRecebidas.length > 0 && (
+      {isOwnAura && myId && minhasAvaliacoesRecebidas.length > 0 && (
         <div className="space-y-3" data-testid="section-avaliacoes-recebidas">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Users className="w-4 h-4 text-[#D7BB7D]" />
@@ -699,7 +746,7 @@ export default function AuraPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Users className="w-4 h-4 text-[#D7BB7D]" />
-              Avaliar um Membro
+              {routeMembroId && routeMembroId !== myId ? `Registrar Aura de ${viewedName}` : "Avaliar um Membro"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -998,7 +1045,7 @@ export default function AuraPage() {
       )}
 
       {/* My evaluations given */}
-      {myId && minhasAvaliacoesDadas.length > 0 && (
+      {isOwnAura && myId && minhasAvaliacoesDadas.length > 0 && (
         <div className="space-y-3" data-testid="section-minhas-avaliacoes">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-[#D7BB7D]" />

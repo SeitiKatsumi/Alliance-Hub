@@ -18,9 +18,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import {
-  User, Mail, Phone, MapPin, Building2, Briefcase,
-  Save, Loader2, Camera, CheckCircle2, Plus, Globe, Navigation, Search,
-  Upload, ImageIcon, X, Languages, ChevronDown, Lock, Ticket, Copy, RefreshCw
+  User, MapPin, Building2, Briefcase,
+  Save, Loader2, Camera, CheckCircle, CheckCircle2, Globe, Navigation, Search,
+  ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw,
+  Store, TrendingUp, Crown, FolderKanban, Scale, Lightbulb, ShieldCheck,
+  CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound
 } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
@@ -52,6 +55,24 @@ const INVITE_TYPE_OPTIONS = [
   { value: "membros", label: "Área de Alianças" },
 ];
 const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: string }> = {
+  "Liderança": { icon: Crown, color: "text-amber-600", bg: "bg-amber-50" },
+  "Projeto": { icon: FolderKanban, color: "text-blue-600", bg: "bg-blue-50" },
+  "Jurídicas": { icon: Scale, color: "text-blue-600", bg: "bg-blue-50" },
+  "Inteligência": { icon: Lightbulb, color: "text-blue-600", bg: "bg-blue-50" },
+  "Governança": { icon: ShieldCheck, color: "text-blue-600", bg: "bg-blue-50" },
+  "Execução": { icon: CircleCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Fornecimento": { icon: Truck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Comerciais": { icon: BriefcaseBusiness, color: "text-purple-600", bg: "bg-purple-50" },
+  "Vendas e Locação": { icon: Tags, color: "text-purple-600", bg: "bg-purple-50" },
+  "Marketing": { icon: Megaphone, color: "text-purple-600", bg: "bg-purple-50" },
+  "Operações e Facilities": { icon: Building2, color: "text-purple-600", bg: "bg-purple-50" },
+  "Gestão de Relacionamento com Cliente": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+  "Relacionamento": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+  "Investimento": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
+  "Contábeis e Tributárias": { icon: ReceiptText, color: "text-orange-600", bg: "bg-orange-50" },
+  "Gestão Financeira": { icon: CircleDollarSign, color: "text-orange-600", bg: "bg-orange-50" },
+};
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -181,14 +202,6 @@ const REDES_DISPONIVEIS = [
   { value: "BNI", label: "BNI", badge: "/bni-badge.png" },
 ];
 
-const NUCLEOS = [
-  "Diretoria da Aliança",
-  "Núcleo Técnico",
-  "Núcleo de Obra",
-  "Núcleo Comercial",
-  "Núcleo de Capital",
-];
-
 const IDIOMAS_DISPONIVEIS = [
   "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
   "Mandarim", "Japonês", "Árabe", "Russo", "Hindi", "Coreano",
@@ -270,6 +283,11 @@ export default function MeuPerfilPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [idiomaInput, setIdiomaInput] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fotoCropRef = useRef<HTMLDivElement>(null);
@@ -349,6 +367,27 @@ export default function MeuPerfilPage() {
     },
     onError: () => {
       toast({ title: "Erro ao salvar", variant: "destructive" });
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+      const res = await fetch("/api/me/password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Erro ao alterar senha");
+      return data;
+    },
+    onSuccess: () => {
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast({ title: "Senha alterada com sucesso!" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao alterar senha", description: err.message, variant: "destructive" });
     },
   });
 
@@ -468,6 +507,14 @@ export default function MeuPerfilPage() {
   }
 
   function handleSave() {
+    if (!String(form.email || "").trim()) {
+      toast({ title: "E-mail obrigatório", description: "Informe um e-mail para salvar o perfil.", variant: "destructive" });
+      return;
+    }
+    if (!String(form.telefone || "").trim()) {
+      toast({ title: "Telefone obrigatório", description: "Informe um telefone para salvar o perfil.", variant: "destructive" });
+      return;
+    }
     const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
     const payload: Record<string, any> = { ...rest };
     // Send Especialidades as Directus M2M array
@@ -475,6 +522,25 @@ export default function MeuPerfilPage() {
       ?[{ especialidades_id: especialidade_id }]
       : [];
     updateMutation.mutate(payload as any);
+  }
+
+  function handleChangePassword() {
+    const currentPassword = passwordForm.currentPassword.trim();
+    const newPassword = passwordForm.newPassword.trim();
+    const confirmPassword = passwordForm.confirmPassword.trim();
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ title: "Campos obrigatórios", description: "Preencha a senha atual, a nova senha e a confirmação.", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 4) {
+      toast({ title: "Senha muito curta", description: "A nova senha deve ter pelo menos 4 caracteres.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Senhas diferentes", description: "A confirmação precisa ser igual à nova senha.", variant: "destructive" });
+      return;
+    }
+    changePasswordMutation.mutate({ currentPassword, newPassword });
   }
 
   if (!membroId) {
@@ -495,57 +561,86 @@ export default function MeuPerfilPage() {
   const nome = form.nome || membro?.nome || user?.nome || "";
   const fotoPosition = getPhotoObjectPosition(form);
   const fotoCropDraw = getCropDrawSize();
+  const profileSummary = (
+    <section className="profile-section p-4">
+      <p className="text-sm font-bold text-[#001D34]">Resumo do seu perfil</p>
+      <div className="mt-4 flex items-center gap-3 border-b border-slate-100 pb-4">
+        <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-100 text-lg font-bold text-[#001D34]">
+          {foto ? <img src={foto} alt={nome} className="h-full w-full object-cover" style={{ objectPosition: fotoPosition }} /> : getInitials(nome || "BU")}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate font-bold text-[#001D34]">{nome || "Seu nome"}</p>
+          <p className="mt-1 text-xs text-slate-500">{form.cargo || form.especialidade || "Área de Alianças"}</p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-3 text-xs">
+        <div>
+          <p className="font-bold text-slate-700">Papel na BUILT</p>
+          <p className="mt-1 break-words text-slate-600">{form.em_built_capital ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p>
+        </div>
+        <div>
+          <p className="font-bold text-slate-700">Áreas de contribuição ({(form.tipos_alianca || []).length})</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(form.tipos_alianca || []).length > 0 ? (form.tipos_alianca || []).map(tipo => (
+              <span key={tipo} className="max-w-full rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
+            )) : <span className="text-slate-500">-</span>}
+          </div>
+        </div>
+        <div className="grid grid-cols-[minmax(88px,110px)_minmax(0,1fr)] gap-2">
+          <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{form.ramo_atuacao || "-"}</p>
+          <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{form.segmento || "-"}</p>
+          <p className="font-bold text-slate-700">Área de atuação</p><p className="break-words text-slate-600">{[form.cidade, form.estado].filter(Boolean).join(", ") || "-"}</p>
+        </div>
+      </div>
+    </section>
+  );
 
   return (
-    <div className="profile-light-page min-h-screen bg-slate-50 text-brand-navy">
+    <div className="profile-light-page min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-brand-navy">
       <style>{`
-        .profile-light-page {
+        .profile-light-page { background: #f8fafc !important; color: #001d34 !important; }
+        .profile-light-page * { min-width: 0; }
+        .profile-light-page .profile-aside { background: #001d34; }
+        .profile-light-page .profile-onboarding-card,
+        .profile-light-page .profile-section {
+          border: 1px solid #e2e8f0 !important;
+          background: #ffffff !important;
+          border-radius: 0.75rem !important;
+          box-shadow: none !important;
+        }
+        .profile-light-page .profile-media-row,
+        .profile-light-page .profile-onboarding-card .rounded-xl[style],
+        .profile-light-page .profile-onboarding-card .rounded-lg[style] {
           background: #f8fafc !important;
-          color: #001d34 !important;
-        }
-        .profile-light-page > .relative.overflow-hidden {
-          background: #ffffff !important;
-          border-bottom-color: rgba(215, 187, 125, 0.35) !important;
-        }
-        .profile-light-page > .relative.overflow-hidden .absolute.inset-0 {
-          opacity: 0.55;
-        }
-        .profile-light-page .rounded-xl[style],
-        .profile-light-page .rounded-lg[style],
-        .profile-light-page .rounded-md[style],
-        .profile-light-page .border-transparent[style],
-        .profile-light-page [class*="border-white"][style] {
-          background: #ffffff !important;
-          border-color: rgba(215, 187, 125, 0.35) !important;
+          border-color: #e2e8f0 !important;
         }
         .profile-light-page input,
         .profile-light-page textarea,
         .profile-light-page button[role="combobox"] {
-          background: #ffffff !important;
+          background: #f8fafc !important;
           border-color: #d8dee8 !important;
           color: #001d34 !important;
+          min-height: 2.5rem;
+          box-shadow: none !important;
         }
         .profile-light-page input::placeholder,
-        .profile-light-page textarea::placeholder {
-          color: #94a3b8 !important;
+        .profile-light-page textarea::placeholder { color: #94a3b8 !important; }
+        .profile-light-page input:focus,
+        .profile-light-page textarea:focus,
+        .profile-light-page button[role="combobox"]:focus {
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
         }
-        .profile-light-page [class*="text-white"] {
-          color: #475569 !important;
-        }
+        .profile-light-page [class*="text-white"] { color: #475569 !important; }
+        .profile-light-page .profile-aside [class*="text-white"] { color: inherit !important; }
         .profile-light-page h1,
         .profile-light-page h2,
         .profile-light-page h3,
-        .profile-light-page .font-bold {
-          color: #001d34 !important;
-        }
+        .profile-light-page .font-bold { color: #001d34 !important; }
         .profile-light-page [class*="text-brand-gold"],
         .profile-light-page [data-testid^="chip-"],
-        .profile-light-page [data-testid^="btn-rede-"] span {
-          color: #9a7430 !important;
-        }
-        .profile-light-page [data-testid="btn-salvar-perfil"] {
-          color: #001d34 !important;
-        }
+        .profile-light-page [data-testid^="btn-rede-"] span { color: #1d4ed8 !important; }
+        .profile-light-page [data-testid="btn-salvar-perfil"] { color: #001d34 !important; }
         .profile-light-page [data-testid="switch-perfil-na-vitrine"] {
           background: #cbd5e1 !important;
           border: 1px solid #94a3b8 !important;
@@ -561,42 +656,21 @@ export default function MeuPerfilPage() {
           box-shadow: 0 2px 8px rgba(15, 23, 42, 0.24) !important;
         }
         .profile-light-page .bg-black\\/60,
-        .profile-light-page .bg-black\\/50 {
-          background: rgba(0, 29, 52, 0.68) !important;
-        }
+        .profile-light-page .bg-black\\/50 { background: rgba(0, 29, 52, 0.68) !important; }
         .profile-light-page .bg-black\\/60 svg,
-        .profile-light-page .bg-black\\/50 svg {
-          color: #ffffff !important;
-        }
-        .profile-light-page .profile-onboarding-card {
-          border: 1px solid #e2e8f0 !important;
-          background: #ffffff !important;
-          border-radius: 0.75rem !important;
-          box-shadow: none !important;
-        }
-        .profile-light-page .profile-onboarding-card .rounded-xl[style],
-        .profile-light-page .profile-onboarding-card .rounded-lg[style] {
-          background: #f8fafc !important;
-          border-color: #e2e8f0 !important;
-        }
-        .profile-light-page input,
-        .profile-light-page textarea,
-        .profile-light-page button[role="combobox"] {
-          background: #f8fafc !important;
-          border-color: #d8dee8 !important;
-          color: #001d34 !important;
-          min-height: 2.5rem;
-        }
-        .profile-light-page input:focus,
-        .profile-light-page textarea:focus,
-        .profile-light-page button[role="combobox"]:focus {
-          border-color: #2563eb !important;
-          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+        .profile-light-page .bg-black\\/50 svg { color: #ffffff !important; }
+        .profile-light-page > .mx-auto > .absolute { display: none !important; }
+        .profile-light-page > .mx-auto > .relative.z-10 > .relative.shrink-0 { display: none; }
+        @media (max-width: 640px) {
+          .profile-light-page .profile-section,
+          .profile-light-page .profile-onboarding-card {
+            border-radius: 0.625rem !important;
+          }
         }
       `}</style>
       {/* Header */}
       <div
-        className="mx-auto max-w-6xl px-6 pt-8"
+        className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8"
         style={{ background: "transparent" }}
       >
         <div className="absolute inset-0 pointer-events-none" style={{
@@ -609,7 +683,7 @@ export default function MeuPerfilPage() {
         <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-brand-gold/40" />
 
         <p className="relative z-10 text-xs text-slate-500">Início / Meu perfil</p>
-        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-4">
+        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-3 sm:gap-4">
           {/* Avatar — click to upload */}
           <div className="relative shrink-0">
             <input
@@ -652,16 +726,16 @@ export default function MeuPerfilPage() {
           </div>
 
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-[#001D34]">Meu perfil</h1>
+            <h1 className="flex items-start gap-2 text-xl font-bold leading-tight text-[#001D34] sm:items-center sm:gap-3 sm:text-2xl"><span aria-hidden="true" className="text-2xl sm:text-3xl">👋</span><span>Vamos personalizar sua experiência</span></h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Atualize suas informações para melhorar recomendações, conexões e oportunidades na BUILT.
             </p>
-            <p className="mt-2 truncate text-base font-semibold text-[#001D34]">{nome || "—"}</p>
+            <p className="mt-2 break-words text-base font-semibold text-[#001D34]">{nome || "—"}</p>
             {(form.especialidade || form.cargo) && (
-              <p className="text-sm text-slate-500 mt-0.5">{form.especialidade || form.cargo}</p>
+              <p className="mt-0.5 break-words text-sm text-slate-500">{form.especialidade || form.cargo}</p>
             )}
             {form.empresa && (
-              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+              <p className="mt-0.5 flex items-start gap-1 break-words text-xs text-slate-500">
                 <Building2 className="w-3 h-3" />{form.empresa}
               </p>
             )}
@@ -670,13 +744,94 @@ export default function MeuPerfilPage() {
       </div>
 
       {/* Form */}
-      <div className="max-w-6xl mx-auto p-6 space-y-4">
+      <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-4 sm:px-6 sm:py-6">
         {isLoading ?(
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 bg-white/5" />)}
           </div>
         ) : (
           <>
+            <div className="xl:hidden">
+              {profileSummary}
+            </div>
+            <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,330px)]">
+              <div className="min-w-0 space-y-4">
+                <section className="profile-section p-4">
+                  <h3 className="text-sm font-bold text-[#001D34]">1. Qual o seu papel na BUILT?</h3>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {[
+                      {
+                        id: "prestador",
+                        title: "Prestador de serviços, fornecedor ou profissional independente",
+                        desc: "Atuo oferecendo serviços, insumos ou experiência profissional.",
+                        selected: !form.em_built_capital,
+                      },
+                      {
+                        id: "capital",
+                        title: "Parceiro de Capital",
+                        desc: "Atuo como investidor ou parceiro de capital.",
+                        selected: !!form.em_built_capital,
+                      },
+                    ].map((role) => (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, em_built_capital: role.id === "capital" }))}
+                        className={`flex min-h-24 gap-3 rounded-lg border p-3 text-left transition-colors ${
+                          role.selected ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                          role.id === "capital" ? "bg-emerald-50 text-emerald-700" : "bg-blue-100 text-blue-700"
+                        }`}>
+                          {role.id === "capital" ? <TrendingUp className="h-5 w-5" /> : <Store className="h-5 w-5" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block break-words text-sm font-bold text-[#001D34]">{role.title}</span>
+                          <span className="mt-1 block text-xs leading-relaxed text-slate-600">{role.desc}</span>
+                        </span>
+                        {role.selected && <CheckCircle className="h-4 w-4 shrink-0 text-blue-600" />}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="profile-section p-4">
+                  <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
+                  <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+                    {getAllTipos().map((tipo) => {
+                      const selected = (form.tipos_alianca || []).includes(tipo.nome);
+                      const label = getTipoDisplayName(tipo.nome);
+                      const iconConfig = AREA_ICON_CONFIG[label] || { icon: FolderKanban, color: "text-slate-600", bg: "bg-slate-50" };
+                      const AreaIcon = iconConfig.icon;
+                      return (
+                        <button
+                          key={tipo.nome}
+                          type="button"
+                          onClick={() => {
+                            const current = form.tipos_alianca || [];
+                            const novos = selected ? current.filter(x => x !== tipo.nome) : [...current, tipo.nome];
+                            setForm(f => ({ ...f, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                          }}
+                          className={`flex min-h-11 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                            selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${iconConfig.bg} ${iconConfig.color}`}>
+                              <AreaIcon className="h-4 w-4" />
+                            </span>
+                            <span className="truncate">{label}</span>
+                          </span>
+                          {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {(form.tipos_alianca || []).length}</p>
+                </section>
+
             {/* Dados pessoais */}
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
@@ -691,19 +846,21 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-nome"
                     />
                   </Field>
-                  <Field label="E-mail">
+                  <Field label="E-mail *">
                     <Input
                       value={form.email || ""}
                       onChange={e => set("email", e.target.value)}
                       type="email"
+                      required
                       className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                       data-testid="input-perfil-email"
                     />
                   </Field>
-                  <Field label="Telefone">
+                  <Field label="Telefone *">
                     <Input
                       value={form.telefone || ""}
                       onChange={e => set("telefone", e.target.value)}
+                      required
                       className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                       data-testid="input-perfil-telefone"
                     />
@@ -753,24 +910,62 @@ export default function MeuPerfilPage() {
             {/* Profissional */}
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
-                <SectionLabel icon={Briefcase} label="Perfil Profissional" />
+                <SectionLabel icon={Briefcase} label="Dados complementares" />
 
-                {/* Logo da empresa */}
-                <div className="flex items-center gap-4">
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                    className="hidden"
-                    onChange={handleLogoChange}
-                    data-testid="input-logo-empresa"
-                  />
-                  <div
-                    className="relative w-20 h-20 rounded-xl border-2 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer group/logo"
-                    style={{
-                      borderColor: form.logo_empresa ?"rgba(215,187,125,0.35)" : "rgba(255,255,255,0.1)",
-                      background: form.logo_empresa ?"rgba(255,255,255,0.04)" : "rgba(255,255,255,0.02)",
-                    }}
+                <input
+                  ref={fotoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={handleFotoChange}
+                  data-testid="input-foto-perfil"
+                />
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={handleLogoChange}
+                  data-testid="input-logo-empresa"
+                />
+
+                <div className="profile-media-row flex flex-wrap items-center gap-3 rounded-lg p-3">
+                  <button
+                    type="button"
+                    onClick={() => fotoInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-[#001D34]"
+                    title="Clique para trocar a foto"
+                    data-testid="btn-trocar-foto"
+                  >
+                    {uploadingFoto ?(
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    ) : foto ?(
+                      <img src={foto} alt={nome} className="h-full w-full object-cover" style={{ objectPosition: fotoPosition }} />
+                    ) : (
+                      <Camera className="h-5 w-5 text-blue-600" />
+                    )}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-[#001D34]">Foto de perfil</p>
+                    <p className="text-[11px] text-slate-500">Adicione uma imagem para aparecer no seu perfil.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fotoInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    className="shrink-0 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                  >
+                    {uploadingFoto ? "Enviando..." : foto ? "Trocar foto" : "Adicionar foto"}
+                  </Button>
+                </div>
+
+                <div className="profile-media-row flex flex-wrap items-center gap-3 rounded-lg p-3">
+                  <button
+                    type="button"
+                    className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-white"
                     onClick={() => !uploadingLogo && logoInputRef.current?.click()}
                     title="Clique para enviar a logo"
                     data-testid="btn-upload-logo-empresa"
@@ -784,29 +979,24 @@ export default function MeuPerfilPage() {
                           alt="Logo da empresa"
                           className="w-full h-full object-contain p-1"
                         />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center">
-                          <Upload className="w-5 h-5 text-white" />
-                        </div>
                       </>
                     ) : (
-                      <div className="flex flex-col items-center gap-1.5 text-white/20">
-                        <ImageIcon className="w-6 h-6" />
-                        <span className="text-[9px] font-mono text-center leading-tight">LOGO</span>
-                      </div>
+                      <ImageIcon className="h-5 w-5 text-slate-500" />
                     )}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-[#001D34]">Marca da empresa</p>
+                    <p className="text-[11px] text-slate-500">Adicione o logo que aparecera junto ao nome da empresa.</p>
                   </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-mono text-white/60">Marca / Logo da Empresa</p>
-                    <p className="text-[11px] text-white/25">PNG, JPG ou SVG recomendado</p>
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => !uploadingLogo && logoInputRef.current?.click()}
                       disabled={uploadingLogo}
-                      className="mt-1.5 flex items-center gap-1.5 text-xs font-mono text-brand-gold/60 hover:text-brand-gold transition-colors disabled:opacity-40"
+                      className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700 disabled:opacity-40"
                       data-testid="btn-trocar-logo-empresa"
                     >
-                      <Upload className="w-3 h-3" />
-                      {form.logo_empresa ?"Trocar logo" : "Enviar logo"}
+                      {uploadingLogo ? "Enviando..." : form.logo_empresa ?"Trocar marca" : "Adicionar marca"}
                     </button>
                     {form.logo_empresa && (
                       <button
@@ -815,10 +1005,9 @@ export default function MeuPerfilPage() {
                           setForm(f => ({ ...f, logo_empresa: null }));
                           apiRequest("PATCH", `/api/membros/${membroId}`, { logo_empresa: null });
                         }}
-                        className="flex items-center gap-1.5 text-xs font-mono text-red-400/50 hover:text-red-400/80 transition-colors"
+                        className="inline-flex items-center justify-center rounded-md border border-red-100 bg-white px-3 py-2 text-xs font-semibold text-red-500 hover:border-red-200 hover:text-red-600"
                         data-testid="btn-remover-logo-empresa"
                       >
-                        <X className="w-3 h-3" />
                         Remover
                       </button>
                     )}
@@ -905,70 +1094,6 @@ export default function MeuPerfilPage() {
                     data-testid="input-perfil-especialidade-livre"
                   />
                 </Field>
-
-                {/* Áreas de Contribuição — selecionar tipo já preenche o núcleo automaticamente */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-white/40 font-mono">Áreas de Contribuição</Label>
-                  {(form.tipos_alianca || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {(form.tipos_alianca || []).map(t => (
-                        <span
-                          key={t}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono border"
-                          style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.2)", color: "rgba(215,187,125,0.8)" }}
-                          data-testid={`chip-tipo-${t}`}
-                        >
-                          {getTipoDisplayName(t)}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const novos = (form.tipos_alianca || []).filter(x => x !== t);
-                              setForm(f => ({
-                                ...f,
-                                tipos_alianca: novos,
-                                nucleos_alianca: getNucleosForTipos(novos),
-                              }));
-                            }}
-                            className="ml-0.5 hover:text-white transition-colors"
-                            data-testid={`btn-remover-tipo-${t}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {getAllTipos().filter(t => !(form.tipos_alianca || []).includes(t.nome)).length > 0 && (
-                    <Select
-                      value=""
-                      onValueChange={v => {
-                        if (v && !(form.tipos_alianca || []).includes(v)) {
-                          const novos = [...(form.tipos_alianca || []), v];
-                          setForm(f => ({
-                            ...f,
-                            tipos_alianca: novos,
-                            nucleos_alianca: getNucleosForTipos(novos),
-                          }));
-                        }
-                      }}
-                    >
-                      <SelectTrigger
-                        className="bg-white/5 border-white/10 text-white/50 focus:border-brand-gold/40 w-auto"
-                        data-testid="select-add-tipo"
-                      >
-                        <Plus className="w-3.5 h-3.5 mr-1.5" />
-                        <span className="text-xs font-mono">Adicionar Áreas</span>
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                        {getAllTipos().filter(t => !(form.tipos_alianca || []).includes(t.nome)).map(t => (
-                          <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                            {getTipoDisplayName(t.nome)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
 
                 {/* Idiomas Falados */}
                 <div className="space-y-2">
@@ -1275,6 +1400,85 @@ export default function MeuPerfilPage() {
                 )}
               </CardContent>
             </Card>
+
+              </div>
+
+              <aside className="min-w-0 space-y-4">
+                <div className="hidden xl:block">
+                  {profileSummary}
+                </div>
+
+                <section className="profile-section p-4">
+                  <p className="text-sm font-bold text-[#001D34]">Informações atuais</p>
+                  <div className="mt-3 space-y-2 text-xs text-slate-600">
+                    {[
+                      form.email && `E-mail: ${form.email}`,
+                      form.whatsapp && `WhatsApp: ${form.whatsapp}`,
+                      form.empresa && `Empresa: ${form.empresa}`,
+                      form.link_site && `Site: ${form.link_site}`,
+                    ].filter(Boolean).map(item => (
+                      <p key={String(item)} className="flex items-start gap-2">
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        <span className="break-all">{item}</span>
+                      </p>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="profile-section p-4">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm font-bold text-[#001D34]">Alterar senha</p>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <Field label="Senha atual">
+                      <Input
+                        type="password"
+                        autoComplete="current-password"
+                        value={passwordForm.currentPassword}
+                        onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                        className="bg-slate-50 border-slate-200 text-[#001D34]"
+                        data-testid="input-senha-atual"
+                      />
+                    </Field>
+                    <Field label="Nova senha">
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        value={passwordForm.newPassword}
+                        onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                        className="bg-slate-50 border-slate-200 text-[#001D34]"
+                        data-testid="input-nova-senha"
+                      />
+                    </Field>
+                    <Field label="Confirmar nova senha">
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        value={passwordForm.confirmPassword}
+                        onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                        className="bg-slate-50 border-slate-200 text-[#001D34]"
+                        data-testid="input-confirmar-nova-senha"
+                      />
+                    </Field>
+                    <Button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={changePasswordMutation.isPending}
+                      className="w-full gap-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      data-testid="btn-alterar-senha"
+                    >
+                      {changePasswordMutation.isPending ?(
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <KeyRound className="h-4 w-4" />
+                      )}
+                      {changePasswordMutation.isPending ? "Alterando..." : "Alterar senha"}
+                    </Button>
+                  </div>
+                </section>
+              </aside>
+            </div>
 
             {/* Save button */}
             <div className="flex justify-end">

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { AuraScore, getFaixaNome } from "@/components/aura-score";
 import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
@@ -161,6 +162,11 @@ export default function MembroDetalhePage() {
     enabled: !!id,
   });
 
+  const { data: aura } = useQuery<{ score: number | null; n: number; faixa: string | null }>({
+    queryKey: ["/api/aura/score", id],
+    enabled: !!id,
+  });
+
   const foto = fotoUrl(membro?.foto_perfil);
   const nome = membro?.nome || "—";
   const cargo = membro?.cargo || membro?.responsavel_cargo || null;
@@ -301,6 +307,31 @@ export default function MembroDetalhePage() {
             )}
           </div>
         </div>
+
+        {/* Aura */}
+        <Link href={`/aura/${id}`}>
+          <button
+            type="button"
+            className="w-full rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/30"
+            data-testid="card-membro-aura"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <AuraScore score={aura?.score ?? null} size="sm" />
+                <div>
+                  <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Aura Percebida</p>
+                  <p className="text-lg font-semibold text-gray-900">{aura?.faixa || getFaixaNome(aura?.score ?? null)}</p>
+                  <p className="mt-1 text-xs text-gray-500 font-mono">
+                    {aura?.n ? `${aura.n} avaliação${aura.n === 1 ? "" : "ões"} registrada${aura.n === 1 ? "" : "s"}` : "Sem avaliações registradas"}
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
+                Ver e registrar Aura
+              </span>
+            </div>
+          </button>
+        </Link>
 
         {/* Contato + Perfil Profissional lado a lado */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

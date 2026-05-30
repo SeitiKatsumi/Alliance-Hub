@@ -9,6 +9,7 @@ import {
   oportunidades, type Oportunidade, type InsertOportunidade,
   transferenciasCotas, type TransferenciaCotas, type InsertTransferenciaCotas,
   opaInteresses, type OpaInteresse, type InsertOpaInteresse,
+  agendaTarefas, type AgendaTarefa, type InsertAgendaTarefa,
   convitesComunidade, type ConviteComunidade, type InsertConviteComunidade,
   convitesLink, type ConviteLink, type InsertConviteLink,
   anuncios, type Anuncio, type InsertAnuncio,
@@ -96,6 +97,12 @@ export interface IStorage {
   createOpaInteresse(data: InsertOpaInteresse): Promise<OpaInteresse>;
   updateOpaInteresse(id: string, data: Partial<OpaInteresse>): Promise<OpaInteresse | undefined>;
   deleteOpaInteresse(opaId: string, userId: string): Promise<boolean>;
+
+  getAgendaTarefasByUser(userId: string): Promise<AgendaTarefa[]>;
+  getAgendaTarefa(id: string, userId: string): Promise<AgendaTarefa | undefined>;
+  createAgendaTarefa(data: InsertAgendaTarefa): Promise<AgendaTarefa>;
+  updateAgendaTarefa(id: string, userId: string, data: Partial<AgendaTarefa>): Promise<AgendaTarefa | undefined>;
+  deleteAgendaTarefa(id: string, userId: string): Promise<boolean>;
 
   createConvite(data: InsertConviteComunidade): Promise<ConviteComunidade>;
   getConviteByToken(token: string): Promise<ConviteComunidade | undefined>;
@@ -405,6 +412,44 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(opaInteresses)
       .where(and(eq(opaInteresses.opa_id, opaId), eq(opaInteresses.user_id, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getAgendaTarefasByUser(userId: string): Promise<AgendaTarefa[]> {
+    return db
+      .select()
+      .from(agendaTarefas)
+      .where(eq(agendaTarefas.user_id, userId))
+      .orderBy(agendaTarefas.data, agendaTarefas.hora, desc(agendaTarefas.criado_em));
+  }
+
+  async getAgendaTarefa(id: string, userId: string): Promise<AgendaTarefa | undefined> {
+    const [tarefa] = await db
+      .select()
+      .from(agendaTarefas)
+      .where(and(eq(agendaTarefas.id, id), eq(agendaTarefas.user_id, userId)));
+    return tarefa;
+  }
+
+  async createAgendaTarefa(data: InsertAgendaTarefa): Promise<AgendaTarefa> {
+    const [tarefa] = await db.insert(agendaTarefas).values(data).returning();
+    return tarefa;
+  }
+
+  async updateAgendaTarefa(id: string, userId: string, data: Partial<AgendaTarefa>): Promise<AgendaTarefa | undefined> {
+    const [tarefa] = await db
+      .update(agendaTarefas)
+      .set({ ...data, atualizado_em: new Date() } as any)
+      .where(and(eq(agendaTarefas.id, id), eq(agendaTarefas.user_id, userId)))
+      .returning();
+    return tarefa;
+  }
+
+  async deleteAgendaTarefa(id: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(agendaTarefas)
+      .where(and(eq(agendaTarefas.id, id), eq(agendaTarefas.user_id, userId)))
       .returning();
     return result.length > 0;
   }

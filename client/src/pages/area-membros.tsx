@@ -426,7 +426,18 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
       </div>
 
       <div className="hidden sm:flex items-center gap-3 shrink-0">
-        <AuraBadge membroId={m.id} />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            navigate(`/aura/${m.id}`);
+          }}
+          className="rounded-full transition-transform hover:scale-105"
+          title={`Ver Aura de ${nome}`}
+          data-testid={`btn-aura-list-membro-${m.id}`}
+        >
+          <AuraBadge membroId={m.id} />
+        </button>
         {!isOwn && (
           <Button
             type="button"
@@ -555,9 +566,18 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
                 <span className="text-xs text-white/35 truncate">{m.cidade}</span>
               </div>
             )}
-            <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/aura/${m.id}`);
+              }}
+              className="mx-auto flex justify-center rounded-full transition-transform hover:scale-105"
+              title={`Ver Aura de ${nome}`}
+              data-testid={`btn-aura-card-membro-${m.id}`}
+            >
               <AuraBadge membroId={m.id} />
-            </div>
+            </button>
             {m.link_site && (
               <a
                 href={m.link_site.startsWith("http") ?m.link_site : `https://${m.link_site}`}

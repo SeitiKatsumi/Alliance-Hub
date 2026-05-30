@@ -20,6 +20,7 @@ import OpaDetalhePage from "@/pages/opa-detalhe";
 import MembrosPage from "@/pages/membros";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
+import AgendaPage from "@/pages/agenda";
 import AdminPage from "@/pages/admin";
 import BiasCalculadoraPage from "@/pages/bias-calculadora";
 import FluxoCaixaPage from "@/pages/fluxo-caixa";
@@ -901,14 +902,14 @@ function ProtectedApp() {
       <div className="flex h-screen w-full">
         <PerfilOnboardingModal membroId={user?.membro_directus_id} fallbackUser={user} />
         <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="flex items-center gap-2 p-3 border-b border-border bg-background">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex-1" />
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <div className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
                 <User className="w-3.5 h-3.5" />
-                <span>{user?.nome || user?.username}</span>
+                <span className="max-w-[42vw] truncate sm:max-w-xs">{user?.nome || user?.username}</span>
               </div>
               <Button
                 variant="ghost"
@@ -921,9 +922,10 @@ function ProtectedApp() {
               </Button>
             </div>
           </header>
-          <main className="flex-1 overflow-auto bg-background">
+          <main className="flex-1 overflow-auto overflow-x-hidden bg-background">
             <Switch>
               <Route path="/" component={PainelPage} />
+              <Route path="/agenda" component={AgendaPage} />
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />
               <Route path="/opas/:id" component={OpaDetalhePage} />
@@ -949,6 +951,7 @@ function ProtectedApp() {
               <Route path="/convites" component={ConvitesPage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />
               <Route path="/membros" component={MembrosPage} />
+              <Route path="/aura/:membroId" component={AuraPage} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />
               <Route path="/meu-perfil" component={MeuPerfilPage} />

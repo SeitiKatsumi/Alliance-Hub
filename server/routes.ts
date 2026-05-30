@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -1121,6 +1121,37 @@ async function ensureOpaInteressesCrmFields() {
   `);
 }
 
+async function ensureAgendaTarefasTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS agenda_tarefas (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id text NOT NULL,
+      membro_id text,
+      titulo text NOT NULL,
+      descricao text,
+      data date NOT NULL,
+      hora text,
+      status text NOT NULL DEFAULT 'pendente',
+      prioridade text NOT NULL DEFAULT 'media',
+      contexto_tipo text,
+      contexto_id text,
+      origem_tarefa_id text,
+      atribuido_por_user_id text,
+      atribuido_por_membro_id text,
+      atribuido_por_nome text,
+      criado_em timestamp DEFAULT now(),
+      atualizado_em timestamp DEFAULT now()
+    )
+  `);
+  await db.execute(sql`ALTER TABLE agenda_tarefas ADD COLUMN IF NOT EXISTS origem_tarefa_id text`);
+  await db.execute(sql`ALTER TABLE agenda_tarefas ADD COLUMN IF NOT EXISTS atribuido_por_user_id text`);
+  await db.execute(sql`ALTER TABLE agenda_tarefas ADD COLUMN IF NOT EXISTS atribuido_por_membro_id text`);
+  await db.execute(sql`ALTER TABLE agenda_tarefas ADD COLUMN IF NOT EXISTS atribuido_por_nome text`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_agenda_tarefas_user_data ON agenda_tarefas (user_id, data, hora)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_agenda_tarefas_user_status ON agenda_tarefas (user_id, status)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_agenda_tarefas_origem ON agenda_tarefas (origem_tarefa_id)`);
+}
+
 async function ensureConvitesLinkTipoField() {
   await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS tipo text DEFAULT 'vitrine' NOT NULL`);
 }
@@ -1419,6 +1450,7 @@ export async function registerRoutes(
   ensureNucleoTecnicoCollection().catch(console.error);
   ensureOpaInteressesCrmFields().catch(console.error);
   ensureConvitesLinkTipoField().catch((err: any) => console.warn("[convites_link] Campo tipo nao sincronizado:", err?.message || err));
+  ensureAgendaTarefasTable().catch((err: any) => console.warn("[agenda] Tabela nao sincronizada:", err?.message || err));
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -4750,6 +4782,224 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       convite_pendente,
       adesao_pendente,
     });
+  });
+
+  app.post("/api/me/password", async (req, res) => {
+    try {
+      const directusUserId = (req.session as any).directusUserId;
+      const email = (req.session as any).email || "";
+      if (!directusUserId && !email) return res.status(401).json({ error: "Não autenticado" });
+
+      const { currentPassword, newPassword } = req.body || {};
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Informe a senha atual e a nova senha" });
+      }
+      if (String(newPassword).length < 4) {
+        return res.status(400).json({ error: "A nova senha deve ter pelo menos 4 caracteres" });
+      }
+
+      const localUser = (directusUserId ? await storage.getUser(directusUserId).catch(() => undefined) : undefined)
+        || (email ? await storage.getUserByEmail(email) : undefined);
+      if (!localUser || !localUser.ativo) {
+        return res.status(404).json({ error: "Usuário local não encontrado" });
+      }
+
+      const { comparePasswords } = await import("./storage");
+      const validCurrentPassword = await comparePasswords(String(currentPassword), localUser.password);
+      if (!validCurrentPassword) {
+        return res.status(400).json({ error: "Senha atual incorreta" });
+      }
+
+      await storage.updateUser(localUser.id, { password: String(newPassword) });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao alterar senha" });
+    }
+  });
+
+  function getDirectusRelationId(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === "object") return value.id ? String(value.id) : null;
+    return String(value);
+  }
+
+  async function getMembroComunidadeIds(membroId: string | null | undefined): Promise<Set<string>> {
+    if (!membroId) return new Set();
+    const col = await getComunidadeCol();
+    const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,membros.cadastro_geral_id&limit=200`;
+    const response = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+    if (!response.ok) return new Set();
+    const data = await response.json();
+    const comunidades: any[] = data.data || [];
+    const comunidade = comunidades.find((item: any) => {
+      const membros: any[] = Array.isArray(item.membros) ? item.membros : [];
+      return membros.some((membro: any) => getDirectusRelationId(membro.cadastro_geral_id) === String(membroId));
+    });
+    if (!comunidade) return new Set();
+    return new Set(
+      (Array.isArray(comunidade.membros) ? comunidade.membros : [])
+        .map((membro: any) => getDirectusRelationId(membro.cadastro_geral_id))
+        .filter((id: string | null): id is string => Boolean(id))
+    );
+  }
+
+  app.get("/api/agenda/membros-disponiveis", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const role = await getEffectiveRole(req);
+      const isSuperAdmin = role === "admin";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const allowedMembroIds = isSuperAdmin ? null : await getMembroComunidadeIds(sessionMembroId);
+
+      const items = await directusFetch(
+        "cadastro_geral",
+        "fields=id,nome,nome_completo,Nome_de_usuario,email,empresa,nome_fantasia,foto_perfil&limit=500"
+      );
+      const filtered = items
+        .filter((membro: any) => membro?.id && (isSuperAdmin || allowedMembroIds?.has(String(membro.id))))
+        .map((membro: any) => ({
+          id: String(membro.id),
+          nome: membro.nome || membro.nome_completo || membro.Nome_de_usuario || membro.email || "Membro BUILT",
+          Nome_de_usuario: membro.Nome_de_usuario || null,
+          email: membro.email || null,
+          empresa: membro.empresa || membro.nome_fantasia || null,
+          foto_perfil: membro.foto_perfil || null,
+        }))
+        .sort((a: any, b: any) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR", { sensitivity: "base" }));
+
+      res.json(filtered);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar membros disponíveis" });
+    }
+  });
+
+  app.get("/api/agenda", async (req, res) => {
+    try {
+      const userId = (req.session as any).directusUserId || (req.session as any).userId;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const tarefas = await storage.getAgendaTarefasByUser(String(userId));
+      const origemIds = Array.from(new Set(tarefas.map((t: any) => t.origem_tarefa_id).filter(Boolean)));
+      const compartilhamentos = new Map<string, number>();
+      for (const origemId of origemIds) {
+        const result = await db.execute(sql`
+          SELECT count(*)::int AS total
+          FROM agenda_tarefas
+          WHERE origem_tarefa_id = ${origemId}
+        `);
+        const total = Number((result as any).rows?.[0]?.total ?? 1);
+        compartilhamentos.set(String(origemId), Math.max(0, total - 1));
+      }
+      res.json(tarefas.map((tarefa: any) => ({
+        ...tarefa,
+        compartilhada_com: tarefa.origem_tarefa_id ? (compartilhamentos.get(String(tarefa.origem_tarefa_id)) || 0) : 0,
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar agenda" });
+    }
+  });
+
+  app.post("/api/agenda", async (req, res) => {
+    try {
+      const userId = (req.session as any).directusUserId || (req.session as any).userId;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const creatorMembroId = (req.session as any).membroId || null;
+      const creatorName = (req.session as any).nome || (req.session as any).email || "Membro BUILT";
+      const selectedMembroIds = Array.isArray(req.body?.membros_ids)
+        ? req.body.membros_ids.map((id: any) => String(id)).filter(Boolean)
+        : [];
+      const role = await getEffectiveRole(req);
+      if (role !== "admin" && selectedMembroIds.length > 0) {
+        const allowedMembroIds = await getMembroComunidadeIds(creatorMembroId);
+        const hasForbiddenMember = selectedMembroIds.some((id: string) => !allowedMembroIds.has(id));
+        if (hasForbiddenMember) {
+          return res.status(403).json({ error: "Só é possível adicionar membros da sua comunidade." });
+        }
+      }
+      const { randomUUID } = await import("crypto");
+      const origemTarefaId = randomUUID();
+      const payload = insertAgendaTarefaSchema.parse({
+        ...req.body,
+        user_id: String(userId),
+        membro_id: creatorMembroId || req.body?.membro_id || null,
+        origem_tarefa_id: origemTarefaId,
+        atribuido_por_user_id: String(userId),
+        atribuido_por_membro_id: creatorMembroId,
+        atribuido_por_nome: creatorName,
+      });
+      const allUsers = selectedMembroIds.length > 0 ? await storage.getAllUsers() : [];
+      const targetUsers = allUsers
+        .filter(user => user.ativo && user.membro_directus_id && selectedMembroIds.includes(String(user.membro_directus_id)))
+        .map(user => ({
+          user_id: user.id,
+          membro_id: user.membro_directus_id || null,
+        }));
+      const uniqueTargets = new Map<string, { user_id: string; membro_id: string | null }>();
+      uniqueTargets.set(String(userId), { user_id: String(userId), membro_id: creatorMembroId });
+      for (const target of targetUsers) uniqueTargets.set(target.user_id, target);
+
+      const created = [];
+      for (const target of uniqueTargets.values()) {
+        created.push(await storage.createAgendaTarefa({
+          ...payload,
+          user_id: target.user_id,
+          membro_id: target.membro_id,
+        }));
+      }
+      const ownTask = created.find(task => task.user_id === String(userId)) || created[0];
+      res.status(201).json({ ...ownTask, compartilhada_com: created.length - 1 });
+    } catch (error: any) {
+      const message = error?.errors?.[0]?.message || error.message || "Erro ao criar ação";
+      res.status(400).json({ error: message });
+    }
+  });
+
+  app.patch("/api/agenda/:id", async (req, res) => {
+    try {
+      const userId = (req.session as any).directusUserId || (req.session as any).userId;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const allowedStatuses = new Set(["pendente", "em_andamento", "concluida", "cancelada"]);
+      const allowedPrioridades = new Set(["baixa", "media", "alta"]);
+      const data: Record<string, any> = {};
+      for (const key of ["titulo", "descricao", "data", "hora", "status", "prioridade", "contexto_tipo", "contexto_id"]) {
+        if (key in (req.body || {})) data[key] = req.body[key] === "" ? null : req.body[key];
+      }
+      if (typeof data.titulo === "string" && !data.titulo.trim()) {
+        return res.status(400).json({ error: "Título é obrigatório" });
+      }
+      if (data.status && !allowedStatuses.has(String(data.status))) {
+        return res.status(400).json({ error: "Status inválido" });
+      }
+      if (data.prioridade && !allowedPrioridades.has(String(data.prioridade))) {
+        return res.status(400).json({ error: "Prioridade inválida" });
+      }
+      const tarefa = await storage.updateAgendaTarefa(req.params.id, String(userId), data as any);
+      if (!tarefa) return res.status(404).json({ error: "Ação não encontrada" });
+      res.json(tarefa);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar ação" });
+    }
+  });
+
+  app.delete("/api/agenda/:id", async (req, res) => {
+    try {
+      const userId = (req.session as any).directusUserId || (req.session as any).userId;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const tarefa = await storage.getAgendaTarefa(req.params.id, String(userId));
+      if (!tarefa) return res.status(404).json({ error: "Ação não encontrada" });
+      const isCreator = tarefa.atribuido_por_user_id && String(tarefa.atribuido_por_user_id) === String(userId);
+      if (isCreator && tarefa.origem_tarefa_id) {
+        await db.execute(sql`
+          DELETE FROM agenda_tarefas
+          WHERE origem_tarefa_id = ${tarefa.origem_tarefa_id}
+        `);
+        return res.json({ success: true, deleted_for_all: true });
+      }
+      const ok = await storage.deleteAgendaTarefa(req.params.id, String(userId));
+      if (!ok) return res.status(404).json({ error: "Ação não encontrada" });
+      res.json({ success: true, deleted_for_all: false });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao excluir ação" });
+    }
   });
 
   // ========== USER MANAGEMENT ==========

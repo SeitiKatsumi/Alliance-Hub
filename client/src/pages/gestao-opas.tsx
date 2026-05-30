@@ -1,5 +1,6 @@
 ﻿import { useMemo, useState } from "react";
 import type { ComponentType } from "react";
+import { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -232,13 +233,22 @@ function KanbanClientCard({
 
 export default function GestaoOpasPage() {
   const { toast } = useToast();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [selectedOpaId, setSelectedOpaId] = useState("");
   const [busca, setBusca] = useState("");
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<CrmStatus | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingOpa, setEditingOpa] = useState<Opa | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("criar") === "true") {
+      setEditingOpa(null);
+      setFormOpen(true);
+      navigate("/gestao-opas", { replace: true });
+    }
+  }, [location, navigate]);
 
   const { data: opas = [], isLoading: loadingOpas } = useQuery<Opa[]>({
     queryKey: ["/api/oportunidades"],
@@ -363,7 +373,7 @@ export default function GestaoOpasPage() {
             setEditingOpa(null);
             setFormOpen(true);
           }}
-          className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
+          className="bg-blue-600 text-white hover:bg-blue-700 font-semibold"
           data-testid="btn-nova-opa-gestao"
         >
           <Plus className="w-4 h-4 mr-2" />

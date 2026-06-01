@@ -21,7 +21,7 @@ import {
   User, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle, CheckCircle2, Globe, Navigation, Search,
   ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw,
-  Store, TrendingUp, Crown, FolderKanban, Scale, Lightbulb, ShieldCheck,
+  Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
   ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound
 } from "lucide-react";
@@ -55,8 +55,8 @@ const INVITE_TYPE_OPTIONS = [
   { value: "membros", label: "Área de Alianças" },
 ];
 const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
-const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: string }> = {
-  "Liderança": { icon: Crown, color: "text-amber-600", bg: "bg-amber-50" },
+const AREA_ICON_CONFIG: Record<string, { icon: typeof Flag; color: string; bg: string }> = {
+  "Liderança": { icon: Flag, color: "text-amber-600", bg: "bg-amber-50" },
   "Projeto": { icon: FolderKanban, color: "text-blue-600", bg: "bg-blue-50" },
   "Jurídicas": { icon: Scale, color: "text-blue-600", bg: "bg-blue-50" },
   "Inteligência": { icon: Lightbulb, color: "text-blue-600", bg: "bg-blue-50" },
@@ -506,6 +506,23 @@ export default function MeuPerfilPage() {
     setForm(f => ({ ...f, [field]: value }));
   }
 
+  function togglePapelBuilt(roleId: "prestador" | "capital") {
+    setForm((current) => {
+      const prestadorSelecionado = current.em_membros_built !== false;
+      const capitalSelecionado = !!current.em_built_capital;
+
+      if (roleId === "prestador") {
+        const nextPrestador = !prestadorSelecionado;
+        if (!nextPrestador && !capitalSelecionado) return current;
+        return { ...current, em_membros_built: nextPrestador };
+      }
+
+      const nextCapital = !capitalSelecionado;
+      if (!prestadorSelecionado && !nextCapital) return current;
+      return { ...current, em_built_capital: nextCapital };
+    });
+  }
+
   function handleSave() {
     if (!String(form.email || "").trim()) {
       toast({ title: "E-mail obrigatório", description: "Informe um e-mail para salvar o perfil.", variant: "destructive" });
@@ -561,6 +578,12 @@ export default function MeuPerfilPage() {
   const nome = form.nome || membro?.nome || user?.nome || "";
   const fotoPosition = getPhotoObjectPosition(form);
   const fotoCropDraw = getCropDrawSize();
+  const prestadorSelecionado = form.em_membros_built !== false;
+  const capitalSelecionado = !!form.em_built_capital;
+  const papeisBuilt = [
+    prestadorSelecionado ? "Prestador de serviços, fornecedor ou profissional independente" : "",
+    capitalSelecionado ? "Parceiro de Capital" : "",
+  ].filter(Boolean);
   const profileSummary = (
     <section className="profile-section p-4">
       <p className="text-sm font-bold text-[#001D34]">Resumo do seu perfil</p>
@@ -576,7 +599,7 @@ export default function MeuPerfilPage() {
       <div className="mt-4 space-y-3 text-xs">
         <div>
           <p className="font-bold text-slate-700">Papel na BUILT</p>
-          <p className="mt-1 break-words text-slate-600">{form.em_built_capital ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p>
+          <p className="mt-1 break-words text-slate-600">{papeisBuilt.join(" + ") || "-"}</p>
         </div>
         <div>
           <p className="font-bold text-slate-700">Áreas de contribuição ({(form.tipos_alianca || []).length})</p>
@@ -620,8 +643,21 @@ export default function MeuPerfilPage() {
           background: #f8fafc !important;
           border-color: #d8dee8 !important;
           color: #001d34 !important;
+          font-family: inherit !important;
           min-height: 2.5rem;
           box-shadow: none !important;
+        }
+        .profile-light-page label,
+        .profile-light-page .profile-section,
+        .profile-light-page .profile-onboarding-card,
+        .profile-light-page .profile-section .font-mono,
+        .profile-light-page .profile-onboarding-card .font-mono {
+          font-family: inherit !important;
+          letter-spacing: 0 !important;
+        }
+        .profile-light-page .profile-section .uppercase,
+        .profile-light-page .profile-onboarding-card .uppercase {
+          text-transform: none !important;
         }
         .profile-light-page input::placeholder,
         .profile-light-page textarea::placeholder { color: #94a3b8 !important; }
@@ -761,22 +797,22 @@ export default function MeuPerfilPage() {
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     {[
                       {
-                        id: "prestador",
+                        id: "prestador" as const,
                         title: "Prestador de serviços, fornecedor ou profissional independente",
                         desc: "Atuo oferecendo serviços, insumos ou experiência profissional.",
-                        selected: !form.em_built_capital,
+                        selected: prestadorSelecionado,
                       },
                       {
-                        id: "capital",
+                        id: "capital" as const,
                         title: "Parceiro de Capital",
                         desc: "Atuo como investidor ou parceiro de capital.",
-                        selected: !!form.em_built_capital,
+                        selected: capitalSelecionado,
                       },
                     ].map((role) => (
                       <button
                         key={role.id}
                         type="button"
-                        onClick={() => setForm(f => ({ ...f, em_built_capital: role.id === "capital" }))}
+                        onClick={() => togglePapelBuilt(role.id)}
                         className={`flex min-h-24 gap-3 rounded-lg border p-3 text-left transition-colors ${
                           role.selected ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-blue-300"
                         }`}
@@ -1634,7 +1670,7 @@ function SectionLabel({ icon: Icon, label }: { icon: any; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-1">
       <Icon className="w-3.5 h-3.5 text-[#9a7430]" />
-      <span className="text-xs font-mono uppercase tracking-widest text-[#001D34]/70">{label}</span>
+      <span className="text-sm font-semibold text-[#001D34]">{label}</span>
       <div className="flex-1 h-px bg-slate-200" />
     </div>
   );
@@ -1643,7 +1679,7 @@ function SectionLabel({ icon: Icon, label }: { icon: any; label: string }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-slate-600 font-mono">{label}</Label>
+      <Label className="text-sm font-medium text-slate-700">{label}</Label>
       {children}
     </div>
   );

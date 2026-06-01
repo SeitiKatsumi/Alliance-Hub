@@ -574,9 +574,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#07111E]/80 via-transparent to-[#07111E]/20" />
           </div>
           <div className="relative z-10 flex min-h-screen flex-col justify-between p-16">
-            <div className="mt-20">
-              <div className="grid h-9 w-9 place-items-center rounded-full border border-[#D7BB7D] font-serif text-2xl text-[#D7BB7D]">B</div>
-            </div>
+            <div />
             <div className="mb-28 max-w-52">
               <p className="text-4xl font-light leading-tight tracking-wide text-white">
                 Build it.<br />
@@ -589,8 +587,7 @@ export default function LoginPage() {
               </p>
               <span className="mt-8 block h-0.5 w-6 bg-[#E2B652]" />
             </div>
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-[#D7BB7D]">Proud member</p>
+            <div>
               <img src="/bni-badge.png" alt="BNI Proud Member" className="h-auto w-20 rounded border border-white/20 bg-white p-1" />
             </div>
           </div>

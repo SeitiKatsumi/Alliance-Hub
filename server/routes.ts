@@ -2375,6 +2375,9 @@ export async function registerRoutes(
   }
 
   app.get("/api/dashboard", async (req, res) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const membroId = (req.session as any).membroId as string | null;
@@ -2410,15 +2413,23 @@ export async function registerRoutes(
         "diretor_execucao", "diretor_comercial", "diretor_capital",
       ];
 
+      const fetchDashboardOpas = async () => {
+        const baseFields = "fields=id,nome_oportunidade,tipo,bia,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador";
+        try {
+          return await directusFetchScoped("tipos_oportunidades", `${baseFields},status`);
+        } catch (err) {
+          console.warn("[dashboard] tipos_oportunidades status unavailable, retrying without status");
+          return await directusFetchScoped("tipos_oportunidades", baseFields).catch(() => []);
+        }
+      };
+
       const [allBias, allOpas, comunidades, fluxoCaixa] = await Promise.all([
         directusFetchScoped("bias_projetos",
           "fields=id,nome_bia,situacao,objetivo_alianca,destinacao,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
           "bia_publica,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital," +
           "socios_guardioes,socios_multiplicadores,terceiros"
         ),
-        directusFetchScoped("tipos_oportunidades",
-          "fields=id,nome_oportunidade,tipo,bia,status,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador"
-        ).catch(() => []),
+        fetchDashboardOpas(),
         directusFetch(await getComunidadeCol(), COMUNIDADE_FIELDS).catch(() => []),
         directusFetch("fluxo_caixa", "fields=id,bia,tipo,valor,favorecido_id").catch(() => []),
       ]);
@@ -2458,21 +2469,33 @@ export async function registerRoutes(
       const membroPerfil = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,tipo_alianca,nucleos_alianca,nucleo_alianca").catch(() => null);
       const areasContribuicao: string[] = [
         ...(Array.isArray(membroPerfil?.tipos_alianca) ? membroPerfil.tipos_alianca : []),
-        ...(Array.isArray(membroPerfil?.nucleos_alianca) ? membroPerfil.nucleos_alianca : []),
         membroPerfil?.tipo_alianca,
-        membroPerfil?.nucleo_alianca,
       ].filter(Boolean);
-      const areaKeywords: Record<string, string[]> = {
-        lideranca: ["lideranca", "alianca", "diretoria"],
-        tecnico: ["tecnico", "tecnica", "projeto", "engenharia", "viabilidade", "compatibilizacao"],
-        obra: ["obra", "execucao", "construcao", "operacional"],
-        comercial: ["comercial", "venda", "locacao", "marketing", "relacionamento"],
-        capital: ["capital", "financeiro", "financiamento", "captacao", "investimento"],
-      };
-      const activeAreaKeys = Array.from(new Set(areasContribuicao.flatMap((area) => {
+      const keywordsForArea = (area: string): string[] => {
         const normalizedArea = normalize(area);
-        return Object.keys(areaKeywords).filter((key) => normalizedArea.includes(key));
-      })));
+        const rules: Array<[RegExp, string[]]> = [
+          [/(lideranca|diretoria)/, ["lideranca"]],
+          [/(projeto)/, ["projeto"]],
+          [/(juridic)/, ["juridicas", "juridica", "juridico"]],
+          [/(inteligencia)/, ["inteligencia"]],
+          [/(governanca)/, ["governanca"]],
+          [/(execucao)/, ["execucao"]],
+          [/(fornecimento)/, ["fornecimento"]],
+          [/(comerciais|comercial)/, ["comerciais", "comercial"]],
+          [/(venda|vendas|locacao)/, ["vendas", "venda", "locacao"]],
+          [/(marketing)/, ["marketing"]],
+          [/(operacoes|facilities)/, ["operacoes", "facilities"]],
+          [/(relacionamento)/, ["relacionamento"]],
+          [/(investimento)/, ["investimento"]],
+          [/(contabe|contabil|tributari)/, ["contabeis", "contabil", "tributarias", "tributaria"]],
+          [/(gestao financeira)/, ["gestao financeira", "financeira"]],
+        ];
+        const mappedWords = rules
+          .filter(([pattern]) => pattern.test(normalizedArea))
+          .flatMap(([, keywords]) => keywords);
+        return Array.from(new Set(mappedWords));
+      };
+      const activeAreaKeywords = Array.from(new Set(areasContribuicao.flatMap((area) => keywordsForArea(String(area)))));
       const convergenciasFull = (allOpas as any[])
         .filter((o: any) => !CLOSED_STATUSES.has(o.status))
         .map((o: any) => ({
@@ -2480,11 +2503,12 @@ export async function registerRoutes(
           bia_id: relationId(o.bia) || relationId(o.bia_id),
           nome_bia_vinculada: allBiaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
           _matchText: normalize([o.tipo, o.nucleo_alianca, o.perfil_aliado, o.objetivo_alianca, o.nome_oportunidade].join(" ")),
+          _tipoText: normalize(o.tipo),
         }))
-        .filter((o: any) => activeAreaKeys.some((key) => areaKeywords[key].some((keyword) => o._matchText.includes(keyword))));
+        .filter((o: any) => activeAreaKeywords.some((keyword) => o._tipoText.includes(keyword)));
       const convergencias = convergenciasFull
         .slice(0, 6)
-        .map(({ _matchText, ...o }: any) => o);
+        .map(({ _matchText, _tipoText, ...o }: any) => o);
 
       const opasAbertas = userOpas.filter((o: any) => !CLOSED_STATUSES.has(o.status)).length;
 

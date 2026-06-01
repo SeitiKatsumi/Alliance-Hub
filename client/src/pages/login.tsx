@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
-  Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, Mail,
+  Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, ArrowRight, Mail,
   Store, TrendingUp, Handshake, Shield, Send, Crown, FolderKanban, Scale, Lightbulb,
   ShieldCheck, CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Building2, Users,
   ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera,
@@ -557,370 +557,233 @@ export default function LoginPage() {
     }
   }
 
-  const inputCls = "bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-[#D7BB7D] focus:ring-[#D7BB7D]/20";
+  const inputCls = "h-12 rounded-md border-white/20 bg-[#071321]/70 text-white placeholder:text-white/35 shadow-inner shadow-black/20 focus:border-[#E2B652] focus:ring-[#E2B652]/20";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#001D34]">
-      <div className="w-full max-w-sm px-4">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <img src={builtLogo} alt="BUILT Alliances" className="w-56" />
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-[#07111E] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_58%_18%,rgba(42,66,96,0.28),transparent_28%),linear-gradient(120deg,#060C15_0%,#0B1A2B_44%,#08121F_100%)]" />
+      <div className="pointer-events-none absolute -right-24 -top-36 h-[34rem] w-[34rem] rotate-45 border border-[#D7BB7D]/20" />
+      <div className="pointer-events-none absolute -right-16 bottom-16 h-72 w-72 rotate-45 border border-[#D7BB7D]/15" />
+      <div className="pointer-events-none absolute left-14 top-28 h-px w-44 rotate-[31deg] bg-[#D7BB7D]/70" />
 
-        {/* Tab toggle — hidden in forgot/reset mode */}
-        {(mode === "login" || mode === "register") && (
-          <div className="flex rounded-xl bg-white/5 border border-white/10 p-1 mb-4 gap-1">
-            <button
-              onClick={() => setMode("login")}
-              className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={{
-                background: mode === "login" ?"#D7BB7D" : "transparent",
-                color: mode === "login" ?"#001D34" : "rgba(255,255,255,0.4)",
-              }}
-            >
-              Entrar
-            </button>
-            <button
-              onClick={() => setMode("register")}
-              className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={{
-                background: mode === "register" ?"#D7BB7D" : "transparent",
-                color: mode === "register" ?"#001D34" : "rgba(255,255,255,0.4)",
-              }}
-            >
-              Novo Cadastro
-            </button>
+      <div className="relative grid min-h-screen lg:grid-cols-[35%_65%]">
+        <aside className="relative hidden min-h-screen overflow-hidden border-r border-white/5 bg-[#07111E] lg:block">
+          <div className="absolute inset-y-0 right-0 w-[68%] overflow-hidden">
+            <img src="/dashboard-env/built-env-01.png" alt="" className="h-full w-full object-cover object-left" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#07111E] via-[#07111E]/25 to-[#07111E]/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#07111E]/80 via-transparent to-[#07111E]/20" />
           </div>
-        )}
+          <div className="relative z-10 flex min-h-screen flex-col justify-between p-16">
+            <div className="mt-20">
+              <div className="grid h-9 w-9 place-items-center rounded-full border border-[#D7BB7D] font-serif text-2xl text-[#D7BB7D]">B</div>
+            </div>
+            <div className="mb-28 max-w-52">
+              <p className="text-4xl font-light leading-tight tracking-wide text-white">
+                Build it.<br />
+                <span className="text-[#E2B652]">Own it.</span>
+              </p>
+              <p className="mt-9 text-sm leading-relaxed text-white/85">
+                Builders United for<br />
+                Investment, Logistics<br />
+                and Trade
+              </p>
+              <span className="mt-8 block h-0.5 w-6 bg-[#E2B652]" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-widest text-[#D7BB7D]">Proud member</p>
+              <img src="/bni-badge.png" alt="BNI Proud Member" className="h-auto w-20 rounded border border-white/20 bg-white p-1" />
+            </div>
+          </div>
+        </aside>
 
-        <Card className="bg-white/5 border-white/10 backdrop-blur">
-          {mode === "forgot" ?(
-            <>
-              <CardHeader className="pb-2 pt-6 px-6">
-                <button onClick={() => setMode("login")} className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs mb-3 transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
-                </button>
-                <h2 className="text-white text-lg font-semibold">Esqueci minha senha</h2>
-                <p className="text-white/40 text-xs mt-0.5">Informe seu e-mail e enviaremos um link para redefinir a senha.</p>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                {forgotSent ?(
-                  <div className="text-center py-4 space-y-3">
-                    <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
-                    <p className="text-white/80 text-sm">Se existe uma conta com este e-mail, você receberá um link em instantes.</p>
-                    <p className="text-white/40 text-xs">Não recebeu?Verifique sua caixa de spam ou reenvie abaixo.</p>
-                    {forgotError && <p className="text-red-400 text-sm">{forgotError}</p>}
-                    <button
-                      onClick={handleResend}
-                      disabled={forgotResending}
-                      data-testid="btn-reenviar-email"
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-[#D7BB7D]/30 text-[#D7BB7D] text-sm font-semibold hover:bg-[#D7BB7D]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {forgotResending ?(
-                        <>
-                          <span className="w-4 h-4 border-2 border-[#D7BB7D]/40 border-t-[#D7BB7D] rounded-full animate-spin" />
-                          Reenviando…
-                        </>
-                      ) : forgotResentOk ?(
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                          E-mail reenviado!
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="w-4 h-4" />
-                          Reenviar e-mail
-                        </>
-                      )}
+        <main className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+          <div className="w-full max-w-[520px]">
+            <div className="mb-8 flex flex-col items-center text-center">
+              <img src={builtLogo} alt="BUILT Alliances" className="w-52 sm:w-60" />
+              <span className="mt-3 h-0.5 w-10 bg-[#E2B652]" />
+            </div>
+
+            <Card className="border-white/20 bg-[#0B1725]/60 shadow-2xl shadow-black/30 backdrop-blur-xl">
+              {mode === "forgot" ? (
+                <>
+                  <CardHeader className="pb-2 pt-8 px-8">
+                    <button onClick={() => setMode("login")} className="mb-3 flex items-center gap-1.5 text-xs text-white/45 transition-colors hover:text-white/75">
+                      <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao login
                     </button>
-                    <button onClick={() => { setMode("login"); setForgotSent(false); setForgotEmail(""); setForgotResentOk(false); }} className="text-white/30 text-xs hover:text-white/60 transition-colors">Voltar ao login</button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleForgot} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-white/70 text-sm">E-mail da conta</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                        <Input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="seu@email.com" className={`${inputCls} pl-9`} required data-testid="input-forgot-email" />
+                    <h2 className="text-lg font-semibold text-white">Esqueci minha senha</h2>
+                    <p className="mt-0.5 text-xs text-white/45">Informe seu e-mail e enviaremos um link para redefinir a senha.</p>
+                  </CardHeader>
+                  <CardContent className="px-8 pb-8">
+                    {forgotSent ? (
+                      <div className="space-y-3 py-4 text-center">
+                        <CheckCircle className="mx-auto h-10 w-10 text-green-400" />
+                        <p className="text-sm text-white/80">Se existe uma conta com este e-mail, voce recebera um link em instantes.</p>
+                        <p className="text-xs text-white/40">Nao recebeu? Verifique sua caixa de spam ou reenvie abaixo.</p>
+                        {forgotError && <p className="text-sm text-red-400">{forgotError}</p>}
+                        <button onClick={handleResend} disabled={forgotResending} data-testid="btn-reenviar-email" className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#D7BB7D]/30 py-2.5 text-sm font-semibold text-[#D7BB7D] transition-colors hover:bg-[#D7BB7D]/10 disabled:cursor-not-allowed disabled:opacity-50">
+                          {forgotResending ? "Reenviando..." : forgotResentOk ? "E-mail reenviado!" : "Reenviar e-mail"}
+                        </button>
+                        <button onClick={() => { setMode("login"); setForgotSent(false); setForgotEmail(""); setForgotResentOk(false); }} className="text-xs text-white/35 transition-colors hover:text-white/65">Voltar ao login</button>
                       </div>
-                    </div>
-                    <Button type="submit" disabled={forgotLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-forgot-submit">
-                      {forgotLoading ?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Enviando...</span> : <span className="flex items-center gap-2"><Mail className="w-4 h-4" />Enviar link de redefinição</span>}
-                    </Button>
-                    {forgotError && <p className="text-red-400 text-sm text-center">{forgotError}</p>}
-                  </form>
-                )}
-              </CardContent>
-            </>
-          ) : mode === "reset" ?(
-            <>
-              <CardHeader className="pb-2 pt-6 px-6">
-                <h2 className="text-white text-lg font-semibold flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#D7BB7D]" />Nova senha</h2>
-                <p className="text-white/40 text-xs mt-0.5">Defina sua nova senha de acesso à plataforma.</p>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                {resetDone ?(
-                  <div className="text-center py-4 space-y-3">
-                    <CheckCircle className="w-10 h-10 text-green-400 mx-auto" />
-                    <p className="text-white/80 text-sm">Senha redefinida com sucesso!</p>
-                    <button onClick={() => { setMode("login"); setResetDone(false); }} className="text-[#D7BB7D] text-xs hover:underline">Fazer login</button>
-                  </div>
-                ) : !resetToken ? (
-                  <div className="text-center py-4 space-y-3">
-                    <XCircle className="w-10 h-10 text-red-400 mx-auto" />
-                    <p className="text-white/80 text-sm">Link de redefinição inválido ou incompleto.</p>
-                    <button onClick={() => { setMode("forgot"); setResetError(""); }} className="text-[#D7BB7D] text-xs hover:underline">Solicitar novo link</button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleResetPassword} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1.5">
-                        <Label className="text-white/70 text-sm">Nova senha</Label>
-                        <div className="relative">
-                          <Input type={showResetPass ?"text" : "password"} value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Mín. 4 chars" className={`${inputCls} pr-8`} required data-testid="input-reset-password" />
-                          <button type="button" onClick={() => setShowResetPass(v => !v)} className="absolute right-2.5 top-2.5 text-white/30 hover:text-white/60">
-                            {showResetPass ?<EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white/70 text-sm">Confirmar</Label>
-                        <Input type="password" value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${resetPassword2 && resetPassword !== resetPassword2 ?"border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
-                      </div>
-                    </div>
-                    {resetError && <p className="text-red-400 text-sm text-center">{resetError}</p>}
-                    <Button type="submit" disabled={resetLoading} className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10" data-testid="button-reset-submit">
-                      {resetLoading ?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />Salvando...</span> : <span className="flex items-center gap-2"><KeyRound className="w-4 h-4" />Salvar nova senha</span>}
-                    </Button>
-                  </form>
-                )}
-              </CardContent>
-            </>
-          ) : mode === "login" ?(
-            <>
-              <CardHeader className="pb-2 pt-6 px-6">
-                <h2 className="text-white text-lg font-semibold">Entrar na plataforma</h2>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="email" className="text-white/70 text-sm">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      data-testid="input-email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="seu@email.com"
-                      autoComplete="email"
-                      className={inputCls}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="password" className="text-white/70 text-sm">Senha</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        data-testid="input-password"
-                        type={showPassword ?"text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Sua senha"
-                        autoComplete="current-password"
-                        className={`${inputCls} pr-10`}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-                      >
-                        {showPassword ?<EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex justify-end -mt-1">
-                    <button type="button" onClick={() => setMode("forgot")} className="text-xs text-white/40 hover:text-[#D7BB7D] transition-colors" data-testid="link-forgot-password">
-                      Esqueci minha senha
-                    </button>
-                  </div>
-                  {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                  <Button
-                    type="submit"
-                    data-testid="button-login"
-                    disabled={loginPending}
-                    className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10 mt-2"
-                  >
-                    {loginPending ?(
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />
-                        Entrando...
-                      </span>
                     ) : (
-                      <span className="flex items-center gap-2">
-                        <LogIn className="w-4 h-4" />
-                        Entrar
-                      </span>
+                      <form onSubmit={handleForgot} className="space-y-5">
+                        <div className="space-y-2">
+                          <Label className="text-sm text-white/75">E-mail da conta</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+                            <Input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="seu@email.com" className={`${inputCls} pl-11`} required data-testid="input-forgot-email" />
+                          </div>
+                        </div>
+                        <Button type="submit" disabled={forgotLoading} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]" data-testid="button-forgot-submit">
+                          {forgotLoading ? "Enviando..." : "Enviar link de redefinicao"}
+                        </Button>
+                        {forgotError && <p className="text-center text-sm text-red-400">{forgotError}</p>}
+                      </form>
                     )}
-                  </Button>
-                </form>
-                <div className="flex items-center gap-3 my-4 px-6">
-                  <div className="flex-1 h-px bg-white/10" />
-                  <span className="text-white/30 text-xs">ou</span>
-                  <div className="flex-1 h-px bg-white/10" />
-                </div>
-                <div className="px-6 pb-6">
-                  <Button
-                    type="button"
-                    data-testid="button-google-login"
-                    onClick={() => { window.location.href = "/auth/google"; }}
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium h-10 gap-2"
-                    variant="ghost"
-                  >
-                    <SiGoogle className="w-4 h-4 text-[#EA4335]" />
-                    Entrar com Google
-                  </Button>
-                </div>
-              </CardContent>
-            </>
-          ) : (
-            <>
-              <CardHeader className="pb-2 pt-6 px-6">
-                <h2 className="text-white text-lg font-semibold">Criar conta</h2>
-                <p className="text-white/40 text-xs mt-0.5">Preencha seus dados para solicitar acesso</p>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                <form onSubmit={handleRegister} className="space-y-3">
-                  {/* Convite token field */}
-                  <div className="space-y-1.5">
-                    <Label className="text-white/70 text-sm flex items-center gap-1.5">
-                      <Ticket className="w-3.5 h-3.5 text-[#D7BB7D]" />
-                      Código de convite <span className="text-red-400">*</span>
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        value={regConviteToken}
-                        onChange={e => setRegConviteToken(e.target.value.trim())}
-                        placeholder="Cole o código do seu convite"
-                        className={`${inputCls} pr-8 ${conviteStatus === "valid" ?"border-green-500/50" : conviteStatus === "invalid" ?"border-red-500/50" : ""}`}
-                        data-testid="input-reg-convite"
-                      />
-                      {conviteChecking && (
-                        <span className="absolute right-2.5 top-2.5">
-                          <span className="w-3.5 h-3.5 border border-white/30 border-t-white/70 rounded-full animate-spin block" />
-                        </span>
-                      )}
-                      {!conviteChecking && conviteStatus === "valid" && (
-                        <CheckCircle className="absolute right-2.5 top-2.5 w-3.5 h-3.5 text-green-400" />
-                      )}
-                      {!conviteChecking && conviteStatus === "invalid" && (
-                        <XCircle className="absolute right-2.5 top-2.5 w-3.5 h-3.5 text-red-400" />
-                      )}
-                    </div>
-                    {conviteStatus === "valid" && conviteInfo && (
-                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs text-green-300">
-                        Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>
-                        {conviteInfo.comunidade_nome ?` · ${conviteInfo.comunidade_nome}` : ""}
+                  </CardContent>
+                </>
+              ) : mode === "reset" ? (
+                <>
+                  <CardHeader className="pb-2 pt-8 px-8">
+                    <h2 className="flex items-center gap-2 text-lg font-semibold text-white"><KeyRound className="h-5 w-5 text-[#D7BB7D]" />Nova senha</h2>
+                    <p className="mt-0.5 text-xs text-white/45">Defina sua nova senha de acesso a plataforma.</p>
+                  </CardHeader>
+                  <CardContent className="px-8 pb-8">
+                    {resetDone ? (
+                      <div className="space-y-3 py-4 text-center">
+                        <CheckCircle className="mx-auto h-10 w-10 text-green-400" />
+                        <p className="text-sm text-white/80">Senha redefinida com sucesso!</p>
+                        <button onClick={() => { setMode("login"); setResetDone(false); }} className="text-xs text-[#D7BB7D] hover:underline">Fazer login</button>
                       </div>
+                    ) : !resetToken ? (
+                      <div className="space-y-3 py-4 text-center">
+                        <XCircle className="mx-auto h-10 w-10 text-red-400" />
+                        <p className="text-sm text-white/80">Link de redefinicao invalido ou incompleto.</p>
+                        <button onClick={() => { setMode("forgot"); setResetError(""); }} className="text-xs text-[#D7BB7D] hover:underline">Solicitar novo link</button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleResetPassword} className="space-y-5">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label className="text-sm text-white/75">Nova senha</Label>
+                            <div className="relative">
+                              <Input type={showResetPass ? "text" : "password"} value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Min. 4 chars" className={`${inputCls} pr-10`} required data-testid="input-reset-password" />
+                              <button type="button" onClick={() => setShowResetPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
+                                {showResetPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm text-white/75">Confirmar</Label>
+                            <Input type="password" value={resetPassword2} onChange={e => setResetPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${resetPassword2 && resetPassword !== resetPassword2 ? "border-red-500/40" : ""}`} required data-testid="input-reset-password2" />
+                          </div>
+                        </div>
+                        {resetError && <p className="text-center text-sm text-red-400">{resetError}</p>}
+                        <Button type="submit" disabled={resetLoading} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]" data-testid="button-reset-submit">
+                          {resetLoading ? "Salvando..." : "Salvar nova senha"}
+                        </Button>
+                      </form>
                     )}
-                    {conviteStatus === "invalid" && (
-                      <p className="text-red-400 text-xs">Código inválido ou já utilizado.</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-white/70 text-sm">Nome completo</Label>
-                    <Input
-                      value={regNome}
-                      onChange={e => setRegNome(e.target.value)}
-                      placeholder="Seu nome"
-                      className={inputCls}
-                      data-testid="input-reg-nome"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-white/70 text-sm">E-mail</Label>
-                    <Input
-                      type="email"
-                      value={regEmail}
-                      onChange={e => setRegEmail(e.target.value)}
-                      placeholder="seu@email.com"
-                      className={inputCls}
-                      data-testid="input-reg-email"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-white/70 text-sm">Nome de usuário</Label>
-                    <Input
-                      value={regUsername}
-                      onChange={e => setRegUsername(e.target.value)}
-                      placeholder={regEmail ?regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"}
-                      className={inputCls}
-                      data-testid="input-reg-username"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-white/70 text-sm">Senha</Label>
+                  </CardContent>
+                </>
+              ) : mode === "login" ? (
+                <CardContent className="px-8 py-8">
+                  <form onSubmit={handleLogin} className="space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-sm text-white/75">Email</Label>
                       <div className="relative">
-                        <Input
-                          type={showRegPass ?"text" : "password"}
-                          value={regPassword}
-                          onChange={e => setRegPassword(e.target.value)}
-                          placeholder="Mín. 4 chars"
-                          className={`${inputCls} pr-8`}
-                          data-testid="input-reg-password"
-                          required
-                        />
-                        <button type="button" onClick={() => setShowRegPass(v => !v)} className="absolute right-2.5 top-2.5 text-white/30 hover:text-white/60">
-                          {showRegPass ?<EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
+                        <Input id="email" type="email" data-testid="input-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" autoComplete="email" className={`${inputCls} pl-12`} required />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-sm text-white/75">Senha</Label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
+                        <Input id="password" data-testid="input-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" autoComplete="current-password" className={`${inputCls} pl-12 pr-11`} required />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/45 transition-colors hover:text-white/75">
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white/70 text-sm">Confirmar</Label>
-                      <Input
-                        type="password"
-                        value={regPassword2}
-                        onChange={e => setRegPassword2(e.target.value)}
-                        placeholder="Repita"
-                        className={`${inputCls} ${regPassword2 && regPassword !== regPassword2 ?"border-red-500/40" : ""}`}
-                        data-testid="input-reg-password2"
-                        required
-                      />
+                    <div className="flex justify-end">
+                      <button type="button" onClick={() => setMode("forgot")} className="text-xs font-semibold text-[#E2B652] transition-colors hover:text-[#F0C762]" data-testid="link-forgot-password">
+                        Esqueci minha senha
+                      </button>
                     </div>
+                    {error && <p className="text-center text-sm text-red-400">{error}</p>}
+                    <Button type="submit" data-testid="button-login" disabled={loginPending} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]">
+                      {loginPending ? (
+                        "Entrando..."
+                      ) : (
+                        <span className="grid w-full grid-cols-[1fr_auto_1fr] items-center">
+                          <span />
+                          <span>Entrar</span>
+                          <ArrowRight className="ml-auto h-5 w-5" />
+                        </span>
+                      )}
+                    </Button>
+                  </form>
+                  <div className="my-6 flex items-center gap-4">
+                    <div className="h-px flex-1 bg-white/15" />
+                    <span className="text-xs text-white/45">ou</span>
+                    <div className="h-px flex-1 bg-white/15" />
                   </div>
-                  {regError && <p className="text-red-400 text-sm text-center">{regError}</p>}
-                  <Button
-                    type="submit"
-                    data-testid="button-register"
-                    disabled={regLoading || conviteStatus === "invalid"}
-                    className="w-full bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold h-10 mt-1"
-                  >
-                    {regLoading ?(
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-[#001D34]/30 border-t-[#001D34] rounded-full animate-spin" />
-                        Criando conta...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <UserPlus className="w-4 h-4" />
-                        Criar conta
-                      </span>
-                    )}
+                  <Button type="button" data-testid="button-google-login" onClick={() => { window.location.href = "/auth/google"; }} className="h-12 w-full gap-3 border border-white/20 bg-transparent font-semibold text-white hover:bg-white/10" variant="ghost">
+                    <SiGoogle className="h-5 w-5 text-[#EA4335]" />
+                    Entrar com Google
                   </Button>
-                </form>
-              </CardContent>
-            </>
-          )}
-        </Card>
+                </CardContent>
+              ) : (
+                <>
+                  <CardHeader className="pb-2 pt-8 px-8">
+                    <button onClick={() => setMode("login")} className="mb-3 flex items-center gap-1.5 text-xs text-white/45 transition-colors hover:text-white/75">
+                      <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao login
+                    </button>
+                    <h2 className="text-lg font-semibold text-white">Criar conta</h2>
+                    <p className="mt-0.5 text-xs text-white/45">Preencha seus dados para solicitar acesso.</p>
+                  </CardHeader>
+                  <CardContent className="px-8 pb-8">
+                    <form onSubmit={handleRegister} className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1.5 text-sm text-white/75"><Ticket className="h-3.5 w-3.5 text-[#D7BB7D]" />Codigo de convite <span className="text-red-400">*</span></Label>
+                        <div className="relative">
+                          <Input value={regConviteToken} onChange={e => setRegConviteToken(e.target.value.trim())} placeholder="Cole o codigo do seu convite" className={`${inputCls} pr-8 ${conviteStatus === "valid" ? "border-green-500/50" : conviteStatus === "invalid" ? "border-red-500/50" : ""}`} data-testid="input-reg-convite" />
+                          {conviteChecking && <span className="absolute right-2.5 top-2.5"><span className="block h-3.5 w-3.5 animate-spin rounded-full border border-white/30 border-t-white/70" /></span>}
+                          {!conviteChecking && conviteStatus === "valid" && <CheckCircle className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-green-400" />}
+                          {!conviteChecking && conviteStatus === "invalid" && <XCircle className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-red-400" />}
+                        </div>
+                        {conviteStatus === "valid" && conviteInfo && <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs text-green-300">Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>{conviteInfo.comunidade_nome ? ` - ${conviteInfo.comunidade_nome}` : ""}</div>}
+                        {conviteStatus === "invalid" && <p className="text-xs text-red-400">Codigo invalido ou ja utilizado.</p>}
+                      </div>
+                      <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome completo</Label><Input value={regNome} onChange={e => setRegNome(e.target.value)} placeholder="Seu nome" className={inputCls} data-testid="input-reg-nome" required /></div>
+                      <div className="space-y-1.5"><Label className="text-sm text-white/75">E-mail</Label><Input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="seu@email.com" className={inputCls} data-testid="input-reg-email" required /></div>
+                      <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome de usuario</Label><Input value={regUsername} onChange={e => setRegUsername(e.target.value)} placeholder={regEmail ? regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"} className={inputCls} data-testid="input-reg-username" /></div>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Senha</Label><div className="relative"><Input type={showRegPass ? "text" : "password"} value={regPassword} onChange={e => setRegPassword(e.target.value)} placeholder="Min. 4 chars" className={`${inputCls} pr-8`} data-testid="input-reg-password" required /><button type="button" onClick={() => setShowRegPass(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showRegPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button></div></div>
+                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Confirmar</Label><Input type="password" value={regPassword2} onChange={e => setRegPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${regPassword2 && regPassword !== regPassword2 ? "border-red-500/40" : ""}`} data-testid="input-reg-password2" required /></div>
+                      </div>
+                      {regError && <p className="text-center text-sm text-red-400">{regError}</p>}
+                      <Button type="submit" data-testid="button-register" disabled={regLoading || conviteStatus === "invalid"} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]">
+                        {regLoading ? "Criando conta..." : <span className="flex items-center gap-2"><UserPlus className="h-4 w-4" /> Criar conta</span>}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </>
+              )}
+            </Card>
 
-        <p className="text-center text-white/30 text-xs mt-6">
-          &copy; {new Date().getFullYear()} BUILT Alliances. Todos os direitos reservados.
-        </p>
+            {mode === "login" && (
+              <button type="button" onClick={() => setMode("register")} className="mx-auto mt-6 flex h-12 w-full max-w-72 items-center justify-center rounded-md border border-[#D7BB7D]/80 text-sm font-bold text-[#E2B652] transition-colors hover:bg-[#D7BB7D]/10">
+                Novo Cadastro
+              </button>
+            )}
+
+            <p className="mt-8 text-center text-xs text-white/35">
+              &copy; {new Date().getFullYear()} BUILT Alliances. Todos os direitos reservados.
+            </p>
+          </div>
+        </main>
       </div>
 
       {/* Interests modal — step 2 of registration */}

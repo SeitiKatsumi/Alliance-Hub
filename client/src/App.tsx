@@ -940,6 +940,7 @@ function ProtectedApp() {
               <Route path="/nucleo-capital" component={NucleoCapitalPage} />
               <Route path="/gestao-opas" component={GestaoOpasPage} />
               <Route path="/gestao-bias" component={GestaoBiasPage} />
+              <Route path="/vitrine/parceiros" component={VitrinePage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
               <Route path="/area-aliancas" component={AreaAliancasPage} />

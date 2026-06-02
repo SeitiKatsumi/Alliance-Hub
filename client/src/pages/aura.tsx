@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+﻿import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,6 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
   TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
   ShieldCheck, Target, Briefcase, CalendarDays, BarChart3,
@@ -19,7 +22,7 @@ import {
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { useParams } from "wouter";
+import { useLocation, useParams } from "wouter";
 
 interface AuraResult {
   score: number | null;
@@ -31,20 +34,25 @@ interface AuraResult {
   palavras_recebidas: Array<{ palavra: string; canonico: string; dimensao: "T" | "R" | "C"; count: number }>;
 }
 
+interface AuraLeituraContextual {
+  leitura: string;
+  fonte: "ia" | "fallback";
+}
+
 interface MembroBusca {
   id: string;
-  nome?: string;
-  cargo?: string;
-  empresa?: string;
-  foto?: string | { id?: string; filename_disk?: string } | null;
+  nome: string;
+  cargo: string;
+  empresa: string;
+  foto: string | { id: string; filename_disk: string } | null;
 }
 
 interface MinhaAvaliacao {
   id: number;
   avaliador_membro_id: string;
   avaliado_membro_id: string;
-  avaliado_nome?: string | null;
-  avaliador_nome?: string | null;
+  avaliado_nome: string | null;
+  avaliador_nome: string | null;
   palavras: string[];
   created_at: string;
 }
@@ -146,9 +154,29 @@ function faixaDescricao(score: number | null): string {
   return "Aura em Evolução";
 }
 
+function fixMojibakeText(value: string): string {
+  if (!/[ÃÂ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
+  try {
+    return decodeURIComponent(escape(value)).normalize("NFC");
+  } catch {
+    return value.normalize("NFC");
+  }
+}
+
+function fixMojibakeDeep<T>(value: T): T {
+  if (typeof value === "string") return fixMojibakeText(value) as T;
+  if (Array.isArray(value)) return value.map(item => fixMojibakeDeep(item)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, fixMojibakeDeep(item)])
+    ) as T;
+  }
+  return value;
+}
+
 function fotoUrl(foto: MembroBusca["foto"]): string | null {
   if (!foto) return null;
-  const fileId = typeof foto === "string" ?foto : foto.id || foto.filename_disk;
+  const fileId = typeof foto === "string" ? foto : foto.id || foto.filename_disk;
   if (!fileId) return null;
   if (fileId.startsWith("/api/assets/")) return fileId;
   if (fileId.startsWith("/assets/")) return fileId.replace(/^\/assets\//, "/api/assets/");
@@ -156,10 +184,10 @@ function fotoUrl(foto: MembroBusca["foto"]): string | null {
   return `/api/assets/${fileId}?width=80&height=80&fit=cover`;
 }
 
-function AvatarImage({ foto, nome }: { foto: MembroBusca["foto"]; nome?: string }) {
+function AvatarImage({ foto, nome }: { foto: MembroBusca["foto"]; nome: string }) {
   const [failed, setFailed] = useState(false);
-  const src = !failed ?fotoUrl(foto) : null;
-  if (!src) return <>{getInitials(nome || "?")}</>;
+  const src = !failed ? fotoUrl(foto) : null;
+  if (!src) return <>{getInitials(nome || "")}</>;
   return (
     <img
       src={src}
@@ -172,21 +200,25 @@ function AvatarImage({ foto, nome }: { foto: MembroBusca["foto"]; nome?: string 
 }
 
 function getInitials(nome: string): string {
-  return nome.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "?";
+  return nome.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "";
 }
 
 export default function AuraPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { membroId: routeMembroId } = useParams<{ membroId?: string }>();
+  const { membroId: routeMembroId } = useParams<{ membroId: string }>();
+  const [, setLocation] = useLocation();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [lookupQuery, setLookupQuery] = useState("");
   const [selectedMembro, setSelectedMembro] = useState<MembroBusca | null>(null);
   const [selectedPalavras, setSelectedPalavras] = useState<string[]>([]);
   const [palavraInput, setPalavraInput] = useState("");
   const [showSugestoes, setShowSugestoes] = useState(false);
   const [evalMode, setEvalMode] = useState<"palavras" | "texto">("palavras");
   const [selectedNucleoLeitura, setSelectedNucleoLeitura] = useState("Técnico");
+  const [showAvaliacoesDadas, setShowAvaliacoesDadas] = useState(false);
   const [textoIA, setTextoIA] = useState("");
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -200,7 +232,7 @@ export default function AuraPage() {
     queryFn: async () => {
       const res = await fetch(`/api/membros/${routeMembroId}`, { credentials: "include" });
       if (!res.ok) return null;
-      const data = await res.json();
+      const data = fixMojibakeDeep(await res.json());
       return {
         id: data.id,
         nome: data.nome,
@@ -214,15 +246,18 @@ export default function AuraPage() {
 
   const { data: viewedAura } = useQuery<AuraResult>({
     queryKey: ["/api/aura/score", viewedMembroId],
+    queryFn: async () => fixMojibakeDeep(await fetch(`/api/aura/score/${viewedMembroId}`, { credentials: "include" }).then(res => res.json())),
     enabled: !!viewedMembroId,
   });
 
   const { data: lexico = [] } = useQuery<string[]>({
     queryKey: ["/api/aura/lexico"],
+    queryFn: async () => fixMojibakeDeep(await fetch("/api/aura/lexico", { credentials: "include" }).then(res => res.json())),
   });
 
   const { data: minhasAvaliacoesData } = useQuery<MinhasAvaliacoesResponse>({
     queryKey: ["/api/aura/minhas-avaliacoes"],
+    queryFn: async () => fixMojibakeDeep(await fetch("/api/aura/minhas-avaliacoes", { credentials: "include" }).then(res => res.json())),
     enabled: !!myId,
   });
   const minhasAvaliacoesDadas: MinhaAvaliacao[] = minhasAvaliacoesData?.dadas ?? [];
@@ -235,7 +270,7 @@ export default function AuraPage() {
       const res = await fetch("/api/aura/membros/busca", { credentials: "include" });
       if (!res.ok) return [];
       const data: MembroBusca[] = await res.json();
-      return data;
+      return fixMojibakeDeep(data);
     },
     enabled: !!myId,
     staleTime: 5 * 60 * 1000,
@@ -253,7 +288,7 @@ export default function AuraPage() {
 
   const memberSearchTerm = searchQuery.trim();
   const memberSearchActive = memberSearchTerm.length >= 2;
-  const searchResults = memberSearchActive ?allMembros
+  const searchResults = memberSearchActive ? allMembros
     .filter(m => m.id !== myId)
     .filter(m => {
       const q = memberSearchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -262,6 +297,29 @@ export default function AuraPage() {
       return nome.includes(q) || empresa.includes(q);
     })
     .slice(0, 12) : [];
+  const lookupSearchTerm = lookupQuery.trim();
+  const lookupResults = useMemo(() => {
+    const q = lookupSearchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return allMembros
+      .filter(m => m.id !== myId)
+      .filter(m => {
+        if (!q) return true;
+        const nome = (m.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const empresa = (m.empresa || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const cargo = (m.cargo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return nome.includes(q) || empresa.includes(q) || cargo.includes(q);
+      })
+      .slice(0, 20);
+  }, [allMembros, lookupSearchTerm, myId]);
+
+  function abrirAuraDoMembro(membro: MembroBusca) {
+    setLookupOpen(false);
+    setLookupQuery("");
+    setSelectedMembro(membro);
+    setSelectedPalavras([]);
+    setSearchQuery("");
+    setLocation(`/aura/${membro.id}`);
+  }
 
   const { data: minhaAvaliacaoDoSelecionado } = useQuery<AvaliacaoExistente | null>({
     queryKey: ["/api/aura/avaliacao", selectedMembro?.id],
@@ -305,7 +363,7 @@ export default function AuraPage() {
       return res.json() as Promise<{ texto: string }>;
     },
     onSuccess: (data) => {
-      setTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
+      setTextoIA(prev => prev ? prev + "\n\n" + data.texto : data.texto);
       toast({ title: "Arquivo processado!", description: "O texto foi extraído e adicionado ao campo abaixo." });
     },
     onError: (err: Error) => {
@@ -405,14 +463,27 @@ export default function AuraPage() {
   const horizonteProjeto = score !== null && score >= 70 ? "Longo prazo" : score !== null && score >= 50 ? "Médio prazo" : "Curto prazo";
   const nivelResponsabilidade = score !== null && score >= 70 ? "Alta" : score !== null && score >= 50 ? "Média" : "Baixa";
   const compatibilidadeCultural = convergencia === "Alta" ? "Alta" : convergencia === "Média" ? "Média" : "Baixa";
-  const leiturasPorNucleo: Record<string, string> = {
-    "Técnico": "Sua Aura indica leitura para núcleos técnicos: organização, qualidade de entrega e sustentação de decisões com método.",
-    "Obra": "Sua Aura aplicada ao núcleo de obra observa disciplina de execução, compromisso com prazos, consistência operacional e capacidade de resolver problemas no campo.",
-    "Comercial": "Sua Aura aplicada ao núcleo comercial observa confiança relacional, clareza de comunicação, capacidade de conexão e reputação para gerar oportunidades.",
-    "Capital": "Sua Aura aplicada ao núcleo de capital observa responsabilidade, transparência, governança, previsibilidade e cuidado com recursos compartilhados.",
-    "Liderança": "Sua Aura aplicada à liderança observa maturidade institucional, capacidade de alinhar pessoas, compromisso com excelência e postura de aliança.",
-  };
-  const leituraNucleo = leiturasPorNucleo[selectedNucleoLeitura] ?? leiturasPorNucleo["Técnico"];
+  const palavrasLeituraKey = palavrasRecebidas.map(p => `${p.canonico}:${p.dimensao}:${p.count}`).join("|");
+  const { data: leituraContextualIA, isLoading: isLoadingLeituraContextual } = useQuery<AuraLeituraContextual>({
+    queryKey: ["/api/aura/leitura-contextual", viewedMembroId, selectedNucleoLeitura, score, T, R, C, n, palavrasLeituraKey],
+    queryFn: async () => {
+      const res = await apiRequest("POST", "/api/aura/leitura-contextual", {
+        membro_nome: viewedName,
+        nucleo: selectedNucleoLeitura,
+        score,
+        faixa: viewedAura?.faixa || faixaDescricao(score),
+        T,
+        R,
+        C,
+        n,
+        palavras_recebidas: palavrasRecebidas,
+      });
+      return res.json() as Promise<AuraLeituraContextual>;
+    },
+    enabled: !!viewedMembroId && n > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+  const leituraNucleo = leituraContextualIA?.leitura || "A leitura contextual ainda está em formação. Ela será exibida quando houver base reputacional suficiente para avaliar este núcleo com segurança.";
   const matrizAplicabilidade = [
     { icon: CalendarDays, label: "Horizonte de Projeto", value: horizonteProjeto, color: "#22C55E" },
     { icon: BarChart3, label: "Nível de Responsabilidade", value: nivelResponsabilidade, color: "#3B82F6" },
@@ -423,7 +494,8 @@ export default function AuraPage() {
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="space-y-1">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
         <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#D7BB7D]" />
           Aura Percebida
@@ -431,7 +503,92 @@ export default function AuraPage() {
         <p className="text-sm text-muted-foreground">
           Reputação construída pela percepção da comunidade sobre você.
         </p>
+        </div>
+        {myId && (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            {!isOwnAura && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLocation("/aura")}
+                className="w-full sm:w-auto"
+                data-testid="btn-voltar-minha-aura"
+              >
+                <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
+                Minha Aura
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={() => setLookupOpen(true)}
+              className="w-full sm:w-auto bg-[#0f62fe] text-white hover:bg-[#004fd6]"
+              data-testid="btn-consultar-registrar-aura"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Consultar e registrar Aura
+            </Button>
+          </div>
+        )}
       </div>
+
+      <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Consultar e registrar Aura</DialogTitle>
+            <DialogDescription>
+              Selecione um membro para abrir a Aura da pessoa e registrar sua percepção.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+              <Input
+                value={lookupQuery}
+                onChange={e => setLookupQuery(e.target.value)}
+                placeholder="Buscar por nome, empresa ou cargo..."
+                className="pl-9"
+                data-testid="input-consultar-aura-membro"
+              />
+            </div>
+            <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/60">
+              {loadingSearch ? (
+                <div className="space-y-1 p-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2">
+                      <Skeleton className="w-10 h-10 rounded-full" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-44" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : lookupResults.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">Nenhum membro encontrado.</p>
+              ) : (
+                lookupResults.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => abrirAuraDoMembro(m)}
+                    className="w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-muted/70 border-b border-border/50 last:border-0"
+                    data-testid={`btn-consultar-aura-membro-${m.id}`}
+                  >
+                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold bg-[#001D34]/10 text-[#D7BB7D] shrink-0">
+                      <AvatarImage foto={m.foto} nome={m.nome} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground truncate">{m.nome || "—"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{[m.cargo, m.empresa].filter(Boolean).join(" · ") || "Membro BUILT"}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {viewedMembroId && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4" data-testid="section-aura-dashboard">
@@ -439,7 +596,7 @@ export default function AuraPage() {
             <CardContent className="p-5 space-y-4">
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center bg-[#001D34]/10 text-[#D7BB7D] text-lg font-bold shrink-0">
-                  {viewedFoto ?(
+                  {viewedFoto ? (
                     <img src={fotoUrl(viewedFoto) || ""} alt="" className="w-full h-full object-cover" />
                   ) : (
                     getInitials(viewedName || "BU")
@@ -558,7 +715,7 @@ export default function AuraPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                {palavrasRecebidas.length > 0 ?palavrasRecebidas.slice(0, 8).map(p => (
+                {palavrasRecebidas.length > 0 ? palavrasRecebidas.slice(0, 8).map(p => (
                   <span
                     key={p.canonico}
                     className="rounded-full border px-3 py-1.5 text-xs font-medium"
@@ -571,7 +728,7 @@ export default function AuraPage() {
                 )}
               </div>
               <div className="rounded-xl border border-border/50 p-4 bg-background/40 min-h-[140px]">
-                {topPalavra ?(
+                {topPalavra ? (
                   <div className="space-y-2">
                     <p className="text-sm font-semibold" style={{ color: dimColor(topPalavra.dimensao) }}>{topPalavra.canonico}</p>
                     <p className="text-xs text-muted-foreground">Dimensão: <span className="text-foreground">{dimLabel(topPalavra.dimensao)}</span></p>
@@ -649,7 +806,7 @@ export default function AuraPage() {
                     key={nucleo}
                     type="button"
                     className="rounded-md px-3 py-1.5 text-xs border transition-colors hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D]"
-                    style={active ?{ background: "rgba(59,130,246,0.12)", color: "#3B82F6", borderColor: "rgba(59,130,246,0.35)" } : undefined}
+                    style={active ? { background: "rgba(59,130,246,0.12)", color: "#3B82F6", borderColor: "rgba(59,130,246,0.35)" } : undefined}
                     onClick={() => setSelectedNucleoLeitura(nucleo)}
                     data-testid={`btn-leitura-nucleo-${nucleo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}
                   >
@@ -658,7 +815,12 @@ export default function AuraPage() {
                   );
                 })}
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{leituraNucleo}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {isLoadingLeituraContextual ? "Analisando a Aura para este núcleo..." : leituraNucleo}
+              </p>
+              {leituraContextualIA?.fonte === "ia" && (
+                <p className="text-[10px] text-muted-foreground/70">Leitura gerada por IA com base nas avaliações recebidas.</p>
+              )}
             </CardContent>
           </Card>
 
@@ -670,7 +832,7 @@ export default function AuraPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {evolucaoDados.length === 0 ?(
+              {evolucaoDados.length === 0 ? (
                 <div className="h-44 flex items-center justify-center text-center text-xs text-muted-foreground">
                   A evolução aparecerá após as primeiras avaliações.
                 </div>
@@ -715,7 +877,7 @@ export default function AuraPage() {
                       {i + 1}
                     </div>
                     <p className="text-xs font-medium text-foreground truncate">
-                      {av.avaliador_nome ?? "Membro da comunidade"}
+                      {av.avaliador_nome || "Membro da comunidade"}
                     </p>
                   </div>
                   <span className="text-[10px] text-muted-foreground/50 shrink-0">
@@ -741,7 +903,7 @@ export default function AuraPage() {
       )}
 
       {/* Evaluate a member */}
-      {myId && (
+      {myId && routeMembroId && routeMembroId !== myId && (
         <Card className="border border-border/60" data-testid="card-avaliar">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -750,7 +912,7 @@ export default function AuraPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!selectedMembro ?(
+            {!selectedMembro ? (
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
@@ -764,16 +926,16 @@ export default function AuraPage() {
                 </div>
                 {searchQuery.trim().length > 0 && (
                   <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {!memberSearchActive ?(
+                    {!memberSearchActive ? (
                       <p className="text-xs text-muted-foreground p-2">Digite pelo menos 2 letras para buscar.</p>
-                    ) : loadingSearch ?(
+                    ) : loadingSearch ? (
                       Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3 p-2 rounded-lg">
                           <Skeleton className="w-8 h-8 rounded-full" />
                           <Skeleton className="h-4 w-40" />
                         </div>
                       ))
-                    ) : searchResults.length === 0 ?(
+                    ) : searchResults.length === 0 ? (
                       <p className="text-xs text-muted-foreground p-2">Nenhum membro encontrado.</p>
                     ) : (
                       searchResults.map(m => (
@@ -818,7 +980,7 @@ export default function AuraPage() {
                 </div>
 
                 {/* Already evaluated — locked state */}
-                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 ?(
+                {minhaAvaliacaoDoSelecionado && minhaAvaliacaoDoSelecionado.palavras.length > 0 ? (
                   <div className="space-y-3">
                     <div className="flex items-start gap-2.5 p-3 rounded-lg border text-xs" style={{ borderColor: "rgba(215,187,125,0.25)", background: "rgba(215,187,125,0.06)", color: "rgba(215,187,125,0.85)" }}>
                       <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
@@ -849,7 +1011,8 @@ export default function AuraPage() {
                   <button
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
                     style={evalMode === "palavras"
-                      ?{ background: "rgba(215,187,125,0.18)", color: "#b8962e", borderRight: "1px solid rgba(215,187,125,0.2)" }
+                      ?
+                      { background: "rgba(215,187,125,0.18)", color: "#b8962e", borderRight: "1px solid rgba(215,187,125,0.2)" }
                       : { color: "#64748b", borderRight: "1px solid rgba(0,0,0,0.08)" }}
                     onClick={() => setEvalMode("palavras")}
                     data-testid="btn-modo-palavras"
@@ -860,7 +1023,8 @@ export default function AuraPage() {
                   <button
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
                     style={evalMode === "texto"
-                      ?{ background: "rgba(215,187,125,0.18)", color: "#b8962e" }
+                      ?
+                      { background: "rgba(215,187,125,0.18)", color: "#b8962e" }
                       : { color: "#64748b" }}
                     onClick={() => setEvalMode("texto")}
                     data-testid="btn-modo-texto"
@@ -879,17 +1043,17 @@ export default function AuraPage() {
                       </label>
                       <button
                         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/50 text-muted-foreground hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D] transition-colors shrink-0 ml-3"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => fileInputRef.current.click()}
                         disabled={extrairArquivoMutation.isPending}
                         data-testid="btn-anexar-arquivo"
                         title="Anexar PDF ou TXT"
                       >
-                        {extrairArquivoMutation.isPending ?(
+                        {extrairArquivoMutation.isPending ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <Paperclip className="w-3.5 h-3.5" />
                         )}
-                        {extrairArquivoMutation.isPending ?"Lendo..." : "Anexar arquivo"}
+                        {extrairArquivoMutation.isPending ? "Lendo..." : "Anexar arquivo"}
                       </button>
                       <input
                         ref={fileInputRef}
@@ -933,7 +1097,7 @@ export default function AuraPage() {
                       onClick={() => analisarMutation.mutate({ texto: textoIA, membro_nome: selectedMembro.nome || "" })}
                       data-testid="btn-analisar-ia"
                     >
-                      {analisarMutation.isPending ?(
+                      {analisarMutation.isPending ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Analisando...</>
                       ) : (
                         <><Sparkles className="w-4 h-4" /> Analisar com IA</>
@@ -1030,7 +1194,7 @@ export default function AuraPage() {
                   onClick={() => avaliarMutation.mutate({ avaliadoId: selectedMembro.id, palavras: selectedPalavras })}
                   data-testid="btn-enviar-avaliacao"
                 >
-                  {avaliarMutation.isPending ?(
+                  {avaliarMutation.isPending ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
                   ) : (
                     <><CheckCircle2 className="w-4 h-4 mr-2" /> Enviar Avaliação ({selectedPalavras.length}/3)</>
@@ -1047,10 +1211,23 @@ export default function AuraPage() {
       {/* My evaluations given */}
       {isOwnAura && myId && minhasAvaliacoesDadas.length > 0 && (
         <div className="space-y-3" data-testid="section-minhas-avaliacoes">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#D7BB7D]" />
-            Avaliações que você deu ({minhasAvaliacoesDadas.length})
-          </h2>
+          <button
+            type="button"
+            onClick={() => setShowAvaliacoesDadas(open => !open)}
+            className="w-full flex items-center justify-between gap-3 rounded-lg px-1 py-1 text-left"
+            aria-expanded={showAvaliacoesDadas}
+            data-testid="btn-toggle-avaliacoes-dadas"
+          >
+            <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#D7BB7D]" />
+              Avaliações que você deu ({minhasAvaliacoesDadas.length})
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              {showAvaliacoesDadas ? "Ocultar" : "Ver avaliações"}
+              <ChevronRight className={`w-4 h-4 transition-transform ${showAvaliacoesDadas ? "rotate-90" : ""}`} />
+            </span>
+          </button>
+          {showAvaliacoesDadas && (
           <div className="space-y-2">
             {minhasAvaliacoesDadas.map(av => (
               <div
@@ -1061,7 +1238,7 @@ export default function AuraPage() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] text-muted-foreground/60 truncate mb-1">
-                      {av.avaliado_nome ?? `Membro ${av.avaliado_membro_id.slice(0, 8)}...`}
+                      {av.avaliado_nome || `Membro ${av.avaliado_membro_id.slice(0, 8)}...`}
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {av.palavras.map(p => (
@@ -1077,11 +1254,12 @@ export default function AuraPage() {
                   </div>
                 </div>
                 <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                  {av.created_at ?new Date(av.created_at).toLocaleDateString("pt-BR") : "—"}
+                  {av.created_at ? new Date(av.created_at).toLocaleDateString("pt-BR") : "—"}
                 </span>
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
 

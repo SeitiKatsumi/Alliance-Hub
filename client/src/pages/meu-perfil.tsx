@@ -54,6 +54,7 @@ const INVITE_TYPE_OPTIONS = [
   { value: "capital", label: "Investidor (Capital)" },
   { value: "membros", label: "Área de Alianças" },
 ];
+const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 const AREA_ICON_CONFIG: Record<string, { icon: typeof Flag; color: string; bg: string }> = {
   "Liderança": { icon: Flag, color: "text-amber-600", bg: "bg-amber-50" },
@@ -246,6 +247,7 @@ interface Membro {
   especialidade_livre?: string;
   ramo_atuacao?: string | null;
   segmento?: string | null;
+  area_atuacao?: string | null;
   idiomas?: string[] | null;
   Outras_redes_as_quais_pertenco?: string[] | null;
 }
@@ -612,7 +614,8 @@ export default function MeuPerfilPage() {
         <div className="grid grid-cols-[minmax(88px,110px)_minmax(0,1fr)] gap-2">
           <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{form.ramo_atuacao || "-"}</p>
           <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{form.segmento || "-"}</p>
-          <p className="font-bold text-slate-700">Área de atuação</p><p className="break-words text-slate-600">{[form.cidade, form.estado].filter(Boolean).join(", ") || "-"}</p>
+          <p className="font-bold text-slate-700">Área de atuação</p><p className="break-words text-slate-600">{form.area_atuacao || "-"}</p>
+          <p className="font-bold text-slate-700">Localização</p><p className="break-words text-slate-600">{[form.cidade, form.estado].filter(Boolean).join(", ") || "-"}</p>
         </div>
       </div>
     </section>
@@ -676,7 +679,7 @@ export default function MeuPerfilPage() {
         .profile-light-page [class*="text-brand-gold"],
         .profile-light-page [data-testid^="chip-"],
         .profile-light-page [data-testid^="btn-rede-"] span { color: #1d4ed8 !important; }
-        .profile-light-page [data-testid="btn-salvar-perfil"] { color: #001d34 !important; }
+        .profile-light-page [data-testid="btn-salvar-perfil"] { color: #ffffff !important; }
         .profile-light-page [data-testid="switch-perfil-na-vitrine"] {
           background: #cbd5e1 !important;
           border: 1px solid #94a3b8 !important;
@@ -1118,6 +1121,30 @@ export default function MeuPerfilPage() {
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field label="Área de atuação">
+                    <Select
+                      value={form.area_atuacao || ""}
+                      onValueChange={v => setForm(f => ({ ...f, area_atuacao: v }))}
+                    >
+                      <SelectTrigger
+                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
+                        data-testid="select-perfil-area-atuacao"
+                      >
+                        <SelectValue placeholder="Selecione a área" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#001428] border-white/10 text-white">
+                        {AREA_ATUACAO_OPTIONS.map(option => (
+                          <SelectItem
+                            key={option}
+                            value={option}
+                            className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
+                          >
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
                 </div>
 
                 {/* Especialidade livre */}
@@ -1523,8 +1550,8 @@ export default function MeuPerfilPage() {
                 disabled={updateMutation.isPending}
                 className="gap-2 px-6"
                 style={{
-                  background: saved ?"rgba(74,222,128,0.15)" : "linear-gradient(135deg, #D7BB7D, #b89a50)",
-                  color: saved ?"#4ade80" : "#001D34",
+                  background: saved ?"rgba(74,222,128,0.15)" : "#0f62fe",
+                  color: saved ?"#16a34a" : "#ffffff",
                   border: saved ?"1px solid rgba(74,222,128,0.3)" : "none",
                 }}
                 data-testid="btn-salvar-perfil"

@@ -593,7 +593,7 @@ export default function AgendaPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saveMutation.isPending} className="gap-2 bg-brand-gold text-brand-navy hover:bg-brand-gold/90" data-testid="btn-salvar-agenda">
+            <Button onClick={handleSave} disabled={saveMutation.isPending} className="gap-2 bg-[#0f62fe] text-white hover:bg-[#004fd6]" data-testid="btn-salvar-agenda">
               {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {editing ? "Salvar alterações" : "Criar ação"}
             </Button>

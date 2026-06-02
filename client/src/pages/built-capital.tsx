@@ -11,7 +11,7 @@ import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 import {
-  Search, MapPin, Phone, Mail, Building2, Coins, Globe, LayoutGrid, List
+  Search, MapPin, Phone, Mail, Building2, TrendingUp, Globe, LayoutGrid, List
 } from "lucide-react";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -692,7 +692,7 @@ export default function BuiltCapitalPage() {
           <p className="text-[11px] text-brand-gold/40 tracking-[0.35em] uppercase font-mono mb-1">// Rede BUILT</p>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-capital-title">
             <div className="p-2 rounded-lg text-brand-navy" style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)" }}>
-              <Coins className="w-6 h-6" />
+              <TrendingUp className="w-6 h-6" />
             </div>
             BUILT Capital
           </h1>
@@ -787,7 +787,7 @@ export default function BuiltCapitalPage() {
         </div>
       ) : filtered.length === 0 ?(
         <div className="text-center py-20">
-          <Coins className="w-12 h-12 text-white/10 mx-auto mb-3" />
+          <TrendingUp className="w-12 h-12 text-white/10 mx-auto mb-3" />
           <p className="text-white/30 font-mono text-sm">
             {parceiros.length === 0 ?"Nenhum parceiro de capital cadastrado ainda" : "Nenhum parceiro encontrado com os filtros aplicados"}
           </p>

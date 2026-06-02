@@ -5,7 +5,7 @@ import {
   Target, MapPin, Building2, Globe, Search, Plus, Pencil, Trash2,
   TrendingUp, ChevronRight, Layers, Filter, X, ExternalLink,
   CheckCircle2, XCircle, RotateCcw, Ban, Paperclip, Upload, FileText,
-  Navigation, ZoomIn, ZoomOut
+  Navigation, ZoomIn, ZoomOut, ImageIcon
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,8 @@ interface Oportunidade {
   status?: OpaStatus | null;
   motivo_encerramento?: string | null;
   Anexos?: AnexoFile[];
+  imagem_directus_id?: string | null;
+  imagem_url?: string | null;
   date_created?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -518,7 +520,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
               )}
               {n(selectedOpa.Minimo_esforco_multiplicador) > 0 && (
                 <div>
-                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Mín. Mult.</p>
+                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider" title="Mínimo Esforço Multiplicador">MEM</p>
                   <p className="text-sm font-bold text-brand-gold">{n(selectedOpa.Minimo_esforco_multiplicador)}%</p>
                 </div>
               )}
@@ -718,8 +720,8 @@ function OpaCard({
             </div>
           )}
           {n(opa.Minimo_esforco_multiplicador) > 0 && (
-            <div className="flex-1 rounded-md bg-muted/50 px-2.5 py-1.5">
-              <p className="text-[9px] text-muted-foreground">Mín. Esforço</p>
+            <div className="flex-1 rounded-md bg-muted/50 px-2.5 py-1.5" title="Mínimo Esforço Multiplicador">
+              <p className="text-[9px] text-muted-foreground">MEM</p>
               <p className="text-sm font-bold tabular-nums text-foreground" data-testid={`text-min-esforco-opa-${opa.id}`}>
                 {n(opa.Minimo_esforco_multiplicador).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
               </p>
@@ -809,8 +811,11 @@ export function OpaFormDialog({
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [imagemOpaId, setImagemOpaId] = useState<string | null>(null);
+  const [imagemOpaPreview, setImagemOpaPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tiposOpa = [] } = useQuery<TipoOpa[]>({
     queryKey: ["/api/oportunidades/tipos"],
@@ -838,11 +843,15 @@ export function OpaFormDialog({
       setFormLat(opa.latitude ?? null);
       setFormLng(opa.longitude ?? null);
       setExistingAnexos(opa.Anexos || []);
+      setImagemOpaId(opa.imagem_directus_id || null);
+      setImagemOpaPreview(opa.imagem_url || (opa.imagem_directus_id ? `/api/assets/${opa.imagem_directus_id}` : null));
     } else {
       setForm({ ...EMPTY_OPA });
       setFormLat(null);
       setFormLng(null);
       setExistingAnexos([]);
+      setImagemOpaId(null);
+      setImagemOpaPreview(null);
     }
     setPendingFiles([]);
   }, [opa, open]);
@@ -870,6 +879,29 @@ export function OpaFormDialog({
     if (!res.ok) throw new Error("Falha no upload dos arquivos");
     const data = await res.json();
     return data.fileIds as string[];
+  }
+
+  async function uploadOpaImage(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Selecione uma imagem válida", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Falha no upload da imagem");
+      const data = await res.json();
+      const id = data.fileIds?.[0];
+      if (!id) throw new Error("Upload sem arquivo retornado");
+      setImagemOpaId(id);
+      setImagemOpaPreview(URL.createObjectURL(file));
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar imagem", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSave() {
@@ -918,6 +950,7 @@ export function OpaFormDialog({
         nucleo_alianca: form.nucleo_alianca || null,
         descricao: form.descricao || null,
         perfil_aliado: form.perfil_aliado || null,
+        imagem_directus_id: imagemOpaId || null,
         localizacao: form.localizacao || null,
         latitude: formLat,
         longitude: formLng,
@@ -947,6 +980,67 @@ export function OpaFormDialog({
               className="h-8 text-sm"
               data-testid="input-opa-nome"
             />
+          </div>
+
+          {/* Imagem de capa */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Imagem de capa da OPA</Label>
+            <div className="rounded-xl border border-border bg-muted/20 p-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+                  {imagemOpaPreview ? (
+                    <img src={imagemOpaPreview} alt="Imagem da OPA" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-xs font-medium text-foreground">Card da OPA</p>
+                  <p className="text-[11px] text-muted-foreground">Use uma imagem horizontal para aparecer nos destaques da Vitrine.</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={uploading}
+                      data-testid="btn-upload-opa-imagem"
+                    >
+                      <Upload className="mr-1.5 h-3.5 w-3.5" />
+                      {imagemOpaPreview ? "Trocar imagem" : "Escolher imagem"}
+                    </Button>
+                    {imagemOpaPreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setImagemOpaId(null);
+                          setImagemOpaPreview(null);
+                        }}
+                        disabled={uploading}
+                      >
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <input
+                ref={imageInputRef}
+                type="file"
+                className="hidden"
+                accept="image/png,image/jpg,image/jpeg,image/webp"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadOpaImage(file);
+                  e.target.value = "";
+                }}
+                data-testid="input-opa-imagem"
+              />
+            </div>
           </div>
 
           {/* 2. BIA */}

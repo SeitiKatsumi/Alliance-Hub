@@ -29,6 +29,22 @@ export async function setupVite(server: Server, app: Express) {
     appType: "custom",
   });
 
+  app.use((_, res, next) => {
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = ((name: string, value: number | string | readonly string[]) => {
+      if (
+        name.toLowerCase() === "content-type" &&
+        typeof value === "string" &&
+        /^(text\/|application\/(javascript|json))/.test(value) &&
+        !/charset=/i.test(value)
+      ) {
+        return originalSetHeader(name, `${value}; charset=utf-8`);
+      }
+      return originalSetHeader(name, value);
+    }) as typeof res.setHeader;
+    next();
+  });
+
   app.use(vite.middlewares);
 
   app.use("/{*path}", async (req, res, next) => {
@@ -49,7 +65,7 @@ export async function setupVite(server: Server, app: Express) {
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);

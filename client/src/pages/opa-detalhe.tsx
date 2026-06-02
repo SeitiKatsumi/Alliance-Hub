@@ -17,6 +17,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { OpaFormDialog } from "@/pages/oportunidades";
 
 interface AnexoFile {
   id: string;
@@ -122,6 +123,7 @@ export default function OpaDetalhePage() {
   const queryClient = useQueryClient();
   const [interesseDialog, setInteresseDialog] = useState(false);
   const [semSeloDialog, setSemSeloDialog] = useState(false);
+  const [editDialog, setEditDialog] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [multiplicadorInput, setMultiplicadorInput] = useState<string>("");
 
@@ -281,7 +283,7 @@ export default function OpaDetalhePage() {
           variant="outline"
           size="sm"
           className="gap-2 border-brand-gold/30 text-brand-gold hover:border-brand-gold hover:bg-brand-gold/5"
-          onClick={() => navigate(`/opas?edit=${id}`)}
+          onClick={() => setEditDialog(true)}
           data-testid="btn-edit-opa-detail"
         >
           <Pencil className="w-3.5 h-3.5" />
@@ -364,7 +366,7 @@ export default function OpaDetalhePage() {
           )}
           {mult > 0 && (
             <div className="rounded-lg bg-muted/40 border border-border/50 p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Mín. Esforço Multiplicador</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1" title="Mínimo Esforço Multiplicador">MEM</p>
               <p className="text-xl font-bold tabular-nums">{mult}%</p>
             </div>
           )}
@@ -497,7 +499,7 @@ export default function OpaDetalhePage() {
                     </div>
                     {mult > 0 && (
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Mín. Multiplicador</span>
+                        <span className="text-sm text-muted-foreground" title="Mínimo Esforço Multiplicador">MEM</span>
                         <span className="text-sm font-bold tabular-nums">{mult}%</span>
                       </div>
                     )}
@@ -594,6 +596,14 @@ export default function OpaDetalhePage() {
           )}
         </div>
       </div>
+
+      {/* Manifestar Interesse Dialog */}
+      <OpaFormDialog
+        open={editDialog}
+        onClose={() => setEditDialog(false)}
+        opa={opa}
+        bias={biasRaw as any}
+      />
 
       {/* Manifestar Interesse Dialog */}
       <Dialog open={interesseDialog} onOpenChange={setInteresseDialog}>

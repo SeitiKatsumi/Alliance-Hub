@@ -432,7 +432,9 @@ export default function GestaoOpasPage() {
                 {selectedOpa.tipo && <Badge variant="outline" className="text-[10px] border-[#D7BB7D]/40 text-[#9B7E36]">{selectedOpa.tipo}</Badge>}
                 {selectedOpa.nucleo_alianca && <Badge variant="outline" className="text-[10px]">{selectedOpa.nucleo_alianca}</Badge>}
                 <Badge variant="outline" className="text-[10px]">{money(selectedOpa.valor_origem_opa)}</Badge>
-                <Badge variant="outline" className="text-[10px]">Min. {percent(selectedOpa.Minimo_esforco_multiplicador)}</Badge>
+                <Badge variant="outline" className="text-[10px]" title="Mínimo Esforço Multiplicador">
+                  MEM {percent(selectedOpa.Minimo_esforco_multiplicador)}
+                </Badge>
               </div>
             </div>
           )}

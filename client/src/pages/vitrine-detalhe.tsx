@@ -53,6 +53,7 @@ interface MembroDetalhe {
   especialidade_livre?: string | null;
   ramo_atuacao?: string | null;
   segmento?: string | null;
+  area_atuacao?: string | null;
   idiomas?: string[] | null;
   nucleos_alianca?: string[] | null;
   tipos_alianca?: string[] | null;
@@ -357,7 +358,7 @@ export default function VitrineDetalhePage() {
           </div>
 
           {/* Perfil Profissional (empresa, cargo, ramo, etc.) */}
-          {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
+          {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.ramo_atuacao || membro.segmento || membro.area_atuacao || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Briefcase className="w-3 h-3 text-brand-gold" />
@@ -388,7 +389,7 @@ export default function VitrineDetalhePage() {
                       </div>
                     )}
                   </div>
-                  {(membro.ramo_atuacao || especialidades.length > 0 || membro.segmento || membro.especialidade_livre) && (
+                  {(membro.ramo_atuacao || especialidades.length > 0 || membro.segmento || membro.area_atuacao || membro.especialidade_livre) && (
                     <div className="grid grid-cols-1 gap-3">
                       {(membro.ramo_atuacao || especialidades.length > 0) && (
                         <div>
@@ -400,6 +401,12 @@ export default function VitrineDetalhePage() {
                         <div>
                           <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
                           <p className="text-sm text-gray-800 font-mono">{membro.segmento}</p>
+                        </div>
+                      )}
+                      {membro.area_atuacao && (
+                        <div>
+                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Área de atuação</p>
+                          <p className="text-sm text-gray-800 font-mono">{membro.area_atuacao}</p>
                         </div>
                       )}
                       {membro.especialidade_livre && (

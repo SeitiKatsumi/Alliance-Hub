@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
@@ -185,9 +185,9 @@ export default function AreaAliancasPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-area-aliancas-title">
           <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
-            <Globe2 className="h-6 w-6" />
+            <Users className="h-6 w-6" />
           </div>
-          Área de Alianças
+          BUILT Alliances
         </h1>
       </div>
 

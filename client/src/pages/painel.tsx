@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { InviteQrCode } from "@/components/invite-qr-code";
+import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -326,6 +327,7 @@ export default function PainelPage() {
   const [, navigate] = useLocation();
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
   const [conviteTipo, setConviteTipo] = useState("vitrine");
+  const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
 
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
@@ -535,6 +537,15 @@ export default function PainelPage() {
 
   const nomeExibido = user?.nome || user?.username || "membro";
   const roleLabel = deriveRole(user);
+
+  function goToEnvironment(target: EnvironmentTarget, path: string) {
+    const access = environmentAccessFor(user, target);
+    if (!access.canAccess) {
+      setBlockedAccess(access);
+      return;
+    }
+    navigate(path);
+  }
   const comunidadeLabel = comunidades.length > 0 ?comunidades[0].nome : null;
 
   const avatarInitials = nomeExibido
@@ -692,6 +703,7 @@ export default function PainelPage() {
                   subtitle: "Conecte-se. Apresente-se.",
                   action: "Entrar na Vitrine",
                   path: "/vitrine",
+                  target: "vitrine" as const,
                   icon: Gem,
                   accent: "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.9)]",
                   border: "border-yellow-300/90",
@@ -706,6 +718,7 @@ export default function PainelPage() {
                   subtitle: "Estruture. Execute.",
                   action: "Entrar em Alliances",
                   path: "/area-aliancas",
+                  target: "alliances" as const,
                   icon: Users,
                   accent: "text-cyan-300 drop-shadow-[0_0_10px_rgba(103,232,249,0.9)]",
                   border: "border-cyan-300/90",
@@ -720,6 +733,7 @@ export default function PainelPage() {
                   subtitle: "Invista. Acompanhe.",
                   action: "Entrar no Capital",
                   path: "/built-capital",
+                  target: "capital" as const,
                   icon: TrendingUp,
                   accent: "text-emerald-300 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]",
                   border: "border-emerald-300/90",
@@ -735,7 +749,7 @@ export default function PainelPage() {
                   <button
                     key={ambiente.title}
                     type="button"
-                    onClick={() => navigate(ambiente.path)}
+                    onClick={() => goToEnvironment(ambiente.target, ambiente.path)}
                     className={`group relative min-h-[156px] overflow-hidden rounded-lg border bg-gradient-to-br ${ambiente.bg} p-4 text-left shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.24)]`}
                     style={{
                       backgroundImage: `linear-gradient(120deg, rgba(0, 10, 24, 0.62), rgba(0, 20, 42, 0.38) 48%, rgba(0, 8, 20, 0.52)), url(${ambiente.image})`,
@@ -812,15 +826,15 @@ export default function PainelPage() {
               {[
                 { label: "Nova BIA", icon: Plus, path: "/bias?criar=true" },
                 { label: "Nova OPA", icon: Target, path: "/gestao-opas?criar=true" },
-                { label: "Criar anúncio", icon: Megaphone, path: "/vitrine?criarAnuncio=true" },
-                { label: "Registrar aporte", icon: Wallet, path: "/built-capital" },
+                { label: "Criar anúncio", icon: Megaphone, path: "/vitrine?criarAnuncio=true", target: "vitrine" as const },
+                { label: "Registrar aporte", icon: Wallet, path: "/built-capital", target: "capital" as const },
               ].map((acao) => {
                 const Icon = acao.icon;
                 return (
                   <button
                     key={acao.label}
                     type="button"
-                    onClick={() => navigate(acao.path)}
+                    onClick={() => acao.target ? goToEnvironment(acao.target, acao.path) : navigate(acao.path)}
                     className="group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-background text-center text-xs font-semibold text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
                     data-testid={`acao-rapida-${acao.label.toLowerCase().replace(/\s+/g, "-")}`}
                   >
@@ -833,6 +847,12 @@ export default function PainelPage() {
           </CardContent>
         </Card>
         </div>
+
+        <EnvironmentAccessDialog
+          access={blockedAccess}
+          open={!!blockedAccess}
+          onOpenChange={(open) => !open && setBlockedAccess(null)}
+        />
       </div>
 
       {/* Stats cards */}
@@ -1177,7 +1197,7 @@ export default function PainelPage() {
                 <Card className="border border-border/60 lg:col-span-1">
                   <CardContent className="p-4">
                     <p className="text-sm font-semibold text-foreground">Nº de OPAs Convergentes vs Nº de Interesses Manifestados</p>
-                    <p className="text-[11px] text-muted-foreground">Comparativo do período atual</p>
+                    <p className="text-[11px] text-muted-foreground">Comparativo dos últimos 12 meses</p>
                     <div className="mt-3 h-[180px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={convergenciaMetricsData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
@@ -1194,7 +1214,7 @@ export default function PainelPage() {
                 <MetricCard
                   title="Índice de Convergência"
                   value={fmtPercent(dashboardStats.indice_convergencia)}
-                  subtitle="OPAs convergentes no período / total de OPAs no período"
+                  subtitle="OPAs convergentes / total de OPAs nos últimos 12 meses"
                 />
                 <MetricCard
                   title="Taxa de interesse"
@@ -1302,8 +1322,8 @@ export default function PainelPage() {
                             {n(opa.valor_origem_opa) > 0 ?fmt(n(opa.valor_origem_opa)) : "-"}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-[10px] text-muted-foreground">Mín. esforço</p>
+                        <div title="Mínimo Esforço Multiplicador">
+                          <p className="text-[10px] text-muted-foreground">MEM</p>
                           <p className="text-xs font-medium tabular-nums">
                             {n(opa.Minimo_esforco_multiplicador) > 0 ?fmtPercent(n(opa.Minimo_esforco_multiplicador)) : "-"}
                           </p>

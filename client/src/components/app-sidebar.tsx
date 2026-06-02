@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Target, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Store, Coins, ClipboardList, CalendarDays } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, Target, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Gem, Coins, ClipboardList, CalendarDays } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,13 +17,15 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 
 export function AppSidebar() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "manager";
   const isSuperAdmin = user?.role === "admin";
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
+  const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
 
   // Seal-based permissions (stored in Outras_redes_as_quais_pertenco)
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
@@ -32,13 +34,25 @@ export function AppSidebar() {
   const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
 
   const isBiasSection = location === "/gestao-bias" || location === "/gestao-opas" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
+  const isAmbientesSection = location.startsWith("/vitrine") || location === "/area-aliancas" || location === "/built-capital";
   const isRedeBuiltSection = location === "/area-aliancas" || location === "/area-membros" || location === "/comunidade" || location === "/bias";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
+  const [ambientesOpen, setAmbientesOpen] = useState(isAmbientesSection);
   const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
   const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
   const [redeBuiltOpen, setRedeBuiltOpen] = useState(isRedeBuiltSection);
 
+  function handleEnvironmentClick(target: EnvironmentTarget, href: string) {
+    const access = environmentAccessFor(user, target);
+    if (!access.canAccess) {
+      setBlockedAccess(access);
+      return;
+    }
+    navigate(href);
+  }
+
   return (
+    <>
     <Sidebar>
       <SidebarHeader className="p-3 border-b border-sidebar-border">
         <div className="flex items-center justify-center">
@@ -70,15 +84,6 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/vitrine"} className="text-sm" data-testid="nav-vitrine">
-                  <Link href="/vitrine">
-                    <Store className="w-3.5 h-3.5" />
-                    <span>BUILT Vitrine</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
               {/* OPAs — sempre visível */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/opas"} data-testid="nav-opas" className="text-sm">
@@ -89,27 +94,45 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {hasSeal && (
+              <Collapsible open={ambientesOpen} onOpenChange={setAmbientesOpen}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/area-aliancas"} className="text-sm" data-testid="nav-area-aliancas">
-                    <Link href="/area-aliancas">
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton isActive={isAmbientesSection} className="text-sm" data-testid="nav-ambientes-built">
                       <Globe2 className="w-3.5 h-3.5" />
-                      <span>Área de Alianças</span>
-                    </Link>
-                  </SidebarMenuButton>
+                      <span>Ambientes BUILT</span>
+                      <ChevronDown className={`ml-auto h-3.5 w-3.5 transition-transform ${ambientesOpen ? "rotate-180" : ""}`} />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
                 </SidebarMenuItem>
-              )}
-
-              {hasSeal && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital">
-                    <Link href="/built-capital">
-                      <Coins className="w-3.5 h-3.5" />
-                      <span>BUILT Capital</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine">
+                        <button type="button" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
+                          <Gem className="w-3.5 h-3.5" />
+                          <span>BUILT Vitrine</span>
+                        </button>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={location === "/area-aliancas"} className="text-sm" data-testid="nav-area-aliancas">
+                        <button type="button" onClick={() => handleEnvironmentClick("alliances", "/area-aliancas")}>
+                          <Users className="w-3.5 h-3.5" />
+                          <span>BUILT Alliances</span>
+                        </button>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital">
+                        <button type="button" onClick={() => handleEnvironmentClick("capital", "/built-capital")}>
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          <span>BUILT Capital</span>
+                        </button>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Gestão de BIAs */}
               {hasSeal && (
@@ -227,5 +250,11 @@ export function AppSidebar() {
         <div className="text-[11px] text-sidebar-foreground/60 text-center">BUILT Alliances Platform</div>
       </SidebarFooter>
     </Sidebar>
+    <EnvironmentAccessDialog
+      access={blockedAccess}
+      open={!!blockedAccess}
+      onOpenChange={(open) => !open && setBlockedAccess(null)}
+    />
+    </>
   );
 }

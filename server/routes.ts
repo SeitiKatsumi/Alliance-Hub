@@ -287,6 +287,40 @@ async function ensureBiasGeoFields() {
   await ensureGeoFields("bias_projetos", "geo-bias");
 }
 
+async function ensureOpaMediaFields() {
+  const fields = [
+    {
+      field: "imagem_directus_id",
+      type: "uuid",
+      meta: {
+        interface: "file-image",
+        display: "image",
+        hidden: false,
+        note: "Imagem de capa da OPA exibida nos cards da Vitrine",
+      },
+      schema: { is_nullable: true },
+    },
+  ];
+  for (const fieldDef of fields) {
+    try {
+      const res = await fetch(`${DIRECTUS_URL}/fields/tipos_oportunidades`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(fieldDef),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const code = err?.errors?.[0]?.extensions?.code;
+        if (code !== "RECORD_NOT_UNIQUE" && code !== "FORBIDDEN") {
+          console.warn(`[opa-media] Field ${fieldDef.field} response: ${res.status}`);
+        }
+      }
+    } catch (e) {
+      // Ignore startup network errors; API payloads still work if the field already exists.
+    }
+  }
+}
+
 async function ensureVitrineFields() {
   const fields = [
     { field: "na_vitrine", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: false } },
@@ -301,6 +335,25 @@ async function ensureVitrineFields() {
     { field: "especialidade_livre", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Especialidade em texto livre" }, schema: { is_nullable: true } },
     { field: "ramo_atuacao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Ramo de atuação (cascata)" }, schema: { is_nullable: true } },
     { field: "segmento", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Segmento dentro do ramo de atuação" }, schema: { is_nullable: true } },
+    {
+      field: "area_atuacao",
+      type: "string",
+      meta: {
+        interface: "select-dropdown",
+        display: "raw",
+        hidden: false,
+        note: "Abrangência de atuação do membro",
+        options: {
+          choices: [
+            { text: "Local", value: "Local" },
+            { text: "Regional", value: "Regional" },
+            { text: "Nacional", value: "Nacional" },
+            { text: "Global", value: "Global" },
+          ],
+        },
+      },
+      schema: { is_nullable: true },
+    },
     { field: "idiomas", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Idiomas falados" }, schema: { is_nullable: true } },
     { field: "nucleos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos núcleos de aliança" }, schema: { is_nullable: true } },
     { field: "tipos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos tipos de aliança" }, schema: { is_nullable: true } },
@@ -1442,6 +1495,7 @@ export async function registerRoutes(
   ensureBiasGeoFields().catch(console.error);
   ensureVitrineFields().catch(console.error);
   ensureGeoFields("tipos_oportunidades", "geo-opa").catch(console.error);
+  ensureOpaMediaFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
   ensureComunidadeFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
@@ -1535,7 +1589,7 @@ export async function registerRoutes(
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
       // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
@@ -1573,7 +1627,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
+      const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
       const m = await directusFetchOne("cadastro_geral", req.params.id, `fields=${fields}`);
       if (!m) return res.status(404).json({ error: "Membro não encontrado" });
       const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
@@ -1598,7 +1652,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
       const json = await response.json();
@@ -1632,7 +1686,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Não autenticado" });
     }
     try {
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,area_atuacao,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
       const json = await response.json();
@@ -2212,7 +2266,7 @@ export async function registerRoutes(
 
   // POST /api/membros/:id/comunidade — assign member to a community (and remove from old one)
   app.get("/api/membros/:id/convites-comunidade", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const membroId = req.params.id;
       const col = await getComunidadeCol();
@@ -2414,7 +2468,7 @@ export async function registerRoutes(
       ];
 
       const fetchDashboardOpas = async () => {
-        const baseFields = "fields=id,nome_oportunidade,tipo,bia,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador";
+        const baseFields = "fields=id,nome_oportunidade,tipo,bia,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador,date_created";
         try {
           return await directusFetchScoped("tipos_oportunidades", `${baseFields},status`);
         } catch (err) {
@@ -2451,6 +2505,14 @@ export async function registerRoutes(
       const meusInteresses = await storage.getInteressesByUser(directusUserId).catch(() => []);
       const interesseOpaIds = new Set(meusInteresses.map((interesse: any) => interesse.opa_id));
       const interesseDataMap = new Map(meusInteresses.map((interesse: any) => [interesse.opa_id, interesse]));
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      const isWithinLastTwelveMonths = (item: any) => {
+        if (!item?.date_created) return true;
+        const createdAt = new Date(item.date_created);
+        if (Number.isNaN(createdAt.getTime())) return true;
+        return createdAt >= twelveMonthsAgo;
+      };
 
       const userOpas = (allOpas as any[])
         .filter((o: any) => interesseOpaIds.has(o.id))
@@ -2496,7 +2558,8 @@ export async function registerRoutes(
         return Array.from(new Set(mappedWords));
       };
       const activeAreaKeywords = Array.from(new Set(areasContribuicao.flatMap((area) => keywordsForArea(String(area)))));
-      const convergenciasFull = (allOpas as any[])
+      const opasUltimosDozeMeses = (allOpas as any[]).filter(isWithinLastTwelveMonths);
+      const convergenciasFull = opasUltimosDozeMeses
         .filter((o: any) => !CLOSED_STATUSES.has(o.status))
         .map((o: any) => ({
           ...o,
@@ -2552,7 +2615,7 @@ export async function registerRoutes(
         name,
         value: opasComunidade.filter((opa: any) => classifyAbrangencia(opa) === name).length,
       }));
-      const opasTotalPeriodo = (allOpas as any[]).length;
+      const opasTotalPeriodo = opasUltimosDozeMeses.length;
       const dashboardStats = {
         convergencias_total: convergenciasFull.length,
         opas_total_periodo: opasTotalPeriodo,
@@ -3782,6 +3845,8 @@ export async function registerRoutes(
       pais: o.pais,
       descricao: o.descricao,
       perfil_aliado: o.perfil_aliado,
+      imagem_directus_id: o.imagem_directus_id || null,
+      imagem_url: o.imagem_directus_id ? `/api/assets/${o.imagem_directus_id}` : null,
       status: o.status || "ativa",
       motivo_encerramento: o.motivo_encerramento || null,
       date_created: o.date_created || null,
@@ -3832,6 +3897,7 @@ export async function registerRoutes(
 
   app.post("/api/oportunidades", async (req, res) => {
     try {
+      await ensureOpaMediaFields();
       const item = await directusCreate("tipos_oportunidades", prepareOpaPayload(req.body));
       res.json(item);
     } catch (error: any) {
@@ -3854,6 +3920,7 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id", async (req, res) => {
     try {
+      await ensureOpaMediaFields();
       const item = await directusUpdate("tipos_oportunidades", req.params.id, prepareOpaPayload(req.body));
       res.json(item);
     } catch (error: any) {
@@ -3885,7 +3952,7 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id/interesse/:interesseId", async (req, res) => {
     try {
-      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
       const allowedStatuses = new Set([
         "interesse_recebido",
         "em_analise",
@@ -3896,13 +3963,13 @@ export async function registerRoutes(
       ]);
       const statusCrm = String(req.body.status_crm || "");
       if (!allowedStatuses.has(statusCrm)) {
-        return res.status(400).json({ error: "Status invÃ¡lido" });
+        return res.status(400).json({ error: "Status inválido" });
       }
       const item = await storage.updateOpaInteresse(req.params.interesseId, {
         status_crm: statusCrm,
         observacao_crm: req.body.observacao_crm ? String(req.body.observacao_crm) : null,
       } as any);
-      if (!item || item.opa_id !== req.params.id) return res.status(404).json({ error: "ManifestaÃ§Ã£o nÃ£o encontrada" });
+      if (!item || item.opa_id !== req.params.id) return res.status(404).json({ error: "Manifestação não encontrada" });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -4753,15 +4820,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     let tipos_alianca: string[] = [];
     let Outras_redes_as_quais_pertenco: string[] = [];
     let fotoPerfil: string | null = null;
+    let naVitrine: boolean | null = null;
+    let emMembrosBuilt: boolean | null = null;
+    let emBuiltCapital: boolean | null = null;
     let nomePerfil = (req.session as any).nome || "";
     if (membroId) {
       try {
-        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil");
+        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil,na_vitrine,em_membros_built,em_built_capital");
         if (membro) {
           nomePerfil = membro.Nome_de_usuario || membro.nome || nomePerfil;
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
           Outras_redes_as_quais_pertenco = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
           fotoPerfil = membro.foto_perfil || null;
+          naVitrine = membro.na_vitrine === true || membro.na_vitrine === 1;
+          emMembrosBuilt = membro.em_membros_built === true || membro.em_membros_built === 1;
+          emBuiltCapital = membro.em_built_capital === true || membro.em_built_capital === 1;
           (req.session as any).nome = nomePerfil;
         }
       } catch (_) {}
@@ -4801,6 +4874,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       permissions,
       tipos_alianca,
       Outras_redes_as_quais_pertenco,
+      na_vitrine: naVitrine,
+      em_membros_built: emMembrosBuilt,
+      em_built_capital: emBuiltCapital,
       foto_perfil: fotoPerfil ? `/api/assets/${fotoPerfil}` : null,
       pending_vitrine,
       convite_pendente,
@@ -6853,7 +6929,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           {
             price_data: {
               currency: "brl",
-              unit_amount: 50000,
+              unit_amount: 319700,
               product_data: {
                 name: "Taxa de Adesão BUILT Alliances",
                 description: `Adesão à comunidade ${convite.candidato_nome ? "- " + convite.candidato_nome : ""}`.trim(),
@@ -7311,6 +7387,67 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       return res.json(result);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/aura/leitura-contextual — AI contextual interpretation by alliance nucleus
+  app.post("/api/aura/leitura-contextual", async (req: any, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    const { membro_nome, nucleo, score, faixa, T, R, C, n, palavras_recebidas } = req.body || {};
+    const nucleosPermitidos = new Set(["Técnico", "Obra", "Comercial", "Capital", "Liderança"]);
+    if (!nucleo || typeof nucleo !== "string" || !nucleosPermitidos.has(nucleo)) {
+      return res.status(400).json({ error: "Núcleo inválido." });
+    }
+
+    const palavras = Array.isArray(palavras_recebidas)
+      ? palavras_recebidas
+        .map((p: any) => ({
+          canonico: String(p?.canonico || p?.palavra || "").trim(),
+          dimensao: String(p?.dimensao || "").trim(),
+          count: Number(p?.count || 0),
+        }))
+        .filter((p: any) => p.canonico)
+        .slice(0, 10)
+      : [];
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você é um analista reputacional da BUILT. Gere uma leitura contextual curta, específica e acionável para o núcleo informado, usando apenas os dados recebidos. Não invente fatos. Se houver pouca base amostral, mencione que a leitura é inicial. Responda em português do Brasil, em uma frase ou parágrafo curto, sem markdown.",
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              membro_nome: membro_nome || "Membro BUILT",
+              nucleo,
+              score: score ?? null,
+              faixa: faixa ?? null,
+              dimensoes: {
+                tecnica: T ?? 0,
+                relacional: R ?? 0,
+                comportamental: C ?? 0,
+              },
+              avaliadores: n ?? 0,
+              percepcoes_recebidas: palavras,
+              objetivo:
+                "Explique como essa Aura se aplica ao núcleo selecionado, destacando forças e pontos de atenção conforme as dimensões e palavras recebidas.",
+            }),
+          },
+        ],
+        temperature: 0.25,
+        max_tokens: 160,
+      });
+
+      const leitura = (completion.choices[0]?.message?.content || "").replace(/\s+/g, " ").trim();
+      if (!leitura) return res.status(500).json({ error: "A IA não retornou uma leitura." });
+      return res.json({ leitura, fonte: "ia" });
+    } catch (err: any) {
+      console.error("[aura-leitura-contextual]", err?.message);
+      return res.status(500).json({ error: "Erro ao gerar leitura contextual com IA." });
     }
   });
 

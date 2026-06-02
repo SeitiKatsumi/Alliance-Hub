@@ -482,7 +482,7 @@ export default function LoginPage() {
     try {
       const res = await fetch(`/api/convites/${adesaoToken}/solicitar-acesso`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao enviar solicitaÃ§Ã£o");
+      if (!res.ok) throw new Error(data.error || "Erro ao enviar solicitação");
       setAdesaoConvite(data);
       setPrimeiroAcessoStep("final");
     } catch (err: any) {

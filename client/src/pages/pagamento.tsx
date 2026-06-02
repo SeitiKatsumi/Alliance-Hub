@@ -91,6 +91,8 @@ export default function PagamentoPage() {
 
   const brasil = isBrazil(convite.comunidade?.pais);
   const stripeUrl = `${STRIPE_PAYMENT_LINK}?client_reference_id=${token}${convite.candidato_email ?`&prefilled_email=${encodeURIComponent(convite.candidato_email)}` : ""}`;
+  const asaasCartaoUrl = `${ASAAS_CARTAO_LINK}?externalReference=${encodeURIComponent(token)}`;
+  const asaasParceladoUrl = `${ASAAS_PARCELADO_LINK}?externalReference=${encodeURIComponent(token)}`;
 
   return (
     <div className="min-h-screen" style={{ background: "#001D34" }}>
@@ -129,7 +131,7 @@ export default function PagamentoPage() {
                 </p>
                 <Button
                   className="w-full font-mono bg-brand-gold hover:bg-brand-gold/90 text-[#001D34] font-bold"
-                  onClick={() => { window.open(ASAAS_CARTAO_LINK, "_blank"); }}
+                  onClick={() => { window.open(asaasCartaoUrl, "_blank"); }}
                   data-testid="btn-asaas-cartao"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
@@ -151,7 +153,7 @@ export default function PagamentoPage() {
                 <Button
                   variant="outline"
                   className="w-full font-mono border-white/20 text-white/80 hover:text-white hover:border-white/40 bg-transparent font-semibold"
-                  onClick={() => { window.open(ASAAS_PARCELADO_LINK, "_blank"); }}
+                  onClick={() => { window.open(asaasParceladoUrl, "_blank"); }}
                   data-testid="btn-asaas-parcelado"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />

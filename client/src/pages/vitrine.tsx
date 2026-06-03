@@ -102,16 +102,6 @@ function fotoUrlMap(m: MembroVitrine): string | null {
     return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
   }
 
-  const especialidades = useMemo(() => {
-    const s = new Set(membros.map(m => m.especialidade).filter(Boolean));
-    return s.size;
-  }, [membros]);
-
-  const territoriosCount = useMemo(() => {
-    const s = new Set(membros.map(m => m.cidade).filter(Boolean));
-    return s.size;
-  }, [membros]);
-
   return (
     <div
       className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
@@ -129,9 +119,9 @@ function fotoUrlMap(m: MembroVitrine): string | null {
       <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl pointer-events-none" />
 
       {/* Top-left header */}
-      <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Vitrine</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+      <div className="absolute top-4 left-4 z-20 sm:top-5 sm:left-6">
+        <p className="text-[10px] text-yellow-400/60 tracking-[0.35em] uppercase font-mono">// BUILT Vitrine</p>
+        <h2 className="mt-0.5 max-w-[260px] font-mono text-base font-bold leading-tight tracking-[0.08em] text-yellow-400 sm:max-w-[360px] sm:text-lg sm:tracking-[0.1em] xl:max-w-none xl:text-xl xl:tracking-[0.12em]">
           MAPA DE PARCEIROS DE MERCADO
         </h2>
         <div className="flex items-center gap-2 mt-2">
@@ -144,16 +134,11 @@ function fotoUrlMap(m: MembroVitrine): string | null {
       </div>
 
       {/* Top-right stats */}
-      <div className="absolute top-5 right-6 z-20 text-right font-mono">
+      <div className="absolute top-4 right-4 z-20 text-right font-mono sm:top-5 sm:right-6">
         <div className="mb-2">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Usuários</p>
-          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{membros.length}</p>
+          <p className="text-[9px] text-yellow-400/60 tracking-widest uppercase">Usuários</p>
+          <p className="text-2xl font-bold leading-none text-yellow-400 sm:text-3xl xl:text-4xl">{membros.length}</p>
         </div>
-        <div className="mb-1">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Especialidades</p>
-          <p className="text-xs font-semibold" style={{ color: "#D7BB7D99" }}>{especialidades}</p>
-        </div>
-        <p className="text-[9px] text-brand-gold/30">{territoriosCount} territórios · {withCoords.length} geolocalizados</p>
       </div>
 
       {/* Zoom controls */}
@@ -168,8 +153,8 @@ function fotoUrlMap(m: MembroVitrine): string | null {
             onClick={action}
             title={title}
             className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
-            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(250,204,21,0.35)", color: "#FACC15" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(250,204,21,0.15)")}
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
           >{label}</button>
         ))}
@@ -657,7 +642,7 @@ function PeriodoPickerGrid({
               const isFull = q.vagas === 0;
               const isReservado = reservados.includes(q.inicio);
               const isDisabled = isPast || isFull || isReservado;
-              const isSelected = selected.inicio === q.inicio;
+              const isSelected = selected?.inicio === q.inicio;
               return (
                 <button
                   key={q.inicio}
@@ -780,6 +765,113 @@ function AnuncioCard({
             data-testid={`btn-cancel-anuncio-${anuncio.id}`}
           >
             <XCircle className="w-3 h-3 text-white/60" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== ANUNCIO HERO =====
+function AnuncioHeroCard({
+  anuncio,
+  isOwn,
+  onCreate,
+  onEdit,
+  onCancel,
+}: {
+  anuncio?: AnuncioVitrine;
+  isOwn: boolean;
+  onCreate: () => void;
+  onEdit: (a: AnuncioVitrine) => void;
+  onCancel: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const href = anuncio?.link
+    ? (anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`)
+    : undefined;
+
+  const handleClick = () => {
+    if (href) window.open(href, "_blank", "noopener,noreferrer");
+    else if (!anuncio) onCreate();
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative h-[300px] overflow-hidden rounded-2xl border border-brand-gold/35"
+      style={{
+        background: "rgba(255,255,255,0.97)",
+        border: "1.5px solid rgba(37,99,235,0.35)",
+        boxShadow: "0 10px 28px rgba(37,99,235,0.1)",
+        cursor: href || !anuncio ? "pointer" : "default",
+      }}
+      data-testid={anuncio ? `card-anuncio-hero-${anuncio.id}` : "slot-anuncio-hero-vazio"}
+    >
+      {anuncio?.imagem_url ? (
+        <img
+          src={anuncio.imagem_url}
+          alt={anuncio.titulo}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-white">
+          <div className="absolute inset-0 opacity-30" style={{
+            backgroundImage: "linear-gradient(rgba(37,99,235,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.05) 1px, transparent 1px)",
+            backgroundSize: "42px 42px",
+          }} />
+          <div className="relative flex flex-col items-center gap-3 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-blue-600/30 bg-blue-600/10">
+              <Megaphone className="h-6 w-6 text-blue-600" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-navy">
+              Espaço premium disponível
+            </p>
+            <span className="text-xs font-mono text-muted-foreground">Clique para anunciar</span>
+          </div>
+        </div>
+      )}
+
+      {anuncio?.imagem_url && <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/28 to-black/10" />}
+      <div className="absolute left-5 top-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+        Anúncio em destaque
+      </div>
+
+      {anuncio && (
+        <div className="absolute bottom-5 left-5 right-5 max-w-[75%] text-white">
+          <h3 className="text-2xl font-bold leading-tight">{anuncio.titulo}</h3>
+          {anuncio.descricao && (
+            <p className="mt-2 line-clamp-2 text-sm text-white/75">{anuncio.descricao}</p>
+          )}
+          {href && (
+            <span className="mt-4 inline-flex items-center gap-2 rounded-md bg-brand-gold px-4 py-2 text-sm font-semibold text-brand-navy">
+              Saiba mais
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
+        </div>
+      )}
+
+      {anuncio && isOwn && (
+        <div
+          className="absolute right-4 top-4 flex gap-1 transition-opacity duration-200"
+          style={{ opacity: hovered ? 1 : 0 }}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(anuncio); }}
+            className="flex h-8 w-8 items-center justify-center rounded bg-black/55 backdrop-blur"
+            data-testid={`btn-edit-anuncio-hero-${anuncio.id}`}
+          >
+            <Pencil className="h-4 w-4 text-brand-gold" />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onCancel(); }}
+            className="flex h-8 w-8 items-center justify-center rounded bg-black/55 backdrop-blur hover:bg-red-500/40"
+            data-testid={`btn-cancel-anuncio-hero-${anuncio.id}`}
+          >
+            <XCircle className="h-4 w-4 text-white/70" />
           </button>
         </div>
       )}
@@ -1162,6 +1254,8 @@ export default function VitrinePage() {
       .slice(0, 8),
     [membros, membroId]
   );
+  const anuncioHero = anunciosAtivos[0];
+  const anunciosMenores = anunciosAtivos.slice(1, 6);
 
   function clearFilters() {
     setSearch("");
@@ -1181,9 +1275,7 @@ export default function VitrinePage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-vitrine-title">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
-              <Gem className="w-6 h-6" />
-            </div>
+            <Gem className="w-7 h-7 text-yellow-400" />
             {isParceirosPage ? "Parceiros de mercado" : "BUILT Vitrine"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -1217,26 +1309,39 @@ export default function VitrinePage() {
 
       {!isParceirosPage && (
       <>
-      {/* World Map */}
-      {isLoading ? (
-        <Skeleton className="h-[300px] rounded-2xl" />
-      ) : (
-        <WorldMapHeader membros={membros} />
-      )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* World Map */}
+        {isLoading ? (
+          <Skeleton className="h-[300px] rounded-2xl" />
+        ) : (
+          <WorldMapHeader membros={membros} />
+        )}
+
+        <AnuncioHeroCard
+          anuncio={anuncioHero}
+          isOwn={Boolean(anuncioHero && (isSuperAdmin || anuncioHero.membro_id === membroId))}
+          onCreate={openAnuncioCreate}
+          onEdit={openAnuncioEdit}
+          onCancel={() => anuncioHero && cancelarAnuncioMutation.mutate(anuncioHero.id)}
+        />
+      </div>
 
       {/* ===== ANÚNCIOS EM DESTAQUE ===== */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Megaphone className="w-4 h-4 text-brand-gold/70" />
-            <h2 className="text-sm font-semibold font-mono text-white/70 uppercase tracking-wider">Anúncios em Destaque</h2>
+            <Megaphone className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-semibold text-foreground">Anúncios em destaque</h2>
           </div>
-          <div className="flex-1 h-px bg-brand-gold/10" />
-          <span className="text-[10px] font-mono text-white/25">{Math.min(anunciosAtivos.length, 5)}/5 em exibição</span>
+          <div className="flex-1 h-px bg-blue-200" />
+          <span className="text-[10px] font-mono text-muted-foreground">{Math.min(anunciosMenores.length, 5)}/5 em exibição</span>
         </div>
-        <HorizontalCarousel testId="carousel-anuncios-destaque">
-          {anunciosAtivos.slice(0, 5).map(a => (
-            <div key={a.id} className="min-w-[220px] sm:min-w-[242px] lg:min-w-[260px] snap-start">
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
+          data-testid="grid-anuncios-destaque"
+        >
+          {anunciosMenores.map(a => (
+            <div key={a.id} className="min-w-0">
               <AnuncioCard
                 anuncio={a}
                 isOwn={isSuperAdmin || a.membro_id === membroId}
@@ -1245,27 +1350,27 @@ export default function VitrinePage() {
               />
             </div>
           ))}
-          {Array.from({ length: Math.max(0, 5 - Math.min(anunciosAtivos.length, 5)) }).map((_, i) => (
+          {Array.from({ length: Math.max(0, 5 - anunciosMenores.length) }).map((_, i) => (
             <div
               key={`slot-${i}`}
               onClick={membroId ? openAnuncioCreate : undefined}
-              className="relative min-w-[220px] sm:min-w-[242px] lg:min-w-[260px] snap-start rounded-xl overflow-hidden flex flex-col items-center justify-center gap-3 group transition-all duration-200"
+              className="relative min-w-0 rounded-xl overflow-hidden flex flex-col items-center justify-center gap-3 group transition-all duration-200"
               style={{
                 aspectRatio: "1/1",
-                border: "1.5px solid rgba(215,187,125,0.5)",
+                border: "1.5px solid rgba(37,99,235,0.35)",
                 background: "rgba(255,255,255,0.97)",
                 cursor: membroId ? "pointer" : "default",
-                boxShadow: "0 2px 12px rgba(215,187,125,0.12)",
+                boxShadow: "0 2px 12px rgba(37,99,235,0.1)",
               }}
               data-testid={`slot-anuncio-vazio-${i}`}
             >
               <div className="flex flex-col items-center gap-2">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(215,187,125,0.12)", border: "1px solid rgba(215,187,125,0.3)" }}>
-                  <Megaphone className="w-4 h-4" style={{ color: "#D7BB7D" }} />
+                  style={{ background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.28)" }}>
+                  <Megaphone className="w-4 h-4 text-blue-600" />
                 </div>
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-center"
-                  style={{ color: "#D7BB7D", letterSpacing: "0.12em" }}>
+                  style={{ color: "#001D34", letterSpacing: "0.12em" }}>
                   Espaço disponível
                 </p>
                 {membroId && (
@@ -1277,7 +1382,7 @@ export default function VitrinePage() {
               </div>
             </div>
           ))}
-        </HorizontalCarousel>
+        </div>
       </div>
 
       {/* Meus agendamentos — só visível para o próprio membro */}
@@ -1289,7 +1394,7 @@ export default function VitrinePage() {
             <h2 className="text-sm font-semibold text-foreground">OPAs em destaque</h2>
           </div>
           <div className="flex-1 h-px bg-border" />
-          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/opas")}>
+          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/area-aliancas?tab=opas")}>
             Ver todas as oportunidades
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
@@ -2026,7 +2131,10 @@ export default function VitrinePage() {
 function num(value: string | number | null | undefined): number {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (!value) return 0;
-  const normalized = String(value).replace(/\./g, "").replace(",", ".");
+  const raw = String(value).trim();
+  const normalized = raw.includes(",")
+    ? raw.replace(/\./g, "").replace(",", ".")
+    : raw;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }

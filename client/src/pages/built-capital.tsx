@@ -131,18 +131,18 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
       ))}
 
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Capital</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+        <p className="text-[10px] text-white/60 tracking-[0.35em] uppercase font-mono">// BUILT Capital</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-white">
           MAPA DE PARCEIROS DE CAPITAL
         </h2>
       </div>
 
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-2">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Parceiros</p>
-          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{parceiros.length}</p>
+          <p className="text-[9px] text-white/55 tracking-widest uppercase">Parceiros</p>
+          <p className="text-4xl font-bold leading-none text-white">{parceiros.length}</p>
         </div>
-        <p className="text-[9px] text-brand-gold/30">{withCoords.length} geolocalizados</p>
+        <p className="text-[9px] text-white/45">{withCoords.length} geolocalizados</p>
       </div>
 
       <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">

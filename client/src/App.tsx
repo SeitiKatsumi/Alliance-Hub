@@ -13,7 +13,6 @@ import { Switch as UiSwitch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
-import OportunidadesPage from "@/pages/oportunidades";
 import BiasPage from "@/pages/bias";
 import BiaDetalhePage from "@/pages/bia-detalhe";
 import OpaDetalhePage from "@/pages/opa-detalhe";
@@ -87,6 +86,16 @@ interface OnboardingMembro {
   area_aliancas_termo_versao?: string | null;
   built_capital_termo_aceito_em?: string | null;
   built_capital_termo_versao?: string | null;
+}
+
+function LegacyOpasRedirect() {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    navigate("/area-aliancas?tab=opas");
+  }, [navigate]);
+
+  return null;
 }
 
 const BUILT_CAPITAL_NUCLEO = "Núcleo de Capital";
@@ -929,7 +938,7 @@ function ProtectedApp() {
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />
               <Route path="/opas/:id" component={OpaDetalhePage} />
-              <Route path="/opas" component={OportunidadesPage} />
+              <Route path="/opas" component={LegacyOpasRedirect} />
               <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
               <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
               <Route path="/resultados" component={ResultadosPage} />

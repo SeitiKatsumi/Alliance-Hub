@@ -444,7 +444,7 @@ export default function BiaDetalhePage() {
                   <Button
                     variant="link"
                     size="sm"
-                    onClick={() => navigate("/opas")}
+                    onClick={() => navigate("/area-aliancas?tab=opas")}
                     className="mt-1 text-brand-gold/60"
                   >
                     Criar OPA →

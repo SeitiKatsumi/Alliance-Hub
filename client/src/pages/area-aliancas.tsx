@@ -10,6 +10,7 @@ import { RedeBadgeButton } from "@/components/rede-badge-viewer";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
+import OportunidadesPage from "@/pages/oportunidades";
 import {
   Briefcase,
   Globe2,
@@ -17,6 +18,7 @@ import {
   Network,
   Search,
   ShieldCheck,
+  Target,
   Users,
 } from "lucide-react";
 
@@ -172,7 +174,7 @@ export default function AreaAliancasPage() {
   const searchParams = useSearch();
   const getTabFromSearch = () => {
     const tab = new URLSearchParams(searchParams).get("tab");
-    return ["aliados", "membros", "comunidades", "bias"].includes(tab || "") ? tab! : "aliados";
+    return ["opas", "bias", "membros", "comunidades", "aliados"].includes(tab || "") ? tab! : "opas";
   };
   const [activeTab, setActiveTab] = useState(getTabFromSearch);
 
@@ -184,18 +186,20 @@ export default function AreaAliancasPage() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-area-aliancas-title">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
-            <Users className="h-6 w-6" />
-          </div>
+          <Users className="h-7 w-7 text-cyan-500" />
           BUILT Alliances
         </h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-4">
-          <TabsTrigger value="aliados" className="gap-2" data-testid="tab-area-aliados">
-            <ShieldCheck className="h-4 w-4" />
-            Aliados Licenciados
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-5">
+          <TabsTrigger value="opas" className="gap-2" data-testid="tab-area-opas">
+            <Target className="h-4 w-4" />
+            OPAs
+          </TabsTrigger>
+          <TabsTrigger value="bias" className="gap-2" data-testid="tab-area-bias">
+            <Briefcase className="h-4 w-4" />
+            BIAs
           </TabsTrigger>
           <TabsTrigger value="membros" className="gap-2" data-testid="tab-area-membros">
             <Users className="h-4 w-4" />
@@ -205,14 +209,23 @@ export default function AreaAliancasPage() {
             <Globe2 className="h-4 w-4" />
             Comunidades
           </TabsTrigger>
-          <TabsTrigger value="bias" className="gap-2" data-testid="tab-area-bias">
-            <Briefcase className="h-4 w-4" />
-            BIAs
+          <TabsTrigger value="aliados" className="gap-2" data-testid="tab-area-aliados">
+            <ShieldCheck className="h-4 w-4" />
+            Aliados Licenciados
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="aliados">
-          {activeTab === "aliados" && <AliadosTab />}
+        <TabsContent
+          value="opas"
+          className="[&>div]:p-0 [&>div]:max-w-none"
+        >
+          {activeTab === "opas" && <OportunidadesPage />}
+        </TabsContent>
+        <TabsContent
+          value="bias"
+          className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-bias-title']>div]:hidden"
+        >
+          {activeTab === "bias" && <BiasPage />}
         </TabsContent>
         <TabsContent
           value="membros"
@@ -226,11 +239,8 @@ export default function AreaAliancasPage() {
         >
           {activeTab === "comunidades" && <ComunidadePage />}
         </TabsContent>
-        <TabsContent
-          value="bias"
-          className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-bias-title']>div]:hidden"
-        >
-          {activeTab === "bias" && <BiasPage />}
+        <TabsContent value="aliados">
+          {activeTab === "aliados" && <AliadosTab />}
         </TabsContent>
       </Tabs>
     </div>

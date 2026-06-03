@@ -260,7 +260,7 @@ export default function OpaDetalhePage() {
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">OPA não encontrada.</p>
-        <Button variant="link" onClick={() => navigate("/opas")}>Voltar para OPAs</Button>
+        <Button variant="link" onClick={() => navigate("/area-aliancas?tab=opas")}>Voltar para OPAs</Button>
       </div>
     );
   }
@@ -272,7 +272,7 @@ export default function OpaDetalhePage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/opas")}
+          onClick={() => navigate("/area-aliancas?tab=opas")}
           className="gap-2 text-muted-foreground hover:text-foreground -ml-2"
           data-testid="btn-back-opas"
         >

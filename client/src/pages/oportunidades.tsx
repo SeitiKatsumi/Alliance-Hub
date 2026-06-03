@@ -275,7 +275,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
+      className="relative overflow-hidden rounded-2xl border border-cyan-400/20"
       style={{ height: 440, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       {/* Grid */}
@@ -284,23 +284,23 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
         backgroundSize: "50px 50px",
       }} />
       {/* Corner accents */}
-      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-brand-gold/40 rounded-tl-2xl pointer-events-none" />
-      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-brand-gold/40 rounded-tr-2xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-brand-gold/40 rounded-bl-2xl pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl pointer-events-none" />
+      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-cyan-400/40 rounded-tl-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-cyan-400/40 rounded-tr-2xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-cyan-400/40 rounded-bl-2xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-cyan-400/40 rounded-br-2xl pointer-events-none" />
 
       {/* Top-left label */}
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-cyan-300">
           MAPA DE OPORTUNIDADES
         </h2>
         <div className="flex items-center gap-2 mt-2">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-gold opacity-60" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-gold" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-300 opacity-60" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-300" />
           </span>
-          <span className="text-[10px] text-brand-gold/60 font-mono tracking-[0.2em] uppercase">
+          <span className="text-[10px] text-cyan-300/65 font-mono tracking-[0.2em] uppercase">
             {opasWithCoords.length} geolocalizadas
           </span>
         </div>
@@ -309,18 +309,18 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
       {/* Top-right stats */}
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-3">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">OPAs</p>
-          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{opas.length}</p>
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">OPAs</p>
+          <p className="text-4xl font-bold leading-none text-cyan-300">{opas.length}</p>
         </div>
         <div className="mb-2">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Valor Total</p>
-          <p className="text-xs font-semibold tabular-nums" style={{ color: "#D7BB7D99" }}>
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">Valor Total</p>
+          <p className="text-xs font-semibold tabular-nums text-cyan-300/70">
             {totalValor > 0 ?brl(totalValor) : "—"}
           </p>
         </div>
         <div>
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">BIAs</p>
-          <p className="text-lg font-bold" style={{ color: "#D7BB7D" }}>{biasComOpas}</p>
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">BIAs</p>
+          <p className="text-lg font-bold text-cyan-300">{biasComOpas}</p>
         </div>
       </div>
 
@@ -336,8 +336,8 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
             onClick={btn.onClick}
             title={btn.title}
             className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
-            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(34,211,238,0.35)", color: "#67E8F9" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(34,211,238,0.15)")}
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
           >{btn.label}</button>
         ))}
@@ -347,8 +347,8 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
       {opasWithCoords.length === 0 && (
         <div className="absolute inset-0 flex items-end justify-center pb-16 z-10 pointer-events-none">
           <div className="text-center">
-            <p className="text-[10px] text-brand-gold/30 font-mono tracking-widest uppercase">Nenhuma OPA geolocal.</p>
-            <p className="text-[9px] text-brand-gold/20 font-mono mt-0.5">Edite uma OPA e adicione localização</p>
+            <p className="text-[10px] text-cyan-300/35 font-mono tracking-widest uppercase">Nenhuma OPA geolocal.</p>
+            <p className="text-[9px] text-cyan-300/25 font-mono mt-0.5">Edite uma OPA e adicione localização</p>
           </div>
         </div>
       )}
@@ -367,8 +367,8 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
               geographies.map(geo => (
                 <Geography key={geo.rsmKey} geography={geo}
                   style={{
-                    default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
-                    hover:   { fill: "#011a3c", stroke: "#D7BB7D40", strokeWidth: 0.3, outline: "none" },
+                    default: { fill: "#011630", stroke: "#22D3EE28", strokeWidth: 0.3, outline: "none" },
+                    hover:   { fill: "#011a3c", stroke: "#22D3EE40", strokeWidth: 0.3, outline: "none" },
                     pressed: { fill: "#011630", outline: "none" },
                   }}
                 />
@@ -394,19 +394,19 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
                 }}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isSelected || isClusterSel ?5.5 : isHovered ?4.5 : 3.5)} fill="#D7BB7D" fillOpacity={0.06}>
+                  <circle r={r * (isSelected || isClusterSel ?5.5 : isHovered ?4.5 : 3.5)} fill="#22D3EE" fillOpacity={0.06}>
                     <animate attributeName="r" from={r * 2.5} to={r * 5} dur="1.6s" repeatCount="indefinite" />
                     <animate attributeName="fill-opacity" from="0.4" to="0" dur="1.6s" repeatCount="indefinite" />
                   </circle>
-                  <circle r={r * (isSelected || isClusterSel ?3 : isHovered ?2.5 : 2)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSel ?0.4 : isHovered ?0.3 : 0.18} />
-                  <circle r={r * (isSelected || isClusterSel ?1.6 : isHovered ?1.3 : 1)} fill="#D7BB7D" fillOpacity={0.95} />
+                  <circle r={r * (isSelected || isClusterSel ?3 : isHovered ?2.5 : 2)} fill="#22D3EE" fillOpacity={isSelected || isClusterSel ?0.4 : isHovered ?0.3 : 0.18} />
+                  <circle r={r * (isSelected || isClusterSel ?1.6 : isHovered ?1.3 : 1)} fill="#67E8F9" fillOpacity={0.95} />
                   <circle r={r * 0.7} fill="white" fillOpacity={0.95} />
                   {isMulti && (
                     <>
-                      <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2} fill={isClusterSel ?"#D7BB7D" : "#001D34"} stroke="#D7BB7D" strokeWidth={0.5} />
+                      <circle cx={r * 1.6} cy={r * -1.6} r={r * 1.2} fill={isClusterSel ?"#67E8F9" : "#001D34"} stroke="#67E8F9" strokeWidth={0.5} />
                       <text x={r * 1.6} y={r * -1.6} textAnchor="middle" dominantBaseline="central"
                         fontSize={r * 1.0} fontWeight="bold" fontFamily="monospace"
-                        fill={isClusterSel ?"#001D34" : "#D7BB7D"}>{cluster.items.length}</text>
+                        fill={isClusterSel ?"#001D34" : "#67E8F9"}>{cluster.items.length}</text>
                     </>
                   )}
                 </g>
@@ -418,7 +418,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
 
       {/* Decorative scan line */}
       <div className="absolute left-0 right-0 h-px pointer-events-none z-10"
-        style={{ background: "linear-gradient(to right, transparent, #D7BB7D40 20%, #D7BB7D60 50%, #D7BB7D40 80%, transparent)", animation: "scanLineOpas 6s linear infinite", top: 0 }}
+        style={{ background: "linear-gradient(to right, transparent, #22D3EE40 20%, #22D3EE60 50%, #22D3EE40 80%, transparent)", animation: "scanLineOpas 6s linear infinite", top: 0 }}
       />
       <style dangerouslySetInnerHTML={{ __html: `@keyframes scanLineOpas { 0% { top: 0%; opacity: 0; } 5% { opacity: 1; } 95% { opacity: 1; } 100% { top: 100%; opacity: 0; } }` }} />
 
@@ -437,15 +437,15 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
               <div>
                 {hoveredCluster.items.length > 1 ?(
                   <>
-                    <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para selecionar</p>
-                    <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items.length} OPAs neste local</p>
+                    <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase">Clique para selecionar</p>
+                    <p className="text-sm font-bold text-cyan-300 mt-0.5">{hoveredCluster.items.length} OPAs neste local</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
-                    <p className="text-sm font-bold text-brand-gold mt-0.5">{hoveredCluster.items[0].nome_oportunidade}</p>
+                    <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase">Clique para ver detalhes</p>
+                    <p className="text-sm font-bold text-cyan-300 mt-0.5">{hoveredCluster.items[0].nome_oportunidade}</p>
                     {hoveredCluster.items[0]._localizacao && (
-                      <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5">
+                      <p className="text-[11px] text-cyan-300/60 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3" />{hoveredCluster.items[0]._localizacao?.split(",")[0]}
                       </p>
                     )}
@@ -454,8 +454,8 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
               </div>
               {hoveredCluster.items.length === 1 && n(hoveredCluster.items[0].valor_origem_opa) > 0 && (
                 <div className="text-right">
-                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Valor</p>
-                  <p className="text-sm text-brand-gold tabular-nums">{brl(n(hoveredCluster.items[0].valor_origem_opa))}</p>
+                  <p className="text-[9px] text-cyan-300/45 uppercase tracking-wider">Valor</p>
+                  <p className="text-sm text-cyan-300 tabular-nums">{brl(n(hoveredCluster.items[0].valor_origem_opa))}</p>
                 </div>
               )}
             </div>
@@ -468,17 +468,17 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
         <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
           style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)", padding: "32px 24px 18px" }}
         >
-          <button onClick={() => setClusterOpas(null)} className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest">
+          <button onClick={() => setClusterOpas(null)} className="absolute top-3 right-4 text-cyan-300/45 hover:text-cyan-200 transition-colors font-mono text-xs tracking-widest">
             ✕ FECHAR
           </button>
-          <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase font-mono mb-2">{clusterOpas.length} OPAs neste local</p>
+          <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase font-mono mb-2">{clusterOpas.length} OPAs neste local</p>
           <div className="flex flex-wrap gap-2">
             {clusterOpas.map(o => (
               <button key={o.id} onClick={() => { setClusterOpas(null); setSelectedOpa(o); }}
-                className="text-left px-3 py-1.5 rounded border border-brand-gold/20 hover:border-brand-gold/50 hover:bg-brand-gold/10 transition-colors"
+                className="text-left px-3 py-1.5 rounded border border-cyan-400/20 hover:border-cyan-300/50 hover:bg-cyan-300/10 transition-colors"
               >
-                <p className="text-xs font-semibold text-brand-gold font-mono">{o.nome_oportunidade}</p>
-                <p className="text-[10px] text-brand-gold/50">{o.nucleo_alianca}</p>
+                <p className="text-xs font-semibold text-cyan-300 font-mono">{o.nome_oportunidade}</p>
+                <p className="text-[10px] text-cyan-300/55">{o.nucleo_alianca}</p>
               </button>
             ))}
           </div>
@@ -490,44 +490,44 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
         <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
           style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 80%, transparent 100%)", padding: "32px 24px 18px" }}
         >
-          <button onClick={() => setSelectedOpa(null)} className="absolute top-3 right-4 text-brand-gold/40 hover:text-brand-gold/80 transition-colors font-mono text-xs tracking-widest">
+          <button onClick={() => setSelectedOpa(null)} className="absolute top-3 right-4 text-cyan-300/45 hover:text-cyan-200 transition-colors font-mono text-xs tracking-widest">
             ✕ FECHAR
           </button>
           <div className="flex items-end justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] text-brand-gold/40 tracking-[0.3em] uppercase font-mono">OPA Selecionada</p>
-              <p className="text-base font-bold text-brand-gold font-mono truncate mt-0.5">{selectedOpa.nome_oportunidade}</p>
+              <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase font-mono">OPA Selecionada</p>
+              <p className="text-base font-bold text-cyan-300 font-mono truncate mt-0.5">{selectedOpa.nome_oportunidade}</p>
               {selectedOpa._localizacao && (
-                <p className="text-[11px] text-brand-gold/55 flex items-center gap-1 mt-0.5 truncate">
+                <p className="text-[11px] text-cyan-300/60 flex items-center gap-1 mt-0.5 truncate">
                   <MapPin className="w-3 h-3 shrink-0" />{selectedOpa._localizacao?.split(",").slice(0, 2).join(",")}
                 </p>
               )}
               {selectedOpa.bia_id && biasMap[selectedOpa.bia_id] && (
-                <p className="text-[10px] text-brand-gold/40 mt-1 font-mono">
+                <p className="text-[10px] text-cyan-300/45 mt-1 font-mono">
                   BIA: {biasMap[selectedOpa.bia_id].nome_bia}
                 </p>
               )}
               {selectedOpa.nucleo_alianca && (
-                <p className="text-[10px] text-brand-gold/40 font-mono">{selectedOpa.nucleo_alianca}</p>
+                <p className="text-[10px] text-cyan-300/45 font-mono">{selectedOpa.nucleo_alianca}</p>
               )}
             </div>
             <div className="flex gap-6 font-mono text-right ml-6 shrink-0">
               {n(selectedOpa.valor_origem_opa) > 0 && (
                 <div>
-                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider">Valor</p>
-                  <p className="text-sm font-bold text-brand-gold tabular-nums">{brl(n(selectedOpa.valor_origem_opa))}</p>
+                  <p className="text-[9px] text-cyan-300/45 uppercase tracking-wider">Valor</p>
+                  <p className="text-sm font-bold text-cyan-300 tabular-nums">{brl(n(selectedOpa.valor_origem_opa))}</p>
                 </div>
               )}
               {n(selectedOpa.Minimo_esforco_multiplicador) > 0 && (
                 <div>
-                  <p className="text-[9px] text-brand-gold/40 uppercase tracking-wider" title="Mínimo Esforço Multiplicador">MEM</p>
-                  <p className="text-sm font-bold text-brand-gold">{n(selectedOpa.Minimo_esforco_multiplicador)}%</p>
+                  <p className="text-[9px] text-cyan-300/45 uppercase tracking-wider" title="Mínimo Esforço Multiplicador">MEM</p>
+                  <p className="text-sm font-bold text-cyan-300">{n(selectedOpa.Minimo_esforco_multiplicador)}%</p>
                 </div>
               )}
               <div>
                 <button
                   onClick={() => navigate(`/opas/${selectedOpa.id}`)}
-                  className="mt-1 px-3 py-1.5 rounded border border-brand-gold/40 hover:bg-brand-gold/15 transition-colors text-xs text-brand-gold font-mono tracking-wider"
+                  className="mt-1 px-3 py-1.5 rounded border border-cyan-400/45 hover:bg-cyan-300/15 transition-colors text-xs text-cyan-300 font-mono tracking-wider"
                 >
                   VER OPA →
                 </button>
@@ -637,145 +637,98 @@ function OpaCard({
   const currentStatus = (opa.status || "ativa") as OpaStatus;
   const statusBadge = OPA_STATUS_BADGES[currentStatus] || OPA_STATUS_BADGES.ativa;
   const isClosed = ["cancelado", "encerrada", "concluida", "desistencia"].includes(currentStatus);
+  const imageUrl = opa.imagem_url || (opa.imagem_directus_id ? `/api/assets/${opa.imagem_directus_id}` : null);
+  const locationLabel = [opa.cidade, opa.estado].filter(Boolean).join(", ") || opa.pais || bia?.localizacao || "";
 
   return (
-    <>
     <Card
-      className={`transition-colors group flex flex-col cursor-pointer ${isClosed ?"opacity-60 border-border/40" : "hover:border-brand-gold/40"}`}
+      className={`group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${isClosed ? "opacity-60" : ""}`}
       data-testid={`card-opa-${opa.id}`}
       onClick={onViewDetail}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span
-                className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-sm border"
-                style={{ background: "rgba(215,187,125,0.08)", borderColor: "rgba(215,187,125,0.25)", color: "#D7BB7D99" }}
-              >
-                <span style={{ color: "#D7BB7D60" }}>◆</span> OPA
+      <div className="relative h-[112px] w-full bg-gradient-to-br from-blue-50 to-slate-100">
+        {imageUrl ? (
+          <img src={imageUrl} alt={opa.nome_oportunidade || "OPA"} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-blue-500/25">
+            <Target className="h-9 w-9" />
+          </div>
+        )}
+        <span className="absolute left-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">
+          Pública
+        </span>
+      </div>
+
+      <CardContent className="flex flex-1 flex-col px-4 pb-4 pt-3">
+        <div className="flex items-start justify-between gap-3">
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+            {opa.tipo || "OPA"}
+          </span>
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusBadge.className}`}>
+            {statusBadge.label}
+          </span>
+        </div>
+
+        <CardTitle className="mt-3 line-clamp-2 min-h-[40px] text-base font-semibold leading-tight" data-testid={`text-opa-nome-${opa.id}`}>
+          {opa.nome_oportunidade || "OPA sem nome"}
+        </CardTitle>
+
+        <p className="mt-2 line-clamp-1 text-sm text-muted-foreground">
+          {opa.nucleo_alianca || locationLabel || "Oportunidade BUILT"}
+        </p>
+
+        {(bia?.nome_bia || locationLabel) && (
+          <div className="mt-2 flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+            {bia?.nome_bia && (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Layers className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{bia.nome_bia}</span>
               </span>
-              {opa.tipo && (
-                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">{opa.tipo}</Badge>
-              )}
-              <Badge className={`text-[9px] h-4 px-1.5 font-normal border ${statusBadge.className}`}>
-                {statusBadge.label}
-              </Badge>
-            </div>
-            <CardTitle className="text-sm font-semibold leading-tight" data-testid={`text-opa-nome-${opa.id}`}>
-              {opa.nome_oportunidade || "Sem nome"}
-            </CardTitle>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-0 pb-4 flex flex-col gap-2.5 flex-1">
-        {/* BIA vinculada */}
-        {bia && (
-          <div className="flex items-center gap-1.5 rounded-md bg-brand-gold/5 border border-brand-gold/15 px-2.5 py-1.5 min-w-0">
-            <Layers className="w-3 h-3 text-brand-gold/60 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] text-brand-gold/50 uppercase tracking-wider leading-none mb-0.5">BIA Vinculada</p>
-              <p className="text-xs font-medium text-brand-gold/80 truncate">{bia.nome_bia}</p>
-              {bia.localizacao && (
-                <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate mt-0.5">
-                  <MapPin className="w-2.5 h-2.5 shrink-0" /><span className="truncate">{bia.localizacao}</span>
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Objetivo */}
-        {opa.objetivo_alianca && (
-          <p className="text-xs text-muted-foreground line-clamp-2">{opa.objetivo_alianca}</p>
-        )}
-
-        {/* Tags: nucleo + pais */}
-        {(opa.nucleo_alianca || opa.pais) && (
-          <div className="flex flex-wrap gap-1.5">
-            {opa.nucleo_alianca && (
-              <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
-                <Building2 className="w-2.5 h-2.5" /> {opa.nucleo_alianca}
-              </Badge>
             )}
-            {opa.pais && (
-              <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
-                <Globe className="w-2.5 h-2.5" /> {opa.pais}
-              </Badge>
+            {locationLabel && (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{locationLabel}</span>
+              </span>
             )}
           </div>
         )}
 
-        {/* Valor + Mín Esforço */}
-        <div className="flex items-stretch gap-2 mt-auto pt-1">
-          {valor > 0 && (
-            <div className="flex-1 rounded-md bg-muted/50 px-2.5 py-1.5">
-              <p className="text-[9px] text-muted-foreground flex items-center gap-1">
-                <TrendingUp className="w-2.5 h-2.5" /> Valor OPA
-              </p>
-              <p className="text-sm font-bold tabular-nums text-foreground" data-testid={`text-valor-opa-${opa.id}`}>
-                {brl(valor)}
-              </p>
-            </div>
-          )}
-          {n(opa.Minimo_esforco_multiplicador) > 0 && (
-            <div className="flex-1 rounded-md bg-muted/50 px-2.5 py-1.5" title="Mínimo Esforço Multiplicador">
-              <p className="text-[9px] text-muted-foreground">MEM</p>
-              <p className="text-sm font-bold tabular-nums text-foreground" data-testid={`text-min-esforco-opa-${opa.id}`}>
-                {n(opa.Minimo_esforco_multiplicador).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%
-              </p>
-            </div>
-          )}
+        <div className="mt-auto grid grid-cols-2 gap-3 border-t border-border pt-3">
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground">Valor</p>
+            <p className="whitespace-nowrap text-sm font-semibold leading-tight text-foreground" data-testid={`text-valor-opa-${opa.id}`}>
+              {valor > 0 ? brl(valor) : "-"}
+            </p>
+          </div>
+          <div className="min-w-0 text-right" title="Mínimo Esforço Multiplicador">
+            <p className="text-[10px] text-muted-foreground">MEM</p>
+            <p className="whitespace-nowrap text-sm font-semibold leading-tight text-foreground" data-testid={`text-min-esforco-opa-${opa.id}`}>
+              {n(opa.Minimo_esforco_multiplicador) ? `${n(opa.Minimo_esforco_multiplicador).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : "-"}
+            </p>
+          </div>
         </div>
 
-        {/* Perfil do Membro */}
-        {opa.perfil_aliado && (
-          <div className="rounded-md bg-muted/50 px-2.5 py-1.5">
-            <p className="text-[9px] text-muted-foreground mb-0.5">Perfil do Membro</p>
-            <p className="text-[11px] text-foreground/80 truncate">{opa.perfil_aliado}</p>
-          </div>
-        )}
-
-        {/* Descrição */}
-        {opa.descricao && (
-          <div className="rounded-md bg-muted/50 px-2.5 py-1.5">
-            <p className="text-[9px] text-muted-foreground mb-0.5">Descrição/Escopo</p>
-            <p className="text-[11px] text-foreground/80 line-clamp-1">{opa.descricao}</p>
-          </div>
-        )}
-
-        {/* Footer: data criação + anexos */}
         {(opa.date_created || (opa.Anexos && opa.Anexos.length > 0)) && (
-          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
-            {opa.date_created ?(
-              <span className="text-[10px] text-muted-foreground/50">
+          <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-muted-foreground/55">
+            {opa.date_created ? (
+              <span>
                 {(() => {
                   const dias = Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000);
-                  return dias === 0 ?"Publicada hoje" : dias === 1 ?"Publicada há 1 dia" : `Publicada há ${dias} dias`;
+                  return dias === 0 ? "Publicada hoje" : dias === 1 ? "Publicada há 1 dia" : `Publicada há ${dias} dias`;
                 })()}
               </span>
             ) : <span />}
             {opa.Anexos && opa.Anexos.length > 0 && (
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
-                <Paperclip className="w-3 h-3" />
-                <span>{opa.Anexos.length}</span>
-              </div>
+              <span className="inline-flex items-center gap-1">
+                <Paperclip className="h-3 w-3" />
+                {opa.Anexos.length}
+              </span>
             )}
-          </div>
-        )}
-
-        {/* Motivo encerramento */}
-        {isClosed && opa.motivo_encerramento && (
-          <div className="rounded-md bg-muted/40 border border-border/50 px-2.5 py-1.5 mt-1">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Motivo do encerramento</p>
-            <p className="text-[11px] text-muted-foreground/80 line-clamp-2">{opa.motivo_encerramento}</p>
           </div>
         )}
       </CardContent>
     </Card>
-
-    </>
   );
 }
 
@@ -1065,7 +1018,7 @@ export function OpaFormDialog({
             <button
               type="button"
               onClick={() => { onClose(); navigate("/bias?criar=true"); }}
-              className="mt-1 flex items-center gap-1 text-[11px] text-brand-gold/60 hover:text-brand-gold transition-colors"
+              className="mt-1 flex items-center gap-1 text-[11px] text-blue-600/70 transition-colors hover:text-blue-700"
               data-testid="btn-criar-bia-from-opa"
             >
               <ExternalLink className="w-3 h-3" />
@@ -1151,7 +1104,7 @@ export function OpaFormDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 px-2 border-brand-gold/30 hover:bg-brand-gold/10 text-brand-gold shrink-0"
+                className="h-8 shrink-0 border-blue-300 px-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                 onClick={() => setLocationPickerOpen(true)}
                 data-testid="btn-opa-location-picker"
               >
@@ -1172,7 +1125,7 @@ export function OpaFormDialog({
               )}
             </div>
             {formLat !== null && (
-              <p className="text-[10px] text-brand-gold/60 font-mono">
+              <p className="text-[10px] font-mono text-blue-600/70">
                 {formLat.toFixed(4)}, {formLng?.toFixed(4)}
               </p>
             )}
@@ -1244,7 +1197,7 @@ export function OpaFormDialog({
             <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Paperclip className="w-3 h-3" /> Anexos
               {(existingAnexos.length + pendingFiles.length) > 0 && (
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand-gold/20 text-brand-gold text-[9px] font-bold">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-100 text-[9px] font-bold text-blue-700">
                   {existingAnexos.length + pendingFiles.length}
                 </span>
               )}
@@ -1258,7 +1211,7 @@ export function OpaFormDialog({
                     <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <span className="flex-1 text-xs truncate" title={anexoDisplayName(a)}>{anexoDisplayName(a)}</span>
                     {a.url && (
-                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-gold/60 hover:text-brand-gold shrink-0">
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[10px] text-blue-600/70 hover:text-blue-700">
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
@@ -1279,9 +1232,9 @@ export function OpaFormDialog({
             {pendingFiles.length > 0 && (
               <div className="space-y-1">
                 {pendingFiles.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-brand-gold/5 border border-brand-gold/20">
-                    <FileText className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />
-                    <span className="flex-1 text-xs truncate text-brand-gold/80">{f.name}</span>
+                  <div key={i} className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/60 px-2.5 py-1.5">
+                    <FileText className="w-3.5 h-3.5 shrink-0 text-blue-600/70" />
+                    <span className="flex-1 truncate text-xs text-blue-800">{f.name}</span>
                     <span className="text-[10px] text-muted-foreground shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
                     <button
                       type="button"
@@ -1299,7 +1252,7 @@ export function OpaFormDialog({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-md border border-dashed text-xs transition-colors border-border/40 text-muted-foreground hover:border-brand-gold/40 hover:text-brand-gold/70"
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border/40 py-2 text-xs text-muted-foreground transition-colors hover:border-blue-300 hover:text-blue-600"
               disabled={uploading}
               data-testid="btn-upload-opa-anexo"
             >
@@ -1327,7 +1280,7 @@ export function OpaFormDialog({
           <Button
             onClick={handleSave}
             disabled={saveMutation.isPending || uploading}
-            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+            className="bg-blue-600 text-white hover:bg-blue-700"
             data-testid="btn-save-opa"
           >
             {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OPA"}
@@ -1401,7 +1354,7 @@ export default function OportunidadesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Target className="w-6 h-6 text-brand-gold" />
+            <Target className="w-6 h-6 text-cyan-500" />
             OPAs
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -1440,7 +1393,7 @@ export default function OportunidadesPage() {
             </SelectContent>
           </Select>
           <Select value={filterNucleo} onValueChange={setFilterNucleo}>
-            <SelectTrigger className="w-[170px]" data-testid="select-filter-nucleo">
+            <SelectTrigger className="w-full min-w-[210px] sm:w-[220px] [&>span]:overflow-visible [&>span]:text-clip [&>span]:whitespace-nowrap" data-testid="select-filter-nucleo">
               <SelectValue placeholder="Todos os Núcleos" />
             </SelectTrigger>
             <SelectContent>

@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, Target, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Gem, Coins, ClipboardList, CalendarDays } from "lucide-react";
+import { Briefcase, Sparkles, LayoutDashboard, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Gem, ClipboardList, CalendarDays } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -34,7 +34,7 @@ export function AppSidebar() {
   const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
 
   const isBiasSection = location === "/gestao-bias" || location === "/gestao-opas" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
-  const isAmbientesSection = location.startsWith("/vitrine") || location === "/area-aliancas" || location === "/built-capital";
+  const isAmbientesSection = location.startsWith("/vitrine") || location.startsWith("/opas") || location === "/area-aliancas" || location === "/built-capital";
   const isRedeBuiltSection = location === "/area-aliancas" || location === "/area-membros" || location === "/comunidade" || location === "/bias";
   const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [ambientesOpen, setAmbientesOpen] = useState(isAmbientesSection);
@@ -84,16 +84,6 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* OPAs — sempre visível */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/opas"} data-testid="nav-opas" className="text-sm">
-                  <Link href="/opas">
-                    <Target className="w-3.5 h-3.5" />
-                    <span>OPAs</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
               <Collapsible open={ambientesOpen} onOpenChange={setAmbientesOpen}>
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
@@ -115,8 +105,8 @@ export function AppSidebar() {
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={location === "/area-aliancas"} className="text-sm" data-testid="nav-area-aliancas">
-                        <button type="button" onClick={() => handleEnvironmentClick("alliances", "/area-aliancas")}>
+                      <SidebarMenuSubButton asChild isActive={location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas">
+                        <button type="button" onClick={() => handleEnvironmentClick("alliances", "/area-aliancas?tab=opas")}>
                           <Users className="w-3.5 h-3.5" />
                           <span>BUILT Alliances</span>
                         </button>

@@ -717,7 +717,7 @@ export default function PainelPage() {
                   title: "BUILT Alliances",
                   subtitle: "Estruture. Execute.",
                   action: "Entrar em Alliances",
-                  path: "/area-aliancas",
+                  path: "/area-aliancas?tab=opas",
                   target: "alliances" as const,
                   icon: Users,
                   accent: "text-cyan-300 drop-shadow-[0_0_10px_rgba(103,232,249,0.9)]",
@@ -731,7 +731,7 @@ export default function PainelPage() {
                 {
                   title: "BUILT Capital",
                   subtitle: "Invista. Acompanhe.",
-                  action: "Entrar no Capital",
+                  action: "Entrar em Capital",
                   path: "/built-capital",
                   target: "capital" as const,
                   icon: TrendingUp,
@@ -1185,7 +1185,7 @@ export default function PainelPage() {
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => navigate("/opas")}
+                onClick={() => navigate("/area-aliancas?tab=opas")}
                 data-testid="link-ver-convergencias"
               >
                 Ver OPAs <ChevronRight className="w-3 h-3 ml-1" />
@@ -1349,7 +1349,7 @@ export default function PainelPage() {
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => navigate("/opas")}
+                onClick={() => navigate("/area-aliancas?tab=opas")}
                 data-testid="link-ver-opas"
               >
                 Ver todas <ChevronRight className="w-3 h-3 ml-1" />
@@ -1417,7 +1417,7 @@ export default function PainelPage() {
                 {opasAbertas > 5 && (
                   <button
                     className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
-                    onClick={() => navigate("/opas")}
+                    onClick={() => navigate("/area-aliancas?tab=opas")}
                     data-testid="btn-mais-opas"
                   >
                     +{opasAbertas - 5} mais

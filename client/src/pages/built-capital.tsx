@@ -434,39 +434,30 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
 
   return (
     <div
-      className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01]"
-      style={{
-        background: "linear-gradient(145deg, #071626, #040e1c)",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-        borderColor: "rgba(255,255,255,0.06)",
-      }}
+      className="relative rounded-xl border border-border/70 bg-white overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01] hover:border-blue-200"
+      style={{ boxShadow: "0 2px 10px rgba(15,23,42,0.06)" }}
       onClick={() => navigate(`/vitrine/${parceiro.id}`)}
       data-testid={`card-capital-${parceiro.id}`}
     >
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-gold/30 to-transparent" />
-      <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
-      <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
-
       <div className="p-4 space-y-3">
         <div className="flex justify-center">
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
+            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border border-blue-100 bg-blue-50"
             style={{
-              background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(37,99,235,0.18), rgba(3,8,18,0.9))",
-              boxShadow: "0 0 16px rgba(37,99,235,0.12)",
+              background: foto ?"transparent" : "linear-gradient(135deg, #eff6ff, #f8fafc)",
             }}
           >
             {foto ?(
               <img src={foto} alt={nome} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
+              <span className="text-xl font-bold font-mono text-blue-600">{getInitials(nome)}</span>
             )}
           </div>
         </div>
 
         <div className="text-center space-y-1.5">
-          <p className="text-sm font-semibold text-white font-mono leading-tight line-clamp-2">{nome}</p>
-          {parceiro.segmento && <p className="text-xs text-brand-gold/60 font-mono truncate">{parceiro.segmento}</p>}
+          <p className="text-sm font-semibold text-foreground font-mono leading-tight line-clamp-2">{nome}</p>
+          {parceiro.segmento && <p className="text-xs text-blue-600 font-mono truncate">{parceiro.segmento}</p>}
 
           {parceiro.empresa && (
             <div className="flex items-center justify-center gap-2 min-w-0">
@@ -475,16 +466,16 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
                   <img src={logo} alt={`Marca ${parceiro.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
                 </span>
               ) : (
-                <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+                <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
               )}
-              <span className="text-xs text-white/40 truncate">{parceiro.empresa}</span>
+              <span className="text-xs text-muted-foreground truncate">{parceiro.empresa}</span>
             </div>
           )}
 
           {(parceiro.cidade || parceiro.estado) && (
             <div className="flex items-center justify-center gap-1">
-              <MapPin className="w-3 h-3 text-white/20 shrink-0" />
-              <span className="text-xs text-white/35 truncate">{[parceiro.cidade, parceiro.estado].filter(Boolean).join(", ")}</span>
+              <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground truncate">{[parceiro.cidade, parceiro.estado].filter(Boolean).join(", ")}</span>
             </div>
           )}
 
@@ -494,7 +485,7 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
-              className="inline-flex items-center justify-center gap-1 text-xs text-brand-gold/50 hover:text-brand-gold transition-colors font-mono"
+              className="inline-flex items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors font-mono"
             >
               <Globe className="w-3 h-3 shrink-0" />
               <span className="truncate max-w-[120px]">{parceiro.link_site.replace(/^https?:\/\/(www\.)?/, "")}</span>
@@ -503,14 +494,14 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
         </div>
 
         {(parceiro.whatsapp || parceiro.email) && (
-          <div className="flex gap-2 border-t border-white/5 pt-3">
+          <div className="flex gap-2 border-t border-border/60 pt-3">
             {parceiro.whatsapp && (
               <a
                 href={`https://wa.me/${parceiro.whatsapp.replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+                className="flex-1 flex items-center justify-center py-2 rounded-lg border border-border/70 hover:bg-muted/50 transition-colors"
                 title="WhatsApp"
               >
                 <Phone className="w-3.5 h-3.5 text-[#25D366]" />
@@ -520,10 +511,10 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
               <a
                 href={`mailto:${parceiro.email}`}
                 onClick={e => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+                className="flex-1 flex items-center justify-center py-2 rounded-lg border border-border/70 hover:bg-muted/50 transition-colors"
                 title="E-mail"
               >
-                <Mail className="w-3.5 h-3.5 text-brand-gold/60" />
+                <Mail className="w-3.5 h-3.5 text-blue-600" />
               </a>
             )}
           </div>
@@ -541,24 +532,21 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
 
   return (
     <div
-      className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
-      style={{
-        background: "linear-gradient(145deg, #071626, #040e1c)",
-        borderColor: "rgba(255,255,255,0.06)",
-      }}
+      className="group flex items-center gap-4 rounded-xl border border-border/70 bg-white p-3 transition-all cursor-pointer hover:shadow-lg hover:border-blue-200"
+      style={{ boxShadow: "0 2px 10px rgba(15,23,42,0.05)" }}
       onClick={() => navigate(`/vitrine/${parceiro.id}`)}
       data-testid={`list-capital-${parceiro.id}`}
     >
       <div
-        className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
-        style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(37,99,235,0.18), rgba(3,8,18,0.9))" }}
+        className="w-14 h-14 rounded-full overflow-hidden border border-blue-100 bg-blue-50 flex items-center justify-center shrink-0"
+        style={{ background: foto ?"transparent" : "linear-gradient(135deg, #eff6ff, #f8fafc)" }}
       >
-        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+        {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-blue-600">{getInitials(nome)}</span>}
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-white font-mono truncate">{nome}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
+        <p className="font-semibold text-foreground font-mono truncate">{nome}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {parceiro.empresa && (
             <span className="inline-flex items-center gap-1.5 min-w-0">
               {logo ?<img src={logo} alt={`Marca ${parceiro.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
@@ -584,7 +572,7 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-[#25D366] hover:bg-white/5"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 text-[#25D366] hover:bg-muted/50"
             title="WhatsApp"
           >
             <Phone className="w-3.5 h-3.5" />
@@ -594,7 +582,7 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
           <a
             href={`mailto:${parceiro.email}`}
             onClick={e => e.stopPropagation()}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-brand-gold/70 hover:bg-white/5"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 text-blue-600 hover:bg-muted/50"
             title="E-mail"
           >
             <Mail className="w-3.5 h-3.5" />
@@ -689,11 +677,8 @@ export default function BuiltCapitalPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] text-brand-gold/40 tracking-[0.35em] uppercase font-mono mb-1">// Rede BUILT</p>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-capital-title">
-            <div className="p-2 rounded-lg text-white" style={{ background: "linear-gradient(135deg,#3B82F6,#1D4ED8)" }}>
-              <TrendingUp className="w-6 h-6" />
-            </div>
+            <TrendingUp className="w-7 h-7 text-emerald-400" />
             BUILT Capital
           </h1>
         </div>

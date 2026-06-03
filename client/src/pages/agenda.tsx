@@ -598,11 +598,11 @@ export default function AgendaPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+          <DialogHeader className="shrink-0 border-b border-border/60 px-5 py-4 pr-12">
             <DialogTitle>{editing ? "Editar ação" : "Nova ação"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
             <div className="space-y-2">
               <Label>Título *</Label>
               <Input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ex: ligar para cliente, revisar proposta..." data-testid="input-agenda-titulo" />
@@ -662,7 +662,7 @@ export default function AgendaPage() {
                       />
                     </div>
 
-                    <div className="max-h-44 overflow-auto rounded-md border border-border/60 bg-background">
+                    <div className="max-h-32 overflow-auto rounded-md border border-border/60 bg-background sm:max-h-40">
                       {filteredMembrosDisponiveis.length === 0 ? (
                         <p className="px-3 py-4 text-xs text-muted-foreground">
                           {membroSearch ? "Nenhum membro encontrado." : "Nenhum membro disponível para adicionar."}
@@ -796,7 +796,7 @@ export default function AgendaPage() {
               <Textarea value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={4} placeholder="Detalhes, próximos passos ou contexto da ação..." data-testid="input-agenda-descricao" />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border/60 bg-background px-5 py-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saveMutation.isPending} className="gap-2 bg-[#0f62fe] text-white hover:bg-[#004fd6]" data-testid="btn-salvar-agenda">
               {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -2616,29 +2616,33 @@ export default function BiasPage() {
 
       {/* Summary Cards */}
       {!loading && total > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Card className="min-w-0">
+            <CardContent className="min-w-0 p-4">
               <p className="text-xs text-muted-foreground">Total de BIAs</p>
               <p className="text-2xl font-bold text-brand-gold" data-testid="text-total-bias">{total}</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="min-w-0">
+            <CardContent className="min-w-0 p-4">
               <p className="text-xs text-muted-foreground">VGV Total</p>
-              <p className="text-lg font-bold tabular-nums" data-testid="text-total-vgv">{brl(totalVgv)}</p>
+              <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-base font-bold tabular-nums tracking-tight lg:text-lg" data-testid="text-total-vgv" title={brl(totalVgv)}>
+                {brl(totalVgv)}
+              </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="min-w-0">
+            <CardContent className="min-w-0 p-4">
               <p className="text-xs text-muted-foreground">Realizado Total</p>
-              <p className="text-lg font-bold tabular-nums">{brl(totalRealizado)}</p>
+              <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-base font-bold tabular-nums tracking-tight lg:text-lg" title={brl(totalRealizado)}>
+                {brl(totalRealizado)}
+              </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="min-w-0">
+            <CardContent className="min-w-0 p-4">
               <p className="text-xs text-muted-foreground">Resultado Líquido</p>
-              <p className={`text-lg font-bold tabular-nums ${totalResultado >= 0 ?"text-green-600" : "text-red-600"}`}>
+              <p className={`max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-base font-bold tabular-nums tracking-tight lg:text-lg ${totalResultado >= 0 ?"text-green-600" : "text-red-600"}`} title={brl(totalResultado)}>
                 {brl(totalResultado)}
               </p>
             </CardContent>

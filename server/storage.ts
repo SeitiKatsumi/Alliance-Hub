@@ -127,13 +127,13 @@ export interface IStorage {
   getAnunciosAtivos(today: string): Promise<Anuncio[]>;
   getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined>;
   getAnunciosByMembro(membroId: string): Promise<Anuncio[]>;
-  hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string): Promise<boolean>;
+  hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string, slotTipo?: string): Promise<boolean>;
   getAnuncioById(id: string): Promise<Anuncio | undefined>;
-  countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string): Promise<number>;
+  countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string, slotTipo?: string): Promise<number>;
   createAnuncio(data: InsertAnuncio): Promise<Anuncio>;
   updateAnuncio(id: string, data: Partial<InsertAnuncio>): Promise<Anuncio | undefined>;
   deleteAnuncio(id: string): Promise<boolean>;
-  getAnunciosDisponibilidade(meses: number): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number }>>;
+  getAnunciosDisponibilidade(meses: number, slotTipo?: string): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>>;
 
   upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao>;
   getAuraAvaliacoesByAvaliado(avaliadoId: string): Promise<AuraAvaliacao[]>;
@@ -620,7 +620,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(anuncios.data_inicio);
   }
 
-  async hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string): Promise<boolean> {
+  async hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string, slotTipo = "padrao"): Promise<boolean> {
     const items = await db
       .select()
       .from(anuncios)
@@ -628,6 +628,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(anuncios.membro_id, membroId),
           or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
+          eq(anuncios.slot_tipo, slotTipo),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
         )
@@ -641,13 +642,14 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string): Promise<number> {
+  async countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string, slotTipo = "padrao"): Promise<number> {
     const items = await db
       .select()
       .from(anuncios)
       .where(
         and(
           or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
+          eq(anuncios.slot_tipo, slotTipo),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
         )
@@ -675,9 +677,9 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async getAnunciosDisponibilidade(meses: number): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number }>> {
-    const MAX_SIMULTANEOUS = 6;
-    const periodos: Array<{ inicio: string; fim: string; count: number; vagas: number }> = [];
+  async getAnunciosDisponibilidade(meses: number, slotTipo = "padrao"): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>> {
+    const MAX_SIMULTANEOUS = slotTipo === "hero" ? 1 : 5;
+    const periodos: Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }> = [];
     const hoje = new Date();
     for (let m = 0; m < meses; m++) {
       const ano = hoje.getFullYear() + Math.floor((hoje.getMonth() + m) / 12);
@@ -688,8 +690,8 @@ export class DatabaseStorage implements IStorage {
         { inicio: `${ano}-${String(mes + 1).padStart(2, "0")}-16`, fim: `${ano}-${String(mes + 1).padStart(2, "0")}-${ultimoDia}` },
       ];
       for (const q of quinzenas) {
-        const count = await this.countAnunciosByPeriod(q.inicio, q.fim);
-        periodos.push({ ...q, count, vagas: Math.max(0, MAX_SIMULTANEOUS - count) });
+        const count = await this.countAnunciosByPeriod(q.inicio, q.fim, undefined, slotTipo);
+        periodos.push({ ...q, count, vagas: Math.max(0, MAX_SIMULTANEOUS - count), max: MAX_SIMULTANEOUS });
       }
     }
     return periodos;

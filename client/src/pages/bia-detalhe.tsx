@@ -346,10 +346,42 @@ export default function BiaDetalhePage() {
 
   const aporteFMEntries = aportesRaw as AporteEntry[];
   const totalAporteFM = aporteFMEntries.reduce((sum, e) => sum + n(e.valor), 0);
-  const canAccessNucleos =
-    user?.role === "admin" ||
-    user?.role === "manager" ||
-    isMembroLinkedToBia(bia, (user as any)?.membro_directus_id);
+  const membroId = user?.membro_directus_id || null;
+  const canAccessAllNucleos = user?.role === "admin" || user?.role === "manager";
+  const allowedNucleoTabs = [
+    {
+      value: "diretoria",
+      label: "Diretoria",
+      testId: "tab-bia-nucleo-diretoria",
+      allowed: canAccessAllNucleos || membroId === bia.aliado_built || membroId === bia.diretor_alianca,
+    },
+    {
+      value: "tecnico",
+      label: "Núcleo Técnico",
+      testId: "tab-bia-nucleo-tecnico",
+      allowed: canAccessAllNucleos || membroId === bia.diretor_nucleo_tecnico,
+    },
+    {
+      value: "obra",
+      label: "Núcleo de Obra",
+      testId: "tab-bia-nucleo-obra",
+      allowed: canAccessAllNucleos || membroId === bia.diretor_execucao,
+    },
+    {
+      value: "comercial",
+      label: "Núcleo Comercial",
+      testId: "tab-bia-nucleo-comercial",
+      allowed: canAccessAllNucleos || membroId === bia.diretor_comercial,
+    },
+    {
+      value: "capital",
+      label: "Núcleo de Capital",
+      testId: "tab-bia-nucleo-capital",
+      allowed: canAccessAllNucleos || membroId === bia.diretor_capital,
+    },
+  ].filter((tab) => tab.allowed);
+  const canAccessNucleos = allowedNucleoTabs.length > 0;
+  const defaultNucleoTab = allowedNucleoTabs[0]?.value || "diretoria";
 
   const nucleoCards = [
     {
@@ -743,21 +775,22 @@ export default function BiaDetalhePage() {
 
         {canAccessNucleos && (
           <TabsContent value="nucleos" className="space-y-5" data-testid="content-bia-nucleos">
-            <Tabs defaultValue="diretoria" className="space-y-5">
+            <Tabs defaultValue={defaultNucleoTab} className="space-y-5">
               <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-2 lg:grid-cols-5">
-                <TabsTrigger value="diretoria" data-testid="tab-bia-nucleo-diretoria">Diretoria</TabsTrigger>
-                <TabsTrigger value="tecnico" data-testid="tab-bia-nucleo-tecnico">NÃºcleo TÃ©cnico</TabsTrigger>
-                <TabsTrigger value="obra" data-testid="tab-bia-nucleo-obra">NÃºcleo de Obra</TabsTrigger>
-                <TabsTrigger value="comercial" data-testid="tab-bia-nucleo-comercial">NÃºcleo Comercial</TabsTrigger>
-                <TabsTrigger value="capital" data-testid="tab-bia-nucleo-capital">NÃºcleo de Capital</TabsTrigger>
+                {allowedNucleoTabs.map((tab) => (
+                  <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.testId}>
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
               </TabsList>
 
+              {allowedNucleoTabs.some((tab) => tab.value === "diretoria") && (
               <TabsContent value="diretoria" className="space-y-4">
                 <Card>
                   <CardContent className="pt-5 pb-4">
-                    <SectionTitle icon={Crown}>Diretoria da AlianÃ§a</SectionTitle>
+                    <SectionTitle icon={Crown}>Diretoria da Aliança</SectionTitle>
                     <p className="mb-4 text-sm text-muted-foreground">
-                      GovernanÃ§a, papÃ©is estratÃ©gicos e coordenaÃ§Ã£o da BIA.
+                      Governança, papéis estratégicos e coordenação da BIA.
                     </p>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {equipe.map((e, i) => (
@@ -772,22 +805,31 @@ export default function BiaDetalhePage() {
                   </CardContent>
                 </Card>
               </TabsContent>
+              )}
 
+              {allowedNucleoTabs.some((tab) => tab.value === "tecnico") && (
               <TabsContent value="tecnico" className="space-y-4">
                 <NucleoTecnicoPage initialBiaId={bia.id} embedded />
               </TabsContent>
+              )}
 
+              {allowedNucleoTabs.some((tab) => tab.value === "obra") && (
               <TabsContent value="obra" className="space-y-4">
                 <NucleoObraPage initialBiaId={bia.id} embedded />
               </TabsContent>
+              )}
 
+              {allowedNucleoTabs.some((tab) => tab.value === "comercial") && (
               <TabsContent value="comercial" className="space-y-4">
                 <NucleoComercialPage initialBiaId={bia.id} embedded />
               </TabsContent>
+              )}
 
+              {allowedNucleoTabs.some((tab) => tab.value === "capital") && (
               <TabsContent value="capital" className="space-y-4">
                 <NucleoCapitalPage initialBiaId={bia.id} embedded />
               </TabsContent>
+              )}
             </Tabs>
 
             <div className="hidden grid gap-4 md:grid-cols-2">

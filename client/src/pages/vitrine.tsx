@@ -104,7 +104,7 @@ function fotoUrlMap(m: MembroVitrine): string | null {
 
   return (
     <div
-      className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-brand-gold/20"
+      className="relative aspect-[16/9] max-h-[360px] overflow-hidden rounded-2xl border border-brand-gold/20"
       style={{ background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       {/* Grid overlay */}
@@ -562,6 +562,7 @@ interface AnuncioVitrine {
   link: string | null;
   imagem_url: string | null;
   imagem_directus_id: string | null;
+  slot_tipo: string | null;
   membro_nome: string | null;
   membro_empresa: string | null;
   membro_foto: string | null;
@@ -594,6 +595,7 @@ interface PeriodoDisponivel {
   fim: string;
   count: number;
   vagas: number;
+  max?: number;
 }
 
 function safeAdText(value: unknown, fallback = "") {
@@ -618,6 +620,7 @@ function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
       link: safeAdText(item.link) || null,
       imagem_url: safeAdText(item.imagem_url) || null,
       imagem_directus_id: safeAdText(item.imagem_directus_id) || null,
+      slot_tipo: safeAdText(item.slot_tipo) || "padrao",
       membro_nome: safeAdText(item.membro_nome) || null,
       membro_empresa: safeAdText(item.membro_empresa) || null,
       membro_foto: safeAdText(item.membro_foto) || null,
@@ -638,11 +641,13 @@ function PeriodoPickerGrid({
   selected,
   onSelect,
   reservados = [],
+  maxVagas = 5,
 }: {
   periodos: PeriodoDisponivel[];
   selected: { inicio: string; fim: string } | null;
   onSelect: (p: { inicio: string; fim: string }) => void;
   reservados: string[];
+  maxVagas?: number;
 }) {
   const MESES_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const today = new Date().toISOString().slice(0, 10);
@@ -674,8 +679,10 @@ function PeriodoPickerGrid({
               {mesLabel(qs[0].inicio)} {mesKey.slice(0, 4)}
             </p>
             {qs.map(q => {
+              const periodoMax = maxVagas || q.max || 5;
+              const vagasDisponiveis = Math.max(0, Math.min(Number(q.vagas ?? periodoMax), periodoMax));
               const isPast = q.fim < today;
-              const isFull = q.vagas === 0;
+              const isFull = vagasDisponiveis === 0;
               const isReservado = reservados.includes(q.inicio);
               const isDisabled = isPast || isFull || isReservado;
               const isSelected = selected?.inicio === q.inicio;
@@ -703,7 +710,7 @@ function PeriodoPickerGrid({
                 >
                   <span className="block">{quinzenaLabel(q.inicio, q.fim)}</span>
                   <span className={`text-[10px] ${isReservado ? "text-brand-gold/40" : isFull ? "text-red-400/50" : "text-white/30"}`}>
-                    {isReservado ? "Já reservado" : isFull ? "Lotado" : `${q.vagas}/6 vagas`}
+                    {isReservado ? "Já reservado" : isFull ? "Lotado" : `${vagasDisponiveis}/${periodoMax} vaga${periodoMax === 1 ? "" : "s"}`}
                   </span>
                 </button>
               );
@@ -835,7 +842,7 @@ function AnuncioHeroCard({
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-brand-gold/35"
+      className="relative aspect-[16/9] max-h-[360px] overflow-hidden rounded-2xl border border-brand-gold/35"
       style={{
         background: "rgba(255,255,255,0.97)",
         border: "1.5px solid rgba(37,99,235,0.35)",
@@ -941,6 +948,7 @@ export default function VitrinePage() {
   const [anuncioImagemPreview, setAnuncioImagemPreview] = useState<string | null>(null);
   const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
   const [anuncioTerms, setAnuncioTerms] = useState({ t1: false, t2: false, t3: false });
+  const [anuncioSlotTipo, setAnuncioSlotTipo] = useState<"padrao" | "hero">("padrao");
   const [anuncioPagamentoPais, setAnuncioPagamentoPais] = useState<"brasil" | "exterior">("brasil");
   const [anuncioPagamentoConfirmado, setAnuncioPagamentoConfirmado] = useState(false);
   const [ultimoPagamentoAnuncio, setUltimoPagamentoAnuncio] = useState<{
@@ -1006,12 +1014,15 @@ export default function VitrinePage() {
     },
   });
   // períodos já reservados pelo membro (para bloquear no picker)
-  const periodosReservados = meusAnuncios.map(a => a.data_inicio).filter(Boolean);
+  const periodosReservados = meusAnuncios
+    .filter(a => (a.slot_tipo || "padrao") === anuncioSlotTipo)
+    .map(a => a.data_inicio)
+    .filter(Boolean);
 
   const { data: disponibilidade = [] } = useQuery<PeriodoDisponivel[]>({
-    queryKey: ["/api/anuncios/disponibilidade"],
+    queryKey: ["/api/anuncios/disponibilidade", anuncioSlotTipo],
     queryFn: async () => {
-      const r = await fetch("/api/anuncios/disponibilidade?meses=3");
+      const r = await fetch(`/api/anuncios/disponibilidade?meses=3&slot_tipo=${anuncioSlotTipo}`);
       if (!r.ok) return [];
       return fixMojibakeDeep(await r.json());
     },
@@ -1075,6 +1086,7 @@ export default function VitrinePage() {
     setAnuncioPeriodo(null);
     setAnuncioImagemId(null);
     setAnuncioImagemPreview(null);
+    setAnuncioSlotTipo("padrao");
     setAnuncioTerms({ t1: false, t2: false, t3: false });
     setAnuncioPagamentoPais("brasil");
     setAnuncioDialogOpen(true);
@@ -1099,6 +1111,7 @@ export default function VitrinePage() {
     setAnuncioPeriodo(alvo.data_inicio && alvo.data_fim ? { inicio: alvo.data_inicio, fim: alvo.data_fim } : null);
     setAnuncioImagemId(alvo.imagem_directus_id || null);
     setAnuncioImagemPreview(alvo.imagem_url || null);
+    setAnuncioSlotTipo(alvo.slot_tipo === "hero" ? "hero" : "padrao");
     setAnuncioDialogOpen(true);
   }
 
@@ -1131,6 +1144,7 @@ export default function VitrinePage() {
           descricao: anuncioForm.descricao || null,
           link: anuncioForm.link || null,
           imagem_directus_id: anuncioImagemId || null,
+          slot_tipo: anuncioSlotTipo,
         },
       });
     } else {
@@ -1143,6 +1157,7 @@ export default function VitrinePage() {
         descricao: anuncioForm.descricao || null,
         link: anuncioForm.link || null,
         imagem_directus_id: anuncioImagemId || null,
+        slot_tipo: anuncioSlotTipo,
         data_inicio: anuncioPeriodo.inicio,
         data_fim: anuncioPeriodo.fim,
         pagamento_pais: anuncioPagamentoPais,
@@ -1290,8 +1305,8 @@ export default function VitrinePage() {
       .slice(0, 8),
     [membros, membroId]
   );
-  const anuncioHero = anunciosAtivos[0];
-  const anunciosMenores = anunciosAtivos.slice(1, 6);
+  const anuncioHero = anunciosAtivos.find(a => a.slot_tipo === "hero");
+  const anunciosMenores = anunciosAtivos.filter(a => a.slot_tipo !== "hero").slice(0, 5);
 
   function clearFilters() {
     setSearch("");
@@ -1348,7 +1363,7 @@ export default function VitrinePage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* World Map */}
         {isLoading ? (
-          <Skeleton className="aspect-[4/3] rounded-2xl" />
+          <Skeleton className="aspect-[16/9] max-h-[360px] rounded-2xl" />
         ) : (
           <WorldMapHeader membros={membros} />
         )}
@@ -1917,7 +1932,28 @@ export default function VitrinePage() {
             </p>
           </DialogHeader>
 
-          <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+            <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+            {/* Tipo de slot */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/40 font-mono">Tipo de anúncio</label>
+              <Select
+                value={anuncioSlotTipo}
+                onValueChange={(value) => {
+                  setAnuncioSlotTipo(value === "hero" ? "hero" : "padrao");
+                  setAnuncioPeriodo(null);
+                }}
+                disabled={anuncioEditMode}
+              >
+                <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-blue-500/60" data-testid="select-anuncio-slot-tipo">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#001428] border-white/10 text-white">
+                  <SelectItem value="padrao">Anúncio padrão (5 vagas)</SelectItem>
+                  <SelectItem value="hero">Destaque maior (1 vaga)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Título */}
             <div className="space-y-1.5">
               <label className="text-xs text-white/40 font-mono">Título do anúncio (opcional)</label>
@@ -1971,7 +2007,11 @@ export default function VitrinePage() {
                 )}
               </div>
               <p className="text-[10px] text-white/25 font-mono px-0.5">
-                Tamanho recomendado: <span className="text-brand-gold/40">1200 x 1200 px</span> &nbsp;·&nbsp; PNG, JPG ou WebP &nbsp;·&nbsp; máx. 5 MB
+                Tamanho recomendado:{" "}
+                <span className="text-brand-gold/40">
+                  {anuncioSlotTipo === "hero" ? "1600 x 900 px (16:9)" : "1200 x 1200 px"}
+                </span>{" "}
+                &nbsp;·&nbsp; PNG, JPG ou WebP &nbsp;·&nbsp; máx. 5 MB
               </p>
             </div>
 
@@ -2007,6 +2047,7 @@ export default function VitrinePage() {
                     selected={anuncioPeriodo}
                     onSelect={setAnuncioPeriodo}
                     reservados={isSuperAdmin ? [] : periodosReservados}
+                    maxVagas={anuncioSlotTipo === "hero" ? 1 : 5}
                   />
                 )}
                 {anuncioPeriodo && (

@@ -545,6 +545,7 @@ async function directusDelete(collection: string, id: string) {
 }
 
 async function ensureAnunciosPagamentoFields() {
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS slot_tipo text NOT NULL DEFAULT 'padrao'`);
   await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_provider text`);
   await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_id text`);
   await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_url text`);
@@ -1803,7 +1804,8 @@ export async function registerRoutes(
   app.get("/api/anuncios/disponibilidade", async (req, res) => {
     try {
       const meses = Math.min(6, Math.max(1, parseInt(String(req.query.meses || "3"))));
-      const data = await storage.getAnunciosDisponibilidade(meses);
+      const slotTipo = String(req.query.slot_tipo || "padrao") === "hero" ? "hero" : "padrao";
+      const data = await storage.getAnunciosDisponibilidade(meses, slotTipo);
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1830,6 +1832,7 @@ export async function registerRoutes(
       if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado" });
 
       const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
+      const slotTipo = req.body?.slot_tipo === "hero" ? "hero" : "padrao";
       const pagamentoPais = req.body?.pagamento_pais === "exterior" ? "exterior" : "brasil";
       if (!data_inicio || !data_fim) return res.status(400).json({ error: "data_inicio e data_fim são obrigatórios" });
 
@@ -1843,11 +1846,12 @@ export async function registerRoutes(
       }
 
       const isSuperAdmin = (req.session as any).role === "admin";
-      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, data_inicio, data_fim);
+      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, data_inicio, data_fim, undefined, slotTipo);
       if (hasConflito) return res.status(409).json({ error: "Você já tem um anúncio neste período. Escolha outra quinzena." });
 
-      const count = await storage.countAnunciosByPeriod(data_inicio, data_fim);
-      if (count >= 6) return res.status(409).json({ error: "Período lotado — escolha outro período" });
+      const maxSlots = slotTipo === "hero" ? 1 : 5;
+      const count = await storage.countAnunciosByPeriod(data_inicio, data_fim, undefined, slotTipo);
+      if (count >= maxSlots) return res.status(409).json({ error: "Periodo lotado - escolha outro periodo" });
 
       const anuncio = await storage.createAnuncio({
         membro_id: membroId,
@@ -1855,6 +1859,7 @@ export async function registerRoutes(
         descricao: descricao || null,
         link: link || null,
         imagem_directus_id: imagem_directus_id || null,
+        slot_tipo: slotTipo,
         data_inicio,
         data_fim,
         ativo: isSuperAdmin,

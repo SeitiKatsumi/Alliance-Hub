@@ -401,6 +401,7 @@ export const anuncios = pgTable("anuncios", {
   descricao: text("descricao"),
   link: varchar("link", { length: 500 }),
   imagem_directus_id: varchar("imagem_directus_id"),
+  slot_tipo: text("slot_tipo").notNull().default("padrao"),
   data_inicio: date("data_inicio").notNull(),
   data_fim: date("data_fim").notNull(),
   ativo: boolean("ativo").notNull().default(true),

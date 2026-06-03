@@ -608,6 +608,11 @@ function safeAdHref(link: unknown) {
   return value.startsWith("http") ? value : `https://${value}`;
 }
 
+function visibleAdTitle(value: unknown) {
+  const title = safeAdText(value);
+  return title === "Anúncio em destaque" ? "" : title;
+}
+
 function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
   if (!Array.isArray(data)) return [];
   return data
@@ -615,7 +620,7 @@ function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
     .map((item) => ({
       id: safeAdText(item.id),
       membro_id: safeAdText(item.membro_id),
-      titulo: safeAdText(item.titulo, "Anúncio em destaque"),
+      titulo: safeAdText(item.titulo),
       descricao: safeAdText(item.descricao) || null,
       link: safeAdText(item.link) || null,
       imagem_url: safeAdText(item.imagem_url) || null,
@@ -830,7 +835,8 @@ function AnuncioHeroCard({
 }) {
   const [hovered, setHovered] = useState(false);
   const href = safeAdHref(anuncio?.link);
-  const titulo = safeAdText(anuncio?.titulo, "Anúncio em destaque");
+  const titulo = visibleAdTitle(anuncio?.titulo);
+  const altTitulo = titulo || "Anúncio BUILT Vitrine";
 
   const handleClick = () => {
     if (href) window.open(href, "_blank", "noopener,noreferrer");
@@ -854,7 +860,7 @@ function AnuncioHeroCard({
       {anuncio?.imagem_url ? (
         <img
           src={anuncio.imagem_url}
-          alt={titulo}
+          alt={altTitulo}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
@@ -882,7 +888,7 @@ function AnuncioHeroCard({
 
       {anuncio && (
         <div className="absolute bottom-5 left-5 right-5 max-w-[75%] text-white">
-          <h3 className="text-2xl font-bold leading-tight">{titulo}</h3>
+          {titulo && <h3 className="text-2xl font-bold leading-tight">{titulo}</h3>}
           {anuncio.descricao && (
             <p className="mt-2 line-clamp-2 text-sm text-white/75">{anuncio.descricao}</p>
           )}
@@ -1104,7 +1110,7 @@ export default function VitrinePage() {
     setAnuncioEditMode(true);
     setAnuncioEditTarget(alvo);
     setAnuncioForm({
-      titulo: safeAdText(alvo.titulo),
+      titulo: visibleAdTitle(alvo.titulo),
       descricao: alvo.descricao || "",
       link: alvo.link || "",
     });
@@ -1134,7 +1140,7 @@ export default function VitrinePage() {
   }
 
   function handleAnuncioSubmit() {
-    const titulo = anuncioForm.titulo.trim() || "Anúncio em destaque";
+    const titulo = anuncioForm.titulo.trim();
 
     if (anuncioEditMode && anuncioEditTarget) {
       editarAnuncioMutation.mutate({

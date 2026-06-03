@@ -596,6 +596,42 @@ interface PeriodoDisponivel {
   vagas: number;
 }
 
+function safeAdText(value: unknown, fallback = "") {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function safeAdHref(link: unknown) {
+  const value = safeAdText(link);
+  if (!value) return undefined;
+  return value.startsWith("http") ? value : `https://${value}`;
+}
+
+function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    .map((item) => ({
+      id: safeAdText(item.id),
+      membro_id: safeAdText(item.membro_id),
+      titulo: safeAdText(item.titulo, "Anúncio em destaque"),
+      descricao: safeAdText(item.descricao) || null,
+      link: safeAdText(item.link) || null,
+      imagem_url: safeAdText(item.imagem_url) || null,
+      imagem_directus_id: safeAdText(item.imagem_directus_id) || null,
+      membro_nome: safeAdText(item.membro_nome) || null,
+      membro_empresa: safeAdText(item.membro_empresa) || null,
+      membro_foto: safeAdText(item.membro_foto) || null,
+      data_inicio: safeAdText(item.data_inicio),
+      data_fim: safeAdText(item.data_fim),
+      ativo: item.ativo !== false,
+      pagamento_url: safeAdText(item.pagamento_url) || null,
+      pagamento_status: safeAdText(item.pagamento_status) || null,
+      pagamento_provider: safeAdText(item.pagamento_provider) || null,
+      pagamento_pais: safeAdText(item.pagamento_pais) || null,
+    }))
+    .filter(item => item.id);
+}
+
 // ===== PERIODO PICKER GRID =====
 function PeriodoPickerGrid({
   periodos,
@@ -691,9 +727,8 @@ function AnuncioCard({
   onEdit: (a: AnuncioVitrine) => void;
   onCancel: () => void;
 }) {
-  const href = anuncio.link
-    ? (anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`)
-    : undefined;
+  const href = safeAdHref(anuncio.link);
+  const titulo = safeAdText(anuncio.titulo, "Anúncio em destaque");
 
   const handleClick = () => {
     if (href) window.open(href, "_blank", "noopener,noreferrer");
@@ -720,7 +755,7 @@ function AnuncioCard({
       {anuncio.imagem_url ? (
         <img
           src={anuncio.imagem_url}
-          alt={anuncio.titulo}
+          alt={titulo}
           className="w-full h-full object-cover"
           style={{ display: "block" }}
         />
@@ -787,9 +822,8 @@ function AnuncioHeroCard({
   onCancel: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const href = anuncio?.link
-    ? (anuncio.link.startsWith("http") ? anuncio.link : `https://${anuncio.link}`)
-    : undefined;
+  const href = safeAdHref(anuncio?.link);
+  const titulo = safeAdText(anuncio?.titulo, "Anúncio em destaque");
 
   const handleClick = () => {
     if (href) window.open(href, "_blank", "noopener,noreferrer");
@@ -813,7 +847,7 @@ function AnuncioHeroCard({
       {anuncio?.imagem_url ? (
         <img
           src={anuncio.imagem_url}
-          alt={anuncio.titulo}
+          alt={titulo}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
@@ -841,7 +875,7 @@ function AnuncioHeroCard({
 
       {anuncio && (
         <div className="absolute bottom-5 left-5 right-5 max-w-[75%] text-white">
-          <h3 className="text-2xl font-bold leading-tight">{anuncio.titulo}</h3>
+          <h3 className="text-2xl font-bold leading-tight">{titulo}</h3>
           {anuncio.descricao && (
             <p className="mt-2 line-clamp-2 text-sm text-white/75">{anuncio.descricao}</p>
           )}
@@ -947,7 +981,7 @@ export default function VitrinePage() {
     queryFn: async () => {
       const r = await fetch("/api/anuncios");
       if (!r.ok) return [];
-      return fixMojibakeDeep(await r.json());
+      return normalizeAnuncios(fixMojibakeDeep(await r.json()));
     },
   });
 
@@ -957,7 +991,7 @@ export default function VitrinePage() {
       if (!user) return [];
       const r = await fetch("/api/anuncios/mine");
       if (!r.ok) return [];
-      return fixMojibakeDeep(await r.json());
+      return normalizeAnuncios(fixMojibakeDeep(await r.json()));
     },
     enabled: !!user,
   });
@@ -972,7 +1006,7 @@ export default function VitrinePage() {
     },
   });
   // períodos já reservados pelo membro (para bloquear no picker)
-  const periodosReservados = meusAnuncios.map(a => a.data_inicio);
+  const periodosReservados = meusAnuncios.map(a => a.data_inicio).filter(Boolean);
 
   const { data: disponibilidade = [] } = useQuery<PeriodoDisponivel[]>({
     queryKey: ["/api/anuncios/disponibilidade"],
@@ -1058,11 +1092,11 @@ export default function VitrinePage() {
     setAnuncioEditMode(true);
     setAnuncioEditTarget(alvo);
     setAnuncioForm({
-      titulo: alvo.titulo || "",
+      titulo: safeAdText(alvo.titulo),
       descricao: alvo.descricao || "",
       link: alvo.link || "",
     });
-    setAnuncioPeriodo({ inicio: alvo.data_inicio, fim: alvo.data_fim });
+    setAnuncioPeriodo(alvo.data_inicio && alvo.data_fim ? { inicio: alvo.data_inicio, fim: alvo.data_fim } : null);
     setAnuncioImagemId(alvo.imagem_directus_id || null);
     setAnuncioImagemPreview(alvo.imagem_url || null);
     setAnuncioDialogOpen(true);
@@ -1087,11 +1121,17 @@ export default function VitrinePage() {
   }
 
   function handleAnuncioSubmit() {
+    const titulo = anuncioForm.titulo.trim();
+    if (!titulo) {
+      toast({ title: "Informe o título do anúncio", variant: "destructive" });
+      return;
+    }
+
     if (anuncioEditMode && anuncioEditTarget) {
       editarAnuncioMutation.mutate({
         id: anuncioEditTarget.id,
         data: {
-          titulo: anuncioForm.titulo,
+          titulo,
           descricao: anuncioForm.descricao || null,
           link: anuncioForm.link || null,
           imagem_directus_id: anuncioImagemId || null,
@@ -1103,7 +1143,7 @@ export default function VitrinePage() {
         return;
       }
       criarAnuncioMutation.mutate({
-        titulo: anuncioForm.titulo,
+        titulo,
         descricao: anuncioForm.descricao || null,
         link: anuncioForm.link || null,
         imagem_directus_id: anuncioImagemId || null,
@@ -1882,6 +1922,18 @@ export default function VitrinePage() {
           </DialogHeader>
 
           <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+            {/* Título */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/40 font-mono">Título do anúncio *</label>
+              <Input
+                value={anuncioForm.titulo}
+                onChange={e => setAnuncioForm(f => ({ ...f, titulo: e.target.value }))}
+                placeholder="Ex: Destaque sua empresa na BUILT Vitrine"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-blue-500/60"
+                data-testid="input-anuncio-titulo"
+              />
+            </div>
+
             {/* Imagem */}
             <div className="space-y-1.5">
               <label className="text-xs text-white/40 font-mono">Imagem (opcional)</label>
@@ -2105,6 +2157,7 @@ export default function VitrinePage() {
             <Button
               onClick={handleAnuncioSubmit}
               disabled={
+                !anuncioForm.titulo.trim() ||
                 (!anuncioEditMode && !anuncioTermsAllAccepted) ||
                 criarAnuncioMutation.isPending ||
                 editarAnuncioMutation.isPending ||

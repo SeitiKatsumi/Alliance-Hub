@@ -1017,7 +1017,7 @@ export function OpaFormDialog({
             </Select>
             <button
               type="button"
-              onClick={() => { onClose(); navigate("/bias?criar=true"); }}
+              onClick={() => { onClose(); navigate("/area-aliancas?tab=bias&criar=true"); }}
               className="mt-1 flex items-center gap-1 text-[11px] text-blue-600/70 transition-colors hover:text-blue-700"
               data-testid="btn-criar-bia-from-opa"
             >
@@ -1303,10 +1303,12 @@ export function OpaFormDialog({
 // ---- Main Page ----
 export default function OportunidadesPage() {
   const [, navigate] = useLocation();
+  const searchParams = useSearch();
   const [search, setSearch] = useState("");
   const [filterBia, setFilterBia] = useState<string>("__all__");
   const [filterNucleo, setFilterNucleo] = useState<string>("__all__");
   const [filterTipo, setFilterTipo] = useState<string>("__all__");
+  const [createDialog, setCreateDialog] = useState(false);
 
   const { data: opasRaw = [], isLoading: loadingOpas } = useQuery<Oportunidade[]>({
     queryKey: ["/api/oportunidades"],
@@ -1347,6 +1349,16 @@ export default function OportunidadesPage() {
   }, [opas, search, filterBia, filterNucleo, filterTipo]);
 
   const loading = loadingOpas || loadingBias;
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (params.get("criar") === "true") {
+      setCreateDialog(true);
+      params.delete("criar");
+      const suffix = params.toString();
+      navigate(`/area-aliancas${suffix ?`?${suffix}` : "?tab=opas"}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   return (
     <div className="p-6 space-y-6">
@@ -1492,6 +1504,11 @@ export default function OportunidadesPage() {
         </div>
       )}
 
+      <OpaFormDialog
+        open={createDialog}
+        onClose={() => setCreateDialog(false)}
+        bias={bias}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +51,16 @@ interface BiasProjeto {
   nome_bia: string;
   localizacao?: string;
   moeda?: string;
+  autor_bia?: string | null;
+  aliado_built?: string | null;
+  diretor_alianca?: string | null;
+  diretor_nucleo_tecnico?: string | null;
+  diretor_execucao?: string | null;
+  diretor_comercial?: string | null;
+  diretor_capital?: string | null;
+  socios_multiplicadores?: string[] | null;
+  socios_guardioes?: string[] | null;
+  terceiros?: string[] | null;
 }
 
 interface OpaInteresse {
@@ -113,6 +124,25 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
       <span className="text-sm">{value}</span>
     </div>
   );
+}
+
+function isMembroLinkedToBia(bia?: BiasProjeto, membroId?: string | null): boolean {
+  if (!bia || !membroId) return false;
+  const directRoles = [
+    bia.autor_bia,
+    bia.aliado_built,
+    bia.diretor_alianca,
+    bia.diretor_nucleo_tecnico,
+    bia.diretor_execucao,
+    bia.diretor_comercial,
+    bia.diretor_capital,
+  ];
+  const listRoles = [
+    ...(bia.socios_multiplicadores || []),
+    ...(bia.socios_guardioes || []),
+    ...(bia.terceiros || []),
+  ];
+  return [...directRoles, ...listRoles].some((id) => id === membroId);
 }
 
 export default function OpaDetalhePage() {
@@ -243,6 +273,10 @@ export default function OpaDetalhePage() {
 
   const jaInteressado = !!interesseData?.meuInteresse;
   const totalInteresses = interesseData?.total ?? 0;
+  const canManageOpa =
+    user?.role === "admin" ||
+    user?.role === "manager" ||
+    isMembroLinkedToBia(bia, (user as any)?.membro_directus_id);
 
   if (isLoading) {
     return (
@@ -373,6 +407,15 @@ export default function OpaDetalhePage() {
         </div>
       )}
 
+      <Tabs defaultValue="detalhes" className="space-y-5">
+        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canManageOpa ? "grid-cols-2" : "grid-cols-1"}`}>
+          <TabsTrigger value="detalhes" data-testid="tab-opa-detalhes">Detalhes</TabsTrigger>
+          {canManageOpa && (
+            <TabsTrigger value="gestao" data-testid="tab-opa-gestao">Gestão</TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="detalhes" className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left col */}
         <div className="lg:col-span-2 space-y-6">
@@ -596,6 +639,91 @@ export default function OpaDetalhePage() {
           )}
         </div>
       </div>
+        </TabsContent>
+
+        {canManageOpa && (
+          <TabsContent value="gestao" className="space-y-5" data-testid="content-opa-gestao">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardContent className="pt-5 pb-4">
+                  <SectionTitle icon={Target}>Status</SectionTitle>
+                  <div className="space-y-3">
+                    <InfoRow label="Status da OPA" value={opa.status || "ativa"} />
+                    <InfoRow label="Tipo" value={opa.tipo} />
+                    <InfoRow label="Núcleo responsável" value={opa.nucleo_alianca} />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5 pb-4">
+                  <SectionTitle icon={TrendingUp}>Análise</SectionTitle>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor da OPA</p>
+                      <p className="text-lg font-bold tabular-nums">{valor > 0 ?brl(valor, bia?.moeda || "BRL") : "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground" title="Mínimo Esforço Multiplicador">MEM</p>
+                      <p className="text-lg font-bold tabular-nums">{mult > 0 ?`${mult}%` : "-"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-5 pb-4">
+                  <SectionTitle icon={Users}>Acompanhamento</SectionTitle>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Interesses manifestados</p>
+                      <p className="text-lg font-bold">{totalInteresses}</p>
+                    </div>
+                    <InfoRow label="BIA vinculada" value={bia?.nome_bia} />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <SectionTitle icon={ClipboardList}>Movimentação operacional</SectionTitle>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                    <p className="text-sm font-semibold">Escopo</p>
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-4">
+                      {opa.descricao || "Sem descrição operacional registrada."}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                    <p className="text-sm font-semibold">Perfil do membro esperado</p>
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-4">
+                      {opa.perfil_aliado || "Sem perfil definido para esta oportunidade."}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => setEditDialog(true)}
+                    data-testid="btn-opa-gestao-editar"
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar OPA
+                  </Button>
+                  {bia && (
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(`/bias/${bia.id}`)}
+                      data-testid="btn-opa-gestao-bia"
+                    >
+                      Abrir BIA
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
 
       {/* Manifestar Interesse Dialog */}
       <OpaFormDialog

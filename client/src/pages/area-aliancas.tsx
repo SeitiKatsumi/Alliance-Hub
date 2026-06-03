@@ -198,7 +198,7 @@ export default function AreaAliancasPage() {
             OPAs
           </TabsTrigger>
           <TabsTrigger value="bias" className="gap-2" data-testid="tab-area-bias">
-            <Briefcase className="h-4 w-4" />
+            <Briefcase className="h-4 w-4 text-orange-500" />
             BIAs
           </TabsTrigger>
           <TabsTrigger value="membros" className="gap-2" data-testid="tab-area-membros">

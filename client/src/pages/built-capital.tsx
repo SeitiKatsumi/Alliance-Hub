@@ -123,7 +123,7 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
       style={{ height: 420, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
+        backgroundImage: "linear-gradient(rgba(37,99,235,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.08) 1px, transparent 1px)",
         backgroundSize: "50px 50px",
       }} />
       {[["top-0 left-0","border-t-2 border-l-2 rounded-tl-2xl"],["top-0 right-0","border-t-2 border-r-2 rounded-tr-2xl"],["bottom-0 left-0","border-b-2 border-l-2 rounded-bl-2xl"],["bottom-0 right-0","border-b-2 border-r-2 rounded-br-2xl"]].map(([pos, cls]) => (
@@ -156,8 +156,8 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
             onClick={action}
             title={title}
             className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
-            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(37,99,235,0.4)", color: "#3B82F6" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(37,99,235,0.16)")}
             onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
           >{label}</button>
         ))}
@@ -181,8 +181,8 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
                 key={geo.rsmKey}
                 geography={geo}
                 style={{
-                  default: { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
-                  hover:   { fill: "#011630", stroke: "#D7BB7D28", strokeWidth: 0.3, outline: "none" },
+                  default: { fill: "#011630", stroke: "#2563EB36", strokeWidth: 0.3, outline: "none" },
+                  hover:   { fill: "#011630", stroke: "#2563EB36", strokeWidth: 0.3, outline: "none" },
                   pressed: { fill: "#011630", outline: "none" },
                 }}
               />
@@ -212,23 +212,23 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
                 }}
               >
                 <g style={{ cursor: "pointer" }}>
-                  <circle r={r * (isSelected || isClusterSelected ?5 : 4)} fill="#D7BB7D" fillOpacity={isSelected || isClusterSelected ?0.15 : 0.06}>
+                  <circle r={r * (isSelected || isClusterSelected ?5 : 4)} fill="#3B82F6" fillOpacity={isSelected || isClusterSelected ?0.16 : 0.07}>
                     <animate attributeName="r" from={r * 2.8} to={r * 5} dur="2s" repeatCount="indefinite" />
                     <animate attributeName="fill-opacity" from="0.35" to="0" dur="2s" repeatCount="indefinite" />
                   </circle>
-                  <circle r={photoR + r * 0.35} fill="none" stroke="#D7BB7D" strokeWidth={r * (isSelected ?0.55 : 0.28)} strokeOpacity={isSelected || isClusterSelected ?0.9 : 0.6} />
+                  <circle r={photoR + r * 0.35} fill="none" stroke="#3B82F6" strokeWidth={r * (isSelected ?0.55 : 0.28)} strokeOpacity={isSelected || isClusterSelected ?0.9 : 0.65} />
                   <defs><clipPath id={clipId}><circle r={photoR} /></clipPath></defs>
                   {isMulti ?(
                     <>
                       <circle r={photoR} fill="#001D34" clipPath={`url(#${clipId})`} />
-                      <text textAnchor="middle" dominantBaseline="central" fontSize={r * 1.4} fontWeight="bold" fontFamily="monospace" fill="#D7BB7D">{cluster.items.length}</text>
+                      <text textAnchor="middle" dominantBaseline="central" fontSize={r * 1.4} fontWeight="bold" fontFamily="monospace" fill="#3B82F6">{cluster.items.length}</text>
                     </>
                   ) : foto ?(
                     <image href={foto} x={-photoR} y={-photoR} width={photoR * 2} height={photoR * 2} clipPath={`url(#${clipId})`} preserveAspectRatio="xMidYMid slice" />
                   ) : (
                     <>
                       <circle r={photoR} fill="#001D34" clipPath={`url(#${clipId})`} />
-                      <text textAnchor="middle" dominantBaseline="central" fontSize={r * 1.1} fontWeight="bold" fontFamily="monospace" fill="#D7BB7D" opacity={0.8}>{getInitials(cluster.items[0].nome)}</text>
+                      <text textAnchor="middle" dominantBaseline="central" fontSize={r * 1.1} fontWeight="bold" fontFamily="monospace" fill="#3B82F6" opacity={0.85}>{getInitials(cluster.items[0].nome)}</text>
                     </>
                   )}
                 </g>
@@ -239,7 +239,7 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
       </ComposableMap>
 
       <div className="absolute left-0 right-0 h-px pointer-events-none z-10"
-        style={{ background: "linear-gradient(to right, transparent, #D7BB7D40 20%, #D7BB7D60 50%, #D7BB7D40 80%, transparent)", animation: "scanLineCapital 6s linear infinite", top: 0 }}
+        style={{ background: "linear-gradient(to right, transparent, #2563EB40 20%, #3B82F660 50%, #2563EB40 80%, transparent)", animation: "scanLineCapital 6s linear infinite", top: 0 }}
       />
       <style dangerouslySetInnerHTML={{ __html: `@keyframes scanLineCapital { 0% { top: 0%; opacity: 0; } 5% { opacity: 1; } 95% { opacity: 1; } 100% { top: 100%; opacity: 0; } }` }} />
 
@@ -276,7 +276,7 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
               <button
                 onClick={() => navigate(`/vitrine/${selected.id}`)}
                 className="px-4 py-2 rounded-lg text-xs font-mono font-bold transition-colors"
-                style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
+                style={{ background: "linear-gradient(135deg,#3B82F6,#1D4ED8)", color: "#FFFFFF" }}
               >Ver Perfil</button>
               <button
                 onClick={() => setSelected(null)}
@@ -289,7 +289,7 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
 
       {clusterItems && (
         <div className="absolute bottom-0 left-0 right-0 z-20 overflow-auto"
-          style={{ maxHeight: "55%", background: "rgba(0,8,18,0.97)", borderTop: "1px solid rgba(215,187,125,0.15)", padding: "12px 16px" }}>
+          style={{ maxHeight: "55%", background: "rgba(0,8,18,0.97)", borderTop: "1px solid rgba(37,99,235,0.24)", padding: "12px 16px" }}>
           <div className="flex justify-between items-center mb-2">
             <p className="text-[10px] text-brand-gold/50 tracking-widest uppercase font-mono">{clusterItems.length} parceiros nesta área</p>
             <button onClick={() => setClusterItems(null)} className="text-white/30 hover:text-white/70 text-xs font-mono">✕ fechar</button>
@@ -332,7 +332,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
       data-testid={`card-parceiro-${parceiro.id}`}
     >
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(215,187,125,0.06) 0%, transparent 70%)" }} />
+        style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.08) 0%, transparent 70%)" }} />
 
       {/* Avatar */}
       <div className="flex justify-center pt-6 pb-3">
@@ -375,7 +375,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
         {(parceiro.ramo_atuacao || parceiro.segmento) && (
           <div className="pt-1">
             <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono border border-brand-gold/20 text-brand-gold/60"
-              style={{ background: "rgba(215,187,125,0.06)" }}>
+              style={{ background: "rgba(37,99,235,0.08)" }}>
               {parceiro.segmento || parceiro.ramo_atuacao}
             </span>
           </div>
@@ -452,8 +452,8 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
             style={{
-              background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
-              boxShadow: "0 0 16px rgba(215,187,125,0.1)",
+              background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(37,99,235,0.18), rgba(3,8,18,0.9))",
+              boxShadow: "0 0 16px rgba(37,99,235,0.12)",
             }}
           >
             {foto ?(
@@ -551,7 +551,7 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
     >
       <div
         className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
-        style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}
+        style={{ background: foto ?"transparent" : "radial-gradient(circle at 30% 30%, rgba(37,99,235,0.18), rgba(3,8,18,0.9))" }}
       >
         {foto ?<img src={foto} alt={nome} className="w-full h-full object-cover" /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
       </div>
@@ -691,7 +691,7 @@ export default function BuiltCapitalPage() {
         <div>
           <p className="text-[11px] text-brand-gold/40 tracking-[0.35em] uppercase font-mono mb-1">// Rede BUILT</p>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-capital-title">
-            <div className="p-2 rounded-lg text-brand-navy" style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)" }}>
+            <div className="p-2 rounded-lg text-white" style={{ background: "linear-gradient(135deg,#3B82F6,#1D4ED8)" }}>
               <TrendingUp className="w-6 h-6" />
             </div>
             BUILT Capital

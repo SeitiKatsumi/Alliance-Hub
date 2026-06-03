@@ -21,18 +21,8 @@ import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
 import AgendaPage from "@/pages/agenda";
 import AdminPage from "@/pages/admin";
-import BiasCalculadoraPage from "@/pages/bias-calculadora";
-import FluxoCaixaPage from "@/pages/fluxo-caixa";
 import MeuPerfilPage from "@/pages/meu-perfil";
 import DocumentacaoPage from "@/pages/documentacao";
-import ResultadosPage from "@/pages/resultados";
-import DiretoriaAliancaPage from "@/pages/diretoria-alianca";
-import NucleoTecnicoPage from "@/pages/nucleo-tecnico";
-import NucleoObraPage from "@/pages/nucleo-obra";
-import NucleoComercialPage from "@/pages/nucleo-comercial";
-import NucleoCapitalPage from "@/pages/nucleo-capital";
-import GestaoOpasPage from "@/pages/gestao-opas";
-import GestaoBiasPage from "@/pages/gestao-bias";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
@@ -89,11 +79,17 @@ interface OnboardingMembro {
 }
 
 function LegacyOpasRedirect() {
-  const [, navigate] = useLocation();
-
   useEffect(() => {
-    navigate("/area-aliancas?tab=opas");
-  }, [navigate]);
+    window.location.replace("/area-aliancas?tab=opas");
+  }, []);
+
+  return null;
+}
+
+function LegacyBiasRedirect() {
+  useEffect(() => {
+    window.location.replace("/area-aliancas?tab=bias");
+  }, []);
 
   return null;
 }
@@ -939,16 +935,16 @@ function ProtectedApp() {
               <Route path="/bias" component={BiasPage} />
               <Route path="/opas/:id" component={OpaDetalhePage} />
               <Route path="/opas" component={LegacyOpasRedirect} />
-              <Route path="/bias-calculadora" component={BiasCalculadoraPage} />
-              <Route path="/fluxo-caixa" component={FluxoCaixaPage} />
-              <Route path="/resultados" component={ResultadosPage} />
-              <Route path="/diretoria-alianca" component={DiretoriaAliancaPage} />
-              <Route path="/nucleo-tecnico" component={NucleoTecnicoPage} />
-              <Route path="/nucleo-obra" component={NucleoObraPage} />
-              <Route path="/nucleo-comercial" component={NucleoComercialPage} />
-              <Route path="/nucleo-capital" component={NucleoCapitalPage} />
-              <Route path="/gestao-opas" component={GestaoOpasPage} />
-              <Route path="/gestao-bias" component={GestaoBiasPage} />
+              <Route path="/bias-calculadora" component={LegacyBiasRedirect} />
+              <Route path="/fluxo-caixa" component={LegacyBiasRedirect} />
+              <Route path="/resultados" component={LegacyBiasRedirect} />
+              <Route path="/diretoria-alianca" component={LegacyBiasRedirect} />
+              <Route path="/nucleo-tecnico" component={LegacyBiasRedirect} />
+              <Route path="/nucleo-obra" component={LegacyBiasRedirect} />
+              <Route path="/nucleo-comercial" component={LegacyBiasRedirect} />
+              <Route path="/nucleo-capital" component={LegacyBiasRedirect} />
+              <Route path="/gestao-opas" component={LegacyOpasRedirect} />
+              <Route path="/gestao-bias" component={LegacyBiasRedirect} />
               <Route path="/vitrine/parceiros" component={VitrinePage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />

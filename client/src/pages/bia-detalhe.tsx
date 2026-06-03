@@ -10,7 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMemo } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 // ---- Types ----
 interface AnexoFile {
@@ -36,6 +38,9 @@ interface BiasProjeto {
   diretor_execucao?: string | null;
   diretor_comercial?: string | null;
   diretor_capital?: string | null;
+  socios_multiplicadores?: string[] | null;
+  socios_guardioes?: string[] | null;
+  terceiros?: string[] | null;
   valor_origem?: string | number;
   divisor_multiplicador?: string | number;
   perc_autor_opa?: string | number;
@@ -231,10 +236,30 @@ function OpaCard({ opa, currency = "BRL" }: { opa: Oportunidade; currency?: stri
   );
 }
 
+function isMembroLinkedToBia(bia: BiasProjeto, membroId?: string | null): boolean {
+  if (!membroId) return false;
+  const directRoles = [
+    bia.autor_bia,
+    bia.aliado_built,
+    bia.diretor_alianca,
+    bia.diretor_nucleo_tecnico,
+    bia.diretor_execucao,
+    bia.diretor_comercial,
+    bia.diretor_capital,
+  ];
+  const listRoles = [
+    ...(bia.socios_multiplicadores || []),
+    ...(bia.socios_guardioes || []),
+    ...(bia.terceiros || []),
+  ];
+  return [...directRoles, ...listRoles].some((id) => id === membroId);
+}
+
 // ---- Main page ----
 export default function BiaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const { user } = useAuth();
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
     queryKey: ["/api/bias", id],
@@ -317,6 +342,44 @@ export default function BiaDetalhePage() {
 
   const aporteFMEntries = aportesRaw as AporteEntry[];
   const totalAporteFM = aporteFMEntries.reduce((sum, e) => sum + n(e.valor), 0);
+  const canAccessNucleos =
+    user?.role === "admin" ||
+    user?.role === "manager" ||
+    isMembroLinkedToBia(bia, (user as any)?.membro_directus_id);
+
+  const nucleoCards = [
+    {
+      id: "diretoria",
+      title: "Diretoria da Aliança",
+      description: "Governança, papéis estratégicos e coordenação da BIA.",
+      icon: Crown,
+      roles: equipe.filter((e) => ["Aliado BUILT", "Diretor de Aliança"].includes(e.role)),
+    },
+    {
+      id: "tecnico",
+      title: "Núcleo Técnico",
+      description: "Responsável por documentação técnica, padrões e validações.",
+      icon: Shield,
+      roles: equipe.filter((e) => e.role === "Diretor de Núcleo Técnico"),
+      opas: opas.filter((o) => (o.nucleo_alianca || "").toLowerCase().includes("técnico") || (o.nucleo_alianca || "").toLowerCase().includes("tecnico")),
+    },
+    {
+      id: "obra",
+      title: "Núcleo de Obra",
+      description: "Execução, cronograma operacional e entregas de campo.",
+      icon: Hammer,
+      roles: equipe.filter((e) => e.role === "Diretor de Núcleo de Obra"),
+      opas: opas.filter((o) => (o.nucleo_alianca || "").toLowerCase().includes("obra")),
+    },
+    {
+      id: "comercial",
+      title: "Núcleo Comercial",
+      description: "Relacionamento comercial, captação e movimentação de oportunidades.",
+      icon: Briefcase,
+      roles: equipe.filter((e) => e.role === "Diretor Comercial"),
+      opas: opas.filter((o) => (o.nucleo_alianca || "").toLowerCase().includes("comercial")),
+    },
+  ];
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -407,6 +470,15 @@ export default function BiaDetalhePage() {
         {totalAportes > 0 && <StatBox label="Total de Aportes" value={formatMoney(totalAportes, bia.moeda || "BRL")} />}
       </div>
 
+      <Tabs defaultValue="visao" className="space-y-5">
+        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canAccessNucleos ? "grid-cols-2" : "grid-cols-1"}`}>
+          <TabsTrigger value="visao" data-testid="tab-bia-visao">Visão geral</TabsTrigger>
+          {canAccessNucleos && (
+            <TabsTrigger value="nucleos" data-testid="tab-bia-nucleos">Núcleos</TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="visao" className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
@@ -663,6 +735,125 @@ export default function BiaDetalhePage() {
 
         </div>
       </div>
+        </TabsContent>
+
+        {canAccessNucleos && (
+          <TabsContent value="nucleos" className="space-y-5" data-testid="content-bia-nucleos">
+            <div className="grid gap-4 md:grid-cols-2">
+              {nucleoCards.map((nucleo) => {
+                const Icon = nucleo.icon;
+                const relatedOpas = "opas" in nucleo ?nucleo.opas || [] : [];
+                return (
+                  <Card key={nucleo.id} className="border-border/70">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Icon className="h-4 w-4 text-blue-600" />
+                        {nucleo.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">{nucleo.description}</p>
+                      <div className="space-y-2">
+                        {nucleo.roles.map((role, index) => (
+                          <MembroChip
+                            key={`${nucleo.id}-${index}`}
+                            nome={role.id ?membros[role.id] : undefined}
+                            role={role.role}
+                            icon={role.icon}
+                          />
+                        ))}
+                      </div>
+                      {"opas" in nucleo && (
+                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">OPAs deste núcleo</p>
+                          <p className="mt-1 text-xl font-semibold text-foreground">{relatedOpas.length}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <Card className="border-blue-500/20" data-testid="card-bia-nucleo-capital">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Wallet className="h-4 w-4 text-blue-600" />
+                  Núcleo de Capital
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="financeiro" className="space-y-4">
+                  <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-3">
+                    <TabsTrigger value="financeiro" data-testid="tab-bia-financeiro">Financeiro</TabsTrigger>
+                    <TabsTrigger value="analises" data-testid="tab-bia-analises">Análises</TabsTrigger>
+                    <TabsTrigger value="calculadora" data-testid="tab-bia-calculadora">Calculadora DM</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="financeiro" className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <StatBox label="Total de aportes" value={formatMoney(totalAportes, bia.moeda || "BRL")} />
+                      <StatBox label="Aportes DM" value={formatMoney(totalAporteFM, bia.moeda || "BRL")} />
+                      <StatBox label="Registros financeiros" value={String(aporteFMEntries.length)} />
+                    </div>
+                    <div className="space-y-2">
+                      {aporteFMEntries.length === 0 ?(
+                        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                          Nenhum aporte registrado para esta BIA.
+                        </p>
+                      ) : (
+                        aporteFMEntries.map((entry) => (
+                          <div key={entry.id} className="flex flex-col gap-1 rounded-lg border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{entry.descricao}</p>
+                              {entry.data_vencimento && (
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(entry.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-sm font-semibold tabular-nums">{formatMoney(n(entry.valor), bia.moeda || "BRL")}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="analises" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatBox label="VGV" value={formatMoney(vgv, bia.moeda || "BRL")} />
+                    <StatBox label="Custo final previsto" value={formatMoney(custoFinal, bia.moeda || "BRL")} />
+                    <StatBox label="Resultado líquido" value={formatMoney(resultado, bia.moeda || "BRL")} color={resultado >= 0 ?"text-green-600" : "text-red-600"} />
+                    <StatBox label="Lucro previsto" value={formatMoney(lucro, bia.moeda || "BRL")} />
+                  </TabsContent>
+
+                  <TabsContent value="calculadora" className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <StatBox label="Valor origem" value={formatMoney(n(bia.valor_origem), bia.moeda || "BRL")} />
+                      <StatBox label="Custo origem" value={formatMoney(n(bia.custo_origem_bia), bia.moeda || "BRL")} />
+                      <StatBox label="Divisor / multiplicador" value={n(bia.divisor_multiplicador) ?String(n(bia.divisor_multiplicador)) : "0"} />
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                      <SectionTitle icon={Layers}>Distribuição CPP</SectionTitle>
+                      {cpp.length === 0 ?(
+                        <p className="text-sm text-muted-foreground">Nenhuma distribuição CPP configurada para esta BIA.</p>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {cpp.map((row) => (
+                            <div key={row.label} className="flex items-center justify-between rounded-md bg-background px-3 py-2">
+                              <span className="text-sm text-muted-foreground">{row.label}</span>
+                              <span className="text-sm font-semibold">{pct(row.perc)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }

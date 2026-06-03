@@ -138,6 +138,8 @@ interface Oportunidade {
   nucleo_alianca?: string;
   pais?: string;
   descricao?: string;
+  imagem_directus_id?: string | null;
+  imagem_url?: string | null;
 }
 
 interface NominatimResult {
@@ -888,29 +890,29 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
-      style={{ height: 440, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+      className="relative overflow-hidden rounded-2xl border border-orange-400/20"
+      style={{ height: 360, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       {/* Grid overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(215,187,125,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(215,187,125,0.05) 1px, transparent 1px)",
+            "linear-gradient(rgba(249,115,22,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.05) 1px, transparent 1px)",
           backgroundSize: "50px 50px",
         }}
       />
 
       {/* Corner accents */}
-      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-brand-gold/40 rounded-tl-2xl pointer-events-none" />
-      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-brand-gold/40 rounded-tr-2xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-brand-gold/40 rounded-bl-2xl pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl pointer-events-none" />
+      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-orange-400/40 rounded-tl-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-orange-400/40 rounded-tr-2xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-orange-400/40 rounded-bl-2xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-orange-400/40 rounded-br-2xl pointer-events-none" />
 
       {/* Top-left header */}
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+        <p className="text-[10px] text-orange-400/60 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-orange-400">
           MAPA DE OPERAÇÕES
         </h2>
         <div className="flex items-center gap-2 mt-2">
@@ -925,16 +927,16 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
       {/* Top-right stats */}
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-3">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Alianças</p>
-          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{biasAll.length}</p>
+          <p className="text-[9px] text-orange-400/50 tracking-widest uppercase">Alianças</p>
+          <p className="text-4xl font-bold leading-none text-orange-400">{biasAll.length}</p>
         </div>
         <div>
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">VGV Total</p>
-          <p className="text-xs font-semibold" style={{ color: "#D7BB7D99" }}>
+          <p className="text-[9px] text-orange-400/50 tracking-widest uppercase">VGV Total</p>
+          <p className="text-xs font-semibold text-orange-400/70">
             {totalVgv > 0 ?brl(totalVgv) : "—"}
           </p>
         </div>
-        <p className="text-[9px] text-brand-gold/30 mt-2">{biasWithCoords.length} geolocalizadas</p>
+        <p className="text-[9px] text-orange-400/35 mt-2">{biasWithCoords.length} geolocalizadas</p>
       </div>
 
       {/* Zoom controls */}
@@ -942,8 +944,8 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
         <button
           onClick={handleZoomIn}
           className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
-          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(249,115,22,0.35)", color: "#FB923C" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(249,115,22,0.15)")}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
           data-testid="btn-map-zoom-in"
           title="Ampliar"
@@ -951,8 +953,8 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
         <button
           onClick={handleReset}
           className="w-7 h-7 flex items-center justify-center rounded border font-mono text-[9px] font-bold transition-colors"
-          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.2)", color: "#D7BB7D80" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.1)")}
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(249,115,22,0.25)", color: "#FB923C80" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(249,115,22,0.12)")}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
           data-testid="btn-map-reset"
           title="Resetar zoom"
@@ -960,8 +962,8 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
         <button
           onClick={handleZoomOut}
           className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
-          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(215,187,125,0.15)")}
+          style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(249,115,22,0.35)", color: "#FB923C" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(249,115,22,0.15)")}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(0,20,40,0.85)")}
           data-testid="btn-map-zoom-out"
           title="Reduzir"
@@ -1342,151 +1344,142 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
     return map;
   }, [membros]);
 
-  const resultado = n(bia.resultado_liquido);
-  const lucro = n(bia.lucro_previsto);
-  const custoFinal = n(bia.custo_final_previsto);
   const valorRealizado = n(bia.valor_realizado_venda);
   const vgv = n(bia.valor_geral_venda_vgv);
+  const progresso = vgv > 0 ? Math.max(0, Math.min(100, Math.round((valorRealizado / vgv) * 100))) : bia.situacao === "ativa" ? 35 : 15;
+  const situacaoLabel = bia.situacao === "em_formacao" ? "Em estruturação" : "Ativa";
+  const situacaoClass = bia.situacao === "em_formacao"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-blue-200 bg-blue-50 text-blue-700";
+  const biasOpas = opas.filter(o => o.bia_id === bia.id);
+  const firstImageOpa = biasOpas.find(o => o.imagem_url || o.imagem_directus_id);
+  const imageUrl = firstImageOpa?.imagem_url || (firstImageOpa?.imagem_directus_id ? `/api/assets/${firstImageOpa.imagem_directus_id}` : null);
+  const cppCount = [
+    bia.cpp_autor_opa,
+    bia.cpp_aliado_built,
+    bia.cpp_built,
+    bia.cpp_dir_tecnico,
+    bia.cpp_dir_obras,
+    bia.cpp_dir_comercial,
+    bia.cpp_dir_capital,
+  ].filter(value => n(value) > 0).length;
+  const nucleosAtivos = [
+    bia.diretor_nucleo_tecnico,
+    bia.diretor_execucao,
+    bia.diretor_comercial,
+    bia.diretor_capital,
+  ].filter(Boolean).length;
 
   const dirAlianca = bia.diretor_alianca ?membroMap[bia.diretor_alianca] : null;
   const aliadoBuilt = bia.aliado_built ?membroMap[bia.aliado_built] : null;
 
   return (
     <Card
-      className="hover:border-brand-gold/40 transition-colors group cursor-pointer"
+      className="group cursor-pointer overflow-hidden border-border/70 bg-card shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
       data-testid={`card-bia-${bia.id}`}
       onClick={() => navigate(`/bias/${bia.id}`)}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CardTitle className="text-base font-semibold leading-tight truncate" data-testid={`text-bia-nome-${bia.id}`}>
-                {bia.nome_bia}
-              </CardTitle>
+      <CardContent className="p-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 to-slate-100 lg:h-[96px] lg:w-[142px]">
+            {imageUrl ? (
+              <img src={imageUrl} alt={bia.nome_bia} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_30%,rgba(37,99,235,0.18),rgba(241,245,249,0.95))] text-blue-500/35">
+                <Building2 className="h-10 w-10" />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 lg:flex-[1.05]">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={`h-5 px-2 text-[9px] font-semibold ${situacaoClass}`}>
+                {situacaoLabel}
+              </Badge>
               {aprovacaoPendente && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-400/60 text-amber-600 bg-amber-400/10 shrink-0 flex items-center gap-1">
-                  <Clock className="w-2.5 h-2.5" /> Aguardando aprovação
+                <Badge variant="outline" className="h-5 shrink-0 gap-1 border-amber-400/60 bg-amber-400/10 px-2 text-[9px] text-amber-600">
+                  <Clock className="h-2.5 w-2.5" /> Aguardando aprovação
                 </Badge>
               )}
-              {bia.situacao === "em_formacao" ?(
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 bg-amber-500/10 shrink-0">
-                  Em Formação
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-green-500/40 text-green-600 bg-green-500/10 shrink-0">
-                  Ativa
+              {bia.destinacao && (
+                <Badge variant="secondary" className="h-5 px-2 text-[9px] font-medium">
+                  {bia.destinacao}
                 </Badge>
               )}
             </div>
-            {bia.localizacao && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 min-w-0">
-                <MapPin className="w-3 h-3 shrink-0" />
-                <span className="truncate">{bia.localizacao}</span>
-                {bia.latitude && bia.longitude && (
-                  <Crosshair className="w-2.5 h-2.5 shrink-0 text-brand-gold/50" aria-label="Geolocalizado" />
+            <CardTitle className="line-clamp-1 text-sm font-semibold leading-tight sm:text-base" data-testid={`text-bia-nome-${bia.id}`}>
+              {bia.nome_bia}
+            </CardTitle>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              {bia.localizacao && (
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{bia.localizacao}</span>
+                  {bia.latitude && bia.longitude && <Crosshair className="h-3 w-3 shrink-0 text-blue-500/60" aria-label="Geolocalizado" />}
+                </span>
+              )}
+              {bia.id && <span className="font-mono text-[11px]">BIA-{bia.id.slice(0, 8).toUpperCase()}</span>}
+            </div>
+            <p className="mt-1.5 hidden text-xs leading-snug text-muted-foreground xl:line-clamp-2 xl:block">
+              {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
+            </p>
+            {(aliadoBuilt || dirAlianca) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {aliadoBuilt && (
+                  <Badge variant="outline" className="h-5 gap-1 text-[9px] font-normal">
+                    <Building2 className="h-3 w-3" /> {aliadoBuilt}
+                  </Badge>
                 )}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit(); }} data-testid={`btn-edit-bia-${bia.id}`}>
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }} data-testid={`btn-delete-bia-${bia.id}`}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-0 pb-4 space-y-3">
-        {/* Destinação + Objetivo */}
-        <div className="flex flex-wrap gap-1.5">
-          {bia.destinacao && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1" data-testid={`text-destinacao-${bia.id}`}>
-              <MapPin className="w-2.5 h-2.5" />{bia.destinacao}
-            </Badge>
-          )}
-          {bia.objetivo_alianca && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4" data-testid={`text-objetivo-${bia.id}`}>
-              {bia.objetivo_alianca}
-            </Badge>
-          )}
-          {bia.selo_certified_alliance && (
-            <Badge className="text-[10px] px-1.5 py-0 h-4 gap-1 bg-brand-gold/20 text-brand-gold border-brand-gold/40 hover:bg-brand-gold/30" data-testid={`badge-selo-${bia.id}`}>
-              <Award className="w-2.5 h-2.5" />Certified Alliance
-            </Badge>
-          )}
-        </div>
-
-        {/* Descrição */}
-        {bia.observacoes && (
-          <p className="text-xs text-muted-foreground flex items-start gap-1">
-            <FileText className="w-3 h-3 shrink-0 mt-0.5" />
-            <span className="line-clamp-1">{bia.observacoes}</span>
-          </p>
-        )}
-
-        {(aliadoBuilt || dirAlianca) && (
-          <div className="flex flex-wrap gap-1.5">
-            {aliadoBuilt && (
-              <Badge variant="outline" className="text-xs font-normal gap-1">
-                <Building2 className="w-2.5 h-2.5" /> {aliadoBuilt}
-              </Badge>
-            )}
-            {dirAlianca && dirAlianca !== aliadoBuilt && (
-              <Badge variant="outline" className="text-xs font-normal gap-1">
-                <Crown className="w-2.5 h-2.5" /> {dirAlianca}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          {vgv > 0 && (
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[10px] text-muted-foreground">VGV</p>
-              <p className="text-xs font-semibold tabular-nums truncate" data-testid={`text-vgv-${bia.id}`}>{formatMoney(vgv, bia.moeda || "BRL")}</p>
-            </div>
-          )}
-          {valorRealizado > 0 && (
-            <div className="rounded-md bg-muted/50 p-2">
-              <p className="text-[10px] text-muted-foreground">Realizado</p>
-              <p className="text-xs font-semibold tabular-nums truncate">{formatMoney(valorRealizado, bia.moeda || "BRL")}</p>
-            </div>
-          )}
-        </div>
-
-        {/* OPAs relacionadas */}
-        {(() => {
-          const biasOpas = opas.filter(o => o.bia_id === bia.id);
-          if (!biasOpas.length) return null;
-          return (
-            <div className="border-t border-border/50 pt-2.5">
-              <p className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
-                <span className="text-brand-gold/60">◆</span>
-                OPAs Relacionadas
-                <Badge variant="secondary" className="ml-auto text-[9px] h-4 px-1.5 font-normal">
-                  {biasOpas.length}
-                </Badge>
-              </p>
-              <div className="flex flex-col gap-1">
-                {biasOpas.slice(0, 3).map(opa => (
-                  <div key={opa.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-foreground/80 truncate">{opa.nome_oportunidade || "—"}</span>
-                    {n(opa.valor_origem_opa) > 0 && (
-                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{formatMoney(n(opa.valor_origem_opa), bia.moeda || "BRL")}</span>
-                    )}
-                  </div>
-                ))}
-                {biasOpas.length > 3 && (
-                  <p className="text-[10px] text-muted-foreground/60">+{biasOpas.length - 3} outras</p>
+                {dirAlianca && dirAlianca !== aliadoBuilt && (
+                  <Badge variant="outline" className="h-5 gap-1 text-[9px] font-normal">
+                    <Crown className="h-3 w-3" /> {dirAlianca}
+                  </Badge>
                 )}
               </div>
+            )}
+          </div>
+
+          <div className="min-w-0 space-y-2 lg:max-w-[440px] lg:flex-[1.3] xl:max-w-[500px]">
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                <span>Progresso geral</span>
+                <span className="font-semibold text-foreground">{progresso}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full ${bia.situacao === "em_formacao" ? "bg-emerald-500" : "bg-blue-600"}`}
+                  style={{ width: `${progresso}%` }}
+                />
+              </div>
             </div>
-          );
-        })()}
+            <div className="grid grid-cols-[72px_minmax(130px,1fr)_72px] gap-4">
+              <div>
+                <p className="text-[9px] text-muted-foreground">CPPs distribuídas</p>
+                <p className="text-xs font-semibold text-foreground">{cppCount || biasOpas.length || "-"}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] text-muted-foreground">VGV</p>
+                <p className="break-words text-xs font-semibold leading-tight text-foreground" data-testid={`text-vgv-${bia.id}`}>{vgv > 0 ? formatMoney(vgv, bia.moeda || "BRL") : "-"}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-muted-foreground">Núcleos</p>
+                <p className="text-xs font-semibold text-foreground">{nucleosAtivos || "-"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 lg:ml-auto lg:w-[220px] lg:shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 min-w-[112px] border-blue-200 px-4 text-xs text-blue-700 hover:bg-blue-50"
+              onClick={(e) => { e.stopPropagation(); navigate(`/bias/${bia.id}`); }}
+              data-testid={`btn-view-bia-${bia.id}`}
+            >
+              Ver detalhes
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -2597,7 +2590,7 @@ export default function BiasPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-bias-title">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
+            <div className="p-2 rounded-lg bg-orange-50 text-orange-500">
               <Briefcase className="w-6 h-6" />
             </div>
             BIAs
@@ -2619,7 +2612,7 @@ export default function BiasPage() {
       {!loading && (
         <BrazilMapHeader biasAll={biasRaw as BiasProjeto[]} membros={membros} opas={opasRaw as Oportunidade[]} />
       )}
-      {loading && <Skeleton className="h-[440px] rounded-2xl" />}
+      {loading && <Skeleton className="h-[360px] rounded-2xl" />}
 
       {/* Summary Cards */}
       {!loading && total > 0 && (
@@ -2725,8 +2718,8 @@ export default function BiasPage() {
 
       {/* Content */}
       {loading ?(
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-56" />)}
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
         </div>
       ) : bias.length === 0 ?(
         <Card>
@@ -2754,7 +2747,7 @@ export default function BiasPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
           {bias.map((b) => (
             <BiaCard
               key={b.id}

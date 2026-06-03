@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Briefcase, Sparkles, LayoutDashboard, ChevronDown, Landmark, Users, UserCircle, Wrench, HardHat, TrendingUp, Shield, Globe2, Gem, ClipboardList, CalendarDays } from "lucide-react";
+import { Sparkles, LayoutDashboard, ChevronDown, Users, UserCircle, TrendingUp, Globe2, Gem, CalendarDays } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -30,17 +30,9 @@ export function AppSidebar() {
   // Seal-based permissions (stored in Outras_redes_as_quais_pertenco)
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const hasSeal = isAdmin || redes.some(r => r.startsWith("BUILT_"));
-  const hasProudMemberSeal = isAdmin || redes.includes("BUILT_PROUD_MEMBER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
-  const hasBuiltCapitalPartnerSeal = isAdmin || redes.includes("BUILT_CAPITAL_PARTNER") || redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
 
-  const isBiasSection = location === "/gestao-bias" || location === "/gestao-opas" || location === "/fluxo-caixa" || location === "/bias-calculadora" || location === "/resultados" || location === "/nucleo-tecnico" || location === "/nucleo-obra" || location === "/nucleo-comercial" || location === "/nucleo-capital" || location === "/diretoria-alianca";
   const isAmbientesSection = location.startsWith("/vitrine") || location.startsWith("/opas") || location === "/area-aliancas" || location === "/built-capital";
-  const isRedeBuiltSection = location === "/area-aliancas" || location === "/area-membros" || location === "/comunidade" || location === "/bias";
-  const [biasOpen, setBiasOpen] = useState(isBiasSection);
   const [ambientesOpen, setAmbientesOpen] = useState(isAmbientesSection);
-  const [diretoriaOpen, setDiretoriaOpen] = useState(location === "/diretoria-alianca");
-  const [nucleoCapitalOpen, setNucleoCapitalOpen] = useState(location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados");
-  const [redeBuiltOpen, setRedeBuiltOpen] = useState(isRedeBuiltSection);
 
   function handleEnvironmentClick(target: EnvironmentTarget, href: string) {
     const access = environmentAccessFor(user, target);
@@ -123,78 +115,6 @@ export function AppSidebar() {
                   </SidebarMenuSub>
                 </CollapsibleContent>
               </Collapsible>
-
-              {/* Gestão de BIAs */}
-              {hasSeal && (
-                <Collapsible open={biasOpen} onOpenChange={setBiasOpen}>
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton isActive={isBiasSection} className="text-sm" data-testid="nav-gestao-bias">
-                        <Briefcase className="w-3.5 h-3.5" />
-                        <span>Gestão de BIAs</span>
-                        <ChevronDown className={`ml-auto h-3.5 w-3.5 transition-transform ${biasOpen ? "rotate-180" : ""}`} />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                  </SidebarMenuItem>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/diretoria-alianca"} className="text-sm" data-testid="nav-diretoria-alianca">
-                          <Link href="/diretoria-alianca">
-                            <Shield className="w-3.5 h-3.5" />
-                            <span>Diretoria da Aliança</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/gestao-opas"} className="text-sm" data-testid="nav-gestao-opas">
-                          <Link href="/gestao-opas">
-                            <ClipboardList className="w-3.5 h-3.5" />
-                            <span>Gestão OPAs</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/nucleo-tecnico"} className="text-sm" data-testid="nav-nucleo-tecnico">
-                          <Link href="/nucleo-tecnico">
-                            <Wrench className="w-3.5 h-3.5" />
-                            <span>Núcleo Técnico</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/nucleo-obra"} className="text-sm" data-testid="nav-nucleo-obra">
-                          <Link href="/nucleo-obra">
-                            <HardHat className="w-3.5 h-3.5" />
-                            <span>Núcleo de Obra</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/nucleo-comercial"} className="text-sm" data-testid="nav-nucleo-comercial">
-                          <Link href="/nucleo-comercial">
-                            <TrendingUp className="w-3.5 h-3.5" />
-                            <span>Núcleo Comercial</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton
-                          asChild
-                          isActive={location === "/nucleo-capital" || location === "/fluxo-caixa" || location === "/resultados" || location === "/bias-calculadora"}
-                          className="text-sm"
-                          data-testid="nav-nucleo-capital"
-                        >
-                          <Link href="/nucleo-capital">
-                            <Landmark className="w-3.5 h-3.5" />
-                            <span>Núcleo de Capital</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
 
               {/* Cadastro Geral — Super Admin only */}
               {isSuperAdmin && (

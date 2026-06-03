@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -53,9 +53,10 @@ interface DocSheetProps {
   bias: Bia[];
   doc?: Doc;
   onClose: () => void;
+  lockBia?: boolean;
 }
 
-function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
+function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose, lockBia = false }: DocSheetProps) {
   const { toast } = useToast();
   const { accentColor, modulo } = config;
   const alianca = config.aliancas.find(a => a.key === aliancaTipo) || config.aliancas[0];
@@ -116,17 +117,19 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetPr
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div>
-            <label className={labelCls}>BIA</label>
-            <Select value={form.bia_id} onValueChange={v => setForm(f => ({ ...f, bia_id: v }))}>
-              <SelectTrigger className={inputCls} data-testid="select-bia-doc">
-                <SelectValue placeholder="Selecione a BIA" />
-              </SelectTrigger>
-              <SelectContent>
-                {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {!lockBia && (
+            <div>
+              <label className={labelCls}>BIA</label>
+              <Select value={form.bia_id} onValueChange={v => setForm(f => ({ ...f, bia_id: v }))}>
+                <SelectTrigger className={inputCls} data-testid="select-bia-doc">
+                  <SelectValue placeholder="Selecione a BIA" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <label className={labelCls}>Tipo de Documento</label>
@@ -203,15 +206,30 @@ function DocSheet({ config, aliancaTipo, biaId, bias, doc, onClose }: DocSheetPr
   );
 }
 
-export default function AliancaDocsPage({ config }: { config: AliancaDocsPageConfig }) {
+export default function AliancaDocsPage({
+  config,
+  initialBiaId = null,
+  embedded = false,
+}: {
+  config: AliancaDocsPageConfig;
+  initialBiaId?: string | null;
+  embedded?: boolean;
+}) {
   const { toast } = useToast();
   const { accentColor, modulo, titulo, subtitulo, aliancas } = config;
   const isLight = config.theme === "light";
-  const [biaId, setBiaId] = useState<string | null>(null);
+  const [biaId, setBiaId] = useState<string | null>(initialBiaId);
+  const isBiaScoped = !!initialBiaId || embedded;
   const [activeTab, setActiveTab] = useState(aliancas[0]?.key || "");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<Doc | undefined>();
   const [deletingDoc, setDeletingDoc] = useState<Doc | undefined>();
+
+  useEffect(() => {
+    if (initialBiaId && biaId !== initialBiaId) {
+      setBiaId(initialBiaId);
+    }
+  }, [initialBiaId, biaId]);
 
   const { data: bias = [] } = useQuery<Bia[]>({ queryKey: ["/api/bias"] });
   const { data: docs = [], isLoading } = useQuery<Doc[]>({
@@ -236,11 +254,11 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
 
   return (
     <div
-      className={`min-h-screen p-6 ${isLight ? "text-foreground" : ""}`}
+      className={`${embedded ? "min-h-0 p-0" : "min-h-screen p-6"} ${isLight ? "text-foreground" : ""}`}
       style={{ background: isLight ? "transparent" : "linear-gradient(135deg, #001020 0%, #000c18 100%)" }}
     >
       {/* Header */}
-      <div className="relative mb-8">
+      {!isBiaScoped && <div className="relative mb-8">
         {!config.hideHeaderChrome && (
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 left-0 w-24 h-px" style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }} />
@@ -276,10 +294,10 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* BIA Filter */}
-      <div className="mb-6 flex items-center gap-3">
+      {!isBiaScoped && <div className="mb-6 flex items-center gap-3">
         <span className={isLight ? "text-xs text-muted-foreground uppercase tracking-wider shrink-0" : "text-xs text-white/40 uppercase tracking-wider shrink-0"}>Filtrar por BIA:</span>
         <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ?null : v)}>
           <SelectTrigger className={isLight ? "max-w-xs bg-background border-border text-foreground text-sm h-9" : "max-w-xs bg-white/5 border-white/10 text-white text-sm h-9"} data-testid="select-filter-bia">
@@ -290,7 +308,7 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
             {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
           </SelectContent>
         </Select>
-      </div>
+      </div>}
 
       {/* Custom tabs */}
       <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap" style={{ background: isLight ? "#fff" : "#050f1c", border: `1px solid ${accentColor}30` }}>
@@ -387,14 +405,15 @@ export default function AliancaDocsPage({ config }: { config: AliancaDocsPageCon
       </div>
 
       {sheetOpen && (
-        <DocSheet
-          config={config}
-          aliancaTipo={activeTab}
-          biaId={biaId}
-          bias={bias}
-          doc={editingDoc}
-          onClose={() => { setSheetOpen(false); setEditingDoc(undefined); }}
-        />
+          <DocSheet
+            config={config}
+            aliancaTipo={activeTab}
+            biaId={biaId}
+            bias={bias}
+            doc={editingDoc}
+            onClose={() => { setSheetOpen(false); setEditingDoc(undefined); }}
+            lockBia={isBiaScoped}
+          />
       )}
 
       <AlertDialog open={!!deletingDoc} onOpenChange={o => { if (!o) setDeletingDoc(undefined); }}>

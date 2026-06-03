@@ -56,12 +56,18 @@ const config: AliancaDocsPageConfig = {
   ],
 };
 
-export default function NucleoCapitalPage() {
+export default function NucleoCapitalPage({
+  initialBiaId = null,
+  embedded = false,
+}: {
+  initialBiaId?: string | null;
+  embedded?: boolean;
+} = {}) {
   const [activeTab, setActiveTab] = useState("documentos");
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-2">
+    <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}`}>
+      {!embedded && <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-nucleo-capital-title">
           <div className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy">
             <Landmark className="h-6 w-6" />
@@ -71,7 +77,7 @@ export default function NucleoCapitalPage() {
         <p className="text-sm text-muted-foreground">
           Documentos, financeiro, análises e calculadora DM em uma visão única.
         </p>
-      </div>
+      </div>}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-4">
@@ -94,16 +100,16 @@ export default function NucleoCapitalPage() {
         </TabsList>
 
         <TabsContent value="documentos" className="[&>div]:p-0 [&>div]:max-w-none">
-          {activeTab === "documentos" && <AliancaDocsPage config={config} />}
+          {activeTab === "documentos" && <AliancaDocsPage config={config} initialBiaId={initialBiaId} embedded={embedded} />}
         </TabsContent>
         <TabsContent value="financeiro" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "financeiro" && <FluxoCaixaPage />}
+          {activeTab === "financeiro" && <FluxoCaixaPage initialBiaId={initialBiaId} embedded={embedded} />}
         </TabsContent>
         <TabsContent value="analises" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "analises" && <ResultadosPage />}
+          {activeTab === "analises" && <ResultadosPage initialBiaId={initialBiaId} embedded={embedded} />}
         </TabsContent>
         <TabsContent value="calculadora" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "calculadora" && <BiasCalculadoraPage />}
+          {activeTab === "calculadora" && <BiasCalculadoraPage initialBiaId={initialBiaId} embedded={embedded} />}
         </TabsContent>
       </Tabs>
     </div>

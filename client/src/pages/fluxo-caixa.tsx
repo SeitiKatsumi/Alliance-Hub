@@ -1394,10 +1394,16 @@ function LancamentoFormFields({
   );
 }
 
-export default function FluxoCaixaPage() {
+export default function FluxoCaixaPage({
+  initialBiaId = null,
+  embedded = false,
+}: {
+  initialBiaId?: string | null;
+  embedded?: boolean;
+} = {}) {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
-  const [selectedBiaId, setSelectedBiaId] = useState<string>("");
+  const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -1476,14 +1482,21 @@ export default function FluxoCaixaPage() {
     queryKey: ["/api/bias"],
   });
 
+  useEffect(() => {
+    if (initialBiaId && selectedBiaId !== initialBiaId) {
+      setSelectedBiaId(initialBiaId);
+    }
+  }, [initialBiaId, selectedBiaId]);
+
   // Auto-select the last used BIA (or first in list) when bias loads
   useEffect(() => {
+    if (initialBiaId || embedded) return;
     if (bias.length > 0 && !selectedBiaId) {
       const lastUsed = localStorage.getItem("fluxo-caixa-bia-id");
       const found = lastUsed ?bias.find((b) => b.id === lastUsed) : null;
       setSelectedBiaId(found ?lastUsed! : bias[0].id);
     }
-  }, [bias, selectedBiaId]);
+  }, [bias, selectedBiaId, initialBiaId, embedded]);
 
   function handleBiaChange(id: string) {
     setSelectedBiaId(id);
@@ -2284,7 +2297,7 @@ export default function FluxoCaixaPage() {
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className={`${embedded ? "p-0" : "p-4"} space-y-6`}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-page-title">
@@ -2297,16 +2310,18 @@ export default function FluxoCaixaPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={selectedBiaId} onValueChange={handleBiaChange}>
-            <SelectTrigger className="w-[280px]" data-testid="select-bia">
-              <SelectValue placeholder="Selecione uma BIA..." />
-            </SelectTrigger>
-            <SelectContent>
-              {bias.map((b) => (
-                <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!embedded && (
+            <Select value={selectedBiaId} onValueChange={handleBiaChange}>
+              <SelectTrigger className="w-[280px]" data-testid="select-bia">
+                <SelectValue placeholder="Selecione uma BIA..." />
+              </SelectTrigger>
+              <SelectContent>
+                {bias.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {selectedBiaId && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -51,8 +51,8 @@ const FOTO_CROP_BOX = 320;
 const FOTO_CROP_OUTPUT = 640;
 const INVITE_TYPE_OPTIONS = [
   { value: "vitrine", label: "BUILT Vitrine" },
-  { value: "capital", label: "Investidor (Capital)" },
-  { value: "membros", label: "Área de Alianças" },
+  { value: "capital", label: "BUILT Capital (Investidor)" },
+  { value: "membros", label: "BUILT Alliances" },
 ];
 const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));

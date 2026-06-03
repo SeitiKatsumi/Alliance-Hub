@@ -291,9 +291,15 @@ function PercInput({
   );
 }
 
-export default function BiasCalculadoraPage() {
+export default function BiasCalculadoraPage({
+  initialBiaId = null,
+  embedded = false,
+}: {
+  initialBiaId?: string | null;
+  embedded?: boolean;
+} = {}) {
   const { toast } = useToast();
-  const [selectedBiaId, setSelectedBiaId] = useState<string>("");
+  const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const [cppSummary, setCppSummary] = useState<CppSummary | null>(null);
   const [cppError, setCppError] = useState<string | null>(null);
   const [showCppDetails, setShowCppDetails] = useState(false);
@@ -318,6 +324,15 @@ export default function BiasCalculadoraPage() {
 
   const bias = useMemo(() => biasRaw || [], [biasRaw]);
   const selectedBia = useMemo(() => bias.find(b => b.id === selectedBiaId), [bias, selectedBiaId]);
+
+  useEffect(() => {
+    if (initialBiaId && selectedBiaId !== initialBiaId) {
+      setSelectedBiaId(initialBiaId);
+      setCppSummary(null);
+      setCppError(null);
+      setShowCppDetails(false);
+    }
+  }, [initialBiaId, selectedBiaId]);
 
   // Forma de pagamento
   const [biaValorOrigem, setBiaValorOrigem] = useState(0); // valor salvo no Directus (fallback)
@@ -586,7 +601,7 @@ export default function BiasCalculadoraPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} space-y-6`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -599,16 +614,18 @@ export default function BiasCalculadoraPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={selectedBiaId} onValueChange={(id) => { setSelectedBiaId(id); setCppSummary(null); setCppError(null); setShowCppDetails(false); }}>
-            <SelectTrigger className="w-[280px]" data-testid="select-bia">
-              <SelectValue placeholder="Selecione uma BIA..." />
-            </SelectTrigger>
-            <SelectContent>
-              {bias.map((b) => (
-                <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!embedded && (
+            <Select value={selectedBiaId} onValueChange={(id) => { setSelectedBiaId(id); setCppSummary(null); setCppError(null); setShowCppDetails(false); }}>
+              <SelectTrigger className="w-[280px]" data-testid="select-bia">
+                <SelectValue placeholder="Selecione uma BIA..." />
+              </SelectTrigger>
+              <SelectContent>
+                {bias.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           <Button
             onClick={() => needsWarning ?setShowSaveConfirm(true) : saveMutation.mutate()}

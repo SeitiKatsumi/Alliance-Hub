@@ -104,8 +104,8 @@ function fotoUrlMap(m: MembroVitrine): string | null {
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
-      style={{ height: 300, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+      className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-brand-gold/20"
+      style={{ background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       {/* Grid overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -835,7 +835,7 @@ function AnuncioHeroCard({
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative h-[300px] overflow-hidden rounded-2xl border border-brand-gold/35"
+      className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-brand-gold/35"
       style={{
         background: "rgba(255,255,255,0.97)",
         border: "1.5px solid rgba(37,99,235,0.35)",
@@ -1121,11 +1121,7 @@ export default function VitrinePage() {
   }
 
   function handleAnuncioSubmit() {
-    const titulo = anuncioForm.titulo.trim();
-    if (!titulo) {
-      toast({ title: "Informe o título do anúncio", variant: "destructive" });
-      return;
-    }
+    const titulo = anuncioForm.titulo.trim() || "Anúncio em destaque";
 
     if (anuncioEditMode && anuncioEditTarget) {
       editarAnuncioMutation.mutate({
@@ -1352,7 +1348,7 @@ export default function VitrinePage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* World Map */}
         {isLoading ? (
-          <Skeleton className="h-[300px] rounded-2xl" />
+          <Skeleton className="aspect-[4/3] rounded-2xl" />
         ) : (
           <WorldMapHeader membros={membros} />
         )}
@@ -1479,7 +1475,7 @@ export default function VitrinePage() {
               Meus agendamentos ({meusAnuncios.length})
             </span>
           </div>
-          {ultimoPagamentoAnuncio.url && (
+          {ultimoPagamentoAnuncio?.url && (
             <div
               className="flex flex-col gap-3 rounded-lg px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
               style={{ background: "rgba(215,187,125,0.07)", border: "1px solid rgba(215,187,125,0.22)" }}
@@ -1498,7 +1494,7 @@ export default function VitrinePage() {
                 size="sm"
                 variant="outline"
                 className="gap-2 border-brand-gold/30 text-brand-gold/80 hover:bg-brand-gold/10 hover:text-brand-gold"
-                onClick={() => window.open(ultimoPagamentoAnuncio.url, "_blank", "noopener,noreferrer")}
+                onClick={() => ultimoPagamentoAnuncio?.url && window.open(ultimoPagamentoAnuncio.url, "_blank", "noopener,noreferrer")}
                 data-testid="btn-abrir-ultimo-pagamento-anuncio"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -1924,7 +1920,7 @@ export default function VitrinePage() {
           <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
             {/* Título */}
             <div className="space-y-1.5">
-              <label className="text-xs text-white/40 font-mono">Título do anúncio *</label>
+              <label className="text-xs text-white/40 font-mono">Título do anúncio (opcional)</label>
               <Input
                 value={anuncioForm.titulo}
                 onChange={e => setAnuncioForm(f => ({ ...f, titulo: e.target.value }))}
@@ -2157,7 +2153,6 @@ export default function VitrinePage() {
             <Button
               onClick={handleAnuncioSubmit}
               disabled={
-                !anuncioForm.titulo.trim() ||
                 (!anuncioEditMode && !anuncioTermsAllAccepted) ||
                 criarAnuncioMutation.isPending ||
                 editarAnuncioMutation.isPending ||
@@ -2379,27 +2374,25 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
 
   return (
     <div
-      className="group flex items-center gap-4 rounded-xl border p-3 transition-all cursor-pointer hover:shadow-lg hover:border-brand-gold/35"
+      className="group flex items-center gap-4 rounded-xl border border-border bg-white p-3 shadow-sm transition-all cursor-pointer hover:shadow-md hover:border-primary/35"
       style={{
-        background: "linear-gradient(145deg, #071626, #040e1c)",
-        borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+        borderColor: isOwn ? "rgba(37,99,235,0.35)" : undefined,
       }}
       onClick={() => navigate(`/vitrine/${m.id}`)}
       data-testid={`list-vitrine-${m.id}`}
     >
-      <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
-        style={{ background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))" }}>
-        {foto ? <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(m) }} /> : <span className="text-sm font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>}
+      <div className="w-14 h-14 rounded-full overflow-hidden border border-border bg-muted/40 flex items-center justify-center shrink-0">
+        {foto ? <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(m) }} /> : <span className="text-sm font-bold text-primary">{getInitials(nome)}</span>}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 min-w-0">
-          <p className="font-semibold text-white font-mono truncate">{nome}</p>
+          <p className="font-semibold text-foreground truncate">{nome}</p>
           {hasProudMember && (
             <RedeBadgeButton rede="BUILT_PROUD_MEMBER" height={24} maxWidth={58} testId="badge-list-built_proud_member" />
           )}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/45">
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {m.empresa && (
             <span className="inline-flex items-center gap-1.5 min-w-0">
               {logo ? <img src={logo} alt={`Marca ${m.empresa}`} className="h-5 w-10 object-contain" /> : <Building2 className="w-3 h-3" />}
@@ -2423,7 +2416,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
             variant="outline"
             size="sm"
             onClick={handleOrcamento}
-            className="gap-2 border-brand-gold/25 bg-brand-gold/5 text-brand-gold hover:bg-brand-gold/10"
+            className="gap-2 border-primary/25 bg-primary/5 text-primary hover:bg-primary/10"
             data-testid={`btn-list-orcamento-${m.id}`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -2472,11 +2465,9 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
   return (
     <>
       <div
-        className="relative rounded-xl border overflow-hidden group transition-all duration-300 hover:shadow-lg cursor-pointer hover:scale-[1.01]"
+        className="relative rounded-xl border border-border bg-white overflow-hidden group shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer hover:scale-[1.01]"
         style={{
-          background: "linear-gradient(145deg, #071626, #040e1c)",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-          borderColor: isOwn ? "rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
+          borderColor: isOwn ? "rgba(37,99,235,0.35)" : undefined,
         }}
         onClick={() => navigate(`/vitrine/${m.id}`)}
         data-testid={`card-vitrine-${m.id}`}
@@ -2485,13 +2476,13 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
         <div className="absolute top-0 left-0 right-0 h-px"
           style={{ background: isOwn
             ?
-            "linear-gradient(90deg, transparent, rgba(215,187,125,0.6), transparent)"
-            : "linear-gradient(90deg, transparent, rgba(215,187,125,0.3), transparent)"
+            "linear-gradient(90deg, transparent, rgba(37,99,235,0.45), transparent)"
+            : "linear-gradient(90deg, transparent, rgba(37,99,235,0.18), transparent)"
           }} />
 
         {/* Corner decorations */}
-        <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-brand-gold/20" />
-        <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-brand-gold/20" />
+        <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-primary/15" />
+        <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-primary/15" />
 
         {/* Selo principal */}
         {hasProudMember && (
@@ -2509,26 +2500,26 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
           {/* Avatar */}
           <div className="flex justify-center">
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-brand-gold/20"
+              className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-primary/15"
               style={{
-                background: foto ? "transparent" : "radial-gradient(circle at 30% 30%, rgba(215,187,125,0.15), rgba(3,8,18,0.9))",
-                boxShadow: "0 0 16px rgba(215,187,125,0.1)",
+                background: foto ? "transparent" : "linear-gradient(135deg, hsl(var(--muted)), hsl(var(--background)))",
+                boxShadow: "0 0 0 1px rgba(37,99,235,0.08)",
               }}
             >
               {foto ? (
                 <img src={foto} alt={nome} className="w-full h-full object-cover" style={{ objectPosition: getPhotoObjectPosition(m) }} />
               ) : (
-                <span className="text-xl font-bold font-mono text-brand-gold/80">{getInitials(nome)}</span>
+                <span className="text-xl font-bold text-primary">{getInitials(nome)}</span>
               )}
             </div>
           </div>
 
           {/* Name + info */}
           <div className="text-center space-y-1.5">
-            <p className="text-sm font-semibold text-white font-mono leading-tight">{nome}</p>
+            <p className="text-sm font-semibold text-foreground leading-tight">{nome}</p>
 
             {m.especialidade && (
-              <p className="text-xs text-brand-gold/60 font-mono truncate">{m.especialidade}</p>
+              <p className="text-xs text-muted-foreground truncate">{m.especialidade}</p>
             )}
 
             {m.empresa && (
@@ -2538,16 +2529,16 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
                     <img src={logo} alt={`Marca ${m.empresa}`} className="max-h-full max-w-full object-contain drop-shadow-sm" />
                   </span>
                 ) : (
-                  <Building2 className="w-3 h-3 text-white/25 shrink-0" />
+                  <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
                 )}
-                <span className="text-xs text-white/40 truncate">{m.empresa}</span>
+                <span className="text-xs text-muted-foreground truncate">{m.empresa}</span>
               </div>
             )}
 
             {m.cidade && (
               <div className="flex items-center justify-center gap-1">
-                <MapPin className="w-3 h-3 text-white/20 shrink-0" />
-                <span className="text-xs text-white/35 truncate">{m.cidade}</span>
+                <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">{m.cidade}</span>
               </div>
             )}
 
@@ -2557,7 +2548,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="inline-flex items-center justify-center gap-1 text-xs text-brand-gold/50 hover:text-brand-gold transition-colors font-mono"
+                className="inline-flex items-center justify-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
                 data-testid={`link-site-${m.id}`}
               >
                 <Globe className="w-3 h-3 shrink-0" />
@@ -2571,26 +2562,11 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
           {/* Quote button — only for other members */}
           {!isOwn && (
             <>
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-border" />
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); setMensagem(""); setOrcamentoOpen(true); }}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono font-medium transition-all duration-200 border"
-                style={{
-                  background: "rgba(215,187,125,0.06)",
-                  borderColor: "rgba(215,187,125,0.18)",
-                  color: "rgba(215,187,125,0.75)",
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(215,187,125,0.12)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(215,187,125,0.35)";
-                  (e.currentTarget as HTMLButtonElement).style.color = "#D7BB7D";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(215,187,125,0.06)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(215,187,125,0.18)";
-                  (e.currentTarget as HTMLButtonElement).style.color = "rgba(215,187,125,0.75)";
-                }}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/35"
                 data-testid={`btn-orcamento-${m.id}`}
               >
                 <FileText className="w-3 h-3" />

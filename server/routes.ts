@@ -4951,9 +4951,35 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const sessionMembroId = (req.session as any).membroId as string | null;
       const allowedMembroIds = isSuperAdmin ? null : await getMembroComunidadeIds(sessionMembroId);
 
+      if (!isSuperAdmin && allowedMembroIds) {
+        if (sessionMembroId) allowedMembroIds.add(String(sessionMembroId));
+        const biasItems = await directusFetch(
+          "bias_projetos",
+          "fields=*&limit=500"
+        );
+        biasItems
+          .filter((bia: any) => isUserLinkedToBia(bia, sessionMembroId))
+          .forEach((bia: any) => {
+            [
+              bia.autor_bia,
+              bia.aliado_built,
+              bia.diretor_alianca,
+              bia.diretor_nucleo_tecnico,
+              bia.diretor_execucao,
+              bia.diretor_comercial,
+              bia.diretor_capital,
+              ...parseBiaMemberList(bia.socios_guardioes),
+              ...parseBiaMemberList(bia.socios_multiplicadores),
+              ...parseBiaMemberList(bia.terceiros),
+            ]
+              .filter(Boolean)
+              .forEach((id: any) => allowedMembroIds.add(String(id)));
+          });
+      }
+
       const items = await directusFetch(
         "cadastro_geral",
-        "fields=id,nome,nome_completo,Nome_de_usuario,email,empresa,nome_fantasia,foto_perfil&limit=500"
+        "fields=*,Especialidades.*.*"
       );
       const filtered = items
         .filter((membro: any) => membro?.id && (isSuperAdmin || allowedMembroIds?.has(String(membro.id))))
@@ -4964,6 +4990,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           email: membro.email || null,
           empresa: membro.empresa || membro.nome_fantasia || null,
           foto_perfil: membro.foto_perfil || null,
+          cargo: membro.cargo || null,
+          tipo_de_cadastro: membro.tipo_de_cadastro || null,
+          tipo_alianca: membro.tipo_alianca || null,
+          tipos_alianca: Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [],
+          nucleo_alianca: membro.nucleo_alianca || null,
+          nucleos_alianca: Array.isArray(membro.nucleos_alianca) ? membro.nucleos_alianca : [],
         }))
         .sort((a: any, b: any) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR", { sensitivity: "base" }));
 

@@ -11,6 +11,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Search,
   Trash2,
   Users,
   X,
@@ -50,6 +51,19 @@ interface MembroOption {
   Nome_de_usuario?: string | null;
   email?: string | null;
   empresa?: string | null;
+  cargo?: string | null;
+  tipo_de_cadastro?: string | null;
+  tipo_alianca?: string | null;
+  tipos_alianca?: string[] | null;
+  nucleo_alianca?: string | null;
+  nucleos_alianca?: string[] | null;
+}
+
+interface BiaOption {
+  id: string;
+  nome_bia?: string | null;
+  socios_guardioes?: string[] | string | null;
+  socios_multiplicadores?: string[] | string | null;
 }
 
 const STATUS_LABEL: Record<AgendaStatus, string> = {
@@ -114,6 +128,38 @@ function getMembroName(membro: MembroOption) {
   return membro.nome || membro.Nome_de_usuario || membro.email || "Membro BUILT";
 }
 
+function normalizeSearch(value?: string | null) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function parseIdList(value?: string[] | string | null): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {}
+  return String(value).split(",").map(id => id.trim()).filter(Boolean);
+}
+
+function membroSearchText(membro: MembroOption) {
+  return [
+    getMembroName(membro),
+    membro.email,
+    membro.empresa,
+    membro.cargo,
+    membro.tipo_de_cadastro,
+    membro.tipo_alianca,
+    ...(Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : []),
+    membro.nucleo_alianca,
+    ...(Array.isArray(membro.nucleos_alianca) ? membro.nucleos_alianca : []),
+  ].filter(Boolean).join(" ");
+}
+
 export default function AgendaPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -126,6 +172,8 @@ export default function AgendaPage() {
   });
   const [form, setForm] = useState(emptyForm);
   const [selectedMembroIds, setSelectedMembroIds] = useState<string[]>([]);
+  const [membroSearch, setMembroSearch] = useState("");
+  const [selectedBiaId, setSelectedBiaId] = useState<string>("");
 
   const { data: tarefas = [], isLoading } = useQuery<AgendaTarefa[]>({
     queryKey: ["/api/agenda"],
@@ -133,6 +181,10 @@ export default function AgendaPage() {
 
   const { data: membros = [] } = useQuery<MembroOption[]>({
     queryKey: ["/api/agenda/membros-disponiveis"],
+  });
+
+  const { data: bias = [] } = useQuery<BiaOption[]>({
+    queryKey: ["/api/bias"],
   });
 
   const filtered = useMemo(() => {
@@ -196,6 +248,59 @@ export default function AgendaPage() {
       .sort((a, b) => getMembroName(a).localeCompare(getMembroName(b), "pt-BR"));
   }, [membros, selectedMembroIds]);
 
+  const membrosDisponiveisIds = useMemo(() => new Set(membrosDisponiveis.map(membro => String(membro.id))), [membrosDisponiveis]);
+
+  const filteredMembrosDisponiveis = useMemo(() => {
+    const q = normalizeSearch(membroSearch);
+    const list = !q
+      ? membrosDisponiveis
+      : membrosDisponiveis.filter(membro => normalizeSearch(membroSearchText(membro)).includes(q));
+    return list.slice(0, 8);
+  }, [membrosDisponiveis, membroSearch]);
+
+  const functionGroups = useMemo(() => {
+    const groups = new Map<string, { label: string; ids: string[] }>();
+    membrosDisponiveis.forEach(membro => {
+      const labels = [
+        membro.cargo,
+        membro.tipo_de_cadastro,
+        membro.tipo_alianca,
+        ...(Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : []),
+        membro.nucleo_alianca,
+        ...(Array.isArray(membro.nucleos_alianca) ? membro.nucleos_alianca : []),
+      ].filter(Boolean) as string[];
+      labels.forEach(label => {
+        const key = normalizeSearch(label);
+        if (!key) return;
+        const group = groups.get(key) || { label, ids: [] };
+        group.ids.push(String(membro.id));
+        groups.set(key, group);
+      });
+    });
+    return Array.from(groups.values())
+      .filter(group => group.ids.length > 0)
+      .sort((a, b) => b.ids.length - a.ids.length || a.label.localeCompare(b.label, "pt-BR"))
+      .slice(0, 8);
+  }, [membrosDisponiveis]);
+
+  const selectedBia = useMemo(() => bias.find(bia => String(bia.id) === selectedBiaId), [bias, selectedBiaId]);
+
+  const biaGuardioesIds = useMemo(
+    () => parseIdList(selectedBia?.socios_guardioes).filter(id => membrosDisponiveisIds.has(id)),
+    [selectedBia, membrosDisponiveisIds]
+  );
+
+  const biaMultiplicadoresIds = useMemo(
+    () => parseIdList(selectedBia?.socios_multiplicadores).filter(id => membrosDisponiveisIds.has(id)),
+    [selectedBia, membrosDisponiveisIds]
+  );
+
+  function addMembroIds(ids: string[]) {
+    const allowedIds = ids.map(String).filter(id => membros.some(membro => String(membro.id) === id));
+    if (allowedIds.length === 0) return;
+    setSelectedMembroIds(current => Array.from(new Set([...current, ...allowedIds])));
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -215,6 +320,8 @@ export default function AgendaPage() {
       setEditing(null);
       setForm(emptyForm);
       setSelectedMembroIds([]);
+      setMembroSearch("");
+      setSelectedBiaId("");
       toast({ title: editing ? "Ação atualizada" : "Ação criada" });
     },
     onError: (error: any) => {
@@ -242,6 +349,8 @@ export default function AgendaPage() {
     setEditing(null);
     setForm(emptyForm);
     setSelectedMembroIds([]);
+    setMembroSearch("");
+    setSelectedBiaId("");
     setDialogOpen(true);
   }
 
@@ -256,6 +365,8 @@ export default function AgendaPage() {
       prioridade: tarefa.prioridade || "media",
     });
     setSelectedMembroIds([]);
+    setMembroSearch("");
+    setSelectedBiaId("");
     setDialogOpen(true);
   }
 
@@ -539,42 +650,136 @@ export default function AgendaPage() {
                 </p>
               ) : (
                 <>
-                  <Select
-                    value="__none__"
-                    onValueChange={(value) => {
-                      if (value !== "__none__" && !selectedMembroIds.includes(value)) {
-                        setSelectedMembroIds(ids => [...ids, value]);
-                      }
-                    }}
-                  >
-                    <SelectTrigger data-testid="select-agenda-membros">
-                      <SelectValue placeholder="Selecionar membro..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Selecionar membro...</SelectItem>
-                      {membrosDisponiveis.map(membro => (
-                        <SelectItem key={membro.id} value={String(membro.id)}>
-                          {getMembroName(membro)}
-                          {membro.empresa ? ` · ${membro.empresa}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/10 p-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={membroSearch}
+                        onChange={e => setMembroSearch(e.target.value)}
+                        placeholder="Buscar por nome, empresa, cargo, função ou núcleo..."
+                        className="pl-9"
+                        data-testid="input-agenda-buscar-membro"
+                      />
+                    </div>
+
+                    <div className="max-h-44 overflow-auto rounded-md border border-border/60 bg-background">
+                      {filteredMembrosDisponiveis.length === 0 ? (
+                        <p className="px-3 py-4 text-xs text-muted-foreground">
+                          {membroSearch ? "Nenhum membro encontrado." : "Nenhum membro disponível para adicionar."}
+                        </p>
+                      ) : (
+                        filteredMembrosDisponiveis.map(membro => {
+                          const memberId = String(membro.id);
+                          const selected = selectedMembroIds.includes(memberId);
+                          const subtitle = [membro.empresa, membro.cargo || membro.tipo_de_cadastro || membro.nucleo_alianca]
+                            .filter(Boolean)
+                            .join(" · ");
+                          return (
+                            <button
+                              key={memberId}
+                              type="button"
+                              onClick={() => addMembroIds([memberId])}
+                              disabled={selected}
+                              className={`flex w-full items-center justify-between gap-3 border-b border-border/60 px-3 py-2 text-left transition-colors last:border-b-0 ${
+                                selected ? "bg-blue-50 text-blue-700" : "hover:bg-muted/50"
+                              }`}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold">{getMembroName(membro)}</span>
+                                {subtitle && <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>}
+                              </span>
+                              {selected && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {functionGroups.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-semibold uppercase text-muted-foreground">Adicionar por função</p>
+                        <div className="flex flex-wrap gap-2">
+                          {functionGroups.map(group => (
+                            <Button
+                              key={normalizeSearch(group.label)}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 rounded-full px-3 text-xs"
+                              onClick={() => addMembroIds(group.ids)}
+                            >
+                              {group.label} ({group.ids.length})
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 rounded-md border border-border/60 bg-background p-3">
+                      <Label className="text-xs">Adicionar membros de uma BIA</Label>
+                      <Select
+                        value={selectedBiaId || "__none__"}
+                        onValueChange={(value) => setSelectedBiaId(value === "__none__" ? "" : value)}
+                      >
+                        <SelectTrigger data-testid="select-agenda-bia-grupos">
+                          <SelectValue placeholder="Selecionar BIA..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Selecionar BIA...</SelectItem>
+                          {bias.map(bia => (
+                            <SelectItem key={bia.id} value={String(bia.id)}>
+                              {bia.nome_bia || "BIA sem nome"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="justify-start text-xs"
+                          disabled={!selectedBia || biaGuardioesIds.length === 0}
+                          onClick={() => addMembroIds(biaGuardioesIds)}
+                        >
+                          Sócios guardiões ({biaGuardioesIds.length})
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="justify-start text-xs"
+                          disabled={!selectedBia || biaMultiplicadoresIds.length === 0}
+                          onClick={() => addMembroIds(biaMultiplicadoresIds)}
+                        >
+                          Sócios multiplicadores ({biaMultiplicadoresIds.length})
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                   {selectedMembros.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedMembros.map(membro => (
-                        <span key={membro.id} className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                          <span className="truncate">{getMembroName(membro)}</span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedMembroIds(ids => ids.filter(id => id !== String(membro.id)))}
-                            className="rounded-full p-0.5 hover:bg-blue-100"
-                            aria-label={`Remover ${getMembroName(membro)}`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+                          Selecionados ({selectedMembros.length})
+                        </p>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSelectedMembroIds([])}>
+                          Limpar todos
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedMembros.map(membro => (
+                          <span key={membro.id} className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                            <span className="truncate">{getMembroName(membro)}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedMembroIds(ids => ids.filter(id => id !== String(membro.id)))}
+                              className="rounded-full p-0.5 hover:bg-blue-100"
+                              aria-label={`Remover ${getMembroName(membro)}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground">

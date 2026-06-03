@@ -51,6 +51,12 @@ const config: AliancaDocsPageConfig = {
   ],
 };
 
-export default function NucleoComercialPage() {
-  return <AliancaDocsPage config={config} />;
+export default function NucleoComercialPage({
+  initialBiaId = null,
+  embedded = false,
+}: {
+  initialBiaId?: string | null;
+  embedded?: boolean;
+} = {}) {
+  return <AliancaDocsPage config={config} initialBiaId={initialBiaId} embedded={embedded} />;
 }

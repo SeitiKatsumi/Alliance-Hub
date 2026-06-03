@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -113,9 +113,10 @@ interface DocSheetProps {
   bias: Bia[];
   doc?: Doc;
   onClose: () => void;
+  lockBia?: boolean;
 }
 
-function DocSheet({ aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
+function DocSheet({ aliancaTipo, biaId, bias, doc, onClose, lockBia = false }: DocSheetProps) {
   const { toast } = useToast();
   const [form, setForm] = useState({
     bia_id: doc?.bia_id || biaId || "",
@@ -179,17 +180,19 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose }: DocSheetProps) {
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* BIA */}
-          <div>
-            <label className={labelCls}>BIA</label>
-            <Select value={form.bia_id} onValueChange={v => setForm(f => ({ ...f, bia_id: v }))}>
-              <SelectTrigger className={inputCls} data-testid="select-bia-doc">
-                <SelectValue placeholder="Selecione a BIA" />
-              </SelectTrigger>
-              <SelectContent>
-                {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {!lockBia && (
+            <div>
+              <label className={labelCls}>BIA</label>
+              <Select value={form.bia_id} onValueChange={v => setForm(f => ({ ...f, bia_id: v }))}>
+                <SelectTrigger className={inputCls} data-testid="select-bia-doc">
+                  <SelectValue placeholder="Selecione a BIA" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Tipo de Documento */}
           <div>
@@ -395,13 +398,26 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
   );
 }
 
-export default function NucleoTecnicoPage() {
+export default function NucleoTecnicoPage({
+  initialBiaId = null,
+  embedded = false,
+}: {
+  initialBiaId?: string | null;
+  embedded?: boolean;
+}) {
   const { toast } = useToast();
-  const [biaId, setBiaId] = useState<string | null>(null);
+  const [biaId, setBiaId] = useState<string | null>(initialBiaId);
   const [activeTab, setActiveTab] = useState("juridica");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<Doc | undefined>();
   const [deletingDoc, setDeletingDoc] = useState<Doc | undefined>();
+  const isBiaScoped = !!initialBiaId || embedded;
+
+  useEffect(() => {
+    if (initialBiaId && biaId !== initialBiaId) {
+      setBiaId(initialBiaId);
+    }
+  }, [initialBiaId, biaId]);
 
   const { data: bias = [] } = useQuery<Bia[]>({ queryKey: ["/api/bias"] });
   const { data: docs = [], isLoading } = useQuery<Doc[]>({ queryKey: ["/api/nucleo-tecnico-docs"] });
@@ -420,9 +436,9 @@ export default function NucleoTecnicoPage() {
   const docsFiltered = biaId ?docs.filter(d => d.bia_id === biaId) : docs;
 
   return (
-    <div className="min-h-screen p-6 bg-[#f8fafc] text-slate-900">
+    <div className={`${embedded ? "min-h-0 p-0" : "min-h-screen p-6"} bg-[#f8fafc] text-slate-900`}>
       {/* Header */}
-      <div className="relative mb-8">
+      {!isBiaScoped && <div className="relative mb-8">
         <div className="hidden absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-24 h-px" style={{ background: `linear-gradient(90deg, ${ACCENT}, transparent)` }} />
           <div className="absolute top-0 left-0 w-px h-24" style={{ background: `linear-gradient(180deg, ${ACCENT}, transparent)` }} />
@@ -451,10 +467,10 @@ export default function NucleoTecnicoPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* BIA Filter */}
-      <div className="mb-6 flex items-center gap-3">
+      {!isBiaScoped && <div className="mb-6 flex items-center gap-3">
         <span className="text-xs text-slate-500 uppercase tracking-wider shrink-0">Filtrar por BIA:</span>
         <Select value={biaId || "all"} onValueChange={v => setBiaId(v === "all" ?null : v)}>
           <SelectTrigger className="max-w-xs bg-white border-slate-200 text-slate-900 text-sm h-9" data-testid="select-filter-bia">
@@ -465,7 +481,7 @@ export default function NucleoTecnicoPage() {
             {bias.map(b => <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>)}
           </SelectContent>
         </Select>
-      </div>
+      </div>}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -517,6 +533,7 @@ export default function NucleoTecnicoPage() {
           bias={bias}
           doc={editingDoc}
           onClose={() => { setSheetOpen(false); setEditingDoc(undefined); }}
+          lockBia={isBiaScoped}
         />
       )}
 

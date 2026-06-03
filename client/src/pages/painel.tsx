@@ -162,8 +162,8 @@ const INVITE_APP_URL = "https://built.dna11.com.br";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const INVITE_TYPE_OPTIONS = [
   { value: "vitrine", label: "BUILT Vitrine" },
-  { value: "capital", label: "Investidor (Capital)" },
-  { value: "membros", label: "Área de Alianças" },
+  { value: "capital", label: "BUILT Capital (Investidor)" },
+  { value: "membros", label: "BUILT Alliances" },
 ];
 const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 const DASHBOARD_ENV_IMAGES = Array.from({ length: 10 }, (_, index) => `/dashboard-env/built-env-${String(index + 1).padStart(2, "0")}.png`);

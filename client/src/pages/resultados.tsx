@@ -125,8 +125,14 @@ function RowItem({ label, value, sub, positive, currency = "BRL", withBorder = t
 }
 
 // ---- Main Page ----
-export default function ResultadosPage() {
-  const [selectedBiaId, setSelectedBiaId] = useState<string>("");
+export default function ResultadosPage({
+  initialBiaId = null,
+  embedded = false,
+}: {
+  initialBiaId?: string | null;
+  embedded?: boolean;
+} = {}) {
+  const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const { toast } = useToast();
 
   // Receita editável (string BRL formatada)
@@ -147,14 +153,21 @@ export default function ResultadosPage() {
     queryKey: ["/api/fluxo-caixa"],
   });
 
+  useEffect(() => {
+    if (initialBiaId && selectedBiaId !== initialBiaId) {
+      setSelectedBiaId(initialBiaId);
+    }
+  }, [initialBiaId, selectedBiaId]);
+
   // Auto-select the last used BIA (or first in list)
   useEffect(() => {
+    if (initialBiaId || embedded) return;
     if ((biasRaw as BiasProjeto[]).length > 0 && !selectedBiaId) {
       const lastUsed = localStorage.getItem("resultados-bia-id");
       const found = lastUsed ?(biasRaw as BiasProjeto[]).find((b) => b.id === lastUsed) : null;
       setSelectedBiaId(found ?lastUsed! : (biasRaw as BiasProjeto[])[0].id);
     }
-  }, [biasRaw, selectedBiaId]);
+  }, [biasRaw, selectedBiaId, initialBiaId, embedded]);
 
   const bia = useMemo(
     () => (biasRaw as BiasProjeto[]).find((b) => b.id === selectedBiaId),
@@ -266,7 +279,7 @@ export default function ResultadosPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} space-y-6`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -279,16 +292,18 @@ export default function ResultadosPage() {
           <p className="text-sm text-muted-foreground mt-1">Análise de retorno e performance por BIA</p>
         </div>
 
-        <Select value={selectedBiaId} onValueChange={handleBiaChange}>
-          <SelectTrigger className="w-[300px]" data-testid="select-bia">
-            <SelectValue placeholder="Selecione uma BIA..." />
-          </SelectTrigger>
-          <SelectContent>
-            {(biasRaw as BiasProjeto[]).map((b) => (
-              <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!embedded && (
+          <Select value={selectedBiaId} onValueChange={handleBiaChange}>
+            <SelectTrigger className="w-[300px]" data-testid="select-bia">
+              <SelectValue placeholder="Selecione uma BIA..." />
+            </SelectTrigger>
+            <SelectContent>
+              {(biasRaw as BiasProjeto[]).map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {!selectedBiaId ?(

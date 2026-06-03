@@ -14,6 +14,7 @@ import OportunidadesPage from "@/pages/oportunidades";
 import {
   Briefcase,
   Globe2,
+  Handshake,
   MapPin,
   Network,
   Search,
@@ -193,24 +194,44 @@ export default function AreaAliancasPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-5">
-          <TabsTrigger value="opas" className="gap-2" data-testid="tab-area-opas">
-            <Target className="h-4 w-4" />
+          <TabsTrigger
+            value="opas"
+            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            data-testid="tab-area-opas"
+          >
+            <Target className="h-4 w-4 shrink-0 text-cyan-500" />
             OPAs
           </TabsTrigger>
-          <TabsTrigger value="bias" className="gap-2" data-testid="tab-area-bias">
-            <Briefcase className="h-4 w-4 text-orange-500" />
+          <TabsTrigger
+            value="bias"
+            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            data-testid="tab-area-bias"
+          >
+            <Briefcase className="h-4 w-4 shrink-0 text-orange-500" />
             BIAs
           </TabsTrigger>
-          <TabsTrigger value="membros" className="gap-2" data-testid="tab-area-membros">
-            <Users className="h-4 w-4" />
+          <TabsTrigger
+            value="membros"
+            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            data-testid="tab-area-membros"
+          >
+            <Handshake className="h-4 w-4 shrink-0 text-blue-500" />
             Membros Aliados
           </TabsTrigger>
-          <TabsTrigger value="comunidades" className="gap-2" data-testid="tab-area-comunidades">
-            <Globe2 className="h-4 w-4" />
+          <TabsTrigger
+            value="comunidades"
+            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            data-testid="tab-area-comunidades"
+          >
+            <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
             Comunidades
           </TabsTrigger>
-          <TabsTrigger value="aliados" className="gap-2" data-testid="tab-area-aliados">
-            <ShieldCheck className="h-4 w-4" />
+          <TabsTrigger
+            value="aliados"
+            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            data-testid="tab-area-aliados"
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0 text-indigo-500" />
             Aliados Licenciados
           </TabsTrigger>
         </TabsList>

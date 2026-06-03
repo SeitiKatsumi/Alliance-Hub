@@ -13,6 +13,10 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import NucleoTecnicoPage from "./nucleo-tecnico";
+import NucleoObraPage from "./nucleo-obra";
+import NucleoComercialPage from "./nucleo-comercial";
+import NucleoCapitalPage from "./nucleo-capital";
 
 // ---- Types ----
 interface AnexoFile {
@@ -739,7 +743,54 @@ export default function BiaDetalhePage() {
 
         {canAccessNucleos && (
           <TabsContent value="nucleos" className="space-y-5" data-testid="content-bia-nucleos">
-            <div className="grid gap-4 md:grid-cols-2">
+            <Tabs defaultValue="diretoria" className="space-y-5">
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-2 lg:grid-cols-5">
+                <TabsTrigger value="diretoria" data-testid="tab-bia-nucleo-diretoria">Diretoria</TabsTrigger>
+                <TabsTrigger value="tecnico" data-testid="tab-bia-nucleo-tecnico">NÃºcleo TÃ©cnico</TabsTrigger>
+                <TabsTrigger value="obra" data-testid="tab-bia-nucleo-obra">NÃºcleo de Obra</TabsTrigger>
+                <TabsTrigger value="comercial" data-testid="tab-bia-nucleo-comercial">NÃºcleo Comercial</TabsTrigger>
+                <TabsTrigger value="capital" data-testid="tab-bia-nucleo-capital">NÃºcleo de Capital</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="diretoria" className="space-y-4">
+                <Card>
+                  <CardContent className="pt-5 pb-4">
+                    <SectionTitle icon={Crown}>Diretoria da AlianÃ§a</SectionTitle>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      GovernanÃ§a, papÃ©is estratÃ©gicos e coordenaÃ§Ã£o da BIA.
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {equipe.map((e, i) => (
+                        <MembroChip
+                          key={i}
+                          nome={e.id ?membros[e.id] : undefined}
+                          role={e.role}
+                          icon={e.icon}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="tecnico" className="space-y-4">
+                <NucleoTecnicoPage initialBiaId={bia.id} embedded />
+              </TabsContent>
+
+              <TabsContent value="obra" className="space-y-4">
+                <NucleoObraPage initialBiaId={bia.id} embedded />
+              </TabsContent>
+
+              <TabsContent value="comercial" className="space-y-4">
+                <NucleoComercialPage initialBiaId={bia.id} embedded />
+              </TabsContent>
+
+              <TabsContent value="capital" className="space-y-4">
+                <NucleoCapitalPage initialBiaId={bia.id} embedded />
+              </TabsContent>
+            </Tabs>
+
+            <div className="hidden grid gap-4 md:grid-cols-2">
               {nucleoCards.map((nucleo) => {
                 const Icon = nucleo.icon;
                 const relatedOpas = "opas" in nucleo ?nucleo.opas || [] : [];
@@ -775,7 +826,7 @@ export default function BiaDetalhePage() {
               })}
             </div>
 
-            <Card className="border-blue-500/20" data-testid="card-bia-nucleo-capital">
+            <Card className="hidden border-blue-500/20" data-testid="card-bia-nucleo-capital">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Wallet className="h-4 w-4 text-blue-600" />

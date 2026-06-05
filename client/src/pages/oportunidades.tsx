@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
 
 const WORLD_GEO = "/world-countries-50m.json";
@@ -354,11 +355,12 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
       )}
 
       {/* Map */}
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{ center: [0, 10], scale: 160 }}
-        style={{ width: "100%", height: "100%" }}
-      >
+      <MapWheelGuard>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [0, 10], scale: 160 }}
+          style={{ width: "100%", height: "100%" }}
+        >
         <ZoomableGroup zoom={zoom} center={center} minZoom={0.8} maxZoom={16}
           onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates); setZoom(z); }}
         >
@@ -414,7 +416,8 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
             );
           })}
         </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      </MapWheelGuard>
 
       {/* Decorative scan line */}
       <div className="absolute left-0 right-0 h-px pointer-events-none z-10"

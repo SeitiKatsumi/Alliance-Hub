@@ -39,6 +39,7 @@ import {
   Clock, CheckCircle, XCircle, Bell
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -94,6 +95,7 @@ interface BiasProjeto {
   perc_autor_opa?: string | number;
   perc_aliado_built?: string | number;
   perc_built?: string | number;
+  perc_dir_alianca?: string | number;
   perc_dir_tecnico?: string | number;
   perc_dir_obras?: string | number;
   perc_dir_comercial?: string | number;
@@ -101,6 +103,7 @@ interface BiasProjeto {
   cpp_autor_opa?: string | number;
   cpp_aliado_built?: string | number;
   cpp_built?: string | number;
+  cpp_dir_alianca?: string | number;
   cpp_dir_tecnico?: string | number;
   cpp_dir_obras?: string | number;
   cpp_dir_comercial?: string | number;
@@ -351,6 +354,7 @@ const EMPTY_FORM = {
   perc_autor_opa: "",
   perc_aliado_built: "",
   perc_built: "",
+  perc_dir_alianca: "",
   perc_dir_tecnico: "",
   perc_dir_obras: "",
   perc_dir_comercial: "",
@@ -394,6 +398,7 @@ function biaToForm(b: BiasProjeto): FormState {
     perc_autor_opa: b.perc_autor_opa != null ?String(b.perc_autor_opa) : "",
     perc_aliado_built: b.perc_aliado_built != null ?String(b.perc_aliado_built) : "",
     perc_built: b.perc_built != null ?String(b.perc_built) : "",
+    perc_dir_alianca: b.perc_dir_alianca != null ?String(b.perc_dir_alianca) : "",
     perc_dir_tecnico: b.perc_dir_tecnico != null ?String(b.perc_dir_tecnico) : "",
     perc_dir_obras: b.perc_dir_obras != null ?String(b.perc_dir_obras) : "",
     perc_dir_comercial: b.perc_dir_comercial != null ?String(b.perc_dir_comercial) : "",
@@ -911,8 +916,8 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 
       {/* Top-left header */}
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-orange-400/60 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-orange-400">
+        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-cyan-300">
           MAPA DE OPERAÇÕES
         </h2>
         <div className="flex items-center gap-2 mt-2">
@@ -927,16 +932,16 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
       {/* Top-right stats */}
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-3">
-          <p className="text-[9px] text-orange-400/50 tracking-widest uppercase">Alianças</p>
-          <p className="text-4xl font-bold leading-none text-orange-400">{biasAll.length}</p>
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">Alianças</p>
+          <p className="text-4xl font-bold leading-none text-cyan-300">{biasAll.length}</p>
         </div>
         <div>
-          <p className="text-[9px] text-orange-400/50 tracking-widest uppercase">VGV Total</p>
-          <p className="text-xs font-semibold text-orange-400/70">
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">VGV Total</p>
+          <p className="text-xs font-semibold text-cyan-300/70">
             {totalVgv > 0 ?brl(totalVgv) : "—"}
           </p>
         </div>
-        <p className="text-[9px] text-orange-400/35 mt-2">{biasWithCoords.length} geolocalizadas</p>
+        <p className="text-[9px] text-cyan-300/35 mt-2">{biasWithCoords.length} geolocalizadas</p>
       </div>
 
       {/* Zoom controls */}
@@ -971,11 +976,12 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
       </div>
 
       {/* Map */}
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{ center: [0, 10], scale: 160 }}
-        style={{ width: "100%", height: "100%" }}
-      >
+      <MapWheelGuard>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [0, 10], scale: 160 }}
+          style={{ width: "100%", height: "100%" }}
+        >
         <ZoomableGroup
           zoom={zoom}
           center={center}
@@ -1083,7 +1089,8 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
             );
           })}
         </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      </MapWheelGuard>
 
       {/* Hover tooltip bar — only when nothing selected/clustered */}
       {!selectedBia && !clusterBias && (
@@ -1358,6 +1365,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
     bia.cpp_autor_opa,
     bia.cpp_aliado_built,
     bia.cpp_built,
+    bia.cpp_dir_alianca,
     bia.cpp_dir_tecnico,
     bia.cpp_dir_obras,
     bia.cpp_dir_comercial,
@@ -1582,13 +1590,14 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     return parseBRLToNumber(form.valor_origem);
   })();
 
-  const percTotal = ["perc_aliado_built","perc_built","perc_dir_tecnico",
+  const percTotal = ["perc_aliado_built","perc_built","perc_dir_alianca","perc_dir_tecnico",
     "perc_dir_obras","perc_dir_comercial","perc_dir_capital"].reduce(
     (s, k) => s + (parseFloat(form[k as keyof FormState] as string) || 0), 0
   );
   const custoOrigemPreview = valorOrigem + (valorOrigem * percTotal / 100);
   const activeContributors = 1
     + (form.aliado_built && (parseFloat(form.perc_aliado_built) || 0) > 0 ?1 : 0)
+    + (form.diretor_alianca && (parseFloat(form.perc_dir_alianca) || 0) > 0 ?1 : 0)
     + (form.diretor_nucleo_tecnico && (parseFloat(form.perc_dir_tecnico) || 0) > 0 ?1 : 0)
     + (form.diretor_execucao && (parseFloat(form.perc_dir_obras) || 0) > 0 ?1 : 0)
     + (form.diretor_comercial && (parseFloat(form.perc_dir_comercial) || 0) > 0 ?1 : 0)
@@ -1662,6 +1671,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         _valores_parcelas: formaPagamento === "parcelado" ?valoresParcelas : [],
         perc_aliado_built: form.perc_aliado_built || null,
         perc_built: form.perc_built || null,
+        perc_dir_alianca: form.perc_dir_alianca || null,
         perc_dir_tecnico: form.perc_dir_tecnico || null,
         perc_dir_obras: form.perc_dir_obras || null,
         perc_dir_comercial: form.perc_dir_comercial || null,
@@ -2143,6 +2153,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
               <div className="grid grid-cols-1 gap-3">
                 <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="BUILT" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
+                <PercField label="Diretor de Aliança" field="perc_dir_alianca" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor Técnico" field="perc_dir_tecnico" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor de Obras" field="perc_dir_obras" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor Comercial" field="perc_dir_comercial" form={form} setForm={setForm} baseValue={valorOrigem} />

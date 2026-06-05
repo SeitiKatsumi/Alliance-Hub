@@ -10,6 +10,7 @@ import {
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   Search, MapPin, Phone, Mail, Building2, TrendingUp, Globe, LayoutGrid, List
 } from "lucide-react";
@@ -163,11 +164,12 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
         ))}
       </div>
 
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{ center: [0, 10], scale: 160 }}
-        style={{ width: "100%", height: "100%" }}
-      >
+      <MapWheelGuard>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [0, 10], scale: 160 }}
+          style={{ width: "100%", height: "100%" }}
+        >
         <ZoomableGroup
           zoom={zoom}
           center={center}
@@ -236,7 +238,8 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
             );
           })}
         </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      </MapWheelGuard>
 
       <div className="absolute left-0 right-0 h-px pointer-events-none z-10"
         style={{ background: "linear-gradient(to right, transparent, #2563EB40 20%, #3B82F660 50%, #2563EB40 80%, transparent)", animation: "scanLineCapital 6s linear infinite", top: 0 }}

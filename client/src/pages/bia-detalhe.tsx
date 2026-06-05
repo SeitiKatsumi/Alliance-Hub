@@ -305,7 +305,6 @@ export default function BiaDetalhePage() {
   const cpp = useMemo(() => {
     if (!bia) return [];
     return [
-      { label: "Autor OPA", perc: bia.perc_autor_opa, cpp: bia.cpp_autor_opa },
       { label: "Aliado BUILT", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
       { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
       { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },

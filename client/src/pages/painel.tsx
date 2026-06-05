@@ -75,7 +75,20 @@ interface AgendaTarefa {
   data: string;
   hora?: string | null;
   status: "pendente" | "em_andamento" | "concluida" | "cancelada";
+  prioridade?: "baixa" | "media" | "alta" | null;
 }
+
+const PRIORIDADE_LABEL: Record<NonNullable<AgendaTarefa["prioridade"]>, string> = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+};
+
+const PRIORIDADE_CLASS: Record<NonNullable<AgendaTarefa["prioridade"]>, string> = {
+  baixa: "border-slate-200 bg-slate-50 text-slate-600",
+  media: "border-blue-200 bg-blue-50 text-blue-700",
+  alta: "border-red-200 bg-red-50 text-red-700",
+};
 
 interface DashboardApproval {
   id: string | number;
@@ -571,6 +584,7 @@ export default function PainelPage() {
         titulo: acao.titulo,
         subtitulo: acao.descricao || (acao.status === "em_andamento" ? "Em andamento" : "Pendente"),
         hora: acao.hora || "--:--",
+        prioridade: acao.prioridade || "media",
       };
     }), [agendaTarefas]);
 
@@ -942,7 +956,12 @@ export default function PainelPage() {
                       <span className="mt-0.5 text-[9px] font-semibold uppercase leading-none">{acao.mes}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-foreground">{acao.titulo}</p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="truncate text-xs font-semibold text-foreground">{acao.titulo}</p>
+                        <Badge variant="outline" className={`h-5 shrink-0 px-1.5 text-[10px] ${PRIORIDADE_CLASS[acao.prioridade]}`}>
+                          {PRIORIDADE_LABEL[acao.prioridade]}
+                        </Badge>
+                      </div>
                       <p className="truncate text-[11px] text-muted-foreground">{acao.subtitulo}</p>
                     </div>
                     <span className="shrink-0 text-xs font-medium text-muted-foreground">{acao.hora}</span>

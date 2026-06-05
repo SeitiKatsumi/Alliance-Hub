@@ -29,6 +29,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -411,16 +412,16 @@ function ComunidadesMapHeader({ comunidades }: { comunidades: Comunidade[] }) {
       }} />
 
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-cyan-300">
           MAPA DE COMUNIDADES
         </h2>
       </div>
 
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
-        <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Comunidades</p>
-        <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{comunidades.length}</p>
-        <p className="text-[9px] text-brand-gold/30 mt-2">{mapped.length} geolocalizadas</p>
+        <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">Comunidades</p>
+        <p className="text-4xl font-bold leading-none text-cyan-300">{comunidades.length}</p>
+        <p className="text-[9px] text-cyan-300/35 mt-2">{mapped.length} geolocalizadas</p>
       </div>
 
       <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">
@@ -444,7 +445,8 @@ function ComunidadesMapHeader({ comunidades }: { comunidades: Comunidade[] }) {
         >−</button>
       </div>
 
-      <ComposableMap projection="geoMercator" projectionConfig={{ center: [0, 10], scale: 160 }} style={{ width: "100%", height: "100%" }}>
+      <MapWheelGuard>
+        <ComposableMap projection="geoMercator" projectionConfig={{ center: [0, 10], scale: 160 }} style={{ width: "100%", height: "100%" }}>
         <ZoomableGroup
           zoom={zoom}
           center={center}
@@ -494,7 +496,8 @@ function ComunidadesMapHeader({ comunidades }: { comunidades: Comunidade[] }) {
             );
           })}
         </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      </MapWheelGuard>
 
       {hovered && (
         <div
@@ -1243,7 +1246,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
           <Button
             onClick={openCreate}
             className="font-mono"
-            style={{ background: "linear-gradient(135deg, #D7BB7D, #b89a50)", color: "#001D34" }}
+            style={{ background: "linear-gradient(135deg, #0EA5E9, #2563EB)", color: "#FFFFFF" }}
             data-testid="btn-nova-comunidade"
           >
             <Plus className="w-4 h-4 mr-2" />

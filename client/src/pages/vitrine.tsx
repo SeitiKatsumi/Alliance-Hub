@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -161,11 +162,12 @@ function fotoUrlMap(m: MembroVitrine): string | null {
       </div>
 
       {/* Map */}
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{ center: [0, 10], scale: 160 }}
-        style={{ width: "100%", height: "100%" }}
-      >
+      <MapWheelGuard>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [0, 10], scale: 160 }}
+          style={{ width: "100%", height: "100%" }}
+        >
         <ZoomableGroup
           zoom={zoom}
           center={center}
@@ -236,7 +238,8 @@ function fotoUrlMap(m: MembroVitrine): string | null {
             );
           })}
         </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      </MapWheelGuard>
 
       {/* Hover tooltip */}
       {!selectedMembro && !clusterItems && hoveredMembro && (

@@ -23,6 +23,7 @@ import {
 } from "react-simple-maps";
 import { apiRequest } from "@/lib/queryClient";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -122,8 +123,8 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
 
       {/* Top-left header */}
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5" style={{ color: "#D7BB7D" }}>
+        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Alliances</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-cyan-300">
           MAPA DE MEMBROS ALIADOS
         </h2>
       </div>
@@ -131,10 +132,10 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
       {/* Top-right stats */}
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-2">
-          <p className="text-[9px] text-brand-gold/40 tracking-widest uppercase">Membros</p>
-          <p className="text-4xl font-bold leading-none" style={{ color: "#D7BB7D" }}>{membros.length}</p>
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">Membros</p>
+          <p className="text-4xl font-bold leading-none text-cyan-300">{membros.length}</p>
         </div>
-        <p className="text-[9px] text-brand-gold/30">{withCoords.length} geolocalizados</p>
+        <p className="text-[9px] text-cyan-300/35">{withCoords.length} geolocalizados</p>
       </div>
 
       {/* Zoom controls */}
@@ -157,11 +158,12 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
       </div>
 
       {/* Map */}
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{ center: [0, 10], scale: 160 }}
-        style={{ width: "100%", height: "100%" }}
-      >
+      <MapWheelGuard>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [0, 10], scale: 160 }}
+          style={{ width: "100%", height: "100%" }}
+        >
         <ZoomableGroup
           zoom={zoom}
           center={center}
@@ -259,7 +261,8 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
             );
           })}
         </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      </MapWheelGuard>
 
       {/* Decorative scan line */}
       <div className="absolute left-0 right-0 h-px pointer-events-none z-10"

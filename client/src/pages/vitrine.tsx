@@ -789,8 +789,10 @@ function AnuncioHeroCard({
         </div>
       )}
 
-      {anuncio?.imagem_url && <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/28 to-black/10" />}
-      <div className="absolute left-5 top-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+      <div
+        className="absolute left-5 top-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white transition-opacity duration-200"
+        style={{ opacity: hovered ? 1 : 0 }}
+      >
         Anúncio em destaque
       </div>
 
@@ -1334,14 +1336,14 @@ export default function VitrinePage() {
             <h2 className="text-sm font-semibold text-foreground">OPAs em destaque</h2>
           </div>
           <div className="flex-1 h-px bg-border" />
-          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/area-aliancas?tab=opas")}>
+          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/vitrine/oportunidades")}>
             Ver todas as oportunidades
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>
         <HorizontalCarousel testId="carousel-opas-destaque">
           {opasDestaque.length > 0 ? opasDestaque.map(opa => (
-            <OpaDestaqueCard key={opa.id} opa={opa} onOpen={() => navigate(`/opas/${opa.id}`)} />
+            <OpaDestaqueCard key={opa.id} opa={opa} onOpen={() => navigate(`/vitrine/opas/${opa.id}`)} />
           )) : (
             <div className="w-full rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               Nenhuma OPA em destaque no momento.

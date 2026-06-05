@@ -261,6 +261,26 @@ function getInitials(nome: string): string {
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function contributionKey(tipo: string): string {
+  return getTipoDisplayName(tipo)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function uniqueContributionAreas(tipos?: string[] | null): string[] {
+  const seen = new Set<string>();
+  return (tipos || []).filter((tipo) => {
+    const label = String(tipo || "").trim();
+    if (!label) return false;
+    const key = contributionKey(label);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export default function MeuPerfilPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -308,7 +328,7 @@ export default function MeuPerfilPage() {
   }
 
   useEffect(() => {
-    if (membro) setForm(membro);
+    if (membro) setForm({ ...membro, tipos_alianca: uniqueContributionAreas(membro.tipos_alianca) });
   }, [membro]);
 
   useEffect(() => {
@@ -535,7 +555,8 @@ export default function MeuPerfilPage() {
       return;
     }
     const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
-    const payload: Record<string, any> = { ...rest };
+    const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
+    const payload: Record<string, any> = { ...rest, tipos_alianca: tiposAlianca, nucleos_alianca: getNucleosForTipos(tiposAlianca) };
     // Send Especialidades as Directus M2M array
     payload.Especialidades = especialidade_id
       ?[{ especialidades_id: especialidade_id }]
@@ -582,6 +603,7 @@ export default function MeuPerfilPage() {
   const fotoCropDraw = getCropDrawSize();
   const prestadorSelecionado = form.em_membros_built !== false;
   const capitalSelecionado = !!form.em_built_capital;
+  const tiposAliancaSelecionados = uniqueContributionAreas(form.tipos_alianca);
   const papeisBuilt = [
     prestadorSelecionado ? "Prestador de serviços, fornecedor ou profissional independente" : "",
     capitalSelecionado ? "Parceiro de Capital" : "",
@@ -604,9 +626,9 @@ export default function MeuPerfilPage() {
           <p className="mt-1 break-words text-slate-600">{papeisBuilt.join(" + ") || "-"}</p>
         </div>
         <div>
-          <p className="font-bold text-slate-700">Áreas de contribuição ({(form.tipos_alianca || []).length})</p>
+          <p className="font-bold text-slate-700">Áreas de contribuição ({tiposAliancaSelecionados.length})</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {(form.tipos_alianca || []).length > 0 ? (form.tipos_alianca || []).map(tipo => (
+            {tiposAliancaSelecionados.length > 0 ? tiposAliancaSelecionados.map(tipo => (
               <span key={tipo} className="max-w-full rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>
             )) : <span className="text-slate-500">-</span>}
           </div>
@@ -840,7 +862,8 @@ export default function MeuPerfilPage() {
                   <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                     {getAllTipos().map((tipo) => {
-                      const selected = (form.tipos_alianca || []).includes(tipo.nome);
+                      const currentTipos = uniqueContributionAreas(form.tipos_alianca);
+                      const selected = currentTipos.some((current) => contributionKey(current) === contributionKey(tipo.nome));
                       const label = getTipoDisplayName(tipo.nome);
                       const iconConfig = AREA_ICON_CONFIG[label] || { icon: FolderKanban, color: "text-slate-600", bg: "bg-slate-50" };
                       const AreaIcon = iconConfig.icon;
@@ -849,8 +872,9 @@ export default function MeuPerfilPage() {
                           key={tipo.nome}
                           type="button"
                           onClick={() => {
-                            const current = form.tipos_alianca || [];
-                            const novos = selected ? current.filter(x => x !== tipo.nome) : [...current, tipo.nome];
+                            const current = uniqueContributionAreas(form.tipos_alianca);
+                            const tipoKey = contributionKey(tipo.nome);
+                            const novos = selected ? current.filter(x => contributionKey(x) !== tipoKey) : [...current, tipo.nome];
                             setForm(f => ({ ...f, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
                           }}
                           className={`flex min-h-11 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${
@@ -868,7 +892,7 @@ export default function MeuPerfilPage() {
                       );
                     })}
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {(form.tipos_alianca || []).length}</p>
+                  <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {tiposAliancaSelecionados.length}</p>
                 </section>
 
             {/* Dados pessoais */}

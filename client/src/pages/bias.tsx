@@ -1428,7 +1428,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
               )}
               {bia.id && <span className="font-mono text-[11px]">BIA-{bia.id.slice(0, 8).toUpperCase()}</span>}
             </div>
-            <p className="mt-1.5 hidden text-xs leading-snug text-muted-foreground xl:line-clamp-2 xl:block">
+            <p className="mt-1.5 hidden text-xs leading-snug text-muted-foreground line-clamp-2 xl:block">
               {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
             </p>
             {(aliadoBuilt || dirAlianca) && (

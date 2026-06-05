@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1397,11 +1398,14 @@ function LancamentoFormFields({
 export default function FluxoCaixaPage({
   initialBiaId = null,
   embedded = false,
+  cotasOnly = false,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
+  cotasOnly?: boolean;
 } = {}) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const { user: currentUser } = useAuth();
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -2298,6 +2302,7 @@ export default function FluxoCaixaPage({
 
   return (
     <div className={`${embedded ? "p-0" : "p-4"} space-y-6`}>
+      {!cotasOnly && (
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-page-title">
@@ -2323,7 +2328,7 @@ export default function FluxoCaixaPage({
             </Select>
           )}
 
-          {selectedBiaId && (
+          {selectedBiaId && !cotasOnly && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-novo-lancamento" onClick={() => { resetForm(); setDialogOpen(true); }}>
@@ -2385,6 +2390,7 @@ export default function FluxoCaixaPage({
           )}
         </div>
       </div>
+      )}
 
       {!selectedBiaId ?(
         <Card>
@@ -2396,6 +2402,8 @@ export default function FluxoCaixaPage({
         </Card>
       ) : (
         <>
+          {!cotasOnly && (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {(() => {
               const valorOrigemTotal = parseFloat(String(selectedBia?.valor_origem || 0)) || 0;
@@ -2414,11 +2422,11 @@ export default function FluxoCaixaPage({
               return (
                 <Card className="border-brand-gold/40 bg-brand-gold/5" data-testid="panel-valor-origem">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                    <CardTitle className="text-sm font-medium">Valor de Origem da BIA</CardTitle>
-                    <DollarSign className="w-4 h-4 text-brand-gold" />
+                    <CardTitle className="min-w-0 text-sm font-medium">Valor de Origem da BIA</CardTitle>
+                    <DollarSign className="w-4 h-4 shrink-0 text-brand-gold" />
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold text-brand-gold" data-testid="text-valor-origem">
+                    <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-brand-gold" data-testid="text-valor-origem">
                       {formatBRL(valorOrigemPago)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -2431,11 +2439,11 @@ export default function FluxoCaixaPage({
 
             <Card className="border-green-500/30" data-testid="panel-total-aportes">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>
-                <TrendingUp className="w-4 h-4 text-green-500" />
+                <CardTitle className="min-w-0 text-sm font-medium">Total de Entradas</CardTitle>
+                <TrendingUp className="w-4 h-4 shrink-0 text-green-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-green-600" data-testid="text-total-entradas">{formatBRL(totals.entradas)}</p>
+                <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-green-600" data-testid="text-total-entradas">{formatBRL(totals.entradas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
                 </p>
@@ -2444,11 +2452,11 @@ export default function FluxoCaixaPage({
 
             <Card className="border-red-500/30" data-testid="panel-custo-obra">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Saídas</CardTitle>
-                <TrendingDown className="w-4 h-4 text-red-500" />
+                <CardTitle className="min-w-0 text-sm font-medium">Total de Saídas</CardTitle>
+                <TrendingDown className="w-4 h-4 shrink-0 text-red-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600" data-testid="text-total-saidas">{formatBRL(totals.saidas)}</p>
+                <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-red-600" data-testid="text-total-saidas">{formatBRL(totals.saidas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {fluxoItemsContabeis.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
                 </p>
@@ -2457,11 +2465,11 @@ export default function FluxoCaixaPage({
 
             <Card className={totals.saldo >= 0 ?"border-brand-gold/30" : "border-red-500/30"} data-testid="panel-saldo">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <CardTitle className="text-sm font-medium">Saldo</CardTitle>
-                <BarChart3 className={`w-4 h-4 ${totals.saldo >= 0 ?"text-brand-gold" : "text-red-500"}`} />
+                <CardTitle className="min-w-0 text-sm font-medium">Saldo</CardTitle>
+                <BarChart3 className={`w-4 h-4 shrink-0 ${totals.saldo >= 0 ?"text-brand-gold" : "text-red-500"}`} />
               </CardHeader>
               <CardContent>
-                <p className={`text-2xl font-bold ${totals.saldo >= 0 ?"text-brand-gold" : "text-red-600"}`} data-testid="text-saldo">
+                <p className={`max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight ${totals.saldo >= 0 ?"text-brand-gold" : "text-red-600"}`} data-testid="text-saldo">
                   {formatBRL(totals.saldo)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Entradas − Saídas</p>
@@ -2473,10 +2481,10 @@ export default function FluxoCaixaPage({
             <Card className="border-red-500/40 bg-red-500/5" data-testid="panel-contas-pagar">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
                 <CardTitle className="text-xs font-medium text-muted-foreground">A Pagar</CardTitle>
-                <DollarSign className="w-3.5 h-3.5 text-red-500" />
+                <DollarSign className="w-3.5 h-3.5 shrink-0 text-red-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-sm font-bold text-red-600 leading-tight break-all" data-testid="text-contas-pagar-valor">{formatBRL(financialDashboard.contasPagar.valor)}</p>
+                <p className="max-w-full break-words text-sm font-bold leading-tight text-red-600" data-testid="text-contas-pagar-valor">{formatBRL(financialDashboard.contasPagar.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.contasPagar.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -2484,10 +2492,10 @@ export default function FluxoCaixaPage({
             <Card className="border-red-700/40 bg-red-700/5" data-testid="panel-vencidas">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
                 <CardTitle className="text-xs font-medium text-muted-foreground">Vencidas</CardTitle>
-                <AlertCircle className="w-3.5 h-3.5 text-red-700" />
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-700" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-sm font-bold text-red-700 leading-tight break-all" data-testid="text-vencidas-valor">{formatBRL(financialDashboard.vencidas.valor)}</p>
+                <p className="max-w-full break-words text-sm font-bold leading-tight text-red-700" data-testid="text-vencidas-valor">{formatBRL(financialDashboard.vencidas.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.vencidas.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -2495,10 +2503,10 @@ export default function FluxoCaixaPage({
             <Card className="border-amber-500/40 bg-amber-500/5" data-testid="panel-a-vencer">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
                 <CardTitle className="text-xs font-medium text-muted-foreground">Vencem em 7 dias</CardTitle>
-                <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
+                <CalendarClock className="w-3.5 h-3.5 shrink-0 text-amber-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-sm font-bold text-amber-600 leading-tight break-all" data-testid="text-a-vencer-valor">{formatBRL(financialDashboard.aVencer7.valor)}</p>
+                <p className="max-w-full break-words text-sm font-bold leading-tight text-amber-600" data-testid="text-a-vencer-valor">{formatBRL(financialDashboard.aVencer7.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.aVencer7.count} lançamento(s)</p>
               </CardContent>
             </Card>
@@ -2506,26 +2514,49 @@ export default function FluxoCaixaPage({
             <Card className="border-blue-500/40 bg-blue-500/5" data-testid="panel-a-receber">
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1 pt-4 px-4">
                 <CardTitle className="text-xs font-medium text-muted-foreground">A Receber</CardTitle>
-                <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                <TrendingUp className="w-3.5 h-3.5 shrink-0 text-blue-500" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <p className="text-sm font-bold text-blue-600 leading-tight break-all" data-testid="text-a-receber-valor">{formatBRL(financialDashboard.aReceber.valor)}</p>
+                <p className="max-w-full break-words text-sm font-bold leading-tight text-blue-600" data-testid="text-a-receber-valor">{formatBRL(financialDashboard.aReceber.valor)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{financialDashboard.aReceber.count} entrada(s)</p>
               </CardContent>
             </Card>
 
 
           </div>
+          </>
+          )}
 
-          {aportesPorMembro.length > 0 && (
+          {!cotasOnly && (
+            <Card className="border-blue-500/30 bg-blue-500/5" data-testid="card-movimentacao-cotas-link">
+              <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-blue-600/10 p-2 text-blue-600">
+                    <ArrowLeftRight className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Mapa de Alocação Patrimonial</h3>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                      Abra o mapa de alocação patrimonial e acompanhe as movimentações de cotas em uma página própria.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="shrink-0 gap-2 border-blue-500/40 text-blue-700 hover:bg-blue-50"
+                  onClick={() => navigate(`/movimentacao-cotas/${selectedBiaId}`)}
+                  data-testid="btn-abrir-movimentacao-cotas"
+                >
+                  Abrir Mapa
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {cotasOnly && aportesPorMembro.length > 0 && (
             <Card data-testid="panel-participacao-aportes">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Users className="w-5 h-5 text-brand-gold" />
-                  Mapa de Alocação Patrimonial
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="space-y-5">
                   {[
                     { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes, cls: "border-brand-gold/50 text-brand-gold bg-brand-gold/10" },
@@ -2553,7 +2584,7 @@ export default function FluxoCaixaPage({
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-xs text-muted-foreground hover:text-brand-navy hover:bg-brand-gold/10"
-                            title="Solicitar transferência de cotas"
+                            title="Solicitar movimentação de cotas"
                             data-testid={`btn-transfer-membro-${item.membroId}`}
                             onClick={() => {
                               openTransferDialog(item.membroId, item.valor);
@@ -2580,13 +2611,13 @@ export default function FluxoCaixaPage({
             </Card>
           )}
 
-          {/* Dialog de solicitação de transferência */}
+          {/* Dialog de solicitação de movimentação */}
           <Dialog open={transferDialogOpen} onOpenChange={(open) => { setTransferDialogOpen(open); if (!open) resetTransferForm(); }}>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
-                  {editingTransferId ?"Editar Transferência de Cotas" : "Solicitar Transferência de Cotas"}
+                  {editingTransferId ?"Editar Movimentação de Cotas" : "Solicitar Movimentação de Cotas"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-5 py-2">
@@ -2738,7 +2769,7 @@ export default function FluxoCaixaPage({
                     id="transfer-obs"
                     value={transferObservacoes}
                     onChange={(e) => setTransferObservacoes(e.target.value)}
-                    placeholder="Escreva o motivo da transferência..."
+                    placeholder="Escreva o motivo da movimentação..."
                     className="min-h-[88px]"
                     data-testid="input-transfer-obs"
                   />
@@ -2794,7 +2825,7 @@ export default function FluxoCaixaPage({
 
                 <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
                   {destinatarios.length === 1
-                    ?<>Serão transferidos <strong>{destinatarios[0].percentual}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
+                    ?<>Serão movimentados <strong>{destinatarios[0].percentual}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
                     : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{totalPercentual}%</strong> das cotas ({formatBRL(parseFloat(((totalPercentual / 100) * transferValorRef).toFixed(2)))}).</>
                   } Necessária aprovação do Diretor de Aliança ou Aliado BUILT.
                 </div>
@@ -2818,7 +2849,7 @@ export default function FluxoCaixaPage({
                       ?"Salvar Alterações"
                     : destinatarios.length > 1
                       ?`Solicitar (${destinatarios.length} destinatários)`
-                      : "Solicitar Transferência"}
+                      : "Solicitar Movimentação"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2828,7 +2859,7 @@ export default function FluxoCaixaPage({
           <AlertDialog open={!!rejeicaoDialogId} onOpenChange={(open) => { if (!open) { setRejeicaoDialogId(null); setRejeicaoMotivo(""); } }}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Rejeitar Transferência</AlertDialogTitle>
+                <AlertDialogTitle>Rejeitar Movimentação</AlertDialogTitle>
                 <AlertDialogDescription>
                   Informe o motivo da rejeição (opcional) e confirme.
                 </AlertDialogDescription>
@@ -2857,13 +2888,13 @@ export default function FluxoCaixaPage({
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* Painel de Solicitações de Transferência de Cotas */}
-          {selectedBiaId && (
+          {/* Painel de Movimentação de Cotas */}
+          {cotasOnly && selectedBiaId && (
             <Card data-testid="panel-transferencias">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <ArrowLeftRight className="w-5 h-5 text-brand-gold" />
-                  Solicitações de Transferência de Cotas
+                  Movimentação de Cotas
                   {transferencias.length > 0 && (
                     <Badge variant="secondary" className="text-xs ml-1">{transferencias.length}</Badge>
                   )}
@@ -2872,7 +2903,7 @@ export default function FluxoCaixaPage({
               <CardContent>
                 {transferencias.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma solicitação de transferência para esta BIA.
+                    Nenhuma movimentação de cotas para esta BIA.
                   </p>
                 )}
                 {transferencias.length > 0 && (
@@ -2992,6 +3023,8 @@ export default function FluxoCaixaPage({
             </Card>
           )}
 
+          {!cotasOnly && (
+          <>
           <Card data-testid="panel-lancamentos">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -3681,7 +3714,7 @@ export default function FluxoCaixaPage({
                           <div className="rounded border bg-muted/30 p-2">
                             <span className="text-muted-foreground">Valor</span>
                             <p className="font-medium">
-                              {valorAntes ?formatCurrency(valorAntes) : "-"} {valorDepois && valorDepois !== valorAntes ?`→ ${formatCurrency(valorDepois)}` : ""}
+                              {valorAntes ?formatBRL(Number(valorAntes)) : "-"} {valorDepois && valorDepois !== valorAntes ?`→ ${formatBRL(Number(valorDepois))}` : ""}
                             </p>
                           </div>
                           <div className="rounded border bg-muted/30 p-2">
@@ -3745,6 +3778,8 @@ export default function FluxoCaixaPage({
               </div>
             </DialogContent>
           </Dialog>
+          </>
+          )}
         </>
       )}
     </div>

@@ -6633,9 +6633,17 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Only mark membro after both Directus updates succeed
       await storage.updateConvite(convite.id, { status: "membro" });
 
-      // 3. Send emails to all community members + aliado + BUILT admin
+      // 3. Send final approval email to the candidate + notify community stakeholders
+      const candidatoEmail = convite.candidato_email || candidatoData?.email;
+      if (candidatoEmail) {
+        await enviarAprovacaoVitrine({
+          candidatoEmail,
+          candidatoNome: convite.candidato_nome || candidatoData?.nome || "Membro BUILT",
+          comunidadeNome,
+        });
+      }
+
       const notifyEmails: string[] = [];
-      if (candidatoData?.email) notifyEmails.push(candidatoData.email);
       const aliado = typeof comunidade?.aliado === "object" ? comunidade.aliado : null;
       if (aliado?.email) notifyEmails.push(aliado.email);
       const allMembrosComunidade: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
@@ -7179,9 +7187,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         await storage.updateConvite(convite.id, { status: "membro" });
         console.log("[stripe/webhook] convite activated:", token);
 
-        // 4. Send welcome emails (non-blocking — failure does not abort activation)
+        // 4. Send final approval email to the candidate + notify community stakeholders
+        const candidatoEmail = convite.candidato_email || candidatoData?.email;
+        if (candidatoEmail) {
+          enviarAprovacaoVitrine({
+            candidatoEmail,
+            candidatoNome: convite.candidato_nome || candidatoData?.nome || "Membro BUILT",
+            comunidadeNome,
+          }).catch((emailErr: any) => {
+            console.error("[stripe/webhook] candidate approval email failed (non-fatal):", emailErr.message);
+          });
+        }
+
         const notifyEmails: string[] = [];
-        if (candidatoData?.email) notifyEmails.push(candidatoData.email);
         const aliado = typeof comunidade?.aliado === "object" ? comunidade?.aliado : null;
         if (aliado?.email) notifyEmails.push(aliado.email);
         const allMembrosComunidade: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
@@ -7374,9 +7392,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       await storage.updateConvite(convite.id, { status: "membro" });
       console.log(`[asaas/webhook] convite activated: ${convite.token}`);
 
-      // 4. Send welcome emails (non-blocking)
+      // 4. Send final approval email to the candidate + notify community stakeholders
+      const candidatoEmail = convite.candidato_email || candidatoData?.email;
+      if (candidatoEmail) {
+        enviarAprovacaoVitrine({
+          candidatoEmail,
+          candidatoNome: convite.candidato_nome || candidatoData?.nome || "Membro BUILT",
+          comunidadeNome,
+        }).catch((emailErr: any) => {
+          console.error("[asaas/webhook] candidate approval email failed (non-fatal):", emailErr.message);
+        });
+      }
+
       const notifyEmails: string[] = [];
-      if (candidatoData?.email) notifyEmails.push(candidatoData.email);
       const aliado = typeof comunidade?.aliado === "object" ? comunidade?.aliado : null;
       if (aliado?.email) notifyEmails.push(aliado.email);
       const allMembrosComunidade: any[] = Array.isArray(comunidade?.membros) ? comunidade.membros : [];

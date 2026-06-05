@@ -530,15 +530,16 @@ export async function enviarAprovacaoVitrine(opts: {
 }) {
   const link = `${BASE_URL}/`;
   const html = baseTemplate(`
-    <h2 style="color:#D7BB7D;margin-top:0">✅ Acesso à vitrine liberado!</h2>
+    <h2 style="color:#D7BB7D;margin-top:0">Parabéns, você foi aprovado!</h2>
     <p style="color:rgba(255,255,255,0.7)">Olá, <strong style="color:#D7BB7D">${opts.candidatoNome}</strong>!</p>
-    <p style="color:rgba(255,255,255,0.7)">Seu acesso à plataforma BUILT Alliances foi aprovado pelo Aliado da comunidade <strong>${opts.comunidadeNome}</strong>.</p>
-    <p style="color:rgba(255,255,255,0.7)">Agora você já pode acessar a vitrine e explorar a rede de alianças BUILT!</p>
+    <p style="color:rgba(255,255,255,0.7)">Sua aprovação pelo Aliado BUILT da comunidade <strong>${opts.comunidadeNome}</strong> foi concluída.</p>
+    <p style="color:rgba(255,255,255,0.7)">Seu acesso à plataforma BUILT está liberado. Clique no botão abaixo para entrar no site.</p>
     <div style="text-align:center;margin:32px 0">
-      <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar a Plataforma</a>
+      <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar o site</a>
     </div>
+    <p style="color:rgba(255,255,255,0.55);font-size:13px">Bem-vindo à rede BUILT.</p>
   `);
-  await send(opts.candidatoEmail, "Seu acesso à BUILT Alliances foi aprovado!", html);
+  await send(opts.candidatoEmail, "Parabéns, você foi aprovado na BUILT!", html);
 }
 
 export async function enviarAprovacaoVitrineInvitador(opts: {

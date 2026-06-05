@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
-  Wallet, TrendingUp, TrendingDown, Target, Building2, Globe,
-  Pencil, Layers, FileText, Users, Paperclip, ExternalLink, HandCoins
+  Wallet, TrendingDown, Target, Building2, Globe,
+  Pencil, Layers, FileText, Users, Paperclip, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import NucleoTecnicoPage from "./nucleo-tecnico";
 import NucleoObraPage from "./nucleo-obra";
@@ -264,6 +264,8 @@ export default function BiaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const [activeDetailTab, setActiveDetailTab] = useState("visao");
+  const [activeNucleoTab, setActiveNucleoTab] = useState("diretoria");
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
     queryKey: ["/api/bias", id],
@@ -296,9 +298,9 @@ export default function BiaDetalhePage() {
       { id: bia.aliado_built, role: "Aliado BUILT", icon: Shield },
       { id: bia.diretor_alianca, role: "Diretor de Aliança", icon: Crown },
       { id: bia.diretor_nucleo_tecnico, role: "Diretor de Núcleo Técnico", icon: Shield },
-      { id: bia.diretor_execucao, role: "Diretor de Núcleo de Obra", icon: Hammer },
-      { id: bia.diretor_comercial, role: "Diretor Comercial", icon: Briefcase },
-      { id: bia.diretor_capital, role: "Diretor de Capital", icon: Wallet },
+      { id: bia.diretor_execucao, role: "Dir. Núcleo de Obra", icon: Hammer },
+      { id: bia.diretor_comercial, role: "Dir. Núcleo Comercial", icon: Briefcase },
+      { id: bia.diretor_capital, role: "Dir. Núcleo de Capital", icon: Wallet },
     ];
   }, [bia]);
 
@@ -309,11 +311,58 @@ export default function BiaDetalhePage() {
       { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
       { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
       { label: "Dir. Aliança", perc: bia.perc_dir_alianca, cpp: bia.cpp_dir_alianca },
-      { label: "Dir. Obras", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
-      { label: "Dir. Comercial", perc: bia.perc_dir_comercial, cpp: bia.cpp_dir_comercial },
-      { label: "Dir. Capital", perc: bia.perc_dir_capital, cpp: bia.cpp_dir_capital },
+      { label: "Dir. Núcleo de Obra", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
+      { label: "Dir. Núcleo Comercial", perc: bia.perc_dir_comercial, cpp: bia.cpp_dir_comercial },
+      { label: "Dir. Núcleo de Capital", perc: bia.perc_dir_capital, cpp: bia.cpp_dir_capital },
     ].filter(row => n(row.perc) > 0 || n(row.cpp) > 0);
   }, [bia]);
+
+  const membroId = user?.membro_directus_id || null;
+  const canAccessAllNucleos = user?.role === "admin" || user?.role === "manager";
+  const allowedNucleoTabs = useMemo(() => {
+    if (!bia) return [];
+    return [
+      {
+        value: "diretoria",
+        label: "Diretoria",
+        testId: "tab-bia-nucleo-diretoria",
+        allowed: canAccessAllNucleos || membroId === bia.aliado_built || membroId === bia.diretor_alianca,
+      },
+      {
+        value: "tecnico",
+        label: "Núcleo Técnico",
+        testId: "tab-bia-nucleo-tecnico",
+        allowed: canAccessAllNucleos || membroId === bia.diretor_nucleo_tecnico,
+      },
+      {
+        value: "obra",
+        label: "Núcleo de Obra",
+        testId: "tab-bia-nucleo-obra",
+        allowed: canAccessAllNucleos || membroId === bia.diretor_execucao,
+      },
+      {
+        value: "comercial",
+        label: "Núcleo Comercial",
+        testId: "tab-bia-nucleo-comercial",
+        allowed: canAccessAllNucleos || membroId === bia.diretor_comercial,
+      },
+      {
+        value: "capital",
+        label: "Núcleo de Capital",
+        testId: "tab-bia-nucleo-capital",
+        allowed: canAccessAllNucleos || membroId === bia.diretor_capital,
+      },
+    ].filter((tab) => tab.allowed);
+  }, [bia, canAccessAllNucleos, membroId]);
+  const canAccessNucleos = allowedNucleoTabs.length > 0;
+  const defaultNucleoTab = allowedNucleoTabs[0]?.value || "diretoria";
+
+  useEffect(() => {
+    if (!canAccessNucleos) return;
+    if (!allowedNucleoTabs.some((tab) => tab.value === activeNucleoTab)) {
+      setActiveNucleoTab(defaultNucleoTab);
+    }
+  }, [activeNucleoTab, allowedNucleoTabs, canAccessNucleos, defaultNucleoTab]);
 
   if (loadingBia) {
     return (
@@ -345,43 +394,6 @@ export default function BiaDetalhePage() {
 
   const aporteFMEntries = aportesRaw as AporteEntry[];
   const totalAporteFM = aporteFMEntries.reduce((sum, e) => sum + n(e.valor), 0);
-  const membroId = user?.membro_directus_id || null;
-  const canAccessAllNucleos = user?.role === "admin" || user?.role === "manager";
-  const allowedNucleoTabs = [
-    {
-      value: "diretoria",
-      label: "Diretoria",
-      testId: "tab-bia-nucleo-diretoria",
-      allowed: canAccessAllNucleos || membroId === bia.aliado_built || membroId === bia.diretor_alianca,
-    },
-    {
-      value: "tecnico",
-      label: "Núcleo Técnico",
-      testId: "tab-bia-nucleo-tecnico",
-      allowed: canAccessAllNucleos || membroId === bia.diretor_nucleo_tecnico,
-    },
-    {
-      value: "obra",
-      label: "Núcleo de Obra",
-      testId: "tab-bia-nucleo-obra",
-      allowed: canAccessAllNucleos || membroId === bia.diretor_execucao,
-    },
-    {
-      value: "comercial",
-      label: "Núcleo Comercial",
-      testId: "tab-bia-nucleo-comercial",
-      allowed: canAccessAllNucleos || membroId === bia.diretor_comercial,
-    },
-    {
-      value: "capital",
-      label: "Núcleo de Capital",
-      testId: "tab-bia-nucleo-capital",
-      allowed: canAccessAllNucleos || membroId === bia.diretor_capital,
-    },
-  ].filter((tab) => tab.allowed);
-  const canAccessNucleos = allowedNucleoTabs.length > 0;
-  const defaultNucleoTab = allowedNucleoTabs[0]?.value || "diretoria";
-
   const nucleoCards = [
     {
       id: "diretoria",
@@ -403,7 +415,7 @@ export default function BiaDetalhePage() {
       title: "Núcleo de Obra",
       description: "Execução, cronograma operacional e entregas de campo.",
       icon: Hammer,
-      roles: equipe.filter((e) => e.role === "Diretor de Núcleo de Obra"),
+      roles: equipe.filter((e) => e.role === "Dir. Núcleo de Obra"),
       opas: opas.filter((o) => (o.nucleo_alianca || "").toLowerCase().includes("obra")),
     },
     {
@@ -411,7 +423,7 @@ export default function BiaDetalhePage() {
       title: "Núcleo Comercial",
       description: "Relacionamento comercial, captação e movimentação de oportunidades.",
       icon: Briefcase,
-      roles: equipe.filter((e) => e.role === "Diretor Comercial"),
+      roles: equipe.filter((e) => e.role === "Dir. Núcleo Comercial"),
       opas: opas.filter((o) => (o.nucleo_alianca || "").toLowerCase().includes("comercial")),
     },
   ];
@@ -441,6 +453,37 @@ export default function BiaDetalhePage() {
           Editar
         </Button>
       </div>
+
+      <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="space-y-5">
+        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canAccessNucleos ? "grid-cols-2" : "grid-cols-1"}`}>
+          <TabsTrigger value="visao" data-testid="tab-bia-visao">Visão geral</TabsTrigger>
+          {canAccessNucleos && (
+            <TabsTrigger value="nucleos" data-testid="tab-bia-nucleos">Núcleos</TabsTrigger>
+          )}
+        </TabsList>
+
+        {activeDetailTab === "nucleos" && canAccessNucleos && (
+          <div className="grid h-auto w-full grid-cols-1 gap-1 rounded-md bg-muted/60 p-1 sm:grid-cols-2 lg:grid-cols-5">
+            {allowedNucleoTabs.map((nucleoTab) => {
+              const active = activeNucleoTab === nucleoTab.value;
+              return (
+                <button
+                  key={nucleoTab.value}
+                  type="button"
+                  data-testid={nucleoTab.testId}
+                  onClick={() => setActiveNucleoTab(nucleoTab.value)}
+                  className={`inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium transition-all ${
+                    active
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                  }`}
+                >
+                  {nucleoTab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
       {/* Hero header */}
       <div
@@ -504,14 +547,6 @@ export default function BiaDetalhePage() {
         {custoFinal > 0 && <StatBox label="Custo Final Previsto" value={formatMoney(custoFinal, bia.moeda || "BRL")} />}
         {totalAportes > 0 && <StatBox label="Total de Aportes" value={formatMoney(totalAportes, bia.moeda || "BRL")} />}
       </div>
-
-      <Tabs defaultValue="visao" className="space-y-5">
-        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canAccessNucleos ? "grid-cols-2" : "grid-cols-1"}`}>
-          <TabsTrigger value="visao" data-testid="tab-bia-visao">Visão geral</TabsTrigger>
-          {canAccessNucleos && (
-            <TabsTrigger value="nucleos" data-testid="tab-bia-nucleos">Núcleos</TabsTrigger>
-          )}
-        </TabsList>
 
         <TabsContent value="visao" className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-3">
@@ -690,99 +725,13 @@ export default function BiaDetalhePage() {
             </Card>
           )}
 
-          {/* Aportes */}
-          {(bia.inicio_aportes || n(bia.total_aportes) > 0) && (
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={TrendingUp}>Aportes</SectionTitle>
-                <div className="space-y-2.5 text-sm">
-                  {bia.inicio_aportes && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Início dos Aportes</span>
-                      <span className="font-medium">
-                        {new Date(bia.inicio_aportes + "T00:00:00").toLocaleDateString("pt-BR")}
-                      </span>
-                    </div>
-                  )}
-                  {n(bia.total_aportes) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total de Aportes</span>
-                      <span className="font-semibold text-brand-gold/80 tabular-nums">{formatMoney(n(bia.total_aportes), bia.moeda || "BRL")}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Aporte do Fator de Multiplicação */}
-          {aporteFMEntries.length > 0 && (
-            <Card data-testid="card-aporte-fator-multiplicacao">
-              <CardContent className="pt-5 pb-4">
-                <SectionTitle icon={HandCoins}>Aporte do Fator de Multiplicação</SectionTitle>
-                <div className="space-y-2.5 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Total de Aportes (DM)</span>
-                    <span className="font-bold text-blue-600 tabular-nums" data-testid="text-total-aporte-fm">
-                      {formatMoney(totalAporteFM, bia.moeda || "BRL")}
-                    </span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="space-y-2">
-                    {aporteFMEntries.map((entry) => {
-                      const favNome = entry.favorecido_id
-                        ?(entry.favorecido_id.Nome_de_usuario || entry.favorecido_id.nome || "")
-                        : "";
-                      const parcela = entry.descricao.replace("Aporte do Fator de Multiplicação - ", "");
-                      return (
-                        <div key={entry.id} className="rounded-md bg-blue-500/5 border border-blue-500/15 px-3 py-2" data-testid={`row-aporte-${entry.id}`}>
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium text-foreground">{parcela}</p>
-                              {favNome && (
-                                <p className="text-[11px] text-muted-foreground truncate">{favNome}</p>
-                              )}
-                              {entry.data_vencimento && (
-                                <p className="text-[11px] text-muted-foreground">
-                                  {new Date(entry.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR")}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-semibold text-blue-600 tabular-nums">
-                                {formatMoney(n(entry.valor), bia.moeda || "BRL")}
-                              </p>
-                              {entry.status && (
-                                <Badge variant="outline" className="text-[9px] h-4 px-1 mt-0.5 border-blue-500/30 text-blue-600">
-                                  {entry.status}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
         </div>
       </div>
         </TabsContent>
 
         {canAccessNucleos && (
           <TabsContent value="nucleos" className="space-y-5" data-testid="content-bia-nucleos">
-            <Tabs defaultValue={defaultNucleoTab} className="space-y-5">
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-2 lg:grid-cols-5">
-                {allowedNucleoTabs.map((tab) => (
-                  <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.testId}>
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
+            <Tabs value={activeNucleoTab} onValueChange={setActiveNucleoTab} className="space-y-5">
               {allowedNucleoTabs.some((tab) => tab.value === "diretoria") && (
               <TabsContent value="diretoria" className="space-y-4">
                 <Card>

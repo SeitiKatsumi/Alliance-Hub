@@ -108,7 +108,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
   return (
     <div
       className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
-      style={{ height: 440, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+      style={{ height: 360, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       {/* Grid overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{

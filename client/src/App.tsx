@@ -25,6 +25,8 @@ import MeuPerfilPage from "@/pages/meu-perfil";
 import DocumentacaoPage from "@/pages/documentacao";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
+import VitrineOportunidadesPage from "@/pages/vitrine-oportunidades";
+import VitrineOpaDetalhePage from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
 import AreMembroPage from "@/pages/area-membros";
 import MembroDetalhePage from "@/pages/membro-detalhe";
@@ -32,6 +34,7 @@ import ComunidadePage from "@/pages/comunidade";
 import ComunidadeDetalhePage from "@/pages/comunidade-detalhe";
 import ConvitesPage from "@/pages/convites";
 import BuiltCapitalPage from "@/pages/built-capital";
+import MovimentacaoCotasPage from "@/pages/movimentacao-cotas";
 import LoginPage from "@/pages/login";
 import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
 import ConvitePage from "@/pages/convite";
@@ -945,6 +948,9 @@ function ProtectedApp() {
               <Route path="/nucleo-capital" component={LegacyBiasRedirect} />
               <Route path="/gestao-opas" component={LegacyOpasRedirect} />
               <Route path="/gestao-bias" component={LegacyBiasRedirect} />
+              <Route path="/movimentacao-cotas/:biaId" component={MovimentacaoCotasPage} />
+              <Route path="/vitrine/oportunidades" component={VitrineOportunidadesPage} />
+              <Route path="/vitrine/opas/:id" component={VitrineOpaDetalhePage} />
               <Route path="/vitrine/parceiros" component={VitrinePage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />

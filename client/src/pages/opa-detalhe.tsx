@@ -325,6 +325,14 @@ export default function OpaDetalhePage() {
         </Button>
       </div>
 
+      <Tabs defaultValue="detalhes" className="space-y-5">
+        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canManageOpa ? "grid-cols-2" : "grid-cols-1"}`}>
+          <TabsTrigger value="detalhes" data-testid="tab-opa-detalhes">Detalhes</TabsTrigger>
+          {canManageOpa && (
+            <TabsTrigger value="gestao" data-testid="tab-opa-gestao">Gestão</TabsTrigger>
+          )}
+        </TabsList>
+
       {/* Hero header */}
       <div
         className="relative rounded-2xl border border-brand-gold/20 p-6 overflow-hidden"
@@ -406,14 +414,6 @@ export default function OpaDetalhePage() {
           )}
         </div>
       )}
-
-      <Tabs defaultValue="detalhes" className="space-y-5">
-        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canManageOpa ? "grid-cols-2" : "grid-cols-1"}`}>
-          <TabsTrigger value="detalhes" data-testid="tab-opa-detalhes">Detalhes</TabsTrigger>
-          {canManageOpa && (
-            <TabsTrigger value="gestao" data-testid="tab-opa-gestao">Gestão</TabsTrigger>
-          )}
-        </TabsList>
 
         <TabsContent value="detalhes" className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-3">

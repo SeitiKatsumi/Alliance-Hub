@@ -596,8 +596,10 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(anuncios.membro_id, membroId),
-          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
-          gte(anuncios.data_fim, today),
+          or(
+            eq(anuncios.pagamento_status, "pendente"),
+            and(eq(anuncios.ativo, true), gte(anuncios.data_fim, today)),
+          ),
         )
       )
       .orderBy(desc(anuncios.data_inicio))
@@ -613,8 +615,10 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(anuncios.membro_id, membroId),
-          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
-          gte(anuncios.data_fim, today),
+          or(
+            eq(anuncios.pagamento_status, "pendente"),
+            and(eq(anuncios.ativo, true), gte(anuncios.data_fim, today)),
+          ),
         )
       )
       .orderBy(anuncios.data_inicio);
@@ -648,7 +652,7 @@ export class DatabaseStorage implements IStorage {
       .from(anuncios)
       .where(
         and(
-          or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
+          eq(anuncios.ativo, true),
           eq(anuncios.slot_tipo, slotTipo),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
@@ -681,18 +685,16 @@ export class DatabaseStorage implements IStorage {
     const MAX_SIMULTANEOUS = slotTipo === "hero" ? 1 : 5;
     const periodos: Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }> = [];
     const hoje = new Date();
-    for (let m = 0; m < meses; m++) {
-      const ano = hoje.getFullYear() + Math.floor((hoje.getMonth() + m) / 12);
-      const mes = (hoje.getMonth() + m) % 12;
-      const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-      const quinzenas = [
-        { inicio: `${ano}-${String(mes + 1).padStart(2, "0")}-01`, fim: `${ano}-${String(mes + 1).padStart(2, "0")}-15` },
-        { inicio: `${ano}-${String(mes + 1).padStart(2, "0")}-16`, fim: `${ano}-${String(mes + 1).padStart(2, "0")}-${ultimoDia}` },
-      ];
-      for (const q of quinzenas) {
-        const count = await this.countAnunciosByPeriod(q.inicio, q.fim, undefined, slotTipo);
-        periodos.push({ ...q, count, vagas: Math.max(0, MAX_SIMULTANEOUS - count), max: MAX_SIMULTANEOUS });
-      }
+    const totalDias = Math.max(15, meses * 31);
+    for (let offset = 0; offset < totalDias; offset += 15) {
+      const inicioDate = new Date(hoje);
+      inicioDate.setDate(hoje.getDate() + offset);
+      const fimDate = new Date(inicioDate);
+      fimDate.setDate(inicioDate.getDate() + 14);
+      const inicio = inicioDate.toISOString().slice(0, 10);
+      const fim = fimDate.toISOString().slice(0, 10);
+      const count = await this.countAnunciosByPeriod(inicio, fim, undefined, slotTipo);
+      periodos.push({ inicio, fim, count, vagas: Math.max(0, MAX_SIMULTANEOUS - count), max: MAX_SIMULTANEOUS });
     }
     return periodos;
   }

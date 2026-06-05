@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, isValidQuinzena } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -1777,14 +1777,47 @@ export async function registerRoutes(
     return url.toString();
   }
 
+  const ANUNCIO_DURACAO_DIAS = 15;
+
+  function toDateOnly(date = new Date()) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function addDaysToDateOnly(dateStr: string, days: number) {
+    const date = new Date(`${dateStr}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function getAnuncioFim(inicio: string) {
+    return addDaysToDateOnly(inicio, ANUNCIO_DURACAO_DIAS - 1);
+  }
+
+  async function getProximaJanelaAnuncio(slotTipo: string, inicioPreferido = toDateOnly(), excludeId?: string) {
+    const maxSlots = slotTipo === "hero" ? 1 : 5;
+    for (let offset = 0; offset < 370; offset++) {
+      const inicio = addDaysToDateOnly(inicioPreferido, offset);
+      const fim = getAnuncioFim(inicio);
+      const count = await storage.countAnunciosByPeriod(inicio, fim, excludeId, slotTipo);
+      if (count < maxSlots) {
+        return { inicio, fim, count, vagas: maxSlots - count, max: maxSlots };
+      }
+    }
+    throw new Error("Nao ha vaga disponivel para os proximos 12 meses.");
+  }
+
   async function markAnuncioPago(anuncioId: string, provider: "asaas" | "stripe", paymentId?: string | null) {
     const anuncio = await storage.getAnuncioById(anuncioId);
     if (!anuncio) throw new Error("Anuncio nao encontrado");
     if (anuncio.ativo && anuncio.pagamento_status === "pago") return anuncio;
+    const slotTipo = anuncio.slot_tipo === "hero" ? "hero" : "padrao";
+    const janela = await getProximaJanelaAnuncio(slotTipo, toDateOnly(), anuncio.id);
     return storage.updateAnuncio(anuncioId, {
       ativo: true,
       pagamento_provider: provider,
       pagamento_status: "pago",
+      data_inicio: janela.inicio,
+      data_fim: janela.fim,
       ...(paymentId ? { pagamento_id: paymentId } : {}),
       publicado_em: new Date(),
     } as any);
@@ -1831,27 +1864,13 @@ export async function registerRoutes(
       const membroId = (req.session as any).membroId;
       if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado" });
 
-      const { titulo, descricao, link, imagem_directus_id, data_inicio, data_fim } = req.body;
+      const { titulo, descricao, link, imagem_directus_id } = req.body;
       const slotTipo = req.body?.slot_tipo === "hero" ? "hero" : "padrao";
       const pagamentoPais = req.body?.pagamento_pais === "exterior" ? "exterior" : "brasil";
-      if (!data_inicio || !data_fim) return res.status(400).json({ error: "data_inicio e data_fim são obrigatórios" });
-
-      if (!isValidQuinzena(data_inicio, data_fim)) {
-        return res.status(400).json({ error: "O período deve ser uma quinzena válida: dias 1–15 ou 16–último dia do mês" });
-      }
-
-      const today = new Date().toISOString().slice(0, 10);
-      if (data_fim < today) {
-        return res.status(400).json({ error: "O período selecionado já passou. Escolha uma quinzena futura." });
-      }
-
       const isSuperAdmin = (req.session as any).role === "admin";
-      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, data_inicio, data_fim, undefined, slotTipo);
-      if (hasConflito) return res.status(409).json({ error: "Você já tem um anúncio neste período. Escolha outra quinzena." });
-
-      const maxSlots = slotTipo === "hero" ? 1 : 5;
-      const count = await storage.countAnunciosByPeriod(data_inicio, data_fim, undefined, slotTipo);
-      if (count >= maxSlots) return res.status(409).json({ error: "Periodo lotado - escolha outro periodo" });
+      const janela = await getProximaJanelaAnuncio(slotTipo);
+      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, janela.inicio, janela.fim, undefined, slotTipo);
+      if (hasConflito) return res.status(409).json({ error: "Você já tem um anúncio ativo, agendado ou pendente neste intervalo." });
 
       const anuncio = await storage.createAnuncio({
         membro_id: membroId,
@@ -1860,8 +1879,8 @@ export async function registerRoutes(
         link: link || null,
         imagem_directus_id: imagem_directus_id || null,
         slot_tipo: slotTipo,
-        data_inicio,
-        data_fim,
+        data_inicio: janela.inicio,
+        data_fim: janela.fim,
         ativo: isSuperAdmin,
         pagamento_provider: isSuperAdmin ? null : (pagamentoPais === "brasil" ? "asaas" : "stripe"),
         pagamento_status: isSuperAdmin ? "dispensado" : "pendente",

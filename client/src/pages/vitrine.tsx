@@ -431,7 +431,7 @@ function formatFilterLabel(value: string): string {
   if (!cleaned) return "";
   return cleaned
     .toLocaleLowerCase("pt-BR")
-    .replace(/(^|\s|[-'/])\p{L}/gu, (letter) => letter.toLocaleUpperCase("pt-BR"));
+    .replace(/(^|\s|[-'/])([a-zà-ú])/g, (match) => match.toLocaleUpperCase("pt-BR"));
 }
 
 const ESTADOS_BR = [
@@ -593,14 +593,6 @@ interface OportunidadeVitrine {
   date_created: string | null;
 }
 
-interface PeriodoDisponivel {
-  inicio: string;
-  fim: string;
-  count: number;
-  vagas: number;
-  max?: number;
-}
-
 function safeAdText(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
@@ -641,93 +633,6 @@ function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
       pagamento_pais: safeAdText(item.pagamento_pais) || null,
     }))
     .filter(item => item.id);
-}
-
-// ===== PERIODO PICKER GRID =====
-function PeriodoPickerGrid({
-  periodos,
-  selected,
-  onSelect,
-  reservados = [],
-  maxVagas = 5,
-}: {
-  periodos: PeriodoDisponivel[];
-  selected: { inicio: string; fim: string } | null;
-  onSelect: (p: { inicio: string; fim: string }) => void;
-  reservados: string[];
-  maxVagas?: number;
-}) {
-  const MESES_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-  const today = new Date().toISOString().slice(0, 10);
-
-  function mesLabel(inicio: string) {
-    const [, m] = inicio.split("-");
-    return MESES_PT[parseInt(m) - 1];
-  }
-  function quinzenaLabel(inicio: string, fim: string) {
-    const d = parseInt(inicio.split("-")[2]);
-    const df = parseInt(fim.split("-")[2]);
-    return `${d}–${df}`;
-  }
-
-  const grouped: Record<string, PeriodoDisponivel[]> = {};
-  for (const p of periodos) {
-    const key = p.inicio.slice(0, 7);
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(p);
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-white/40 font-mono">Selecione um período disponível:</p>
-      <div className="grid grid-cols-2 gap-2">
-        {Object.entries(grouped).map(([mesKey, qs]) => (
-          <div key={mesKey} className="space-y-1.5">
-            <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-wider">
-              {mesLabel(qs[0].inicio)} {mesKey.slice(0, 4)}
-            </p>
-            {qs.map(q => {
-              const periodoMax = maxVagas || q.max || 5;
-              const vagasDisponiveis = Math.max(0, Math.min(Number(q.vagas ?? periodoMax), periodoMax));
-              const isPast = q.fim < today;
-              const isFull = vagasDisponiveis === 0;
-              const isReservado = reservados.includes(q.inicio);
-              const isDisabled = isPast || isFull || isReservado;
-              const isSelected = selected?.inicio === q.inicio;
-              return (
-                <button
-                  key={q.inicio}
-                  disabled={isDisabled}
-                  onClick={() => onSelect({ inicio: q.inicio, fim: q.fim })}
-                  data-testid={`btn-periodo-${q.inicio}`}
-                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs font-mono transition-all ${
-                    isSelected
-                      ?
-                      "border-brand-gold bg-brand-gold/10 text-brand-gold"
-                      : isReservado
-                      ?
-                      "border-brand-gold/30 bg-brand-gold/5 text-brand-gold/40 cursor-not-allowed"
-                      : isFull
-                      ?
-                      "border-red-500/20 bg-red-500/5 text-red-400/50 cursor-not-allowed"
-                      : isPast
-                      ?
-                      "border-white/5 bg-white/3 text-white/20 cursor-not-allowed"
-                      : "border-white/10 hover:border-brand-gold/30 hover:bg-brand-gold/5 text-white/70 cursor-pointer"
-                  }`}
-                >
-                  <span className="block">{quinzenaLabel(q.inicio, q.fim)}</span>
-                  <span className={`text-[10px] ${isReservado ? "text-brand-gold/40" : isFull ? "text-red-400/50" : "text-white/30"}`}>
-                    {isReservado ? "Já reservado" : isFull ? "Lotado" : `${vagasDisponiveis}/${periodoMax} vaga${periodoMax === 1 ? "" : "s"}`}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ===== ANUNCIO CARD =====
@@ -952,7 +857,6 @@ export default function VitrinePage() {
   const [anuncioDialogOpen, setAnuncioDialogOpen] = useState(false);
   const [anuncioEditMode, setAnuncioEditMode] = useState(false);
   const [anuncioForm, setAnuncioForm] = useState({ titulo: "", descricao: "", link: "" });
-  const [anuncioPeriodo, setAnuncioPeriodo] = useState<{ inicio: string; fim: string } | null>(null);
   const [anuncioImagemId, setAnuncioImagemId] = useState<string | null>(null);
   const [anuncioImagemPreview, setAnuncioImagemPreview] = useState<string | null>(null);
   const [anuncioUploadLoading, setAnuncioUploadLoading] = useState(false);
@@ -1022,22 +926,6 @@ export default function VitrinePage() {
       return Array.isArray(data) ? fixMojibakeDeep(data) : [];
     },
   });
-  // períodos já reservados pelo membro (para bloquear no picker)
-  const periodosReservados = meusAnuncios
-    .filter(a => (a.slot_tipo || "padrao") === anuncioSlotTipo)
-    .map(a => a.data_inicio)
-    .filter(Boolean);
-
-  const { data: disponibilidade = [] } = useQuery<PeriodoDisponivel[]>({
-    queryKey: ["/api/anuncios/disponibilidade", anuncioSlotTipo],
-    queryFn: async () => {
-      const r = await fetch(`/api/anuncios/disponibilidade?meses=3&slot_tipo=${anuncioSlotTipo}`);
-      if (!r.ok) return [];
-      return fixMojibakeDeep(await r.json());
-    },
-    enabled: anuncioDialogOpen,
-  });
-
   // Anúncio mutations
   const criarAnuncioMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1092,7 +980,6 @@ export default function VitrinePage() {
     setAnuncioEditMode(false);
     setAnuncioEditTarget(null);
     setAnuncioForm({ titulo: "", descricao: "", link: "" });
-    setAnuncioPeriodo(null);
     setAnuncioImagemId(null);
     setAnuncioImagemPreview(null);
     setAnuncioSlotTipo("padrao");
@@ -1117,7 +1004,6 @@ export default function VitrinePage() {
       descricao: alvo.descricao || "",
       link: alvo.link || "",
     });
-    setAnuncioPeriodo(alvo.data_inicio && alvo.data_fim ? { inicio: alvo.data_inicio, fim: alvo.data_fim } : null);
     setAnuncioImagemId(alvo.imagem_directus_id || null);
     setAnuncioImagemPreview(alvo.imagem_url || null);
     setAnuncioSlotTipo(alvo.slot_tipo === "hero" ? "hero" : "padrao");
@@ -1157,18 +1043,12 @@ export default function VitrinePage() {
         },
       });
     } else {
-      if (!anuncioPeriodo) {
-        toast({ title: "Selecione um período", variant: "destructive" });
-        return;
-      }
       criarAnuncioMutation.mutate({
         titulo,
         descricao: anuncioForm.descricao || null,
         link: anuncioForm.link || null,
         imagem_directus_id: anuncioImagemId || null,
         slot_tipo: anuncioSlotTipo,
-        data_inicio: anuncioPeriodo.inicio,
-        data_fim: anuncioPeriodo.fim,
         pagamento_pais: anuncioPagamentoPais,
       });
     }
@@ -1507,10 +1387,7 @@ export default function VitrinePage() {
               <div className="min-w-0">
                 <p className="text-xs font-mono text-brand-gold/80">Pagamento do anúncio gerado</p>
                 <p className="text-[10px] font-mono text-white/35">
-                  {ultimoPagamentoAnuncio.dataInicio && ultimoPagamentoAnuncio.dataFim
-                    ?
-                    `${ultimoPagamentoAnuncio.dataInicio} -> ${ultimoPagamentoAnuncio.dataFim}`
-                    : "Após o pagamento, o webhook publica automaticamente."}
+                  Após o pagamento, o sistema agenda 15 dias completos na próxima vaga disponível.
                 </p>
               </div>
               <Button
@@ -1545,8 +1422,13 @@ export default function VitrinePage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-mono text-white/60">
-                      {a.data_inicio} → {a.data_fim}
+                      {isPagamentoPendente ? "Estimativa: " : ""}{a.data_inicio} → {a.data_fim}
                     </p>
+                    {isPagamentoPendente && (
+                      <p className="text-[10px] text-white/30 font-mono truncate">
+                        O período final será definido após o pagamento.
+                      </p>
+                    )}
                     {a.link && (
                       <p className="text-[10px] text-white/30 font-mono truncate">{a.link}</p>
                     )}
@@ -1937,7 +1819,7 @@ export default function VitrinePage() {
               {anuncioEditMode
                 ?
                 "Atualize as informações do seu anúncio. O período não pode ser alterado."
-                : "Preencha os dados e escolha um período quinzenal disponível."}
+                : "Preencha os dados. O anúncio terá 15 dias completos após o pagamento."}
             </p>
           </DialogHeader>
 
@@ -1949,7 +1831,6 @@ export default function VitrinePage() {
                 value={anuncioSlotTipo}
                 onValueChange={(value) => {
                   setAnuncioSlotTipo(value === "hero" ? "hero" : "padrao");
-                  setAnuncioPeriodo(null);
                 }}
                 disabled={anuncioEditMode}
               >
@@ -2045,29 +1926,18 @@ export default function VitrinePage() {
                   <CalendarDays className="w-3.5 h-3.5 text-brand-gold/50" />
                   <span className="text-xs font-mono text-brand-gold/60">Período do anúncio</span>
                 </div>
-                {disponibilidade.length === 0 ? (
-                  <div className="flex items-center gap-2 text-xs text-white/30 font-mono py-2">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Carregando disponibilidade...
-                  </div>
-                ) : (
-                  <PeriodoPickerGrid
-                    periodos={disponibilidade}
-                    selected={anuncioPeriodo}
-                    onSelect={setAnuncioPeriodo}
-                    reservados={isSuperAdmin ? [] : periodosReservados}
-                    maxVagas={anuncioSlotTipo === "hero" ? 1 : 5}
-                  />
-                )}
-                {anuncioPeriodo && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                    style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.2)" }}>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-gold/70" />
-                    <span className="text-xs font-mono text-brand-gold/70">
-                      {anuncioPeriodo.inicio} → {anuncioPeriodo.fim}
-                    </span>
-                  </div>
-                )}
+                <p className="text-[11px] text-white/40 font-mono leading-relaxed">
+                  {isSuperAdmin
+                    ? "O anúncio será publicado por 15 dias completos. Se o espaço imediato estiver cheio, ele será agendado para a próxima vaga disponível."
+                    : "O anúncio ficará ativo por 15 dias após a confirmação do pagamento. Se a Vitrine estiver cheia, ele será agendado para a próxima vaga disponível."}
+                </p>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                  style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.2)" }}>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-brand-gold/70" />
+                  <span className="text-xs font-mono text-brand-gold/70">
+                    Duração garantida: 15 dias corridos
+                  </span>
+                </div>
               </div>
             )}
 

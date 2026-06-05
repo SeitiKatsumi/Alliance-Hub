@@ -7418,7 +7418,23 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const { membroId } = req.params;
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
       if (avaliacoes.length === 0) {
-        return res.json({ score: null, T: null, R: null, C: null, n: 0, faixa: null, palavras_recebidas: [] });
+        return res.json({
+          score: null,
+          T: null,
+          R: null,
+          C: null,
+          n: 0,
+          faixa: null,
+          FR_T: 1,
+          FR_R: 1,
+          FR_C: 1,
+          confianca: "Sem base reputacional",
+          confianca_descricao: "Aguardando primeira avaliação",
+          total_palavras: 0,
+          dimensoes_sem_evidencia: ["T", "R", "C"],
+          correspondencia_valores: { T: 0, R: 0, C: 0 },
+          palavras_recebidas: [],
+        });
       }
       const result = calcularAura(avaliacoes.map(a => ({ avaliador_membro_id: a.avaliador_membro_id, palavras: a.palavras })));
       return res.json(result);

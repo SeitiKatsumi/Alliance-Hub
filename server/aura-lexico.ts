@@ -120,6 +120,33 @@ for (const [dimensao, palavras] of Object.entries(LISTA_VIVA) as Array<[Dimensao
   }
 }
 
+const PALAVRAS_OFICIAIS_V3: Record<Dimensao, string[]> = {
+  T: [
+    "Eficiente", "Detalhista", "Organizado", "Preciso", "Especialista", "Resolutivo",
+    "Inteligente", "Inovador", "Analítico", "Planejado", "Técnico", "Seguro",
+    "Produtivo", "Disciplinado", "Sustentável", "Estratégico", "Competente",
+    "Estruturado", "Pontual", "Eficaz",
+  ],
+  R: [
+    "Confiável", "Comunicativo", "Transparente", "Empático", "Cordial", "Prestativo",
+    "Colaborativo", "Educado", "Participativo", "Inspirador", "Amigável", "Justo",
+    "Leal", "Facilitador", "Atencioso", "Acessível", "Acolhedor", "Agregador",
+    "Aliado", "Parceiro", "Acreditável", "Credibilidade",
+  ],
+  C: [
+    "Proativo", "Ético", "Alinhado", "Determinado", "Resiliente", "Engajado",
+    "Corajoso", "Evolutivo", "Maduro", "Visionário", "Consistente", "Exemplar",
+    "Fiel", "Pioneiro", "Solidário", "Líder", "Motivador", "Responsável",
+    "Aberto", "Liderança",
+  ],
+};
+
+for (const [dimensao, palavras] of Object.entries(PALAVRAS_OFICIAIS_V3) as Array<[Dimensao, string[]]>) {
+  for (const palavra of palavras) {
+    addEntry(palavra, { canonico: palavra, dimensao, valorBuilt: dimensao !== "T" && normalize(palavra) !== "acessivel" }, true);
+  }
+}
+
 export function classificarPalavra(palavra: string): PalavraClassificada | null {
   const entry = LEXICO.get(normalize(palavra));
   return entry ? { canonico: entry.canonico, dimensao: entry.dimensao, valorBuilt: entry.valorBuilt } : null;
@@ -127,12 +154,18 @@ export function classificarPalavra(palavra: string): PalavraClassificada | null 
 
 const PALAVRAS_SUGERIDAS_MAP = new Map<string, string>();
 
+function normalizeSuggestionKey(palavra: string): string {
+  return normalize(palavra)
+    .replace(/(acao|coes|amento|amentos|idade|idades|ancia|encias|encia|ado|ada|idos|idas|ido|ida|avel|ivel|ante|ente|ivo|iva|oso|osa|or|ora|al|ico|ica|ao|a|o|s)$/, "");
+}
+
 for (const palavra of [
+  ...Object.values(PALAVRAS_OFICIAIS_V3).flat(),
   ...RAW.map((r) => r.canonico),
   ...RAW.flatMap((r) => r.sinonimos),
   ...Object.values(LISTA_VIVA).flat(),
 ]) {
-  const key = normalize(palavra);
+  const key = normalizeSuggestionKey(palavra);
   if (!key || PALAVRAS_SUGERIDAS_MAP.has(key)) continue;
   PALAVRAS_SUGERIDAS_MAP.set(key, palavra.toLocaleUpperCase("pt-BR"));
 }
@@ -158,6 +191,10 @@ export interface AuraResult {
   FR_T: number;
   FR_R: number;
   FR_C: number;
+  confianca: string;
+  confianca_descricao: string;
+  total_palavras: number;
+  dimensoes_sem_evidencia: Dimensao[];
   correspondencia_valores: Record<Dimensao, number>;
   palavras_recebidas: Array<{ palavra: string; canonico: string; dimensao: Dimensao; count: number }>;
 }
@@ -173,6 +210,13 @@ function getFaixa(score: number): string {
   if (score >= 70) return "Aura Forte";
   if (score >= 50) return "Aura Confiável";
   return "Em Evolução";
+}
+
+function getConfianca(n: number): { nome: string; descricao: string } {
+  if (n >= 10) return { nome: "Aura Consolidada", descricao: "Alta maturidade estatística" };
+  if (n >= 5) return { nome: "Aura Validada", descricao: "Base mínima adequada para decisões operacionais" };
+  if (n >= 2) return { nome: "Aura em Validação", descricao: "Percepção em formação" };
+  return { nome: "Aura Inicial", descricao: "Primeira leitura reputacional" };
 }
 
 export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; palavras: string[] }>): AuraResult {
@@ -199,52 +243,81 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
     }
   }
 
-  const pesos: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
-  const totalPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
-  const alinhadasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const pontos: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const palavrasCanonicasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const ocorrenciasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const ocorrenciasAlinhadasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasRecebidas: AuraResult["palavras_recebidas"] = [];
 
-  for (const entry of canonCounter.values()) {
+  for (const entry of Array.from(canonCounter.values())) {
     const count = entry.avaliadores.size;
-    pesos[entry.dimensao] += getPesoFrequencia(count);
-    totalPorDimensao[entry.dimensao] += 1;
-    if (entry.valorBuilt) alinhadasPorDimensao[entry.dimensao] += 1;
+    pontos[entry.dimensao] += getPesoFrequencia(count);
+    palavrasCanonicasPorDimensao[entry.dimensao] += 1;
+    ocorrenciasPorDimensao[entry.dimensao] += count;
+    if (entry.valorBuilt) ocorrenciasAlinhadasPorDimensao[entry.dimensao] += count;
     palavrasRecebidas.push({ palavra: entry.canonico, canonico: entry.canonico, dimensao: entry.dimensao, count });
   }
 
   const getFR = (dimensao: Dimensao) => {
-    const total = totalPorDimensao[dimensao];
+    const total = ocorrenciasPorDimensao[dimensao];
     if (!total) return 1;
-    return Math.min(1 + (alinhadasPorDimensao[dimensao] / total) * 0.2, 1.2);
+    return Math.min(1 + (ocorrenciasAlinhadasPorDimensao[dimensao] / total) * 0.2, 1.2);
   };
 
   const FR_T = getFR("T");
   const FR_R = getFR("R");
   const FR_C = getFR("C");
-  const pontoMaximoDim = n > 0 ? n * 2 : 1;
 
-  const Tnorm = Math.min((pesos.T * FR_T) / pontoMaximoDim, 1);
-  const Rnorm = Math.min((pesos.R * FR_R) / pontoMaximoDim, 1);
-  const Cnorm = Math.min((pesos.C * FR_C) / pontoMaximoDim, 1);
+  const getScoreDimensao = (dimensao: Dimensao, fr: number) => {
+    const totalCanonicos = palavrasCanonicasPorDimensao[dimensao];
+    if (!totalCanonicos) return 0;
+    const scoreBase = (pontos[dimensao] / (totalCanonicos * 2)) * 100;
+    return Math.min(scoreBase * fr, 100);
+  };
 
-  const score = Math.min(100, Math.round(Tnorm * 40 + Rnorm * 25 + Cnorm * 35));
+  const Tscore = getScoreDimensao("T", FR_T);
+  const Rscore = getScoreDimensao("R", FR_R);
+  const Cscore = getScoreDimensao("C", FR_C);
+  const scores: Record<Dimensao, number> = { T: Tscore, R: Rscore, C: Cscore };
+  const pesosOficiais: Record<Dimensao, number> = { T: 0.4, R: 0.25, C: 0.35 };
+  const dimensoes: Dimensao[] = ["T", "R", "C"];
+  const dimensoesComEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasPorDimensao[dimensao] > 0);
+  const dimensoesSemEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasPorDimensao[dimensao] === 0);
+  const redistribuirPesos = n < 5 && dimensoesComEvidencia.length > 0;
+  const somaPesosComEvidencia = dimensoesComEvidencia.reduce((total, dimensao) => total + pesosOficiais[dimensao], 0);
+  const pesoEfetivo = (dimensao: Dimensao) => {
+    if (!redistribuirPesos) return pesosOficiais[dimensao];
+    if (!palavrasCanonicasPorDimensao[dimensao]) return 0;
+    return pesosOficiais[dimensao] / somaPesosComEvidencia;
+  };
+
+  const score = Math.min(100, Math.round(
+    scores.T * pesoEfetivo("T") +
+    scores.R * pesoEfetivo("R") +
+    scores.C * pesoEfetivo("C")
+  ));
+  const confianca = getConfianca(n);
 
   palavrasRecebidas.sort((a, b) => b.count - a.count || a.canonico.localeCompare(b.canonico, "pt-BR"));
 
   return {
     score,
-    T: Math.round(Tnorm * 100),
-    R: Math.round(Rnorm * 100),
-    C: Math.round(Cnorm * 100),
+    T: Math.round(Tscore),
+    R: Math.round(Rscore),
+    C: Math.round(Cscore),
     n,
     faixa: getFaixa(score),
-    FR_T: Number(FR_T.toFixed(2)),
-    FR_R: Number(FR_R.toFixed(2)),
-    FR_C: Number(FR_C.toFixed(2)),
+    FR_T: Number(FR_T.toFixed(4)),
+    FR_R: Number(FR_R.toFixed(4)),
+    FR_C: Number(FR_C.toFixed(4)),
+    confianca: confianca.nome,
+    confianca_descricao: confianca.descricao,
+    total_palavras: ocorrenciasPorDimensao.T + ocorrenciasPorDimensao.R + ocorrenciasPorDimensao.C,
+    dimensoes_sem_evidencia: dimensoesSemEvidencia,
     correspondencia_valores: {
-      T: totalPorDimensao.T ? Number((alinhadasPorDimensao.T / totalPorDimensao.T).toFixed(2)) : 0,
-      R: totalPorDimensao.R ? Number((alinhadasPorDimensao.R / totalPorDimensao.R).toFixed(2)) : 0,
-      C: totalPorDimensao.C ? Number((alinhadasPorDimensao.C / totalPorDimensao.C).toFixed(2)) : 0,
+      T: ocorrenciasPorDimensao.T ? Number((ocorrenciasAlinhadasPorDimensao.T / ocorrenciasPorDimensao.T).toFixed(2)) : 0,
+      R: ocorrenciasPorDimensao.R ? Number((ocorrenciasAlinhadasPorDimensao.R / ocorrenciasPorDimensao.R).toFixed(2)) : 0,
+      C: ocorrenciasPorDimensao.C ? Number((ocorrenciasAlinhadasPorDimensao.C / ocorrenciasPorDimensao.C).toFixed(2)) : 0,
     },
     palavras_recebidas: palavrasRecebidas,
   };

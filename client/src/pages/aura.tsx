@@ -17,7 +17,7 @@ import {
   Sparkles, Search, X, CheckCircle2, Loader2, ChevronRight,
   TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
   ShieldCheck, Target, Briefcase, CalendarDays, BarChart3,
-  AlertTriangle, Lock, Activity, BookOpen, Handshake, Settings,
+  AlertTriangle, Lock, BookOpen, Handshake, Settings,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -31,6 +31,14 @@ interface AuraResult {
   C: number | null;
   n: number;
   faixa: string | null;
+  FR_T?: number;
+  FR_R?: number;
+  FR_C?: number;
+  confianca?: string;
+  confianca_descricao?: string;
+  total_palavras?: number;
+  dimensoes_sem_evidencia?: Array<"T" | "R" | "C">;
+  correspondencia_valores?: Record<"T" | "R" | "C", number>;
   palavras_recebidas: Array<{ palavra: string; canonico: string; dimensao: "T" | "R" | "C"; count: number }>;
 }
 
@@ -84,6 +92,48 @@ const DIM_MAP: Record<string, "T" | "R" | "C"> = {
   "Entendimento": "R", "Inspiração": "C", "Valorização": "R",
 };
 
+function normalizeAuraWord(value: string): string {
+  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeAuraSuggestionKey(value: string): string {
+  return normalizeAuraWord(value)
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/(acao|coes|amento|amentos|idade|idades|ancia|encias|encia|ado|ada|idos|idas|ido|ida|avel|ivel|ante|ente|ivo|iva|oso|osa|or|ora|al|ico|ica|ao|a|o|s)$/, "");
+}
+
+const PALAVRAS_OFICIAIS_AURA_V3: Record<"T" | "R" | "C", string[]> = {
+  T: [
+    "Eficiente", "Detalhista", "Organizado", "Preciso", "Especialista", "Resolutivo",
+    "Inteligente", "Inovador", "Analítico", "Planejado", "Técnico", "Seguro",
+    "Produtivo", "Disciplinado", "Sustentável", "Estratégico", "Competente",
+    "Estruturado", "Pontual", "Eficaz",
+  ],
+  R: [
+    "Confiável", "Comunicativo", "Transparente", "Empático", "Cordial", "Prestativo",
+    "Colaborativo", "Educado", "Participativo", "Inspirador", "Amigável", "Justo",
+    "Leal", "Facilitador", "Atencioso", "Acessível", "Acolhedor", "Agregador",
+    "Aliado", "Parceiro", "Acreditável", "Credibilidade",
+  ],
+  C: [
+    "Proativo", "Ético", "Alinhado", "Determinado", "Resiliente", "Engajado",
+    "Corajoso", "Evolutivo", "Maduro", "Visionário", "Consistente", "Exemplar",
+    "Fiel", "Pioneiro", "Solidário", "Líder", "Motivador", "Responsável",
+    "Aberto", "Liderança",
+  ],
+};
+
+for (const [dimensao, palavras] of Object.entries(PALAVRAS_OFICIAIS_AURA_V3) as Array<["T" | "R" | "C", string[]]>) {
+  for (const palavra of palavras) {
+    DIM_MAP[palavra] = dimensao;
+  }
+}
+
+const DIM_NORMALIZED_MAP = new Map<string, "T" | "R" | "C">(
+  Object.entries(DIM_MAP).map(([palavra, dimensao]) => [normalizeAuraWord(palavra), dimensao])
+);
+
 interface EvolucaoPonto { label: string; score: number; n: number; }
 
 function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
@@ -96,25 +146,32 @@ function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
     const av = sorted[i];
     const seen = new Set<string>();
     for (const palavra of av.palavras) {
-      const dim = DIM_MAP[palavra];
-      if (!dim || seen.has(palavra)) continue;
-      seen.add(palavra);
-      if (!canonAvaliadores.has(palavra)) {
-        canonAvaliadores.set(palavra, { dim, avaliadores: new Set() });
+      const palavraKey = normalizeAuraWord(palavra);
+      const dim = DIM_MAP[palavra] ?? DIM_NORMALIZED_MAP.get(palavraKey);
+      if (!dim || seen.has(palavraKey)) continue;
+      seen.add(palavraKey);
+      if (!canonAvaliadores.has(palavraKey)) {
+        canonAvaliadores.set(palavraKey, { dim, avaliadores: new Set() });
       }
-      canonAvaliadores.get(palavra)!.avaliadores.add(av.avaliador_membro_id);
+      canonAvaliadores.get(palavraKey)!.avaliadores.add(av.avaliador_membro_id);
     }
-    const n = i + 1;
-    const pontoMax = n * 2;
-    let T = 0, R = 0, C = 0;
-    for (const [, { dim, avaliadores }] of canonAvaliadores) {
+    const n = new Set(sorted.slice(0, i + 1).map(item => item.avaliador_membro_id).filter(Boolean)).size || i + 1;
+    const pontos = { T: 0, R: 0, C: 0 };
+    const canonicos = { T: 0, R: 0, C: 0 };
+    for (const { dim, avaliadores } of Array.from(canonAvaliadores.values())) {
       const count = avaliadores.size;
       const peso = count >= 4 ?2.0 : count >= 2 ?1.5 : 1.0;
-      if (dim === "T") T += peso;
-      else if (dim === "R") R += peso;
-      else C += peso;
+      pontos[dim] += peso;
+      canonicos[dim] += 1;
     }
-    const score = Math.round(Math.min(T / pontoMax, 1) * 40 + Math.min(R / pontoMax, 1) * 25 + Math.min(C / pontoMax, 1) * 35);
+    const dimScore = (dim: "T" | "R" | "C") => canonicos[dim] ? Math.min((pontos[dim] / (canonicos[dim] * 2)) * 100, 100) : 0;
+    const pesos = { T: 0.4, R: 0.25, C: 0.35 };
+    const dims: Array<"T" | "R" | "C"> = ["T", "R", "C"];
+    const dimsComEvidencia = dims.filter(dim => canonicos[dim] > 0);
+    const redistribuirPesos = n < 5 && dimsComEvidencia.length > 0;
+    const somaPesos = dimsComEvidencia.reduce((sum, dim) => sum + pesos[dim], 0);
+    const pesoEfetivo = (dim: "T" | "R" | "C") => redistribuirPesos ? (canonicos[dim] ? pesos[dim] / somaPesos : 0) : pesos[dim];
+    const score = Math.round(dimScore("T") * pesoEfetivo("T") + dimScore("R") * pesoEfetivo("R") + dimScore("C") * pesoEfetivo("C"));
     const date = new Date(av.created_at);
     const label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
     result.push({ label, score, n });
@@ -391,11 +448,16 @@ export default function AuraPage() {
   });
 
   const sugestoesFiltradas = useMemo(() => {
-    if (!palavraInput || palavraInput.length < 1) return [];
+    if (!palavraInput || palavraInput.trim().length < 2) return [];
     const norm = palavraInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const seen = new Set<string>();
     return lexico.filter(p => {
       const pn = p.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return pn.includes(norm) && !selectedPalavras.includes(p);
+      if (!pn.includes(norm) || selectedPalavras.includes(p)) return false;
+      const key = normalizeAuraSuggestionKey(p);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     }).slice(0, 8);
   }, [palavraInput, lexico, selectedPalavras]);
 
@@ -421,34 +483,35 @@ export default function AuraPage() {
   const viewedName = isOwnAura ? (user?.nome || user?.username || "Membro BUILT") : (viewedMembro?.nome || "Membro BUILT");
   const viewedEmail = isOwnAura ? user?.email : "";
   const viewedFoto = isOwnAura ? user?.foto_perfil : viewedMembro?.foto;
-  const pontoMax = Math.max(n * 2, 1);
+  const confiancaAura = viewedAura?.confianca || (n === 0 ? "Sem base reputacional" : n >= 10 ? "Aura Consolidada" : n >= 5 ? "Aura Validada" : n >= 2 ? "Aura em Validação" : "Aura Inicial");
+  const confiancaDescricao = viewedAura?.confianca_descricao || (n === 0 ? "Aguardando primeira avaliação" : n >= 10 ? "Alta maturidade estatística" : n >= 5 ? "Base mínima adequada para decisões operacionais" : n >= 2 ? "Percepção em formação" : "Primeira leitura reputacional");
   const dimensoesAura = [
     {
       dim: "T" as const,
       label: "Técnica",
       peso: 40,
-      pontuacao: clampScore(T, pontoMax),
+      pontuacao: Math.round(T),
       descricao: "Capacidade de entrega, método e eficiência técnica.",
     },
     {
       dim: "R" as const,
       label: "Relacional",
       peso: 25,
-      pontuacao: clampScore(R, pontoMax),
+      pontuacao: Math.round(R),
       descricao: "Capacidade de gerar confiança, colaboração e conexão.",
     },
     {
       dim: "C" as const,
       label: "Comportamental",
       peso: 35,
-      pontuacao: clampScore(C, pontoMax),
+      pontuacao: Math.round(C),
       descricao: "Maturidade ética, consistência institucional e atitude.",
     },
   ];
-  const palavrasValidas = palavrasRecebidas.reduce((total, p) => total + p.count, 0);
+  const palavrasValidas = viewedAura?.total_palavras ?? palavrasRecebidas.reduce((total, p) => total + p.count, 0);
   const topPalavra = palavrasRecebidas[0] ?? null;
   const convergencia = n >= 5 && palavrasRecebidas.some(p => p.count >= 2) ? "Alta" : n >= 3 ? "Média" : "Em formação";
-  const fatorRelevancia = score === null ? 0 : Math.max(1, Math.min(1.2, 1 + ((T + R + C) / pontoMax) * 0.04));
+  const fatorRelevancia = score === null ? 0 : Math.max(viewedAura?.FR_T ?? 1, viewedAura?.FR_R ?? 1, viewedAura?.FR_C ?? 1);
   const dnaBuilt = [
     { label: "Mentalidade de Aliança", value: dimensoesAura[1].pontuacao },
     { label: "Reputação Vívida", value: score ?? 0 },
@@ -644,9 +707,11 @@ export default function AuraPage() {
                       <p className="text-xs text-muted-foreground">palavras válidas</p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Convergência reputacional: <span className="font-semibold text-[#D7BB7D]">{convergencia}</span>
-                  </p>
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-blue-600">Confiança da Aura</p>
+                    <p className="text-sm font-semibold text-foreground">{confiancaAura}</p>
+                    <p className="text-[11px] text-muted-foreground">{confiancaDescricao}</p>
+                  </div>
                 </div>
                 <div className="rounded-xl border border-border/50 p-4 bg-background/40">
                   <p className="text-sm font-semibold text-foreground mb-3">Faixas de Aura</p>
@@ -1043,7 +1108,7 @@ export default function AuraPage() {
                       </label>
                       <button
                         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/50 text-muted-foreground hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D] transition-colors shrink-0 ml-3"
-                        onClick={() => fileInputRef.current.click()}
+                        onClick={() => fileInputRef.current?.click()}
                         disabled={extrairArquivoMutation.isPending}
                         data-testid="btn-anexar-arquivo"
                         title="Anexar PDF ou TXT"
@@ -1113,7 +1178,7 @@ export default function AuraPage() {
                 {evalMode === "palavras" && (
                 <div className="space-y-3">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Escolha até 3 palavras que descrevem este membro
+                    Digite para buscar até 3 palavras que descrevem este membro
                   </label>
 
                   {selectedPalavras.length > 0 && (
@@ -1149,7 +1214,7 @@ export default function AuraPage() {
                           <X className="w-3.5 h-3.5 text-muted-foreground" />
                         </button>
                       )}
-                      {showSugestoes && sugestoesFiltradas.length > 0 && (
+                      {showSugestoes && palavraInput.trim().length >= 2 && sugestoesFiltradas.length > 0 && (
                         <div
                           className="absolute z-20 left-0 right-0 top-full mt-1 rounded-lg border border-border/60 overflow-hidden shadow-xl"
                           style={{ background: "#0d2035" }}
@@ -1166,22 +1231,6 @@ export default function AuraPage() {
                           ))}
                         </div>
                       )}
-                    </div>
-                  )}
-
-                  {/* Quick word suggestions */}
-                  {!palavraInput && selectedPalavras.length < 3 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {lexico.filter(p => !selectedPalavras.includes(p)).slice(0, 16).map(p => (
-                        <button
-                          key={p}
-                          className="rounded-full px-2.5 py-1 text-[11px] border border-border/40 text-muted-foreground hover:border-[#D7BB7D]/40 hover:text-[#D7BB7D] transition-colors"
-                          onClick={() => togglePalavra(p)}
-                          data-testid={`sugestao-rapida-${p}`}
-                        >
-                          {p}
-                        </button>
-                      ))}
                     </div>
                   )}
                 </div>
@@ -1271,7 +1320,7 @@ export default function AuraPage() {
             Como funciona a Percepção de Aura
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A Aura Percebida BUILT é o índice de validação reputacional da rede. Cada avaliação registra até 3 palavras baseadas em experiências reais; essas palavras são agrupadas por significado, frequência entre avaliadores distintos e aderência aos valores BUILT.
+            A Aura Percebida BUILT é o índice de validação reputacional da rede. Cada avaliação registra até 3 palavras baseadas em experiências reais; essas palavras são agrupadas por palavra-cânone, dimensão, frequência entre avaliadores distintos e aderência ao DNA BUILT.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
@@ -1292,8 +1341,9 @@ export default function AuraPage() {
           </div>
           <div className="space-y-1.5 text-[11px] text-muted-foreground">
             <p>• Palavras citadas por 2-3 avaliadores distintos têm peso 1.5×; por 4 ou mais, peso 2.0×.</p>
+            <p>• Cada dimensão é normalizada por <strong className="text-foreground">palavras-cânone distintas × 2</strong>, evitando penalizar dimensões ainda pouco verbalizadas.</p>
             <p>• O cálculo aplica o <strong className="text-foreground">Fator de Relevância</strong>, que valoriza em até 20% as dimensões alinhadas ao DNA BUILT.</p>
-            <p>• O mínimo ideal para leitura institucional é de <strong className="text-foreground">5 avaliadores distintos</strong>; avaliações são cumulativas e rastreáveis.</p>
+            <p>• O Score da Aura é lido junto com a <strong className="text-foreground">Confiança da Aura</strong>: Inicial, em Validação, Validada ou Consolidada.</p>
             <p>• Cada par avaliador/avaliado registra uma avaliação única, sem alteração posterior.</p>
           </div>
         </CardContent>
@@ -1301,11 +1351,10 @@ export default function AuraPage() {
 
       {myId && (
         <Card className="border border-border/60" data-testid="card-alertas-governanca">
-          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
               { icon: ShieldCheck, title: "Sem alertas ativos", desc: "Membro em conformidade com as políticas BUILT.", color: "#22C55E" },
-              { icon: AlertTriangle, title: n >= 5 ? "Base amostral adequada" : "Base amostral moderada", desc: n >= 5 ? "Volume mínimo ideal de avaliadores atingido." : "Recomendado ampliar o número de avaliadores.", color: "#D7BB7D" },
-              { icon: Activity, title: `Convergência ${convergencia.toLowerCase()}`, desc: "Consistência das avaliações recebidas na rede.", color: "#3B82F6" },
+              { icon: AlertTriangle, title: confiancaAura, desc: confiancaDescricao, color: "#D7BB7D" },
               { icon: Lock, title: "Dados protegidos", desc: "As informações exibidas são de uso interno da BUILT.", color: "#94A3B8" },
             ].map(item => {
               const Icon = item.icon;

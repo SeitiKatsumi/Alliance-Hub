@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
   User, Globe, MessageSquare, Store, ExternalLink, Languages,
-  UserPlus, Loader2, CheckCircle2, UserCheck
+  UserPlus, Loader2, CheckCircle2, UserCheck, Sparkles
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { formatSegmentosDisplay, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
+import { isBuiltMemberForAura } from "@/lib/aura-access";
 
 interface MembroDetalhe {
   id: string;
@@ -166,6 +167,7 @@ export default function VitrineDetalhePage() {
     .filter(Boolean).join(", ");
 
   const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
+  const canViewAndRegisterAura = !isMyCard && !!membro?.id && isBuiltMemberForAura(user);
   const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   // Communities where the current user is the aliado OR an active member (both can create invites)
   const minhasComunidadesComoAliado = minhasComunidades.filter(c => {
@@ -226,7 +228,7 @@ export default function VitrineDetalhePage() {
         </Link>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 pb-10 space-y-5">
+      <div className="max-w-3xl mx-auto px-6 pb-10 space-y-7">
         {/* Hero card */}
         <div
           className="relative rounded-2xl overflow-hidden border border-white/6"
@@ -331,6 +333,29 @@ export default function VitrineDetalhePage() {
           </div>
         </div>
 
+        {canViewAndRegisterAura && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Aura Percebida</p>
+                  <h2 className="mt-1 text-lg font-semibold text-gray-900">Ver e registrar Aura</h2>
+                  <p className="mt-1 text-sm text-gray-500">Consulte a leitura reputacional e registre sua percepção como membro BUILT.</p>
+                </div>
+              </div>
+              <Link href={`/aura/${membro.id}`}>
+                <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto" data-testid="btn-vitrine-detalhe-aura">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Ver e registrar Aura
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Contato + Perfil Profissional lado a lado */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Contact / info panel */}
@@ -400,7 +425,7 @@ export default function VitrineDetalhePage() {
                       {membro.segmento && (
                         <div>
                           <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
-                          <p className="text-sm text-gray-800 font-mono">{membro.segmento}</p>
+                          <p className="text-sm text-gray-800 font-mono">{formatSegmentosDisplay(membro.segmento)}</p>
                         </div>
                       )}
                       {membro.area_atuacao && (

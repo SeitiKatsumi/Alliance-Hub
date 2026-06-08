@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
@@ -20,7 +22,7 @@ import {
 import {
   User, MapPin, Building2, Briefcase,
   Save, Loader2, Camera, CheckCircle, CheckCircle2, Globe, Navigation, Search,
-  ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw,
+  ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw, ChevronDown,
   Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
   ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound
@@ -28,7 +30,7 @@ import {
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
-import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { RAMOS_SEGMENTOS, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseSegmentosValue } from "@/lib/ramos-segmentos";
 
 interface NominatimResult {
   place_id: number;
@@ -305,6 +307,8 @@ export default function MeuPerfilPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [idiomaInput, setIdiomaInput] = useState("");
+  const [segmentoSearch, setSegmentoSearch] = useState("");
+  const [segmentoOpen, setSegmentoOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -528,6 +532,28 @@ export default function MeuPerfilPage() {
     setForm(f => ({ ...f, [field]: value }));
   }
 
+  const selectedSegmentos = parseSegmentosValue(form.segmento);
+  const availableSegmentos = getSegmentosForRamo(form.ramo_atuacao || "");
+  const normalizedSegmentoSearch = segmentoSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const filteredSegmentos = availableSegmentos.filter((segmento) =>
+    segmento.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedSegmentoSearch)
+  );
+
+  function toggleSegmento(segmento: string) {
+    setForm(current => {
+      const currentSegmentos = parseSegmentosValue(current.segmento);
+      const nextSegmentos = currentSegmentos.includes(segmento)
+        ? currentSegmentos.filter(item => item !== segmento)
+        : [...currentSegmentos, segmento];
+      return { ...current, segmento: formatSegmentosValue(nextSegmentos) };
+    });
+  }
+
+  function clearSegmentos() {
+    setForm(current => ({ ...current, segmento: null }));
+    setSegmentoSearch("");
+  }
+
   function togglePapelBuilt(roleId: "prestador" | "capital") {
     setForm((current) => {
       const prestadorSelecionado = current.em_membros_built !== false;
@@ -635,7 +661,7 @@ export default function MeuPerfilPage() {
         </div>
         <div className="grid grid-cols-[minmax(88px,110px)_minmax(0,1fr)] gap-2">
           <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{form.ramo_atuacao || "-"}</p>
-          <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{form.segmento || "-"}</p>
+          <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{formatSegmentosDisplay(form.segmento) || "-"}</p>
           <p className="font-bold text-slate-700">Área de atuação</p><p className="break-words text-slate-600">{form.area_atuacao || "-"}</p>
           <p className="font-bold text-slate-700">Localização</p><p className="break-words text-slate-600">{[form.cidade, form.estado].filter(Boolean).join(", ") || "-"}</p>
         </div>
@@ -1121,29 +1147,105 @@ export default function MeuPerfilPage() {
                     />
                   </Field>
                   <Field label="Segmento">
-                    <Select
-                      value={form.segmento || ""}
-                      onValueChange={v => setForm(f => ({ ...f, segmento: v }))}
-                      disabled={!form.ramo_atuacao}
-                    >
-                      <SelectTrigger
-                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40 disabled:opacity-40"
-                        data-testid="select-perfil-segmento"
-                      >
-                        <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento" : "Selecione o ramo primeiro"} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
-                        {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
-                          <SelectItem
-                            key={s.codigo}
-                            value={s.nome}
-                            className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
+                    <div className="space-y-2" data-testid="select-perfil-segmento">
+                      <Popover open={segmentoOpen} onOpenChange={(open) => {
+                        setSegmentoOpen(open);
+                        if (!open) setSegmentoSearch("");
+                      }}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!form.ramo_atuacao}
+                            className="h-auto min-h-11 w-full justify-between rounded-md border-white/10 bg-white/5 px-3 py-2 text-left font-normal text-white hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {s.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            <span className="min-w-0 flex-1 truncate">
+                              {!form.ramo_atuacao
+                                ? "Selecione o ramo primeiro"
+                                : selectedSegmentos.length
+                                  ? `${selectedSegmentos.length} segmento${selectedSegmentos.length > 1 ? "s" : ""} selecionado${selectedSegmentos.length > 1 ? "s" : ""}`
+                                  : "Buscar e selecionar segmentos"}
+                            </span>
+                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-white/60" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          className="w-[var(--radix-popover-trigger-width)] border-slate-200 bg-white p-0 text-slate-900"
+                        >
+                          <div className="border-b border-slate-100 p-3">
+                            <div className="relative">
+                              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <Input
+                                autoFocus
+                                value={segmentoSearch}
+                                onChange={(event) => setSegmentoSearch(event.target.value)}
+                                placeholder="Pesquisar segmento..."
+                                className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
+                                data-testid="input-search-perfil-segmento"
+                              />
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+                              <span>{selectedSegmentos.length} de {availableSegmentos.length} selecionado{selectedSegmentos.length !== 1 ? "s" : ""}</span>
+                              {selectedSegmentos.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={clearSegmentos}
+                                  className="font-medium text-blue-600 hover:text-blue-700"
+                                >
+                                  Limpar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="max-h-72 overflow-y-auto p-2">
+                            {filteredSegmentos.length > 0 ? (
+                              filteredSegmentos.map(s => {
+                                const checked = selectedSegmentos.includes(s.nome);
+                                return (
+                                  <label
+                                    key={s.codigo}
+                                    className={`flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 text-sm transition-colors ${
+                                      checked ? "bg-blue-50 text-slate-950" : "text-slate-700 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={() => toggleSegmento(s.nome)}
+                                      className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
+                                    />
+                                    <span className="leading-5">{s.nome}</span>
+                                  </label>
+                                );
+                              })
+                            ) : (
+                              <p className="px-3 py-6 text-center text-sm text-slate-500">Nenhum segmento encontrado.</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+
+                      {selectedSegmentos.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedSegmentos.map(segmento => (
+                            <span
+                              key={segmento}
+                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+                            >
+                              <span className="truncate">{segmento}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleSegmento(segmento)}
+                                className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
+                                aria-label={`Remover ${segmento}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </Field>
                   <Field label="Área de atuação">
                     <Select

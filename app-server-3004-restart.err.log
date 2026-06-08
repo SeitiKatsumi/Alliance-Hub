@@ -1,0 +1,101 @@
+[vitrine-fields] Field na_vitrine response: 400
+[geo-opa] Field latitude response: 400
+[opa-media] Field imagem_directus_id response: 400
+[geo-bias] Field latitude response: 400
+[geo-opa] Field longitude response: 400
+[vitrine-fields] Field em_membros_built response: 400
+[geo-bias] Field longitude response: 400
+[geo-opa] Field localizacao response: 400
+[vitrine-fields] Field em_built_capital response: 400
+[geo-bias] Field localizacao response: 400
+[vitrine-fields] Field link_site response: 400
+[vitrine-fields] Field latitude response: 400
+[vitrine-fields] Field longitude response: 400
+[vitrine-fields] Field foto_posicao_x response: 400
+[vitrine-fields] Field foto_posicao_y response: 400
+[vitrine-fields] Field logo_empresa response: 400
+[vitrine-fields] Field especialidade_livre response: 400
+[vitrine-fields] Field ramo_atuacao response: 400
+[vitrine-fields] Field segmento response: 400
+[vitrine-fields] Field area_atuacao response: 400
+[vitrine-fields] Field idiomas response: 400
+[vitrine-fields] Field nucleos_alianca response: 400
+[vitrine-fields] Field tipos_alianca response: 400
+[vitrine-fields] Field codigo_etica_aceito_em response: 400
+[vitrine-fields] Field codigo_etica_versao response: 400
+[vitrine-fields] Field politicas_participacao_aceito_em response: 400
+[vitrine-fields] Field politicas_participacao_versao response: 400
+[vitrine-fields] Field vitrine_termo_aceito_em response: 400
+[vitrine-fields] Field vitrine_termo_versao response: 400
+[vitrine-fields] Field built_capital_termo_aceito_em response: 400
+[vitrine-fields] Field built_capital_termo_versao response: 400
+[vitrine-fields] Field area_aliancas_termo_aceito_em response: 400
+[vitrine-fields] Field area_aliancas_termo_versao response: 400
+[categorias] Field bia_id response: 400
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[dashboard] tipos_oportunidades status unavailable, retrying without status
+[2m9:13:48 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\ESPC\Documents\New project 2\client\src\pages\fluxo-caixa.tsx: Expected corresponding JSX closing tag for <>. (3789:4)
+
+[0m [90m 3787 |[31m         [33m<[31m[33m/[31m[33m>[31m
+ [90m 3788 |[31m       )}
+[31m[1m>[22m[31m[90m 3789 |[31m     [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m      |[31m     [31m[1m^[22m[31m
+ [90m 3790 |[31m   )[33m;[31m
+ [90m 3791 |[31m }
+ [90m 3792 |[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/ESPC/Documents/New project 2/client/src/pages/fluxo-caixa.tsx[39m:3789:4
+      at toParseError (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parse-error.ts:95:45)
+      at raise (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\tokenizer\index.ts:1503:19)
+      at jsxParseElementAt (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:517:16)
+      at jsxParseElement (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:559:19)
+      at parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:573:21)
+      at parseExprSubscripts (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:734:23)
+      at parseUpdate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:713:21)
+      at parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:675:23)
+      at parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3855:20)
+      at parseMaybeUnaryOrPrivate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:409:14)
+      at parseExprOps (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:421:23)
+      at parseMaybeConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:376:23)
+      at parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:301:21)
+      at fn (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3708:23)
+      at tryParse (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\util.ts:174:20)
+      at parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3707:20)
+      at callback (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:257:12)
+      at allowInAnd (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:3192:12)
+      at parseMaybeAssignAllowIn (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:256:17)
+      at parseMaybeAssignAllowInOrVoidPattern (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:3306:17)
+      at parseParenAndDistinguishExpression (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:1813:16)
+      at parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:1162:21)
+      at parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:583:22)
+      at parseExprSubscripts (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:734:23)
+      at parseUpdate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:713:21)
+      at parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:675:23)
+      at parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3855:20)
+      at parseMaybeUnaryOrPrivate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:409:14)
+      at parseExprOps (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:421:23)
+      at parseMaybeConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:376:23)
+      at parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:301:21)
+      at parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3727:22)
+      at parseConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:397:29)
+      at parseConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3376:20)
+      at parseMaybeConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:382:17)
+      at parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:301:21)
+      at parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3727:22)
+      at parseExpressionBase (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:226:23)
+      at callback (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:217:39)
+      at allowInAnd (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:3192:12)
+      at parseExpression (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:217:17)
+      at jsxParseExpressionContainer (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:376:33)
+      at jsxParseElementAt (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:500:24)
+      at jsxParseElement (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:559:19)
+      at parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:573:21)
+      at parseExprSubscripts (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:734:23)
+      at parseUpdate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:713:21)
+      at parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:675:23)
+      at parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3855:20)
+      at parseMaybeUnaryOrPrivate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:409:14)

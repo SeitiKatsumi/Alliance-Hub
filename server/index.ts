@@ -37,10 +37,14 @@ app.set("trust proxy", 1);
 
 const PgStore = connectPgSimple(session);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const sessionStore =
+  process.env.NODE_ENV === "production"
+    ? new PgStore({ pool, createTableIfMissing: true })
+    : undefined;
 
 app.use(
   session({
-    store: new PgStore({ pool, createTableIfMissing: true }),
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "built-alliances-secret-2024",
     resave: false,
     saveUninitialized: false,

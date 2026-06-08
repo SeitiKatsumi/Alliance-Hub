@@ -1,0 +1,47 @@
+[google-auth] Google OAuth enabled (callback: https://built.dna11.com.br/auth/google/callback)
+[nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+[estudos] Collection already exists
+[comunidade] Found collection as 'Comunidade'
+[perms] No reference permissions found
+[bias-valid] No field validations to clear
+[bia] nome_bia varchar length OK, skipping
+[cadastro_geral] nome expanded to varchar(500)
+[cadastro_geral] perfil_aliado already OK (text/null), skipping
+[cadastro_geral] nucleo_alianca already OK (text/null), skipping
+[cadastro_geral] empresa expanded to varchar(500)
+[cadastro_geral] cargo expanded to varchar(500)
+[comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_membros' already exists
+[comunidade] M2M alias 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+1:50:49 PM [express] serving on port 3004
+[comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+[comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_bias' already exists
+[comunidade] M2M alias 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+[comunidade] Fields ensured (M2O/M2M)
+1:52:15 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:52:46 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:53:16 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:53:46 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:54:16 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:46 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:55:16 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:47 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:17 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:47 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:57:17 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:57:47 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:17 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:48 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:59:18 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:59:48 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2:00:18 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:41 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2:00:51 PM [express] POST /api/login 401 in 1291ms :: {"error":"Credenciais inválidas"}
+[login] cadastro_geral lookup: https://app.builtalliances.com/items/cadastro_geral?filter%5Bemail%5D%5B_eq%5D=seitikatsumi%40gmail.com&fields=id%2CNome_de_usuario%2Cnome%2Cemail&limit=1
+[login] cadastro_geral status: 200 body: {"data":[{"id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","Nome_de_usuario":"Barão do Império Chácaras de Lazer SPE Ltda","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com"}]}
+2:00:53 PM [express] POST /api/login 200 in 1829ms :: {"id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","nome":"Barão do Império Chácaras de Lazer SPE Ltda","email":"seitikatsumi@gmail.com","membro_directus_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","role":"user","permissions":{}}
+2:08:13 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}

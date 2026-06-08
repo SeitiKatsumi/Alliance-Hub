@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex Localhosts</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f4ef;
+        color: #10263a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f6f4ef;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .topbar {
+        background: #10263a;
+        color: white;
+        border-bottom: 1px solid #d8d0be;
+      }
+
+      .topbar-inner,
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .topbar-inner {
+        display: flex;
+        gap: 24px;
+        align-items: end;
+        justify-content: space-between;
+        padding: 28px 0;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 10px 0 0;
+        color: rgba(255, 255, 255, .72);
+        max-width: 680px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        color: rgba(255, 255, 255, .76);
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-size: 12px;
+        margin-bottom: 14px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(88px, 1fr));
+        gap: 8px;
+      }
+
+      .stat {
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: 6px;
+        padding: 12px;
+        min-width: 88px;
+        text-align: center;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 26px;
+      }
+
+      .stat span {
+        color: rgba(255, 255, 255, .62);
+        font-size: 12px;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 350px minmax(0, 1fr);
+        gap: 20px;
+        padding: 24px 0;
+      }
+
+      .panel,
+      .toolbar,
+      .card {
+        background: white;
+        border: 1px solid #d8d0be;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(16, 38, 58, .06);
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .panel h2 {
+        margin: 0 0 16px;
+        font-size: 18px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 13px;
+      }
+
+      label {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      input,
+      select {
+        width: 100%;
+        height: 40px;
+        border: 1px solid #d8d0be;
+        border-radius: 6px;
+        padding: 0 11px;
+        color: #10263a;
+        background: white;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 112px;
+        gap: 10px;
+      }
+
+      .actions,
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button,
+      .link-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 38px;
+        border: 1px solid #cfc5b0;
+        border-radius: 6px;
+        padding: 0 12px;
+        background: white;
+        color: #10263a;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .primary {
+        border-color: #10263a;
+        background: #10263a;
+        color: white;
+      }
+
+      .ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        padding: 12px;
+        margin-bottom: 14px;
+      }
+
+      .toolbar input {
+        flex: 1;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .card-head {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+
+      .card h3 {
+        margin: 0;
+        font-size: 17px;
+        overflow-wrap: anywhere;
+      }
+
+      .kind {
+        display: inline-block;
+        border: 1px solid #d8d0be;
+        border-radius: 999px;
+        padding: 3px 9px;
+        margin-top: 7px;
+        font-size: 12px;
+        color: #5b6b7a;
+      }
+
+      .url {
+        display: block;
+        margin: 9px 0 16px;
+        color: #5b6b7a;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .status {
+        white-space: nowrap;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .online {
+        color: #15803d;
+      }
+
+      .offline {
+        color: #dc2626;
+      }
+
+      .checking {
+        color: #b09557;
+      }
+
+      .side {
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+
+      @media (max-width: 860px) {
+        .topbar-inner,
+        main {
+          width: min(100% - 24px, 1180px);
+        }
+
+        .topbar-inner,
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar-inner {
+          display: grid;
+          align-items: start;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div>
+          <div class="badge">▣ Codex Localhosts</div>
+          <h1>Portal de portas locais</h1>
+          <p class="subtitle">Abra, monitore e organize os localhost dos seus projetos Codex em um só painel.</p>
+        </div>
+        <div class="stats" aria-label="Resumo">
+          <div class="stat"><strong id="total">0</strong><span>salvos</span></div>
+          <div class="stat"><strong id="online">0</strong><span>online</span></div>
+          <div class="stat"><strong id="offline">0</strong><span>offline</span></div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <aside class="side">
+        <section class="panel">
+          <h2 id="form-title">Adicionar porta</h2>
+          <div class="field">
+            <label for="name">Nome</label>
+            <input id="name" placeholder="Meu projeto" />
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="path">Caminho</label>
+              <input id="path" placeholder="/" value="/" />
+            </div>
+            <div class="field">
+              <label for="port">Porta</label>
+              <input id="port" type="number" min="1" max="65535" value="3000" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="kind">Tipo</label>
+            <select id="kind">
+              <option>Frontend</option>
+              <option>Backend</option>
+              <option>Full stack</option>
+              <option>Banco</option>
+              <option>Outro</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button class="primary" id="save">Adicionar</button>
+            <button id="cancel" hidden>Cancelar</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="actions">
+            <button id="refresh">Atualizar status</button>
+            <button class="ghost" id="defaults">Restaurar padrões</button>
+          </div>
+        </section>
+      </aside>
+
+      <section>
+        <div class="toolbar">
+          <input id="search" placeholder="Buscar por nome, porta ou tipo" />
+          <button id="verify">Verificar</button>
+        </div>
+        <div class="grid" id="projects"></div>
+      </section>
+    </main>
+
+    <script>
+      const STORAGE_KEY = "codex-localhost-portal-projects";
+      const DEFAULT_PROJECTS = [
+        { id: "built-3003", name: "Projeto Codex atual", port: 3003, path: "/", kind: "Full stack" },
+        { id: "api-5000", name: "API local", port: 5000, path: "/api/health", kind: "Backend" },
+        { id: "vite-5173", name: "Vite padrão", port: 5173, path: "/", kind: "Frontend" },
+        { id: "vite-5174", name: "Vite alternativo", port: 5174, path: "/", kind: "Frontend" },
+        { id: "next-3000", name: "Next/React padrão", port: 3000, path: "/", kind: "Frontend" },
+        { id: "next-3001", name: "Next alternativo", port: 3001, path: "/", kind: "Frontend" },
+        { id: "node-8080", name: "Servidor 8080", port: 8080, path: "/", kind: "Backend" },
+        { id: "postgres-5433", name: "Postgres tunnel", port: 5433, path: "/", kind: "Banco" }
+      ];
+
+      let projects = loadProjects();
+      let statuses = {};
+      let editingId = null;
+
+      const $ = (id) => document.getElementById(id);
+
+      function loadProjects() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+          return Array.isArray(saved) && saved.length ? saved : DEFAULT_PROJECTS;
+        } catch {
+          return DEFAULT_PROJECTS;
+        }
+      }
+
+      function persist() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      }
+
+      function normalizePath(path) {
+        const trimmed = String(path || "").trim();
+        if (!trimmed) return "/";
+        return trimmed.startsWith("/") ? trimmed : "/" + trimmed;
+      }
+
+      function getUrl(project) {
+        return `http://localhost:${project.port}${normalizePath(project.path)}`;
+      }
+
+      function filteredProjects() {
+        const term = $("search").value.trim().toLowerCase();
+        if (!term) return projects;
+        return projects.filter(project =>
+          project.name.toLowerCase().includes(term) ||
+          String(project.port).includes(term) ||
+          project.kind.toLowerCase().includes(term)
+        );
+      }
+
+      function render() {
+        const container = $("projects");
+        const list = filteredProjects();
+        container.innerHTML = "";
+
+        for (const project of list) {
+          const status = statuses[project.id] || "checking";
+          const card = document.createElement("article");
+          card.className = "card";
+          card.innerHTML = `
+            <div class="card-head">
+              <div>
+                <h3>${escapeHtml(project.name)}</h3>
+                <span class="kind">${escapeHtml(project.kind)}</span>
+              </div>
+              <span class="status ${status}">${statusLabel(status)}</span>
+            </div>
+            <a class="url" href="${getUrl(project)}" target="_blank" rel="noreferrer">${getUrl(project)}</a>
+            <div class="card-actions">
+              <a class="link-button primary" href="${getUrl(project)}" target="_blank" rel="noreferrer">Abrir</a>
+              <button data-copy="${project.id}">Copiar</button>
+              <button data-edit="${project.id}">Editar</button>
+              <button data-delete="${project.id}">Excluir</button>
+            </div>
+          `;
+          container.appendChild(card);
+        }
+
+        $("total").textContent = projects.length;
+        const online = projects.filter(project => statuses[project.id] === "online").length;
+        $("online").textContent = online;
+        $("offline").textContent = projects.length - online;
+      }
+
+      function statusLabel(status) {
+        if (status === "online") return "online";
+        if (status === "offline") return "offline";
+        return "verificando";
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;"
+        }[char]));
+      }
+
+      async function probe(project) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1800);
+        try {
+          await fetch(getUrl(project), {
+            method: "GET",
+            mode: "no-cors",
+            cache: "no-store",
+            signal: controller.signal
+          });
+          return true;
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      async function refresh(targets = projects) {
+        for (const project of targets) statuses[project.id] = "checking";
+        render();
+        const results = await Promise.all(targets.map(async project => [project.id, await probe(project)]));
+        for (const [id, online] of results) statuses[id] = online ? "online" : "offline";
+        render();
+      }
+
+      function resetForm() {
+        editingId = null;
+        $("form-title").textContent = "Adicionar porta";
+        $("save").textContent = "Adicionar";
+        $("cancel").hidden = true;
+        $("name").value = "";
+        $("port").value = "3000";
+        $("path").value = "/";
+        $("kind").value = "Frontend";
+      }
+
+      $("save").addEventListener("click", () => {
+        const name = $("name").value.trim();
+        const port = Number($("port").value);
+        if (!name || !Number.isInteger(port) || port < 1 || port > 65535) {
+          alert("Verifique nome e porta.");
+          return;
+        }
+
+        const project = {
+          id: editingId || `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${port}-${Date.now()}`,
+          name,
+          port,
+          path: normalizePath($("path").value),
+          kind: $("kind").value
+        };
+
+        projects = editingId
+          ? projects.map(item => item.id === editingId ? project : item)
+          : [project, ...projects];
+        persist();
+        resetForm();
+        render();
+        refresh([project]);
+      });
+
+      $("cancel").addEventListener("click", resetForm);
+      $("search").addEventListener("input", render);
+      $("refresh").addEventListener("click", () => refresh());
+      $("verify").addEventListener("click", () => refresh(filteredProjects()));
+      $("defaults").addEventListener("click", () => {
+        projects = DEFAULT_PROJECTS.slice();
+        statuses = {};
+        persist();
+        resetForm();
+        render();
+        refresh(projects);
+      });
+
+      $("projects").addEventListener("click", async (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+
+        const copyId = button.dataset.copy;
+        const editId = button.dataset.edit;
+        const deleteId = button.dataset.delete;
+
+        if (copyId) {
+          const project = projects.find(item => item.id === copyId);
+          if (project) await navigator.clipboard.writeText(getUrl(project));
+        }
+
+        if (editId) {
+          const project = projects.find(item => item.id === editId);
+          if (!project) return;
+          editingId = project.id;
+          $("form-title").textContent = "Editar porta";
+          $("save").textContent = "Salvar";
+          $("cancel").hidden = false;
+          $("name").value = project.name;
+          $("port").value = project.port;
+          $("path").value = project.path;
+          $("kind").value = project.kind;
+        }
+
+        if (deleteId) {
+          projects = projects.filter(item => item.id !== deleteId);
+          delete statuses[deleteId];
+          persist();
+          render();
+        }
+      });
+
+      render();
+      refresh(projects);
+    </script>
+  </body>
+</html>

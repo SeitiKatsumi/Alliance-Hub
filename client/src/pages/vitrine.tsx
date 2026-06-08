@@ -20,11 +20,12 @@ import {
   Users, X, Plus, Pencil, Trash2, Loader2,
   FileText, Mail, MessageSquare, Globe, Phone, Navigation,
   Megaphone, CalendarDays, ExternalLink, ImageIcon, Tag, CheckCircle2, XCircle, Upload,
-  ShieldCheck, Check, LayoutGrid, List, ChevronRight, ChevronLeft,
+  ShieldCheck, Check, LayoutGrid, List, ChevronRight, ChevronLeft, Sparkles,
 } from "lucide-react";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
+import { isBuiltMemberForAura } from "@/lib/aura-access";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -2273,11 +2274,13 @@ function ParceiroDestaqueCard({ membro: m, onOpen }: { membro: MembroVitrine; on
 }
 
 function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
+  const { user } = useAuth();
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   const nome = m.nome || "—";
   const [, navigate] = useLocation();
+  const canViewAndRegisterAura = !isOwn && isBuiltMemberForAura(user);
 
   function handleOrcamento(e: React.MouseEvent) {
     e.stopPropagation();
@@ -2292,6 +2295,11 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
       const corpo = encodeURIComponent(`Olá ${nome}!\n\nGostaria de solicitar um orçamento.`);
       window.open(`mailto:${m.email}subject=${assunto}&body=${corpo}`, "_blank");
     }
+  }
+
+  function handleAura(e: React.MouseEvent) {
+    e.stopPropagation();
+    navigate(`/aura/${m.id}`);
   }
 
   return (
@@ -2332,6 +2340,19 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
       </div>
 
       <div className="hidden sm:flex items-center gap-3 shrink-0">
+        {canViewAndRegisterAura && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleAura}
+            className="gap-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+            data-testid={`btn-list-aura-${m.id}`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Ver e registrar Aura
+          </Button>
+        )}
         {!isOwn && (
           <Button
             type="button"
@@ -2351,6 +2372,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
 }
 
 function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
+  const { user } = useAuth();
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
@@ -2358,6 +2380,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
   const [, navigate] = useLocation();
   const [orcamentoOpen, setOrcamentoOpen] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const canViewAndRegisterAura = !isOwn && isBuiltMemberForAura(user);
 
   function waLink() {
     if (!m.whatsapp) return null;
@@ -2382,6 +2405,11 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
     window.open(`mailto:${m.email}subject=${assunto}&body=${corpo}`, "_blank");
     setOrcamentoOpen(false);
     setMensagem("");
+  }
+
+  function handleAura(e: React.MouseEvent) {
+    e.stopPropagation();
+    navigate(`/aura/${m.id}`);
   }
 
   return (
@@ -2481,10 +2509,21 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
             )}
           </div>
 
-          {/* Quote button — only for other members */}
+          {/* Actions — only for other members */}
           {!isOwn && (
             <>
               <div className="h-px bg-border" />
+              {canViewAndRegisterAura && (
+                <button
+                  type="button"
+                  onClick={handleAura}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
+                  data-testid={`btn-card-aura-${m.id}`}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Ver e registrar Aura
+                </button>
+              )}
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); setMensagem(""); setOrcamentoOpen(true); }}

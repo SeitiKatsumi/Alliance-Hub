@@ -7435,10 +7435,62 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // ── Aura Percebida ───────────────────────────────────────────────────────────
   const { calcularAura, classificarPalavra, PALAVRAS_SUGERIDAS } = await import("./aura-lexico.js");
+  async function getAuraAccessContext(req: any) {
+    const role = (req.session as any).role || "user";
+    const membroId = ((req.session as any).membroId as string | null) || null;
+    let naVitrine = false;
+    let emMembrosBuilt = false;
+    let emBuiltCapital = false;
+    let redes: string[] = [];
+
+    if (membroId) {
+      try {
+        const membro = await directusFetchOne(
+          "cadastro_geral",
+          membroId,
+          "fields=na_vitrine,em_membros_built,em_built_capital,Outras_redes_as_quais_pertenco"
+        );
+        naVitrine = membro?.na_vitrine === true || membro?.na_vitrine === 1;
+        emMembrosBuilt = membro?.em_membros_built === true || membro?.em_membros_built === 1;
+        emBuiltCapital = membro?.em_built_capital === true || membro?.em_built_capital === 1;
+        redes = Array.isArray(membro?.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
+      } catch (_) {
+        redes = Array.isArray((req.session as any).Outras_redes_as_quais_pertenco)
+          ? (req.session as any).Outras_redes_as_quais_pertenco
+          : [];
+      }
+    }
+
+    const hasMemberSeal =
+      redes.includes("BUILT_PROUD_MEMBER") ||
+      redes.includes("BUILT_FOUNDING_MEMBER") ||
+      redes.includes("BUILT_ALLIANCE_PARTNER");
+    const canConsultAndRegisterAura =
+      emMembrosBuilt ||
+      ["membro", "aliado", "manager", "admin"].includes(role) ||
+      hasMemberSeal;
+    const isVitrineOnly =
+      role === "user" &&
+      naVitrine &&
+      !emMembrosBuilt &&
+      !emBuiltCapital;
+
+    return { membroId, canConsultAndRegisterAura, isVitrineOnly };
+  }
+
+  async function blockVitrineOnlyAura(req: any, res: any) {
+    const access = await getAuraAccessContext(req);
+    if (access.isVitrineOnly) {
+      res.status(403).json({ error: "Usuários somente da Vitrine podem consultar apenas a própria Aura." });
+      return true;
+    }
+    return false;
+  }
 
   // GET /api/aura/membros/busca — member search for evaluation form
   app.get("/api/aura/membros/busca", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const q = String(req.query.q || "").trim();
     try {
       const url = q.length >= 2
@@ -7459,10 +7511,16 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     res.json(PALAVRAS_SUGERIDAS);
   });
 
-  // GET /api/aura/score/:membroId — public score (always calculated if ≥1 evaluation)
+  // GET /api/aura/score/:membroId — public score (always calculated if >=1 evaluation)
   app.get("/api/aura/score/:membroId", async (req, res) => {
     try {
       const { membroId } = req.params;
+      if ((req.session as any).directusUserId) {
+        const access = await getAuraAccessContext(req);
+        if (access.isVitrineOnly && membroId !== access.membroId) {
+          return res.status(403).json({ error: "Usuários somente da Vitrine podem consultar apenas a própria Aura." });
+        }
+      }
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
       if (avaliacoes.length === 0) {
         return res.json({
@@ -7480,6 +7538,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           total_palavras: 0,
           dimensoes_sem_evidencia: ["T", "R", "C"],
           correspondencia_valores: { T: 0, R: 0, C: 0 },
+          redutor_reputacional: 0,
+          pontos_atencao_reputacional: [],
           palavras_recebidas: [],
         });
       }
@@ -7493,6 +7553,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // POST /api/aura/leitura-contextual — AI contextual interpretation by alliance nucleus
   app.post("/api/aura/leitura-contextual", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const { membro_nome, nucleo, score, faixa, T, R, C, n, palavras_recebidas } = req.body || {};
     const nucleosPermitidos = new Set(["Técnico", "Obra", "Comercial", "Capital", "Liderança"]);
     if (!nucleo || typeof nucleo !== "string" || !nucleosPermitidos.has(nucleo)) {
@@ -7597,6 +7658,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // GET /api/aura/avaliacao/:avaliadoId — get my evaluation of a specific member
   app.get("/api/aura/avaliacao/:avaliadoId", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const membroId = (req.session as any).membroId as string | null;
     if (!membroId) return res.json(null);
     const av = await storage.getAuraAvaliacaoByPair(membroId, req.params.avaliadoId);
@@ -7606,6 +7668,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // POST /api/aura/analisar-texto — AI analysis: pick up to 3 lexicon words from free text
   app.post("/api/aura/analisar-texto", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const { texto, membro_nome } = req.body;
     if (!texto || typeof texto !== "string" || texto.trim().length < 10) {
       return res.status(400).json({ error: "Texto muito curto. Descreva o membro com pelo menos 10 caracteres." });
@@ -7702,6 +7765,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // POST /api/aura/extrair-arquivo — extract text from uploaded file (TXT or PDF) for AI analysis
   app.post("/api/aura/extrair-arquivo", upload.single("arquivo"), async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
 
@@ -7739,6 +7803,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // POST /api/aura/avaliar — submit an evaluation (one per pair, no updates)
   app.post("/api/aura/transcrever-audio", auraAudioUpload.single("audio"), async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum áudio enviado." });
 
@@ -7761,6 +7826,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.post("/api/aura/avaliar", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (await blockVitrineOnlyAura(req, res)) return;
     const membroId = (req.session as any).membroId as string | null;
     if (!membroId) return res.status(400).json({ error: "Membro não encontrado" });
 

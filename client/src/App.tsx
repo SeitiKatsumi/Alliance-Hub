@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch as UiSwitch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
 import BiasPage from "@/pages/bias";
@@ -46,7 +47,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Briefcase, CheckCircle2, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, ScrollText, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
+import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 
 interface OnboardingMembro {
   id: string;
@@ -499,6 +500,19 @@ function PerfilOnboardingModal({
     setForm(current => ({ ...current, [field]: value }));
   }
 
+  const selectedSegmentos = parseSegmentosValue(form.segmento);
+  const availableSegmentos = getSegmentosForRamo(form.ramo_atuacao || "");
+
+  function toggleSegmento(segmento: string) {
+    setForm(current => {
+      const currentSegmentos = parseSegmentosValue(current.segmento);
+      const nextSegmentos = currentSegmentos.includes(segmento)
+        ? currentSegmentos.filter(item => item !== segmento)
+        : [...currentSegmentos, segmento];
+      return { ...current, segmento: formatSegmentosValue(nextSegmentos) };
+    });
+  }
+
   function handleSave() {
     if (!mostrarPerfilCompleto) {
       if (!termoModulo) return;
@@ -615,20 +629,26 @@ function PerfilOnboardingModal({
           </div>
           <div className="space-y-1.5">
             <Label>Segmento</Label>
-            <Select
-              value={form.segmento || ""}
-              onValueChange={value => setForm(current => ({ ...current, segmento: value }))}
-              disabled={!form.ramo_atuacao}
+            <div
+              className={`max-h-48 overflow-y-auto rounded-md border p-2 ${form.ramo_atuacao ? "bg-white" : "bg-muted/40 opacity-60"}`}
+              data-testid="select-onboarding-segmento"
             >
-              <SelectTrigger data-testid="select-onboarding-segmento">
-                <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento" : "Selecione o ramo primeiro"} />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {getSegmentosForRamo(form.ramo_atuacao || "").map(segmento => (
-                  <SelectItem key={segmento.codigo} value={segmento.nome}>{segmento.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {!form.ramo_atuacao ? (
+                <p className="px-2 py-3 text-sm text-muted-foreground">Selecione o ramo primeiro</p>
+              ) : (
+                <div className="space-y-2">
+                  {availableSegmentos.map(segmento => (
+                    <label key={segmento.codigo} className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
+                      <Checkbox
+                        checked={selectedSegmentos.includes(segmento.nome)}
+                        onCheckedChange={() => toggleSegmento(segmento.nome)}
+                      />
+                      <span>{segmento.nome}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Localização *</Label>

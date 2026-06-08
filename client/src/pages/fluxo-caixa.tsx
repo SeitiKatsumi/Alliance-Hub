@@ -1867,6 +1867,194 @@ export default function FluxoCaixaPage({
     };
   }, [aportesComTransferencias]);
 
+  const allocationLegalText =
+    "Este Mapa de Alocação Patrimonial é anexo acessório ao MoU Padrão BUILT e/ou ao instrumento jurídico pertinente à respectiva aliança. Possui finalidade exclusivamente informativa, estratégica e de governança, não constituindo contrato autônomo, promessa de participação, garantia de retorno, cessão de direitos ou obrigação definitiva, nem substituindo ou prevalecendo sobre contratos, atos societários, deliberações formais ou instrumentos jurídicos assinados. Qualquer participação, direito patrimonial, CPP, alocação econômica ou obrigação dependerá da validação e formalização previstas no instrumento jurídico aplicável. Em caso de dúvidas, divergências ou necessidade de interpretação, prevalecerão o instrumento jurídico pertinente, as deliberações formais da aliança e a orientação da Diretoria da Aliança.";
+
+  function escapePdfHtml(value: unknown): string {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function handleExportAllocationPdf() {
+    const logoUrl = `${window.location.origin}/built-logo-horizontal-branca-email.png`;
+    const groups = [
+      { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes },
+      { title: "Sócios Multiplicadores", items: alocacaoPorPapel.multiplicadores },
+      { title: "Não classificados", items: alocacaoPorPapel.naoClassificados },
+    ].filter((group) => group.items.length > 0);
+
+    const rowsHtml = groups.map((group) => `
+      <section class="group">
+        <h2>${escapePdfHtml(group.title)} <span>${group.items.length}</span></h2>
+        ${group.items.map((item) => `
+          <div class="row">
+            <div class="name">${escapePdfHtml(membroMap[item.membroId] || item.inlineName || "Membro desconhecido")}</div>
+            <div class="bar"><div style="width: ${Math.max(0, Math.min(100, item.percentual)).toFixed(2)}%"></div></div>
+            <div class="value">${escapePdfHtml(formatBRL(item.valor))}</div>
+            <div class="percent">${item.percentual.toFixed(1)}%</div>
+          </div>
+        `).join("")}
+      </section>
+    `).join("");
+
+    const transferRowsHtml = transferencias.map((transfer) => {
+      const statusLabel =
+        transfer.status === "aceita"
+          ?"Aceita"
+          : transfer.status === "rejeitada"
+          ?"Rejeitada"
+          : "Pendente";
+      const statusClass =
+        transfer.status === "aceita"
+          ?"accepted"
+          : transfer.status === "rejeitada"
+          ?"rejected"
+          : "pending";
+      return `
+        <tr class="movement-row">
+          <td>
+            <div class="movement-parties">
+              ${escapePdfHtml(membroMap[transfer.membro_origem_id] || transfer.membro_origem_id)}
+              <span>→</span>
+              ${escapePdfHtml(membroMap[transfer.membro_destino_id] || transfer.membro_destino_id)}
+            </div>
+            ${transfer.observacoes ?`<div class="movement-note">"${escapePdfHtml(transfer.observacoes)}"</div>` : ""}
+          </td>
+          <td class="movement-data">${transfer.percentual_transferencia ?`${parseFloat(transfer.percentual_transferencia).toFixed(1)}%` : "-"}</td>
+          <td class="movement-data">${transfer.valor_total ?escapePdfHtml(formatBRL(parseFloat(transfer.valor_total))) : "-"}</td>
+          <td class="movement-data">${transfer.criado_em ?new Date(transfer.criado_em).toLocaleDateString("pt-BR") : "-"}</td>
+          <td><span class="movement-status ${statusClass}">${statusLabel}</span></td>
+        </tr>
+      `;
+    }).join("");
+
+    const html = `<!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Mapa de Alocação Patrimonial - ${escapePdfHtml(selectedBia?.nome_bia || "BIA")}</title>
+          <style>
+            @page { size: A4; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; color: #08233b; font-family: Inter, Arial, Helvetica, sans-serif; background: #f4f7fb; }
+            .document { background: #fff; min-height: 100vh; border: 1px solid #dfe6ef; }
+            .header { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; min-height: 142px; padding: 28px 32px 30px; color: #fff; background: linear-gradient(135deg, #001f35 0%, #06385b 58%, #0b4b78 100%); overflow: hidden; }
+            .header:after { content: ""; position: absolute; inset: auto -90px -110px auto; width: 280px; height: 280px; border: 1px solid rgba(217, 191, 115, 0.28); transform: rotate(35deg); }
+            .header-content { position: relative; z-index: 1; max-width: 560px; }
+            .logo { position: relative; z-index: 1; width: 168px; height: auto; object-fit: contain; margin-top: 2px; }
+            .eyebrow { color: #d9bf73; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; margin: 0 0 12px; }
+            h1 { margin: 0; font-size: 31px; line-height: 1.06; color: #fff; letter-spacing: 0; }
+            .subtitle { margin: 10px 0 0; color: #dce8f3; font-size: 14px; }
+            .meta { display: inline-flex; margin-top: 16px; padding: 6px 10px; border-radius: 999px; color: #f8fafc; background: rgba(255, 255, 255, 0.11); font-size: 11px; }
+            .content { padding: 24px 32px 28px; }
+            .card { margin-top: 18px; border: 1px solid #dfd2b8; border-radius: 12px; padding: 22px; background: #fff; box-shadow: 0 10px 24px rgba(8, 35, 59, 0.06); break-inside: avoid; }
+            .card:first-child { margin-top: 0; }
+            .group + .group { margin-top: 24px; padding-top: 18px; border-top: 1px solid #edf0f4; }
+            h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; color: #5b6c7a; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+            h2 span { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; border-radius: 999px; background: #eef5ff; color: #2f7cff; font-size: 11px; letter-spacing: 0; }
+            .row { display: grid; grid-template-columns: minmax(155px, 1.2fr) minmax(145px, 1fr) 120px 72px; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f3f6; }
+            .row:last-child { border-bottom: 0; }
+            .name { font-size: 14px; font-weight: 800; color: #08233b; }
+            .bar { height: 9px; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+            .bar div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #d9bf73, #3b82f6); }
+            .value { color: #627282; font-size: 13px; text-align: right; white-space: nowrap; }
+            .percent { padding: 6px 9px; border-radius: 8px; background: #eef5ff; color: #2f7cff; font-size: 13px; font-weight: 900; text-align: center; white-space: nowrap; }
+            .section-title { margin: 0 0 16px; color: #071f35; font-size: 18px; line-height: 1.25; letter-spacing: 0; }
+            .movement-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            .movement-table th { padding: 0 10px 9px 0; color: #6b7a89; font-size: 9.5px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; text-align: left; border-bottom: 1px solid #edf0f4; }
+            .movement-table th:nth-child(n+2),
+            .movement-table td:nth-child(n+2) { text-align: right; }
+            .movement-table td { padding: 11px 10px 11px 0; border-bottom: 1px solid #f1f3f6; vertical-align: top; }
+            .movement-table tr:last-child td { border-bottom: 0; }
+            .movement-parties { color: #08233b; font-size: 12.5px; font-weight: 800; line-height: 1.35; }
+            .movement-parties span { color: #7a8794; padding: 0 6px; }
+            .movement-note { margin-top: 4px; color: #697888; font-size: 11px; font-style: italic; }
+            .movement-data { color: #627282; font-size: 12px; white-space: nowrap; }
+            .movement-status { display: inline-block; min-width: 64px; padding: 5px 8px; border-radius: 999px; font-size: 11px; font-weight: 900; text-align: center; white-space: nowrap; }
+            .movement-status.accepted { background: #e8f8ee; color: #169447; }
+            .movement-status.rejected { background: #feecec; color: #dc2626; }
+            .movement-status.pending { background: #fff7e6; color: #b7791f; }
+            .legal { margin-top: 20px; padding: 16px 18px; border-left: 4px solid #d9bf73; border-radius: 10px; color: #4f5f6f; background: #f8fafc; font-size: 10.5px; line-height: 1.6; text-align: justify; }
+            .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; color: #7a8794; font-size: 10px; }
+            .footer-mark { color: #d9bf73; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <article class="document">
+          <header class="header">
+            <div class="header-content">
+              <p class="eyebrow">BUILT Alliances</p>
+              <h1>Mapa de Alocação Patrimonial</h1>
+              <p class="subtitle">${escapePdfHtml(selectedBia?.nome_bia || "BIA")}</p>
+              <p class="meta">Emitido em ${new Date().toLocaleDateString("pt-BR")}</p>
+            </div>
+            <img class="logo" src="${logoUrl}" alt="BUILT" />
+          </header>
+          <div class="content">
+          <main class="card">
+            ${rowsHtml || "<p>Nenhuma alocação patrimonial encontrada para esta BIA.</p>"}
+          </main>
+          <section class="card">
+            <h2 class="section-title">Movimentação de Cotas</h2>
+            ${transferRowsHtml
+              ?`
+                <table class="movement-table">
+                  <colgroup>
+                    <col style="width: 45%" />
+                    <col style="width: 13%" />
+                    <col style="width: 17%" />
+                    <col style="width: 13%" />
+                    <col style="width: 12%" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Origem / destino</th>
+                      <th>Percentual</th>
+                      <th>Valor</th>
+                      <th>Data</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${transferRowsHtml}
+                  </tbody>
+                </table>
+              `
+              : "<p>Nenhuma movimentação de cotas registrada para esta BIA.</p>"}
+          </section>
+          <section class="legal">${escapePdfHtml(allocationLegalText)}</section>
+          <footer class="footer"><span class="footer-mark">BUILT</span><span>BUILT Alliances Platform</span></footer>
+          </div>
+          </article>
+          <script>
+            window.addEventListener("load", () => {
+              setTimeout(() => window.print(), 250);
+            });
+          </script>
+        </body>
+      </html>`;
+
+    const printWindow = window.open("", "_blank", "width=900,height=1100");
+    if (!printWindow) {
+      toast({
+        title: "Não foi possível abrir o PDF",
+        description: "Permita pop-ups para exportar o mapa de alocação.",
+        variant: "destructive",
+      });
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
+
   async function uploadFiles(files: globalThis.File[]): Promise<string[]> {
     if (files.length === 0) return [];
     const formDataObj = new FormData();
@@ -2555,20 +2743,32 @@ export default function FluxoCaixaPage({
           )}
 
           {cotasOnly && aportesPorMembro.length > 0 && (
-            <Card data-testid="panel-participacao-aportes">
-              <CardContent className="pt-6">
-                <div className="space-y-5">
-                  {[
-                    { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes, cls: "border-brand-gold/50 text-brand-gold bg-brand-gold/10" },
-                    { title: "Sócios Multiplicadores", items: alocacaoPorPapel.multiplicadores, cls: "border-green-500/50 text-green-600 bg-green-500/10" },
-                    { title: "Não classificados", items: alocacaoPorPapel.naoClassificados, cls: "border-muted-foreground/40 text-muted-foreground bg-muted/40" },
-                  ].filter((group) => group.items.length > 0).map((group) => (
-                    <div key={group.title} className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</p>
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${group.cls}`}>{group.items.length}</Badge>
-                      </div>
-                      {group.items.map((item) => (
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleExportAllocationPdf}
+                  data-testid="btn-exportar-mapa-alocacao-pdf"
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar PDF
+                </Button>
+              </div>
+              <Card data-testid="panel-participacao-aportes">
+                <CardContent className="pt-6">
+                  <div className="space-y-5">
+                    {[
+                      { title: "Sócios Guardiões", items: alocacaoPorPapel.guardioes, cls: "border-brand-gold/50 text-brand-gold bg-brand-gold/10" },
+                      { title: "Sócios Multiplicadores", items: alocacaoPorPapel.multiplicadores, cls: "border-green-500/50 text-green-600 bg-green-500/10" },
+                      { title: "Não classificados", items: alocacaoPorPapel.naoClassificados, cls: "border-muted-foreground/40 text-muted-foreground bg-muted/40" },
+                    ].filter((group) => group.items.length > 0).map((group) => (
+                      <div key={group.title} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</p>
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${group.cls}`}>{group.items.length}</Badge>
+                        </div>
+                        {group.items.map((item) => (
                     <div key={item.membroId} className="space-y-1" data-testid={`aporte-membro-${item.membroId}`}>
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2 font-medium">
@@ -2603,12 +2803,13 @@ export default function FluxoCaixaPage({
                         />
                       </div>
                     </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Dialog de solicitação de movimentação */}

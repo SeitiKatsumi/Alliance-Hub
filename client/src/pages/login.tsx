@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
@@ -19,7 +20,7 @@ import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
-import { getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
+import { formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -41,8 +42,8 @@ const CONVITE_TIPO_LABEL: Record<string, string> = {
 };
 
 const BUILT_CAPITAL_TIPO = "Alianças de Investimento";
-const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário, Investimento & Negócios";
-const BUILT_CAPITAL_SEGMENTO = "Investimentos estruturados em ativos reais";
+const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário & Negócios Aplicados";
+const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
 const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
 const DEFAULT_AREAS: string[] = [];
 const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: string }> = {
@@ -222,6 +223,16 @@ export default function LoginPage() {
     setRegSegmento(current => current || BUILT_CAPITAL_SEGMENTO);
     setRegTiposAlianca([BUILT_CAPITAL_TIPO]);
   }, [interessesSelecionados]);
+
+  const selectedRegSegmentos = parseSegmentosValue(regSegmento);
+  const availableRegSegmentos = getSegmentosForRamo(regRamoAtuacao);
+
+  function toggleRegSegmento(segmento: string) {
+    const nextSegmentos = selectedRegSegmentos.includes(segmento)
+      ? selectedRegSegmentos.filter(item => item !== segmento)
+      : [...selectedRegSegmentos, segmento];
+    setRegSegmento(formatSegmentosValue(nextSegmentos) || "");
+  }
 
   useEffect(() => {
     return () => {
@@ -891,10 +902,23 @@ export default function LoginPage() {
                           <SelectContent className="max-h-72">{RAMOS_SEGMENTOS.map(ramo => <SelectItem key={ramo.codigo} value={ramo.nome}>{ramo.nome}</SelectItem>)}</SelectContent>
                         </Select>
                         <h3 className="mt-4 text-sm font-bold text-[#001D34]">4. Segmento</h3>
-                        <Select value={regSegmento} onValueChange={setRegSegmento} disabled={!regRamoAtuacao}>
-                          <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o segmento" /></SelectTrigger>
-                          <SelectContent className="max-h-72">{getSegmentosForRamo(regRamoAtuacao).map(segmento => <SelectItem key={segmento.codigo} value={segmento.nome}>{segmento.nome}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <div className={`mt-2 max-h-56 overflow-y-auto rounded-md border border-slate-200 p-2 ${regRamoAtuacao ? "bg-white" : "bg-slate-50 opacity-60"}`}>
+                          {!regRamoAtuacao ? (
+                            <p className="px-2 py-3 text-sm text-slate-500">Selecione o ramo primeiro</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {availableRegSegmentos.map(segmento => (
+                                <label key={segmento.codigo} className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                                  <Checkbox
+                                    checked={selectedRegSegmentos.includes(segmento.nome)}
+                                    onCheckedChange={() => toggleRegSegmento(segmento.nome)}
+                                  />
+                                  <span>{segmento.nome}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </section>
                       <section className="rounded-xl border border-slate-200 bg-white p-4">
                         <h3 className="text-sm font-bold text-[#001D34]">5. Perfil Técnico</h3>
@@ -1007,7 +1031,7 @@ export default function LoginPage() {
                       <div className="mt-4 space-y-3 text-xs">
                         <div><p className="font-bold text-slate-700">Papel na BUILT</p><p className="mt-1 text-slate-600">{interessesSelecionados.includes("capital") ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p></div>
                         <div><p className="font-bold text-slate-700">Áreas de contribuição ({interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : regTiposAlianca).map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>
-                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{regSegmento || "-"}</p><p className="font-bold text-slate-700">Área de atuação</p><p className="text-slate-600">{regCidade || "-"}</p></div>
+                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Área de atuação</p><p className="text-slate-600">{regCidade || "-"}</p></div>
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-4">

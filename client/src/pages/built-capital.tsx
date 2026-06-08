@@ -14,6 +14,7 @@ import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   Search, MapPin, Phone, Mail, Building2, TrendingUp, Globe, LayoutGrid, List
 } from "lucide-react";
+import { formatSegmentosDisplay } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -379,7 +380,7 @@ function ParceiroCard({ parceiro }: { parceiro: Parceiro }) {
           <div className="pt-1">
             <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono border border-brand-gold/20 text-brand-gold/60"
               style={{ background: "rgba(37,99,235,0.08)" }}>
-              {parceiro.segmento || parceiro.ramo_atuacao}
+              {formatSegmentosDisplay(parceiro.segmento) || parceiro.ramo_atuacao}
             </span>
           </div>
         )}
@@ -460,7 +461,7 @@ function CapitalCard({ parceiro }: { parceiro: Parceiro }) {
 
         <div className="text-center space-y-1.5">
           <p className="text-sm font-semibold text-foreground font-mono leading-tight line-clamp-2">{nome}</p>
-          {parceiro.segmento && <p className="text-xs text-blue-600 font-mono truncate">{parceiro.segmento}</p>}
+          {parceiro.segmento && <p className="text-xs text-blue-600 font-mono truncate">{formatSegmentosDisplay(parceiro.segmento)}</p>}
 
           {parceiro.empresa && (
             <div className="flex items-center justify-center gap-2 min-w-0">
@@ -557,7 +558,7 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
             </span>
           )}
           {(parceiro.segmento || parceiro.ramo_atuacao || parceiro.cargo) && (
-            <span className="truncate max-w-[260px]">{parceiro.segmento || parceiro.ramo_atuacao || parceiro.cargo}</span>
+            <span className="truncate max-w-[260px]">{formatSegmentosDisplay(parceiro.segmento) || parceiro.ramo_atuacao || parceiro.cargo}</span>
           )}
           {(parceiro.cidade || parceiro.estado) && (
             <span className="inline-flex items-center gap-1">

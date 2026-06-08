@@ -8,7 +8,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { AuraScore, getFaixaNome } from "@/components/aura-score";
-import { getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { formatSegmentosDisplay, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 
@@ -400,7 +400,7 @@ export default function MembroDetalhePage() {
                       {membro.segmento && (
                         <div>
                           <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
-                          <p className="text-sm text-gray-800 font-mono">{membro.segmento}</p>
+                          <p className="text-sm text-gray-800 font-mono">{formatSegmentosDisplay(membro.segmento)}</p>
                         </div>
                       )}
                       {membro.area_atuacao && (

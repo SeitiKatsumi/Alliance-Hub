@@ -1,0 +1,15 @@
+
+  [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m421[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3003[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://26.190.34.36:[1m3003[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.3.16:[1m3003[22m/[39m
+[2m8:37:19 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/membros.tsx, /src/index.css[22m
+[2m8:38:11 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/membros.tsx, /src/index.css[22m
+[2m8:38:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/membros.tsx, /src/index.css[22m
+[2m8:39:45 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/membros.tsx, /src/index.css[22m
+[2m8:40:54 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/admin.tsx, /src/index.css[22m
+[2m8:41:45 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/admin.tsx, /src/index.css[22m
+[2m8:44:32 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/admin.tsx, /src/index.css[22m
+[2m8:45:22 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/admin.tsx, /src/index.css[22m
+[2m8:59:56 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/painel.tsx, /src/index.css[22m

@@ -4,6 +4,12 @@ export interface PalavraClassificada {
   canonico: string;
   dimensao: Dimensao;
   valorBuilt: boolean;
+  polaridade: "positiva" | "negativa";
+  gravidade?: "leve" | "moderada" | "grave" | "critica";
+  fatorGravidade?: number;
+  valorAfetado?: string;
+  recomendacao?: string;
+  impactaScore: boolean;
 }
 
 function normalize(s: string): string {
@@ -16,7 +22,20 @@ function normalize(s: string): string {
     .trim();
 }
 
-type LexicoEntry = { canonico: string; dimensao: Dimensao; valorBuilt: boolean };
+type Polaridade = "positiva" | "negativa";
+type GravidadeNegativa = "leve" | "moderada" | "grave" | "critica";
+
+type LexicoEntry = {
+  canonico: string;
+  dimensao: Dimensao;
+  valorBuilt: boolean;
+  polaridade: Polaridade;
+  gravidade?: GravidadeNegativa;
+  fatorGravidade?: number;
+  valorAfetado?: string;
+  recomendacao?: string;
+  impactaScore: boolean;
+};
 
 const RAW: Array<{ canonico: string; dimensao: Dimensao; sinonimos: string[] }> = [
   { canonico: "Integridade", dimensao: "C", sinonimos: ["honesto", "ética", "ético", "íntegro", "confiável", "justo", "verdadeiro", "caráter", "transparência", "coerente", "leal", "sinceridade", "sincero", "honestidade"] },
@@ -109,14 +128,14 @@ function addEntry(word: string, entry: LexicoEntry, override = false) {
 }
 
 for (const { canonico, dimensao, sinonimos } of RAW) {
-  const entry = { canonico, dimensao, valorBuilt: true };
+  const entry = { canonico, dimensao, valorBuilt: true, polaridade: "positiva" as const, impactaScore: true };
   addEntry(canonico, entry, true);
   for (const s of sinonimos) addEntry(s, entry);
 }
 
 for (const [dimensao, palavras] of Object.entries(LISTA_VIVA) as Array<[Dimensao, string[]]>) {
   for (const palavra of palavras) {
-    addEntry(palavra, { canonico: palavra, dimensao, valorBuilt: false });
+    addEntry(palavra, { canonico: palavra, dimensao, valorBuilt: false, polaridade: "positiva", impactaScore: true });
   }
 }
 
@@ -143,13 +162,185 @@ const PALAVRAS_OFICIAIS_V3: Record<Dimensao, string[]> = {
 
 for (const [dimensao, palavras] of Object.entries(PALAVRAS_OFICIAIS_V3) as Array<[Dimensao, string[]]>) {
   for (const palavra of palavras) {
-    addEntry(palavra, { canonico: palavra, dimensao, valorBuilt: dimensao !== "T" && normalize(palavra) !== "acessivel" }, true);
+    addEntry(palavra, { canonico: palavra, dimensao, valorBuilt: dimensao !== "T" && normalize(palavra) !== "acessivel", polaridade: "positiva", impactaScore: true }, true);
   }
+}
+
+const PALAVRAS_NEGATIVAS: Array<{
+  canonico: string;
+  dimensao: Dimensao;
+  valorAfetado: string;
+  gravidade: GravidadeNegativa;
+  fatorGravidade: number;
+  sinonimos: string[];
+  recomendacao: string;
+}> = [
+  {
+    canonico: "T\u00edmido",
+    dimensao: "R",
+    valorAfetado: "Comunica\u00e7\u00e3o / Conex\u00e3o",
+    gravidade: "leve",
+    fatorGravidade: 0.5,
+    sinonimos: ["timido", "retraido", "reservado demais"],
+    recomendacao: "Estimular maior abertura e participacao nas interacoes da rede.",
+  },
+  {
+    canonico: "Inseguro",
+    dimensao: "C",
+    valorAfetado: "Autonomia / Coragem",
+    gravidade: "leve",
+    fatorGravidade: 0.5,
+    sinonimos: ["inseguro", "hesitante", "indeciso"],
+    recomendacao: "Acompanhar em decis\u00f5es de maior impacto at\u00e9 nova valida\u00e7\u00e3o.",
+  },
+  {
+    canonico: "Disperso",
+    dimensao: "T",
+    valorAfetado: "Foco / Disciplina",
+    gravidade: "leve",
+    fatorGravidade: 0.5,
+    sinonimos: ["disperso", "desatento", "sem foco"],
+    recomendacao: "Refor\u00e7ar foco, m\u00e9todo e acompanhamento de entregas.",
+  },
+  {
+    canonico: "Desorganizado",
+    dimensao: "T",
+    valorAfetado: "Organiza\u00e7\u00e3o",
+    gravidade: "moderada",
+    fatorGravidade: 1,
+    sinonimos: ["desorganizado", "baguncado", "desestruturado"],
+    recomendacao: "Melhorar m\u00e9todo, planejamento e clareza de acompanhamento.",
+  },
+  {
+    canonico: "Inconstante",
+    dimensao: "T",
+    valorAfetado: "Consist\u00eancia / Estabilidade",
+    gravidade: "moderada",
+    fatorGravidade: 1,
+    sinonimos: ["inconstante", "instavel", "oscilante", "inconsistente"],
+    recomendacao: "Validar const\u00e2ncia antes de responsabilidades cont\u00ednuas.",
+  },
+  {
+    canonico: "Inacess\u00edvel",
+    dimensao: "R",
+    valorAfetado: "Comunica\u00e7\u00e3o / Conex\u00e3o",
+    gravidade: "moderada",
+    fatorGravidade: 1,
+    sinonimos: ["inacessivel", "indisponivel", "distante", "dificil acesso"],
+    recomendacao: "Melhorar disponibilidade, retorno e clareza de comunica\u00e7\u00e3o.",
+  },
+  {
+    canonico: "Arrogante",
+    dimensao: "C",
+    valorAfetado: "Humildade / Empatia",
+    gravidade: "moderada",
+    fatorGravidade: 1,
+    sinonimos: ["arrogante", "prepotente", "soberbo"],
+    recomendacao: "Observar abertura a feedback, escuta e postura colaborativa.",
+  },
+  {
+    canonico: "Irrespons\u00e1vel",
+    dimensao: "C",
+    valorAfetado: "Responsabilidade",
+    gravidade: "grave",
+    fatorGravidade: 1.5,
+    sinonimos: ["irresponsavel", "negligente", "imprudente"],
+    recomendacao: "Evitar responsabilidade cr\u00edtica isolada at\u00e9 nova valida\u00e7\u00e3o.",
+  },
+  {
+    canonico: "Desagregador",
+    dimensao: "R",
+    valorAfetado: "Alian\u00e7a / Colabora\u00e7\u00e3o",
+    gravidade: "grave",
+    fatorGravidade: 1.5,
+    sinonimos: ["desagregador", "conflitivo", "divide equipe", "nao colaborativo"],
+    recomendacao: "Priorizar media\u00e7\u00e3o e acompanhamento em ambientes coletivos.",
+  },
+  {
+    canonico: "Descomprometido",
+    dimensao: "C",
+    valorAfetado: "Comprometimento",
+    gravidade: "grave",
+    fatorGravidade: 1.5,
+    sinonimos: ["descomprometido", "sem compromisso", "nao engajado"],
+    recomendacao: "Validar compromisso por entregas reais antes de amplia\u00e7\u00e3o de papel.",
+  },
+  {
+    canonico: "Incompetente",
+    dimensao: "T",
+    valorAfetado: "Compet\u00eancia / Efic\u00e1cia",
+    gravidade: "grave",
+    fatorGravidade: 1.5,
+    sinonimos: ["incompetente"],
+    recomendacao: "Exigir contexto e curadoria antes de decis\u00e3o operacional sens\u00edvel.",
+  },
+  {
+    canonico: "Anti\u00e9tico",
+    dimensao: "C",
+    valorAfetado: "Integridade",
+    gravidade: "critica",
+    fatorGravidade: 2,
+    sinonimos: ["antietico", "anti etico"],
+    recomendacao: "Encaminhar para curadoria reputacional e valida\u00e7\u00e3o humana.",
+  },
+  {
+    canonico: "Desonesto",
+    dimensao: "C",
+    valorAfetado: "Integridade",
+    gravidade: "critica",
+    fatorGravidade: 2,
+    sinonimos: ["desonesto"],
+    recomendacao: "Encaminhar para curadoria reputacional e valida\u00e7\u00e3o humana.",
+  },
+  {
+    canonico: "Fraudulento",
+    dimensao: "C",
+    valorAfetado: "Integridade",
+    gravidade: "critica",
+    fatorGravidade: 2,
+    sinonimos: ["fraudulento", "fraude"],
+    recomendacao: "Encaminhar para curadoria reputacional e valida\u00e7\u00e3o humana.",
+  },
+  {
+    canonico: "Irregular",
+    dimensao: "C",
+    valorAfetado: "Integridade / Conformidade",
+    gravidade: "critica",
+    fatorGravidade: 2,
+    sinonimos: ["irregular"],
+    recomendacao: "Encaminhar para curadoria reputacional e valida\u00e7\u00e3o humana.",
+  },
+];
+
+for (const palavra of PALAVRAS_NEGATIVAS) {
+  const entry: LexicoEntry = {
+    canonico: palavra.canonico,
+    dimensao: palavra.dimensao,
+    valorBuilt: false,
+    polaridade: "negativa",
+    gravidade: palavra.gravidade,
+    fatorGravidade: palavra.fatorGravidade,
+    valorAfetado: palavra.valorAfetado,
+    recomendacao: palavra.recomendacao,
+    impactaScore: palavra.gravidade !== "critica",
+  };
+  addEntry(palavra.canonico, entry, true);
+  for (const sinonimo of palavra.sinonimos) addEntry(sinonimo, entry, true);
 }
 
 export function classificarPalavra(palavra: string): PalavraClassificada | null {
   const entry = LEXICO.get(normalize(palavra));
-  return entry ? { canonico: entry.canonico, dimensao: entry.dimensao, valorBuilt: entry.valorBuilt } : null;
+  return entry ? {
+    canonico: entry.canonico,
+    dimensao: entry.dimensao,
+    valorBuilt: entry.valorBuilt,
+    polaridade: entry.polaridade,
+    gravidade: entry.gravidade,
+    fatorGravidade: entry.fatorGravidade,
+    valorAfetado: entry.valorAfetado,
+    recomendacao: entry.recomendacao,
+    impactaScore: entry.impactaScore,
+  } : null;
 }
 
 const PALAVRAS_SUGERIDAS_MAP = new Map<string, string>();
@@ -164,6 +355,8 @@ for (const palavra of [
   ...RAW.map((r) => r.canonico),
   ...RAW.flatMap((r) => r.sinonimos),
   ...Object.values(LISTA_VIVA).flat(),
+  ...PALAVRAS_NEGATIVAS.map((r) => r.canonico),
+  ...PALAVRAS_NEGATIVAS.flatMap((r) => r.sinonimos),
 ]) {
   const key = normalizeSuggestionKey(palavra);
   if (!key || PALAVRAS_SUGERIDAS_MAP.has(key)) continue;
@@ -196,7 +389,26 @@ export interface AuraResult {
   total_palavras: number;
   dimensoes_sem_evidencia: Dimensao[];
   correspondencia_valores: Record<Dimensao, number>;
-  palavras_recebidas: Array<{ palavra: string; canonico: string; dimensao: Dimensao; count: number }>;
+  redutor_reputacional: number;
+  pontos_atencao_reputacional: Array<{
+    palavra: string;
+    canonico: string;
+    dimensao: Dimensao;
+    count: number;
+    gravidade: GravidadeNegativa;
+    valor_afetado: string;
+    impacto: number;
+    status: "considerado_no_calculo" | "em_curadoria_reputacional";
+    recomendacao: string;
+  }>;
+  palavras_recebidas: Array<{
+    palavra: string;
+    canonico: string;
+    dimensao: Dimensao;
+    count: number;
+    polaridade: Polaridade;
+    gravidade?: GravidadeNegativa;
+  }>;
 }
 
 function getPesoFrequencia(count: number): number {
@@ -223,39 +435,85 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const avaliadores = new Set(avaliacoes.map((av) => av.avaliador_membro_id).filter(Boolean));
   const n = avaliadores.size || avaliacoes.length;
 
-  const canonCounter = new Map<string, { canonico: string; dimensao: Dimensao; valorBuilt: boolean; avaliadores: Set<string> }>();
+  const canonCounter = new Map<string, {
+    canonico: string;
+    dimensao: Dimensao;
+    valorBuilt: boolean;
+    polaridade: Polaridade;
+    gravidade?: GravidadeNegativa;
+    fatorGravidade?: number;
+    valorAfetado?: string;
+    recomendacao?: string;
+    impactaScore: boolean;
+    avaliadores: Set<string>;
+  }>();
 
   for (const av of avaliacoes) {
     const seen = new Set<string>();
     for (const palavra of av.palavras || []) {
       const cls = classificarPalavra(palavra);
-      if (!cls || seen.has(cls.canonico)) continue;
-      seen.add(cls.canonico);
-      if (!canonCounter.has(cls.canonico)) {
-        canonCounter.set(cls.canonico, {
+      const key = cls ? `${cls.polaridade}:${cls.canonico}` : "";
+      if (!cls || seen.has(key)) continue;
+      seen.add(key);
+      if (!canonCounter.has(key)) {
+        canonCounter.set(key, {
           canonico: cls.canonico,
           dimensao: cls.dimensao,
           valorBuilt: cls.valorBuilt,
+          polaridade: cls.polaridade,
+          gravidade: cls.gravidade,
+          fatorGravidade: cls.fatorGravidade,
+          valorAfetado: cls.valorAfetado,
+          recomendacao: cls.recomendacao,
+          impactaScore: cls.impactaScore,
           avaliadores: new Set(),
         });
       }
-      canonCounter.get(cls.canonico)!.avaliadores.add(av.avaliador_membro_id);
+      canonCounter.get(key)!.avaliadores.add(av.avaliador_membro_id);
     }
   }
 
   const pontos: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const penalidades: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const palavrasCanonicasPositivasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasCanonicasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const ocorrenciasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const ocorrenciasAlinhadasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasRecebidas: AuraResult["palavras_recebidas"] = [];
+  const pontosAtencao: AuraResult["pontos_atencao_reputacional"] = [];
 
   for (const entry of Array.from(canonCounter.values())) {
     const count = entry.avaliadores.size;
-    pontos[entry.dimensao] += getPesoFrequencia(count);
+    const pesoFrequencia = getPesoFrequencia(count);
     palavrasCanonicasPorDimensao[entry.dimensao] += 1;
     ocorrenciasPorDimensao[entry.dimensao] += count;
-    if (entry.valorBuilt) ocorrenciasAlinhadasPorDimensao[entry.dimensao] += count;
-    palavrasRecebidas.push({ palavra: entry.canonico, canonico: entry.canonico, dimensao: entry.dimensao, count });
+    if (entry.polaridade === "positiva") {
+      pontos[entry.dimensao] += pesoFrequencia;
+      palavrasCanonicasPositivasPorDimensao[entry.dimensao] += 1;
+      if (entry.valorBuilt) ocorrenciasAlinhadasPorDimensao[entry.dimensao] += count;
+    } else {
+      const impacto = Number((pesoFrequencia * (entry.fatorGravidade || 1)).toFixed(2));
+      if (entry.impactaScore) penalidades[entry.dimensao] += impacto;
+      pontosAtencao.push({
+        palavra: entry.canonico,
+        canonico: entry.canonico,
+        dimensao: entry.dimensao,
+        count,
+        gravidade: entry.gravidade || "moderada",
+        valor_afetado: entry.valorAfetado || "Valor reputacional relacionado",
+        impacto: entry.impactaScore ? impacto : 0,
+        status: entry.impactaScore ? "considerado_no_calculo" : "em_curadoria_reputacional",
+        recomendacao: entry.recomendacao || "Validar contexto antes de decisao reputacional.",
+      });
+    }
+    palavrasRecebidas.push({
+      palavra: entry.canonico,
+      canonico: entry.canonico,
+      dimensao: entry.dimensao,
+      count,
+      polaridade: entry.polaridade,
+      gravidade: entry.gravidade,
+    });
   }
 
   const getFR = (dimensao: Dimensao) => {
@@ -269,9 +527,10 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const FR_C = getFR("C");
 
   const getScoreDimensao = (dimensao: Dimensao, fr: number) => {
-    const totalCanonicos = palavrasCanonicasPorDimensao[dimensao];
+    const totalCanonicos = palavrasCanonicasPositivasPorDimensao[dimensao];
     if (!totalCanonicos) return 0;
-    const scoreBase = (pontos[dimensao] / (totalCanonicos * 2)) * 100;
+    const saldo = Math.max(0, pontos[dimensao] - penalidades[dimensao]);
+    const scoreBase = (saldo / (totalCanonicos * 2)) * 100;
     return Math.min(scoreBase * fr, 100);
   };
 
@@ -299,6 +558,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const confianca = getConfianca(n);
 
   palavrasRecebidas.sort((a, b) => b.count - a.count || a.canonico.localeCompare(b.canonico, "pt-BR"));
+  pontosAtencao.sort((a, b) => b.impacto - a.impacto || b.count - a.count || a.canonico.localeCompare(b.canonico, "pt-BR"));
 
   return {
     score,
@@ -319,6 +579,8 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
       R: ocorrenciasPorDimensao.R ? Number((ocorrenciasAlinhadasPorDimensao.R / ocorrenciasPorDimensao.R).toFixed(2)) : 0,
       C: ocorrenciasPorDimensao.C ? Number((ocorrenciasAlinhadasPorDimensao.C / ocorrenciasPorDimensao.C).toFixed(2)) : 0,
     },
+    redutor_reputacional: Number((penalidades.T + penalidades.R + penalidades.C).toFixed(2)),
+    pontos_atencao_reputacional: pontosAtencao,
     palavras_recebidas: palavrasRecebidas,
   };
 }

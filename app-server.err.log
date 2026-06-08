@@ -1,0 +1,12 @@
+C:\Users\ESPC\Documents\New project 2\server\db.ts:6
+  throw new Error("DATABASE_URL must be set.");
+        ^
+
+
+Error: DATABASE_URL must be set.
+    at <anonymous> (C:\Users\ESPC\Documents\New project 2\server\db.ts:6:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.20.2

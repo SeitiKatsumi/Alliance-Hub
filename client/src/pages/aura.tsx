@@ -23,6 +23,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useLocation, useParams } from "wouter";
+import { isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
 
 interface AuraResult {
   score: number | null;
@@ -39,12 +40,36 @@ interface AuraResult {
   total_palavras?: number;
   dimensoes_sem_evidencia?: Array<"T" | "R" | "C">;
   correspondencia_valores?: Record<"T" | "R" | "C", number>;
-  palavras_recebidas: Array<{ palavra: string; canonico: string; dimensao: "T" | "R" | "C"; count: number }>;
+  redutor_reputacional?: number;
+  pontos_atencao_reputacional?: Array<{
+    palavra: string;
+    canonico: string;
+    dimensao: "T" | "R" | "C";
+    count: number;
+    gravidade: "leve" | "moderada" | "grave" | "critica";
+    valor_afetado: string;
+    impacto: number;
+    status: "considerado_no_calculo" | "em_curadoria_reputacional";
+    recomendacao: string;
+  }>;
+  palavras_recebidas: Array<{
+    palavra: string;
+    canonico: string;
+    dimensao: "T" | "R" | "C";
+    count: number;
+    polaridade?: "positiva" | "negativa";
+    gravidade?: "leve" | "moderada" | "grave" | "critica";
+  }>;
 }
 
-interface AuraLeituraContextual {
-  leitura: string;
-  fonte: "ia" | "fallback";
+type NucleoAplicabilidade = "Comercial" | "Liderança" | "Técnico" | "Obra" | "Capital";
+
+interface ConvergenciaNucleo {
+  nucleo: NucleoAplicabilidade;
+  score: number;
+  nivel: "Alta" | "Média/Alta" | "Baixa/Média" | "Baixa";
+  palavras: string[];
+  justificativa: string;
 }
 
 interface MembroBusca {
@@ -103,6 +128,48 @@ function normalizeAuraSuggestionKey(value: string): string {
     .replace(/(acao|coes|amento|amentos|idade|idades|ancia|encias|encia|ado|ada|idos|idas|ido|ida|avel|ivel|ante|ente|ivo|iva|oso|osa|or|ora|al|ico|ica|ao|a|o|s)$/, "");
 }
 
+function keywordMatchesWord(keyword: string, word: string): boolean {
+  return word === keyword || word.includes(keyword) || keyword.includes(word);
+}
+
+function nivelConvergencia(value: number): ConvergenciaNucleo["nivel"] {
+  if (value >= 7) return "Alta";
+  if (value >= 4.5) return "Média/Alta";
+  if (value >= 2) return "Baixa/Média";
+  return "Baixa";
+}
+
+function buildJustificativaNucleo(nucleo: NucleoAplicabilidade, palavras: string[]): string {
+  const evidencias = palavras.slice(0, 6).join(", ");
+  if (!evidencias) {
+    return `Ainda há baixa evidência reputacional específica para aplicabilidade em ${nucleo}.`;
+  }
+  const foco = NUCLEOS_APLICABILIDADE.find((item) => item.nucleo === nucleo)?.foco || "aplicabilidade prática";
+  return `${evidencias} indicam aderência a ${foco}.`;
+}
+
+function getAplicacaoRecomendada(principal?: ConvergenciaNucleo, secundaria?: ConvergenciaNucleo): string {
+  if (!principal || principal.score <= 0) {
+    return "Aguardar novas avaliações antes de recomendar uma aplicabilidade predominante por núcleo.";
+  }
+
+  if (principal.nucleo === "Comercial") {
+    return secundaria?.nucleo === "Liderança"
+      ? "Indicado para relacionamento, articulação comercial e ativação de alianças. Evitar responsabilidade crítica isolada até nova validação técnico-operacional."
+      : "Indicado para aproximação, relacionamento com membros, articulação de oportunidades e suporte à formação de alianças.";
+  }
+  if (principal.nucleo === "Liderança") {
+    return "Indicado para mobilização de aliados, condução relacional e apoio à governança, preferencialmente com validação formal do papel exercido.";
+  }
+  if (principal.nucleo === "Técnico") {
+    return "Indicado para análise, planejamento, método e suporte técnico, observando a validação prática em entregas reais.";
+  }
+  if (principal.nucleo === "Obra") {
+    return "Indicado para acompanhamento de execução, controle operacional e resolução prática, conforme evidências reais de campo.";
+  }
+  return "Indicado para apoio em confiança, previsibilidade e governança econômico-financeira, com validação jurídica e formal quando houver impacto patrimonial.";
+}
+
 const PALAVRAS_OFICIAIS_AURA_V3: Record<"T" | "R" | "C", string[]> = {
   T: [
     "Eficiente", "Detalhista", "Organizado", "Preciso", "Especialista", "Resolutivo",
@@ -123,6 +190,64 @@ const PALAVRAS_OFICIAIS_AURA_V3: Record<"T" | "R" | "C", string[]> = {
     "Aberto", "Liderança",
   ],
 };
+
+const NUCLEOS_APLICABILIDADE: Array<{
+  nucleo: NucleoAplicabilidade;
+  foco: string;
+  keywords: string[];
+}> = [
+  {
+    nucleo: "Comercial",
+    foco: "relacionamento, confiança, articulação e geração de oportunidades",
+    keywords: [
+      "acessivel", "acreditavel", "aliado", "credibilidade", "acolhedor", "agregador", "aberto",
+      "comunicativo", "comunicacao", "articulado", "articulador", "influente", "relacional",
+      "relacionamento", "conexao", "parceiro", "facilitador", "prestativo", "confiavel",
+      "transparente", "empatico", "cordial", "colaborativo", "integrador", "convincente",
+      "eloquente", "rede",
+    ],
+  },
+  {
+    nucleo: "Liderança",
+    foco: "mobilização, influência, responsabilidade e condução de alianças",
+    keywords: [
+      "lider", "lideranca", "motivador", "responsavel", "protagonismo", "protagonista", "visao",
+      "visionario", "mobilizador", "inspirador", "orientador", "guia", "mentor", "coordenador",
+      "equilibrado", "decidido", "decisao", "influente", "exemplar", "proativo", "engajado",
+      "firme", "maduro", "autonomo", "responsabilidade",
+    ],
+  },
+  {
+    nucleo: "Técnico",
+    foco: "método, organização, análise, planejamento e domínio técnico",
+    keywords: [
+      "metodo", "metodico", "precisao", "preciso", "organizado", "organizacao", "analise",
+      "analitico", "tecnico", "especialista", "planejado", "planejamento", "estruturado",
+      "logico", "competente", "eficiente", "detalhista", "resolutivo", "inteligente",
+      "disciplina", "disciplinado", "sistematico", "qualificado", "perito",
+    ],
+  },
+  {
+    nucleo: "Obra",
+    foco: "execução, prazo, controle, segurança e solução prática em campo",
+    keywords: [
+      "execucao", "executor", "executa", "prazo", "prazos", "controle", "seguranca", "produtivo",
+      "produtividade", "pratico", "operacional", "campo", "qualidade", "eficaz", "eficiencia",
+      "rapido", "agil", "agilidade", "entrega", "entrega resultados", "funcional", "resolutivo",
+      "faz acontecer", "foco", "cumpre prazos",
+    ],
+  },
+  {
+    nucleo: "Capital",
+    foco: "previsibilidade, análise, responsabilidade financeira e prestação de contas",
+    keywords: [
+      "previsivel", "previsibilidade", "confianca", "confiavel", "credibilidade", "analise",
+      "analitico", "responsabilidade", "responsavel", "financeiro", "prestacao", "presta contas",
+      "accountability", "prudente", "racional", "seguro", "estavel", "estabilidade", "consistente",
+      "transparente", "planejado", "ponderado", "disciplina", "organizado",
+    ],
+  },
+];
 
 for (const [dimensao, palavras] of Object.entries(PALAVRAS_OFICIAIS_AURA_V3) as Array<["T" | "R" | "C", string[]]>) {
   for (const palavra of palavras) {
@@ -261,7 +386,7 @@ function getInitials(nome: string): string {
 }
 
 export default function AuraPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const { membroId: routeMembroId } = useParams<{ membroId: string }>();
   const [, setLocation] = useLocation();
@@ -274,7 +399,6 @@ export default function AuraPage() {
   const [palavraInput, setPalavraInput] = useState("");
   const [showSugestoes, setShowSugestoes] = useState(false);
   const [evalMode, setEvalMode] = useState<"palavras" | "texto">("palavras");
-  const [selectedNucleoLeitura, setSelectedNucleoLeitura] = useState("Técnico");
   const [showAvaliacoesDadas, setShowAvaliacoesDadas] = useState(false);
   const [textoIA, setTextoIA] = useState("");
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
@@ -283,6 +407,16 @@ export default function AuraPage() {
   const myId = user?.membro_directus_id;
   const viewedMembroId = routeMembroId || myId;
   const isOwnAura = !routeMembroId || routeMembroId === myId;
+  const canConsultAndRegisterAura = isBuiltMemberForAura(user);
+  const isVitrineOnly = isVitrineOnlyUser(user);
+  const authResolved = !authLoading;
+  const canViewRequestedAura = !!viewedMembroId && authResolved && (!isVitrineOnly || isOwnAura);
+
+  useEffect(() => {
+    if (isVitrineOnly && routeMembroId && routeMembroId !== myId) {
+      setLocation("/aura");
+    }
+  }, [isVitrineOnly, routeMembroId, myId, setLocation]);
 
   const { data: viewedMembro } = useQuery<MembroBusca | null>({
     queryKey: ["/api/membros", routeMembroId],
@@ -298,13 +432,13 @@ export default function AuraPage() {
         foto: data.foto_perfil || null,
       };
     },
-    enabled: !!routeMembroId,
+    enabled: !!routeMembroId && canViewRequestedAura,
   });
 
   const { data: viewedAura } = useQuery<AuraResult>({
     queryKey: ["/api/aura/score", viewedMembroId],
     queryFn: async () => fixMojibakeDeep(await fetch(`/api/aura/score/${viewedMembroId}`, { credentials: "include" }).then(res => res.json())),
-    enabled: !!viewedMembroId,
+    enabled: canViewRequestedAura,
   });
 
   const { data: lexico = [] } = useQuery<string[]>({
@@ -329,7 +463,7 @@ export default function AuraPage() {
       const data: MembroBusca[] = await res.json();
       return fixMojibakeDeep(data);
     },
-    enabled: !!myId,
+    enabled: !!myId && canConsultAndRegisterAura,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -380,7 +514,7 @@ export default function AuraPage() {
 
   const { data: minhaAvaliacaoDoSelecionado } = useQuery<AvaliacaoExistente | null>({
     queryKey: ["/api/aura/avaliacao", selectedMembro?.id],
-    enabled: !!selectedMembro?.id,
+    enabled: !!selectedMembro?.id && canConsultAndRegisterAura,
   });
 
   const avaliarMutation = useMutation({
@@ -480,6 +614,8 @@ export default function AuraPage() {
   const C = viewedAura?.C ?? 0;
   const n = viewedAura?.n ?? 0;
   const palavrasRecebidas = viewedAura?.palavras_recebidas ?? [];
+  const palavrasPositivas = palavrasRecebidas.filter((p) => (p.polaridade || "positiva") === "positiva");
+  const pontosAtencaoReputacional = viewedAura?.pontos_atencao_reputacional ?? [];
   const viewedName = isOwnAura ? (user?.nome || user?.username || "Membro BUILT") : (viewedMembro?.nome || "Membro BUILT");
   const viewedEmail = isOwnAura ? user?.email : "";
   const viewedFoto = isOwnAura ? user?.foto_perfil : viewedMembro?.foto;
@@ -509,8 +645,8 @@ export default function AuraPage() {
     },
   ];
   const palavrasValidas = viewedAura?.total_palavras ?? palavrasRecebidas.reduce((total, p) => total + p.count, 0);
-  const topPalavra = palavrasRecebidas[0] ?? null;
-  const convergencia = n >= 5 && palavrasRecebidas.some(p => p.count >= 2) ? "Alta" : n >= 3 ? "Média" : "Em formação";
+  const topPalavra = palavrasPositivas[0] ?? palavrasRecebidas[0] ?? null;
+  const convergencia = n >= 5 && palavrasPositivas.some(p => p.count >= 2) ? "Alta" : n >= 3 ? "Média" : "Em formação";
   const fatorRelevancia = score === null ? 0 : Math.max(viewedAura?.FR_T ?? 1, viewedAura?.FR_R ?? 1, viewedAura?.FR_C ?? 1);
   const dnaBuilt = [
     { label: "Mentalidade de Aliança", value: dimensoesAura[1].pontuacao },
@@ -526,27 +662,33 @@ export default function AuraPage() {
   const horizonteProjeto = score !== null && score >= 70 ? "Longo prazo" : score !== null && score >= 50 ? "Médio prazo" : "Curto prazo";
   const nivelResponsabilidade = score !== null && score >= 70 ? "Alta" : score !== null && score >= 50 ? "Média" : "Baixa";
   const compatibilidadeCultural = convergencia === "Alta" ? "Alta" : convergencia === "Média" ? "Média" : "Baixa";
-  const palavrasLeituraKey = palavrasRecebidas.map(p => `${p.canonico}:${p.dimensao}:${p.count}`).join("|");
-  const { data: leituraContextualIA, isLoading: isLoadingLeituraContextual } = useQuery<AuraLeituraContextual>({
-    queryKey: ["/api/aura/leitura-contextual", viewedMembroId, selectedNucleoLeitura, score, T, R, C, n, palavrasLeituraKey],
-    queryFn: async () => {
-      const res = await apiRequest("POST", "/api/aura/leitura-contextual", {
-        membro_nome: viewedName,
-        nucleo: selectedNucleoLeitura,
-        score,
-        faixa: viewedAura?.faixa || faixaDescricao(score),
-        T,
-        R,
-        C,
-        n,
-        palavras_recebidas: palavrasRecebidas,
+  const convergenciaPorNucleo = useMemo<ConvergenciaNucleo[]>(() => {
+    return NUCLEOS_APLICABILIDADE.map((nucleo) => {
+      const evidencia = new Map<string, number>();
+      palavrasPositivas.forEach((palavra) => {
+        const normalized = normalizeAuraWord(palavra.canonico || palavra.palavra);
+        const matched = nucleo.keywords.some((keyword) => keywordMatchesWord(keyword, normalized));
+        if (!matched) return;
+        evidencia.set(palavra.canonico, (evidencia.get(palavra.canonico) || 0) + Math.max(1, palavra.count || 1));
       });
-      return res.json() as Promise<AuraLeituraContextual>;
-    },
-    enabled: !!viewedMembroId && n > 0,
-    staleTime: 5 * 60 * 1000,
-  });
-  const leituraNucleo = leituraContextualIA?.leitura || "A leitura contextual ainda está em formação. Ela será exibida quando houver base reputacional suficiente para avaliar este núcleo com segurança.";
+      const evidenciasOrdenadas = Array.from(evidencia.entries()).sort((a, b) => b[1] - a[1]);
+      const scoreNucleo = evidenciasOrdenadas.reduce((total, [, count]) => total + count, 0);
+      const palavras = evidenciasOrdenadas.map(([palavra]) => palavra);
+      return {
+        nucleo: nucleo.nucleo,
+        score: scoreNucleo,
+        nivel: nivelConvergencia(scoreNucleo),
+        palavras,
+        justificativa: buildJustificativaNucleo(nucleo.nucleo, palavras),
+      };
+    }).sort((a, b) => b.score - a.score);
+  }, [palavrasPositivas]);
+  const convergenciaPrincipal = convergenciaPorNucleo[0];
+  const convergenciaSecundaria = convergenciaPorNucleo.find((item) => item.nucleo !== convergenciaPrincipal?.nucleo && item.score > 0);
+  const leituraAplicabilidade = score === null || n === 0
+    ? "A leitura contextual ainda está em formação. Ela será exibida quando houver base reputacional suficiente para orientar aplicabilidade por núcleo."
+    : `${viewedName} apresenta ${faixaDescricao(score)}, com convergência predominante para o Núcleo ${convergenciaPrincipal?.nucleo || "em formação"}${convergenciaSecundaria ? ` e convergência secundária para ${convergenciaSecundaria.nucleo}` : ""}. As palavras recebidas indicam força em ${convergenciaPrincipal?.palavras.slice(0, 5).join(", ").toLowerCase() || "percepções ainda iniciais"}. Essa combinação sugere boa aplicabilidade em ${NUCLEOS_APLICABILIDADE.find((item) => item.nucleo === convergenciaPrincipal?.nucleo)?.foco || "contextos a serem validados pela aliança"}. As dimensões com baixa convergência não indicam ausência de capacidade, mas sim que as avaliações atuais ainda não trouxeram sinais suficientes para esses papéis. Para responsabilidades críticas, recomenda-se atuação acompanhada ou nova validação após entregas reais.`;
+  const aplicacaoRecomendada = getAplicacaoRecomendada(convergenciaPrincipal, convergenciaSecundaria);
   const matrizAplicabilidade = [
     { icon: CalendarDays, label: "Horizonte de Projeto", value: horizonteProjeto, color: "#22C55E" },
     { icon: BarChart3, label: "Nível de Responsabilidade", value: nivelResponsabilidade, color: "#3B82F6" },
@@ -567,7 +709,7 @@ export default function AuraPage() {
           Reputação construída pela percepção da comunidade sobre você.
         </p>
         </div>
-        {myId && (
+        {myId && canConsultAndRegisterAura && (
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {!isOwnAura && (
               <Button
@@ -594,6 +736,7 @@ export default function AuraPage() {
         )}
       </div>
 
+      {canConsultAndRegisterAura && (
       <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -652,8 +795,9 @@ export default function AuraPage() {
           </div>
         </DialogContent>
       </Dialog>
+      )}
 
-      {viewedMembroId && (
+      {canViewRequestedAura && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4" data-testid="section-aura-dashboard">
           <Card className="border border-border/60 xl:col-span-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(0,29,52,0.04), rgba(215,187,125,0.04))" }}>
             <CardContent className="p-5 space-y-4">
@@ -780,7 +924,7 @@ export default function AuraPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                {palavrasRecebidas.length > 0 ? palavrasRecebidas.slice(0, 8).map(p => (
+                {palavrasPositivas.length > 0 ? palavrasPositivas.slice(0, 8).map(p => (
                   <span
                     key={p.canonico}
                     className="rounded-full border px-3 py-1.5 text-xs font-medium"
@@ -789,7 +933,7 @@ export default function AuraPage() {
                     {p.canonico}
                   </span>
                 )) : (
-                  <p className="text-sm text-muted-foreground">As percepções aparecerão conforme a comunidade avaliar você.</p>
+                  <p className="text-sm text-muted-foreground">As percepções positivas aparecerão conforme a comunidade avaliar você.</p>
                 )}
               </div>
               <div className="rounded-xl border border-border/50 p-4 bg-background/40 min-h-[140px]">
@@ -808,6 +952,41 @@ export default function AuraPage() {
               </div>
             </CardContent>
           </Card>
+
+          {pontosAtencaoReputacional.length > 0 && (
+            <Card className="border border-amber-200 bg-amber-50/40 xl:col-span-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  Pontos de Atenção Reputacional
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pontosAtencaoReputacional.slice(0, 4).map((ponto) => (
+                  <div key={`${ponto.canonico}-${ponto.status}`} className="rounded-lg border border-amber-200 bg-white/70 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">{ponto.canonico}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {dimLabel(ponto.dimensao)} · afeta {ponto.valor_afetado}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] border-amber-300 bg-amber-100 text-amber-800">
+                        {ponto.gravidade === "critica" ? "Curadoria" : `-${ponto.impacto.toString().replace(".", ",")}`}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{ponto.recomendacao}</p>
+                    <p className="mt-2 text-[11px] font-medium text-amber-800">
+                      {ponto.status === "em_curadoria_reputacional" ? "Em curadoria reputacional" : "Considerado no cálculo"}
+                    </p>
+                  </div>
+                ))}
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Palavras negativas reduzem a Aura quando vinculadas a antônimos reputacionais reconhecidos. Termos críticos exigem validação humana antes de impacto automático.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border border-border/60 xl:col-span-3">
             <CardHeader className="pb-2">
@@ -859,33 +1038,40 @@ export default function AuraPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-[#D7BB7D]" />
-                Leitura Contextual por Núcleo
+                Convergência de Aplicabilidade por Núcleo
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {["Técnico", "Obra", "Comercial", "Capital", "Liderança"].map((nucleo) => {
-                  const active = selectedNucleoLeitura === nucleo;
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-2">
+                {convergenciaPorNucleo.map((item) => {
+                  const nivelColor =
+                    item.nivel === "Alta" ? "#16A34A" :
+                    item.nivel === "Média/Alta" ? "#3B82F6" :
+                    item.nivel === "Baixa/Média" ? "#D7BB7D" :
+                    "#64748B";
                   return (
-                  <button
-                    key={nucleo}
-                    type="button"
-                    className="rounded-md px-3 py-1.5 text-xs border transition-colors hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D]"
-                    style={active ? { background: "rgba(59,130,246,0.12)", color: "#3B82F6", borderColor: "rgba(59,130,246,0.35)" } : undefined}
-                    onClick={() => setSelectedNucleoLeitura(nucleo)}
-                    data-testid={`btn-leitura-nucleo-${nucleo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}
-                  >
-                    {nucleo}
-                  </button>
+                    <div key={item.nucleo} className="rounded-lg border border-border/50 p-3 bg-background/40" data-testid={`convergencia-nucleo-${item.nucleo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">{item.nucleo}</p>
+                        <Badge variant="outline" className="text-[11px]" style={{ color: nivelColor, borderColor: `${nivelColor}55`, background: `${nivelColor}12` }}>
+                          {item.nivel}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{item.justificativa}</p>
+                    </div>
                   );
                 })}
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {isLoadingLeituraContextual ? "Analisando a Aura para este núcleo..." : leituraNucleo}
+                {leituraAplicabilidade}
               </p>
-              {leituraContextualIA?.fonte === "ia" && (
-                <p className="text-[10px] text-muted-foreground/70">Leitura gerada por IA com base nas avaliações recebidas.</p>
-              )}
+              <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-blue-600">Aplicação recomendada</p>
+                <p className="mt-1 text-sm font-medium text-foreground leading-relaxed">{aplicacaoRecomendada}</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground/70">
+                Essa leitura não altera o score da Aura; ela orienta onde a percepção recebida parece ter maior aplicabilidade prática dentro da BUILT.
+              </p>
             </CardContent>
           </Card>
 

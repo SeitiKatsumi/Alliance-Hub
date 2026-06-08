@@ -18,6 +18,23 @@ const openai = new OpenAI({
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
+const BOOTSTRAP_SUPERADMIN_EMAILS = new Set(["seitikatsumi@gmail.com"]);
+const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
+  aura: "edit",
+  bias: "edit",
+  admin: "edit",
+  painel: "edit",
+  membros: "edit",
+  calculadora: "edit",
+  fluxo_caixa: "edit",
+  oportunidades: "edit",
+  cadastro_geral: "edit",
+};
+
+function isBootstrapSuperAdmin(email?: string | null) {
+  return !!email && BOOTSTRAP_SUPERADMIN_EMAILS.has(String(email).trim().toLowerCase());
+}
+
 // Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE — discovered at runtime
 const biasBlockedFields = new Set<string>();
 
@@ -62,6 +79,17 @@ async function ensureBiasExtraFields() {
       type: "boolean",
       meta: { interface: "boolean", display: "boolean", hidden: false },
       schema: { is_nullable: true, default_value: false },
+    },
+    {
+      field: "imagem_directus_id",
+      type: "uuid",
+      meta: {
+        interface: "file-image",
+        display: "image",
+        hidden: false,
+        note: "Imagem de capa da BIA exibida nos cards",
+      },
+      schema: { is_nullable: true },
     },
     {
       field: "comissao_realizada",
@@ -1983,8 +2011,9 @@ export async function registerRoutes(
   // Helper: resolve effective role by checking session + local users DB
   async function getEffectiveRole(req: any): Promise<string> {
     const sessionRole = (req.session as any).role || "user";
-    if (sessionRole === "admin" || sessionRole === "manager") return sessionRole;
     const email = (req.session as any).email || "";
+    if (isBootstrapSuperAdmin(email)) return "admin";
+    if (sessionRole === "admin" || sessionRole === "manager") return sessionRole;
     if (email) {
       try {
         const localUser = await storage.getUserByEmail(email);
@@ -2414,6 +2443,7 @@ export async function registerRoutes(
     return items.map((b: any) => ({
       ...b,
       bia_publica: b.bia_publica !== false,
+      imagem_url: b.imagem_directus_id ? `/api/assets/${b.imagem_directus_id}` : null,
       socios_multiplicadores: parseBiaMemberList(b.socios_multiplicadores),
       socios_guardioes: parseBiaMemberList(b.socios_guardioes),
       terceiros: parseBiaMemberList(b.terceiros),
@@ -2450,6 +2480,33 @@ export async function registerRoutes(
     const role = req.session?.role || "user";
     if (role === "admin" || role === "manager") return true;
     return isUserLinkedToBia(bia, req.session?.membroId);
+  }
+
+  function directusRelationId(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === "object") return value.id ? String(value.id) : null;
+    return String(value);
+  }
+
+  async function canDeleteBia(req: any, bia: any): Promise<boolean> {
+    const role = req.session?.role || "user";
+    const membroId = req.session?.membroId || null;
+    if (role === "admin") return true;
+    if (role === "aliado") return true;
+    if (membroId && directusRelationId(bia?.aliado_built) === String(membroId)) return true;
+
+    if (!membroId) return false;
+    try {
+      const membro = await directusFetchOne(
+        "cadastro_geral",
+        membroId,
+        "fields=Outras_redes_as_quais_pertenco"
+      );
+      const redes = Array.isArray(membro?.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
+      return redes.includes("BUILT_FOUNDING_MEMBER") || redes.includes("BUILT_ALLIANCE_PARTNER");
+    } catch (_) {
+      return false;
+    }
   }
 
   app.get("/api/dashboard", async (req, res) => {
@@ -2981,7 +3038,13 @@ export async function registerRoutes(
   });
 
   app.delete("/api/bias/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
+      const bia = await directusFetchOne("bias_projetos", req.params.id, "fields=id,aliado_built");
+      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!(await canDeleteBia(req, bia))) {
+        return res.status(403).json({ error: "Apenas Aliados BUILT ou superadmin podem deletar BIAs." });
+      }
       await directusDelete("bias_projetos", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
@@ -4787,9 +4850,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       } catch (e: any) {
         console.warn("[login] local user lookup error:", e.message);
       }
+      if (isBootstrapSuperAdmin(email)) {
+        role = "admin";
+        permissions = FULL_ADMIN_PERMISSIONS;
+      }
       // Admins always get full permissions regardless of stored value
       if (role === "admin" || role === "manager") {
-        permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
+        permissions = FULL_ADMIN_PERMISSIONS;
       }
 
       // Store session
@@ -4837,8 +4904,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       }
     } catch (_) {}
+    if (isBootstrapSuperAdmin(email)) {
+      role = "admin";
+      permissions = FULL_ADMIN_PERMISSIONS;
+      (req.session as any).role = role;
+      (req.session as any).permissions = permissions;
+    }
     if ((role === "admin" || role === "manager") && Object.keys(permissions).length === 0) {
-      permissions = { aura: "edit", bias: "edit", admin: "edit", painel: "edit", membros: "edit", calculadora: "edit", fluxo_caixa: "edit", oportunidades: "edit", cadastro_geral: "edit" };
+      permissions = FULL_ADMIN_PERMISSIONS;
     }
     const membroId = (req.session as any).membroId as string | null;
     let tipos_alianca: string[] = [];

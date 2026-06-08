@@ -35,7 +35,7 @@ import {
   Briefcase, Plus, Pencil, Trash2, MapPin, TrendingUp, TrendingDown,
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
-  X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard,
+  X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard, ImageIcon,
   Clock, CheckCircle, XCircle, Bell
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
@@ -125,6 +125,8 @@ interface BiasProjeto {
   // Aportes
   inicio_aportes?: string | null;
   total_aportes?: string | number;
+  imagem_directus_id?: string | null;
+  imagem_url?: string | null;
   // Anexos
   Anexos?: AnexoFile[];
   // Moeda
@@ -367,6 +369,7 @@ const EMPTY_FORM = {
   manutencao_pos_obra_prevista: "",
   inicio_aportes: "",
   total_aportes: "",
+  imagem_directus_id: "",
   moeda: "BRL",
 };
 
@@ -411,6 +414,7 @@ function biaToForm(b: BiasProjeto): FormState {
     manutencao_pos_obra_prevista: b.manutencao_pos_obra_prevista != null ?String(b.manutencao_pos_obra_prevista) : "",
     inicio_aportes: b.inicio_aportes || "",
     total_aportes: numToBRLStr(b.total_aportes),
+    imagem_directus_id: b.imagem_directus_id || "",
     moeda: b.moeda || "BRL",
   };
 }
@@ -1360,7 +1364,8 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
     : "border-blue-200 bg-blue-50 text-blue-700";
   const biasOpas = opas.filter(o => o.bia_id === bia.id);
   const firstImageOpa = biasOpas.find(o => o.imagem_url || o.imagem_directus_id);
-  const imageUrl = firstImageOpa?.imagem_url || (firstImageOpa?.imagem_directus_id ? `/api/assets/${firstImageOpa.imagem_directus_id}` : null);
+  const biaImageUrl = bia.imagem_url || (bia.imagem_directus_id ? `/api/assets/${bia.imagem_directus_id}` : null);
+  const imageUrl = biaImageUrl || firstImageOpa?.imagem_url || (firstImageOpa?.imagem_directus_id ? `/api/assets/${firstImageOpa.imagem_directus_id}` : null);
   const cppCount = [
     bia.cpp_autor_opa,
     bia.cpp_aliado_built,
@@ -1428,7 +1433,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
               )}
               {bia.id && <span className="font-mono text-[11px]">BIA-{bia.id.slice(0, 8).toUpperCase()}</span>}
             </div>
-            <p className="mt-1.5 hidden text-xs leading-snug text-muted-foreground line-clamp-2 xl:block">
+            <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
               {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
             </p>
             {(aliadoBuilt || dirAlianca) && (
@@ -1494,12 +1499,14 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
 }
 
 // ---- BIA Form Sheet ----
-function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
+function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = false, onRequestDelete }: {
   open: boolean;
   onClose: () => void;
   bia: BiasProjeto | null;
   membros: Membro[];
   isLoading: boolean;
+  canDelete?: boolean;
+  onRequestDelete?: (bia: BiasProjeto) => void;
 }) {
   const { toast } = useToast();
   const isEdit = !!bia;
@@ -1516,8 +1523,10 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [biaImagePreview, setBiaImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Forma de pagamento do ativo de origem
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
@@ -1537,6 +1546,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
       setActiveTab("geral");
       setExistingAnexos(bia?.Anexos ?? []);
       setPendingFiles([]);
+      setBiaImagePreview(bia?.imagem_url || (bia?.imagem_directus_id ? `/api/assets/${bia.imagem_directus_id}` : null));
       setUploading(false);
       setFormaPagamento("");
       setNumeroParcelas("");
@@ -1579,6 +1589,29 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
     }
     const result = await res.json();
     return result.fileIds as string[];
+  }
+
+  async function uploadBiaImage(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Selecione uma imagem válida", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Falha no upload da imagem");
+      const result = await res.json();
+      const fileId = result.fileIds?.[0];
+      if (!fileId) throw new Error("Upload sem arquivo retornado");
+      setForm((current) => ({ ...current, imagem_directus_id: fileId }));
+      setBiaImagePreview(URL.createObjectURL(file));
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar imagem", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   const valorRealizado = parseBRLToNumber(form.valor_realizado_venda);
@@ -1684,6 +1717,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
         manutencao_pos_obra_prevista: form.manutencao_pos_obra_prevista || null,
         inicio_aportes: form.inicio_aportes || null,
         total_aportes: form.total_aportes ?parseBRLToNumber(form.total_aportes) : null,
+        imagem_directus_id: form.imagem_directus_id || null,
         moeda: form.moeda || "BRL",
       };
       if (pendingFiles.length > 0 || allAnexoIds.length > 0) {
@@ -1827,6 +1861,67 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
             {/* Tab Geral */}
             <TabsContent value="geral" className="space-y-4 mt-4">
               <FieldInput label="Nome da BIA *" field="nome_bia" form={form} setForm={setForm} placeholder="Ex: BIA Residencial Norte" />
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Imagem da BIA</Label>
+                <div className="rounded-xl border border-border bg-muted/20 p-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+                      {biaImagePreview ? (
+                        <img src={biaImagePreview} alt="Imagem da BIA" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-xs font-medium text-foreground">Capa da BIA</p>
+                      <p className="text-[11px] text-muted-foreground">Use uma imagem horizontal para aparecer nos cards da BIA.</p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={uploading}
+                          data-testid="btn-upload-bia-imagem"
+                        >
+                          <Upload className="mr-1.5 h-3.5 w-3.5" />
+                          {biaImagePreview ? "Trocar imagem" : "Escolher imagem"}
+                        </Button>
+                        {biaImagePreview && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setForm((current) => ({ ...current, imagem_directus_id: "" }));
+                              setBiaImagePreview(null);
+                            }}
+                            disabled={uploading}
+                            data-testid="btn-remove-bia-imagem"
+                          >
+                            Remover
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/png,image/jpg,image/jpeg,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadBiaImage(file);
+                      e.target.value = "";
+                    }}
+                    data-testid="input-bia-imagem"
+                  />
+                </div>
+              </div>
 
               {/* Status da BIA */}
               <div className="space-y-1.5">
@@ -2362,18 +2457,37 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading }: {
           </Tabs>
           </div>
 
-          <div className="shrink-0 px-6 py-4 border-t flex justify-end gap-2 bg-background">
-            <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveClick}
-              disabled={saveMutation.isPending || uploading || isLoading || hasIncompleteInstallments}
-              className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
-              data-testid="btn-save-bia"
-            >
-              {uploading ?"Enviando arquivos..." : saveMutation.isPending && formaPagamento ?"Gerando lançamentos..." : saveMutation.isPending ?"Salvando..." : isEdit ?"Salvar alterações" : "Criar BIA"}
-            </Button>
+          <div className="shrink-0 border-t bg-background px-6 py-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {isEdit && canDelete && bia && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => onRequestDelete?.(bia)}
+                    disabled={saveMutation.isPending || uploading}
+                    data-testid="btn-delete-bia-edit"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Deletar BIA
+                  </Button>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSaveClick}
+                  disabled={saveMutation.isPending || uploading || isLoading || hasIncompleteInstallments}
+                  className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
+                  data-testid="btn-save-bia"
+                >
+                  {uploading ?"Enviando arquivos..." : saveMutation.isPending && formaPagamento ?"Gerando lançamentos..." : saveMutation.isPending ?"Salvando..." : isEdit ?"Salvar alterações" : "Criar BIA"}
+                </Button>
+              </div>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -2485,6 +2599,13 @@ export default function BiasPage() {
   const [deleteTarget, setDeleteTarget] = useState<BiasProjeto | null>(null);
   const [rejeitarTarget, setRejeitarTarget] = useState<{ id: string; biaNome: string } | null>(null);
   const [motivoRejeicao, setMotivoRejeicao] = useState("");
+  const canDeleteBia = !!user && (
+    user.role === "admin" ||
+    user.role === "aliado" ||
+    redes.includes("BUILT_FOUNDING_MEMBER") ||
+    redes.includes("BUILT_ALLIANCE_PARTNER") ||
+    (!!editingBia?.aliado_built && editingBia.aliado_built === user.membro_directus_id)
+  );
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -2558,6 +2679,8 @@ export default function BiasPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       toast({ title: "BIA removida" });
       setDeleteTarget(null);
+      setSheetOpen(false);
+      setEditingBia(null);
     },
     onError: (e: any) => {
       toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
@@ -2784,6 +2907,8 @@ export default function BiasPage() {
         bia={editingBia}
         membros={membros}
         isLoading={loading}
+        canDelete={canDeleteBia}
+        onRequestDelete={(target) => setDeleteTarget(target)}
       />
 
       {/* Delete Confirmation */}

@@ -231,11 +231,13 @@ export default function AliancaDocsPage({
     }
   }, [initialBiaId, biaId]);
 
-  const { data: bias = [] } = useQuery<Bia[]>({ queryKey: ["/api/bias"] });
-  const { data: docs = [], isLoading } = useQuery<Doc[]>({
+  const { data: biasData = [] } = useQuery<Bia[]>({ queryKey: ["/api/bias"] });
+  const { data: docsData = [], isLoading } = useQuery<Doc[]>({
     queryKey: ["/api/alianca-docs", modulo],
     queryFn: () => fetch(`/api/alianca-docs?modulo=${modulo}`).then(r => r.json()),
   });
+  const bias = Array.isArray(biasData) ? biasData : [];
+  const docs = Array.isArray(docsData) ? docsData : [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/alianca-docs/${id}`),

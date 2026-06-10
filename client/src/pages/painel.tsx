@@ -20,7 +20,7 @@ import {
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
-  AlertTriangle, Clock, FileWarning, AlarmClock,
+  AlertTriangle, Clock, FileWarning, AlarmClock, BookOpen, UserCheck,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -99,10 +99,38 @@ interface DashboardApproval {
   comunidade_nome?: string | null;
 }
 
+interface DiretorSolicitacao {
+  id: string;
+  bia_id: string;
+  bia_nome?: string | null;
+  papel: string;
+  percentual?: string | number | null;
+  status?: string | null;
+}
+
+interface SocioSolicitacao {
+  id: string;
+  bia_id: string;
+  bia_nome?: string | null;
+  papel: string;
+  status?: string | null;
+}
+
+interface ChamadaAlianca {
+  id: string;
+  bia_id: string;
+  bia_nome?: string | null;
+  titulo: string;
+  escopo: string;
+  data_hora: string;
+  nucleo_alianca?: string | null;
+}
+
 interface DashboardOpa {
   id: string;
   nome_oportunidade?: string;
   tipo?: string;
+  ramo_atuacao?: string | null;
   bia_id?: string;
   nome_bia_vinculada?: string | null;
   valor_origem_opa?: number | string | null;
@@ -414,6 +442,7 @@ export default function PainelPage() {
   const [biaPapel, setBiaPapel] = useState("__all__");
   const [convergenciaSearch, setConvergenciaSearch] = useState("");
   const [convergenciaTipo, setConvergenciaTipo] = useState("__all__");
+  const [convergenciaRamo, setConvergenciaRamo] = useState("__all__");
   const [convergenciaNucleo, setConvergenciaNucleo] = useState("__all__");
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
   const opasAbertas = data?.opas_abertas ?? opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").length;
@@ -440,7 +469,67 @@ export default function PainelPage() {
     },
     staleTime: 60000,
   });
+
+  const { data: diretorSolicitacoes = [], isLoading: isLoadingDiretorSolicitacoes } = useQuery<DiretorSolicitacao[]>({
+    queryKey: ["/api/bia-diretor-solicitacoes/minhas"],
+    queryFn: async () => {
+      const res = await fetch("/api/bia-diretor-solicitacoes/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000,
+  });
+
+  const { data: socioSolicitacoes = [], isLoading: isLoadingSocioSolicitacoes } = useQuery<SocioSolicitacao[]>({
+    queryKey: ["/api/bia-socio-solicitacoes/minhas"],
+    queryFn: async () => {
+      const res = await fetch("/api/bia-socio-solicitacoes/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000,
+  });
+
+  const { data: chamadasAlianca = [], isLoading: isLoadingChamadasAlianca } = useQuery<ChamadaAlianca[]>({
+    queryKey: ["/api/chamadas-alianca/minhas"],
+    queryFn: async () => {
+      const res = await fetch("/api/chamadas-alianca/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000,
+  });
+
   const alertasPendencias = useMemo(() => {
+    const diretorias = diretorSolicitacoes.slice(0, 4).map((solicitacao) => {
+      const percentual = solicitacao.percentual !== null && solicitacao.percentual !== undefined && String(solicitacao.percentual) !== ""
+        ? ` — ${solicitacao.percentual}%`
+        : "";
+      return {
+        title: `Indicação para ${solicitacao.papel}${percentual}`,
+        subtitle: solicitacao.bia_nome || "BIA aguardando aceite",
+        icon: UserCheck,
+        tone: "blue",
+      };
+    });
+
+    const socios = socioSolicitacoes.slice(0, 4).map((solicitacao) => ({
+      title: `Convite para ${solicitacao.papel}`,
+      subtitle: solicitacao.bia_nome || "BIA aguardando aceite",
+      icon: UserCheck,
+      tone: "amber",
+    }));
+
+    const chamadas = chamadasAlianca.slice(0, 4).map((chamada) => ({
+      title: chamada.titulo || "Chamada para aliança",
+      subtitle: `${chamada.bia_nome || chamada.bia_id} · ${new Date(chamada.data_hora).toLocaleDateString("pt-BR")}`,
+      icon: Megaphone,
+      tone: "blue",
+    }));
+
     const convites = aprovacoesPendentes.slice(0, 4).map((convite) => {
       const status = String(convite.status || "");
       const nome = convite.candidato_nome || convite.candidato_email || "Candidato";
@@ -458,7 +547,8 @@ export default function PainelPage() {
       };
     });
 
-    if (convites.length > 0) return convites;
+    const pendencias = [...chamadas, ...diretorias, ...socios, ...convites].slice(0, 4);
+    if (pendencias.length > 0) return pendencias;
 
     return [
       {
@@ -468,7 +558,7 @@ export default function PainelPage() {
         tone: "blue",
       },
     ];
-  }, [aprovacoesPendentes]);
+  }, [aprovacoesPendentes, diretorSolicitacoes, socioSolicitacoes, chamadasAlianca]);
 
   const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
   const biaPapelOptions = useMemo(
@@ -477,6 +567,10 @@ export default function PainelPage() {
   );
   const convergenciaTipoOptions = useMemo(
     () => Array.from(new Set(convergencias.map((opa) => opa.tipo).filter(Boolean))) as string[],
+    [convergencias],
+  );
+  const convergenciaRamoOptions = useMemo(
+    () => Array.from(new Set(convergencias.map((opa) => opa.ramo_atuacao).filter(Boolean))) as string[],
     [convergencias],
   );
   const convergenciaNucleoOptions = useMemo(
@@ -530,16 +624,18 @@ export default function PainelPage() {
       const haystack = normalizeText([
         opa.nome_oportunidade,
         opa.tipo,
+        opa.ramo_atuacao,
         opa.nucleo_alianca,
         opa.nome_bia_vinculada,
         opa.perfil_aliado,
       ].join(" "));
       const matchSearch = !q || haystack.includes(q);
       const matchTipo = convergenciaTipo === "__all__" || opa.tipo === convergenciaTipo;
+      const matchRamo = convergenciaRamo === "__all__" || opa.ramo_atuacao === convergenciaRamo;
       const matchNucleo = convergenciaNucleo === "__all__" || opa.nucleo_alianca === convergenciaNucleo;
-      return matchSearch && matchTipo && matchNucleo;
+      return matchSearch && matchTipo && matchRamo && matchNucleo;
     });
-  }, [convergencias, convergenciaSearch, convergenciaTipo, convergenciaNucleo]);
+  }, [convergencias, convergenciaSearch, convergenciaTipo, convergenciaRamo, convergenciaNucleo]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -806,7 +902,7 @@ export default function PainelPage() {
           <CardContent className="p-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-foreground">Seu perfil</p>
-              <Button variant="link" className="h-auto p-0 text-xs text-blue-600" onClick={(event) => { event.stopPropagation(); navigate("/meu-perfil"); }}>
+              <Button variant="ghost" className="h-auto p-0 text-xs text-blue-600 hover:bg-transparent hover:text-blue-700" onClick={(event) => { event.stopPropagation(); navigate("/meu-perfil"); }}>
                 Ver perfil completo
               </Button>
             </div>
@@ -884,15 +980,15 @@ export default function PainelPage() {
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold text-foreground">Alertas e pendências</h2>
                 <Button
-                  variant="link"
-                  className="h-auto p-0 text-xs text-blue-600"
+                  variant="ghost"
+                  className="h-auto p-0 text-xs text-blue-600 hover:bg-transparent hover:text-blue-700"
                   onClick={(event) => { event.stopPropagation(); navigate("/notificacoes"); }}
                 >
                   Ver todos
                 </Button>
               </div>
               <div className="space-y-2">
-                {isLoadingAprovacoes ?(
+                {isLoadingAprovacoes || isLoadingDiretorSolicitacoes || isLoadingSocioSolicitacoes || isLoadingChamadasAlianca ?(
                   Array.from({ length: 3 }).map((_, index) => (
                     <div key={index} className="flex items-center gap-3">
                       <Skeleton className="h-8 w-8 rounded-lg" />
@@ -921,7 +1017,7 @@ export default function PainelPage() {
                           <p className="truncate text-xs font-semibold text-foreground">{alerta.title}</p>
                           <p className="truncate text-[11px] text-muted-foreground">{alerta.subtitle}</p>
                         </div>
-                        {aprovacoesPendentes.length > 0 && (
+                        {aprovacoesPendentes.length + diretorSolicitacoes.length + socioSolicitacoes.length + chamadasAlianca.length > 0 && (
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
                         )}
                       </div>
@@ -1243,7 +1339,7 @@ export default function PainelPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_150px] gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(220px,1fr)_120px_170px_150px] gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
@@ -1262,6 +1358,17 @@ export default function PainelPage() {
                   <SelectItem value="__all__">Todos os tipos</SelectItem>
                   {convergenciaTipoOptions.map((tipo) => (
                     <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={convergenciaRamo} onValueChange={setConvergenciaRamo}>
+                <SelectTrigger className="h-9 text-xs" data-testid="select-filtro-convergencia-ramo">
+                  <SelectValue placeholder="Ramo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos os ramos</SelectItem>
+                  {convergenciaRamoOptions.map((ramo) => (
+                    <SelectItem key={ramo} value={ramo}>{ramo}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1317,8 +1424,13 @@ export default function PainelPage() {
                           </Badge>
                         )}
                       </div>
-                      {(opa.nucleo_alianca || opa.nome_bia_vinculada) && (
+                      {(opa.ramo_atuacao || opa.nucleo_alianca || opa.nome_bia_vinculada) && (
                         <div className="flex flex-wrap gap-1.5">
+                          {opa.ramo_atuacao && (
+                            <Badge variant="outline" className="max-w-full truncate text-[10px] text-cyan-700 border-cyan-200 bg-cyan-50">
+                              Ramo: {opa.ramo_atuacao}
+                            </Badge>
+                          )}
                           {opa.nucleo_alianca && (
                             <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/70 bg-muted/30">
                               {opa.nucleo_alianca}
@@ -1530,6 +1642,53 @@ export default function PainelPage() {
                 })}
               </div>
             )}
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-violet-600" />
+                Documentações
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => navigate("/documentacao")}
+                data-testid="link-gestao-documentacoes"
+              >
+                Abrir <ChevronRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Card
+                className="border border-border/60 hover:border-violet-500/40 cursor-pointer transition-colors"
+                onClick={() => navigate("/documentacao")}
+                data-testid="card-gestao-documentacao-plataforma"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                      <BookOpen className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            Documentação da plataforma
+                          </p>
+                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                            Estrutura, módulos, rotas e referências operacionais da BUILT.
+                          </p>
+                        </div>
+                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

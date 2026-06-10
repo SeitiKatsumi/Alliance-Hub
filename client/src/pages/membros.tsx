@@ -292,21 +292,36 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     }
   }, [membroComunidade?.id]);
 
-  const { data: linkedUser, refetch: refetchLinkedUser } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
+  type LinkedUser = { id: string; role: string; username: string; email?: string; membro_directus_id?: string | null };
+  const fetchLinkedUser = async (url: string): Promise<LinkedUser | null> => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || "Não foi possível carregar a conta de acesso");
+    }
+    const data = await res.json();
+    return data?.id ? data : null;
+  };
+
+  const { data: linkedUser, refetch: refetchLinkedUser, isError: linkedUserError } = useQuery<LinkedUser | null>({
     queryKey: ["/api/users/by-membro", membro.id],
-    queryFn: () => membro.id ?fetch(`/api/users/by-membro/${membro.id}`).then(r => r.json()) : Promise.resolve(null),
+    queryFn: () => membro.id ?fetchLinkedUser(`/api/users/by-membro/${membro.id}`) : Promise.resolve(null),
     enabled: !!membro.id,
     staleTime: 30000,
+    retry: false,
   });
 
   // When there's no linked account, search for an unlinked user by the membro's email
   const membroEmail = (membro as any).email || "";
-  const { data: matchedByEmail } = useQuery<{ id: string; role: string; username: string; email?: string; membro_directus_id?: string | null } | null>({
+  const { data: matchedByEmail, isError: matchedByEmailError } = useQuery<LinkedUser | null>({
     queryKey: ["/api/users/by-email", membroEmail],
-    queryFn: () => membroEmail ?fetch(`/api/users/by-email?email=${encodeURIComponent(membroEmail)}`).then(r => r.json()) : Promise.resolve(null),
+    queryFn: () => membroEmail ?fetchLinkedUser(`/api/users/by-email?email=${encodeURIComponent(membroEmail)}`) : Promise.resolve(null),
     enabled: !linkedUser && !!membroEmail,
     staleTime: 30000,
+    retry: false,
   });
+
+  const accountLookupUnavailable = linkedUserError || matchedByEmailError;
 
   // Only show the match suggestion if the found user is not linked to another membro
   const suggestedLink = !linkedUser && matchedByEmail && !matchedByEmail.membro_directus_id ?matchedByEmail : null;
@@ -453,7 +468,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         user: { aura: "view", bias: "view", admin: "none", painel: "view", membros: "none", calculadora: "none", fluxo_caixa: "none", oportunidades: "none", cadastro_geral: "none" },
       };
 
-      if (linkedUser) {
+      if (linkedUser?.id) {
         // Update role, email and/or password if changed
         const roleUpdate: Record<string, any> = {};
         const rolesToSave = selectedRoles.length > 0 ? selectedRoles : [selectedRole || linkedUser.role || "user"];
@@ -493,6 +508,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         });
         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
         refetchLinkedUser();
+      } else if (changePassword.length >= 4 || newAccPassword.length >= 4 || selectedRoles.length > 0 || selectedRole) {
+        if (accountLookupUnavailable) {
+          throw new Error("Dados do membro salvos, mas a senha/permissões não foram alteradas porque o banco local de usuários está indisponível.");
+        }
       }
     },
     onSuccess: async () => {

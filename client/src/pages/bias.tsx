@@ -3,8 +3,11 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { InviteQrCode } from "@/components/invite-qr-code";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +39,7 @@ import {
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
   X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard, ImageIcon,
-  Clock, CheckCircle, XCircle, Bell
+  Clock, CheckCircle, XCircle, Bell, Ticket, Copy, RefreshCw
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
@@ -45,6 +48,19 @@ import {
 } from "react-simple-maps";
 
 const BRAZIL_GEO = "/brazil-states.json";
+const INVITE_APP_URL = "https://built.dna11.com.br";
+const INVITE_TYPE_OPTIONS = [
+  { value: "vitrine", label: "BUILT Vitrine" },
+  { value: "capital", label: "BUILT Capital (Investidor)" },
+  { value: "membros", label: "BUILT Alliances" },
+];
+const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+
+function normalizeInviteLink(link?: string | null) {
+  if (!link) return "";
+  if (/^https?:\/\//i.test(link)) return link;
+  return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
+}
 
 // ---- Types ----
 interface AnexoFile {
@@ -64,6 +80,37 @@ interface Membro {
   sobrenome?: string;
   empresa?: string;
   Outras_redes_as_quais_pertenco?: string[];
+}
+
+interface BiaDiretorSolicitacao {
+  id: string;
+  bia_id: string;
+  diretor_membro_id: string;
+  papel: string;
+  campo_diretor: string;
+  status: string;
+}
+
+interface BiaSocioSolicitacao {
+  id: string;
+  bia_id: string;
+  socio_membro_id: string;
+  papel: string;
+  campo_socios: string;
+  status: string;
+}
+
+interface ChamadaAlianca {
+  id: string;
+  bia_id: string;
+  diretor_campo: string;
+  ordem: number;
+  escopo: string;
+  titulo: string;
+  data_hora: string;
+  link_reuniao: string;
+  opa_id?: string | null;
+  destinatarios?: Array<{ id: string; nome?: string; email?: string }>;
 }
 
 interface BiasProjeto {
@@ -375,6 +422,31 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM;
 
+const DIRETOR_CHAMADA_LABELS: Partial<Record<keyof FormState, string>> = {
+  diretor_alianca: "Diretor de Aliança",
+  diretor_nucleo_tecnico: "Diretor de Núcleo Técnico",
+  diretor_execucao: "Diretor de Núcleo de Obra",
+  diretor_comercial: "Diretor Comercial",
+  diretor_capital: "Diretor de Capital",
+};
+
+const DIRETOR_CHAMADA_TIPOS: Partial<Record<keyof FormState, string>> = {
+  diretor_alianca: "Liderança",
+  diretor_nucleo_tecnico: "Projeto",
+  diretor_execucao: "Execução",
+  diretor_comercial: "Comercial",
+  diretor_capital: "Investimento",
+};
+
+const CHAMADA_ALIANCA_TITULO_OPA = "Chamada para aliança de Liderança";
+
+const CHAMADA_SEQUENCE_LABELS: Record<number, string> = {
+  1: "RO para a comunidade",
+  2: "RO para o território",
+  3: "RO nacional",
+  4: "RO global",
+};
+
 function biaToForm(b: BiasProjeto): FormState {
   return {
     nome_bia: b.nome_bia || "",
@@ -524,36 +596,94 @@ function PercField({ label, field, form, setForm, baseValue }: {
   );
 }
 
-function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required, filterFn }: {
+function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required, filterFn, pending }: {
   label: string; field: keyof FormState; form: FormState;
   setForm: (f: FormState) => void; membros: Membro[]; icon?: any; required?: boolean;
   filterFn?: (m: Membro) => boolean;
+  pending?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const isEmpty = required && !form[field];
   const options = filterFn ?membros.filter(filterFn) : membros;
+  const selectedId = String(form[field] || "");
+  const selectedMembro = selectedId ? membros.find((m) => m.id === selectedId) : null;
+  const selectedLabel = selectedMembro
+    ? `${getMembroNome(selectedMembro)}${selectedMembro.empresa ? ` · ${selectedMembro.empresa}` : ""}`
+    : selectedId
+      ? "Membro selecionado"
+      : "Selecionar...";
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground flex items-center gap-1">
         {Icon && <Icon className="w-3 h-3" />} {label}
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </Label>
-      <Select
-        value={(form[field] as string) || "none"}
-        onValueChange={(v) => setForm({ ...form, [field]: v === "none" ?"" : v })}
-      >
-        <SelectTrigger
-          className={`h-8 text-sm ${isEmpty ?"border-red-400/50 focus:border-red-400" : ""}`}
-          data-testid={`select-${field}`}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className={`h-8 w-full justify-between px-3 text-left text-sm font-normal ${isEmpty ?"border-red-400/50 focus:border-red-400" : ""}`}
+            data-testid={`select-${field}`}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span className={`truncate ${selectedId ? "" : "text-muted-foreground"}`}>
+                {selectedLabel}
+              </span>
+              {pending && selectedId && (
+                <Badge variant="outline" className="h-4 shrink-0 border-amber-300 bg-amber-50 px-1.5 text-[9px] font-medium text-amber-700">
+                  <Clock className="mr-1 h-2.5 w-2.5" />
+                  Pendente
+                </Badge>
+              )}
+            </div>
+            <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[--radix-popover-trigger-width] min-w-[280px] p-0"
+          align="start"
+          data-testid={`popover-${field}`}
         >
-          <SelectValue placeholder="Selecionar..." />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">— Nenhum —</SelectItem>
-          {options.map((m) => (
-            <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}{m.empresa ?` · ${m.empresa}` : ""}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          <Command>
+            <CommandInput placeholder="Buscar membro..." />
+            <CommandList>
+              <CommandEmpty>Nenhum membro encontrado.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="none nenhum"
+                  onSelect={() => {
+                    setForm({ ...form, [field]: "" });
+                    setOpen(false);
+                  }}
+                  data-testid={`option-${field}-none`}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${!selectedId ? "opacity-100" : "opacity-0"}`} />
+                  — Nenhum —
+                </CommandItem>
+                {options.map((m) => {
+                  const memberLabel = `${getMembroNome(m)}${m.empresa ? ` · ${m.empresa}` : ""}`;
+                  return (
+                    <CommandItem
+                      key={m.id}
+                      value={`${memberLabel} ${m.id}`}
+                      onSelect={() => {
+                        setForm({ ...form, [field]: m.id });
+                        setOpen(false);
+                      }}
+                      data-testid={`option-${field}-${m.id}`}
+                    >
+                      <Check className={`mr-2 h-4 w-4 ${selectedId === m.id ? "opacity-100" : "opacity-0"}`} />
+                      <span className="truncate">{memberLabel}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
       {isEmpty && (
         <p className="text-[10px] text-red-400/70 font-mono">Campo obrigatório</p>
       )}
@@ -561,7 +691,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
   );
 }
 
-function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, note }: {
+function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, note, pendingIds }: {
   label: string;
   field: "socios_multiplicadores" | "socios_guardioes" | "terceiros";
   form: FormState;
@@ -569,6 +699,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
   membros: Membro[];
   icon?: any;
   note?: string;
+  pendingIds?: Set<string>;
 }) {
   const selectedIds = parseMemberList(form[field] as string[] | string);
   const selectedSet = new Set(selectedIds);
@@ -660,14 +791,22 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
       </Popover>
       {selectedMembros.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {selectedMembros.map((m) => (
+          {selectedMembros.map((m) => {
+            const isPending = pendingIds?.has(String(m.id));
+            return (
             <Badge key={m.id} variant="secondary" className="gap-1 pr-1">
               {getMembroNome(m)}
+              {isPending && (
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700">
+                  Pendente
+                </span>
+              )}
               <button type="button" onClick={() => toggleMembro(m.id)} className="rounded-full hover:bg-background/80">
                 <X className="w-3 h-3" />
               </button>
             </Badge>
-          ))}
+            );
+          })}
         </div>
       )}
       {note && <p className="text-[11px] text-muted-foreground leading-relaxed">{note}</p>}
@@ -1509,9 +1648,25 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   onRequestDelete?: (bia: BiasProjeto) => void;
 }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEdit = !!bia;
 
-  const EMPTY_INFO = { razao_social: "", cnpj: "", nome_fantasia: "", inscricao_estadual: "", banco: "", agencia: "", conta: "", tipo_conta: "", titular_conta: "", chave_pix: "" };
+  const EMPTY_INFO = {
+    razao_social: "",
+    cnpj: "",
+    nome_fantasia: "",
+    inscricao_estadual: "",
+    banco: "",
+    agencia: "",
+    conta: "",
+    tipo_conta: "",
+    titular_conta: "",
+    chave_pix: "",
+    ativo_endereco: "",
+    ativo_qualificacao: "",
+    ativo_numero_matricula: "",
+    ativo_cartorio: "",
+  };
   type InfoComercialForm = typeof EMPTY_INFO;
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -1520,6 +1675,17 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   const [quickMemberOpen, setQuickMemberOpen] = useState(false);
   const [quickMemberName, setQuickMemberName] = useState("");
   const [quickMemberCompany, setQuickMemberCompany] = useState("");
+  const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
+  const [conviteTipo, setConviteTipo] = useState("vitrine");
+  const [chamadaDialogOpen, setChamadaDialogOpen] = useState(false);
+  const [chamadaDiretorCampo, setChamadaDiretorCampo] = useState<keyof FormState | null>(null);
+  const [chamadaDataHora, setChamadaDataHora] = useState("");
+  const [chamadaLink, setChamadaLink] = useState("");
+  const [chamadaOpaTitulo, setChamadaOpaTitulo] = useState(CHAMADA_ALIANCA_TITULO_OPA);
+  const [chamadaOpaTipo, setChamadaOpaTipo] = useState("Liderança");
+  const [chamadaOpaValor, setChamadaOpaValor] = useState("");
+  const [chamadaOpaMem, setChamadaOpaMem] = useState("100");
+  const [chamadaOpaDescricao, setChamadaOpaDescricao] = useState("");
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [existingAnexos, setExistingAnexos] = useState<AnexoFile[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -1527,6 +1693,122 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: meuConvite } = useQuery<any>({
+    queryKey: ["/api/meu-convite"],
+    queryFn: async () => {
+      const res = await fetch("/api/meu-convite", { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.membro_directus_id && conviteDialogOpen,
+    staleTime: 60000,
+  });
+  const meuConviteLink = normalizeInviteLink(meuConvite?.link);
+
+  const gerarConviteMutation = useMutation({
+    mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
+      const res = await fetch("/api/meu-convite", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: !!force, tipo }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erro ao gerar convite");
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meu-convite"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" });
+    },
+  });
+
+  function handleConviteTipoChange(tipo: string) {
+    setConviteTipo(tipo);
+    gerarConviteMutation.mutate({ force: true, tipo });
+  }
+
+  const dispararAliancaMutation = useMutation({
+    mutationFn: async () => {
+      if (!bia?.id || !chamadaDiretorCampo) throw new Error("BIA ou diretor não informado");
+      const response = await apiRequest("POST", `/api/bias/${bia.id}/disparar-alianca`, {
+        diretor_campo: chamadaDiretorCampo,
+        data_hora: chamadaDataHora,
+        link_reuniao: /^https?:\/\//i.test(chamadaLink.trim()) ? chamadaLink.trim() : `https://${chamadaLink.trim()}`,
+        opa: {
+          nome_oportunidade: chamadaOpaTitulo,
+          tipo: chamadaOpaTipo,
+          valor_origem_opa: parseBRLToNumber(chamadaOpaValor),
+          Minimo_esforco_multiplicador: parseFloat(chamadaOpaMem.replace(",", ".")) || 0,
+          descricao: chamadaOpaDescricao,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const count = Number(data?.destinatarios_count || 0);
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chamadas-alianca/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      if (bia?.id) queryClient.invalidateQueries({ queryKey: ["/api/chamadas-alianca/bia", bia.id] });
+      toast({
+        title: "Aliança disparada",
+        description: `OPA “${data?.opa?.nome_oportunidade || chamadaOpaTitulo}” criada e chamada enviada para ${count} membro${count !== 1 ? "s" : ""}.`,
+      });
+      setChamadaDialogOpen(false);
+      setChamadaDiretorCampo(null);
+      setChamadaDataHora("");
+      setChamadaLink("");
+      setChamadaOpaTitulo(CHAMADA_ALIANCA_TITULO_OPA);
+      setChamadaOpaTipo("Liderança");
+      setChamadaOpaValor("");
+      setChamadaOpaMem("100");
+      setChamadaOpaDescricao("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao disparar aliança",
+        description: error?.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const { data: diretorSolicitacoesPendentes = [] } = useQuery<BiaDiretorSolicitacao[]>({
+    queryKey: ["/api/bia-diretor-solicitacoes/bia", bia?.id],
+    queryFn: async () => {
+      if (!bia?.id) return [];
+      const res = await fetch(`/api/bia-diretor-solicitacoes/bia/${bia.id}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && !!bia?.id,
+  });
+
+  const { data: socioSolicitacoesPendentes = [] } = useQuery<BiaSocioSolicitacao[]>({
+    queryKey: ["/api/bia-socio-solicitacoes/bia", bia?.id],
+    queryFn: async () => {
+      if (!bia?.id) return [];
+      const res = await fetch(`/api/bia-socio-solicitacoes/bia/${bia.id}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && !!bia?.id,
+  });
+
+  const { data: chamadasAlianca = [] } = useQuery<ChamadaAlianca[]>({
+    queryKey: ["/api/chamadas-alianca/bia", bia?.id],
+    queryFn: async () => {
+      if (!bia?.id) return [];
+      const res = await fetch(`/api/chamadas-alianca/bia/${bia.id}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && !!bia?.id,
+  });
 
   // Forma de pagamento do ativo de origem
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
@@ -1571,6 +1853,10 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
               tipo_conta: data.tipo_conta || "",
               titular_conta: data.titular_conta || "",
               chave_pix: data.chave_pix || "",
+              ativo_endereco: data.ativo_endereco || "",
+              ativo_qualificacao: data.ativo_qualificacao || "",
+              ativo_numero_matricula: data.ativo_numero_matricula || "",
+              ativo_cartorio: data.ativo_cartorio || "",
             });
           })
           .catch(() => {});
@@ -1622,6 +1908,123 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     if (formaPagamento === "a_vista") return valorAVista;
     return parseBRLToNumber(form.valor_origem);
   })();
+
+  const diretorPendingByField = useMemo(() => {
+    const fields: Array<keyof FormState> = [
+      "diretor_alianca",
+      "diretor_nucleo_tecnico",
+      "diretor_execucao",
+      "diretor_comercial",
+      "diretor_capital",
+    ];
+    const result: Partial<Record<keyof FormState, boolean>> = {};
+
+    fields.forEach((field) => {
+      const selectedId = String(form[field] || "");
+      if (!selectedId) return;
+
+      const savedId = bia ? String((bia as any)[field] || "") : "";
+      const hasPendingSolicitacao = diretorSolicitacoesPendentes.some((solicitacao) =>
+        solicitacao.status === "pendente" &&
+        solicitacao.campo_diretor === field &&
+        solicitacao.diretor_membro_id === selectedId
+      );
+
+      result[field] = hasPendingSolicitacao || (isEdit && selectedId !== savedId);
+    });
+
+    return result;
+  }, [
+    bia,
+    diretorSolicitacoesPendentes,
+    form.diretor_alianca,
+    form.diretor_nucleo_tecnico,
+    form.diretor_execucao,
+    form.diretor_comercial,
+    form.diretor_capital,
+    isEdit,
+  ]);
+
+  const socioPendingByField = useMemo(() => {
+    const fields: Array<"socios_guardioes" | "socios_multiplicadores"> = [
+      "socios_guardioes",
+      "socios_multiplicadores",
+    ];
+    const result: Record<"socios_guardioes" | "socios_multiplicadores", Set<string>> = {
+      socios_guardioes: new Set<string>(),
+      socios_multiplicadores: new Set<string>(),
+    };
+
+    fields.forEach((field) => {
+      const selectedIds = parseMemberList(form[field] as string[] | string);
+      const savedIds = new Set(bia ? parseMemberList((bia as any)[field]) : []);
+
+      selectedIds.forEach((id) => {
+        const hasPendingSolicitacao = socioSolicitacoesPendentes.some((solicitacao) =>
+          solicitacao.status === "pendente" &&
+          solicitacao.campo_socios === field &&
+          solicitacao.socio_membro_id === id
+        );
+        if (hasPendingSolicitacao || (isEdit && !savedIds.has(id)) || !isEdit) {
+          result[field].add(id);
+        }
+      });
+    });
+
+    return result;
+  }, [
+    bia,
+    form.socios_guardioes,
+    form.socios_multiplicadores,
+    isEdit,
+    socioSolicitacoesPendentes,
+  ]);
+
+  function getNextChamadaOrder(field: keyof FormState) {
+    const maxOrder = chamadasAlianca
+      .filter((item) => item.diretor_campo === field)
+      .reduce((max, item) => Math.max(max, Number(item.ordem) || 0), 0);
+    return maxOrder + 1;
+  }
+
+  function openChamadaDialog(field: keyof FormState) {
+    const nextOrder = getNextChamadaOrder(field);
+    const etapaLabel = CHAMADA_SEQUENCE_LABELS[nextOrder] || "RO para a comunidade";
+    setChamadaDiretorCampo(field);
+    setChamadaDataHora("");
+    setChamadaLink("");
+    setChamadaOpaTitulo(CHAMADA_ALIANCA_TITULO_OPA);
+    setChamadaOpaTipo(DIRETOR_CHAMADA_TIPOS[field] || "Liderança");
+    setChamadaOpaValor(numToBRLStr(form.valor_origem || ""));
+    setChamadaOpaMem("100");
+    setChamadaOpaDescricao([
+      `${etapaLabel} da BIA ${form.nome_bia || bia?.nome_bia || ""}.`,
+      `Cargo em aberto: ${DIRETOR_CHAMADA_LABELS[field] || "Diretoria"}.`,
+    ].join("\n"));
+    setChamadaDialogOpen(true);
+  }
+
+  function renderDispararAliancaButton(field: keyof FormState) {
+    const cargoPreenchido = !!form[field];
+    const nextOrder = getNextChamadaOrder(field);
+    const concluded = nextOrder > 4;
+    return (
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 border-blue-200 text-xs text-blue-700 hover:bg-blue-50"
+          onClick={() => openChamadaDialog(field)}
+          disabled={!isEdit || cargoPreenchido || concluded}
+          data-testid={`btn-disparar-alianca-${field}`}
+        >
+          <Bell className="h-3.5 w-3.5" />
+          {concluded ? "Ciclo concluído" : cargoPreenchido ? "Cargo preenchido" : "Disparar chamada para aliança"}
+        </Button>
+      </div>
+    );
+  }
 
   const percTotal = ["perc_aliado_built","perc_built","perc_dir_alianca","perc_dir_tecnico",
     "perc_dir_obras","perc_dir_comercial","perc_dir_capital"].reduce(
@@ -1742,6 +2145,12 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
+      if (biaId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/bia", biaId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/bia", biaId] });
+      }
       if (saved?._cppError) {
         const msg = String(saved._cppError).slice(0, 240);
         setCppError(msg);
@@ -1755,12 +2164,31 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
       if (saved?._cppSummary) {
         setCppSummary(saved._cppSummary);
         const s = saved._cppSummary;
+        const diretorCount = Number(saved?._diretor_solicitacoes || 0);
+        const socioCount = Number(saved?._socio_solicitacoes || 0);
+        const diretorText = diretorCount > 0
+          ? ` ${diretorCount} solicitação${diretorCount !== 1 ? "ões" : ""} enviada${diretorCount !== 1 ? "s" : ""} para aceite de diretoria.`
+          : "";
+        const socioText = socioCount > 0
+          ? ` ${socioCount} convite${socioCount !== 1 ? "s" : ""} de sócio enviado${socioCount !== 1 ? "s" : ""} para aceite.`
+          : "";
         toast({
           title: isEdit ?"BIA atualizada!" : "BIA criada!",
-          description: `${s.cppCount} lançamento${s.cppCount !== 1 ?"s" : ""} CPP gerado${s.cppCount !== 1 ?"s" : ""} para ${s.parcelas} parcela${s.parcelas !== 1 ?"s" : ""}.`,
+          description: `${s.cppCount} lançamento${s.cppCount !== 1 ?"s" : ""} CPP gerado${s.cppCount !== 1 ?"s" : ""} para ${s.parcelas} parcela${s.parcelas !== 1 ?"s" : ""}.${diretorText}${socioText}`,
         });
       } else {
-        toast({ title: isEdit ?"BIA atualizada!" : "BIA criada!", description: form.nome_bia });
+        const diretorCount = Number(saved?._diretor_solicitacoes || 0);
+        const socioCount = Number(saved?._socio_solicitacoes || 0);
+        const diretorText = diretorCount > 0
+          ? `${diretorCount} solicitação${diretorCount !== 1 ? "ões" : ""} enviada${diretorCount !== 1 ? "s" : ""} ao${diretorCount !== 1 ? "s" : ""} diretor${diretorCount !== 1 ? "es" : ""} para aceite.`
+          : "";
+        const socioText = socioCount > 0
+          ? `${socioCount} convite${socioCount !== 1 ? "s" : ""} de sócio enviado${socioCount !== 1 ? "s" : ""} para aceite.`
+          : "";
+        toast({
+          title: isEdit ?"BIA atualizada!" : "BIA criada!",
+          description: [diretorText, socioText].filter(Boolean).join(" ") || form.nome_bia,
+        });
       }
       onClose();
     },
@@ -1799,14 +2227,20 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   function getMissingRequiredFields(): string[] {
     const missing: string[] = [];
     if (!form.nome_bia.trim()) missing.push("Nome da BIA");
-    if (!form.destinacao.trim()) missing.push("Destinação");
-    if (!form.localizacao.trim()) missing.push("Localização");
-    if (!form.objetivo_alianca.trim()) missing.push("Objetivo da aliança");
-    if (!form.observacoes.trim()) missing.push("Observações");
-    if (parseBRLToNumber(form.valor_geral_venda_vgv) <= 0) missing.push("VGV");
     if (!form.aliado_built) missing.push("Aliado BUILT");
     if (!form.diretor_alianca) missing.push("Diretor de Aliança");
-    if (form.situacao === "ativa") {
+    if (!infoForm.ativo_endereco.trim()) missing.push("Endereço do ativo");
+    if (!infoForm.ativo_qualificacao.trim()) missing.push("Qualificação do ativo");
+    if (!infoForm.ativo_numero_matricula.trim()) missing.push("Número da matrícula");
+    if (!infoForm.ativo_cartorio.trim()) missing.push("Cartório");
+    if (!isEdit) {
+      if (!form.destinacao.trim()) missing.push("Destinação");
+      if (!form.localizacao.trim()) missing.push("Localização");
+      if (!form.objetivo_alianca.trim()) missing.push("Objetivo da aliança");
+      if (!form.observacoes.trim()) missing.push("Observações");
+      if (parseBRLToNumber(form.valor_geral_venda_vgv) <= 0) missing.push("VGV");
+    }
+    if (!isEdit && form.situacao === "ativa") {
       if (!infoForm.razao_social.trim()) missing.push("Razão social/Nome");
       if (!infoForm.cnpj.trim()) missing.push("CNPJ/CPF");
       if (!infoForm.banco.trim()) missing.push("Banco");
@@ -2151,11 +2585,16 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
               <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} required filterFn={(m) => !!(m.Outras_redes_as_quais_pertenco?.includes("BUILT_ALLIANCE_PARTNER")) || m.id === form.aliado_built} />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
-              <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} required />
-              <MembroSelect label="Diretor de Núcleo Técnico" field="diretor_nucleo_tecnico" form={form} setForm={setForm} membros={membros} icon={Shield} />
-              <MembroSelect label="Diretor de Núcleo de Obra" field="diretor_execucao" form={form} setForm={setForm} membros={membros} icon={Hammer} />
-              <MembroSelect label="Diretor Comercial" field="diretor_comercial" form={form} setForm={setForm} membros={membros} icon={Building2} />
-              <MembroSelect label="Diretor de Capital" field="diretor_capital" form={form} setForm={setForm} membros={membros} icon={Wallet} />
+              <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} required pending={!!diretorPendingByField.diretor_alianca} />
+              {renderDispararAliancaButton("diretor_alianca")}
+              <MembroSelect label="Diretor de Núcleo Técnico" field="diretor_nucleo_tecnico" form={form} setForm={setForm} membros={membros} icon={Shield} pending={!!diretorPendingByField.diretor_nucleo_tecnico} />
+              {renderDispararAliancaButton("diretor_nucleo_tecnico")}
+              <MembroSelect label="Diretor de Núcleo de Obra" field="diretor_execucao" form={form} setForm={setForm} membros={membros} icon={Hammer} pending={!!diretorPendingByField.diretor_execucao} />
+              {renderDispararAliancaButton("diretor_execucao")}
+              <MembroSelect label="Diretor Comercial" field="diretor_comercial" form={form} setForm={setForm} membros={membros} icon={Building2} pending={!!diretorPendingByField.diretor_comercial} />
+              {renderDispararAliancaButton("diretor_comercial")}
+              <MembroSelect label="Diretor de Capital" field="diretor_capital" form={form} setForm={setForm} membros={membros} icon={Wallet} pending={!!diretorPendingByField.diretor_capital} />
+              {renderDispararAliancaButton("diretor_capital")}
               <Separator />
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
@@ -2170,11 +2609,11 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                     variant="outline"
                     size="sm"
                     className="h-8 shrink-0"
-                    onClick={() => setQuickMemberOpen(true)}
-                    data-testid="btn-criar-membro-patrimonial"
+                    onClick={() => setConviteDialogOpen(true)}
+                    data-testid="btn-convidar-parceiro-patrimonial"
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1" />
-                    Criar novo membro
+                    <Ticket className="w-3.5 h-3.5 mr-1" />
+                    Convidar parceiro
                   </Button>
                 </div>
                 <MultiMembroSelect
@@ -2184,6 +2623,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                   setForm={setForm}
                   membros={membros}
                   icon={Shield}
+                  pendingIds={socioPendingByField.socios_guardioes}
                   note="Responsáveis por manter a BIA, organizar o caixa e sustentar o projeto."
                 />
                 <MultiMembroSelect
@@ -2193,6 +2633,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                   setForm={setForm}
                   membros={membros}
                   icon={TrendingUp}
+                  pendingIds={socioPendingByField.socios_multiplicadores}
                   note="Participam entregando trabalho, técnica, execução, fornecimento, venda ou relacionamento convertido em CPP."
                 />
               </div>
@@ -2325,6 +2766,62 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                   BIA com situação <strong>Ativa</strong>: preencha os campos obrigatórios marcados com *.
                 </p>
               )}
+
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Informações do Ativo</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Endereço <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_endereco}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_endereco: e.target.value })}
+                      placeholder="Endereço completo do ativo"
+                      data-testid="input-ativo-endereco"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Qualificação <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_qualificacao}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_qualificacao: e.target.value })}
+                      placeholder="Apartamento, loja, prédio..."
+                      data-testid="input-ativo-qualificacao"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Número da matrícula <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_numero_matricula}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_numero_matricula: e.target.value })}
+                      placeholder="Número da matrícula"
+                      data-testid="input-ativo-numero-matricula"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Cartório <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_cartorio}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_cartorio: e.target.value })}
+                      placeholder="Cartório de registro"
+                      data-testid="input-ativo-cartorio"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
 
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Dados Comerciais</p>
@@ -2498,15 +2995,232 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
         onSelect={handleLocationSelect}
       />
 
+      <Dialog open={chamadaDialogOpen} onOpenChange={setChamadaDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-blue-600" />
+              Disparar chamada para aliança
+            </DialogTitle>
+            <DialogDescription>
+              Revise os dados da reunião e edite as informações da OPA que será criada.
+            </DialogDescription>
+          </DialogHeader>
+
+          {chamadaDiretorCampo && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-sm">
+                <p className="font-semibold text-brand-navy">{DIRETOR_CHAMADA_LABELS[chamadaDiretorCampo]}</p>
+                <p className="text-xs text-muted-foreground">
+                  Próxima chamada: {CHAMADA_SEQUENCE_LABELS[getNextChamadaOrder(chamadaDiretorCampo)] || "Ciclo concluído"}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Data e hora da reunião *</Label>
+                <Input
+                  type="datetime-local"
+                  value={chamadaDataHora}
+                  onChange={(event) => setChamadaDataHora(event.target.value)}
+                  data-testid="input-chamada-data-hora"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Link da reunião *</Label>
+                <Input
+                  type="url"
+                  value={chamadaLink}
+                  onChange={(event) => setChamadaLink(event.target.value)}
+                  placeholder="https://..."
+                  data-testid="input-chamada-link"
+                />
+              </div>
+              <Separator />
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-brand-navy">Informações da OPA</p>
+                  <p className="text-xs text-muted-foreground">Esses dados serão usados na OPA publicada pela chamada.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Título da OPA *</Label>
+                  <Input
+                    value={chamadaOpaTitulo}
+                    onChange={(event) => setChamadaOpaTitulo(event.target.value)}
+                    placeholder="Título da oportunidade"
+                    data-testid="input-chamada-opa-titulo"
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Tipo</Label>
+                    <Input
+                      value={chamadaOpaTipo}
+                      onChange={(event) => setChamadaOpaTipo(event.target.value)}
+                      placeholder="Liderança, Comercial, Investimento..."
+                      data-testid="input-chamada-opa-tipo"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Valor da OPA</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                      <Input
+                        value={chamadaOpaValor}
+                        onChange={(event) => setChamadaOpaValor(formatInputBRL(event.target.value))}
+                        placeholder="0,00"
+                        className="pl-9"
+                        data-testid="input-chamada-opa-valor"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Mín. Esforço Multiplicador (%)</Label>
+                  <Input
+                    value={chamadaOpaMem}
+                    onChange={(event) => setChamadaOpaMem(event.target.value.replace(/[^\d.,]/g, ""))}
+                    placeholder="100"
+                    data-testid="input-chamada-opa-mem"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Descrição / perfil buscado</Label>
+                  <Textarea
+                    value={chamadaOpaDescricao}
+                    onChange={(event) => setChamadaOpaDescricao(event.target.value)}
+                    rows={4}
+                    placeholder="Descreva o perfil de aliado/líder buscado para esta chamada..."
+                    data-testid="input-chamada-opa-descricao"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChamadaDialogOpen(false)} disabled={dispararAliancaMutation.isPending}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => dispararAliancaMutation.mutate()}
+              disabled={!chamadaDataHora || !chamadaLink.trim() || !chamadaOpaTitulo.trim() || dispararAliancaMutation.isPending}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              data-testid="btn-confirmar-disparar-alianca"
+            >
+              {dispararAliancaMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bell className="mr-2 h-4 w-4" />}
+              Disparar chamada para aliança
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={conviteDialogOpen} onOpenChange={setConviteDialogOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-blue-600" />
+              Convidar parceiro
+            </DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              Gere e compartilhe um link de convite para novos parceiros entrarem na rede BUILT. O link é válido por 1 dia.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Tipo de convite</p>
+            <Select value={conviteTipo} onValueChange={handleConviteTipoChange}>
+              <SelectTrigger data-testid="select-bia-tipo-convite">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INVITE_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {meuConvite?.tipo && (
+              <p className="text-[11px] text-muted-foreground">
+                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "BUILT Vitrine"}
+              </p>
+            )}
+          </div>
+
+          {meuConviteLink ? (
+            <div className="w-full min-w-0 space-y-3">
+              <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+                <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-mono text-muted-foreground" data-testid="text-bia-convite-link">
+                  {meuConviteLink}
+                </span>
+                <button
+                  type="button"
+                  title="Copiar link"
+                  onClick={async () => {
+                    const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink));
+                    if (copied) {
+                      toast({ title: "Convite copiado!", description: "A mensagem completa está pronta para compartilhar." });
+                    } else {
+                      toast({ title: "Não foi possível copiar", description: "Selecione o link e copie manualmente.", variant: "destructive" });
+                    }
+                  }}
+                  className="shrink-0 rounded-md p-1.5 text-blue-600 hover:bg-blue-50"
+                  data-testid="btn-bia-copiar-convite"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              {meuConvite?.expires_at && (
+                <p className="text-[11px] text-muted-foreground">
+                  Expira em: {new Date(meuConvite.expires_at).toLocaleDateString("pt-BR")}
+                </p>
+              )}
+              <InviteQrCode link={meuConviteLink} variant="light" />
+              <button
+                type="button"
+                onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
+                disabled={gerarConviteMutation.isPending}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                data-testid="btn-bia-renovar-convite"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${gerarConviteMutation.isPending ? "animate-spin" : ""}`} />
+                Gerar novo link
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-5 text-center space-y-3">
+              <Ticket className="w-7 h-7 text-blue-600/70 mx-auto" />
+              <p className="text-sm text-muted-foreground">Nenhum link ativo no momento.</p>
+              <Button
+                onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
+                disabled={gerarConviteMutation.isPending}
+                className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                data-testid="btn-bia-gerar-convite"
+              >
+                {gerarConviteMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Ticket className="w-4 h-4" />
+                )}
+                Gerar link de convite
+              </Button>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConviteDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={quickMemberOpen} onOpenChange={setQuickMemberOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-4 h-4 text-brand-gold" />
-              Criar novo membro
+              Convidar parceiro
             </DialogTitle>
             <DialogDescription>
-              Cadastre um membro simples para selecionar nos papéis patrimoniais da BIA.
+              Cadastre um parceiro simples para selecionar nos papéis patrimoniais da BIA.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -2545,7 +3259,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
               className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
               data-testid="btn-save-quick-member"
             >
-              {createQuickMemberMutation.isPending ?"Criando..." : "Criar membro"}
+              {createQuickMemberMutation.isPending ?"Convidando..." : "Convidar parceiro"}
             </Button>
           </DialogFooter>
         </DialogContent>

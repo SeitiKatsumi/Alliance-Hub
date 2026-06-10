@@ -230,6 +230,45 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
 interface Membro { id: string; nome?: string; cargo?: string; empresa?: string; foto_perfil?: string | null; }
 interface Bia { id: string; nome_bia?: string; }
 
+interface DiretorSolicitacao {
+  id: string;
+  bia_id: string;
+  bia_nome?: string | null;
+  diretor_membro_id: string;
+  diretor_nome?: string | null;
+  papel: string;
+  percentual?: string | number | null;
+  status?: string | null;
+  solicitante_nome?: string | null;
+}
+
+interface SocioSolicitacao {
+  id: string;
+  bia_id: string;
+  bia_nome?: string | null;
+  socio_membro_id: string;
+  socio_nome?: string | null;
+  papel: string;
+  campo_socios: string;
+  status?: string | null;
+  solicitante_nome?: string | null;
+}
+
+interface ChamadaAlianca {
+  id: string;
+  bia_id: string;
+  bia_nome?: string | null;
+  diretor_nome?: string | null;
+  nucleo_alianca?: string | null;
+  ordem: number;
+  escopo: string;
+  titulo: string;
+  data_hora: string;
+  link_reuniao: string;
+  opa_id?: string | null;
+  destinatarios?: Array<{ id: string; nome?: string; email?: string }>;
+}
+
 // M2M junction shapes returned by Directus
 interface MembroJunction { cadastro_geral_id: Membro | string | null; }
 interface BiaJunction { bias_projetos_id: Bia | string | null; }
@@ -650,6 +689,18 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     enabled: convitesOnly || activeTab === "convites",
   });
 
+  const { data: chamadasAlianca = [] } = useQuery<ChamadaAlianca[]>({
+    queryKey: ["/api/chamadas-alianca/minhas"],
+    queryFn: async () => {
+      const res = await fetch("/api/chamadas-alianca/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: convitesOnly || activeTab === "convites",
+    refetchInterval: 30000,
+  });
+
   const membrosOrdenados = useMemo(() => {
     return [...membros].sort((a, b) =>
       (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" })
@@ -847,6 +898,30 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     refetchInterval: 30000,
   });
 
+  const { data: diretorSolicitacoes = [] } = useQuery<DiretorSolicitacao[]>({
+    queryKey: ["/api/bia-diretor-solicitacoes/minhas"],
+    queryFn: async () => {
+      const res = await fetch("/api/bia-diretor-solicitacoes/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: convitesOnly || activeTab === "convites",
+    refetchInterval: 30000,
+  });
+
+  const { data: socioSolicitacoes = [] } = useQuery<SocioSolicitacao[]>({
+    queryKey: ["/api/bia-socio-solicitacoes/minhas"],
+    queryFn: async () => {
+      const res = await fetch("/api/bia-socio-solicitacoes/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: convitesOnly || activeTab === "convites",
+    refetchInterval: 30000,
+  });
+
   const decisaoMutation = useMutation({
     mutationFn: ({ token, decisao }: { token: string; decisao: string }) =>
       apiRequest("PATCH", `/api/convites/${token}/decisao`, { decisao }),
@@ -855,6 +930,42 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       toast({ title: "Decisão registrada com sucesso!" });
     },
     onError: () => toast({ title: "Erro ao processar decisão", variant: "destructive" }),
+  });
+
+  const responderDiretoriaMutation = useMutation({
+    mutationFn: ({ id, decisao }: { id: string; decisao: "aceitar" | "recusar" }) =>
+      apiRequest("PATCH", `/api/bia-diretor-solicitacoes/${id}/${decisao}`, {}),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      toast({
+        title: variables.decisao === "aceitar" ? "Diretoria aceita" : "Diretoria recusada",
+      });
+    },
+    onError: (error: any) => toast({
+      title: "Erro ao responder solicitação",
+      description: error?.message || "Tente novamente.",
+      variant: "destructive",
+    }),
+  });
+
+  const responderSocioMutation = useMutation({
+    mutationFn: ({ id, decisao }: { id: string; decisao: "aceitar" | "recusar" }) =>
+      apiRequest("PATCH", `/api/bia-socio-solicitacoes/${id}/${decisao}`, {}),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      toast({
+        title: variables.decisao === "aceitar" ? "Convite de sócio aceito" : "Convite de sócio recusado",
+      });
+    },
+    onError: (error: any) => toast({
+      title: "Erro ao responder convite",
+      description: error?.message || "Tente novamente.",
+      variant: "destructive",
+    }),
   });
 
   const lembretesMutation = useMutation({
@@ -1186,6 +1297,28 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       convite.status,
     ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
   });
+  const diretorSolicitacoesPendentes = (diretorSolicitacoes || [])
+    .filter((solicitacao) => String(solicitacao.status || "pendente") === "pendente")
+    .filter((solicitacao) => {
+      if (!aprovacoesQuery) return true;
+      return normalize([
+        solicitacao.bia_nome,
+        solicitacao.papel,
+        solicitacao.diretor_nome,
+        solicitacao.solicitante_nome,
+      ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
+    });
+  const socioSolicitacoesPendentes = (socioSolicitacoes || [])
+    .filter((solicitacao) => String(solicitacao.status || "pendente") === "pendente")
+    .filter((solicitacao) => {
+      if (!aprovacoesQuery) return true;
+      return normalize([
+        solicitacao.bia_nome,
+        solicitacao.papel,
+        solicitacao.socio_nome,
+        solicitacao.solicitante_nome,
+      ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
+    });
   const convitesPendentes = aprovacoesFiltradas.filter((c: any) =>
     ["candidato", "aguardando_avaliacao_aura"].includes(c.status)
   );
@@ -1196,6 +1329,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     !ACTIONABLE_APPROVAL_STATUSES.includes(c.status)
   );
   const aprovacoesExibidas = mostrarHistoricoAprovacoes ?aprovacoesHistorico : aprovacoesImportantes;
+  const totalAprovacoesPendentes = aprovacoesImportantes.length + diretorSolicitacoesPendentes.length + socioSolicitacoesPendentes.length;
   const opasPublicasFiltradas = (opasNotificacoes || [])
     .filter((opa: any) => {
       const status = String(opa.status || "").toLowerCase();
@@ -1354,8 +1488,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         <div className="space-y-6">
           <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-brand-gold/20 bg-white p-1 shadow-sm sm:grid-cols-3">
             {[
-              { key: "aprovacoes", label: "Aprovações pendentes", count: aprovacoesImportantes.length },
-              { key: "chamadas", label: "Chamadas para aliança", count: 0 },
+              { key: "aprovacoes", label: "Aprovações pendentes", count: totalAprovacoesPendentes },
+              { key: "chamadas", label: "Chamadas para aliança", count: chamadasAlianca.length },
               { key: "opas", label: "Novas Ofertas públicas", count: opasPublicasFiltradas.length },
             ].map((tab) => (
               <button
@@ -1413,9 +1547,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
                 {mostrarHistoricoAprovacoes ?"Histórico de Aprovações" : "Aprovações Pendentes"}
               </span>
-              {!mostrarHistoricoAprovacoes && aprovacoesImportantes.length > 0 && (
+              {!mostrarHistoricoAprovacoes && totalAprovacoesPendentes > 0 && (
                 <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {aprovacoesImportantes.length} item{aprovacoesImportantes.length !== 1 ?"s" : ""}
+                  {totalAprovacoesPendentes} item{totalAprovacoesPendentes !== 1 ?"s" : ""}
                 </span>
               )}
               {mostrarHistoricoAprovacoes && aprovacoesHistorico.length > 0 && (
@@ -1424,7 +1558,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 </span>
               )}
             </div>
-            {aprovacoesExibidas.length === 0 ?(
+            {aprovacoesExibidas.length === 0 && (mostrarHistoricoAprovacoes || (diretorSolicitacoesPendentes.length === 0 && socioSolicitacoesPendentes.length === 0)) ?(
               <div className="p-8 flex flex-col items-center text-center gap-2">
                 <Ticket className="w-8 h-8 text-brand-gold/30" />
                 <p className="text-slate-500 text-xs font-mono">
@@ -1435,6 +1569,125 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
+                {!mostrarHistoricoAprovacoes && diretorSolicitacoesPendentes.map((solicitacao) => {
+                  const percentual = solicitacao.percentual !== null && solicitacao.percentual !== undefined && String(solicitacao.percentual) !== ""
+                    ? `${solicitacao.percentual}%`
+                    : "percentual não informado";
+                  const canResponder = String(user?.membro_directus_id || "") === String(solicitacao.diretor_membro_id || "");
+                  return (
+                    <div key={`diretoria-${solicitacao.id}`} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-blue-50/35">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-mono font-bold text-brand-navy">
+                            {solicitacao.papel}
+                          </p>
+                          <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-mono font-bold text-blue-700">
+                            {percentual}
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono text-slate-600">
+                          Indicação de {solicitacao.diretor_nome || "diretor"} para a BIA {solicitacao.bia_nome || solicitacao.bia_id}
+                        </p>
+                        {solicitacao.solicitante_nome && (
+                          <p className="text-[10px] font-mono text-slate-400">
+                            Indicado por {solicitacao.solicitante_nome}
+                          </p>
+                        )}
+                        {!canResponder && (
+                          <p className="text-[10px] font-mono text-blue-700">
+                            Aguardando resposta do diretor indicado.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        {canResponder ? (
+                          <>
+                            <button
+                              onClick={() => responderDiretoriaMutation.mutate({ id: solicitacao.id, decisao: "aceitar" })}
+                              disabled={responderDiretoriaMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-50 transition-colors"
+                              data-testid={"btn-aceitar-diretoria-" + solicitacao.id}
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              Aceitar
+                            </button>
+                            <button
+                              onClick={() => responderDiretoriaMutation.mutate({ id: solicitacao.id, decisao: "recusar" })}
+                              disabled={responderDiretoriaMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-700 border border-red-200 hover:bg-red-50 transition-colors"
+                              data-testid={"btn-recusar-diretoria-" + solicitacao.id}
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Recusar
+                            </button>
+                          </>
+                        ) : (
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-500">
+                            Pendente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {!mostrarHistoricoAprovacoes && socioSolicitacoesPendentes.map((solicitacao) => {
+                  const canResponder = String(user?.membro_directus_id || "") === String(solicitacao.socio_membro_id || "");
+                  return (
+                    <div key={`socio-${solicitacao.id}`} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50/35">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-mono font-bold text-brand-navy">
+                            {solicitacao.papel}
+                          </p>
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-700">
+                            Pendente
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono text-slate-600">
+                          Convite de {solicitacao.socio_nome || "sócio"} para a BIA {solicitacao.bia_nome || solicitacao.bia_id}
+                        </p>
+                        {solicitacao.solicitante_nome && (
+                          <p className="text-[10px] font-mono text-slate-400">
+                            Indicado por {solicitacao.solicitante_nome}
+                          </p>
+                        )}
+                        {!canResponder && (
+                          <p className="text-[10px] font-mono text-amber-700">
+                            Aguardando resposta do sócio indicado.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        {canResponder ? (
+                          <>
+                            <button
+                              onClick={() => responderSocioMutation.mutate({ id: solicitacao.id, decisao: "aceitar" })}
+                              disabled={responderSocioMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-50 transition-colors"
+                              data-testid={"btn-aceitar-socio-" + solicitacao.id}
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              Aceitar
+                            </button>
+                            <button
+                              onClick={() => responderSocioMutation.mutate({ id: solicitacao.id, decisao: "recusar" })}
+                              disabled={responderSocioMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-700 border border-red-200 hover:bg-red-50 transition-colors"
+                              data-testid={"btn-recusar-socio-" + solicitacao.id}
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Recusar
+                            </button>
+                          </>
+                        ) : (
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-500">
+                            Pendente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
                 {aprovacoesExibidas.map((convite: any) => {
                   const isVitrine = convite.tipo === "vitrine";
                   const isPendente = convite.status === "candidato";
@@ -1588,13 +1841,61 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
                   Chamadas para Aliança
                 </span>
+                {chamadasAlianca.length > 0 && (
+                  <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-brand-gold/10 text-[#9B7A32] border border-brand-gold/30">
+                    {chamadasAlianca.length} chamada{chamadasAlianca.length !== 1 ?"s" : ""}
+                  </span>
+                )}
               </div>
-              <div className="p-8 flex flex-col items-center text-center gap-2">
-                <Bell className="w-8 h-8 text-brand-gold/30" />
-                <p className="text-slate-500 text-xs font-mono">
-                  Nenhuma chamada para aliança no momento.
-                </p>
-              </div>
+              {chamadasAlianca.length === 0 ? (
+                <div className="p-8 flex flex-col items-center text-center gap-2">
+                  <Bell className="w-8 h-8 text-brand-gold/30" />
+                  <p className="text-slate-500 text-xs font-mono">
+                    Nenhuma chamada para aliança no momento.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {chamadasAlianca.map((chamada) => (
+                    <div key={chamada.id} className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-mono font-bold text-brand-navy">{chamada.titulo}</p>
+                          <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-mono font-bold text-blue-700">
+                            {chamada.escopo}
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono text-slate-600">{chamada.bia_nome || chamada.bia_id}</p>
+                        <p className="text-[10px] font-mono text-slate-400">
+                          {[chamada.nucleo_alianca, chamada.diretor_nome].filter(Boolean).join(" · ")}
+                        </p>
+                        <p className="text-[10px] font-mono text-slate-500">
+                          {new Date(chamada.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={chamada.link_reuniao}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center rounded-lg border border-brand-gold/30 px-3 py-1.5 text-xs font-mono text-brand-navy hover:bg-brand-gold/10"
+                        >
+                          Abrir reunião
+                        </a>
+                        {chamada.opa_id && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/opas/${chamada.opa_id}`)}
+                            className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-mono text-blue-700 hover:bg-blue-50"
+                          >
+                            Ver OPA
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

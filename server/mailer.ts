@@ -340,6 +340,118 @@ export async function enviarResultadoAprovacaoBia(opts: {
   await send(opts.diretorEmail, subject, html);
 }
 
+export async function enviarSolicitacaoDiretoriaBia(opts: {
+  diretorEmail: string;
+  diretorNome: string;
+  biaNome: string;
+  papel: string;
+  percentual?: string | number | null;
+  solicitanteNome?: string | null;
+}) {
+  const percentualText = opts.percentual !== null && opts.percentual !== undefined && String(opts.percentual) !== ""
+    ? `${opts.percentual}%`
+    : "percentual não informado";
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">Convite para diretoria de BIA</h2>
+    <p style="color:rgba(255,255,255,0.8)">Olá, <strong style="color:#D7BB7D">${opts.diretorNome || "membro"}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">Você foi indicado para atuar como <strong>${opts.papel}</strong> na BIA <strong>${opts.biaNome}</strong>.</p>
+    <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+      <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.biaNome}</p>
+      <p style="color:rgba(255,255,255,0.6);margin:6px 0 0;font-size:13px">Papel: ${opts.papel}</p>
+      <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">Percentual: ${percentualText}</p>
+      ${opts.solicitanteNome ? `<p style="color:rgba(255,255,255,0.45);margin:8px 0 0;font-size:12px">Indicado por ${opts.solicitanteNome}</p>` : ""}
+    </div>
+    <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para aceitar ou recusar esta diretoria.</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Responder solicitação</a>
+    </div>
+  `);
+  await send(opts.diretorEmail, `Convite para ${opts.papel} — ${opts.biaNome}`, html);
+}
+
+export async function enviarSolicitacaoSocioBia(opts: {
+  socioEmail: string;
+  socioNome: string;
+  biaNome: string;
+  papel: string;
+  solicitanteNome?: string | null;
+}) {
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">Convite para participar de BIA</h2>
+    <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.socioNome || "membro"}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">Voce foi indicado para atuar como <strong>${opts.papel}</strong> na BIA <strong>${opts.biaNome}</strong>.</p>
+    <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+      <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.biaNome}</p>
+      <p style="color:rgba(255,255,255,0.6);margin:6px 0 0;font-size:13px">Papel: ${opts.papel}</p>
+      ${opts.solicitanteNome ? `<p style="color:rgba(255,255,255,0.45);margin:8px 0 0;font-size:12px">Indicado por ${opts.solicitanteNome}</p>` : ""}
+    </div>
+    <p style="color:rgba(255,255,255,0.7)">Acesse a plataforma para aceitar ou recusar este convite.</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Responder convite</a>
+    </div>
+  `);
+  await send(opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
+}
+
+export async function enviarChamadaAlianca(opts: {
+  destinatarioEmail: string;
+  destinatarioNome?: string | null;
+  destinatarioMembroId?: string | null;
+  titulo: string;
+  biaNome?: string | null;
+  escopo: string;
+  dataHora: string | Date;
+  linkReuniao: string;
+  nucleo?: string | null;
+  opaId?: string | null;
+}) {
+  const data = new Date(opts.dataHora);
+  const dataText = Number.isNaN(data.getTime())
+    ? String(opts.dataHora)
+    : data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const calendarStart = Number.isNaN(data.getTime()) ? new Date() : data;
+  const calendarEnd = new Date(calendarStart.getTime() + 60 * 60 * 1000);
+  const toCalendarDate = (value: Date) => value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const opaLink = opts.opaId ? `${BASE_URL}/opas/${opts.opaId}` : `${BASE_URL}/notificacoes`;
+  const calendarDetails = [
+    `Chamada para aliança vinculada a BIA ${opts.biaNome || "BUILT"}.`,
+    opts.nucleo ? `Núcleo: ${opts.nucleo}.` : null,
+    `Escopo: ${opts.escopo}.`,
+    `Link da reunião: ${opts.linkReuniao}`,
+    opts.opaId ? `OPA: ${opaLink}` : null,
+  ].filter(Boolean).join("\n");
+  const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(opts.titulo)}&dates=${toCalendarDate(calendarStart)}/${toCalendarDate(calendarEnd)}&details=${encodeURIComponent(calendarDetails)}&location=${encodeURIComponent(opts.linkReuniao)}`;
+  const platformAgendaParams = new URLSearchParams({
+    titulo: opts.titulo,
+    biaNome: opts.biaNome || "",
+    escopo: opts.escopo,
+    dataHora: calendarStart.toISOString(),
+    linkReuniao: opts.linkReuniao,
+    nucleo: opts.nucleo || "",
+    opaId: opts.opaId || "",
+    membroId: opts.destinatarioMembroId || "",
+    google: googleCalendarLink,
+  });
+  const calendarLink = `${BASE_URL}/api/chamadas-alianca/adicionar-agenda?${platformAgendaParams.toString()}`;
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">${opts.titulo}</h2>
+    <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.destinatarioNome || "membro"}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">Voce recebeu uma chamada para participar da alianca vinculada a BIA <strong>${opts.biaNome || "BUILT"}</strong>.</p>
+    <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+      <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.titulo}</p>
+      <p style="color:rgba(255,255,255,0.6);margin:6px 0 0;font-size:13px">Escopo: ${opts.escopo}</p>
+      ${opts.nucleo ? `<p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">Nucleo: ${opts.nucleo}</p>` : ""}
+      <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">Data: ${dataText}</p>
+    </div>
+    <div style="text-align:center;margin:24px 0">
+      <a href="${opaLink}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;margin:6px">Acessar OPA</a>
+      <a href="${calendarLink}" style="display:inline-block;background-color:transparent;color:#D7BB7D;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;border:1px solid rgba(215,187,125,0.55);margin:6px">Adicionar a agenda</a>
+    </div>
+    <p style="color:rgba(255,255,255,0.45);font-size:12px">Voce tambem pode acompanhar esta chamada em ${BASE_URL}/notificacoes.</p>
+  `);
+  await send(opts.destinatarioEmail, opts.titulo, html);
+}
+
 export async function notificarInteresseOpa(opts: {
   destinatarioEmail: string;
   destinatarioNome: string;

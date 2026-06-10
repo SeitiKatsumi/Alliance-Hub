@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
+import { RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
 
@@ -46,6 +47,9 @@ interface Oportunidade {
   id: string;
   nome_oportunidade?: string;
   tipo?: string;
+  ramo_atuacao?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
   bia_id?: string;
   valor_origem_opa?: string | number;
   Minimo_esforco_multiplicador?: string | number;
@@ -664,9 +668,16 @@ function OpaCard({
 
       <CardContent className="flex flex-1 flex-col px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-3">
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-            {opa.tipo || "OPA"}
-          </span>
+          <div className="flex min-w-0 flex-wrap gap-1.5">
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              {opa.tipo || "OPA"}
+            </span>
+            {opa.ramo_atuacao && (
+              <span className="max-w-[180px] truncate rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
+                {opa.ramo_atuacao}
+              </span>
+            )}
+          </div>
           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusBadge.className}`}>
             {statusBadge.label}
           </span>
@@ -739,6 +750,7 @@ function OpaCard({
 const EMPTY_OPA = {
   nome_oportunidade: "",
   tipo: "",
+  ramo_atuacao: "",
   status: "ativa" as OpaStatus,
   bia_id: "",
   valor_origem_opa: "",
@@ -783,6 +795,7 @@ export function OpaFormDialog({
       setForm({
         nome_oportunidade: opa.nome_oportunidade || "",
         tipo: opa.tipo || "",
+        ramo_atuacao: opa.ramo_atuacao || "",
         status: opa.status || "ativa",
         bia_id: opa.bia_id || "",
         valor_origem_opa: n(opa.valor_origem_opa) > 0
@@ -899,6 +912,7 @@ export function OpaFormDialog({
       saveMutation.mutate({
         nome_oportunidade: form.nome_oportunidade,
         tipo: form.tipo || null,
+        ramo_atuacao: form.ramo_atuacao || null,
         status: form.status || "ativa",
         bia: form.bia_id || null,
         valor_origem_opa: parseBRLToNumber(form.valor_origem_opa) || null,
@@ -1072,7 +1086,26 @@ export function OpaFormDialog({
             </Select>
           </div>
 
-          {/* 5. Status */}
+          {/* 5. Ramo de Atuação */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Ramo de Atuação</Label>
+            <Select
+              value={form.ramo_atuacao || "__none__"}
+              onValueChange={v => setForm(f => ({ ...f, ramo_atuacao: v === "__none__" ? "" : v }))}
+            >
+              <SelectTrigger className="h-8 text-sm" data-testid="select-opa-ramo-atuacao">
+                <SelectValue placeholder="Selecionar ramo..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Nenhum —</SelectItem>
+                {RAMOS_SEGMENTOS.map(ramo => (
+                  <SelectItem key={ramo.codigo} value={ramo.nome}>{ramo.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 6. Status */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Status da OPA *</Label>
             <Select
@@ -1091,28 +1124,20 @@ export function OpaFormDialog({
             </Select>
           </div>
 
-          {/* 6. Localização */}
+          {/* 7. Localização */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Localização (para mapa)</Label>
-            <div className="flex gap-2">
-              <Input
-                value={form.localizacao}
-                onChange={e => setForm(f => ({ ...f, localizacao: capitalizeWords(e.target.value) }))}
-                placeholder="Cidade, País..."
-                className="h-8 text-sm flex-1"
-                data-testid="input-opa-localizacao"
-                readOnly={formLat !== null}
-              />
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 shrink-0 border-blue-300 px-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                className="h-8 shrink-0 border-blue-300 px-3 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                 onClick={() => setLocationPickerOpen(true)}
                 data-testid="btn-opa-location-picker"
               >
                 <MapPin className="w-3.5 h-3.5 mr-1" />
-                {formLat ?"Alterar" : "ðŸ“ Localizar"}
+                Localizar...
               </Button>
               {formLat !== null && (
                 <Button
@@ -1128,8 +1153,8 @@ export function OpaFormDialog({
               )}
             </div>
             {formLat !== null && (
-              <p className="text-[10px] font-mono text-blue-600/70">
-                {formLat.toFixed(4)}, {formLng?.toFixed(4)}
+              <p className="text-[10px] text-muted-foreground">
+                {form.localizacao || "Localização selecionada"} · <span className="font-mono text-blue-600/70">{formLat.toFixed(4)}, {formLng?.toFixed(4)}</span>
               </p>
             )}
           </div>
@@ -1341,7 +1366,7 @@ export default function OportunidadesPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return opas.filter(o => {
-      const haystack = `${o.nome_oportunidade || ""} ${o.objetivo_alianca || ""} ${o.nucleo_alianca || ""} ${o.pais || ""} ${o.tipo || ""}`
+      const haystack = `${o.nome_oportunidade || ""} ${o.objetivo_alianca || ""} ${o.nucleo_alianca || ""} ${o.pais || ""} ${o.tipo || ""} ${o.ramo_atuacao || ""}`
         .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const matchSearch = !q || haystack.includes(q);
       const matchBia = filterBia === "__all__" || o.bia_id === filterBia;
@@ -1376,6 +1401,14 @@ export default function OportunidadesPage() {
             Ofertas Públicas de Aliança
           </p>
         </div>
+        <Button
+          onClick={() => setCreateDialog(true)}
+          className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+          data-testid="button-new-opa"
+        >
+          <Plus className="w-4 h-4" />
+          Nova OPA
+        </Button>
       </div>
 
       {/* Futuristic header */}
@@ -1481,7 +1514,7 @@ export default function OportunidadesPage() {
               <>
                 <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
                 <p className="text-muted-foreground">Nenhuma OPA encontrada com esses filtros</p>
-                <Button variant="link" onClick={() => { setSearch(""); setFilterBia("__all__"); setFilterNucleo("__all__"); setFilterTipo("__all__"); }} className="mt-2">
+                <Button variant="ghost" onClick={() => { setSearch(""); setFilterBia("__all__"); setFilterNucleo("__all__"); setFilterTipo("__all__"); }} className="mt-2 text-blue-600 hover:text-blue-700">
                   Limpar filtros
                 </Button>
               </>
@@ -1510,6 +1543,7 @@ export default function OportunidadesPage() {
       <OpaFormDialog
         open={createDialog}
         onClose={() => setCreateDialog(false)}
+        opa={null}
         bias={bias}
       />
     </div>

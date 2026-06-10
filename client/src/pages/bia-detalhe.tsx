@@ -503,23 +503,23 @@ export default function BiaDetalhePage() {
         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-brand-gold/40 rounded-br-2xl" />
 
         <div className="relative z-10">
-          <p className="text-[10px] text-brand-gold/50 tracking-[0.35em] uppercase font-mono mb-1">// BUILT Alliances · BIA</p>
-          <h1 className="text-2xl font-bold text-brand-gold font-mono tracking-wide">{bia.nome_bia}</h1>
+          <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono mb-1">// BUILT Alliances · BIA</p>
+          <h1 className="text-2xl font-bold text-cyan-300 font-mono tracking-wide">{bia.nome_bia}</h1>
 
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {bia.localizacao && (
-              <p className="text-sm text-brand-gold/60 flex items-center gap-1">
+              <p className="text-sm text-cyan-300/70 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />{bia.localizacao}
               </p>
             )}
             {bia.latitude && bia.longitude && (
-              <p className="text-xs text-brand-gold/35 font-mono flex items-center gap-1">
+              <p className="text-xs text-cyan-300/45 font-mono flex items-center gap-1">
                 <Crosshair className="w-3 h-3" />
                 {n(bia.latitude).toFixed(5)}, {n(bia.longitude).toFixed(5)}
               </p>
             )}
             {opas.length > 0 && (
-              <Badge className="gap-1 bg-brand-gold/15 text-brand-gold/80 border-brand-gold/25 hover:bg-brand-gold/20">
+              <Badge className="gap-1 bg-cyan-400/15 text-cyan-200 border-cyan-300/25 hover:bg-cyan-400/20">
                 <Target className="w-3 h-3" />
                 {opas.length} OPA{opas.length !== 1 ?"s" : ""}
               </Badge>
@@ -527,7 +527,7 @@ export default function BiaDetalhePage() {
           </div>
 
           {bia.objetivo_alianca && (
-            <p className="text-sm text-brand-gold/50 mt-3 leading-relaxed max-w-3xl">{bia.objetivo_alianca}</p>
+            <p className="text-sm text-cyan-300/65 mt-3 leading-relaxed max-w-3xl">{bia.objetivo_alianca}</p>
           )}
         </div>
       </div>

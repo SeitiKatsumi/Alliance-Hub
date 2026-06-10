@@ -328,6 +328,17 @@ async function ensureOpaMediaFields() {
       },
       schema: { is_nullable: true },
     },
+    {
+      field: "ramo_atuacao",
+      type: "string",
+      meta: {
+        interface: "input",
+        display: "raw",
+        hidden: false,
+        note: "Ramo de atuação da OPA usado no Painel de Convergência",
+      },
+      schema: { is_nullable: true },
+    },
   ];
   for (const fieldDef of fields) {
     try {
@@ -449,7 +460,8 @@ async function directusFetch(collection: string, params: string = "") {
 
 // Like directusFetch but does NOT prepend fields=* — for targeted queries with explicit fields + filters
 async function directusFetchScoped(collection: string, params: string) {
-  const url = `${DIRECTUS_URL}/items/${collection}?limit=-1&${params}`;
+  const hasLimit = /(^|&)limit=/.test(params);
+  const url = `${DIRECTUS_URL}/items/${collection}?${hasLimit ? "" : "limit=-1&"}${params}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
   });
@@ -1238,6 +1250,89 @@ async function ensureConvitesLinkTipoField() {
   await db.execute(sql`ALTER TABLE convites_link ADD COLUMN IF NOT EXISTS tipo text DEFAULT 'vitrine' NOT NULL`);
 }
 
+async function ensureBiaDiretorSolicitacoesTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_diretor_solicitacoes (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      bia_nome text,
+      diretor_membro_id text NOT NULL,
+      diretor_nome text,
+      diretor_email text,
+      papel text NOT NULL,
+      campo_diretor text NOT NULL,
+      campo_percentual text NOT NULL,
+      percentual numeric,
+      status text NOT NULL DEFAULT 'pendente',
+      solicitante_membro_id text,
+      solicitante_nome text,
+      solicitante_email text,
+      criado_em timestamp DEFAULT now(),
+      respondido_em timestamp
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_diretor_solicitacoes_diretor_status ON bia_diretor_solicitacoes (diretor_membro_id, status)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_diretor_solicitacoes_bia_status ON bia_diretor_solicitacoes (bia_id, status)`);
+}
+
+async function ensureBiaSocioSolicitacoesTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_socio_solicitacoes (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      bia_nome text,
+      socio_membro_id text NOT NULL,
+      socio_nome text,
+      socio_email text,
+      papel text NOT NULL,
+      campo_socios text NOT NULL,
+      status text NOT NULL DEFAULT 'pendente',
+      solicitante_membro_id text,
+      solicitante_nome text,
+      solicitante_email text,
+      criado_em timestamp DEFAULT now(),
+      respondido_em timestamp
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_socio_solicitacoes_socio_status ON bia_socio_solicitacoes (socio_membro_id, status)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_socio_solicitacoes_bia_status ON bia_socio_solicitacoes (bia_id, status)`);
+}
+
+async function ensureChamadasAliancaTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS chamadas_alianca (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      bia_nome text,
+      diretor_campo text NOT NULL,
+      diretor_membro_id text,
+      diretor_nome text,
+      nucleo_alianca text,
+      ordem integer NOT NULL,
+      escopo text NOT NULL,
+      titulo text NOT NULL,
+      data_hora timestamp NOT NULL,
+      link_reuniao text NOT NULL,
+      opa_id text,
+      destinatarios jsonb DEFAULT '[]'::jsonb,
+      status text NOT NULL DEFAULT 'pendente',
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_por_nome text,
+      criado_em timestamp DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_chamadas_alianca_bia ON chamadas_alianca (bia_id, diretor_campo, ordem)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_chamadas_alianca_destinatarios ON chamadas_alianca USING GIN (destinatarios)`);
+}
+
+async function ensureBiaInfoComercialAtivoFields() {
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_endereco text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_qualificacao text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_numero_matricula text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_cartorio text`);
+}
+
 async function ensureComunidadeM2O(col: string, field: string, relatedCollection: string) {
   const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
   const fr = await directusFieldPost(col, {
@@ -1534,6 +1629,10 @@ export async function registerRoutes(
   ensureOpaInteressesCrmFields().catch(console.error);
   ensureConvitesLinkTipoField().catch((err: any) => console.warn("[convites_link] Campo tipo nao sincronizado:", err?.message || err));
   ensureAgendaTarefasTable().catch((err: any) => console.warn("[agenda] Tabela nao sincronizada:", err?.message || err));
+  ensureBiaDiretorSolicitacoesTable().catch((err: any) => console.warn("[bia-diretores] Tabela nao sincronizada:", err?.message || err));
+  ensureBiaSocioSolicitacoesTable().catch((err: any) => console.warn("[bia-socios] Tabela nao sincronizada:", err?.message || err));
+  ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
+  ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -1671,6 +1770,10 @@ export async function registerRoutes(
         longitude: m.longitude ? parseFloat(m.longitude) : null,
       });
     } catch (error: any) {
+      if (String(error?.message || "").includes("ECONNREFUSED")) {
+        console.warn("[chamadas-alianca] Banco local indisponivel em /minhas:", error.message);
+        return res.json([]);
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -1705,6 +1808,10 @@ export async function registerRoutes(
         });
       res.json(items);
     } catch (error: any) {
+      if (String(error?.message || "").includes("ECONNREFUSED")) {
+        console.warn("[chamadas-alianca] Banco local indisponivel em /bia:", error.message);
+        return res.json([]);
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -2509,6 +2616,642 @@ export async function registerRoutes(
     }
   }
 
+  const DIRETOR_SOLICITACAO_CONFIG = [
+    { campoDiretor: "diretor_alianca", campoPercentual: "perc_dir_alianca", papel: "Diretor de Aliança" },
+    { campoDiretor: "diretor_nucleo_tecnico", campoPercentual: "perc_dir_tecnico", papel: "Dir. Núcleo Técnico" },
+    { campoDiretor: "diretor_execucao", campoPercentual: "perc_dir_obras", papel: "Dir. Núcleo de Obra" },
+    { campoDiretor: "diretor_comercial", campoPercentual: "perc_dir_comercial", papel: "Dir. Núcleo Comercial" },
+    { campoDiretor: "diretor_capital", campoPercentual: "perc_dir_capital", papel: "Dir. Núcleo de Capital" },
+  ];
+
+  const SOCIO_SOLICITACAO_CONFIG = [
+    { campoSocios: "socios_guardioes", papel: "Socio Guardiao" },
+    { campoSocios: "socios_multiplicadores", papel: "Socio Multiplicador" },
+  ];
+
+  const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para aliança de Liderança";
+  const CHAMADA_ALIANCA_SEQUENCE = [
+    { ordem: 1, escopo: "comunidade", label: "RO para a comunidade" },
+    { ordem: 2, escopo: "territorio", label: "RO para o território" },
+    { ordem: 3, escopo: "nacional", label: "RO nacional" },
+    { ordem: 4, escopo: "global", label: "RO global" },
+  ];
+  const CHAMADA_DIRETOR_CONFIG: Record<string, { nucleo: string; tipo: string }> = {
+    diretor_alianca: { nucleo: "Liderança", tipo: "Liderança" },
+    diretor_nucleo_tecnico: { nucleo: "Núcleo técnico", tipo: "Projeto" },
+    diretor_execucao: { nucleo: "Núcleo de Obra", tipo: "Execução" },
+    diretor_comercial: { nucleo: "Núcleo Comercial", tipo: "Comercial" },
+    diretor_capital: { nucleo: "Núcleo de Capital", tipo: "Investimento" },
+  };
+
+  function normalizePercent(value: any): string | null {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(String(value).replace(",", "."));
+    if (!Number.isFinite(parsed)) return null;
+    return String(parsed);
+  }
+
+  async function getMembroResumo(membroId: string | null | undefined): Promise<{ id: string; nome: string | null; email: string | null } | null> {
+    if (!membroId) return null;
+    try {
+      const membro = await directusFetchOne("cadastro_geral", String(membroId), "fields=id,nome,Nome_de_usuario,email");
+      if (!membro) return null;
+      return {
+        id: String(membro.id),
+        nome: membro.nome || membro.Nome_de_usuario || membro.email || null,
+        email: membro.email || null,
+      };
+    } catch (_) {
+      return { id: String(membroId), nome: null, email: null };
+    }
+  }
+
+  async function createDiretorSolicitacao(params: {
+    biaId: string;
+    biaNome: string | null;
+    diretorId: string;
+    papel: string;
+    campoDiretor: string;
+    campoPercentual: string;
+    percentual: string | null;
+    req: any;
+  }) {
+    const diretor = await getMembroResumo(params.diretorId);
+    const solicitacao = await storage.createBiaDiretorSolicitacao({
+      bia_id: params.biaId,
+      bia_nome: params.biaNome,
+      diretor_membro_id: params.diretorId,
+      diretor_nome: diretor?.nome || null,
+      diretor_email: diretor?.email || null,
+      papel: params.papel,
+      campo_diretor: params.campoDiretor,
+      campo_percentual: params.campoPercentual,
+      percentual: params.percentual,
+      status: "pendente",
+      solicitante_membro_id: params.req.session?.membroId || null,
+      solicitante_nome: params.req.session?.nome || null,
+      solicitante_email: params.req.session?.email || null,
+    });
+
+    if (diretor?.email) {
+      const { enviarSolicitacaoDiretoriaBia } = await import("./mailer");
+      enviarSolicitacaoDiretoriaBia({
+        diretorEmail: diretor.email,
+        diretorNome: diretor.nome || "membro",
+        biaNome: params.biaNome || params.biaId,
+        papel: params.papel,
+        percentual: params.percentual,
+        solicitanteNome: params.req.session?.nome || null,
+      }).catch((e: any) => console.error("[bia-diretores] email error:", e.message));
+    }
+
+    return solicitacao;
+  }
+
+  async function processDiretorSolicitacoes(opts: {
+    biaId: string;
+    biaNome: string | null;
+    body: any;
+    payload: any;
+    req: any;
+    currentBia?: any | null;
+  }) {
+    const criadas: any[] = [];
+    for (const config of DIRETOR_SOLICITACAO_CONFIG) {
+      const requestedDiretor = opts.body[config.campoDiretor] ? String(opts.body[config.campoDiretor]) : null;
+      const requestedPercentual = normalizePercent(opts.body[config.campoPercentual]);
+      const currentDiretor = opts.currentBia ? directusRelationId(opts.currentBia[config.campoDiretor]) : null;
+
+      if (!requestedDiretor) {
+        await storage.cancelBiaDiretorSolicitacoes(opts.biaId, config.campoDiretor);
+        continue;
+      }
+
+      if (currentDiretor && currentDiretor === requestedDiretor) {
+        continue;
+      }
+
+      await storage.cancelBiaDiretorSolicitacoes(opts.biaId, config.campoDiretor, requestedDiretor);
+
+      const pendentes = await storage.getBiaDiretorSolicitacoesPendentesByBia(opts.biaId);
+      const jaExiste = pendentes.some((item) =>
+        item.campo_diretor === config.campoDiretor && item.diretor_membro_id === requestedDiretor
+      );
+      if (jaExiste) continue;
+
+      const solicitacao = await createDiretorSolicitacao({
+        biaId: opts.biaId,
+        biaNome: opts.biaNome,
+        diretorId: requestedDiretor,
+        papel: config.papel,
+        campoDiretor: config.campoDiretor,
+        campoPercentual: config.campoPercentual,
+        percentual: requestedPercentual,
+        req: opts.req,
+      });
+      criadas.push(solicitacao);
+    }
+    return criadas;
+  }
+
+  async function createSocioSolicitacao(params: {
+    biaId: string;
+    biaNome: string | null;
+    socioId: string;
+    papel: string;
+    campoSocios: string;
+    req: any;
+  }) {
+    const socio = await getMembroResumo(params.socioId);
+    const solicitacao = await storage.createBiaSocioSolicitacao({
+      bia_id: params.biaId,
+      bia_nome: params.biaNome,
+      socio_membro_id: params.socioId,
+      socio_nome: socio?.nome || null,
+      socio_email: socio?.email || null,
+      papel: params.papel,
+      campo_socios: params.campoSocios,
+      status: "pendente",
+      solicitante_membro_id: params.req.session?.membroId || null,
+      solicitante_nome: params.req.session?.nome || null,
+      solicitante_email: params.req.session?.email || null,
+    });
+
+    if (socio?.email) {
+      const { enviarSolicitacaoSocioBia } = await import("./mailer");
+      enviarSolicitacaoSocioBia({
+        socioEmail: socio.email,
+        socioNome: socio.nome || "membro",
+        biaNome: params.biaNome || params.biaId,
+        papel: params.papel,
+        solicitanteNome: params.req.session?.nome || null,
+      }).catch((e: any) => console.error("[bia-socios] email error:", e.message));
+    }
+
+    return solicitacao;
+  }
+
+  async function processSocioSolicitacoes(opts: {
+    biaId: string;
+    biaNome: string | null;
+    body: any;
+    req: any;
+    currentBia?: any | null;
+  }) {
+    const criadas: any[] = [];
+    for (const config of SOCIO_SOLICITACAO_CONFIG) {
+      const requestedIds = parseBiaMemberList(opts.body[config.campoSocios]);
+      const currentIds = opts.currentBia ? parseBiaMemberList(opts.currentBia[config.campoSocios]) : [];
+      const currentSet = new Set(currentIds);
+      const requestedSet = new Set(requestedIds);
+      const pendentes = await storage.getBiaSocioSolicitacoesPendentesByBia(opts.biaId);
+
+      for (const currentId of currentIds) {
+        if (!requestedSet.has(currentId)) {
+          await Promise.all(
+            pendentes
+              .filter((item) => item.campo_socios === config.campoSocios && item.socio_membro_id === currentId)
+              .map((item) => storage.updateBiaSocioSolicitacao(item.id, { status: "cancelado", respondido_em: new Date() } as any))
+          );
+        }
+      }
+
+      for (const socioId of requestedIds) {
+        if (currentSet.has(socioId)) continue;
+        const jaExiste = pendentes.some((item) =>
+          item.campo_socios === config.campoSocios && item.socio_membro_id === socioId
+        );
+        if (jaExiste) continue;
+        const solicitacao = await createSocioSolicitacao({
+          biaId: opts.biaId,
+          biaNome: opts.biaNome,
+          socioId,
+          papel: config.papel,
+          campoSocios: config.campoSocios,
+          req: opts.req,
+        });
+        criadas.push(solicitacao);
+      }
+    }
+    return criadas;
+  }
+
+  function normalizeText(value: any): string {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function relationId(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === "object") {
+      if (value.id) return String(value.id);
+      if (value.cadastro_geral_id) return relationId(value.cadastro_geral_id);
+      if (value.bias_projetos_id) return relationId(value.bias_projetos_id);
+    }
+    return String(value);
+  }
+
+  function extractComunidadeMembros(comunidade: any): any[] {
+    return (Array.isArray(comunidade?.membros) ? comunidade.membros : [])
+      .map((item: any) => item?.cadastro_geral_id || item)
+      .filter(Boolean);
+  }
+
+  function extractComunidadeBiaIds(comunidade: any): string[] {
+    return (Array.isArray(comunidade?.bias) ? comunidade.bias : [])
+      .map((item: any) => relationId(item?.bias_projetos_id || item?.bias_id || item))
+      .filter(Boolean) as string[];
+  }
+
+  function membroMatchesNucleo(membro: any, nucleo: string): boolean {
+    const target = normalizeText(nucleo);
+    const values = [
+      membro?.nucleo_alianca,
+      ...(Array.isArray(membro?.nucleos_alianca) ? membro.nucleos_alianca : []),
+      membro?.tipo_alianca,
+      ...(Array.isArray(membro?.tipos_alianca) ? membro.tipos_alianca : []),
+      membro?.cargo,
+    ].map(normalizeText).filter(Boolean);
+    return values.some((value) => value === target || value.includes(target) || target.includes(value));
+  }
+
+  async function loadComunidadesParaChamada() {
+    const col = await getComunidadeCol();
+    return directusFetchScoped(
+      col,
+      "limit=500&fields=id,nome,pais,territorio,sigla_territorio,bias.bias_projetos_id,membros.cadastro_geral_id.id,membros.cadastro_geral_id.nome,membros.cadastro_geral_id.Nome_de_usuario,membros.cadastro_geral_id.email,membros.cadastro_geral_id.cargo,membros.cadastro_geral_id.tipo_alianca,membros.cadastro_geral_id.tipos_alianca,membros.cadastro_geral_id.nucleo_alianca,membros.cadastro_geral_id.nucleos_alianca"
+    );
+  }
+
+  async function getChamadaAudience(opts: { bia: any; biaId: string; diretorId: string | null; nucleo: string; escopo: string }) {
+    const comunidades = await loadComunidadesParaChamada();
+    const base = comunidades.find((com: any) => extractComunidadeBiaIds(com).includes(opts.biaId))
+      || comunidades.find((com: any) => extractComunidadeMembros(com).some((m: any) => String(m.id) === String(opts.diretorId)));
+    if (!base) return { comunidade: null, destinatarios: [] as any[] };
+
+    const basePais = normalizeText(base.pais);
+    const baseTerritorio = normalizeText(base.territorio);
+    const comunidadesNoEscopo = comunidades.filter((com: any) => {
+      if (opts.escopo === "comunidade") return String(com.id) === String(base.id);
+      if (opts.escopo === "territorio") return normalizeText(com.pais) === basePais && normalizeText(com.territorio) === baseTerritorio;
+      if (opts.escopo === "nacional") return normalizeText(com.pais) === basePais;
+      return true;
+    });
+
+    const byId = new Map<string, any>();
+    for (const com of comunidadesNoEscopo) {
+      for (const membro of extractComunidadeMembros(com)) {
+        if (!membro?.id || !membro?.email) continue;
+        if (!membroMatchesNucleo(membro, opts.nucleo)) continue;
+        byId.set(String(membro.id), {
+          id: String(membro.id),
+          nome: membro.nome || membro.Nome_de_usuario || membro.email,
+          email: membro.email,
+        });
+      }
+    }
+
+    return { comunidade: base, destinatarios: [...byId.values()] };
+  }
+
+  function getBiaNumericValue(bia: any, ...fields: string[]): number | null {
+    for (const field of fields) {
+      const raw = bia?.[field];
+      const value = typeof raw === "number"
+        ? raw
+        : String(raw ?? "").includes(",")
+          ? Number(String(raw).replace(/\./g, "").replace(",", "."))
+          : Number(raw);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+    return null;
+  }
+
+  function chamadaDiretorCampoFromNucleo(nucleo: string | null | undefined): string {
+    const normalized = normalizeText(nucleo);
+    if (normalized.includes("capital")) return "diretor_capital";
+    if (normalized.includes("comercial")) return "diretor_comercial";
+    if (normalized.includes("obra")) return "diretor_execucao";
+    if (normalized.includes("tecnico")) return "diretor_nucleo_tecnico";
+    return "diretor_alianca";
+  }
+
+  function parseChamadaLinkFromDescricao(descricao: string | null | undefined): string | null {
+    const match = String(descricao || "").match(/https?:\/\/\S+/i);
+    return match?.[0] || null;
+  }
+
+  async function getChamadasAliancaFromOpas(opts: { membroId?: string | null; biaId?: string | null; includeAll?: boolean }) {
+    const opas = await directusFetchScoped(
+      "tipos_oportunidades",
+      "limit=100&sort=-date_created&fields=id,nome_oportunidade,bia,nucleo_alianca,descricao,date_created"
+    );
+    const chamadasOpas = opas.filter((opa: any) => {
+      const title = normalizeText(opa.nome_oportunidade);
+      const desc = normalizeText(opa.descricao);
+      const biaId = directusRelationId(opa.bia);
+      if (opts.biaId && biaId !== opts.biaId) return false;
+      return title.includes("chamadas para alianca de lideranca") || desc.includes("cargo em aberto");
+    });
+
+    const result: any[] = [];
+    for (const opa of chamadasOpas) {
+      const biaId = directusRelationId(opa.bia);
+      if (!biaId) continue;
+      const bia = await directusFetchOne("bias_projetos", biaId, "fields=*").catch(() => null);
+      if (!bia) continue;
+      const diretorCampo = chamadaDiretorCampoFromNucleo(opa.nucleo_alianca);
+      const audience = await getChamadaAudience({
+        bia,
+        biaId,
+        diretorId: null,
+        nucleo: opa.nucleo_alianca || CHAMADA_DIRETOR_CONFIG[diretorCampo]?.nucleo || "Lideranca",
+        escopo: "comunidade",
+      }).catch(() => ({ destinatarios: [] as any[] }));
+      const destinatarios = audience.destinatarios || [];
+      if (!opts.includeAll && opts.membroId && !destinatarios.some((item: any) => String(item.id) === String(opts.membroId))) {
+        continue;
+      }
+      result.push({
+        id: `opa:${opa.id}`,
+        bia_id: biaId,
+        bia_nome: bia.nome_bia || null,
+        diretor_campo: diretorCampo,
+        diretor_membro_id: null,
+        diretor_nome: null,
+        nucleo_alianca: opa.nucleo_alianca || null,
+        ordem: 1,
+        escopo: "comunidade",
+        titulo: "RO para a comunidade",
+        data_hora: opa.date_created || new Date().toISOString(),
+        link_reuniao: parseChamadaLinkFromDescricao(opa.descricao),
+        opa_id: opa.id,
+        destinatarios,
+        status: "pendente",
+        origem: "opa",
+      });
+    }
+    return result;
+  }
+
+  app.get("/api/chamadas-alianca/minhas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const role = (req.session as any).role || "user";
+      const membroId = (req.session as any).membroId as string | null;
+      if (role === "admin" || role === "manager" || role === "superadmin") {
+        return res.json(await storage.getAllChamadasAlianca());
+      }
+      if (!membroId) return res.json([]);
+      return res.json(await storage.getChamadasAliancaByDestinatario(membroId));
+    } catch (error: any) {
+      if (String(error?.message || "").includes("ECONNREFUSED")) {
+        const role = (req.session as any).role || "user";
+        const membroId = (req.session as any).membroId as string | null;
+        const includeAll = role === "admin" || role === "manager" || role === "superadmin";
+        return res.json(await getChamadasAliancaFromOpas({ membroId, includeAll }));
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/chamadas-alianca/bia/:biaId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await directusFetchOne("bias_projetos", req.params.biaId, "fields=*");
+      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+      return res.json(await storage.getChamadasAliancaByBia(req.params.biaId));
+    } catch (error: any) {
+      if (String(error?.message || "").includes("ECONNREFUSED")) {
+        return res.json(await getChamadasAliancaFromOpas({ biaId: req.params.biaId, includeAll: true }));
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  function googleCalendarUrlForChamada(params: {
+    titulo: string;
+    dataHora: Date;
+    linkReuniao: string;
+    biaNome?: string | null;
+    escopo?: string | null;
+    nucleo?: string | null;
+    opaId?: string | null;
+  }) {
+    const start = Number.isNaN(params.dataHora.getTime()) ? new Date() : params.dataHora;
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const format = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+    const opaLink = params.opaId ? `${process.env.APP_URL || "https://built.dna11.com.br"}/opas/${params.opaId}` : null;
+    const details = [
+      `Chamada para alianca vinculada a BIA ${params.biaNome || "BUILT"}.`,
+      params.nucleo ? `Nucleo: ${params.nucleo}.` : null,
+      params.escopo ? `Escopo: ${params.escopo}.` : null,
+      params.linkReuniao ? `Link da reuniao: ${params.linkReuniao}` : null,
+      opaLink ? `OPA: ${opaLink}` : null,
+    ].filter(Boolean).join("\n");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(params.titulo)}&dates=${format(start)}/${format(end)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(params.linkReuniao || "")}`;
+  }
+
+  app.get("/api/chamadas-alianca/adicionar-agenda", async (req, res) => {
+    const titulo = String(req.query.titulo || "Chamada para alianca");
+    const dataHora = new Date(String(req.query.dataHora || ""));
+    const linkReuniao = String(req.query.linkReuniao || "");
+    const opaId = String(req.query.opaId || "");
+    const membroId = String(req.query.membroId || (req.session as any).membroId || "");
+    const biaNome = String(req.query.biaNome || "");
+    const escopo = String(req.query.escopo || "");
+    const nucleo = String(req.query.nucleo || "");
+    const googleFromEmail = String(req.query.google || "");
+    const googleRedirect = googleFromEmail.startsWith("https://calendar.google.com/")
+      ? googleFromEmail
+      : googleCalendarUrlForChamada({ titulo, dataHora, linkReuniao, biaNome, escopo, nucleo, opaId });
+
+    try {
+      const userIdFromSession = (req.session as any).directusUserId || (req.session as any).userId || null;
+      let targetUserId = userIdFromSession ? String(userIdFromSession) : "";
+      let targetMembroId = membroId || ((req.session as any).membroId ? String((req.session as any).membroId) : "");
+
+      if (!targetUserId && targetMembroId) {
+        const users = await storage.getAllUsers();
+        const target = users.find((user: any) => user.ativo && String(user.membro_directus_id || "") === targetMembroId);
+        if (target) targetUserId = String(target.id);
+      }
+
+      if (targetUserId) {
+        const dataBase = Number.isNaN(dataHora.getTime()) ? new Date() : dataHora;
+        const origemTarefaId = opaId ? `chamada-alianca-opa-${opaId}` : `chamada-alianca-${targetUserId}-${dataBase.toISOString()}`;
+        const existing = await db.execute(sql`
+          SELECT id
+          FROM agenda_tarefas
+          WHERE user_id = ${targetUserId}
+            AND origem_tarefa_id = ${origemTarefaId}
+          LIMIT 1
+        `);
+
+        if (!((existing as any).rows || []).length) {
+          await storage.createAgendaTarefa({
+            user_id: targetUserId,
+            membro_id: targetMembroId || null,
+            titulo,
+            descricao: [
+              `Chamada para alianca vinculada a BIA ${biaNome || "BUILT"}.`,
+              nucleo ? `Nucleo: ${nucleo}.` : null,
+              escopo ? `Escopo: ${escopo}.` : null,
+              linkReuniao ? `Link da reuniao: ${linkReuniao}` : null,
+              opaId ? `OPA: ${(process.env.APP_URL || "https://built.dna11.com.br")}/opas/${opaId}` : null,
+            ].filter(Boolean).join("\n"),
+            data: dataBase.toISOString().slice(0, 10),
+            hora: dataBase.toTimeString().slice(0, 5),
+            status: "pendente",
+            prioridade: "media",
+            contexto_tipo: "chamada_alianca",
+            contexto_id: opaId || null,
+            origem_tarefa_id: origemTarefaId,
+            atribuido_por_user_id: null,
+            atribuido_por_membro_id: null,
+            atribuido_por_nome: "Chamada para alianca",
+          } as any);
+        }
+      }
+    } catch (error: any) {
+      console.warn("[chamadas-alianca] Nao foi possivel adicionar na agenda da plataforma:", error?.message || error);
+    }
+
+    res.redirect(302, googleRedirect);
+  });
+
+  app.post("/api/bias/:id/disparar-alianca", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const diretorCampo = String(req.body?.diretor_campo || "");
+      const dataHora = new Date(String(req.body?.data_hora || ""));
+      let linkReuniao = String(req.body?.link_reuniao || "").trim();
+      if (linkReuniao && !/^https?:\/\//i.test(linkReuniao)) linkReuniao = `https://${linkReuniao}`;
+      const opaInput = req.body?.opa && typeof req.body.opa === "object" ? req.body.opa : {};
+      const diretorConfig = CHAMADA_DIRETOR_CONFIG[diretorCampo];
+      if (!diretorConfig) return res.status(400).json({ error: "Diretor invalido para disparo de alianca" });
+      if (Number.isNaN(dataHora.getTime())) return res.status(400).json({ error: "Data da reuniao invalida" });
+      if (!/^https?:\/\//i.test(linkReuniao)) return res.status(400).json({ error: "Informe um link de reuniao valido" });
+
+      const bia = await directusFetchOne("bias_projetos", req.params.id, "fields=*");
+      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+      const diretorId = directusRelationId(bia[diretorCampo]);
+      if (diretorId) return res.status(400).json({ error: "Este cargo ja possui diretor. Dispare a alianca apenas para cargos em aberto." });
+
+      let chamadasStorageDisponivel = true;
+      let existentes: any[] = [];
+      try {
+        existentes = await storage.getChamadasAliancaByBia(req.params.id);
+      } catch (error: any) {
+        chamadasStorageDisponivel = false;
+        console.warn("[chamadas-alianca] Banco local indisponivel, seguindo sem historico:", error?.message || error);
+      }
+      const chamadasDoDiretor = existentes.filter((item) => item.diretor_campo === diretorCampo);
+      const nextOrder = Math.max(0, ...chamadasDoDiretor.map((item) => Number(item.ordem) || 0)) + 1;
+      const etapa = CHAMADA_ALIANCA_SEQUENCE.find((item) => item.ordem === nextOrder);
+      if (!etapa) return res.status(400).json({ error: "Ciclo de chamadas concluido para este diretor" });
+
+      const audience = await getChamadaAudience({
+        bia,
+        biaId: req.params.id,
+        diretorId,
+        nucleo: diretorConfig.nucleo,
+        escopo: etapa.escopo,
+      });
+
+      const tituloOpa = String(opaInput.nome_oportunidade || "").trim() || CHAMADA_ALIANCA_TITULO_OPA;
+      const tipoOpa = String(opaInput.tipo || "").trim() || diretorConfig.tipo;
+      const valorOpaInput = Number(String(opaInput.valor_origem_opa ?? "").replace(/\./g, "").replace(",", "."));
+      const memInput = Number(String(opaInput.Minimo_esforco_multiplicador ?? "").replace(",", "."));
+      const descricaoEditada = String(opaInput.descricao || "").trim();
+      const descricao = [
+        `${etapa.label} da BIA ${bia.nome_bia || req.params.id}.`,
+        `Area: Liderança.`,
+        `Nucleo acionado: ${diretorConfig.nucleo}.`,
+        `Cargo em aberto: ${diretorConfig.nucleo}.`,
+        `Data da reuniao: ${dataHora.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`,
+        `Link da reuniao: ${linkReuniao}`,
+      ].join("\n");
+      const descricaoFinal = descricaoEditada ? `${descricaoEditada}\n\n${descricao}` : descricao;
+
+      await ensureOpaMediaFields();
+      const opa = await directusCreate("tipos_oportunidades", prepareOpaPayload({
+        nome_oportunidade: tituloOpa,
+        tipo: tipoOpa,
+        status: "ativa",
+        bia: req.params.id,
+        valor_origem_opa: Number.isFinite(valorOpaInput) && valorOpaInput > 0 ? valorOpaInput : getBiaNumericValue(bia, "valor_origem", "valor_geral_venda_vgv", "valor_realizado_venda"),
+        Minimo_esforco_multiplicador: Number.isFinite(memInput) && memInput > 0 ? memInput : 100,
+        nucleo_alianca: diretorConfig.nucleo,
+        descricao: descricaoFinal,
+        perfil_aliado: "Convite para cargo em aberto",
+        localizacao: bia.localizacao || null,
+        latitude: bia.latitude || null,
+        longitude: bia.longitude || null,
+      }));
+
+      const chamadaPayload = {
+        bia_id: req.params.id,
+        bia_nome: bia.nome_bia || null,
+        diretor_campo: diretorCampo,
+        diretor_membro_id: null,
+        diretor_nome: null,
+        nucleo_alianca: diretorConfig.nucleo,
+        ordem: etapa.ordem,
+        escopo: etapa.escopo,
+        titulo: etapa.label,
+        data_hora: dataHora,
+        link_reuniao: linkReuniao,
+        opa_id: opa.id || null,
+        destinatarios: audience.destinatarios,
+        status: "pendente",
+        criado_por_user_id: (req.session as any).directusUserId || null,
+        criado_por_membro_id: (req.session as any).membroId || null,
+        criado_por_nome: (req.session as any).nome || null,
+      } as any;
+      let chamada = { id: null, ...chamadaPayload };
+      if (chamadasStorageDisponivel) {
+        try {
+          chamada = await storage.createChamadaAlianca(chamadaPayload);
+        } catch (error: any) {
+          chamadasStorageDisponivel = false;
+          console.warn("[chamadas-alianca] OPA criada, mas registro local falhou:", error?.message || error);
+        }
+      }
+
+      const { enviarChamadaAlianca } = await import("./mailer");
+      for (const destinatario of audience.destinatarios) {
+        enviarChamadaAlianca({
+          destinatarioEmail: destinatario.email,
+          destinatarioNome: destinatario.nome,
+          destinatarioMembroId: destinatario.id,
+          titulo: tituloOpa,
+          biaNome: bia.nome_bia || null,
+          escopo: etapa.label,
+          dataHora,
+          linkReuniao,
+          nucleo: diretorConfig.nucleo,
+          opaId: opa?.id || null,
+        }).catch((e: any) => console.error("[chamadas-alianca] email error:", e.message));
+      }
+
+      res.json({
+        chamada,
+        opa,
+        destinatarios_count: audience.destinatarios.length,
+        proxima_ordem: nextOrder + 1,
+        registro_local_salvo: chamadasStorageDisponivel,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/dashboard", async (req, res) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
@@ -2549,7 +3292,7 @@ export async function registerRoutes(
       ];
 
       const fetchDashboardOpas = async () => {
-        const baseFields = "fields=id,nome_oportunidade,tipo,bia,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador,date_created";
+        const baseFields = "fields=id,nome_oportunidade,tipo,ramo_atuacao,bia,localizacao,pais,valor_origem_opa,nucleo_alianca,perfil_aliado,objetivo_alianca,Minimo_esforco_multiplicador,date_created";
         try {
           return await directusFetchScoped("tipos_oportunidades", `${baseFields},status`);
         } catch (err) {
@@ -2609,11 +3352,12 @@ export async function registerRoutes(
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
-      const membroPerfil = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,tipo_alianca,nucleos_alianca,nucleo_alianca").catch(() => null);
+      const membroPerfil = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,tipo_alianca,nucleos_alianca,nucleo_alianca,ramo_atuacao").catch(() => null);
       const areasContribuicao: string[] = [
         ...(Array.isArray(membroPerfil?.tipos_alianca) ? membroPerfil.tipos_alianca : []),
         membroPerfil?.tipo_alianca,
       ].filter(Boolean);
+      const userRamoAtuacao = normalize(membroPerfil?.ramo_atuacao);
       const keywordsForArea = (area: string): string[] => {
         const normalizedArea = normalize(area);
         const rules: Array<[RegExp, string[]]> = [
@@ -2646,13 +3390,18 @@ export async function registerRoutes(
           ...o,
           bia_id: relationId(o.bia) || relationId(o.bia_id),
           nome_bia_vinculada: allBiaNameMap[relationId(o.bia) || relationId(o.bia_id) || ""] || null,
-          _matchText: normalize([o.tipo, o.nucleo_alianca, o.perfil_aliado, o.objetivo_alianca, o.nome_oportunidade].join(" ")),
+          _matchText: normalize([o.tipo, o.ramo_atuacao, o.nucleo_alianca, o.perfil_aliado, o.objetivo_alianca, o.nome_oportunidade].join(" ")),
           _tipoText: normalize(o.tipo),
+          _ramoText: normalize(o.ramo_atuacao),
         }))
-        .filter((o: any) => activeAreaKeywords.some((keyword) => o._tipoText.includes(keyword)));
+        .filter((o: any) => {
+          const matchTipo = activeAreaKeywords.some((keyword) => o._tipoText.includes(keyword));
+          const matchRamo = !!userRamoAtuacao && !!o._ramoText && o._ramoText === userRamoAtuacao;
+          return matchTipo || matchRamo;
+        });
       const convergencias = convergenciasFull
         .slice(0, 6)
-        .map(({ _matchText, _tipoText, ...o }: any) => o);
+        .map(({ _matchText, _tipoText, _ramoText, ...o }: any) => o);
 
       const opasAbertas = userOpas.filter((o: any) => !CLOSED_STATUSES.has(o.status)).length;
 
@@ -2880,7 +3629,29 @@ export async function registerRoutes(
       // Create the BIA in Directus
       const createBody = { ...req.body };
       if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
-      const item = await directusCreate("bias_projetos", prepareBiaPayload(createBody));
+      const createPayload = prepareBiaPayload(createBody);
+      const item = await directusCreate("bias_projetos", createPayload);
+      const diretorSolicitacoes = await processDiretorSolicitacoes({
+        biaId: item.id,
+        biaNome: item.nome_bia || req.body.nome_bia || null,
+        body: req.body,
+        payload: createPayload,
+        req,
+        currentBia: null,
+      }).catch((e: any) => {
+        console.error("[bia-diretores] failed to create requests:", e.message);
+        return [];
+      });
+      const socioSolicitacoes = await processSocioSolicitacoes({
+        biaId: item.id,
+        biaNome: item.nome_bia || req.body.nome_bia || null,
+        body: req.body,
+        req,
+        currentBia: null,
+      }).catch((e: any) => {
+        console.error("[bia-socios] failed to create requests:", e.message);
+        return [];
+      });
       const valorOrigem = parseFloat(req.body.valor_origem) || 0;
       if (valorOrigem > 0) {
         syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
@@ -2941,14 +3712,14 @@ export async function registerRoutes(
           }
 
           console.log(`[bia-aprovacao] Pending approval created for BIA ${item.id}, aliado: ${aliadoBuiltEmail || "not found"}`);
-          return res.json({ ...item, _aprovacao_pendente: true, _aprovacao_id: aprovacao.id });
+          return res.json({ ...item, _aprovacao_pendente: true, _aprovacao_id: aprovacao.id, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
         } catch (aprovErr: any) {
           console.error("[bia-aprovacao] Failed to create approval record:", aprovErr.message);
           // BIA was created — return it even if approval record failed
         }
       }
 
-      res.json(item);
+      res.json({ ...item, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2957,12 +3728,60 @@ export async function registerRoutes(
   app.patch("/api/bias/:id", async (req, res) => {
     try {
       let payload = prepareBiaPayload(req.body);
+      const currentBia = await directusFetchOne(
+        "bias_projetos",
+        req.params.id,
+        "fields=id,nome_bia,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores"
+      ).catch(() => null);
+      let diretorSolicitacoes: any[] = [];
+      let socioSolicitacoes: any[] = [];
+      try {
+        const payloadComSolicitacoes = { ...payload };
+        diretorSolicitacoes = await processDiretorSolicitacoes({
+          biaId: req.params.id,
+          biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
+          body: req.body,
+          payload: payloadComSolicitacoes,
+          req,
+          currentBia,
+        });
+        payload = payloadComSolicitacoes;
+      } catch (e: any) {
+        console.error("[bia-diretores] failed to process requests; saving direct BIA fields instead:", e.message);
+      }
+      try {
+        socioSolicitacoes = await processSocioSolicitacoes({
+          biaId: req.params.id,
+          biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
+          body: req.body,
+          req,
+          currentBia,
+        });
+      } catch (e: any) {
+        console.error("[bia-socios] failed to process requests:", e.message);
+      }
       // Remove already-known blocked fields before first attempt
       for (const f of biasBlockedFields) delete (payload as any)[f];
 
       let lastError: any = null;
       const newlySkipped: string[] = [];
       const genericRetryFields = ["Anexos", "socios_multiplicadores", "socios_guardioes", "terceiros"];
+      const extractRejectedFields = (parsed: any): string[] => {
+        const fields = new Set<string>();
+        for (const error of parsed?.errors || []) {
+          const code = error?.extensions?.code;
+          const field = error?.extensions?.field;
+          if (field && (code === "VALUE_OUT_OF_RANGE" || code === "INVALID_PAYLOAD" || code === "FORBIDDEN")) {
+            fields.add(String(field));
+          }
+          if (code === "INVALID_PAYLOAD" || code === "FORBIDDEN") {
+            const message = String(error?.message || "");
+            const match = message.match(/(?:field|Field)\s+"([^"]+)"/);
+            if (match?.[1]) fields.add(match[1]);
+          }
+        }
+        return [...fields].filter((field) => Object.prototype.hasOwnProperty.call(payload, field));
+      };
       const maxAttempts = Object.keys(payload).length + 5;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -2979,21 +3798,21 @@ export async function registerRoutes(
             const contributors: CppContributor[] = [
               { label: "Aliado BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
               { label: "BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
-              { label: "Dir. de Aliança", memberId: req.body.diretor_alianca || null, percentual: parseFloat(req.body.perc_dir_alianca) || 0, isAporte: true },
-              { label: "Dir. Núcleo Técnico", memberId: req.body.diretor_nucleo_tecnico || null, percentual: parseFloat(req.body.perc_dir_tecnico) || 0, isAporte: true },
-              { label: "Dir. Núcleo de Obra", memberId: req.body.diretor_execucao || null, percentual: parseFloat(req.body.perc_dir_obras) || 0, isAporte: true },
-              { label: "Dir. Núcleo Comercial", memberId: req.body.diretor_comercial || null, percentual: parseFloat(req.body.perc_dir_comercial) || 0, isAporte: true },
-              { label: "Dir. Núcleo de Capital", memberId: req.body.diretor_capital || null, percentual: parseFloat(req.body.perc_dir_capital) || 0, isAporte: true },
+              { label: "Dir. de Aliança", memberId: item.diretor_alianca || null, percentual: parseFloat(item.perc_dir_alianca) || 0, isAporte: true },
+              { label: "Dir. Núcleo Técnico", memberId: item.diretor_nucleo_tecnico || null, percentual: parseFloat(item.perc_dir_tecnico) || 0, isAporte: true },
+              { label: "Dir. Núcleo de Obra", memberId: item.diretor_execucao || null, percentual: parseFloat(item.perc_dir_obras) || 0, isAporte: true },
+              { label: "Dir. Núcleo Comercial", memberId: item.diretor_comercial || null, percentual: parseFloat(item.perc_dir_comercial) || 0, isAporte: true },
+              { label: "Dir. Núcleo de Capital", memberId: item.diretor_capital || null, percentual: parseFloat(item.perc_dir_capital) || 0, isAporte: true },
             ];
             try {
               const cppSummary = await syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
-              return res.json({ ...item, _cppSummary: cppSummary });
+              return res.json({ ...item, _cppSummary: cppSummary, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
             } catch (syncErr: any) {
               console.error("[sync fluxo_caixa] error:", syncErr.message);
-              return res.json({ ...item, _cppSummary: null, _cppError: syncErr.message });
+              return res.json({ ...item, _cppSummary: null, _cppError: syncErr.message, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
             }
           }
-          return res.json(item);
+          return res.json({ ...item, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
         } catch (err: any) {
           const msg: string = err.message || "";
           let parsed: any = null;
@@ -3001,14 +3820,11 @@ export async function registerRoutes(
             const jsonStr = msg.replace(/^Directus update error \d+: /, "");
             parsed = JSON.parse(jsonStr);
           } catch {}
-          const outOfRange: string[] = (parsed?.errors || [])
-            .filter((e: any) => e.extensions?.code === "VALUE_OUT_OF_RANGE")
-            .map((e: any) => e.extensions?.field)
-            .filter(Boolean);
+          const rejectedFields = extractRejectedFields(parsed);
           const isInternalDirectusError = (parsed?.errors || []).some((e: any) =>
             e.extensions?.code === "INTERNAL_SERVER_ERROR" || /unexpected error/i.test(e.message || "")
           );
-          if (outOfRange.length === 0) {
+          if (rejectedFields.length === 0) {
             if (isInternalDirectusError) {
               const retryField = genericRetryFields.find((field) => Object.prototype.hasOwnProperty.call(payload, field));
               if (retryField) {
@@ -3021,7 +3837,7 @@ export async function registerRoutes(
             lastError = err;
             break;
           }
-          for (const f of outOfRange) {
+          for (const f of rejectedFields) {
             biasBlockedFields.add(f);
             newlySkipped.push(f);
             delete (payload as any)[f];
@@ -3067,7 +3883,22 @@ export async function registerRoutes(
   app.put("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const { razao_social, cnpj, nome_fantasia, inscricao_estadual, banco, agencia, conta, tipo_conta, titular_conta, chave_pix } = req.body;
+      const {
+        razao_social,
+        cnpj,
+        nome_fantasia,
+        inscricao_estadual,
+        banco,
+        agencia,
+        conta,
+        tipo_conta,
+        titular_conta,
+        chave_pix,
+        ativo_endereco,
+        ativo_qualificacao,
+        ativo_numero_matricula,
+        ativo_cartorio,
+      } = req.body;
       const info = await storage.upsertBiaInfoComercial(req.params.id, {
         razao_social: razao_social || null,
         cnpj: cnpj || null,
@@ -3079,6 +3910,10 @@ export async function registerRoutes(
         tipo_conta: tipo_conta || null,
         titular_conta: titular_conta || null,
         chave_pix: chave_pix || null,
+        ativo_endereco: ativo_endereco || null,
+        ativo_qualificacao: ativo_qualificacao || null,
+        ativo_numero_matricula: ativo_numero_matricula || null,
+        ativo_cartorio: ativo_cartorio || null,
       });
       res.json(info);
     } catch (error: any) {
@@ -3114,7 +3949,7 @@ export async function registerRoutes(
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
       let items;
-      if (sessionRole === "admin" || sessionRole === "manager") {
+      if (sessionRole === "admin" || sessionRole === "manager" || sessionRole === "superadmin") {
         items = await storage.getBiaAprovacoesPendentes();
       } else if (sessionMembroId) {
         items = await storage.getBiaAprovacoesParaAliado(sessionMembroId);
@@ -3203,6 +4038,177 @@ export async function registerRoutes(
           motivo: motivo || undefined,
         }).catch((e: any) => console.error("[bia-aprovacao] email error:", e.message));
       }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== BIA DIRETOR SOLICITACOES ==========
+
+  app.get("/api/bia-diretor-solicitacoes/minhas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      if (sessionRole === "admin" || sessionRole === "manager" || sessionRole === "superadmin") {
+        return res.json(await storage.getBiaDiretorSolicitacoesPendentes());
+      }
+      if (!sessionMembroId) return res.json([]);
+      return res.json(await storage.getBiaDiretorSolicitacoesParaDiretor(sessionMembroId));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bia-diretor-solicitacoes/bia/:biaId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await directusFetchOne("bias_projetos", req.params.biaId, "fields=*");
+      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+      return res.json(await storage.getBiaDiretorSolicitacoesPendentesByBia(req.params.biaId));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-diretor-solicitacoes/:id/aceitar", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const solicitacao = await storage.getBiaDiretorSolicitacaoById(req.params.id);
+      if (!solicitacao) return res.status(404).json({ error: "Solicitacao nao encontrada" });
+      if (solicitacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitacao ja foi processada" });
+      if (!sessionMembroId || solicitacao.diretor_membro_id !== sessionMembroId) {
+        return res.status(403).json({ error: "Apenas o diretor indicado pode aceitar esta solicitacao" });
+      }
+
+      await directusUpdate("bias_projetos", solicitacao.bia_id, {
+        [solicitacao.campo_diretor]: solicitacao.diretor_membro_id,
+        [solicitacao.campo_percentual]: solicitacao.percentual || null,
+      });
+      await storage.updateBiaDiretorSolicitacao(solicitacao.id, {
+        status: "aceito",
+        respondido_em: new Date(),
+      } as any);
+      await storage.cancelBiaDiretorSolicitacoes(
+        solicitacao.bia_id,
+        solicitacao.campo_diretor,
+        solicitacao.diretor_membro_id
+      );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-diretor-solicitacoes/:id/recusar", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const solicitacao = await storage.getBiaDiretorSolicitacaoById(req.params.id);
+      if (!solicitacao) return res.status(404).json({ error: "Solicitacao nao encontrada" });
+      if (solicitacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitacao ja foi processada" });
+      if (!sessionMembroId || solicitacao.diretor_membro_id !== sessionMembroId) {
+        return res.status(403).json({ error: "Apenas o diretor indicado pode recusar esta solicitacao" });
+      }
+
+      await directusUpdate("bias_projetos", solicitacao.bia_id, {
+        [solicitacao.campo_diretor]: null,
+        [solicitacao.campo_percentual]: null,
+      });
+      await storage.updateBiaDiretorSolicitacao(solicitacao.id, {
+        status: "recusado",
+        respondido_em: new Date(),
+      } as any);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== BIA SOCIO SOLICITACOES ==========
+
+  app.get("/api/bia-socio-solicitacoes/minhas", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      if (sessionRole === "admin" || sessionRole === "manager" || sessionRole === "superadmin") {
+        return res.json(await storage.getBiaSocioSolicitacoesPendentes());
+      }
+      if (!sessionMembroId) return res.json([]);
+      return res.json(await storage.getBiaSocioSolicitacoesParaSocio(sessionMembroId));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bia-socio-solicitacoes/bia/:biaId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await directusFetchOne("bias_projetos", req.params.biaId, "fields=*");
+      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+      return res.json(await storage.getBiaSocioSolicitacoesPendentesByBia(req.params.biaId));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-socio-solicitacoes/:id/aceitar", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const solicitacao = await storage.getBiaSocioSolicitacaoById(req.params.id);
+      if (!solicitacao) return res.status(404).json({ error: "Solicitacao nao encontrada" });
+      if (solicitacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitacao ja foi processada" });
+      if (!sessionMembroId || solicitacao.socio_membro_id !== sessionMembroId) {
+        return res.status(403).json({ error: "Apenas o socio indicado pode aceitar esta solicitacao" });
+      }
+
+      const bia = await directusFetchOne("bias_projetos", solicitacao.bia_id, `fields=id,${solicitacao.campo_socios}`);
+      const socios = new Set(parseBiaMemberList(bia?.[solicitacao.campo_socios]));
+      socios.add(solicitacao.socio_membro_id);
+      await directusUpdate("bias_projetos", solicitacao.bia_id, {
+        [solicitacao.campo_socios]: JSON.stringify([...socios]),
+      });
+      await storage.updateBiaSocioSolicitacao(solicitacao.id, {
+        status: "aceito",
+        respondido_em: new Date(),
+      } as any);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-socio-solicitacoes/:id/recusar", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const solicitacao = await storage.getBiaSocioSolicitacaoById(req.params.id);
+      if (!solicitacao) return res.status(404).json({ error: "Solicitacao nao encontrada" });
+      if (solicitacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitacao ja foi processada" });
+      if (!sessionMembroId || solicitacao.socio_membro_id !== sessionMembroId) {
+        return res.status(403).json({ error: "Apenas o socio indicado pode recusar esta solicitacao" });
+      }
+
+      const bia = await directusFetchOne("bias_projetos", solicitacao.bia_id, `fields=id,${solicitacao.campo_socios}`);
+      const socios = parseBiaMemberList(bia?.[solicitacao.campo_socios])
+        .filter((id) => id !== solicitacao.socio_membro_id);
+      await directusUpdate("bias_projetos", solicitacao.bia_id, {
+        [solicitacao.campo_socios]: JSON.stringify(socios),
+      });
+      await storage.updateBiaSocioSolicitacao(solicitacao.id, {
+        status: "recusado",
+        respondido_em: new Date(),
+      } as any);
 
       res.json({ success: true });
     } catch (error: any) {
@@ -3923,6 +4929,7 @@ export async function registerRoutes(
       id: o.id,
       nome_oportunidade: o.nome_oportunidade,
       tipo: o.tipo,
+      ramo_atuacao: o.ramo_atuacao || null,
       bia: o.bia,
       bia_id: o.bia,
       valor_origem_opa: o.valor_origem_opa,
@@ -3978,6 +4985,9 @@ export async function registerRoutes(
       data.localizacao = data.localizacao.trim()
         ? { display_name: data.localizacao.trim() }
         : null;
+    }
+    if (typeof data.ramo_atuacao === "string") {
+      data.ramo_atuacao = data.ramo_atuacao.trim() || null;
     }
     return data;
   }
@@ -5459,6 +6469,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.patch("/api/users/:id", async (req, res) => {
     try {
+      if (!req.params.id || req.params.id === "undefined" || req.params.id === "null") {
+        return res.status(400).json({ error: "Conta de acesso não encontrada para este membro." });
+      }
       const parsed = updateUserSchema.parse(req.body);
       // Strip undefined values — only include explicitly provided fields
       const updateData: any = Object.fromEntries(

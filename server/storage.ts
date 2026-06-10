@@ -15,6 +15,9 @@ import {
   anuncios, type Anuncio, type InsertAnuncio,
   passwordResetTokens, type PasswordResetToken,
   biaAprovacoes, type BiaAprovacao, type InsertBiaAprovacao,
+  biaDiretorSolicitacoes, type BiaDiretorSolicitacao, type InsertBiaDiretorSolicitacao,
+  biaSocioSolicitacoes, type BiaSocioSolicitacao, type InsertBiaSocioSolicitacao,
+  chamadasAlianca, type ChamadaAlianca, type InsertChamadaAlianca,
   auraAvaliacoes, type AuraAvaliacao,
   biaInfoComercial, type BiaInfoComercial,
 } from "@shared/schema";
@@ -134,6 +137,35 @@ export interface IStorage {
   updateAnuncio(id: string, data: Partial<InsertAnuncio>): Promise<Anuncio | undefined>;
   deleteAnuncio(id: string): Promise<boolean>;
   getAnunciosDisponibilidade(meses: number, slotTipo?: string): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>>;
+
+  createBiaAprovacao(data: InsertBiaAprovacao): Promise<BiaAprovacao>;
+  getBiaAprovacoesPendentes(): Promise<BiaAprovacao[]>;
+  getBiaAprovacoesParaAliado(aliadoMembroId: string): Promise<BiaAprovacao[]>;
+  getBiaAprovacaoByBiaId(biaId: string): Promise<BiaAprovacao | undefined>;
+  updateBiaAprovacao(id: string, data: Partial<BiaAprovacao>): Promise<BiaAprovacao | undefined>;
+  getBiaAprovacaoById(id: string): Promise<BiaAprovacao | undefined>;
+  getAllBiaAprovacoes(): Promise<BiaAprovacao[]>;
+
+  createBiaDiretorSolicitacao(data: InsertBiaDiretorSolicitacao): Promise<BiaDiretorSolicitacao>;
+  getBiaDiretorSolicitacoesPendentes(): Promise<BiaDiretorSolicitacao[]>;
+  getBiaDiretorSolicitacoesPendentesByBia(biaId: string): Promise<BiaDiretorSolicitacao[]>;
+  getBiaDiretorSolicitacoesParaDiretor(diretorMembroId: string): Promise<BiaDiretorSolicitacao[]>;
+  getBiaDiretorSolicitacaoById(id: string): Promise<BiaDiretorSolicitacao | undefined>;
+  updateBiaDiretorSolicitacao(id: string, data: Partial<BiaDiretorSolicitacao>): Promise<BiaDiretorSolicitacao | undefined>;
+  cancelBiaDiretorSolicitacoes(biaId: string, campoDiretor: string, exceptDiretorId?: string): Promise<void>;
+
+  createBiaSocioSolicitacao(data: InsertBiaSocioSolicitacao): Promise<BiaSocioSolicitacao>;
+  getBiaSocioSolicitacoesPendentes(): Promise<BiaSocioSolicitacao[]>;
+  getBiaSocioSolicitacoesPendentesByBia(biaId: string): Promise<BiaSocioSolicitacao[]>;
+  getBiaSocioSolicitacoesParaSocio(socioMembroId: string): Promise<BiaSocioSolicitacao[]>;
+  getBiaSocioSolicitacaoById(id: string): Promise<BiaSocioSolicitacao | undefined>;
+  updateBiaSocioSolicitacao(id: string, data: Partial<BiaSocioSolicitacao>): Promise<BiaSocioSolicitacao | undefined>;
+  cancelBiaSocioSolicitacoes(biaId: string, campoSocios: string, exceptSocioId?: string): Promise<void>;
+
+  createChamadaAlianca(data: InsertChamadaAlianca): Promise<ChamadaAlianca>;
+  getChamadasAliancaByBia(biaId: string): Promise<ChamadaAlianca[]>;
+  getChamadasAliancaByDestinatario(membroId: string): Promise<ChamadaAlianca[]>;
+  getAllChamadasAlianca(): Promise<ChamadaAlianca[]>;
 
   upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao>;
   getAuraAvaliacoesByAvaliado(avaliadoId: string): Promise<AuraAvaliacao[]>;
@@ -733,6 +765,111 @@ export class DatabaseStorage implements IStorage {
 
   async getAllBiaAprovacoes(): Promise<BiaAprovacao[]> {
     return db.select().from(biaAprovacoes).orderBy(desc(biaAprovacoes.criado_em));
+  }
+
+  async createBiaDiretorSolicitacao(data: InsertBiaDiretorSolicitacao): Promise<BiaDiretorSolicitacao> {
+    const [row] = await db.insert(biaDiretorSolicitacoes).values(data).returning();
+    return row;
+  }
+
+  async getBiaDiretorSolicitacoesPendentes(): Promise<BiaDiretorSolicitacao[]> {
+    return db.select().from(biaDiretorSolicitacoes)
+      .where(eq(biaDiretorSolicitacoes.status, "pendente"))
+      .orderBy(desc(biaDiretorSolicitacoes.criado_em));
+  }
+
+  async getBiaDiretorSolicitacoesPendentesByBia(biaId: string): Promise<BiaDiretorSolicitacao[]> {
+    return db.select().from(biaDiretorSolicitacoes)
+      .where(and(eq(biaDiretorSolicitacoes.status, "pendente"), eq(biaDiretorSolicitacoes.bia_id, biaId)))
+      .orderBy(desc(biaDiretorSolicitacoes.criado_em));
+  }
+
+  async getBiaDiretorSolicitacoesParaDiretor(diretorMembroId: string): Promise<BiaDiretorSolicitacao[]> {
+    return db.select().from(biaDiretorSolicitacoes)
+      .where(and(eq(biaDiretorSolicitacoes.status, "pendente"), eq(biaDiretorSolicitacoes.diretor_membro_id, diretorMembroId)))
+      .orderBy(desc(biaDiretorSolicitacoes.criado_em));
+  }
+
+  async getBiaDiretorSolicitacaoById(id: string): Promise<BiaDiretorSolicitacao | undefined> {
+    const [row] = await db.select().from(biaDiretorSolicitacoes).where(eq(biaDiretorSolicitacoes.id, id));
+    return row;
+  }
+
+  async updateBiaDiretorSolicitacao(id: string, data: Partial<BiaDiretorSolicitacao>): Promise<BiaDiretorSolicitacao | undefined> {
+    const [row] = await db.update(biaDiretorSolicitacoes).set(data).where(eq(biaDiretorSolicitacoes.id, id)).returning();
+    return row;
+  }
+
+  async cancelBiaDiretorSolicitacoes(biaId: string, campoDiretor: string, exceptDiretorId?: string): Promise<void> {
+    const pendentes = await this.getBiaDiretorSolicitacoesPendentesByBia(biaId);
+    await Promise.all(
+      pendentes
+        .filter((item) => item.campo_diretor === campoDiretor && (!exceptDiretorId || item.diretor_membro_id !== exceptDiretorId))
+        .map((item) => this.updateBiaDiretorSolicitacao(item.id, { status: "cancelado", respondido_em: new Date() } as any))
+    );
+  }
+
+  async createBiaSocioSolicitacao(data: InsertBiaSocioSolicitacao): Promise<BiaSocioSolicitacao> {
+    const [row] = await db.insert(biaSocioSolicitacoes).values(data).returning();
+    return row;
+  }
+
+  async getBiaSocioSolicitacoesPendentes(): Promise<BiaSocioSolicitacao[]> {
+    return db.select().from(biaSocioSolicitacoes)
+      .where(eq(biaSocioSolicitacoes.status, "pendente"))
+      .orderBy(desc(biaSocioSolicitacoes.criado_em));
+  }
+
+  async getBiaSocioSolicitacoesPendentesByBia(biaId: string): Promise<BiaSocioSolicitacao[]> {
+    return db.select().from(biaSocioSolicitacoes)
+      .where(and(eq(biaSocioSolicitacoes.status, "pendente"), eq(biaSocioSolicitacoes.bia_id, biaId)))
+      .orderBy(desc(biaSocioSolicitacoes.criado_em));
+  }
+
+  async getBiaSocioSolicitacoesParaSocio(socioMembroId: string): Promise<BiaSocioSolicitacao[]> {
+    return db.select().from(biaSocioSolicitacoes)
+      .where(and(eq(biaSocioSolicitacoes.status, "pendente"), eq(biaSocioSolicitacoes.socio_membro_id, socioMembroId)))
+      .orderBy(desc(biaSocioSolicitacoes.criado_em));
+  }
+
+  async getBiaSocioSolicitacaoById(id: string): Promise<BiaSocioSolicitacao | undefined> {
+    const [row] = await db.select().from(biaSocioSolicitacoes).where(eq(biaSocioSolicitacoes.id, id));
+    return row;
+  }
+
+  async updateBiaSocioSolicitacao(id: string, data: Partial<BiaSocioSolicitacao>): Promise<BiaSocioSolicitacao | undefined> {
+    const [row] = await db.update(biaSocioSolicitacoes).set(data).where(eq(biaSocioSolicitacoes.id, id)).returning();
+    return row;
+  }
+
+  async cancelBiaSocioSolicitacoes(biaId: string, campoSocios: string, exceptSocioId?: string): Promise<void> {
+    const pendentes = await this.getBiaSocioSolicitacoesPendentesByBia(biaId);
+    await Promise.all(
+      pendentes
+        .filter((item) => item.campo_socios === campoSocios && (!exceptSocioId || item.socio_membro_id !== exceptSocioId))
+        .map((item) => this.updateBiaSocioSolicitacao(item.id, { status: "cancelado", respondido_em: new Date() } as any))
+    );
+  }
+
+  async createChamadaAlianca(data: InsertChamadaAlianca): Promise<ChamadaAlianca> {
+    const [row] = await db.insert(chamadasAlianca).values(data).returning();
+    return row;
+  }
+
+  async getChamadasAliancaByBia(biaId: string): Promise<ChamadaAlianca[]> {
+    return db.select().from(chamadasAlianca)
+      .where(eq(chamadasAlianca.bia_id, biaId))
+      .orderBy(desc(chamadasAlianca.criado_em));
+  }
+
+  async getChamadasAliancaByDestinatario(membroId: string): Promise<ChamadaAlianca[]> {
+    return db.select().from(chamadasAlianca)
+      .where(sqlExpr`${chamadasAlianca.destinatarios} @> ${JSON.stringify([{ id: membroId }])}::jsonb`)
+      .orderBy(desc(chamadasAlianca.criado_em));
+  }
+
+  async getAllChamadasAlianca(): Promise<ChamadaAlianca[]> {
+    return db.select().from(chamadasAlianca).orderBy(desc(chamadasAlianca.criado_em));
   }
 
   async upsertAuraAvaliacao(avaliadorId: string, avaliadoId: string, palavras: string[]): Promise<AuraAvaliacao> {

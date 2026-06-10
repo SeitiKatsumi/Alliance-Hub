@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -256,6 +256,7 @@ export const oportunidades = pgTable("oportunidades", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nome_oportunidade: text("nome_oportunidade").notNull(),
   tipo: text("tipo"),
+  ramo_atuacao: text("ramo_atuacao"),
   bia_id: text("bia_id"),
   valor_origem_opa: numeric("valor_origem_opa"),
   objetivo_alianca: text("objetivo_alianca"),
@@ -531,6 +532,76 @@ export type BiaAprovacao = typeof biaAprovacoes.$inferSelect;
 export const insertBiaAprovacaoSchema = createInsertSchema(biaAprovacoes).omit({ id: true, criado_em: true, revisado_em: true });
 export type InsertBiaAprovacao = z.infer<typeof insertBiaAprovacaoSchema>;
 
+export const biaDiretorSolicitacoes = pgTable("bia_diretor_solicitacoes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  bia_nome: text("bia_nome"),
+  diretor_membro_id: text("diretor_membro_id").notNull(),
+  diretor_nome: text("diretor_nome"),
+  diretor_email: text("diretor_email"),
+  papel: text("papel").notNull(),
+  campo_diretor: text("campo_diretor").notNull(),
+  campo_percentual: text("campo_percentual").notNull(),
+  percentual: numeric("percentual"),
+  status: text("status").notNull().default("pendente"),
+  solicitante_membro_id: text("solicitante_membro_id"),
+  solicitante_nome: text("solicitante_nome"),
+  solicitante_email: text("solicitante_email"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  respondido_em: timestamp("respondido_em"),
+});
+
+export type BiaDiretorSolicitacao = typeof biaDiretorSolicitacoes.$inferSelect;
+export const insertBiaDiretorSolicitacaoSchema = createInsertSchema(biaDiretorSolicitacoes).omit({ id: true, criado_em: true, respondido_em: true });
+export type InsertBiaDiretorSolicitacao = z.infer<typeof insertBiaDiretorSolicitacaoSchema>;
+
+export const biaSocioSolicitacoes = pgTable("bia_socio_solicitacoes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  bia_nome: text("bia_nome"),
+  socio_membro_id: text("socio_membro_id").notNull(),
+  socio_nome: text("socio_nome"),
+  socio_email: text("socio_email"),
+  papel: text("papel").notNull(),
+  campo_socios: text("campo_socios").notNull(),
+  status: text("status").notNull().default("pendente"),
+  solicitante_membro_id: text("solicitante_membro_id"),
+  solicitante_nome: text("solicitante_nome"),
+  solicitante_email: text("solicitante_email"),
+  criado_em: timestamp("criado_em").defaultNow(),
+  respondido_em: timestamp("respondido_em"),
+});
+
+export type BiaSocioSolicitacao = typeof biaSocioSolicitacoes.$inferSelect;
+export const insertBiaSocioSolicitacaoSchema = createInsertSchema(biaSocioSolicitacoes).omit({ id: true, criado_em: true, respondido_em: true });
+export type InsertBiaSocioSolicitacao = z.infer<typeof insertBiaSocioSolicitacaoSchema>;
+
+export const chamadasAlianca = pgTable("chamadas_alianca", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  bia_nome: text("bia_nome"),
+  diretor_campo: text("diretor_campo").notNull(),
+  diretor_membro_id: text("diretor_membro_id"),
+  diretor_nome: text("diretor_nome"),
+  nucleo_alianca: text("nucleo_alianca"),
+  ordem: integer("ordem").notNull(),
+  escopo: text("escopo").notNull(),
+  titulo: text("titulo").notNull(),
+  data_hora: timestamp("data_hora").notNull(),
+  link_reuniao: text("link_reuniao").notNull(),
+  opa_id: text("opa_id"),
+  destinatarios: jsonb("destinatarios").default([]),
+  status: text("status").notNull().default("pendente"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_por_nome: text("criado_por_nome"),
+  criado_em: timestamp("criado_em").defaultNow(),
+});
+
+export type ChamadaAlianca = typeof chamadasAlianca.$inferSelect;
+export const insertChamadaAliancaSchema = createInsertSchema(chamadasAlianca).omit({ id: true, criado_em: true });
+export type InsertChamadaAlianca = z.infer<typeof insertChamadaAliancaSchema>;
+
 export const auraAvaliacoes = pgTable("aura_avaliacoes", {
   id: serial("id").primaryKey(),
   avaliador_membro_id: text("avaliador_membro_id").notNull(),
@@ -560,6 +631,11 @@ export const biaInfoComercial = pgTable("bia_info_comercial", {
   tipo_conta: text("tipo_conta"),
   titular_conta: text("titular_conta"),
   chave_pix: text("chave_pix"),
+  // Informacoes do Ativo
+  ativo_endereco: text("ativo_endereco"),
+  ativo_qualificacao: text("ativo_qualificacao"),
+  ativo_numero_matricula: text("ativo_numero_matricula"),
+  ativo_cartorio: text("ativo_cartorio"),
   updated_at: timestamp("updated_at").defaultNow(),
 });
 

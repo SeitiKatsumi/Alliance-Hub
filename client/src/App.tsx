@@ -188,23 +188,85 @@ Pelo presente Termo de Acesso e Uso da Vitrine Pública BUILT, a pessoa física 
 12.1. Este Termo será regido pela lei do país da pessoa jurídica da BUILT que presta os serviços da plataforma ao usuário.
 `.trim();
 
-const TERMO_AREA_ALIANCAS_VERSAO = "area_aliancas_v1_provisorio";
+const TERMO_AREA_ALIANCAS_VERSAO = "BUILT JUR - 4";
 const TERMO_AREA_ALIANCAS = `
-TERMO PROVISÓRIO DE ACESSO À ÁREA DE ALIANÇAS BUILT
+TERMO DE ACESSO À ÁREA DE ALIANÇAS BUILT
 
-Este termo regula o acesso inicial à Área de Alianças BUILT, ambiente restrito destinado a membros aliados, comunidades, OPAs, manifestações de interesse, registros de participação, validações e interações da rede BUILT.
+Este Termo disciplina o ingresso e a permanência do usuário na Área de Alianças BUILT, ambiente restrito destinado a empresários sócios, profissionais formalmente habilitados e demais participantes elegíveis aprovados pela BUILT.
 
-1. O acesso à Área de Alianças não garante participação em BIAs, aprovação em OPAs, contratação, remuneração, CPPs, Direitos Econômicos, função de governança ou retorno financeiro.
+1. Condição de Membro Aliado
 
-2. O usuário compromete-se a atuar com boa-fé, transparência, respeito à confidencialidade, não circunvenção, proteção reputacional e observância ao Código de Ética e às Políticas de Participação e Proteção BUILT.
+1.1. O acesso à Área de Alianças depende de aprovação cadastral, reputacional, técnica e documental, conforme os critérios internos da BUILT.
 
-3. Manifestações de interesse em OPAs são atos preliminares e dependem de análise, seleção, aprovação, aceite específico e registros próprios.
+1.2. Poderão ser admitidos como Membro Aliados empresários sócios, profissionais formalmente habilitados e pessoas jurídicas com interesse legítimo de conexão, colaboração e participação no ecossistema BUILT, desde que possuam registro oficial verificável em seu país de origem.
 
-4. Informações acessadas na Área de Alianças podem envolver oportunidades, comunidades, membros, OPAs, BIAs, documentos e dados sensíveis, devendo ser usadas apenas nos fluxos autorizados.
+1.3. O acesso de pessoas físicas e jurídicas é sempre pessoalizado, ainda que vinculado a empresa, comunidade, BIA ou aliado BUILT.
 
-5. A BUILT poderá limitar, suspender ou encerrar o acesso em caso de risco reputacional, uso indevido, inconsistência cadastral, violação ética, violação de confidencialidade ou descumprimento de regras internas.
+2. Requisitos de validação
 
-Ao aceitar este termo, o usuário declara estar ciente das regras provisórias de acesso à Área de Alianças BUILT.
+2.1. O candidato a Membro Aliado deverá fornecer documentos e informações verídicas e atualizadas, inclusive identificação civil, dados empresariais, prova de inscrição fiscal, prova de habilitação técnica, registro profissional, licenças, autorizações ou equivalentes, quando aplicáveis.
+
+2.2. A BUILT poderá exigir validação de reputação, referências, entrevista, certificados, currículo técnico, vínculo societário, titularidade real, estrutura societária e comprovação de atuação.
+
+2.3. A aprovação ou reprovação do acesso é ato discricionário da BUILT, voltado à proteção da coesão, confiança, segurança jurídica e reputação da rede.
+
+3. Direitos do Membro Aliado
+
+3.1. O Membro Aliado aprovado poderá, conforme seu plano, permissões e perfil:
+a) acessar ambiente restrito de networking e governança;
+b) visualizar e interagir com oportunidades, comunidades, perfis, reuniões e materiais internos;
+c) registrar entregas, participações, comunicações e dados vinculados ao seu histórico;
+d) ser elegível para compor comunidades, BIAs, células, reuniões e fluxos de validação;
+e) utilizar recursos da Plataforma BUILT ou sistema equivalente, quando liberados.
+
+4. Deveres do Membro Aliado
+
+4.1. O Membro Aliado compromete-se a atuar com ética, boa-fé, lealdade, diligência, respeito à legislação aplicável e aderência integral ao Código de Ética, às Políticas de Participação e Proteção, aos manuais internos e aos instrumentos específicos da BUILT.
+
+4.2. O Membro Aliado deverá manter seus dados sempre atualizados, inclusive quanto a mudança de registro profissional, suspensão de licença, alteração societária, insolvência, impedimento ético, conflito de interesses relevante ou investigação que impacte sua reputação ou elegibilidade.
+
+4.3. O Membro Aliado reconhece que reputação validada, histórico de entregas, cumprimento de prazos e registro correto de participação influenciam seu nível de visibilidade, elegibilidade e permanência.
+
+5. Uso do ambiente restrito
+
+5.1. É vedado ao Membro Aliado:
+a) compartilhar login ou acesso com terceiros;
+b) extrair listas de contatos para uso externo não autorizado;
+c) usar a plataforma para aliciamento, concorrência parasitária, captação enganosa, desvio de oportunidades, difamação ou violação de confidencialidade;
+d) apresentar-se como representante da BUILT sem outorga formal;
+e) usar o nome BUILT para assumir obrigações com terceiros sem autorização.
+
+6. Comunidades e Aliados BUILT
+
+6.1. O Membro Aliado deverá ser vinculado a uma comunidade, de acordo com regras da plataforma e da governança local.
+
+6.2. As comunidades são compostas por Membro Aliados associados a um Aliado BUILT, sem que isso elimine a autonomia contratual da BUILT nem crie vínculo societário automático entre Membro Aliado, aliado e plataforma.
+
+6.3. O Membro Aliado reconhece que Aliados BUILT exercem funções de liderança comunitária, capacitação e articulação, conforme regras internas da plataforma.
+
+7. Registro e rastreabilidade
+
+7.1. Toda participação relevante do Membro Aliado em oportunidades, validações, alianças, entregas, CPPs, comunidades ou BIAs deverá ser registrada no ambiente indicado pela BUILT para fins de governança, transparência, compliance e auditoria.
+
+7.2. A ausência de registro poderá impedir o reconhecimento formal da participação do Membro Aliado, sem prejuízo de apuração posterior em instrumento próprio, a critério da governança aplicável.
+
+8. Confidencialidade
+
+8.1. O Membro Aliado deverá manter sigilo sobre informações estratégicas, comerciais, técnicas, reputacionais, societárias, patrimoniais e operacionais da BUILT, das comunidades, das BIAs e de outros Membro Aliados, salvo autorização expressa ou dever legal.
+
+8.2. Essa obrigação subsiste após suspensão, encerramento ou saída da plataforma.
+
+9. Ausência de garantia
+
+9.1. A condição de Membro Aliado não garante participação automática em BIAs, recebimento de oportunidades, contratação, remuneração, retorno econômico, indicação comercial ou aporte de capital.
+
+9.2. Toda participação concreta dependerá de seleção, aderência reputacional, capacidade técnica, validação da governança da BIA, disponibilidade operacional e formalização específica.
+
+10. Sanções
+
+10.1. O descumprimento deste Termo ou das políticas internas poderá ensejar advertência, limitação funcional, rebaixamento de acesso, suspensão, exclusão, bloqueio reputacional interno, apuração de incidentes e adoção de medidas contratuais ou judiciais cabíveis.
+
+10.2. Em caso de risco relevante, a BUILT poderá adotar medidas cautelares imediatas.
 `.trim();
 
 const TERMO_BUILT_CAPITAL_VERSAO = "built_capital_v1_provisorio";

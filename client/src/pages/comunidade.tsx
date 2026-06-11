@@ -29,6 +29,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -268,6 +269,14 @@ interface ChamadaAlianca {
   opa_id?: string | null;
   destinatarios?: Array<{ id: string; nome?: string; email?: string }>;
 }
+
+type MouPendente = {
+  tipo: "diretor" | "socio";
+  id: string;
+  titulo: string;
+  versao: string;
+  texto: string;
+};
 
 // M2M junction shapes returned by Directus
 interface MembroJunction { cadastro_geral_id: Membro | string | null; }
@@ -935,7 +944,13 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const responderDiretoriaMutation = useMutation({
     mutationFn: ({ id, decisao }: { id: string; decisao: "aceitar" | "recusar" }) =>
       apiRequest("PATCH", `/api/bia-diretor-solicitacoes/${id}/${decisao}`, {}),
-    onSuccess: (_response, variables) => {
+    onSuccess: async (response, variables) => {
+      const data = await response.json().catch(() => null);
+      if (variables.decisao === "aceitar" && data?.status === "mou_pendente" && data?.mou) {
+        setMouPendente({ tipo: "diretor", id: variables.id, ...data.mou });
+        setMouAceito(false);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -953,7 +968,13 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const responderSocioMutation = useMutation({
     mutationFn: ({ id, decisao }: { id: string; decisao: "aceitar" | "recusar" }) =>
       apiRequest("PATCH", `/api/bia-socio-solicitacoes/${id}/${decisao}`, {}),
-    onSuccess: (_response, variables) => {
+    onSuccess: async (response, variables) => {
+      const data = await response.json().catch(() => null);
+      if (variables.decisao === "aceitar" && data?.status === "mou_pendente" && data?.mou) {
+        setMouPendente({ tipo: "socio", id: variables.id, ...data.mou });
+        setMouAceito(false);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -963,6 +984,28 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     },
     onError: (error: any) => toast({
       title: "Erro ao responder convite",
+      description: error?.message || "Tente novamente.",
+      variant: "destructive",
+    }),
+  });
+
+  const concluirMouMutation = useMutation({
+    mutationFn: async () => {
+      if (!mouPendente) throw new Error("Nenhum MOU pendente");
+      const base = mouPendente.tipo === "diretor" ? "bia-diretor-solicitacoes" : "bia-socio-solicitacoes";
+      return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, { aceitar_mou: true });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      toast({ title: "MOU aceito", description: "Sua participação na BIA foi confirmada." });
+      setMouPendente(null);
+      setMouAceito(false);
+    },
+    onError: (error: any) => toast({
+      title: "Erro ao aceitar MOU",
       description: error?.message || "Tente novamente.",
       variant: "destructive",
     }),
@@ -1023,6 +1066,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [auraRecording, setAuraRecording] = useState(false);
   const [auraMicBlocked, setAuraMicBlocked] = useState(false);
   const [auraMicPromptOpen, setAuraMicPromptOpen] = useState(false);
+  const [mouPendente, setMouPendente] = useState<MouPendente | null>(null);
+  const [mouAceito, setMouAceito] = useState(false);
   const auraFileInputRef = useRef<HTMLInputElement>(null);
   const auraAudioFileInputRef = useRef<HTMLInputElement>(null);
   const auraMediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1379,11 +1424,10 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         {!convitesOnly && activeTab === "comunidades" && (
           <Button
             onClick={openCreate}
-            className="font-mono"
-            style={{ background: "linear-gradient(135deg, #0EA5E9, #2563EB)", color: "#FFFFFF" }}
+            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
             data-testid="btn-nova-comunidade"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-4 h-4" />
             Nova Comunidade
           </Button>
         )}
@@ -2358,6 +2402,46 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!mouPendente} onOpenChange={open => { if (!open) { setMouPendente(null); setMouAceito(false); } }}>
+        <DialogContent className="max-w-3xl max-h-[86vh] overflow-hidden border-blue-200 bg-white text-brand-navy">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-brand-navy">
+              <FileText className="h-5 w-5 text-blue-600" />
+              {mouPendente?.titulo || "MOU Padrão BUILT"}
+            </DialogTitle>
+            <DialogDescription>
+              Leia e aceite o MOU para concluir sua participação nesta BIA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="max-h-[46vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+              {mouPendente?.texto}
+            </div>
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+              <Checkbox checked={mouAceito} onCheckedChange={checked => setMouAceito(checked === true)} />
+              <span>Li e aceito o MOU Padrão BUILT para esta BIA.</span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setMouPendente(null); setMouAceito(false); }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => concluirMouMutation.mutate()}
+              disabled={!mouAceito || concluirMouMutation.isPending}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              data-testid="btn-aceitar-mou-bia"
+            >
+              {concluirMouMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Aceitar MOU e concluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Aura Evaluation Dialog — Aliado registers their own Aura perception for a vitrine candidate */}
       <Dialog open={!!auraDialogConvite} onOpenChange={open => { if (!open) resetAuraDialog(); }}>

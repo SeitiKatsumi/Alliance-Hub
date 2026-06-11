@@ -17,6 +17,7 @@ import {
   biaAprovacoes, type BiaAprovacao, type InsertBiaAprovacao,
   biaDiretorSolicitacoes, type BiaDiretorSolicitacao, type InsertBiaDiretorSolicitacao,
   biaSocioSolicitacoes, type BiaSocioSolicitacao, type InsertBiaSocioSolicitacao,
+  biaMouAceites, type BiaMouAceite, type InsertBiaMouAceite,
   chamadasAlianca, type ChamadaAlianca, type InsertChamadaAlianca,
   auraAvaliacoes, type AuraAvaliacao,
   biaInfoComercial, type BiaInfoComercial,
@@ -161,6 +162,9 @@ export interface IStorage {
   getBiaSocioSolicitacaoById(id: string): Promise<BiaSocioSolicitacao | undefined>;
   updateBiaSocioSolicitacao(id: string, data: Partial<BiaSocioSolicitacao>): Promise<BiaSocioSolicitacao | undefined>;
   cancelBiaSocioSolicitacoes(biaId: string, campoSocios: string, exceptSocioId?: string): Promise<void>;
+
+  getBiaMouAceite(biaId: string, membroId: string, mouVersao: string): Promise<BiaMouAceite | undefined>;
+  createBiaMouAceite(data: InsertBiaMouAceite): Promise<BiaMouAceite>;
 
   createChamadaAlianca(data: InsertChamadaAlianca): Promise<ChamadaAlianca>;
   getChamadasAliancaByBia(biaId: string): Promise<ChamadaAlianca[]>;
@@ -849,6 +853,24 @@ export class DatabaseStorage implements IStorage {
         .filter((item) => item.campo_socios === campoSocios && (!exceptSocioId || item.socio_membro_id !== exceptSocioId))
         .map((item) => this.updateBiaSocioSolicitacao(item.id, { status: "cancelado", respondido_em: new Date() } as any))
     );
+  }
+
+  async getBiaMouAceite(biaId: string, membroId: string, mouVersao: string): Promise<BiaMouAceite | undefined> {
+    const [row] = await db.select().from(biaMouAceites)
+      .where(and(
+        eq(biaMouAceites.bia_id, biaId),
+        eq(biaMouAceites.membro_id, membroId),
+        eq(biaMouAceites.mou_versao, mouVersao)
+      ))
+      .orderBy(desc(biaMouAceites.aceito_em));
+    return row;
+  }
+
+  async createBiaMouAceite(data: InsertBiaMouAceite): Promise<BiaMouAceite> {
+    const existing = await this.getBiaMouAceite(data.bia_id, data.membro_id, data.mou_versao);
+    if (existing) return existing;
+    const [row] = await db.insert(biaMouAceites).values(data).returning();
+    return row;
   }
 
   async createChamadaAlianca(data: InsertChamadaAlianca): Promise<ChamadaAlianca> {

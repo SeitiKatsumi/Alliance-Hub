@@ -46,6 +46,7 @@ import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
 import { useAuth } from "@/hooks/use-auth";
 import { Briefcase, CheckCircle2, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, ScrollText, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 
@@ -951,6 +952,67 @@ function ProtectedApp() {
     });
     window.localStorage.setItem(key, "1");
   }, [toast, user?.id, user?.convite_pendente?.token, user?.convite_pendente?.status, user?.adesao_pendente?.token, user?.adesao_pendente?.status]);
+
+  const { data: minhasSolicitacoesDiretoria = [] } = useQuery<any[]>({
+    queryKey: ["/api/bia-diretor-solicitacoes/minhas", "popup"],
+    queryFn: async () => {
+      const res = await fetch("/api/bia-diretor-solicitacoes/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: isAuthenticated && !!user?.id,
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  const { data: minhasSolicitacoesSocio = [] } = useQuery<any[]>({
+    queryKey: ["/api/bia-socio-solicitacoes/minhas", "popup"],
+    queryFn: async () => {
+      const res = await fetch("/api/bia-socio-solicitacoes/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: isAuthenticated && !!user?.id,
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  const { data: minhasChamadasAlianca = [] } = useQuery<any[]>({
+    queryKey: ["/api/chamadas-alianca/minhas", "popup"],
+    queryFn: async () => {
+      const res = await fetch("/api/chamadas-alianca/minhas", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: isAuthenticated && !!user?.id,
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const pendentes = [
+      ...minhasSolicitacoesDiretoria.map((item) => `diretor:${item.id}`),
+      ...minhasSolicitacoesSocio.map((item) => `socio:${item.id}`),
+      ...minhasChamadasAlianca.map((item) => `chamada:${item.id}`),
+    ];
+    if (pendentes.length === 0) return;
+    const key = `built-alertas-popup:${user.id}:${pendentes.sort().join("|")}`;
+    if (window.localStorage.getItem(key)) return;
+    toast({
+      title: "Nova pendência",
+      description: pendentes.length === 1 ? "Você tem uma nova notificação para revisar." : `Você tem ${pendentes.length} notificações para revisar.`,
+      action: (
+        <ToastAction altText="Ver notificações" onClick={() => navigate("/notificacoes")}>
+          Ver
+        </ToastAction>
+      ),
+    });
+    window.localStorage.setItem(key, "1");
+  }, [minhasChamadasAlianca, minhasSolicitacoesDiretoria, minhasSolicitacoesSocio, navigate, toast, user?.id]);
 
   if (isLoading) {
     return (

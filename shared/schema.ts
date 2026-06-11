@@ -576,6 +576,21 @@ export type BiaSocioSolicitacao = typeof biaSocioSolicitacoes.$inferSelect;
 export const insertBiaSocioSolicitacaoSchema = createInsertSchema(biaSocioSolicitacoes).omit({ id: true, criado_em: true, respondido_em: true });
 export type InsertBiaSocioSolicitacao = z.infer<typeof insertBiaSocioSolicitacaoSchema>;
 
+export const biaMouAceites = pgTable("bia_mou_aceites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  membro_id: text("membro_id").notNull(),
+  mou_versao: text("mou_versao").notNull(),
+  mou_titulo: text("mou_titulo").notNull(),
+  aceito_em: timestamp("aceito_em").defaultNow(),
+}, (table) => ({
+  uniqueBiaMembroVersao: unique().on(table.bia_id, table.membro_id, table.mou_versao),
+}));
+
+export type BiaMouAceite = typeof biaMouAceites.$inferSelect;
+export const insertBiaMouAceiteSchema = createInsertSchema(biaMouAceites).omit({ id: true, aceito_em: true });
+export type InsertBiaMouAceite = z.infer<typeof insertBiaMouAceiteSchema>;
+
 export const chamadasAlianca = pgTable("chamadas_alianca", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bia_id: text("bia_id").notNull(),

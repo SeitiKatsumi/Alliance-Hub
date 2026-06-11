@@ -421,21 +421,33 @@ const EMPTY_FORM = {
 };
 
 type FormState = typeof EMPTY_FORM;
+type ChamadaAlvoCampo =
+  | "diretor_alianca"
+  | "diretor_nucleo_tecnico"
+  | "diretor_execucao"
+  | "diretor_comercial"
+  | "diretor_capital"
+  | "socios_guardioes"
+  | "socios_multiplicadores";
 
-const DIRETOR_CHAMADA_LABELS: Partial<Record<keyof FormState, string>> = {
+const DIRETOR_CHAMADA_LABELS: Partial<Record<ChamadaAlvoCampo, string>> = {
   diretor_alianca: "Diretor de Aliança",
   diretor_nucleo_tecnico: "Diretor de Núcleo Técnico",
   diretor_execucao: "Diretor de Núcleo de Obra",
   diretor_comercial: "Diretor Comercial",
   diretor_capital: "Diretor de Capital",
+  socios_guardioes: "Sócios Guardiões",
+  socios_multiplicadores: "Sócios Multiplicadores",
 };
 
-const DIRETOR_CHAMADA_TIPOS: Partial<Record<keyof FormState, string>> = {
+const DIRETOR_CHAMADA_TIPOS: Partial<Record<ChamadaAlvoCampo, string>> = {
   diretor_alianca: "Liderança",
   diretor_nucleo_tecnico: "Projeto",
   diretor_execucao: "Execução",
   diretor_comercial: "Comercial",
   diretor_capital: "Investimento",
+  socios_guardioes: "Investimento",
+  socios_multiplicadores: "Investimento",
 };
 
 const CHAMADA_ALIANCA_TITULO_OPA = "Chamada para aliança de Liderança";
@@ -1554,7 +1566,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
                 </Badge>
               )}
               {bia.destinacao && (
-                <Badge variant="secondary" className="h-5 px-2 text-[9px] font-medium">
+                <Badge variant="secondary" className="h-5 bg-blue-500 px-2 text-[9px] font-medium text-white">
                   {bia.destinacao}
                 </Badge>
               )}
@@ -1678,7 +1690,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
   const [conviteTipo, setConviteTipo] = useState("vitrine");
   const [chamadaDialogOpen, setChamadaDialogOpen] = useState(false);
-  const [chamadaDiretorCampo, setChamadaDiretorCampo] = useState<keyof FormState | null>(null);
+  const [chamadaDiretorCampo, setChamadaDiretorCampo] = useState<ChamadaAlvoCampo | null>(null);
   const [chamadaDataHora, setChamadaDataHora] = useState("");
   const [chamadaLink, setChamadaLink] = useState("");
   const [chamadaOpaTitulo, setChamadaOpaTitulo] = useState(CHAMADA_ALIANCA_TITULO_OPA);
@@ -1733,7 +1745,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
 
   const dispararAliancaMutation = useMutation({
     mutationFn: async () => {
-      if (!bia?.id || !chamadaDiretorCampo) throw new Error("BIA ou diretor não informado");
+      if (!bia?.id || !chamadaDiretorCampo) throw new Error("BIA ou papel não informado");
       const response = await apiRequest("POST", `/api/bias/${bia.id}/disparar-alianca`, {
         diretor_campo: chamadaDiretorCampo,
         data_hora: chamadaDataHora,
@@ -1980,14 +1992,14 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     socioSolicitacoesPendentes,
   ]);
 
-  function getNextChamadaOrder(field: keyof FormState) {
+  function getNextChamadaOrder(field: ChamadaAlvoCampo) {
     const maxOrder = chamadasAlianca
       .filter((item) => item.diretor_campo === field)
       .reduce((max, item) => Math.max(max, Number(item.ordem) || 0), 0);
     return maxOrder + 1;
   }
 
-  function openChamadaDialog(field: keyof FormState) {
+  function openChamadaDialog(field: ChamadaAlvoCampo) {
     const nextOrder = getNextChamadaOrder(field);
     const etapaLabel = CHAMADA_SEQUENCE_LABELS[nextOrder] || "RO para a comunidade";
     setChamadaDiretorCampo(field);
@@ -1999,13 +2011,15 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     setChamadaOpaMem("100");
     setChamadaOpaDescricao([
       `${etapaLabel} da BIA ${form.nome_bia || bia?.nome_bia || ""}.`,
-      `Cargo em aberto: ${DIRETOR_CHAMADA_LABELS[field] || "Diretoria"}.`,
+      `Papel em aberto: ${DIRETOR_CHAMADA_LABELS[field] || "Papel da aliança"}.`,
     ].join("\n"));
     setChamadaDialogOpen(true);
   }
 
-  function renderDispararAliancaButton(field: keyof FormState) {
-    const cargoPreenchido = !!form[field];
+  function renderDispararAliancaButton(field: ChamadaAlvoCampo) {
+    const cargoPreenchido = Array.isArray(form[field])
+      ? parseMemberList(form[field] as string[] | string).length > 0
+      : !!form[field];
     const nextOrder = getNextChamadaOrder(field);
     const concluded = nextOrder > 4;
     return (
@@ -2020,7 +2034,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
           data-testid={`btn-disparar-alianca-${field}`}
         >
           <Bell className="h-3.5 w-3.5" />
-          {concluded ? "Ciclo concluído" : cargoPreenchido ? "Cargo preenchido" : "Disparar chamada para aliança"}
+          {concluded ? "Ciclo concluído" : cargoPreenchido ? "Papel preenchido" : "Disparar chamada para aliança"}
         </Button>
       </div>
     );
@@ -2626,6 +2640,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                   pendingIds={socioPendingByField.socios_guardioes}
                   note="Responsáveis por manter a BIA, organizar o caixa e sustentar o projeto."
                 />
+                {renderDispararAliancaButton("socios_guardioes")}
                 <MultiMembroSelect
                   label="Sócios Multiplicadores"
                   field="socios_multiplicadores"
@@ -2636,6 +2651,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                   pendingIds={socioPendingByField.socios_multiplicadores}
                   note="Participam entregando trabalho, técnica, execução, fornecimento, venda ou relacionamento convertido em CPP."
                 />
+                {renderDispararAliancaButton("socios_multiplicadores")}
               </div>
             </TabsContent>
 
@@ -3447,11 +3463,11 @@ export default function BiasPage() {
         </div>
         {canCreateBia && (
           <Button
-            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
+            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
             onClick={openCreate}
             data-testid="btn-create-bia"
           >
-            <Plus className="w-4 h-4 mr-2" /> Nova BIA
+            <Plus className="w-4 h-4" /> Nova BIA
           </Button>
         )}
       </div>

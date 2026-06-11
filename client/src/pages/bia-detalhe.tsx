@@ -265,7 +265,6 @@ export default function BiaDetalhePage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [activeDetailTab, setActiveDetailTab] = useState("visao");
-  const [activeNucleoTab, setActiveNucleoTab] = useState("diretoria");
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
     queryKey: ["/api/bias", id],
@@ -355,14 +354,11 @@ export default function BiaDetalhePage() {
     ].filter((tab) => tab.allowed);
   }, [bia, canAccessAllNucleos, membroId]);
   const canAccessNucleos = allowedNucleoTabs.length > 0;
-  const defaultNucleoTab = allowedNucleoTabs[0]?.value || "diretoria";
-
   useEffect(() => {
-    if (!canAccessNucleos) return;
-    if (!allowedNucleoTabs.some((tab) => tab.value === activeNucleoTab)) {
-      setActiveNucleoTab(defaultNucleoTab);
+    if (activeDetailTab !== "visao" && !allowedNucleoTabs.some((tab) => tab.value === activeDetailTab)) {
+      setActiveDetailTab("visao");
     }
-  }, [activeNucleoTab, allowedNucleoTabs, canAccessNucleos, defaultNucleoTab]);
+  }, [activeDetailTab, allowedNucleoTabs]);
 
   if (loadingBia) {
     return (
@@ -443,9 +439,8 @@ export default function BiaDetalhePage() {
           Voltar para BIAs
         </Button>
         <Button
-          variant="outline"
           size="sm"
-          className="gap-2 border-brand-gold/30 text-brand-gold hover:border-brand-gold hover:bg-brand-gold/5"
+          className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
           onClick={() => navigate(`/area-aliancas?tab=bias&edit=${id}`)}
           data-testid="btn-edit-bia-detail"
         >
@@ -455,35 +450,19 @@ export default function BiaDetalhePage() {
       </div>
 
       <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="space-y-5">
-        <TabsList className={`grid h-auto w-full gap-1 bg-muted/60 p-1 ${canAccessNucleos ? "grid-cols-2" : "grid-cols-1"}`}>
-          <TabsTrigger value="visao" data-testid="tab-bia-visao">Visão geral</TabsTrigger>
-          {canAccessNucleos && (
-            <TabsTrigger value="nucleos" data-testid="tab-bia-nucleos">Núcleos</TabsTrigger>
-          )}
+        <TabsList className="flex h-auto w-full flex-wrap gap-1 bg-muted/60 p-1">
+          <TabsTrigger value="visao" className="min-h-9 flex-1 basis-[120px]" data-testid="tab-bia-visao">Visão geral</TabsTrigger>
+          {allowedNucleoTabs.map((nucleoTab) => (
+            <TabsTrigger
+              key={nucleoTab.value}
+              value={nucleoTab.value}
+              className="min-h-9 flex-1 basis-[120px]"
+              data-testid={nucleoTab.testId}
+            >
+              {nucleoTab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
-
-        {activeDetailTab === "nucleos" && canAccessNucleos && (
-          <div className="grid h-auto w-full grid-cols-1 gap-1 rounded-md bg-muted/60 p-1 sm:grid-cols-2 lg:grid-cols-5">
-            {allowedNucleoTabs.map((nucleoTab) => {
-              const active = activeNucleoTab === nucleoTab.value;
-              return (
-                <button
-                  key={nucleoTab.value}
-                  type="button"
-                  data-testid={nucleoTab.testId}
-                  onClick={() => setActiveNucleoTab(nucleoTab.value)}
-                  className={`inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-sm px-3 py-2 text-sm font-medium transition-all ${
-                    active
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-                  }`}
-                >
-                  {nucleoTab.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
 
       {/* Hero header */}
       <div
@@ -730,8 +709,7 @@ export default function BiaDetalhePage() {
         </TabsContent>
 
         {canAccessNucleos && (
-          <TabsContent value="nucleos" className="space-y-5" data-testid="content-bia-nucleos">
-            <Tabs value={activeNucleoTab} onValueChange={setActiveNucleoTab} className="space-y-5">
+          <>
               {allowedNucleoTabs.some((tab) => tab.value === "diretoria") && (
               <TabsContent value="diretoria" className="space-y-4">
                 <Card>
@@ -778,7 +756,6 @@ export default function BiaDetalhePage() {
                 <NucleoCapitalPage initialBiaId={bia.id} embedded />
               </TabsContent>
               )}
-            </Tabs>
 
             <div className="hidden grid gap-4 md:grid-cols-2">
               {nucleoCards.map((nucleo) => {
@@ -892,7 +869,7 @@ export default function BiaDetalhePage() {
                 </Tabs>
               </CardContent>
             </Card>
-          </TabsContent>
+          </>
         )}
       </Tabs>
     </div>

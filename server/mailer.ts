@@ -393,6 +393,45 @@ export async function enviarSolicitacaoSocioBia(opts: {
   await send(opts.socioEmail, `Convite para ${opts.papel} - ${opts.biaNome}`, html);
 }
 
+export async function enviarRespostaSolicitacaoBia(opts: {
+  destinatarioEmail: string;
+  destinatarioNome?: string | null;
+  convidadoNome?: string | null;
+  biaNome: string;
+  papel: string;
+  aceito: boolean;
+}) {
+  const titulo = opts.aceito ? "Convite aceito" : "Convite recusado";
+  const cor = opts.aceito ? "#22C55E" : "#EF4444";
+  const html = baseTemplate(`
+    <h2 style="color:${cor};margin-top:0">${titulo}</h2>
+    <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.destinatarioNome || "membro"}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)"><strong>${opts.convidadoNome || "O convidado"}</strong> ${opts.aceito ? "aceitou" : "recusou"} o convite para atuar como <strong>${opts.papel}</strong> na BIA <strong>${opts.biaNome}</strong>.</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${BASE_URL}/notificacoes" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver notificacoes</a>
+    </div>
+  `);
+  await send(opts.destinatarioEmail, `${titulo}: ${opts.papel} - ${opts.biaNome}`, html);
+}
+
+export async function enviarNovoIntegranteBia(opts: {
+  destinatarioEmail: string;
+  destinatarioNome?: string | null;
+  novoNome?: string | null;
+  biaNome: string;
+  papel: string;
+}) {
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">Novo integrante confirmado na BIA</h2>
+    <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.destinatarioNome || "membro"}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)"><strong>${opts.novoNome || "Um novo membro"}</strong> aceitou o MOU Padrao BUILT e agora atua como <strong>${opts.papel}</strong> na BIA <strong>${opts.biaNome}</strong>.</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${BASE_URL}/area-aliancas?tab=bias" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver BIA</a>
+    </div>
+  `);
+  await send(opts.destinatarioEmail, `Novo integrante na BIA ${opts.biaNome}`, html);
+}
+
 export async function enviarChamadaAlianca(opts: {
   destinatarioEmail: string;
   destinatarioNome?: string | null;

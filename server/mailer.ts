@@ -544,15 +544,16 @@ export async function notificarInvitadorAvaliarAura(opts: {
     baseTemplate(`
       <h2 style="color:#D7BB7D;margin-top:0">✨ Registre a Percepção de Aura</h2>
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.invitadorNome}</strong>!</p>
-      <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong> e solicitou acesso à plataforma.</p>
-      <p style="color:rgba(255,255,255,0.7)">Como pessoa que convidou ${opts.candidatoNome}, você precisa registrar sua percepção de Aura antes que o Aliado BUILT analise a candidatura.</p>
+      <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong> e concluiu seu acesso inicial à plataforma.</p>
+      <p style="color:rgba(255,255,255,0.7)">Na BUILT, reputação antecede participação. Como você foi responsável pelo convite, sua leitura contribui para contextualizar a reputação, a postura e o potencial de contribuição do candidato.</p>
       <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
-        <p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">Escolha até <strong style="color:#D7BB7D">3 palavras</strong> que descrevam melhor as qualidades de ${opts.candidatoNome} na rede BUILT.</p>
+        <p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">Registre até <strong style="color:#D7BB7D">3 palavras</strong> que representem, na sua visão, as principais qualidades, atitudes ou características percebidas em ${opts.candidatoNome} dentro da rede BUILT.</p>
       </div>
+      <p style="color:rgba(255,255,255,0.7)">Após o registro, o Aliado BUILT será notificado para dar continuidade à análise da candidatura.</p>
       <div style="text-align:center;margin:32px 0">
         <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Registrar Percepção de Aura</a>
       </div>
-      <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é pessoal e intransferível. Após o registro, o Aliado BUILT será notificado para analisar a candidatura.</p>
+      <p style="color:rgba(255,255,255,0.4);font-size:12px">Este link é pessoal e intransferível.</p>
     `)
   );
 }
@@ -702,8 +703,8 @@ export async function enviarAprovacaoVitrineInvitador(opts: {
   const html = baseTemplate(`
     <h2 style="color:#D7BB7D;margin-top:0">✅ Seu convidado foi aprovado!</h2>
     <p style="color:rgba(255,255,255,0.7)">Olá, <strong style="color:#D7BB7D">${opts.invitadorNome}</strong>!</p>
-    <p style="color:rgba(255,255,255,0.7)">O candidato <strong>${opts.candidatoNome}</strong> que você convidou foi aprovado pelo Aliado BUILT e já pode acessar a comunidade <strong>${opts.comunidadeNome}</strong>.</p>
-    <p style="color:rgba(255,255,255,0.7)">Obrigado por trazer um novo membro para a rede BUILT Alliances!</p>
+    <p style="color:rgba(255,255,255,0.7)">O candidato <strong>${opts.candidatoNome}</strong> que você convidou foi aprovado pelo Aliado BUILT e já pode acessar a nossa plataforma.</p>
+    <p style="color:rgba(255,255,255,0.7)">Sua contribuição fortalece a <strong>${opts.comunidadeNome}</strong>!</p>
     <div style="text-align:center;margin:32px 0">
       <a href="${BASE_URL}/comunidade" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Comunidade</a>
     </div>

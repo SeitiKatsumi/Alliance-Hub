@@ -314,9 +314,8 @@ export default function OpaDetalhePage() {
           Voltar para OPAs
         </Button>
         <Button
-          variant="outline"
           size="sm"
-          className="gap-2 border-brand-gold/30 text-brand-gold hover:border-brand-gold hover:bg-brand-gold/5"
+          className="gap-2 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
           onClick={() => setEditDialog(true)}
           data-testid="btn-edit-opa-detail"
         >

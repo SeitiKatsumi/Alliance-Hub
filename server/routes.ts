@@ -35,7 +35,6 @@ const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
 function isBootstrapSuperAdmin(email?: string | null) {
   return !!email && BOOTSTRAP_SUPERADMIN_EMAILS.has(String(email).trim().toLowerCase());
 }
-
 // Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE — discovered at runtime
 const biasBlockedFields = new Set<string>();
 
@@ -47,6 +46,38 @@ const comunidadeColReady: Promise<void> = new Promise(res => { comunidadeColReso
 async function getComunidadeCol(): Promise<string> {
   await comunidadeColReady;
   return COMUNIDADE_COL;
+}
+
+const BIA_INFO_COMERCIAL_FIELDS = [
+  "razao_social",
+  "cnpj",
+  "nome_fantasia",
+  "inscricao_estadual",
+  "banco",
+  "agencia",
+  "conta",
+  "tipo_conta",
+  "titular_conta",
+  "chave_pix",
+  "ativo_endereco",
+  "ativo_qualificacao",
+  "ativo_numero_matricula",
+  "ativo_cartorio",
+  "ativo_comarca",
+] as const;
+
+function pickBiaInfoComercialFields(source: Record<string, any> = {}) {
+  return Object.fromEntries(
+    BIA_INFO_COMERCIAL_FIELDS.map((field) => [field, source[field] ?? null])
+  );
+}
+
+function pickFilledBiaInfoComercialFields(source: Record<string, any> = {}) {
+  return Object.fromEntries(
+    BIA_INFO_COMERCIAL_FIELDS
+      .filter((field) => source[field] !== null && source[field] !== undefined && source[field] !== "")
+      .map((field) => [field, source[field]])
+  );
 }
 
 async function ensureBiasExtraFields() {
@@ -152,6 +183,17 @@ async function ensureBiasExtraFields() {
       meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs de Terceiros vinculados à BIA" },
       schema: { is_nullable: true },
     },
+    ...BIA_INFO_COMERCIAL_FIELDS.map((field) => ({
+      field,
+      type: "text",
+      meta: {
+        interface: "input",
+        display: "raw",
+        hidden: false,
+        note: "Campo da aba Informações da BIA",
+      },
+      schema: { is_nullable: true },
+    })),
   ];
   for (const fieldDef of fields) {
     try {
@@ -1347,6 +1389,7 @@ async function ensureBiaInfoComercialAtivoFields() {
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_qualificacao text`);
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_numero_matricula text`);
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_cartorio text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_comarca text`);
 }
 
 async function ensureComunidadeM2O(col: string, field: string, relatedCollection: string) {
@@ -2181,6 +2224,7 @@ export async function registerRoutes(
         }
       }
       const convitePorCandidato = new Map<string, any>();
+      const convidadorFallbackPorMembro = new Map<string, string>();
       try {
         const convites = await storage.getAllConvites();
         for (const convite of convites) {
@@ -2192,6 +2236,30 @@ export async function registerRoutes(
         }
       } catch (conviteError: any) {
         console.warn("[membros] Nao foi possivel carregar convidadores:", conviteError?.message || conviteError);
+      }
+      try {
+        const col = await getComunidadeCol();
+        const comunidades = await directusFetch(
+          col,
+          "fields=id,aliado.id,aliado,membros.cadastro_geral_id&limit=-1"
+        );
+        for (const comunidade of comunidades) {
+          const aliadoId = typeof comunidade?.aliado === "object" && comunidade.aliado !== null
+            ? comunidade.aliado.id
+            : comunidade?.aliado;
+          if (!aliadoId) continue;
+          const membros = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+          for (const membro of membros) {
+            const membroId = typeof membro?.cadastro_geral_id === "object"
+              ? membro.cadastro_geral_id?.id
+              : membro?.cadastro_geral_id;
+            if (membroId && !convidadorFallbackPorMembro.has(String(membroId))) {
+              convidadorFallbackPorMembro.set(String(membroId), String(aliadoId));
+            }
+          }
+        }
+      } catch (comunidadeError: any) {
+        console.warn("[membros] Nao foi possivel montar fallback de convidadores:", comunidadeError?.message || comunidadeError);
       }
       const mapped = items.map((m: any) => {
         // Parse relational Especialidades (M2M or O2M from Directus)
@@ -2219,7 +2287,9 @@ export async function registerRoutes(
           especialidades_arr = [m.especialidade];
         }
         const conviteOrigem = convitePorCandidato.get(String(m.id));
-        const convidadorId = conviteOrigem?.invitador_membro_id ? String(conviteOrigem.invitador_membro_id) : null;
+        const convidadorId = conviteOrigem?.invitador_membro_id
+          ? String(conviteOrigem.invitador_membro_id)
+          : (convidadorFallbackPorMembro.get(String(m.id)) || null);
         return {
           ...m,
           cargo: m.cargo || m.responsavel_cargo || null,
@@ -2407,19 +2477,21 @@ export async function registerRoutes(
       const col = await getComunidadeCol();
       const memberId = req.params.id;
       // Fetch all communities with their members (uses the working M2M alias)
-      const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,membros.cadastro_geral_id&limit=200`;
+      const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id&limit=200`;
       const ar = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!ar.ok) return res.json(null);
       const aData = await ar.json();
       const comunidades: any[] = aData.data || [];
       const found = comunidades.find((c: any) => {
+        const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
+        if (aliadoId === memberId) return true;
         const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
         return membros.some((m: any) => {
           const cgId = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id;
           return cgId === memberId;
         });
       });
-      res.json(found ? { id: found.id, nome: found.nome, sigla: found.sigla } : null);
+      res.json(found ? { id: found.id, nome: found.nome, sigla: found.sigla, aliado: found.aliado || null } : null);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2430,10 +2502,23 @@ export async function registerRoutes(
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const candidatoId = req.params.id;
-      const convites = await storage.getConvitesByCandidato(candidatoId);
-      const vitrineConvite = convites.find((c: any) => c.tipo === "vitrine" && c.invitador_membro_id);
-      if (!vitrineConvite?.invitador_membro_id) return res.json(null);
-      const invitador = await getDirectusMembro(vitrineConvite.invitador_membro_id).catch(() => null);
+      const convites = await storage.getConvitesByCandidato(candidatoId).catch((conviteError: any) => {
+        console.warn("[membros] Nao foi possivel carregar convidador individual:", conviteError?.message || conviteError);
+        return [];
+      });
+      const vitrineConvite = convites.find((c: any) => c.invitador_membro_id);
+      let invitadorId = vitrineConvite?.invitador_membro_id ? String(vitrineConvite.invitador_membro_id) : null;
+      if (!invitadorId) {
+        const col = await getComunidadeCol();
+        const comunidades = await directusFetch(
+          col,
+          `filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(candidatoId)}&fields=id,aliado.id,aliado&limit=1`
+        ).catch(() => []);
+        const aliado = comunidades[0]?.aliado;
+        invitadorId = typeof aliado === "object" && aliado !== null ? aliado.id : aliado || null;
+      }
+      if (!invitadorId) return res.json(null);
+      const invitador = await getDirectusMembro(invitadorId).catch(() => null);
       if (!invitador) return res.json(null);
       res.json({ id: invitador.id, nome: invitador.nome || invitador.Nome_de_usuario || "Membro BUILT" });
     } catch (error: any) {
@@ -2442,6 +2527,76 @@ export async function registerRoutes(
   });
 
   // POST /api/membros/:id/comunidade — assign member to a community (and remove from old one)
+  app.patch("/api/membros/:id/convidador", async (req, res) => {
+    if (!await requireCadastroAccess(req, res)) return;
+    try {
+      const candidatoId = req.params.id;
+      const convidadorId = req.body?.convidador_membro_id ? String(req.body.convidador_membro_id) : null;
+      const convites = await storage.getConvitesByCandidato(candidatoId);
+
+      if (!convidadorId) {
+        await Promise.all(
+          convites
+            .filter((convite: any) => convite.invitador_membro_id)
+            .map((convite: any) => storage.updateConvite(convite.id, { invitador_membro_id: null }))
+        );
+        return res.json({ success: true, convidador_membro_id: null });
+      }
+
+      const candidato = await getDirectusMembro(candidatoId).catch(() => null);
+      const convidador = await getDirectusMembro(convidadorId).catch(() => null);
+      if (!convidador) return res.status(404).json({ error: "Convidador não encontrado" });
+
+      let comunidadeId = req.body?.comunidade_id ? String(req.body.comunidade_id) : null;
+      if (!comunidadeId) {
+        comunidadeId = convites.find((convite: any) => convite.comunidade_id)?.comunidade_id || null;
+      }
+      if (!comunidadeId) {
+        const col = await getComunidadeCol();
+        const comunidades = await directusFetch(
+          col,
+          `filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(candidatoId)}&fields=id&limit=1`
+        ).catch(() => []);
+        comunidadeId = comunidades[0]?.id ? String(comunidades[0].id) : null;
+      }
+      if (!comunidadeId) {
+        return res.status(400).json({ error: "Selecione uma comunidade antes de definir quem convidou este membro." });
+      }
+
+      const existing = convites[0];
+      if (existing) {
+        const updated = await storage.updateConvite(existing.id, {
+          invitador_membro_id: convidadorId,
+          comunidade_id: comunidadeId,
+        } as any);
+        return res.json({
+          success: true,
+          convidador_membro_id: convidadorId,
+          convidador_nome: convidador.nome || convidador.Nome_de_usuario || "Membro BUILT",
+          convite: updated,
+        });
+      }
+
+      const created = await storage.createConvite({
+        comunidade_id: comunidadeId,
+        candidato_membro_id: candidatoId,
+        candidato_nome: candidato?.nome || candidato?.Nome_de_usuario || null,
+        candidato_email: candidato?.email || null,
+        invitador_membro_id: convidadorId,
+        status: "membro",
+        tipo: "manual",
+      });
+      res.json({
+        success: true,
+        convidador_membro_id: convidadorId,
+        convidador_nome: convidador.nome || convidador.Nome_de_usuario || "Membro BUILT",
+        convite: created,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/membros/:id/convites-comunidade", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
@@ -2657,6 +2812,56 @@ export async function registerRoutes(
     return biaMouTextoCache;
   }
 
+  function mouValue(value: any, fallback = "não informado") {
+    const text = value === null || value === undefined ? "" : String(value).trim();
+    return text || fallback;
+  }
+
+  function buildBiaMouAtivoTexto(bia: any) {
+    const qualificacao = mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo não informado");
+    const endereco = mouValue(bia?.ativo_endereco || bia?.localizacao);
+    const matricula = mouValue(bia?.ativo_numero_matricula);
+    const cartorio = mouValue(bia?.ativo_cartorio, "Cartório não informado");
+    const comarca = mouValue(bia?.ativo_comarca, "Comarca não informada");
+    const destinacao = mouValue(bia?.destinacao, "não informada");
+
+    return [
+      `O Ativo em questão é ${qualificacao}, situado no ${endereco}, vinculado à Matrícula nº ${matricula} do ${cartorio}, Comarca de ${comarca}, com todas as suas acessões, frações ideais, características e ônus.`,
+      "",
+      "A descrição registral constante da matrícula integra este MOU por referência, sendo vedada qualquer interpretação extensiva a outros ativos.",
+      "",
+      `A exploração econômica será destinada à finalidade ${destinacao}.`,
+    ].join("\n\n");
+  }
+
+  function appendBiaMouRodape(texto: string, biaId: string, bia: any) {
+    const biaLabel = [bia?.nome_bia, biaId].filter(Boolean).join(" / ");
+    const rodape = `Esta página integra o MoU Padrão BUILT vinculado à BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberações internas e instrumentos jurídicos específicos da respectiva Aliança.`;
+    return `${texto.trim()}\n\n${rodape}`;
+  }
+
+  async function getBiaMouTextoPersonalizado(biaId?: string | null) {
+    const texto = getBiaMouTexto();
+    if (!biaId) return texto;
+    const bia = await directusFetchOne(
+      "bias_projetos",
+      String(biaId),
+      "fields=nome_bia,objetivo_alianca,destinacao,localizacao,ativo_endereco,ativo_qualificacao,ativo_numero_matricula,ativo_cartorio,ativo_comarca"
+    ).catch(() => null);
+    if (!bia) return texto;
+    const infoLocal = await storage.getBiaInfoComercial(String(biaId)).catch(() => null);
+    const biaComInfo = {
+      ...bia,
+      ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
+      ...pickFilledBiaInfoComercialFields(bia ?? {}),
+    };
+    const textoComAtivo = texto.replace(
+      /O Ativo em questão é[\s\S]*?A exploração econômica será destinada à renda\./,
+      buildBiaMouAtivoTexto(biaComInfo)
+    );
+    return appendBiaMouRodape(textoComAtivo, String(biaId), biaComInfo);
+  }
+
   const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para aliança de Liderança";
   const CHAMADA_ALIANCA_SEQUENCE = [
     { ordem: 1, escopo: "comunidade", label: "RO para a comunidade" },
@@ -2670,6 +2875,18 @@ export async function registerRoutes(
     diretor_execucao: { nucleo: "Núcleo de Obra", tipo: "Execução" },
     diretor_comercial: { nucleo: "Núcleo Comercial", tipo: "Comercial" },
     diretor_capital: { nucleo: "Núcleo de Capital", tipo: "Investimento" },
+  };
+
+  Object.keys(CHAMADA_DIRETOR_CONFIG).forEach((campo) => {
+    CHAMADA_DIRETOR_CONFIG[campo].tipo = "Liderança";
+  });
+
+  const CHAMADA_DIRETOR_PERCENTUAL_FIELDS: Record<string, string> = {
+    diretor_alianca: "perc_dir_alianca",
+    diretor_nucleo_tecnico: "perc_dir_tecnico",
+    diretor_execucao: "perc_dir_obras",
+    diretor_comercial: "perc_dir_comercial",
+    diretor_capital: "perc_dir_capital",
   };
 
   const CHAMADA_PATRIMONIAL_CONFIG: Record<string, { nucleo: string; tipo: string; label: string }> = {
@@ -2775,7 +2992,7 @@ export async function registerRoutes(
           mou: {
             titulo: BIA_MOU_TITULO,
             versao: BIA_MOU_VERSAO,
-            texto: getBiaMouTexto(),
+            texto: await getBiaMouTextoPersonalizado(biaId),
           },
         },
       };
@@ -2850,16 +3067,23 @@ export async function registerRoutes(
         continue;
       }
 
-      if (currentDiretor && currentDiretor === requestedDiretor) {
-        continue;
-      }
-
-      await storage.cancelBiaDiretorSolicitacoes(opts.biaId, config.campoDiretor, requestedDiretor);
-
       const pendentes = await storage.getBiaDiretorSolicitacoesPendentesByBia(opts.biaId);
       const jaExiste = pendentes.some((item) =>
         item.campo_diretor === config.campoDiretor && item.diretor_membro_id === requestedDiretor
       );
+
+      if (currentDiretor && currentDiretor === requestedDiretor) {
+        const mouAceito = await storage.getBiaMouAceite(opts.biaId, requestedDiretor, BIA_MOU_VERSAO);
+        if (mouAceito) continue;
+        if (jaExiste) continue;
+        if (opts.payload) {
+          opts.payload[config.campoDiretor] = null;
+          opts.payload[config.campoPercentual] = null;
+        }
+      }
+
+      await storage.cancelBiaDiretorSolicitacoes(opts.biaId, config.campoDiretor, requestedDiretor);
+
       if (jaExiste) continue;
 
       const solicitacao = await createDiretorSolicitacao({
@@ -3270,6 +3494,20 @@ export async function registerRoutes(
         : !!diretorId;
       if (papelPreenchido) return res.status(400).json({ error: "Este papel ja possui membro. Dispare a alianca apenas para papeis em aberto." });
 
+      const percentualField = CHAMADA_DIRETOR_PERCENTUAL_FIELDS[diretorCampo];
+      const valorBaseDm = getBiaNumericValue(bia, "valor_origem", "valor_geral_venda_vgv", "valor_realizado_venda");
+      const percentualDm = percentualField
+        ? Number(String(bia[percentualField] ?? "").replace(",", "."))
+        : null;
+      const valorDmDiretor = percentualField && Number.isFinite(percentualDm)
+        ? valorBaseDm * Number(percentualDm) / 100
+        : null;
+      if (percentualField && (!valorDmDiretor || valorDmDiretor <= 0)) {
+        return res.status(400).json({
+          error: `O percentual DM de ${(diretorConfig as any).label || diretorConfig.nucleo} esta zerado. Ajuste a aba DM antes de disparar a chamada.`,
+        });
+      }
+
       let chamadasStorageDisponivel = true;
       let existentes: any[] = [];
       try {
@@ -3293,8 +3531,11 @@ export async function registerRoutes(
       });
 
       const tituloOpa = String(opaInput.nome_oportunidade || "").trim() || CHAMADA_ALIANCA_TITULO_OPA;
-      const tipoOpa = String(opaInput.tipo || "").trim() || diretorConfig.tipo;
+      const tipoOpa = percentualField ? "Liderança" : (String(opaInput.tipo || "").trim() || diretorConfig.tipo);
       const valorOpaInput = Number(String(opaInput.valor_origem_opa ?? "").replace(/\./g, "").replace(",", "."));
+      const valorOpaFinal = percentualField
+        ? Number(valorDmDiretor)
+        : (Number.isFinite(valorOpaInput) && valorOpaInput > 0 ? valorOpaInput : valorBaseDm);
       const memInput = Number(String(opaInput.Minimo_esforco_multiplicador ?? "").replace(",", "."));
       const descricaoEditada = String(opaInput.descricao || "").trim();
       const descricao = [
@@ -3313,7 +3554,7 @@ export async function registerRoutes(
         tipo: tipoOpa,
         status: "ativa",
         bia: req.params.id,
-        valor_origem_opa: Number.isFinite(valorOpaInput) && valorOpaInput > 0 ? valorOpaInput : getBiaNumericValue(bia, "valor_origem", "valor_geral_venda_vgv", "valor_realizado_venda"),
+        valor_origem_opa: valorOpaFinal,
         Minimo_esforco_multiplicador: Number.isFinite(memInput) && memInput > 0 ? memInput : 100,
         nucleo_alianca: diretorConfig.nucleo,
         descricao: descricaoFinal,
@@ -3715,6 +3956,29 @@ export async function registerRoutes(
     return data;
   }
 
+  const BIA_DIRETOR_DIRECT_FIELDS = [
+    "diretor_alianca",
+    "diretor_nucleo_tecnico",
+    "diretor_execucao",
+    "diretor_comercial",
+    "diretor_capital",
+    "perc_dir_alianca",
+    "perc_dir_tecnico",
+    "perc_dir_obras",
+    "perc_dir_comercial",
+    "perc_dir_capital",
+  ];
+
+  function pickBiaDiretorDirectFields(body: Record<string, any>): Record<string, any> {
+    const data: Record<string, any> = {};
+    for (const field of BIA_DIRETOR_DIRECT_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+      const value = body[field];
+      data[field] = value === "" || value === undefined ? null : value;
+    }
+    return data;
+  }
+
   app.post("/api/bias", async (req, res) => {
     try {
       const sessionRole = (req.session as any).role || "user";
@@ -3764,30 +4028,63 @@ export async function registerRoutes(
       // Create the BIA in Directus
       const createBody = { ...req.body };
       if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
+      if (sessionMembroId && !createBody.diretor_alianca) createBody.diretor_alianca = sessionMembroId;
+      if (sessionMembroId && !createBody.aliado_built) {
+        try {
+          const col = await getComunidadeCol();
+          const comunidades = await directusFetch(
+            col,
+            `filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(sessionMembroId)}&fields=id,aliado.id,aliado&limit=1`
+          );
+          let comunidade = comunidades[0];
+          if (!comunidade) {
+            const comunidadesComoAliado = await directusFetch(
+              col,
+              `filter[aliado][_eq]=${encodeURIComponent(sessionMembroId)}&fields=id,aliado.id,aliado&limit=1`
+            );
+            comunidade = comunidadesComoAliado[0];
+          }
+          const aliado = comunidade?.aliado;
+          const aliadoId = typeof aliado === "object" && aliado !== null ? aliado.id : aliado;
+          if (aliadoId) createBody.aliado_built = aliadoId;
+        } catch (_) {}
+      }
       const createPayload = prepareBiaPayload(createBody);
-      const item = await directusCreate("bias_projetos", createPayload);
+      let item = await directusCreate("bias_projetos", createPayload);
+      let diretorFlowError: string | null = null;
       const diretorSolicitacoes = await processDiretorSolicitacoes({
         biaId: item.id,
-        biaNome: item.nome_bia || req.body.nome_bia || null,
-        body: req.body,
+        biaNome: item.nome_bia || createBody.nome_bia || null,
+        body: createBody,
         payload: createPayload,
         req,
         currentBia: null,
       }).catch((e: any) => {
         console.error("[bia-diretores] failed to create requests:", e.message);
+        diretorFlowError = e.message;
         return [];
       });
+      if (diretorFlowError) {
+        const diretorFallbackPayload = pickBiaDiretorDirectFields(createBody);
+        if (Object.keys(diretorFallbackPayload).length > 0) {
+          try {
+            item = await directusUpdate("bias_projetos", item.id, diretorFallbackPayload);
+          } catch (fallbackErr: any) {
+            console.error("[bia-diretores] failed to save direct fallback fields:", fallbackErr.message);
+          }
+        }
+      }
       const socioSolicitacoes = await processSocioSolicitacoes({
         biaId: item.id,
-        biaNome: item.nome_bia || req.body.nome_bia || null,
-        body: req.body,
+        biaNome: item.nome_bia || createBody.nome_bia || null,
+        body: createBody,
         req,
         currentBia: null,
       }).catch((e: any) => {
         console.error("[bia-socios] failed to create requests:", e.message);
         return [];
       });
-      const valorOrigem = parseFloat(req.body.valor_origem) || 0;
+      const valorOrigem = parseFloat(createBody.valor_origem) || 0;
       if (valorOrigem > 0) {
         syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
       }
@@ -3847,14 +4144,14 @@ export async function registerRoutes(
           }
 
           console.log(`[bia-aprovacao] Pending approval created for BIA ${item.id}, aliado: ${aliadoBuiltEmail || "not found"}`);
-          return res.json({ ...item, _aprovacao_pendente: true, _aprovacao_id: aprovacao.id, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
+          return res.json({ ...item, _aprovacao_pendente: true, _aprovacao_id: aprovacao.id, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
         } catch (aprovErr: any) {
           console.error("[bia-aprovacao] Failed to create approval record:", aprovErr.message);
           // BIA was created — return it even if approval record failed
         }
       }
 
-      res.json({ ...item, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
+      res.json({ ...item, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3870,6 +4167,7 @@ export async function registerRoutes(
       ).catch(() => null);
       let diretorSolicitacoes: any[] = [];
       let socioSolicitacoes: any[] = [];
+      let diretorFlowError: string | null = null;
       try {
         const payloadComSolicitacoes = { ...payload };
         diretorSolicitacoes = await processDiretorSolicitacoes({
@@ -3883,6 +4181,8 @@ export async function registerRoutes(
         payload = payloadComSolicitacoes;
       } catch (e: any) {
         console.error("[bia-diretores] failed to process requests; saving direct BIA fields instead:", e.message);
+        diretorFlowError = e.message;
+        Object.assign(payload, pickBiaDiretorDirectFields(req.body));
       }
       try {
         socioSolicitacoes = await processSocioSolicitacoes({
@@ -3941,13 +4241,13 @@ export async function registerRoutes(
             ];
             try {
               const cppSummary = await syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
-              return res.json({ ...item, _cppSummary: cppSummary, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
+              return res.json({ ...item, _cppSummary: cppSummary, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
             } catch (syncErr: any) {
               console.error("[sync fluxo_caixa] error:", syncErr.message);
-              return res.json({ ...item, _cppSummary: null, _cppError: syncErr.message, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
+              return res.json({ ...item, _cppSummary: null, _cppError: syncErr.message, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
             }
           }
-          return res.json({ ...item, _diretor_solicitacoes: diretorSolicitacoes.length, _socio_solicitacoes: socioSolicitacoes.length });
+          return res.json({ ...item, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
         } catch (err: any) {
           const msg: string = err.message || "";
           let parsed: any = null;
@@ -4007,8 +4307,18 @@ export async function registerRoutes(
   app.get("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const info = await storage.getBiaInfoComercial(req.params.id);
-      res.json(info ?? {});
+      const localInfo = await storage.getBiaInfoComercial(req.params.id).catch((error: any) => {
+        console.warn(`[bia-info] leitura local indisponivel: ${error?.message || error}`);
+        return null;
+      });
+      const bia = await directusFetchOne("bias_projetos", req.params.id).catch((error: any) => {
+        console.warn(`[bia-info] leitura Directus indisponivel: ${error?.message || error}`);
+        return null;
+      });
+      res.json({
+        ...(localInfo ?? {}),
+        ...pickFilledBiaInfoComercialFields(bia ?? {}),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -4018,39 +4328,24 @@ export async function registerRoutes(
   app.put("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const {
-        razao_social,
-        cnpj,
-        nome_fantasia,
-        inscricao_estadual,
-        banco,
-        agencia,
-        conta,
-        tipo_conta,
-        titular_conta,
-        chave_pix,
-        ativo_endereco,
-        ativo_qualificacao,
-        ativo_numero_matricula,
-        ativo_cartorio,
-      } = req.body;
-      const info = await storage.upsertBiaInfoComercial(req.params.id, {
-        razao_social: razao_social || null,
-        cnpj: cnpj || null,
-        nome_fantasia: nome_fantasia || null,
-        inscricao_estadual: inscricao_estadual || null,
-        banco: banco || null,
-        agencia: agencia || null,
-        conta: conta || null,
-        tipo_conta: tipo_conta || null,
-        titular_conta: titular_conta || null,
-        chave_pix: chave_pix || null,
-        ativo_endereco: ativo_endereco || null,
-        ativo_qualificacao: ativo_qualificacao || null,
-        ativo_numero_matricula: ativo_numero_matricula || null,
-        ativo_cartorio: ativo_cartorio || null,
+      const infoPayload = pickBiaInfoComercialFields(req.body);
+      let directusInfo = infoPayload;
+      try {
+        directusInfo = await directusUpdate("bias_projetos", req.params.id, infoPayload);
+      } catch (firstError: any) {
+        await ensureBiasExtraFields().catch((ensureError: any) => {
+          console.warn(`[bia-info] campos Directus nao sincronizados: ${ensureError?.message || ensureError}`);
+        });
+        directusInfo = await directusUpdate("bias_projetos", req.params.id, infoPayload);
+      }
+      const localInfo = await storage.upsertBiaInfoComercial(req.params.id, infoPayload).catch((error: any) => {
+        console.warn(`[bia-info] espelho local indisponivel: ${error?.message || error}`);
+        return null;
       });
-      res.json(info);
+      res.json({
+        ...(localInfo ?? {}),
+        ...pickBiaInfoComercialFields(directusInfo ?? infoPayload),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -4182,22 +4477,18 @@ export async function registerRoutes(
 
   // ========== BIA DIRETOR SOLICITACOES ==========
 
-  app.get("/api/bia-mou/padrao", async (_req, res) => {
+  app.get("/api/bia-mou/padrao", async (req, res) => {
     res.json({
       titulo: BIA_MOU_TITULO,
       versao: BIA_MOU_VERSAO,
-      texto: getBiaMouTexto(),
+      texto: await getBiaMouTextoPersonalizado(req.query?.biaId ? String(req.query.biaId) : null),
     });
   });
 
   app.get("/api/bia-diretor-solicitacoes/minhas", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
-      const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
-      if (sessionRole === "admin" || sessionRole === "manager" || sessionRole === "superadmin") {
-        return res.json(await storage.getBiaDiretorSolicitacoesPendentes());
-      }
       if (!sessionMembroId) return res.json([]);
       return res.json(await storage.getBiaDiretorSolicitacoesParaDiretor(sessionMembroId));
     } catch (error: any) {
@@ -4311,11 +4602,7 @@ export async function registerRoutes(
   app.get("/api/bia-socio-solicitacoes/minhas", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
     try {
-      const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
-      if (sessionRole === "admin" || sessionRole === "manager" || sessionRole === "superadmin") {
-        return res.json(await storage.getBiaSocioSolicitacoesPendentes());
-      }
       if (!sessionMembroId) return res.json([]);
       return res.json(await storage.getBiaSocioSolicitacoesParaSocio(sessionMembroId));
     } catch (error: any) {

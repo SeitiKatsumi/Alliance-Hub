@@ -88,6 +88,8 @@ interface BiaDiretorSolicitacao {
   diretor_membro_id: string;
   papel: string;
   campo_diretor: string;
+  campo_percentual?: string;
+  percentual?: string | number | null;
   status: string;
 }
 
@@ -340,6 +342,11 @@ function parseBRLToNumber(formatted: string): number {
   return parseFloat(cleaned) || 0;
 }
 
+function parsePercentToNumber(value: string | number | null | undefined): number {
+  if (value === null || value === undefined || value === "") return 0;
+  return parseFloat(String(value).replace(",", ".")) || 0;
+}
+
 function numToBRLStr(v?: string | number | null): string {
   const num = parseFloat(String(v ?? "")) || 0;
   if (!num) return "";
@@ -442,12 +449,20 @@ const DIRETOR_CHAMADA_LABELS: Partial<Record<ChamadaAlvoCampo, string>> = {
 
 const DIRETOR_CHAMADA_TIPOS: Partial<Record<ChamadaAlvoCampo, string>> = {
   diretor_alianca: "Liderança",
-  diretor_nucleo_tecnico: "Projeto",
-  diretor_execucao: "Execução",
-  diretor_comercial: "Comercial",
-  diretor_capital: "Investimento",
+  diretor_nucleo_tecnico: "Liderança",
+  diretor_execucao: "Liderança",
+  diretor_comercial: "Liderança",
+  diretor_capital: "Liderança",
   socios_guardioes: "Investimento",
   socios_multiplicadores: "Investimento",
+};
+
+const DIRETOR_CHAMADA_PERCENT_FIELDS: Partial<Record<ChamadaAlvoCampo, keyof FormState>> = {
+  diretor_alianca: "perc_dir_alianca",
+  diretor_nucleo_tecnico: "perc_dir_tecnico",
+  diretor_execucao: "perc_dir_obras",
+  diretor_comercial: "perc_dir_comercial",
+  diretor_capital: "perc_dir_capital",
 };
 
 const CHAMADA_ALIANCA_TITULO_OPA = "Chamada para aliança de Liderança";
@@ -666,7 +681,11 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
                 <CommandItem
                   value="none nenhum"
                   onSelect={() => {
-                    setForm({ ...form, [field]: "" });
+                    const nextForm = { ...form, [field]: "" };
+                    if (field === "diretor_alianca" && form.aliado_built === form.diretor_alianca) {
+                      nextForm.aliado_built = "";
+                    }
+                    setForm(nextForm);
                     setOpen(false);
                   }}
                   data-testid={`option-${field}-none`}
@@ -681,7 +700,11 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
                       key={m.id}
                       value={`${memberLabel} ${m.id}`}
                       onSelect={() => {
-                        setForm({ ...form, [field]: m.id });
+                        const nextForm = { ...form, [field]: m.id };
+                        if (field === "diretor_alianca" && !form.aliado_built) {
+                          nextForm.aliado_built = m.id;
+                        }
+                        setForm(nextForm);
                         setOpen(false);
                       }}
                       data-testid={`option-${field}-${m.id}`}
@@ -1662,6 +1685,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   const { toast } = useToast();
   const { user } = useAuth();
   const isEdit = !!bia;
+  const membroLogadoId = user?.membro_directus_id || "";
 
   const EMPTY_INFO = {
     razao_social: "",
@@ -1678,6 +1702,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     ativo_qualificacao: "",
     ativo_numero_matricula: "",
     ativo_cartorio: "",
+    ativo_comarca: "",
   };
   type InfoComercialForm = typeof EMPTY_INFO;
 
@@ -1738,6 +1763,17 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     },
   });
 
+  const { data: minhaComunidade } = useQuery<any>({
+    queryKey: ["/api/membros", membroLogadoId, "comunidade"],
+    queryFn: async () => {
+      const res = await fetch(`/api/membros/${membroLogadoId}/comunidade`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: open && !isEdit && !!membroLogadoId,
+    staleTime: 60_000,
+  });
+
   function handleConviteTipoChange(tipo: string) {
     setConviteTipo(tipo);
     gerarConviteMutation.mutate({ force: true, tipo });
@@ -1746,6 +1782,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   const dispararAliancaMutation = useMutation({
     mutationFn: async () => {
       if (!bia?.id || !chamadaDiretorCampo) throw new Error("BIA ou papel não informado");
+      if (isDiretorChamadaField(chamadaDiretorCampo) && parseBRLToNumber(chamadaOpaValor) <= 0) {
+        throw new Error("Ajuste o percentual DM deste diretor antes de disparar a chamada.");
+      }
       const response = await apiRequest("POST", `/api/bias/${bia.id}/disparar-alianca`, {
         diretor_campo: chamadaDiretorCampo,
         data_hora: chamadaDataHora,
@@ -1853,7 +1892,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
       if (bia?.id) {
         fetch(`/api/bias/${bia.id}/info-comercial`, { credentials: "include" })
           .then(r => r.ok ?r.json() : {})
-          .then(data => {
+          .then((data: any) => {
             setInfoForm({
               razao_social: data.razao_social || "",
               cnpj: data.cnpj || "",
@@ -1869,12 +1908,101 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
               ativo_qualificacao: data.ativo_qualificacao || "",
               ativo_numero_matricula: data.ativo_numero_matricula || "",
               ativo_cartorio: data.ativo_cartorio || "",
+              ativo_comarca: data.ativo_comarca || "",
             });
           })
           .catch(() => {});
       }
     }
   }, [open, bia]);
+
+  useEffect(() => {
+    if (!open || isEdit) return;
+    const aliadoId = typeof minhaComunidade?.aliado === "object" && minhaComunidade.aliado !== null
+      ? minhaComunidade.aliado.id
+      : minhaComunidade?.aliado;
+    const diretorId = membroLogadoId;
+    if (!aliadoId && !diretorId) return;
+
+    setForm((current) => ({
+      ...current,
+      aliado_built: current.aliado_built || aliadoId || "",
+      diretor_alianca: current.diretor_alianca || diretorId || "",
+    }));
+  }, [open, isEdit, minhaComunidade, membroLogadoId]);
+
+  useEffect(() => {
+    if (!open || !bia?.id || diretorSolicitacoesPendentes.length === 0) return;
+
+    const diretorFields = new Set<keyof FormState>([
+      "diretor_alianca",
+      "diretor_nucleo_tecnico",
+      "diretor_execucao",
+      "diretor_comercial",
+      "diretor_capital",
+    ]);
+    const percentualByDiretor: Partial<Record<keyof FormState, keyof FormState>> = {
+      diretor_alianca: "perc_dir_alianca",
+      diretor_nucleo_tecnico: "perc_dir_tecnico",
+      diretor_execucao: "perc_dir_obras",
+      diretor_comercial: "perc_dir_comercial",
+      diretor_capital: "perc_dir_capital",
+    };
+
+    setForm((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      diretorSolicitacoesPendentes
+        .filter((solicitacao) => solicitacao.status === "pendente")
+        .forEach((solicitacao) => {
+          const diretorField = solicitacao.campo_diretor as keyof FormState;
+          if (!diretorFields.has(diretorField) || !solicitacao.diretor_membro_id) return;
+
+          if (String(next[diretorField] || "") !== String(solicitacao.diretor_membro_id)) {
+            (next as any)[diretorField] = solicitacao.diretor_membro_id;
+            changed = true;
+          }
+
+          const percentualField = percentualByDiretor[diretorField];
+          if (percentualField && solicitacao.percentual != null && String(next[percentualField] || "") !== String(solicitacao.percentual)) {
+            (next as any)[percentualField] = String(solicitacao.percentual);
+            changed = true;
+          }
+        });
+
+      return changed ? next : current;
+    });
+  }, [open, bia?.id, diretorSolicitacoesPendentes]);
+
+  useEffect(() => {
+    if (!open || !bia?.id || socioSolicitacoesPendentes.length === 0) return;
+
+    setForm((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      (["socios_guardioes", "socios_multiplicadores"] as const).forEach((field) => {
+        const selected = parseMemberList(next[field] as string[] | string);
+        const selectedSet = new Set(selected);
+        socioSolicitacoesPendentes
+          .filter((solicitacao) =>
+            solicitacao.status === "pendente" &&
+            solicitacao.campo_socios === field &&
+            solicitacao.socio_membro_id
+          )
+          .forEach((solicitacao) => selectedSet.add(solicitacao.socio_membro_id));
+
+        const merged = Array.from(selectedSet);
+        if (merged.length !== selected.length) {
+          (next as any)[field] = merged;
+          changed = true;
+        }
+      });
+
+      return changed ? next : current;
+    });
+  }, [open, bia?.id, socioSolicitacoesPendentes]);
 
   async function uploadFiles(files: File[]): Promise<string[]> {
     if (files.length === 0) return [];
@@ -1999,22 +2127,43 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     return maxOrder + 1;
   }
 
+  function isDiretorChamadaField(field: ChamadaAlvoCampo | null): boolean {
+    return !!field && !!DIRETOR_CHAMADA_PERCENT_FIELDS[field];
+  }
+
+  function getChamadaDmValue(field: ChamadaAlvoCampo): number {
+    const percentField = DIRETOR_CHAMADA_PERCENT_FIELDS[field];
+    if (!percentField) return valorOrigem;
+    const percent = parsePercentToNumber(form[percentField] as any);
+    return valorOrigem * percent / 100;
+  }
+
   function openChamadaDialog(field: ChamadaAlvoCampo) {
     const nextOrder = getNextChamadaOrder(field);
     const etapaLabel = CHAMADA_SEQUENCE_LABELS[nextOrder] || "RO para a comunidade";
+    const opaValue = getChamadaDmValue(field);
     setChamadaDiretorCampo(field);
     setChamadaDataHora("");
     setChamadaLink("");
     setChamadaOpaTitulo(CHAMADA_ALIANCA_TITULO_OPA);
     setChamadaOpaTipo(DIRETOR_CHAMADA_TIPOS[field] || "Liderança");
-    setChamadaOpaValor(numToBRLStr(form.valor_origem || ""));
+    setChamadaOpaValor(opaValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setChamadaOpaMem("100");
     setChamadaOpaDescricao([
       `${etapaLabel} da BIA ${form.nome_bia || bia?.nome_bia || ""}.`,
       `Papel em aberto: ${DIRETOR_CHAMADA_LABELS[field] || "Papel da aliança"}.`,
     ].join("\n"));
     setChamadaDialogOpen(true);
+    if (isDiretorChamadaField(field) && opaValue <= 0) {
+      toast({
+        title: "Valor da chamada zerado",
+        description: `Ajuste o percentual DM de ${DIRETOR_CHAMADA_LABELS[field] || "diretoria"} antes de disparar a chamada.`,
+        variant: "destructive",
+      });
+    }
   }
+
+  const chamadaValorZerado = isDiretorChamadaField(chamadaDiretorCampo) && parseBRLToNumber(chamadaOpaValor) <= 0;
 
   function renderDispararAliancaButton(field: ChamadaAlvoCampo) {
     const cargoPreenchido = Array.isArray(form[field])
@@ -2180,6 +2329,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
         const s = saved._cppSummary;
         const diretorCount = Number(saved?._diretor_solicitacoes || 0);
         const socioCount = Number(saved?._socio_solicitacoes || 0);
+        const diretorFallbackText = saved?._diretor_flow_error
+          ? " Convite de diretoria indisponível agora; diretores salvos diretamente na BIA."
+          : "";
         const diretorText = diretorCount > 0
           ? ` ${diretorCount} solicitação${diretorCount !== 1 ? "ões" : ""} enviada${diretorCount !== 1 ? "s" : ""} para aceite de diretoria.`
           : "";
@@ -2188,11 +2340,14 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
           : "";
         toast({
           title: isEdit ?"BIA atualizada!" : "BIA criada!",
-          description: `${s.cppCount} lançamento${s.cppCount !== 1 ?"s" : ""} CPP gerado${s.cppCount !== 1 ?"s" : ""} para ${s.parcelas} parcela${s.parcelas !== 1 ?"s" : ""}.${diretorText}${socioText}`,
+          description: `${s.cppCount} lançamento${s.cppCount !== 1 ?"s" : ""} CPP gerado${s.cppCount !== 1 ?"s" : ""} para ${s.parcelas} parcela${s.parcelas !== 1 ?"s" : ""}.${diretorText}${diretorFallbackText}${socioText}`,
         });
       } else {
         const diretorCount = Number(saved?._diretor_solicitacoes || 0);
         const socioCount = Number(saved?._socio_solicitacoes || 0);
+        const diretorFallbackText = saved?._diretor_flow_error
+          ? "Convite de diretoria indisponível agora; diretores salvos diretamente na BIA."
+          : "";
         const diretorText = diretorCount > 0
           ? `${diretorCount} solicitação${diretorCount !== 1 ? "ões" : ""} enviada${diretorCount !== 1 ? "s" : ""} ao${diretorCount !== 1 ? "s" : ""} diretor${diretorCount !== 1 ? "es" : ""} para aceite.`
           : "";
@@ -2201,7 +2356,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
           : "";
         toast({
           title: isEdit ?"BIA atualizada!" : "BIA criada!",
-          description: [diretorText, socioText].filter(Boolean).join(" ") || form.nome_bia,
+          description: [diretorText, diretorFallbackText, socioText].filter(Boolean).join(" ") || form.nome_bia,
         });
       }
       onClose();
@@ -2247,6 +2402,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
     if (!infoForm.ativo_qualificacao.trim()) missing.push("Qualificação do ativo");
     if (!infoForm.ativo_numero_matricula.trim()) missing.push("Número da matrícula");
     if (!infoForm.ativo_cartorio.trim()) missing.push("Cartório");
+    if (!infoForm.ativo_comarca.trim()) missing.push("Comarca");
     if (!isEdit) {
       if (!form.destinacao.trim()) missing.push("Destinação");
       if (!form.localizacao.trim()) missing.push("Localização");
@@ -2822,7 +2978,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                       data-testid="input-ativo-numero-matricula"
                     />
                   </div>
-                  <div className="col-span-2 space-y-1">
+                  <div className="space-y-1">
                     <label className="text-sm font-medium text-foreground">
                       Cartório <span className="text-destructive">*</span>
                     </label>
@@ -2832,6 +2988,18 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                       onChange={e => setInfoForm({ ...infoForm, ativo_cartorio: e.target.value })}
                       placeholder="Cartório de registro"
                       data-testid="input-ativo-cartorio"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Comarca <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_comarca}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_comarca: e.target.value })}
+                      placeholder="Comarca do registro"
+                      data-testid="input-ativo-comarca"
                     />
                   </div>
                 </div>
@@ -3070,8 +3238,9 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                     <Label className="text-xs text-muted-foreground">Tipo</Label>
                     <Input
                       value={chamadaOpaTipo}
-                      onChange={(event) => setChamadaOpaTipo(event.target.value)}
-                      placeholder="Liderança, Comercial, Investimento..."
+                      readOnly
+                      placeholder="Liderança"
+                      className="bg-muted/40"
                       data-testid="input-chamada-opa-tipo"
                     />
                   </div>
@@ -3081,12 +3250,17 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                       <Input
                         value={chamadaOpaValor}
-                        onChange={(event) => setChamadaOpaValor(formatInputBRL(event.target.value))}
+                        readOnly
                         placeholder="0,00"
-                        className="pl-9"
+                        className="pl-9 bg-muted/40"
                         data-testid="input-chamada-opa-valor"
                       />
                     </div>
+                    {chamadaValorZerado && (
+                      <p className="text-xs text-destructive">
+                        O percentual DM deste diretor está zerado. Ajuste a aba DM antes de disparar a chamada.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -3118,7 +3292,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
             </Button>
             <Button
               onClick={() => dispararAliancaMutation.mutate()}
-              disabled={!chamadaDataHora || !chamadaLink.trim() || !chamadaOpaTitulo.trim() || dispararAliancaMutation.isPending}
+              disabled={!chamadaDataHora || !chamadaLink.trim() || !chamadaOpaTitulo.trim() || chamadaValorZerado || dispararAliancaMutation.isPending}
               className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-confirmar-disparar-alianca"
             >

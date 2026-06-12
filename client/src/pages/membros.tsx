@@ -271,10 +271,17 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [showPass2, setShowPass2] = useState(false);
   const [selectedComunidadeId, setSelectedComunidadeId] = useState<string>("");
   const [originalComunidadeId, setOriginalComunidadeId] = useState<string>("");
+  const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
 
   const { data: comunidades = [] } = useQuery<{ id: string; nome?: string; sigla?: string }[]>({
     queryKey: ["/api/comunidades"],
     queryFn: () => fetch("/api/comunidades").then(r => r.json()),
+    staleTime: 60000,
+  });
+
+  const { data: membrosParaConvidador = [] } = useQuery<Membro[]>({
+    queryKey: ["/api/membros"],
+    queryFn: () => fetch("/api/membros").then(r => r.json()),
     staleTime: 60000,
   });
 
@@ -291,6 +298,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       setOriginalComunidadeId(String(membroComunidade.id));
     }
   }, [membroComunidade?.id]);
+
+  useEffect(() => {
+    setSelectedConvidadorId(membro.convidado_por_id || "");
+  }, [membro.convidado_por_id]);
 
   type LinkedUser = { id: string; role: string; username: string; email?: string; membro_directus_id?: string | null };
   const fetchLinkedUser = async (url: string): Promise<LinkedUser | null> => {
@@ -441,8 +452,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       const { id, especialidades, foto, ...rest } = form as Membro & { _nome?: string };
       const { _nome, ...cleanRest } = rest as any;
       const payload: Record<string, unknown> = {};
+      const computedFields = new Set(["convidado_por_id", "convidado_por_nome", "convite_origem_status", "convite_origem_tipo"]);
       for (const [key, value] of Object.entries(cleanRest)) {
         if (TERM_ACCEPTANCE_FIELD_NAMES.has(key)) continue;
+        if (computedFields.has(key)) continue;
         if (typeof value === "boolean") {
           payload[key] = value;
         } else if (Array.isArray(value)) {
@@ -512,6 +525,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         if (accountLookupUnavailable) {
           throw new Error("Dados do membro salvos, mas a senha/permissões não foram alteradas porque o banco local de usuários está indisponível.");
         }
+      }
+      if (membro.id && selectedConvidadorId !== (membro.convidado_por_id || "")) {
+        await apiRequest("PATCH", `/api/membros/${membro.id}/convidador`, {
+          convidador_membro_id: selectedConvidadorId || null,
+          comunidade_id: selectedComunidadeId || null,
+        });
       }
     },
     onSuccess: async () => {
@@ -685,14 +704,31 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   </p>
                 )}
               </div>
-              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2" data-testid="info-convidado-por">
-                <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 uppercase tracking-widest">
-                  <UserPlus className="w-3.5 h-3.5 text-brand-gold" />
-                  Convidado por
-                </div>
-                <p className="mt-1 text-sm font-medium text-brand-navy">
-                  {membro.convidado_por_nome || "Sem registro de convite"}
-                </p>
+              <div className="mt-3" data-testid="field-convidado-por">
+                <label className={labelCls}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <UserPlus className="w-3.5 h-3.5 text-brand-gold" />
+                    Convidado por
+                  </span>
+                </label>
+                <Select
+                  value={selectedConvidadorId || "none"}
+                  onValueChange={v => setSelectedConvidadorId(v === "none" ? "" : v)}
+                >
+                  <SelectTrigger className={inputCls} data-testid="select-edit-convidado-por">
+                    <SelectValue placeholder="Selecione quem convidou..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem registro de convite —</SelectItem>
+                    {membrosParaConvidador
+                      .filter(item => item.id && item.id !== membro.id)
+                      .map(item => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {getDisplayNome(item)}{item.empresa ? ` · ${item.empresa}` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -886,7 +922,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               <div className="space-y-2">
                 {[
                   { field: "na_vitrine" as keyof Membro, label: "BUILT Vitrine", desc: "Aparece na página de Vitrine pública" },
-                  { field: "em_membros_built" as keyof Membro, label: "Membros BUILT", desc: "Aparece na área de Membros BUILT" },
+                  { field: "em_membros_built" as keyof Membro, label: "BUILT Alliances", desc: "Área de alianças" },
                   { field: "em_built_capital" as keyof Membro, label: "BUILT Capital", desc: "Aparece na seção de capital" },
                 ].map(({ field, label, desc }) => {
                   const active = !!(form as any)[field];

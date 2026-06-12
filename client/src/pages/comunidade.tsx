@@ -1344,6 +1344,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   });
   const diretorSolicitacoesPendentes = (diretorSolicitacoes || [])
     .filter((solicitacao) => String(solicitacao.status || "pendente") === "pendente")
+    .filter((solicitacao) => String(solicitacao.diretor_membro_id || "") === String(user?.membro_directus_id || ""))
     .filter((solicitacao) => {
       if (!aprovacoesQuery) return true;
       return normalize([
@@ -1355,6 +1356,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     });
   const socioSolicitacoesPendentes = (socioSolicitacoes || [])
     .filter((solicitacao) => String(solicitacao.status || "pendente") === "pendente")
+    .filter((solicitacao) => String(solicitacao.socio_membro_id || "") === String(user?.membro_directus_id || ""))
     .filter((solicitacao) => {
       if (!aprovacoesQuery) return true;
       return normalize([
@@ -1630,16 +1632,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                           </span>
                         </div>
                         <p className="text-xs font-mono text-slate-600">
-                          Indicação de {solicitacao.diretor_nome || "diretor"} para a BIA {solicitacao.bia_nome || solicitacao.bia_id}
+                          Você foi convidado para ser {solicitacao.papel || "diretor"} da BIA {solicitacao.bia_nome || solicitacao.bia_id}.
                         </p>
                         {solicitacao.solicitante_nome && (
                           <p className="text-[10px] font-mono text-slate-400">
-                            Indicado por {solicitacao.solicitante_nome}
-                          </p>
-                        )}
-                        {!canResponder && (
-                          <p className="text-[10px] font-mono text-blue-700">
-                            Aguardando resposta do diretor indicado.
+                            Convite enviado por {solicitacao.solicitante_nome}
                           </p>
                         )}
                       </div>
@@ -1688,16 +1685,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                           </span>
                         </div>
                         <p className="text-xs font-mono text-slate-600">
-                          Convite de {solicitacao.socio_nome || "sócio"} para a BIA {solicitacao.bia_nome || solicitacao.bia_id}
+                          Você foi convidado para ser {solicitacao.papel || "sócio"} da BIA {solicitacao.bia_nome || solicitacao.bia_id}.
                         </p>
                         {solicitacao.solicitante_nome && (
                           <p className="text-[10px] font-mono text-slate-400">
-                            Indicado por {solicitacao.solicitante_nome}
-                          </p>
-                        )}
-                        {!canResponder && (
-                          <p className="text-[10px] font-mono text-amber-700">
-                            Aguardando resposta do sócio indicado.
+                            Convite enviado por {solicitacao.solicitante_nome}
                           </p>
                         )}
                       </div>

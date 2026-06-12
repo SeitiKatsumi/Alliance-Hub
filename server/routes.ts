@@ -2803,11 +2803,32 @@ export async function registerRoutes(
 
   const BIA_MOU_VERSAO = "BUILT-JUR-6-BIA-PATRIMONIAL-RENDA-2026-REVISAO";
   const BIA_MOU_TITULO = "MOU Padrao BUILT - BIA Patrimonial";
-  const BIA_MOU_PATH = path.resolve(process.cwd(), "server", "assets", "bia-mou-padrao.txt");
+  const BIA_MOU_FALLBACK_TEXTO = [
+    "MEMORANDO DE ENTENDIMENTOS (MOU)",
+    "",
+    "ALIANCA PATRIMONIAL PADRAO BUILT",
+    "",
+    "Este MOU estabelece as diretrizes gerais de participacao, governanca, rastreabilidade, responsabilidades, confidencialidade, boa-fe e validacao das contribuicoes dos participantes de uma BIA.",
+    "",
+    "O aceite deste MOU e requisito para efetivacao do papel indicado na BIA. O documento completo deve ser consultado na plataforma BUILT e interpretado em conjunto com os registros, anexos e instrumentos especificos da respectiva alianca.",
+  ].join("\n");
+  const BIA_MOU_PATHS = [
+    path.resolve(process.cwd(), "server", "assets", "bia-mou-padrao.txt"),
+    path.resolve(process.cwd(), "dist", "server", "assets", "bia-mou-padrao.txt"),
+    path.resolve(process.cwd(), "dist", "assets", "bia-mou-padrao.txt"),
+    path.resolve(__dirname, "server", "assets", "bia-mou-padrao.txt"),
+    path.resolve(__dirname, "assets", "bia-mou-padrao.txt"),
+  ];
   let biaMouTextoCache: string | null = null;
   function getBiaMouTexto() {
     if (!biaMouTextoCache) {
-      biaMouTextoCache = fs.readFileSync(BIA_MOU_PATH, "utf8");
+      const mouPath = BIA_MOU_PATHS.find((candidate) => fs.existsSync(candidate));
+      if (!mouPath) {
+        console.warn("[bia-mou] Arquivo bia-mou-padrao.txt nao encontrado; usando texto fallback.");
+        biaMouTextoCache = BIA_MOU_FALLBACK_TEXTO;
+      } else {
+        biaMouTextoCache = fs.readFileSync(mouPath, "utf8");
+      }
     }
     return biaMouTextoCache;
   }

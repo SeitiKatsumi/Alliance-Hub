@@ -10,6 +10,7 @@ import express from "express";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
+import { fileURLToPath } from "url";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -18,6 +19,7 @@ const openai = new OpenAI({
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
+const ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 const BOOTSTRAP_SUPERADMIN_EMAILS = new Set(["seitikatsumi@gmail.com"]);
 const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
@@ -2816,8 +2818,8 @@ export async function registerRoutes(
     path.resolve(process.cwd(), "server", "assets", "bia-mou-padrao.txt"),
     path.resolve(process.cwd(), "dist", "server", "assets", "bia-mou-padrao.txt"),
     path.resolve(process.cwd(), "dist", "assets", "bia-mou-padrao.txt"),
-    path.resolve(__dirname, "server", "assets", "bia-mou-padrao.txt"),
-    path.resolve(__dirname, "assets", "bia-mou-padrao.txt"),
+    path.resolve(ROUTES_DIR, "server", "assets", "bia-mou-padrao.txt"),
+    path.resolve(ROUTES_DIR, "assets", "bia-mou-padrao.txt"),
   ];
   let biaMouTextoCache: string | null = null;
   function getBiaMouTexto() {

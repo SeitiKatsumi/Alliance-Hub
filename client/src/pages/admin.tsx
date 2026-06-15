@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { PhoneInput } from "@/components/phone-input";
 import {
   Settings,
   User as UserIcon,
@@ -522,7 +523,7 @@ export default function AdminPage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-1"><Phone className="w-3 h-3" /> Telefone</Label>
-                        <Input value={editForm.telefone || ""} onChange={(e) => setEditForm({ ...editForm, telefone: e.target.value })} data-testid="input-telefone" />
+                        <PhoneInput value={editForm.telefone || ""} onChange={(value) => setEditForm({ ...editForm, telefone: value })} data-testid="input-telefone" />
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-1"><Building className="w-3 h-3" /> Empresa</Label>

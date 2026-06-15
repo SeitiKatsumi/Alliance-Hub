@@ -13,6 +13,7 @@ import { Switch as UiSwitch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AppSidebar } from "@/components/app-sidebar";
+import { PhoneInput } from "@/components/phone-input";
 import NotFound from "@/pages/not-found";
 import BiasPage from "@/pages/bias";
 import BiaDetalhePage from "@/pages/bia-detalhe";
@@ -663,11 +664,11 @@ function PerfilOnboardingModal({
           </div>
           <div className="space-y-1.5">
             <Label>Telefone</Label>
-            <Input value={form.telefone || ""} onChange={e => setField("telefone", e.target.value)} data-testid="input-onboarding-telefone" />
+            <PhoneInput value={form.telefone || ""} onChange={value => setField("telefone", value)} data-testid="input-onboarding-telefone" />
           </div>
           <div className="space-y-1.5">
             <Label>WhatsApp</Label>
-            <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} data-testid="input-onboarding-whatsapp" />
+            <PhoneInput value={form.whatsapp || ""} onChange={value => setField("whatsapp", value)} data-testid="input-onboarding-whatsapp" />
           </div>
           <div className="space-y-1.5">
             <Label>Empresa *</Label>

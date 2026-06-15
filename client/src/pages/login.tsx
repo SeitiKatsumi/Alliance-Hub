@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
 import { formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
+import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -372,8 +373,8 @@ export default function LoginPage() {
       setRegError("Informe seu CPF para continuar.");
       return;
     }
-    if (!regTelefone.trim()) {
-      setRegError("Informe seu telefone para continuar.");
+    if (!hasInternationalDialCode(regTelefone)) {
+      setRegError("Informe seu telefone com código internacional.");
       return;
     }
     if (!regCidade.trim()) {
@@ -973,8 +974,8 @@ export default function LoginPage() {
                         <Input value={regEmpresa} onChange={e => setRegEmpresa(e.target.value)} placeholder="Empresa" />
                         <Input value={regCargo} onChange={e => setRegCargo(e.target.value)} placeholder="Cargo" />
                         <Input value={regCpf} onChange={e => setRegCpf(e.target.value)} placeholder="CPF *" />
-                        <Input value={regTelefone} onChange={e => setRegTelefone(e.target.value)} placeholder="Telefone *" />
-                        <Input value={regWhatsapp} onChange={e => setRegWhatsapp(e.target.value)} placeholder="WhatsApp" />
+                        <PhoneInput value={regTelefone} onChange={setRegTelefone} required placeholder="Telefone *" data-testid="input-cadastro-telefone" />
+                        <PhoneInput value={regWhatsapp} onChange={setRegWhatsapp} placeholder="WhatsApp" data-testid="input-cadastro-whatsapp" />
                         <Input value={regCidade} onChange={e => setRegCidade(e.target.value)} placeholder="Cidade *" list="cadastro-cidades" />
                         <Input value={regEstado} onChange={e => setRegEstado(e.target.value)} placeholder="Estado *" list="cadastro-estados" />
                         <Input value={regPais} onChange={e => setRegPais(e.target.value)} placeholder="País *" list="cadastro-paises" />

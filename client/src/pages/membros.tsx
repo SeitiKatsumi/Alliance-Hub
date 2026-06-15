@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
+import { PhoneInput } from "@/components/phone-input";
 
 const DIRECTUS_URL = "https://app.builtalliances.com";
 
@@ -771,15 +772,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>WhatsApp</label>
-                  <Input value={form.whatsapp || ""} onChange={e => setField("whatsapp", e.target.value)} className={inputCls} placeholder="+55..." data-testid="input-edit-whatsapp" />
+                  <PhoneInput value={form.whatsapp || ""} onChange={value => setField("whatsapp", value)} className="border-brand-gold/20 bg-white/5" inputClassName={inputCls} selectClassName="bg-brand-navy/90 text-white border-brand-gold/20" data-testid="input-edit-whatsapp" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefone</label>
-                  <Input value={form.telefone || ""} onChange={e => setField("telefone", e.target.value)} className={inputCls} data-testid="input-edit-telefone" />
+                  <PhoneInput value={form.telefone || ""} onChange={value => setField("telefone", value)} className="border-brand-gold/20 bg-white/5" inputClassName={inputCls} selectClassName="bg-brand-navy/90 text-white border-brand-gold/20" data-testid="input-edit-telefone" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefone Secundário</label>
-                  <Input value={form.telefone_secundario || ""} onChange={e => setField("telefone_secundario", e.target.value)} className={inputCls} data-testid="input-edit-telefone2" />
+                  <PhoneInput value={form.telefone_secundario || ""} onChange={value => setField("telefone_secundario", value)} className="border-brand-gold/20 bg-white/5" inputClassName={inputCls} selectClassName="bg-brand-navy/90 text-white border-brand-gold/20" data-testid="input-edit-telefone2" />
                 </div>
                 <div>
                   <label className={labelCls}>Site</label>

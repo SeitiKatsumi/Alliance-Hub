@@ -31,6 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
+import { PhoneInput } from "@/components/phone-input";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -228,7 +229,17 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
   );
 }
 
-interface Membro { id: string; nome?: string; cargo?: string; empresa?: string; foto_perfil?: string | null; }
+interface Membro {
+  id: string;
+  nome?: string;
+  cargo?: string;
+  empresa?: string;
+  foto_perfil?: string | null;
+  na_vitrine?: boolean | number | null;
+  em_membros_built?: boolean | number | null;
+  em_built_capital?: boolean | number | null;
+  Outras_redes_as_quais_pertenco?: string[] | null;
+}
 interface Bia { id: string; nome_bia?: string; }
 
 interface DiretorSolicitacao {
@@ -369,6 +380,23 @@ function resolveAliadoId(c: Comunidade): string {
   if (!c.aliado) return "";
   if (typeof c.aliado === "string") return c.aliado;
   return (c.aliado as Membro).id || "";
+}
+function getConectorLabel(invitador: Membro | undefined | null, comunidade: Comunidade | undefined | null, invitadorId?: string | null): string {
+  const aliadoId = comunidade ? resolveAliadoId(comunidade) : "";
+  if (aliadoId && invitadorId && String(aliadoId) === String(invitadorId)) {
+    return "Aliado conector";
+  }
+
+  const redes = Array.isArray(invitador?.Outras_redes_as_quais_pertenco)
+    ? invitador.Outras_redes_as_quais_pertenco
+    : [];
+  const acessaAlliances =
+    invitador?.em_membros_built === true ||
+    invitador?.em_membros_built === 1 ||
+    redes.includes("BUILT_PROUD_MEMBER") ||
+    redes.includes("BUILT_ALLIANCE_PARTNER");
+
+  return acessaAlliances ? "Membro conector" : "Parceiro conector";
 }
 function resolveMembrosIds(c: Comunidade): string[] {
   return (c.membros || []).map(j => {
@@ -1852,9 +1880,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   const isVitrine = convite.tipo === "vitrine";
                   const isPendente = convite.status === "candidato";
                   const isAguardandoAura = convite.status === "aguardando_avaliacao_aura";
-                  const comNome = comunidades.find(c => String(c.id) === String(convite.comunidade_id))?.nome || ("Comunidade #" + convite.comunidade_id);
+                  const comunidadeDoConvite = comunidades.find(c => String(c.id) === String(convite.comunidade_id));
+                  const comNome = comunidadeDoConvite?.nome || ("Comunidade #" + convite.comunidade_id);
                   const invitador = membros.find(m => String(m.id) === String(convite.invitador_membro_id));
-                  const nomeConvidador = invitador?.nome || null;
+                  const conectorLabel = getConectorLabel(invitador, comunidadeDoConvite, convite.invitador_membro_id);
+                  const nomeConector = invitador?.nome || null;
                   const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/40" };
                   const dados = convite.dados_contratuais as any;
                   return (
@@ -1872,9 +1902,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         {convite.candidato_email && (
                           <p className="text-xs font-mono text-slate-500">{convite.candidato_email}</p>
                         )}
-                        {nomeConvidador && (
+                        {nomeConector && (
                           <p className="text-[10px] font-mono text-[#9B7A32]">
-                            Convidado por {nomeConvidador}
+                            {conectorLabel}: {nomeConector}
                           </p>
                         )}
                         <p className="text-[10px] font-mono text-slate-400">{comNome}</p>
@@ -1891,7 +1921,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         )}
                         {isAguardandoAura && (
                           <p className="text-[10px] font-mono text-violet-700 mt-0.5">
-                            Aguardando avaliacao de Aura do convidador
+                            Aguardando avaliação de Aura pelo {conectorLabel.toLowerCase()}
                           </p>
                         )}
                         {!isVitrine && convite.status === "candidato" && (
@@ -2346,20 +2376,14 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   const invitadorId = sc.invitador_membro_id;
                   if (!invitadorId) return null;
                   const comunidadeDoConvite = comunidades.find(c => String(c.id) === String(sc.comunidade_id));
-                  const aliadoId = typeof comunidadeDoConvite?.aliado === "object"
-                    ?comunidadeDoConvite?.aliado?.id
-                    : comunidadeDoConvite?.aliado;
-                  const ehOProprioAliado = aliadoId && String(aliadoId) === String(invitadorId);
                   const invitadorMembro = membros.find(m => String(m.id) === String(invitadorId));
-                  const nomeInvitador = ehOProprioAliado
-                    ?(invitadorMembro?.nome || "Aliado BUILT")
-                    : (invitadorMembro?.nome || invitadorId);
-                  const labelInvitador = ehOProprioAliado ?"Aliado BUILT (próprio)" : "Membro";
+                  const nomeInvitador = invitadorMembro?.nome || invitadorId;
+                  const labelInvitador = getConectorLabel(invitadorMembro, comunidadeDoConvite, invitadorId);
                   return (
                     <div className="rounded-lg border border-white/8 px-4 py-3 flex items-center gap-3" style={{ background: "rgba(255,255,255,0.03)" }}>
                       <UserCheck className="w-4 h-4 text-brand-gold/50 shrink-0" />
                       <div>
-                        <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mb-0.5">Convidado por</p>
+                        <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mb-0.5">Conector</p>
                         <p className="text-sm font-mono font-semibold text-white">{nomeInvitador}</p>
                         <p className="text-[10px] font-mono text-white/30">{labelInvitador}</p>
                       </div>
@@ -2627,7 +2651,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   </div>
                   <div className="space-y-1">
                     <Label>Telefone *</Label>
-                    <Input value={String(mouDadosForm.telefone || "")} onChange={e => setMouDadosField("telefone", e.target.value)} />
+                    <PhoneInput value={String(mouDadosForm.telefone || "")} onChange={value => setMouDadosField("telefone", value)} required />
                   </div>
                   <div className="space-y-1">
                     <Label>CPF *</Label>
@@ -2689,7 +2713,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     </div>
                     <div className="space-y-1">
                       <Label>Telefone do cônjuge *</Label>
-                      <Input value={String(mouDadosForm.conjuge_telefone || "")} onChange={e => setMouDadosField("conjuge_telefone", e.target.value)} />
+                      <PhoneInput value={String(mouDadosForm.conjuge_telefone || "")} onChange={value => setMouDadosField("conjuge_telefone", value)} required />
                     </div>
                     <div className="space-y-1">
                       <Label>CPF do cônjuge *</Label>

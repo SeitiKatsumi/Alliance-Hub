@@ -1,7 +1,7 @@
 Error: connect ECONNREFUSED 127.0.0.1:5433
     at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:1192:3) {
+    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:1312:3) {
   errno: -4078,
   code: 'ECONNREFUSED',
   syscall: 'connect',
@@ -10,18 +10,26 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 }
 [convites_link] Campo tipo nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
 [agenda] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-diretores] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-socios] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-mou] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[chamadas-alianca] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia_info_comercial] Campos do ativo nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
 [anuncios_pagamento] Campos de pagamento nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] Tabela de historico nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
-[vitrine-fields] Field na_vitrine response: 400
-[geo-bias] Field latitude response: 400
 [geo-opa] Field latitude response: 400
+[geo-bias] Field latitude response: 400
+[vitrine-fields] Field na_vitrine response: 400
 [opa-media] Field imagem_directus_id response: 400
+[geo-bias] Field longitude response: 400
+[opa-media] Field ramo_atuacao response: 400
 [geo-opa] Field longitude response: 400
 [vitrine-fields] Field em_membros_built response: 400
-[geo-bias] Field longitude response: 400
+[opa-media] Field criado_por_user_id response: 400
+[geo-bias] Field localizacao response: 400
 [geo-opa] Field localizacao response: 400
 [vitrine-fields] Field em_built_capital response: 400
-[geo-bias] Field localizacao response: 400
+[opa-media] Field criado_por_membro_id response: 400
 [vitrine-fields] Field link_site response: 400
 [vitrine-fields] Field latitude response: 400
 [vitrine-fields] Field longitude response: 400
@@ -31,12 +39,17 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field especialidade_livre response: 400
 [vitrine-fields] Field ramo_atuacao response: 400
 [vitrine-fields] Field segmento response: 400
-[vitrine-fields] Field area_atuacao response: 400
-[vitrine-fields] Field idiomas response: 400
 [categorias] Field bia_id response: 400
 [transferencias_cotas] Campo anexos nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+[vitrine-fields] Field area_atuacao response: 400
+[vitrine-fields] Field idiomas response: 400
 [vitrine-fields] Field nucleos_alianca response: 400
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
 [vitrine-fields] Field tipos_alianca response: 400
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
 [vitrine-fields] Field codigo_etica_aceito_em response: 400
 [vitrine-fields] Field codigo_etica_versao response: 400
 [vitrine-fields] Field politicas_participacao_aceito_em response: 400
@@ -47,18 +60,38 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field built_capital_termo_versao response: 400
 [vitrine-fields] Field area_aliancas_termo_aceito_em response: 400
 [vitrine-fields] Field area_aliancas_termo_versao response: 400
-Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
-  npx update-browserslist-db@latest
-  Why you should do it regularly: https://github.com/browserslist/update-db#readme
-
-A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
-[login] local user lookup error: connect ECONNREFUSED 127.0.0.1:5433
-[dashboard] tipos_oportunidades status unavailable, retrying without status
-[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
-[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
-[dashboard] tipos_oportunidades status unavailable, retrying without status
-[dashboard] tipos_oportunidades status unavailable, retrying without status
-[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
+[vitrine-fields] Field nacionalidade response: 400
+[vitrine-fields] Field nome_mae response: 400
+[vitrine-fields] Field nome_pai response: 400
+[vitrine-fields] Field data_nascimento response: 400
+[vitrine-fields] Field profissao response: 400
+[vitrine-fields] Field cpf response: 400
+[vitrine-fields] Field rg response: 400
+[vitrine-fields] Field estado_civil response: 400
+[vitrine-fields] Field regime_comunhao response: 400
+[vitrine-fields] Field conjuge_nome_completo response: 400
+[vitrine-fields] Field conjuge_nacionalidade response: 400
+[vitrine-fields] Field conjuge_nome_mae response: 400
+[vitrine-fields] Field conjuge_nome_pai response: 400
+[vitrine-fields] Field conjuge_data_nascimento response: 400
+[vitrine-fields] Field conjuge_profissao response: 400
+[vitrine-fields] Field conjuge_email response: 400
+[vitrine-fields] Field conjuge_telefone response: 400
+[vitrine-fields] Field conjuge_cpf response: 400
+[vitrine-fields] Field conjuge_rg response: 400
+[vitrine-fields] Field mesmo_endereco response: 400
+[vitrine-fields] Field endereco response: 400
+[vitrine-fields] Field bairro response: 400
+[vitrine-fields] Field titular_endereco response: 400
+[vitrine-fields] Field titular_bairro response: 400
+[vitrine-fields] Field titular_cidade response: 400
+[vitrine-fields] Field titular_estado response: 400
+[vitrine-fields] Field titular_pais response: 400
+[vitrine-fields] Field conjuge_endereco response: 400
+[vitrine-fields] Field conjuge_bairro response: 400
+[vitrine-fields] Field conjuge_cidade response: 400
+[vitrine-fields] Field conjuge_estado response: 400
+[vitrine-fields] Field conjuge_pais response: 400
 [cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
     at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
@@ -71,4 +104,3 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
   address: '127.0.0.1',
   port: 5433
 }
-[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433

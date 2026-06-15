@@ -26,6 +26,7 @@ import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer"
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { isBuiltMemberForAura } from "@/lib/aura-access";
+import { PhoneInput } from "@/components/phone-input";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -1708,11 +1709,13 @@ export default function VitrinePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="WhatsApp">
-                <Input
+                <PhoneInput
                   value={form.whatsapp}
-                  onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                  placeholder="27 99999-9999"
+                  onChange={value => setForm(f => ({ ...f, whatsapp: value }))}
+                  className="bg-white/5 border-white/10"
+                  inputClassName="text-white placeholder:text-white/20"
+                  selectClassName="bg-[#071a2d] text-white border-white/10"
+                  placeholder="99999-9999"
                   data-testid="input-card-whatsapp"
                 />
               </Field>

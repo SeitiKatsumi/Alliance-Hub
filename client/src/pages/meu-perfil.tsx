@@ -32,6 +32,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
 import { RAMOS_SEGMENTOS, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseSegmentosValue } from "@/lib/ramos-segmentos";
+import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 
 interface NominatimResult {
   place_id: number;
@@ -622,8 +623,8 @@ export default function MeuPerfilPage() {
       toast({ title: "E-mail obrigatório", description: "Informe um e-mail para salvar o perfil.", variant: "destructive" });
       return;
     }
-    if (!String(form.telefone || "").trim()) {
-      toast({ title: "Telefone obrigatório", description: "Informe um telefone para salvar o perfil.", variant: "destructive" });
+    if (!hasInternationalDialCode(form.telefone)) {
+      toast({ title: "Telefone obrigatório", description: "Informe um telefone com código internacional.", variant: "destructive" });
       return;
     }
     const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
@@ -992,19 +993,23 @@ export default function MeuPerfilPage() {
                     />
                   </Field>
                   <Field label="Telefone *">
-                    <Input
+                    <PhoneInput
                       value={form.telefone || ""}
-                      onChange={e => set("telefone", e.target.value)}
+                      onChange={value => set("telefone", value)}
                       required
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                      className="bg-white/5 border-white/10"
+                      inputClassName="text-white placeholder:text-white/20"
+                      selectClassName="bg-white/10 text-white"
                       data-testid="input-perfil-telefone"
                     />
                   </Field>
                   <Field label="WhatsApp">
-                    <Input
+                    <PhoneInput
                       value={form.whatsapp || ""}
-                      onChange={e => set("whatsapp", e.target.value)}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                      onChange={value => set("whatsapp", value)}
+                      className="bg-white/5 border-white/10"
+                      inputClassName="text-white placeholder:text-white/20"
+                      selectClassName="bg-white/10 text-white"
                       data-testid="input-perfil-whatsapp"
                     />
                   </Field>
@@ -1973,7 +1978,7 @@ function DadosFormalizacaoSection({
               <Input type="email" value={form.conjuge_email || ""} onChange={e => setField("conjuge_email", e.target.value)} />
             </Field>
             <Field label="Telefone do cônjuge">
-              <Input value={form.conjuge_telefone || ""} onChange={e => setField("conjuge_telefone", e.target.value)} />
+              <PhoneInput value={form.conjuge_telefone || ""} onChange={value => setField("conjuge_telefone", value)} />
             </Field>
             <Field label="CPF do cônjuge">
               <Input value={form.conjuge_cpf || ""} onChange={e => setField("conjuge_cpf", e.target.value)} />

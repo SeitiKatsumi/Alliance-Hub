@@ -5,6 +5,7 @@ import { Loader2, Users, MapPin, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 
 interface ConviteData {
   id: string;
@@ -214,10 +215,12 @@ export default function ConvitePage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-mono text-white/60">Telefone *</Label>
-                <Input
+                <PhoneInput
                   value={form.telefone}
-                  onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/20 font-mono text-sm"
+                  onChange={value => setForm(f => ({ ...f, telefone: value }))}
+                  className="bg-white/5 border-white/10"
+                  inputClassName="text-white placeholder:text-white/20 font-mono text-sm"
+                  selectClassName="bg-[#071a2d] text-white border-white/10"
                   placeholder="+55 11 99999-9999"
                   data-testid="input-convite-telefone"
                 />
@@ -291,8 +294,8 @@ export default function ConvitePage() {
 
         <Button
           onClick={() => {
-            if (!form.nome_completo || !form.nome_empresa || !form.telefone || !form.email) {
-              alert("Preencha os campos obrigatórios: Nome Completo, Nome da Empresa, Telefone e E-mail.");
+            if (!form.nome_completo || !form.nome_empresa || !hasInternationalDialCode(form.telefone) || !form.email) {
+              alert("Preencha os campos obrigatórios e informe o telefone com código internacional.");
               return;
             }
             candidaturaMutation.mutate(form);

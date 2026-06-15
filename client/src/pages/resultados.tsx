@@ -415,8 +415,7 @@ export default function ResultadosPage({
                   </CardTitle>
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1 border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10"
+                    className="h-7 gap-1 bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white"
                     onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending}
                     data-testid="button-save-receita"
@@ -483,8 +482,7 @@ export default function ResultadosPage({
                   </CardTitle>
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="h-7 text-xs gap-1 border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10"
+                    className="h-7 gap-1 bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white"
                     onClick={() => saveMutation.mutate()}
                     disabled={saveMutation.isPending}
                     data-testid="button-save-realizados"

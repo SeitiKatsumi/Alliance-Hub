@@ -782,6 +782,7 @@ export function OpaFormDialog({
   const [imagemOpaId, setImagemOpaId] = useState<string | null>(null);
   const [imagemOpaPreview, setImagemOpaPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -837,6 +838,25 @@ export function OpaFormDialog({
     },
     onError: (e: any) => {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      return apiRequest("DELETE", `/api/oportunidades/${opa.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
+      toast({ title: "OPA excluída" });
+      setDeleteConfirmOpen(false);
+      onClose();
+      if (window.location.pathname.startsWith("/opas/")) {
+        navigate("/area-aliancas?tab=opas");
+      }
+    },
+    onError: (e: any) => {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
     },
   });
 
@@ -933,6 +953,7 @@ export function OpaFormDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -1303,16 +1324,31 @@ export function OpaFormDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending || uploading}>Cancelar</Button>
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending || uploading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
-            data-testid="btn-save-opa"
-          >
-            {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OPA"}
-          </Button>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {opa ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={saveMutation.isPending || deleteMutation.isPending || uploading}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              data-testid="btn-delete-opa"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir OPA
+            </Button>
+          ) : <span />}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending || deleteMutation.isPending || uploading}>Cancelar</Button>
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending || deleteMutation.isPending || uploading}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              data-testid="btn-save-opa"
+            >
+              {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OPA"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
       <LocationPickerModal
@@ -1325,6 +1361,31 @@ export function OpaFormDialog({
         }}
       />
     </Dialog>
+    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir OPA?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação remove a OPA {opa?.nome_oportunidade ? `"${opa.nome_oportunidade}"` : "selecionada"} da lista. Essa operação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(event) => {
+              event.preventDefault();
+              deleteMutation.mutate();
+            }}
+            disabled={deleteMutation.isPending}
+            className="bg-red-600 text-white hover:bg-red-700"
+            data-testid="btn-confirm-delete-opa"
+          >
+            {deleteMutation.isPending ? "Excluindo..." : "Excluir OPA"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

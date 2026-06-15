@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -58,6 +59,19 @@ const INVITE_TYPE_OPTIONS = [
 ];
 const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+const ESTADO_CIVIL_OPTIONS = [
+  { value: "solteiro", label: "Solteiro(a)" },
+  { value: "casado", label: "Casado(a)" },
+  { value: "divorciado", label: "Divorciado(a)" },
+  { value: "viuvo", label: "Viúvo(a)" },
+  { value: "uniao_estavel", label: "União estável" },
+];
+const REGIME_COMUNHAO_OPTIONS = [
+  { value: "comunhao_parcial", label: "Comunhão parcial de bens" },
+  { value: "comunhao_universal", label: "Comunhão universal de bens" },
+  { value: "separacao_total", label: "Separação total de bens" },
+  { value: "participacao_final", label: "Participação final nos aquestos" },
+];
 const AREA_ICON_CONFIG: Record<string, { icon: typeof Flag; color: string; bg: string }> = {
   "Liderança": { icon: Flag, color: "text-amber-600", bg: "bg-amber-50" },
   "Projeto": { icon: FolderKanban, color: "text-blue-600", bg: "bg-blue-50" },
@@ -222,6 +236,38 @@ interface Membro {
   email?: string;
   telefone?: string;
   whatsapp?: string;
+  nacionalidade?: string | null;
+  nome_mae?: string | null;
+  nome_pai?: string | null;
+  data_nascimento?: string | null;
+  profissao?: string | null;
+  cpf?: string | null;
+  rg?: string | null;
+  estado_civil?: string | null;
+  regime_comunhao?: string | null;
+  conjuge_nome_completo?: string | null;
+  conjuge_nacionalidade?: string | null;
+  conjuge_nome_mae?: string | null;
+  conjuge_nome_pai?: string | null;
+  conjuge_data_nascimento?: string | null;
+  conjuge_profissao?: string | null;
+  conjuge_email?: string | null;
+  conjuge_telefone?: string | null;
+  conjuge_cpf?: string | null;
+  conjuge_rg?: string | null;
+  mesmo_endereco?: boolean | null;
+  endereco?: string | null;
+  bairro?: string | null;
+  titular_endereco?: string | null;
+  titular_bairro?: string | null;
+  titular_cidade?: string | null;
+  titular_estado?: string | null;
+  titular_pais?: string | null;
+  conjuge_endereco?: string | null;
+  conjuge_bairro?: string | null;
+  conjuge_cidade?: string | null;
+  conjuge_estado?: string | null;
+  conjuge_pais?: string | null;
   cidade?: string;
   estado?: string;
   pais?: string;
@@ -1000,6 +1046,8 @@ export default function MeuPerfilPage() {
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Briefcase} label="Dados complementares" />
+
+                <DadosFormalizacaoSection form={form} setField={set} setForm={setForm} />
 
                 <input
                   ref={fotoInputRef}
@@ -1816,6 +1864,179 @@ export default function MeuPerfilPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function DadosFormalizacaoSection({
+  form,
+  setField,
+  setForm,
+}: {
+  form: Partial<Membro>;
+  setField: (field: keyof Membro, value: string) => void;
+  setForm: React.Dispatch<React.SetStateAction<Partial<Membro>>>;
+}) {
+  const estadoCivil = String(form.estado_civil || "").toLowerCase();
+  const isCasado = estadoCivil === "casado" || estadoCivil === "casada";
+  const mesmoEndereco = form.mesmo_endereco !== false;
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-slate-200 bg-white">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 px-4 py-3 text-left"
+          data-testid="toggle-dados-formalizacao"
+        >
+          <ReceiptText className="w-3.5 h-3.5 text-[#9a7430]" />
+          <span className="text-sm font-semibold text-[#001D34]">Dados para formalização</span>
+          <div className="h-px flex-1 bg-slate-200" />
+          <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4 px-4 pb-4">
+        <p className="text-xs text-slate-500">
+          Estes dados serão exigidos somente quando você aceitar um papel de diretor ou sócio em uma BIA.
+        </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Nacionalidade">
+          <Input value={form.nacionalidade || ""} onChange={e => setField("nacionalidade", e.target.value)} data-testid="input-perfil-nacionalidade" />
+        </Field>
+        <Field label="Profissão">
+          <Input value={form.profissao || ""} onChange={e => setField("profissao", e.target.value)} data-testid="input-perfil-profissao" />
+        </Field>
+        <Field label="Nome da mãe">
+          <Input value={form.nome_mae || ""} onChange={e => setField("nome_mae", e.target.value)} data-testid="input-perfil-nome-mae" />
+        </Field>
+        <Field label="Nome do pai">
+          <Input value={form.nome_pai || ""} onChange={e => setField("nome_pai", e.target.value)} data-testid="input-perfil-nome-pai" />
+        </Field>
+        <Field label="Data de nascimento">
+          <Input type="date" value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} data-testid="input-perfil-data-nascimento" />
+        </Field>
+        <Field label="CPF">
+          <Input value={form.cpf || ""} onChange={e => setField("cpf", e.target.value)} data-testid="input-perfil-cpf" />
+        </Field>
+        <Field label="RG">
+          <Input value={form.rg || ""} onChange={e => setField("rg", e.target.value)} data-testid="input-perfil-rg" />
+        </Field>
+        <Field label="Estado civil">
+          <Select value={form.estado_civil || ""} onValueChange={value => setField("estado_civil", value)}>
+            <SelectTrigger data-testid="select-perfil-estado-civil">
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              {ESTADO_CIVIL_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      {isCasado && (
+        <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Regime de comunhão">
+              <Select value={form.regime_comunhao || ""} onValueChange={value => setField("regime_comunhao", value)}>
+                <SelectTrigger data-testid="select-perfil-regime-comunhao">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGIME_COMUNHAO_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Nome completo do cônjuge">
+              <Input value={form.conjuge_nome_completo || ""} onChange={e => setField("conjuge_nome_completo", e.target.value)} data-testid="input-perfil-conjuge-nome" />
+            </Field>
+            <Field label="Nacionalidade do cônjuge">
+              <Input value={form.conjuge_nacionalidade || ""} onChange={e => setField("conjuge_nacionalidade", e.target.value)} />
+            </Field>
+            <Field label="Profissão do cônjuge">
+              <Input value={form.conjuge_profissao || ""} onChange={e => setField("conjuge_profissao", e.target.value)} />
+            </Field>
+            <Field label="Nome da mãe do cônjuge">
+              <Input value={form.conjuge_nome_mae || ""} onChange={e => setField("conjuge_nome_mae", e.target.value)} />
+            </Field>
+            <Field label="Nome do pai do cônjuge">
+              <Input value={form.conjuge_nome_pai || ""} onChange={e => setField("conjuge_nome_pai", e.target.value)} />
+            </Field>
+            <Field label="Data de nascimento do cônjuge">
+              <Input type="date" value={form.conjuge_data_nascimento || ""} onChange={e => setField("conjuge_data_nascimento", e.target.value)} />
+            </Field>
+            <Field label="E-mail do cônjuge">
+              <Input type="email" value={form.conjuge_email || ""} onChange={e => setField("conjuge_email", e.target.value)} />
+            </Field>
+            <Field label="Telefone do cônjuge">
+              <Input value={form.conjuge_telefone || ""} onChange={e => setField("conjuge_telefone", e.target.value)} />
+            </Field>
+            <Field label="CPF do cônjuge">
+              <Input value={form.conjuge_cpf || ""} onChange={e => setField("conjuge_cpf", e.target.value)} />
+            </Field>
+            <Field label="RG do cônjuge">
+              <Input value={form.conjuge_rg || ""} onChange={e => setField("conjuge_rg", e.target.value)} />
+            </Field>
+          </div>
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+            <Checkbox
+              checked={mesmoEndereco}
+              onCheckedChange={checked => setForm(current => ({ ...current, mesmo_endereco: checked === true }))}
+              data-testid="checkbox-perfil-mesmo-endereco"
+            />
+            Ambos residem no mesmo local
+          </label>
+        </div>
+      )}
+
+      {isCasado && !mesmoEndereco ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Endereço do titular</p>
+            <Field label="Endereço"><Input value={form.titular_endereco || ""} onChange={e => setField("titular_endereco", e.target.value)} /></Field>
+            <Field label="Bairro"><Input value={form.titular_bairro || ""} onChange={e => setField("titular_bairro", e.target.value)} /></Field>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Cidade"><Input value={form.titular_cidade || ""} onChange={e => setField("titular_cidade", e.target.value)} /></Field>
+              <Field label="Estado"><Input value={form.titular_estado || ""} onChange={e => setField("titular_estado", e.target.value)} /></Field>
+              <Field label="País"><Input value={form.titular_pais || ""} onChange={e => setField("titular_pais", e.target.value)} /></Field>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Endereço do cônjuge</p>
+            <Field label="Endereço"><Input value={form.conjuge_endereco || ""} onChange={e => setField("conjuge_endereco", e.target.value)} /></Field>
+            <Field label="Bairro"><Input value={form.conjuge_bairro || ""} onChange={e => setField("conjuge_bairro", e.target.value)} /></Field>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Cidade"><Input value={form.conjuge_cidade || ""} onChange={e => setField("conjuge_cidade", e.target.value)} /></Field>
+              <Field label="Estado"><Input value={form.conjuge_estado || ""} onChange={e => setField("conjuge_estado", e.target.value)} /></Field>
+              <Field label="País"><Input value={form.conjuge_pais || ""} onChange={e => setField("conjuge_pais", e.target.value)} /></Field>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Endereço">
+            <Input value={form.endereco || ""} onChange={e => setField("endereco", e.target.value)} data-testid="input-perfil-endereco" />
+          </Field>
+          <Field label="Bairro">
+            <Input value={form.bairro || ""} onChange={e => setField("bairro", e.target.value)} data-testid="input-perfil-bairro" />
+          </Field>
+          <Field label="Cidade">
+            <Input value={form.cidade || ""} onChange={e => setField("cidade", e.target.value)} data-testid="input-perfil-cidade-contratual" />
+          </Field>
+          <Field label="Estado">
+            <Input value={form.estado || ""} onChange={e => setField("estado", e.target.value)} data-testid="input-perfil-estado-contratual" />
+          </Field>
+          <Field label="País">
+            <Input value={form.pais || ""} onChange={e => setField("pais", e.target.value)} data-testid="input-perfil-pais-contratual" />
+          </Field>
+        </div>
+      )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

@@ -278,6 +278,49 @@ type MouPendente = {
   texto: string;
 };
 
+type MouDadosContratuais = Record<string, string | boolean>;
+
+const EMPTY_MOU_DADOS: MouDadosContratuais = {
+  nome_completo: "",
+  nacionalidade: "",
+  nome_mae: "",
+  nome_pai: "",
+  data_nascimento: "",
+  profissao: "",
+  email: "",
+  telefone: "",
+  cpf: "",
+  rg: "",
+  estado_civil: "",
+  regime_comunhao: "",
+  conjuge_nome_completo: "",
+  conjuge_nacionalidade: "",
+  conjuge_nome_mae: "",
+  conjuge_nome_pai: "",
+  conjuge_data_nascimento: "",
+  conjuge_profissao: "",
+  conjuge_email: "",
+  conjuge_telefone: "",
+  conjuge_cpf: "",
+  conjuge_rg: "",
+  mesmo_endereco: true,
+  endereco: "",
+  bairro: "",
+  cidade: "",
+  estado: "",
+  pais: "",
+  titular_endereco: "",
+  titular_bairro: "",
+  titular_cidade: "",
+  titular_estado: "",
+  titular_pais: "",
+  conjuge_endereco: "",
+  conjuge_bairro: "",
+  conjuge_cidade: "",
+  conjuge_estado: "",
+  conjuge_pais: "",
+};
+
 // M2M junction shapes returned by Directus
 interface MembroJunction { cadastro_geral_id: Membro | string | null; }
 interface BiaJunction { bias_projetos_id: Bia | string | null; }
@@ -993,7 +1036,10 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     mutationFn: async () => {
       if (!mouPendente) throw new Error("Nenhum MOU pendente");
       const base = mouPendente.tipo === "diretor" ? "bia-diretor-solicitacoes" : "bia-socio-solicitacoes";
-      return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, { aceitar_mou: true });
+      return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, {
+        aceitar_mou: true,
+        dados_contratuais_mou: mouDadosForm,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
@@ -1003,6 +1049,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       toast({ title: "MOU aceito", description: "Sua participação na BIA foi confirmada." });
       setMouPendente(null);
       setMouAceito(false);
+      setMouDadosOpen(false);
+      setMouDadosForm(EMPTY_MOU_DADOS);
     },
     onError: (error: any) => toast({
       title: "Erro ao aceitar MOU",
@@ -1068,6 +1116,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [auraMicPromptOpen, setAuraMicPromptOpen] = useState(false);
   const [mouPendente, setMouPendente] = useState<MouPendente | null>(null);
   const [mouAceito, setMouAceito] = useState(false);
+  const [mouDadosOpen, setMouDadosOpen] = useState(false);
+  const [mouDadosForm, setMouDadosForm] = useState<MouDadosContratuais>(EMPTY_MOU_DADOS);
   const auraFileInputRef = useRef<HTMLInputElement>(null);
   const auraAudioFileInputRef = useRef<HTMLInputElement>(null);
   const auraMediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1088,6 +1138,80 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     },
     onError: () => toast({ title: "Erro ao registrar Aura", variant: "destructive" }),
   });
+
+  function setMouDadosField(field: string, value: string | boolean) {
+    setMouDadosForm(current => ({ ...current, [field]: value }));
+  }
+
+  function getMouDadosMissingFields() {
+    const missing: string[] = [];
+    const required = [
+      ["nome_completo", "Nome completo"],
+      ["nacionalidade", "Nacionalidade"],
+      ["nome_mae", "Nome da mãe"],
+      ["nome_pai", "Nome do pai"],
+      ["data_nascimento", "Data de nascimento"],
+      ["profissao", "Profissão"],
+      ["email", "E-mail"],
+      ["telefone", "Telefone"],
+      ["cpf", "CPF"],
+      ["rg", "RG"],
+      ["estado_civil", "Estado civil"],
+    ];
+    required.forEach(([key, label]) => {
+      if (!String(mouDadosForm[key] || "").trim()) missing.push(label);
+    });
+    const isCasado = ["casado", "casada"].includes(String(mouDadosForm.estado_civil || "").toLowerCase());
+    if (isCasado) {
+      [
+        ["regime_comunhao", "Regime de comunhão"],
+        ["conjuge_nome_completo", "Nome do cônjuge"],
+        ["conjuge_nacionalidade", "Nacionalidade do cônjuge"],
+        ["conjuge_nome_mae", "Nome da mãe do cônjuge"],
+        ["conjuge_nome_pai", "Nome do pai do cônjuge"],
+        ["conjuge_data_nascimento", "Data de nascimento do cônjuge"],
+        ["conjuge_profissao", "Profissão do cônjuge"],
+        ["conjuge_email", "E-mail do cônjuge"],
+        ["conjuge_telefone", "Telefone do cônjuge"],
+        ["conjuge_cpf", "CPF do cônjuge"],
+        ["conjuge_rg", "RG do cônjuge"],
+      ].forEach(([key, label]) => {
+        if (!String(mouDadosForm[key] || "").trim()) missing.push(label);
+      });
+    }
+    const sameAddress = mouDadosForm.mesmo_endereco === true;
+    const addressFields = [
+      ["endereco", "Endereço"],
+      ["bairro", "Bairro"],
+      ["cidade", "Cidade"],
+      ["estado", "Estado"],
+      ["pais", "País"],
+    ];
+    if (isCasado && !sameAddress) {
+      addressFields.forEach(([key, label]) => {
+        if (!String(mouDadosForm[`titular_${key}`] || "").trim()) missing.push(`${label} do titular`);
+        if (!String(mouDadosForm[`conjuge_${key}`] || "").trim()) missing.push(`${label} do cônjuge`);
+      });
+    } else {
+      addressFields.forEach(([key, label]) => {
+        if (!String(mouDadosForm[key] || "").trim()) missing.push(label);
+      });
+    }
+    return missing;
+  }
+
+  function handleSubmitMouDados() {
+    const missing = getMouDadosMissingFields();
+    if (missing.length > 0) {
+      toast({
+        title: "Preencha os dados obrigatórios",
+        description: missing.slice(0, 5).join(", ") + (missing.length > 5 ? "..." : ""),
+        variant: "destructive",
+      });
+      return;
+    }
+    concluirMouMutation.mutate();
+  }
 
   const extrairAuraArquivoMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -2395,7 +2519,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={!!mouPendente} onOpenChange={open => { if (!open) { setMouPendente(null); setMouAceito(false); } }}>
+      <Dialog open={!!mouPendente && !mouDadosOpen} onOpenChange={open => { if (!open) { setMouPendente(null); setMouAceito(false); setMouDadosOpen(false); } }}>
         <DialogContent className="max-w-3xl max-h-[86vh] overflow-hidden border-blue-200 bg-white text-brand-navy">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-brand-navy">
@@ -2423,13 +2547,231 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               Cancelar
             </Button>
             <Button
-              onClick={() => concluirMouMutation.mutate()}
+              onClick={() => setMouDadosOpen(true)}
               disabled={!mouAceito || concluirMouMutation.isPending}
               className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-aceitar-mou-bia"
             >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Aceitar MOU e preencher dados
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mouDadosOpen} onOpenChange={open => {
+        if (!open) {
+          setMouDadosOpen(false);
+          setMouPendente(null);
+          setMouAceito(false);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[88vh] overflow-hidden border-blue-200 bg-white text-brand-navy">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-brand-navy">
+              <UserCheck className="h-5 w-5 text-blue-600" />
+              Dados para formalização da BIA
+            </DialogTitle>
+            <DialogDescription>
+              Preencha os dados contratuais para concluir o aceite do MOU e efetivar sua participação.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[62vh] overflow-y-auto pr-2">
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dados pessoais</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="md:col-span-2 space-y-1">
+                    <Label>Nome completo *</Label>
+                    <Input value={String(mouDadosForm.nome_completo || "")} onChange={e => setMouDadosField("nome_completo", e.target.value)} data-testid="input-mou-nome-completo" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Nacionalidade *</Label>
+                    <Input value={String(mouDadosForm.nacionalidade || "")} onChange={e => setMouDadosField("nacionalidade", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Profissão *</Label>
+                    <Input value={String(mouDadosForm.profissao || "")} onChange={e => setMouDadosField("profissao", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Nome da mãe *</Label>
+                    <Input value={String(mouDadosForm.nome_mae || "")} onChange={e => setMouDadosField("nome_mae", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Nome do pai *</Label>
+                    <Input value={String(mouDadosForm.nome_pai || "")} onChange={e => setMouDadosField("nome_pai", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Data de nascimento *</Label>
+                    <Input type="date" value={String(mouDadosForm.data_nascimento || "")} onChange={e => setMouDadosField("data_nascimento", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Estado civil *</Label>
+                    <Select value={String(mouDadosForm.estado_civil || "")} onValueChange={value => setMouDadosField("estado_civil", value)}>
+                      <SelectTrigger data-testid="select-mou-estado-civil">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                        <SelectItem value="casado">Casado(a)</SelectItem>
+                        <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                        <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                        <SelectItem value="uniao_estavel">União estável</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>E-mail *</Label>
+                    <Input type="email" value={String(mouDadosForm.email || "")} onChange={e => setMouDadosField("email", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Telefone *</Label>
+                    <Input value={String(mouDadosForm.telefone || "")} onChange={e => setMouDadosField("telefone", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>CPF *</Label>
+                    <Input value={String(mouDadosForm.cpf || "")} onChange={e => setMouDadosField("cpf", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>RG *</Label>
+                    <Input value={String(mouDadosForm.rg || "")} onChange={e => setMouDadosField("rg", e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
+              {["casado", "casada"].includes(String(mouDadosForm.estado_civil || "").toLowerCase()) && (
+                <div className="space-y-3 border-t border-slate-200 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dados do cônjuge</p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2 space-y-1">
+                      <Label>Regime de comunhão *</Label>
+                      <Select value={String(mouDadosForm.regime_comunhao || "")} onValueChange={value => setMouDadosField("regime_comunhao", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="comunhao_parcial">Comunhão parcial de bens</SelectItem>
+                          <SelectItem value="comunhao_universal">Comunhão universal de bens</SelectItem>
+                          <SelectItem value="separacao_total">Separação total de bens</SelectItem>
+                          <SelectItem value="participacao_final_aquestos">Participação final nos aquestos</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                      <Label>Nome completo do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_nome_completo || "")} onChange={e => setMouDadosField("conjuge_nome_completo", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Nacionalidade do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_nacionalidade || "")} onChange={e => setMouDadosField("conjuge_nacionalidade", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Profissão do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_profissao || "")} onChange={e => setMouDadosField("conjuge_profissao", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Nome da mãe do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_nome_mae || "")} onChange={e => setMouDadosField("conjuge_nome_mae", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Nome do pai do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_nome_pai || "")} onChange={e => setMouDadosField("conjuge_nome_pai", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Data de nascimento do cônjuge *</Label>
+                      <Input type="date" value={String(mouDadosForm.conjuge_data_nascimento || "")} onChange={e => setMouDadosField("conjuge_data_nascimento", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>E-mail do cônjuge *</Label>
+                      <Input type="email" value={String(mouDadosForm.conjuge_email || "")} onChange={e => setMouDadosField("conjuge_email", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Telefone do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_telefone || "")} onChange={e => setMouDadosField("conjuge_telefone", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>CPF do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_cpf || "")} onChange={e => setMouDadosField("conjuge_cpf", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>RG do cônjuge *</Label>
+                      <Input value={String(mouDadosForm.conjuge_rg || "")} onChange={e => setMouDadosField("conjuge_rg", e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3 border-t border-slate-200 pt-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Residência</p>
+                  {["casado", "casada"].includes(String(mouDadosForm.estado_civil || "").toLowerCase()) && (
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <Checkbox checked={mouDadosForm.mesmo_endereco === true} onCheckedChange={checked => setMouDadosField("mesmo_endereco", checked === true)} />
+                      Ambos residem no mesmo local
+                    </label>
+                  )}
+                </div>
+
+                {["casado", "casada"].includes(String(mouDadosForm.estado_civil || "").toLowerCase()) && mouDadosForm.mesmo_endereco !== true ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {(["titular", "conjuge"] as const).map(prefix => (
+                      <div key={prefix} className="space-y-3 rounded-lg border border-slate-200 p-3">
+                        <p className="text-xs font-semibold text-slate-500">{prefix === "titular" ? "Endereço do titular" : "Endereço do cônjuge"}</p>
+                        {(["endereco", "bairro", "cidade", "estado", "pais"] as const).map(field => (
+                          <div key={`${prefix}_${field}`} className="space-y-1">
+                            <Label>{field === "endereco" ? "Endereço" : field === "pais" ? "País" : field.charAt(0).toUpperCase() + field.slice(1)} *</Label>
+                            <Input value={String(mouDadosForm[`${prefix}_${field}`] || "")} onChange={e => setMouDadosField(`${prefix}_${field}`, e.target.value)} />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2 space-y-1">
+                      <Label>Endereço *</Label>
+                      <Input value={String(mouDadosForm.endereco || "")} onChange={e => setMouDadosField("endereco", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Bairro *</Label>
+                      <Input value={String(mouDadosForm.bairro || "")} onChange={e => setMouDadosField("bairro", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Cidade *</Label>
+                      <Input value={String(mouDadosForm.cidade || "")} onChange={e => setMouDadosField("cidade", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Estado *</Label>
+                      <Input value={String(mouDadosForm.estado || "")} onChange={e => setMouDadosField("estado", e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>País *</Label>
+                      <Input value={String(mouDadosForm.pais || "")} onChange={e => setMouDadosField("pais", e.target.value)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setMouDadosOpen(false); setMouPendente(null); setMouAceito(false); }}
+              disabled={concluirMouMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmitMouDados}
+              disabled={concluirMouMutation.isPending}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              data-testid="btn-concluir-mou-dados"
+            >
               {concluirMouMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-              Aceitar MOU e concluir
+              Concluir aceite
             </Button>
           </DialogFooter>
         </DialogContent>

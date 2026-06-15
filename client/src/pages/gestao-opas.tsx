@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { OpaFormDialog } from "@/pages/oportunidades";
 
@@ -38,11 +39,15 @@ interface Opa {
   nucleo_alianca?: string | null;
   perfil_aliado?: string | null;
   status?: string | null;
+  user_created?: string | { id?: string } | null;
+  criado_por_user_id?: string | null;
+  criado_por_membro_id?: string | null;
 }
 
 interface Bia {
   id: string;
   nome_bia?: string | null;
+  aliado_built?: string | { id?: string } | null;
 }
 
 interface OpaInteresse {
@@ -130,6 +135,13 @@ function normalize(value: unknown) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function relationId(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && "id" in value && typeof (value as any).id === "string") return (value as any).id;
+  return null;
 }
 
 function money(value: unknown) {
@@ -233,6 +245,7 @@ function KanbanClientCard({
 
 export default function GestaoOpasPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [location, navigate] = useLocation();
   const [selectedOpaId, setSelectedOpaId] = useState("");
   const [busca, setBusca] = useState("");
@@ -334,6 +347,15 @@ export default function GestaoOpasPage() {
   }, {} as Record<CrmStatus, number>);
 
   const biaId = selectedOpa ?String(selectedOpa.bia || selectedOpa.bia_id || "") : "";
+  const selectedBia = bia.find((item) => item.id === biaId) || null;
+  const canManageSelectedOpa =
+    !!selectedOpa &&
+    (user?.role === "admin" ||
+      user?.role === "manager" ||
+      relationId(selectedOpa.user_created) === String(user?.id || "") ||
+      (!!selectedOpa.criado_por_user_id && String(selectedOpa.criado_por_user_id) === String(user?.id || "")) ||
+      (!!selectedOpa.criado_por_membro_id && String(selectedOpa.criado_por_membro_id) === String(user?.membro_directus_id || "")) ||
+      (!!selectedBia?.aliado_built && relationId(selectedBia.aliado_built) === String(user?.membro_directus_id || "")));
 
   function handleDrop(status: CrmStatus, droppedId?: string) {
     const interesseId = droppedId || draggedId;
@@ -410,18 +432,20 @@ export default function GestaoOpasPage() {
                   <p className="text-xs text-muted-foreground mt-1">{biaMap.get(biaId) || "BIA não vinculada"}</p>
                 </div>
                 <div className="flex items-center gap-2 md:ml-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingOpa(selectedOpa);
-                      setFormOpen(true);
-                    }}
-                    data-testid={`btn-editar-opa-gestao-${selectedOpa.id}`}
-                  >
-                    Editar OPA
-                  </Button>
+                  {canManageSelectedOpa && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingOpa(selectedOpa);
+                        setFormOpen(true);
+                      }}
+                      data-testid={`btn-editar-opa-gestao-${selectedOpa.id}`}
+                    >
+                      Editar OPA
+                    </Button>
+                  )}
                   <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/opas/${selectedOpa.id}`)}>
                     Abrir OPA
                     <ArrowRight className="w-3.5 h-3.5" />

@@ -582,6 +582,7 @@ export const biaMouAceites = pgTable("bia_mou_aceites", {
   membro_id: text("membro_id").notNull(),
   mou_versao: text("mou_versao").notNull(),
   mou_titulo: text("mou_titulo").notNull(),
+  dados_contratuais: jsonb("dados_contratuais"),
   aceito_em: timestamp("aceito_em").defaultNow(),
 }, (table) => ({
   uniqueBiaMembroVersao: unique().on(table.bia_id, table.membro_id, table.mou_versao),

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wrench, Plus, Pencil, Trash2, FileText, Star, Upload, X, Paperclip, ExternalLink, ChevronDown } from "lucide-react";
+import { Wrench, Plus, Pencil, Trash2, FileText, Star, Upload, X, Paperclip, ExternalLink, ChevronDown, Loader2 } from "lucide-react";
 
 const ACCENT = "#5B9BD5";
 
@@ -301,9 +301,11 @@ interface TabContentProps {
   onNew: () => void;
   onEdit: (d: Doc) => void;
   onDelete: (d: Doc) => void;
+  onGenerateMou?: () => void;
+  generatingMou?: boolean;
 }
 
-function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, onDelete }: TabContentProps) {
+function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, onDelete, onGenerateMou, generatingMou }: TabContentProps) {
   const filtered = biaId ?docs.filter(d => d.bia_id === biaId && d.alianca_tipo === aliancaTipo) : docs.filter(d => d.alianca_tipo === aliancaTipo);
   const biaName = (id?: string) => bias.find(b => b.id === id)?.nome_bia || id || "—";
 
@@ -313,15 +315,30 @@ function TabContent({ aliancaTipo, biaId, bias, docs, isLoading, onNew, onEdit, 
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-600">{filtered.length} documento{filtered.length !== 1 ?"s" : ""}</span>
         </div>
-        <Button
-          onClick={onNew}
-          size="sm"
-          className="h-8 px-3 text-xs font-semibold gap-1.5"
-          style={{ background: ACCENT, color: "#001D34" }}
-          data-testid={`btn-novo-doc-${aliancaTipo}`}
-        >
-          <Plus className="w-3.5 h-3.5" /> Adicionar
-        </Button>
+        <div className="flex items-center gap-2">
+          {onGenerateMou && (
+            <Button
+              onClick={onGenerateMou}
+              disabled={generatingMou}
+              size="sm"
+              className="h-8 px-3 text-xs font-semibold gap-1.5"
+              style={{ background: "#2563eb", color: "#ffffff" }}
+              data-testid="btn-gerar-mou-padrao"
+            >
+              {generatingMou ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+              {generatingMou ? "Gerando..." : "Gerar MOU Padrão"}
+            </Button>
+          )}
+          <Button
+            onClick={onNew}
+            size="sm"
+            className="h-8 px-3 text-xs font-semibold gap-1.5"
+            style={{ background: ACCENT, color: "#001D34" }}
+            data-testid={`btn-novo-doc-${aliancaTipo}`}
+          >
+            <Plus className="w-3.5 h-3.5" /> Adicionar
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -422,6 +439,37 @@ export default function NucleoTecnicoPage({
   const { data: bias = [] } = useQuery<Bia[]>({ queryKey: ["/api/bias"] });
   const { data: docs = [], isLoading } = useQuery<Doc[]>({ queryKey: ["/api/nucleo-tecnico-docs"] });
 
+  const gerarMouMutation = useMutation({
+    mutationFn: async () => {
+      if (!biaId) throw new Error("Selecione uma BIA antes de gerar o MOU.");
+      const res = await apiRequest("POST", `/api/bias/${biaId}/gerar-mou-padrao`);
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nucleo-tecnico-docs"] });
+      toast({
+        title: "MOU Padrão gerado",
+        description: data?.warning || "O PDF foi salvo em Jurídicas da BIA.",
+        variant: data?.warning ? "destructive" : undefined,
+      });
+      const url = data?.arquivo?.url || data?.item?.arquivos?.[0]?.url;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e: any) => {
+      const message = String(e?.message || "");
+      if (message.includes("401") || message.toLowerCase().includes("nao autenticado") || message.toLowerCase().includes("não autenticado")) {
+        toast({
+          title: "Sessão expirada",
+          description: "Entre novamente para gerar o MOU Padrão.",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+      toast({ title: "Erro ao gerar MOU", description: e.message, variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/nucleo-tecnico-docs/${id}`),
     onSuccess: () => {
@@ -520,6 +568,8 @@ export default function NucleoTecnicoPage({
               onNew={() => { setEditingDoc(undefined); setSheetOpen(true); }}
               onEdit={d => { setEditingDoc(d); setSheetOpen(true); }}
               onDelete={d => setDeletingDoc(d)}
+              onGenerateMou={key === "juridica" && biaId ? () => gerarMouMutation.mutate() : undefined}
+              generatingMou={gerarMouMutation.isPending}
             />
           </TabsContent>
         ))}

@@ -164,6 +164,7 @@ export default function LoginPage() {
   const [interessesSelecionados, setInteressesSelecionados] = useState<string[]>([]);
   const [regEmpresa, setRegEmpresa] = useState("");
   const [regCargo, setRegCargo] = useState("");
+  const [regCpf, setRegCpf] = useState("");
   const [regTelefone, setRegTelefone] = useState("");
   const [regWhatsapp, setRegWhatsapp] = useState("");
   const [regCidade, setRegCidade] = useState("");
@@ -367,6 +368,10 @@ export default function LoginPage() {
     const selectedInteresses = interessesOverride && interessesOverride.length > 0 ? interessesOverride : interessesSelecionados;
     if (selectedInteresses.length === 0) return;
     const isInvestidor = selectedInteresses.includes("capital");
+    if (!regCpf.trim()) {
+      setRegError("Informe seu CPF para continuar.");
+      return;
+    }
     if (!regTelefone.trim()) {
       setRegError("Informe seu telefone para continuar.");
       return;
@@ -407,6 +412,7 @@ export default function LoginPage() {
           password: regPassword,
           convite_token: regConviteToken,
           interesses: selectedInteresses,
+          cpf: regCpf,
           telefone: regTelefone,
           whatsapp: regWhatsapp,
           empresa: regEmpresa,
@@ -966,6 +972,7 @@ export default function LoginPage() {
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <Input value={regEmpresa} onChange={e => setRegEmpresa(e.target.value)} placeholder="Empresa" />
                         <Input value={regCargo} onChange={e => setRegCargo(e.target.value)} placeholder="Cargo" />
+                        <Input value={regCpf} onChange={e => setRegCpf(e.target.value)} placeholder="CPF *" />
                         <Input value={regTelefone} onChange={e => setRegTelefone(e.target.value)} placeholder="Telefone *" />
                         <Input value={regWhatsapp} onChange={e => setRegWhatsapp(e.target.value)} placeholder="WhatsApp" />
                         <Input value={regCidade} onChange={e => setRegCidade(e.target.value)} placeholder="Cidade *" list="cadastro-cidades" />

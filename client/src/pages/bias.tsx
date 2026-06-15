@@ -623,11 +623,13 @@ function PercField({ label, field, form, setForm, baseValue }: {
   );
 }
 
-function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required, filterFn, pending }: {
+function MembroSelect({ label, field, form, setForm, membros, icon: Icon, required, filterFn, pending, disabled, disabledNote }: {
   label: string; field: keyof FormState; form: FormState;
   setForm: (f: FormState) => void; membros: Membro[]; icon?: any; required?: boolean;
   filterFn?: (m: Membro) => boolean;
   pending?: boolean;
+  disabled?: boolean;
+  disabledNote?: string;
 }) {
   const [open, setOpen] = useState(false);
   const isEmpty = required && !form[field];
@@ -645,13 +647,14 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
         {Icon && <Icon className="w-3 h-3" />} {label}
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </Label>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={disabled ? false : open} onOpenChange={(nextOpen) => !disabled && setOpen(nextOpen)}>
         <PopoverTrigger asChild>
           <Button
             type="button"
             variant="outline"
             role="combobox"
-            className={`h-8 w-full justify-between px-3 text-left text-sm font-normal ${isEmpty ?"border-red-400/50 focus:border-red-400" : ""}`}
+            disabled={disabled}
+            className={`h-8 w-full justify-between px-3 text-left text-sm font-normal disabled:cursor-not-allowed disabled:opacity-100 ${disabled ? "bg-muted/50 text-foreground" : ""} ${isEmpty ?"border-red-400/50 focus:border-red-400" : ""}`}
             data-testid={`select-${field}`}
           >
             <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -721,6 +724,9 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
       </Popover>
       {isEmpty && (
         <p className="text-[10px] text-red-400/70 font-mono">Campo obrigatório</p>
+      )}
+      {disabled && disabledNote && (
+        <p className="text-[10px] text-muted-foreground">{disabledNote}</p>
       )}
     </div>
   );
@@ -1686,6 +1692,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
   const { user } = useAuth();
   const isEdit = !!bia;
   const membroLogadoId = user?.membro_directus_id || "";
+  const canEditAliadoBuilt = user?.role === "admin" || user?.role === "manager";
 
   const EMPTY_INFO = {
     razao_social: "",
@@ -2752,7 +2759,18 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
 
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4">
-              <MembroSelect label="Aliado BUILT" field="aliado_built" form={form} setForm={setForm} membros={membros} icon={Shield} required filterFn={(m) => !!(m.Outras_redes_as_quais_pertenco?.includes("BUILT_ALLIANCE_PARTNER")) || m.id === form.aliado_built} />
+              <MembroSelect
+                label="Aliado BUILT"
+                field="aliado_built"
+                form={form}
+                setForm={setForm}
+                membros={membros}
+                icon={Shield}
+                required
+                disabled={!canEditAliadoBuilt}
+                disabledNote="Definido automaticamente pelo Aliado BUILT da comunidade."
+                filterFn={(m) => !!(m.Outras_redes_as_quais_pertenco?.includes("BUILT_ALLIANCE_PARTNER")) || m.id === form.aliado_built}
+              />
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Diretores</p>
               <MembroSelect label="Diretor de Aliança" field="diretor_alianca" form={form} setForm={setForm} membros={membros} icon={Crown} required pending={!!diretorPendingByField.diretor_alianca} />

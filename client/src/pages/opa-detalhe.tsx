@@ -44,6 +44,9 @@ interface Oportunidade {
   motivo_encerramento?: string | null;
   Anexos?: AnexoFile[];
   date_created?: string | null;
+  user_created?: string | { id?: string } | null;
+  criado_por_user_id?: string | null;
+  criado_por_membro_id?: string | null;
 }
 
 interface BiasProjeto {
@@ -126,23 +129,11 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function isMembroLinkedToBia(bia?: BiasProjeto, membroId?: string | null): boolean {
-  if (!bia || !membroId) return false;
-  const directRoles = [
-    bia.autor_bia,
-    bia.aliado_built,
-    bia.diretor_alianca,
-    bia.diretor_nucleo_tecnico,
-    bia.diretor_execucao,
-    bia.diretor_comercial,
-    bia.diretor_capital,
-  ];
-  const listRoles = [
-    ...(bia.socios_multiplicadores || []),
-    ...(bia.socios_guardioes || []),
-    ...(bia.terceiros || []),
-  ];
-  return [...directRoles, ...listRoles].some((id) => id === membroId);
+function relationId(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && "id" in value && typeof (value as any).id === "string") return (value as any).id;
+  return null;
 }
 
 export default function OpaDetalhePage() {
@@ -276,7 +267,10 @@ export default function OpaDetalhePage() {
   const canManageOpa =
     user?.role === "admin" ||
     user?.role === "manager" ||
-    isMembroLinkedToBia(bia, (user as any)?.membro_directus_id);
+    relationId(opa?.user_created) === String(user?.id || "") ||
+    (!!opa?.criado_por_user_id && String(opa.criado_por_user_id) === String(user?.id || "")) ||
+    (!!opa?.criado_por_membro_id && String(opa.criado_por_membro_id) === String((user as any)?.membro_directus_id || "")) ||
+    (!!bia?.aliado_built && String(bia.aliado_built) === String((user as any)?.membro_directus_id || ""));
 
   if (isLoading) {
     return (
@@ -313,15 +307,17 @@ export default function OpaDetalhePage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para OPAs
         </Button>
-        <Button
-          size="sm"
-          className="gap-2 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
-          onClick={() => setEditDialog(true)}
-          data-testid="btn-edit-opa-detail"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Editar
-        </Button>
+        {canManageOpa && (
+          <Button
+            size="sm"
+            className="gap-2 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
+            onClick={() => setEditDialog(true)}
+            data-testid="btn-edit-opa-detail"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Editar
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="detalhes" className="space-y-5">

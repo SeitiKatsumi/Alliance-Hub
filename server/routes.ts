@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -11,6 +11,8 @@ import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 import { fileURLToPath } from "url";
+import { PNG } from "pngjs";
+import { deflateSync } from "zlib";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -20,6 +22,7 @@ const openai = new OpenAI({
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 const ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url));
+const nucleoTecnicoDocsFallback: any[] = [];
 
 const BOOTSTRAP_SUPERADMIN_EMAILS = new Set(["seitikatsumi@gmail.com"]);
 const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
@@ -384,6 +387,28 @@ async function ensureOpaMediaFields() {
       },
       schema: { is_nullable: true },
     },
+    {
+      field: "criado_por_user_id",
+      type: "string",
+      meta: {
+        interface: "input",
+        display: "raw",
+        hidden: true,
+        note: "Usuário local que criou a OPA",
+      },
+      schema: { is_nullable: true },
+    },
+    {
+      field: "criado_por_membro_id",
+      type: "uuid",
+      meta: {
+        interface: "input",
+        display: "raw",
+        hidden: true,
+        note: "Membro que criou a OPA",
+      },
+      schema: { is_nullable: true },
+    },
   ];
   for (const fieldDef of fields) {
     try {
@@ -451,6 +476,44 @@ async function ensureVitrineFields() {
     { field: "built_capital_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo BUILT Capital aceito" }, schema: { is_nullable: true } },
     { field: "area_aliancas_termo_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Termo Area de Aliancas" }, schema: { is_nullable: true } },
     { field: "area_aliancas_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo Area de Aliancas aceito" }, schema: { is_nullable: true } },
+    { field: "nacionalidade", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nacionalidade para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "nome_mae", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome da mae para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "nome_pai", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome do pai para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "data_nascimento", type: "date", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de nascimento para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "profissao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Profissao para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "cpf", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "CPF para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "rg", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "RG para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "estado_civil", type: "string", meta: { interface: "select-dropdown", display: "raw", hidden: false, note: "Estado civil para formalizacao de BIA", options: { choices: [
+      { text: "Solteiro(a)", value: "solteiro" },
+      { text: "Casado(a)", value: "casado" },
+      { text: "Divorciado(a)", value: "divorciado" },
+      { text: "Viuvo(a)", value: "viuvo" },
+      { text: "Uniao estavel", value: "uniao_estavel" },
+    ] } }, schema: { is_nullable: true } },
+    { field: "regime_comunhao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Regime de comunhao para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "conjuge_nome_completo", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_nacionalidade", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_nome_mae", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_nome_pai", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_data_nascimento", type: "date", meta: { interface: "datetime", display: "datetime", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_profissao", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_email", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_telefone", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_cpf", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_rg", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "mesmo_endereco", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: true } },
+    { field: "endereco", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "bairro", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_endereco", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_bairro", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_cidade", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_estado", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_pais", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_endereco", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_bairro", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_cidade", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_estado", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_pais", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
   ];
   for (const fieldDef of fields) {
     try {
@@ -1351,10 +1414,12 @@ async function ensureBiaMouAceitesTable() {
       membro_id text NOT NULL,
       mou_versao text NOT NULL,
       mou_titulo text NOT NULL,
+      dados_contratuais jsonb,
       aceito_em timestamp DEFAULT now(),
       UNIQUE (bia_id, membro_id, mou_versao)
     )
   `);
+  await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS dados_contratuais jsonb`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_mou_aceites_bia_membro ON bia_mou_aceites (bia_id, membro_id, mou_versao)`);
 }
 
@@ -2414,6 +2479,38 @@ export async function registerRoutes(
         "built_capital_termo_versao",
         "area_aliancas_termo_aceito_em",
         "area_aliancas_termo_versao",
+        "nacionalidade",
+        "nome_mae",
+        "nome_pai",
+        "data_nascimento",
+        "profissao",
+        "cpf",
+        "rg",
+        "estado_civil",
+        "regime_comunhao",
+        "conjuge_nome_completo",
+        "conjuge_nacionalidade",
+        "conjuge_nome_mae",
+        "conjuge_nome_pai",
+        "conjuge_data_nascimento",
+        "conjuge_profissao",
+        "conjuge_email",
+        "conjuge_telefone",
+        "conjuge_cpf",
+        "conjuge_rg",
+        "mesmo_endereco",
+        "endereco",
+        "bairro",
+        "titular_endereco",
+        "titular_bairro",
+        "titular_cidade",
+        "titular_estado",
+        "titular_pais",
+        "conjuge_endereco",
+        "conjuge_bairro",
+        "conjuge_cidade",
+        "conjuge_estado",
+        "conjuge_pais",
       ];
       if (Object.keys(payload).some(key => termFields.includes(key) || key === "foto_posicao_x" || key === "foto_posicao_y")) {
         await ensureVitrineFields();
@@ -2886,6 +2983,117 @@ export async function registerRoutes(
   }
 
   const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para aliança de Liderança";
+  function validateBiaMouDadosContratuais(data: any) {
+    const body = data && typeof data === "object" ? data : {};
+    const missing: string[] = [];
+    const required = [
+      ["nome_completo", "Nome completo"],
+      ["nacionalidade", "Nacionalidade"],
+      ["nome_mae", "Nome da mãe"],
+      ["nome_pai", "Nome do pai"],
+      ["data_nascimento", "Data de nascimento"],
+      ["profissao", "Profissão"],
+      ["email", "E-mail"],
+      ["telefone", "Telefone"],
+      ["cpf", "CPF"],
+      ["rg", "RG"],
+      ["estado_civil", "Estado civil"],
+    ];
+    for (const [key, label] of required) {
+      if (!String(body[key] || "").trim()) missing.push(label);
+    }
+
+    const estadoCivil = String(body.estado_civil || "").toLowerCase();
+    const isCasado = estadoCivil === "casado" || estadoCivil === "casada";
+    if (isCasado) {
+      [
+        ["regime_comunhao", "Regime de comunhão"],
+        ["conjuge_nome_completo", "Nome do cônjuge"],
+        ["conjuge_nacionalidade", "Nacionalidade do cônjuge"],
+        ["conjuge_nome_mae", "Nome da mãe do cônjuge"],
+        ["conjuge_nome_pai", "Nome do pai do cônjuge"],
+        ["conjuge_data_nascimento", "Data de nascimento do cônjuge"],
+        ["conjuge_profissao", "Profissão do cônjuge"],
+        ["conjuge_email", "E-mail do cônjuge"],
+        ["conjuge_telefone", "Telefone do cônjuge"],
+        ["conjuge_cpf", "CPF do cônjuge"],
+        ["conjuge_rg", "RG do cônjuge"],
+      ].forEach(([key, label]) => {
+        if (!String(body[key] || "").trim()) missing.push(label);
+      });
+    }
+
+    const mesmoEndereco = body.mesmo_endereco === true || body.mesmo_endereco === "true";
+    const addressFields = [
+      ["endereco", "Endereço"],
+      ["bairro", "Bairro"],
+      ["cidade", "Cidade"],
+      ["estado", "Estado"],
+      ["pais", "País"],
+    ];
+    if (isCasado && !mesmoEndereco) {
+      addressFields.forEach(([key, label]) => {
+        if (!String(body[`titular_${key}`] || "").trim()) missing.push(`${label} do titular`);
+        if (!String(body[`conjuge_${key}`] || "").trim()) missing.push(`${label} do cônjuge`);
+      });
+    } else {
+      addressFields.forEach(([key, label]) => {
+        if (!String(body[key] || "").trim()) missing.push(label);
+      });
+    }
+
+    return { ok: missing.length === 0, missing, data: body };
+  }
+
+  const BIA_DADOS_CONTRATUAIS_CADASTRO_FIELDS = [
+    "nacionalidade",
+    "nome_mae",
+    "nome_pai",
+    "data_nascimento",
+    "profissao",
+    "email",
+    "telefone",
+    "cpf",
+    "rg",
+    "estado_civil",
+    "regime_comunhao",
+    "conjuge_nome_completo",
+    "conjuge_nacionalidade",
+    "conjuge_nome_mae",
+    "conjuge_nome_pai",
+    "conjuge_data_nascimento",
+    "conjuge_profissao",
+    "conjuge_email",
+    "conjuge_telefone",
+    "conjuge_cpf",
+    "conjuge_rg",
+    "mesmo_endereco",
+    "endereco",
+    "bairro",
+    "cidade",
+    "estado",
+    "pais",
+    "titular_endereco",
+    "titular_bairro",
+    "titular_cidade",
+    "titular_estado",
+    "titular_pais",
+    "conjuge_endereco",
+    "conjuge_bairro",
+    "conjuge_cidade",
+    "conjuge_estado",
+    "conjuge_pais",
+  ];
+
+  function pickBiaDadosContratuaisCadastro(data: Record<string, any>) {
+    const payload: Record<string, any> = {};
+    if (String(data.nome_completo || "").trim()) payload.nome = String(data.nome_completo).trim();
+    for (const field of BIA_DADOS_CONTRATUAIS_CADASTRO_FIELDS) {
+      if (data[field] !== undefined) payload[field] = data[field];
+    }
+    return payload;
+  }
+
   const CHAMADA_ALIANCA_SEQUENCE = [
     { ordem: 1, escopo: "comunidade", label: "RO para a comunidade" },
     { ordem: 2, escopo: "territorio", label: "RO para o território" },
@@ -3004,7 +3212,7 @@ export async function registerRoutes(
     ));
   }
 
-  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean) {
+  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any) {
     const aceite = await storage.getBiaMouAceite(biaId, membroId, BIA_MOU_VERSAO);
     if (aceite) return { ok: true };
     if (!aceitarMou) {
@@ -3020,11 +3228,27 @@ export async function registerRoutes(
         },
       };
     }
+    const dadosCheck = validateBiaMouDadosContratuais(dadosContratuais);
+    if (!dadosCheck.ok) {
+      return {
+        ok: false,
+        statusCode: 400,
+        response: {
+          error: `Preencha os dados obrigatórios antes de concluir: ${dadosCheck.missing.join(", ")}.`,
+          campos: dadosCheck.missing,
+        },
+      };
+    }
     await storage.createBiaMouAceite({
       bia_id: biaId,
       membro_id: membroId,
       mou_versao: BIA_MOU_VERSAO,
       mou_titulo: BIA_MOU_TITULO,
+      dados_contratuais: dadosCheck.data,
+    });
+    await ensureVitrineFields();
+    await directusUpdate("cadastro_geral", membroId, pickBiaDadosContratuaisCadastro(dadosCheck.data)).catch((error: any) => {
+      console.error("[bia-mou] erro ao salvar dados contratuais no cadastro:", error?.message || error);
     });
     return { ok: true };
   }
@@ -3518,7 +3742,7 @@ export async function registerRoutes(
       if (papelPreenchido) return res.status(400).json({ error: "Este papel ja possui membro. Dispare a alianca apenas para papeis em aberto." });
 
       const percentualField = CHAMADA_DIRETOR_PERCENTUAL_FIELDS[diretorCampo];
-      const valorBaseDm = getBiaNumericValue(bia, "valor_origem", "valor_geral_venda_vgv", "valor_realizado_venda");
+      const valorBaseDm = Number(getBiaNumericValue(bia, "valor_origem", "valor_geral_venda_vgv", "valor_realizado_venda") || 0);
       const percentualDm = percentualField
         ? Number(String(bia[percentualField] ?? "").replace(",", "."))
         : null;
@@ -3640,6 +3864,638 @@ export async function registerRoutes(
         registro_local_salvo: chamadasStorageDisponivel,
       });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  function normalizePdfText(value: any): string {
+    return String(value ?? "")
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/[–—]/g, "-")
+      .replace(/\u00a0/g, " ")
+      .replace(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\u00FF]/g, "");
+  }
+
+  function pdfHex(value: string): string {
+    return `<${Buffer.from(normalizePdfText(value), "latin1").toString("hex").toUpperCase()}>`;
+  }
+
+  function wrapPdfLine(line: string, maxChars = 96): string[] {
+    const clean = normalizePdfText(line).replace(/\s+/g, " ").trim();
+    if (!clean) return [""];
+    const words = clean.split(" ");
+    const lines: string[] = [];
+    let current = "";
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length > maxChars && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  function buildSimpleTextPdf(title: string, sections: Array<{ title: string; body: string }>): Buffer {
+    const pages: string[][] = [];
+    let ops: string[] = [];
+    let y = 0;
+    const navy = "0.000 0.114 0.204";
+    const blue = "0.146 0.388 0.922";
+    const gold = "0.843 0.733 0.490";
+    const slate = "0.220 0.290 0.360";
+    const logoImage = loadMouLogoForPdf();
+
+    const text = (value: string, x: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
+      ops.push(`BT /${font} ${size} Tf ${color} rg ${x} ${yy} Td ${pdfHex(value)} Tj ET`);
+    };
+    const rect = (x: number, yy: number, w: number, h: number, color: string) => {
+      ops.push(`q ${color} rg ${x} ${yy} ${w} ${h} re f Q`);
+    };
+    const line = (x1: number, y1: number, x2: number, y2: number, color = "0.85 0.85 0.85", width = 0.7) => {
+      ops.push(`q ${color} RG ${width} w ${x1} ${y1} m ${x2} ${y2} l S Q`);
+    };
+    const newPage = () => {
+      if (ops.length) pages.push(ops);
+      ops = [];
+      rect(0, 768, 595, 74, navy);
+      if (logoImage) {
+        const logoWidth = 300;
+        const logoHeight = logoWidth * (logoImage.height / logoImage.width);
+        ops.push(`q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} 42 775 cm /Logo Do Q`);
+      } else {
+        text("BUILT", 46, 796, 32, "F2", "1 1 1");
+        text("Builders United for Investment, Logistics and Trade", 48, 780, 8, "F1", "1 1 1");
+      }
+      text("MOU PADRÃO BUILT", 360, 804, 11, "F2", gold);
+      text(new Date().toLocaleDateString("pt-BR"), 452, 788, 8, "F1", "0.85 0.90 0.95");
+      rect(0, 764, 595, 4, gold);
+      y = 730;
+    };
+    const ensure = (height: number) => {
+      if (y - height < 54) newPage();
+    };
+    const paragraph = (value: string, options: { size?: number; font?: string; color?: string; width?: number; gap?: number; indent?: number } = {}) => {
+      const size = options.size || 9.5;
+      const gap = options.gap ?? 13;
+      const indent = options.indent || 0;
+      const lines = wrapPdfLine(value, options.width || 102);
+      ensure(lines.length * gap + 8);
+      for (const wrapped of lines) {
+        text(wrapped, 48 + indent, y, size, options.font || "F1", options.color || "0.05 0.10 0.16");
+        y -= gap;
+      }
+      y -= 4;
+    };
+    const sectionTitle = (value: string) => {
+      if (y < 128) newPage();
+      y -= 12;
+      ensure(58);
+      rect(42, y - 8, 511, 28, "0.945 0.970 1.000");
+      rect(42, y - 8, 4, 28, blue);
+      text(value.toUpperCase(), 58, y, 12, "F2", navy);
+      y -= 42;
+    };
+    const infoBox = (lines: string[]) => {
+      const boxHeight = Math.max(56, lines.length * 16 + 24);
+      ensure(boxHeight + 12);
+      rect(42, y - boxHeight + 10, 511, boxHeight, "0.985 0.988 0.992");
+      line(42, y + 10, 553, y + 10, "0.72 0.82 0.94");
+      line(42, y - boxHeight + 10, 553, y - boxHeight + 10, "0.72 0.82 0.94");
+      let rowY = y - 10;
+      for (const item of lines) {
+        text(item, 58, rowY, 9.5, "F1", slate);
+        rowY -= 16;
+      }
+      y -= boxHeight + 10;
+    };
+    const allocationTable = (lines: string[]) => {
+      const rows = lines
+        .filter((item) => item.includes(":") && item.includes(" - "))
+        .map((item) => {
+          const [label, rest] = item.split(":");
+          const [percent, value] = rest.split(" - ");
+          return { label: label.trim(), percent: (percent || "").trim(), value: (value || "").trim() };
+        });
+      ensure(rows.length * 24 + 70);
+      rect(42, y - 30, 511, 28, navy);
+      text("Participante / Papel", 58, y - 20, 9, "F2", "1 1 1");
+      text("Percentual", 354, y - 20, 9, "F2", "1 1 1");
+      text("Valor CPP/DM", 442, y - 20, 9, "F2", "1 1 1");
+      y -= 54;
+      rows.forEach((row, index) => {
+        rect(42, y - 9, 511, 22, index % 2 === 0 ? "0.965 0.978 0.995" : "1 1 1");
+        text(row.label, 58, y, 9, "F1", "0.05 0.10 0.16");
+        text(row.percent, 358, y, 9, "F2", blue);
+        text(row.value, 442, y, 9, "F2", navy);
+        y -= 24;
+      });
+      y -= 12;
+    };
+
+    newPage();
+    text(title, 48, y, 18, "F2", navy);
+    y -= 18;
+    line(48, y, 548, y, "0.72 0.82 0.94", 1);
+    y -= 28;
+
+    for (const [sectionIndex, section] of sections.entries()) {
+      if (sectionIndex > 0) newPage();
+      sectionTitle(section.title);
+      const paragraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
+      if (section.title.includes("Mapa de Alocação") || section.title.includes("Mapa de Alocacao")) {
+        const tableStart = paragraphs.findIndex((item) => item.includes("Alocação") || item.includes("Alocacao"));
+        const intro = tableStart >= 0 ? paragraphs.slice(0, tableStart) : paragraphs.slice(0, 5);
+        infoBox(intro);
+        allocationTable(paragraphs);
+        const last = paragraphs[paragraphs.length - 1];
+        if (last && last.includes("Este mapa")) paragraph(last, { color: slate, width: 96 });
+        y -= 18;
+        continue;
+      }
+      for (const item of paragraphs) {
+        const isSubheading = item.length < 70 && /^[A-Z0-9 .IVX-]+$/.test(normalizePdfText(item).toUpperCase()) && !item.includes(".");
+        if (isSubheading) {
+          ensure(34);
+          y -= 8;
+        }
+        paragraph(item, {
+          font: isSubheading ? "F2" : "F1",
+          color: isSubheading ? navy : "0.05 0.10 0.16",
+          size: isSubheading ? 10.5 : 9.2,
+          gap: isSubheading ? 16 : undefined,
+          width: 98,
+        });
+        if (isSubheading) y -= 4;
+      }
+      y -= 14;
+    }
+    if (ops.length) pages.push(ops);
+
+    const objects: string[] = [];
+    const addObject = (content: string) => {
+      objects.push(content);
+      return objects.length;
+    };
+    const catalogId = addObject("<< /Type /Catalog /Pages 2 0 R >>");
+    const pagesId = addObject("");
+    const fontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+    const boldFontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+    let logoObjectId: number | null = null;
+    if (logoImage) {
+      const alphaStream = logoImage.alpha.toString("latin1");
+      const alphaId = addObject(`<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${logoImage.alpha.length} >>\nstream\n${alphaStream}\nendstream`);
+      const rgbStream = logoImage.rgb.toString("latin1");
+      logoObjectId = addObject(`<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask ${alphaId} 0 R /Length ${logoImage.rgb.length} >>\nstream\n${rgbStream}\nendstream`);
+    }
+    const pageIds: number[] = [];
+    const contentIds: number[] = [];
+
+    pages.forEach((pageOps) => {
+      const stream = pageOps.join("\n");
+      const contentId = addObject(`<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`);
+      const xObjectResources = logoObjectId ? ` /XObject << /Logo ${logoObjectId} 0 R >>` : "";
+      const pageId = addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontId} 0 R /F2 ${boldFontId} 0 R >>${xObjectResources} >> /Contents ${contentId} 0 R >>`);
+      contentIds.push(contentId);
+      pageIds.push(pageId);
+    });
+    objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
+    void catalogId;
+    void contentIds;
+
+    let pdf = "%PDF-1.4\n";
+    const offsets = [0];
+    objects.forEach((object, index) => {
+      offsets.push(Buffer.byteLength(pdf, "latin1"));
+      pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    });
+    const xrefOffset = Buffer.byteLength(pdf, "latin1");
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    for (let i = 1; i <= objects.length; i++) {
+      pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+    }
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    return Buffer.from(pdf, "latin1");
+  }
+
+  function readMouAsset(name: string): string {
+    const candidates = [
+      path.resolve(process.cwd(), "server", "assets", "mou-padrao", name),
+      path.resolve(process.cwd(), "dist", "server", "assets", "mou-padrao", name),
+      path.resolve(process.cwd(), "dist", "assets", "mou-padrao", name),
+      path.resolve(ROUTES_DIR, "server", "assets", "mou-padrao", name),
+      path.resolve(ROUTES_DIR, "assets", "mou-padrao", name),
+    ];
+    const found = candidates.find((candidate) => fs.existsSync(candidate));
+    return found ? fs.readFileSync(found, "utf8") : "";
+  }
+
+  function loadMouLogoForPdf() {
+    const candidates = [
+      path.resolve(process.cwd(), "server", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
+      path.resolve(process.cwd(), "dist", "server", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
+      path.resolve(process.cwd(), "dist", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
+      path.resolve(ROUTES_DIR, "server", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
+      path.resolve(ROUTES_DIR, "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
+    ];
+    const found = candidates.find((candidate) => fs.existsSync(candidate));
+    if (!found) return null;
+    const png = PNG.sync.read(fs.readFileSync(found));
+    const rgb = Buffer.alloc(png.width * png.height * 3);
+    const alpha = Buffer.alloc(png.width * png.height);
+    for (let i = 0, p = 0, a = 0; i < png.data.length; i += 4, p += 3, a += 1) {
+      rgb[p] = png.data[i];
+      rgb[p + 1] = png.data[i + 1];
+      rgb[p + 2] = png.data[i + 2];
+      alpha[a] = png.data[i + 3];
+    }
+    return { width: png.width, height: png.height, rgb: deflateSync(rgb), alpha: deflateSync(alpha) };
+  }
+
+  async function uploadPdfToDirectus(buffer: Buffer, filename: string): Promise<string> {
+    const formData = new FormData();
+    const blob = new Blob([buffer], { type: "application/pdf" });
+    formData.append("file", blob, filename);
+    const directusRes = await fetch(`${DIRECTUS_URL}/files`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      body: formData,
+    });
+    if (!directusRes.ok) {
+      const errText = await directusRes.text();
+      throw new Error(`Erro ao enviar PDF ao Directus: ${directusRes.status} - ${errText}`);
+    }
+    const json = await directusRes.json();
+    return json.data.id;
+  }
+
+  function formatPdfMoney(value: any, currency = "BRL"): string {
+    const n = Number(String(value ?? "").replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(n)) return "-";
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(n);
+  }
+
+  function formatPdfPercent(value: any): string {
+    const n = Number(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(n)) return "-";
+    return `${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(n)}%`;
+  }
+
+  function parsePdfNumber(value: any): number {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const text = String(value ?? "").trim();
+    if (!text) return 0;
+    const normalized = text.includes(",")
+      ? text.replace(/\./g, "").replace(",", ".")
+      : text.replace(/,/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function mergeContractData(member: any, aceite: any): Record<string, any> {
+    const dados = aceite?.dados_contratuais && typeof aceite.dados_contratuais === "object" ? aceite.dados_contratuais : {};
+    const fallback: Record<string, any> = {
+      nome_completo: member?.nome || member?.Nome_de_usuario,
+      email: member?.email,
+      telefone: member?.telefone || member?.whatsapp,
+      cpf: member?.cpf || member?.CPF,
+      nacionalidade: member?.nacionalidade,
+      nome_mae: member?.nome_mae,
+      nome_pai: member?.nome_pai,
+      data_nascimento: member?.data_nascimento,
+      profissao: member?.profissao || member?.cargo,
+      rg: member?.rg,
+      estado_civil: member?.estado_civil,
+      regime_comunhao: member?.regime_comunhao,
+      endereco: member?.endereco || [member?.cidade, member?.estado, member?.pais].filter(Boolean).join(", "),
+      bairro: member?.bairro,
+      cidade: member?.cidade,
+      estado: member?.estado,
+      pais: member?.pais,
+      conjuge_nome_completo: member?.conjuge_nome_completo,
+      conjuge_nacionalidade: member?.conjuge_nacionalidade,
+      conjuge_nome_mae: member?.conjuge_nome_mae,
+      conjuge_nome_pai: member?.conjuge_nome_pai,
+      conjuge_data_nascimento: member?.conjuge_data_nascimento,
+      conjuge_profissao: member?.conjuge_profissao,
+      conjuge_email: member?.conjuge_email,
+      conjuge_telefone: member?.conjuge_telefone,
+      conjuge_cpf: member?.conjuge_cpf,
+      conjuge_rg: member?.conjuge_rg,
+      mesmo_endereco_conjuge: member?.mesmo_endereco_conjuge,
+      conjuge_endereco: member?.conjuge_endereco,
+      conjuge_bairro: member?.conjuge_bairro,
+      conjuge_cidade: member?.conjuge_cidade,
+      conjuge_estado: member?.conjuge_estado,
+      conjuge_pais: member?.conjuge_pais,
+    };
+    return { ...fallback, ...Object.fromEntries(Object.entries(dados).filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "")) };
+  }
+
+  function qualificacaoParte(participant: { roles: string[]; member: any; data: Record<string, any> }): string {
+    const d = participant.data;
+    const endereco = [d.endereco, d.bairro, d.cidade, d.estado, d.pais].filter(Boolean).join(", ") || "endereço não informado";
+    const estadoCivil = mouValue(d.estado_civil);
+    const regime = d.regime_comunhao ? ` sob o regime de ${d.regime_comunhao}` : "";
+    const conjuge = d.conjuge_nome_completo
+      ? ` Casado(a) com ${d.conjuge_nome_completo}, ${mouValue(d.conjuge_nacionalidade)}, filho(a) de ${mouValue(d.conjuge_nome_mae)} e ${mouValue(d.conjuge_nome_pai)}, nascido(a) em ${mouValue(d.conjuge_data_nascimento)}, ${mouValue(d.conjuge_profissao)}, e-mail ${mouValue(d.conjuge_email)}, telefone ${mouValue(d.conjuge_telefone)}, CPF ${mouValue(d.conjuge_cpf)} e RG ${mouValue(d.conjuge_rg)}.`
+      : "";
+    const enderecoConjuge = d.conjuge_nome_completo && String(d.mesmo_endereco_conjuge) === "false"
+      ? ` O cônjuge reside em ${[d.conjuge_endereco, d.conjuge_bairro, d.conjuge_cidade, d.conjuge_estado, d.conjuge_pais].filter(Boolean).join(", ") || "endereço não informado"}.`
+      : "";
+    return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nº ${mouValue(d.cpf)} e no RG sob o nº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
+  }
+
+  function mouMemberName(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === "object") {
+      return value.nome || value.Nome_de_usuario || value.email || value.id || null;
+    }
+    return null;
+  }
+
+  async function getMouParticipantsForBia(bia: any, biaId: string) {
+    const roleEntries: Array<{ role: string; memberId: string | null }> = [
+      { role: "Aliado Licenciado BUILT", memberId: directusRelationId(bia.aliado_built) },
+      { role: "Diretor(a) de Aliança", memberId: directusRelationId(bia.diretor_alianca) },
+      { role: "Diretor(a) de Núcleo Técnico", memberId: directusRelationId(bia.diretor_nucleo_tecnico) },
+      { role: "Diretor(a) de Núcleo de Obra", memberId: directusRelationId(bia.diretor_execucao) },
+      { role: "Diretor(a) de Núcleo Comercial", memberId: directusRelationId(bia.diretor_comercial) },
+      { role: "Diretor(a) de Núcleo de Capital", memberId: directusRelationId(bia.diretor_capital) },
+      ...parseBiaMemberList(bia.socios_guardioes).map((memberId) => ({ role: "Sócio Guardião", memberId })),
+      ...parseBiaMemberList(bia.socios_multiplicadores).map((memberId) => ({ role: "Sócio Multiplicador", memberId })),
+    ].filter((entry): entry is { role: string; memberId: string } => !!entry.memberId);
+
+    const grouped = new Map<string, string[]>();
+    for (const entry of roleEntries) {
+      const memberId = String(entry.memberId);
+      const roles = grouped.get(memberId) || [];
+      if (!roles.includes(entry.role)) roles.push(entry.role);
+      grouped.set(memberId, roles);
+    }
+    let aceites: any[] = [];
+    try {
+      aceites = await db.select().from(biaMouAceites).where(eq(biaMouAceites.bia_id, biaId));
+    } catch (error: any) {
+      console.warn("[bia-mou-padrao] Banco local indisponivel para aceites do MOU:", error?.message || error);
+    }
+    const aceiteByMember = new Map(aceites.map((aceite: any) => [String(aceite.membro_id), aceite]));
+    const fields = [
+      "id", "nome", "Nome_de_usuario", "email", "telefone", "whatsapp", "cpf", "CPF", "cargo", "cidade", "estado", "pais",
+      "nacionalidade", "nome_mae", "nome_pai", "data_nascimento", "profissao", "rg", "estado_civil", "regime_comunhao",
+      "endereco", "bairro", "conjuge_nome_completo", "conjuge_nacionalidade", "conjuge_nome_mae", "conjuge_nome_pai",
+      "conjuge_data_nascimento", "conjuge_profissao", "conjuge_email", "conjuge_telefone", "conjuge_cpf", "conjuge_rg",
+      "mesmo_endereco_conjuge", "conjuge_endereco", "conjuge_bairro", "conjuge_cidade", "conjuge_estado", "conjuge_pais",
+    ].join(",");
+    const participants = [];
+    for (const [memberId, roles] of Array.from(grouped.entries())) {
+      const member = await directusFetchOne("cadastro_geral", String(memberId), `fields=${fields}`).catch(() => ({ id: memberId }));
+      participants.push({
+        memberId,
+        roles,
+        member,
+        aceite: aceiteByMember.get(memberId) || null,
+        data: mergeContractData(member, aceiteByMember.get(memberId)),
+      });
+    }
+    return participants;
+  }
+
+  function buildAnexoIQualificacao(bia: any, biaId: string, participants: Awaited<ReturnType<typeof getMouParticipantsForBia>>) {
+    const participantByRole = (role: string) => participants.find((p) => p.roles.includes(role))?.data?.nome_completo || null;
+    const fieldOrParticipant = (field: string, role: string) => mouMemberName(bia[field]) || participantByRole(role) || "a definir";
+    const diretores = {
+      "Diretor(a) de Aliança": fieldOrParticipant("diretor_alianca", "Diretor(a) de Aliança"),
+      "Diretor(a) de Núcleo Técnico": fieldOrParticipant("diretor_nucleo_tecnico", "Diretor(a) de Núcleo Técnico"),
+      "Diretor(a) de Núcleo de Obra": fieldOrParticipant("diretor_execucao", "Diretor(a) de Núcleo de Obra"),
+      "Diretor(a) de Núcleo Comercial": fieldOrParticipant("diretor_comercial", "Diretor(a) de Núcleo Comercial"),
+      "Diretor(a) de Núcleo de Capital": fieldOrParticipant("diretor_capital", "Diretor(a) de Núcleo de Capital"),
+      "Aliado Licenciado BUILT": fieldOrParticipant("aliado_built", "Aliado Licenciado BUILT"),
+    };
+    const ativo = [
+      `BIA: ${mouValue(bia.nome_bia)}`,
+      `ID da BIA: ${biaId}`,
+      `Ativo: ${mouValue(bia.ativo_qualificacao || bia.objetivo_alianca || bia.destinacao)}`,
+      `Endereço do ativo: ${mouValue(bia.ativo_endereco || bia.localizacao)}`,
+      `Matrícula: ${mouValue(bia.ativo_numero_matricula)} | Cartório: ${mouValue(bia.ativo_cartorio)} | Comarca: ${mouValue(bia.ativo_comarca)}`,
+    ].join("\n");
+    const partes = participants.length
+      ? participants.map(qualificacaoParte).join("\n\n")
+      : "Nenhum participante aceito foi localizado para esta BIA.";
+    const diretoria = Object.entries(diretores).map(([role, nome]) => `${role}: ${nome};`).join("\n");
+    return [
+      ativo,
+      "",
+      "PARTES QUALIFICADAS",
+      partes,
+      "",
+      "DIRETORIA DA BIA",
+      "Para fins de governança, organização funcional, exercício de atribuições, participação no Conselho da BIA, registro de responsabilidades e rastreabilidade das deliberações, a Diretoria da BIA será composta pelos participantes formalmente nomeados, ativos e registrados na Plataforma BUILT.",
+      diretoria,
+      "",
+      "As funções vagas, pendentes ou não preenchidas poderão ser posteriormente preenchidas pela governança mediante registro correspondente na Plataforma BUILT, sem necessidade de aditamento formal deste Anexo, salvo exigência legal, societária, registral ou contratual específica.",
+    ].join("\n");
+  }
+
+  type MouAllocationRow = {
+    group: "Sócios Guardiões" | "Sócios Multiplicadores" | "Não classificados";
+    memberId: string;
+    name: string;
+    value: number;
+    percent: number;
+  };
+
+  async function getBiaAllocationMap(bia: any, biaId: string): Promise<MouAllocationRow[]> {
+    const memberName = (value: any) => {
+      if (value && typeof value === "object") {
+        return value.Nome_de_usuario || value.nome || value.nome_completo || value.razao_social || value.email || value.id || "Membro desconhecido";
+      }
+      return "Membro desconhecido";
+    };
+    const memberId = (value: any) => {
+      if (value && typeof value === "object") return value.id ? String(value.id) : null;
+      return value ? String(value) : null;
+    };
+    const allEntries = await directusFetch(
+      "fluxo_caixa",
+      "fields=id,bia,tipo,valor,descricao,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario,favorecido_id.nome_completo,favorecido_id.razao_social,favorecido_id.email"
+    ).catch((error: any) => {
+      console.warn("[bia-mou-padrao] Nao foi possivel buscar fluxo_caixa para o MAP:", error?.message || error);
+      return [];
+    });
+    const entries = allEntries.filter((entry: any) => directusRelationId(entry?.bia) === biaId);
+
+    const values = new Map<string, { memberId: string; name: string; value: number }>();
+    for (const entry of entries) {
+      if (entry?.tipo !== "entrada") continue;
+      if (entry?.descricao === "Valor de Origem da BIA") continue;
+      const favorecido = Array.isArray(entry?.favorecido_id) ? entry.favorecido_id[0] : entry?.favorecido_id;
+      const id = memberId(favorecido);
+      if (!id) continue;
+      const current = values.get(id) || { memberId: id, name: memberName(favorecido), value: 0 };
+      current.value += parsePdfNumber(entry?.valor);
+      values.set(id, current);
+    }
+
+    let transferencias: any[] = [];
+    try {
+      transferencias = await storage.getTransferenciasCotasByBia(biaId);
+    } catch (error: any) {
+      console.warn("[bia-mou-padrao] Transferencias de cotas indisponiveis para o MAP:", error?.message || error);
+    }
+
+    const guardioes = new Set(parseBiaMemberList(bia.socios_guardioes));
+    const multiplicadores = new Set(parseBiaMemberList(bia.socios_multiplicadores));
+    const roleByMember = new Map<string, MouAllocationRow["group"]>();
+    guardioes.forEach((id) => roleByMember.set(id, "Sócios Guardiões"));
+    multiplicadores.forEach((id) => roleByMember.set(id, "Sócios Multiplicadores"));
+
+    const nameCache = new Map<string, string>();
+    const resolveMemberName = async (id: string) => {
+      if (nameCache.has(id)) return nameCache.get(id)!;
+      const member = await directusFetchOne("cadastro_geral", id, "fields=id,nome,Nome_de_usuario,nome_completo,razao_social,email").catch(() => null);
+      const name = memberName(member || { id });
+      nameCache.set(id, name);
+      return name;
+    };
+
+    for (const transfer of transferencias.filter((item: any) => item.status === "aceita")) {
+      const origemId = String(transfer.membro_origem_id || "");
+      const destinoId = String(transfer.membro_destino_id || "");
+      if (!origemId || !destinoId) continue;
+      const origem = values.get(origemId);
+      if (!origem) continue;
+      const requestedValue = parsePdfNumber(transfer.valor_total);
+      const movedValue = Math.min(requestedValue, Math.max(0, origem.value));
+      if (movedValue <= 0) continue;
+      origem.value = Math.max(0, origem.value - movedValue);
+      const destino = values.get(destinoId) || {
+        memberId: destinoId,
+        name: await resolveMemberName(destinoId),
+        value: 0,
+      };
+      destino.value += movedValue;
+      values.set(destinoId, destino);
+      if (!roleByMember.has(destinoId)) roleByMember.set(destinoId, roleByMember.get(origemId) || "Não classificados");
+    }
+
+    const rowsBase = Array.from(values.values()).filter((item) => item.value > 0.005);
+    const total = rowsBase.reduce((sum, item) => sum + item.value, 0);
+    return rowsBase
+      .map((item) => ({
+        group: roleByMember.get(item.memberId) || "Não classificados",
+        memberId: item.memberId,
+        name: item.name,
+        value: item.value,
+        percent: total > 0 ? (item.value / total) * 100 : 0,
+      }))
+      .sort((a, b) => {
+        const order = ["Sócios Guardiões", "Sócios Multiplicadores", "Não classificados"];
+        const groupDiff = order.indexOf(a.group) - order.indexOf(b.group);
+        return groupDiff !== 0 ? groupDiff : b.value - a.value;
+      });
+  }
+
+  function buildAnexoIIMapa(bia: any, biaId: string, allocationRows: MouAllocationRow[]) {
+    const moeda = bia.moeda || "BRL";
+    const total = allocationRows.reduce((sum, row) => sum + row.value, 0);
+    const rows = allocationRows.length
+      ? allocationRows.map((row) => [`${row.group} - ${row.name}`, row.percent, row.value])
+      : [["Sem aportes registrados", 0, 0]];
+    return [
+      `BIA: ${mouValue(bia.nome_bia)}`,
+      `ID da BIA: ${biaId}`,
+      `Total alocado no MAP: ${formatPdfMoney(total, moeda)}`,
+      `Participantes com alocação: ${allocationRows.length}`,
+      "",
+      "Alocação patrimonial atual:",
+      ...rows.map(([label, percent, value]) => `${label}: ${formatPdfPercent(percent)} - ${formatPdfMoney(value, moeda)}`),
+      "",
+      "Este mapa reflete os aportes registrados na Plataforma BUILT e as transferências de cotas aceitas até a data de geração deste documento. Alterações futuras devem ser registradas na plataforma, no MAP atualizado, em ata ou em documento equivalente.",
+    ].join("\n");
+  }
+
+  async function fetchBiaForMouPdf(biaId: string) {
+    const fields = [
+      "*",
+      "aliado_built.id", "aliado_built.nome", "aliado_built.Nome_de_usuario", "aliado_built.email",
+      "diretor_alianca.id", "diretor_alianca.nome", "diretor_alianca.Nome_de_usuario", "diretor_alianca.email",
+      "diretor_nucleo_tecnico.id", "diretor_nucleo_tecnico.nome", "diretor_nucleo_tecnico.Nome_de_usuario", "diretor_nucleo_tecnico.email",
+      "diretor_execucao.id", "diretor_execucao.nome", "diretor_execucao.Nome_de_usuario", "diretor_execucao.email",
+      "diretor_comercial.id", "diretor_comercial.nome", "diretor_comercial.Nome_de_usuario", "diretor_comercial.email",
+      "diretor_capital.id", "diretor_capital.nome", "diretor_capital.Nome_de_usuario", "diretor_capital.email",
+    ].join(",");
+    const url = `${DIRECTUS_URL}/items/bias_projetos/${biaId}?fields=${encodeURIComponent(fields)}`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+    if (response.status === 404 || response.status === 403) return null;
+    if (!response.ok) throw new Error(`Directus error: ${response.status}`);
+    const json = await response.json();
+    return json.data || null;
+  }
+
+  app.post("/api/bias/:id/gerar-mou-padrao", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await fetchBiaForMouPdf(req.params.id);
+      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+
+      const infoLocal = await storage.getBiaInfoComercial(req.params.id).catch(() => null);
+      const biaComInfo = {
+        ...bia,
+        ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
+        ...pickFilledBiaInfoComercialFields(bia ?? {}),
+      };
+      const participants = await getMouParticipantsForBia(biaComInfo, req.params.id);
+      const allocationRows = await getBiaAllocationMap(biaComInfo, req.params.id);
+      const anexoIII = readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III não localizado nos assets do servidor.";
+      const anexoIV = readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV não localizado nos assets do servidor.";
+      const sections = [
+        { title: "Anexo I - Qualificação das Partes", body: buildAnexoIQualificacao(biaComInfo, req.params.id, participants) },
+        { title: "Anexo II - Mapa de Alocação Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
+        { title: "Anexo III - Termo de Adesão à Metodologia BUILT", body: anexoIII },
+        { title: "Anexo IV - Termo de Adesão e Responsabilidade do Parceiro de Capital", body: anexoIV },
+      ];
+      const now = new Date();
+      const title = `MOU Padrão BUILT - ${biaComInfo.nome_bia || req.params.id}`;
+      const pdf = buildSimpleTextPdf(title, sections);
+      const safeName = String(biaComInfo.nome_bia || req.params.id).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || req.params.id;
+      const fileId = await uploadPdfToDirectus(pdf, `mou-padrao-built-${safeName}-${now.toISOString().slice(0, 10)}.pdf`);
+      const arquivos = await resolveFileIds([fileId]);
+      let item: any = null;
+      let warning: string | null = null;
+      try {
+        const [created] = await db.insert(nucleoTecnicoDocs).values({
+          bia_id: req.params.id,
+          alianca_tipo: "juridica",
+          tipo_documento: "MOU Padrão BUILT",
+          descricao: `PDF gerado automaticamente com 4 anexos em ${now.toLocaleString("pt-BR")}.`,
+          membro_responsavel: (req.session as any).membroId || null,
+          arquivo_ids: [fileId],
+        }).returning();
+        item = { ...created, arquivos };
+      } catch (error: any) {
+        item = {
+          id: `mou-fallback-${req.params.id}-${Date.now()}`,
+          bia_id: req.params.id,
+          alianca_tipo: "juridica",
+          tipo_documento: "MOU Padrão BUILT",
+          descricao: `PDF gerado automaticamente com 4 anexos em ${now.toLocaleString("pt-BR")}.`,
+          membro_responsavel: (req.session as any).membroId || null,
+          arquivo_ids: [fileId],
+          created_at: now,
+          arquivos,
+        };
+        nucleoTecnicoDocsFallback.unshift(item);
+        console.warn("[bia-mou-padrao] PDF registrado em fallback temporario:", error?.message || error);
+      }
+      res.json({ success: true, item, arquivo: arquivos[0] || { id: fileId, url: `/api/files/${fileId}` }, warning });
+    } catch (error: any) {
+      console.error("[bia-mou-padrao] erro ao gerar PDF:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4008,6 +4864,7 @@ export async function registerRoutes(
       const sessionMembroId = (req.session as any).membroId as string | null;
       const sessionNome = (req.session as any).nome as string || "";
       const sessionEmail = (req.session as any).email as string || "";
+      const isSuperAdminRole = sessionRole === "admin" || sessionRole === "manager";
 
       let isAliadoBuilt = sessionRole === "admin" || sessionRole === "manager";
       let isDiretorAlianca = false;
@@ -4052,7 +4909,8 @@ export async function registerRoutes(
       const createBody = { ...req.body };
       if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
       if (sessionMembroId && !createBody.diretor_alianca) createBody.diretor_alianca = sessionMembroId;
-      if (sessionMembroId && !createBody.aliado_built) {
+      if (sessionMembroId && (!isSuperAdminRole || !createBody.aliado_built)) {
+        let aliadoDaComunidade: string | null = null;
         try {
           const col = await getComunidadeCol();
           const comunidades = await directusFetch(
@@ -4069,8 +4927,12 @@ export async function registerRoutes(
           }
           const aliado = comunidade?.aliado;
           const aliadoId = typeof aliado === "object" && aliado !== null ? aliado.id : aliado;
-          if (aliadoId) createBody.aliado_built = aliadoId;
+          if (aliadoId) aliadoDaComunidade = String(aliadoId);
         } catch (_) {}
+        if (!isSuperAdminRole && !aliadoDaComunidade) {
+          return res.status(400).json({ error: "Não foi possível identificar o Aliado BUILT da sua comunidade." });
+        }
+        if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
       }
       const createPayload = prepareBiaPayload(createBody);
       let item = await directusCreate("bias_projetos", createPayload);
@@ -4182,12 +5044,22 @@ export async function registerRoutes(
 
   app.patch("/api/bias/:id", async (req, res) => {
     try {
+      const sessionRole = (req.session as any).role || "user";
+      const isSuperAdminRole = sessionRole === "admin" || sessionRole === "manager";
       let payload = prepareBiaPayload(req.body);
       const currentBia = await directusFetchOne(
         "bias_projetos",
         req.params.id,
-        "fields=id,nome_bia,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores"
+        "fields=id,nome_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores"
       ).catch(() => null);
+      if (!isSuperAdminRole && Object.prototype.hasOwnProperty.call(payload, "aliado_built")) {
+        const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
+        if (aliadoAtual) {
+          (payload as any).aliado_built = aliadoAtual;
+        } else {
+          delete (payload as any).aliado_built;
+        }
+      }
       let diretorSolicitacoes: any[] = [];
       let socioSolicitacoes: any[] = [];
       let diretorFlowError: string | null = null;
@@ -4252,10 +5124,18 @@ export async function registerRoutes(
             const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
             const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
             const valoresParcelas: number[] = Array.isArray(req.body._valores_parcelas) ? req.body._valores_parcelas.map(Number) : [];
+            const aliadoCppId =
+              directusRelationId(item.aliado_built) ||
+              directusRelationId(currentBia?.aliado_built) ||
+              directusRelationId(req.body.aliado_built) ||
+              item.aliado_built ||
+              currentBia?.aliado_built ||
+              req.body.aliado_built ||
+              null;
             // Build contributors list for CPP entries
             const contributors: CppContributor[] = [
-              { label: "Aliado BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
-              { label: "BUILT", memberId: req.body.aliado_built || null, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
+              { label: "Aliado BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
+              { label: "BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
               { label: "Dir. de Aliança", memberId: item.diretor_alianca || null, percentual: parseFloat(item.perc_dir_alianca) || 0, isAporte: true },
               { label: "Dir. Núcleo Técnico", memberId: item.diretor_nucleo_tecnico || null, percentual: parseFloat(item.perc_dir_tecnico) || 0, isAporte: true },
               { label: "Dir. Núcleo de Obra", memberId: item.diretor_execucao || null, percentual: parseFloat(item.perc_dir_obras) || 0, isAporte: true },
@@ -4545,9 +5425,10 @@ export async function registerRoutes(
       const mouCheck = await ensureMouAceitoOuRetornaPendencia(
         solicitacao.bia_id,
         solicitacao.diretor_membro_id,
-        !!req.body?.aceitar_mou
+        !!req.body?.aceitar_mou,
+        req.body?.dados_contratuais_mou
       );
-      if (!mouCheck.ok) return res.json(mouCheck.response);
+      if (!mouCheck.ok) return res.status((mouCheck as any).statusCode || 200).json(mouCheck.response);
 
       await directusUpdate("bias_projetos", solicitacao.bia_id, {
         [solicitacao.campo_diretor]: solicitacao.diretor_membro_id,
@@ -4659,9 +5540,10 @@ export async function registerRoutes(
       const mouCheck = await ensureMouAceitoOuRetornaPendencia(
         solicitacao.bia_id,
         solicitacao.socio_membro_id,
-        !!req.body?.aceitar_mou
+        !!req.body?.aceitar_mou,
+        req.body?.dados_contratuais_mou
       );
-      if (!mouCheck.ok) return res.json(mouCheck.response);
+      if (!mouCheck.ok) return res.status((mouCheck as any).statusCode || 200).json(mouCheck.response);
 
       const bia = await directusFetchOne("bias_projetos", solicitacao.bia_id, `fields=id,${solicitacao.campo_socios}`);
       const socios = new Set(parseBiaMemberList(bia?.[solicitacao.campo_socios]));
@@ -5461,6 +6343,9 @@ export async function registerRoutes(
       status: o.status || "ativa",
       motivo_encerramento: o.motivo_encerramento || null,
       date_created: o.date_created || null,
+      user_created: directusRelationId(o.user_created) || o.user_created || null,
+      criado_por_user_id: o.criado_por_user_id || null,
+      criado_por_membro_id: o.criado_por_membro_id || null,
       localizacao: resolveOpaLocation(o.localizacao),
       latitude: o.latitude ?? null,
       longitude: o.longitude ?? null,
@@ -5509,10 +6394,42 @@ export async function registerRoutes(
     return data;
   }
 
+  async function canManageOpa(req: Request, opaId: string): Promise<boolean> {
+    const sessionUserId = (req.session as any).directusUserId as string | undefined;
+    const sessionMembroId = (req.session as any).membroId as string | undefined;
+    const role = (req.session as any).role;
+    if (!sessionUserId) return false;
+    if (role === "admin" || role === "manager") return true;
+
+    const opa = await directusFetchOne("tipos_oportunidades", opaId);
+    if (!opa) return false;
+
+    const opaCreatorUserId = directusRelationId(opa.user_created) || opa.user_created || opa.criado_por_user_id || null;
+    if (opaCreatorUserId && String(opaCreatorUserId) === String(sessionUserId)) return true;
+    if (sessionMembroId && opa.criado_por_membro_id && String(opa.criado_por_membro_id) === String(sessionMembroId)) return true;
+
+    const biaId = directusRelationId(opa.bia) || opa.bia || null;
+    if (!biaId || !sessionMembroId) return false;
+    const bia = await directusFetchOne("bias_projetos", String(biaId), "fields=id,aliado_built");
+    return String(directusRelationId(bia?.aliado_built) || bia?.aliado_built || "") === String(sessionMembroId);
+  }
+
   app.post("/api/oportunidades", async (req, res) => {
     try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
       await ensureOpaMediaFields();
-      const item = await directusCreate("tipos_oportunidades", prepareOpaPayload(req.body));
+      const payload = prepareOpaPayload(req.body);
+      payload.criado_por_user_id = (req.session as any).directusUserId || null;
+      payload.criado_por_membro_id = (req.session as any).membroId || null;
+      let item;
+      try {
+        item = await directusCreate("tipos_oportunidades", payload);
+      } catch (error: any) {
+        if (!String(error?.message || "").includes("criado_por_")) throw error;
+        delete payload.criado_por_user_id;
+        delete payload.criado_por_membro_id;
+        item = await directusCreate("tipos_oportunidades", payload);
+      }
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -5534,6 +6451,10 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id", async (req, res) => {
     try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(await canManageOpa(req, req.params.id))) {
+        return res.status(403).json({ error: "Sem permissão para editar esta OPA" });
+      }
       await ensureOpaMediaFields();
       const item = await directusUpdate("tipos_oportunidades", req.params.id, prepareOpaPayload(req.body));
       res.json(item);
@@ -5544,6 +6465,10 @@ export async function registerRoutes(
 
   app.delete("/api/oportunidades/:id", async (req, res) => {
     try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(await canManageOpa(req, req.params.id))) {
+        return res.status(403).json({ error: "Sem permissão para excluir esta OPA" });
+      }
       await directusDelete("tipos_oportunidades", req.params.id);
       res.json({ success: true });
     } catch (error: any) {
@@ -5957,6 +6882,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         email,
         username,
         password,
+        cpf,
         telefone,
         whatsapp,
         empresa,
@@ -5981,6 +6907,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
       if (password.length < 4)
         return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
+      if (!String(cpf || "").trim()) {
+        return res.status(400).json({ error: "CPF é obrigatório para concluir o cadastro." });
+      }
 
       // Require a convite_token to register
       if (!convite_token) {
@@ -6060,6 +6989,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       }
       if (telefone) directusPayload.telefone = telefone;
+      if (cpf) directusPayload.cpf = cpf;
       if (whatsapp) directusPayload.whatsapp = whatsapp;
       if (empresa) directusPayload.empresa = empresa;
       if (cargo) directusPayload.cargo = cargo;
@@ -6079,25 +7009,72 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (perfil_aliado) directusPayload.perfil_aliado = perfil_aliado;
       if (especialidade_livre) directusPayload.especialidade_livre = especialidade_livre;
 
-      const directusRes = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${DIRECTUS_TOKEN}`,
-        },
-        body: JSON.stringify(directusPayload),
-      });
-      if (!directusRes.ok) {
-        const errText = await directusRes.text();
-        console.error("[register] Directus cadastro_geral creation failed:", directusRes.status, errText.slice(0, 200));
-        return res.status(500).json({ error: "Erro ao criar perfil de membro. Tente novamente." });
+      const createCadastroGeral = async (payload: Record<string, any>) => {
+        const response = await fetch(`${DIRECTUS_URL}/items/cadastro_geral`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const text = await response.text();
+        return {
+          response,
+          text,
+          data: text ? JSON.parse(text) : null,
+        };
+      };
+
+      const patchCadastroGeralField = async (membroId: string, field: string, value: any) => {
+        if (value === undefined || value === null || value === "") return;
+        const response = await fetch(`${DIRECTUS_URL}/items/cadastro_geral/${membroId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+          },
+          body: JSON.stringify({ [field]: value }),
+        });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          console.warn("[register] Campo opcional ignorado no cadastro_geral:", field, response.status, text.slice(0, 160));
+        }
+      };
+
+      let directusData: any = null;
+      let createdWithMinimalPayload = false;
+      const directusAttempt = await createCadastroGeral(directusPayload);
+      if (directusAttempt.response.ok) {
+        directusData = directusAttempt.data;
+      } else {
+        console.error("[register] Directus cadastro_geral creation failed:", directusAttempt.response.status, directusAttempt.text.slice(0, 500));
+
+        const minimalPayload = {
+          Nome_de_usuario: directusPayload.Nome_de_usuario,
+          nome: directusPayload.nome,
+          email: directusPayload.email,
+        };
+        const retryAttempt = await createCadastroGeral(minimalPayload);
+        if (!retryAttempt.response.ok) {
+          console.error("[register] Directus cadastro_geral minimal creation failed:", retryAttempt.response.status, retryAttempt.text.slice(0, 500));
+          return res.status(500).json({ error: "Erro ao criar perfil de membro. Tente novamente." });
+        }
+        createdWithMinimalPayload = true;
+        directusData = retryAttempt.data;
       }
-      const directusData = await directusRes.json();
       const membroDirectusId: string = directusData.data?.id;
       if (!membroDirectusId) {
         return res.status(500).json({ error: "Erro ao criar perfil de membro (id ausente). Tente novamente." });
       }
       console.log("[register] Directus cadastro_geral created:", membroDirectusId);
+
+      if (createdWithMinimalPayload) {
+        for (const [field, value] of Object.entries(directusPayload)) {
+          if (["Nome_de_usuario", "nome", "email"].includes(field)) continue;
+          await patchCadastroGeralField(membroDirectusId, field, value);
+        }
+      }
 
       // 2. Associate member with the inviter's community in Directus immediately (as candidato)
       if (conviteLink.comunidade_id) {
@@ -6834,9 +7811,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   // ── Núcleo Técnico Documentos (PostgreSQL local) ─────────────────
   app.get("/api/nucleo-tecnico-docs", async (req, res) => {
     try {
-      let query = db.select().from(nucleoTecnicoDocs).orderBy(desc(nucleoTecnicoDocs.created_at));
-      const rows = await query;
-      const filtered = rows.filter((r: any) => {
+      let rows: any[] = [];
+      try {
+        rows = await db.select().from(nucleoTecnicoDocs).orderBy(desc(nucleoTecnicoDocs.created_at));
+      } catch (error: any) {
+        console.warn("[nucleo-tecnico-docs] usando fallback temporario:", error?.message || error);
+      }
+      const fallbackIds = new Set(nucleoTecnicoDocsFallback.map((item: any) => item.id));
+      const mergedRows = [
+        ...nucleoTecnicoDocsFallback,
+        ...rows.filter((item: any) => !fallbackIds.has(item.id)),
+      ];
+      const filtered = mergedRows.filter((r: any) => {
         if (req.query.bia_id && r.bia_id !== req.query.bia_id) return false;
         if (req.query.alianca_tipo && r.alianca_tipo !== req.query.alianca_tipo) return false;
         return true;

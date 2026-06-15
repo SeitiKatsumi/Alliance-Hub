@@ -3913,6 +3913,33 @@ export async function registerRoutes(
     const text = (value: string, x: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
       ops.push(`BT /${font} ${size} Tf ${color} rg ${x} ${yy} Td ${pdfHex(value)} Tj ET`);
     };
+    const helveticaWidths: Record<string, number> = {
+      " ": 278,
+      "/": 278,
+      "0": 556, "1": 556, "2": 556, "3": 556, "4": 556,
+      "5": 556, "6": 556, "7": 556, "8": 556, "9": 556,
+      A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778,
+      H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722,
+      O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722,
+      V: 667, W: 944, X: 667, Y: 667, Z: 611,
+      Ã: 667, Á: 667, Â: 667, À: 667, Ç: 722, É: 667, Ê: 667,
+      Í: 278, Ó: 778, Õ: 778, Ô: 778, Ú: 722,
+    };
+    const helveticaBoldWidths: Record<string, number> = {
+      ...helveticaWidths,
+      A: 722, B: 722, C: 722, D: 722, E: 667, F: 611, G: 778,
+      H: 722, I: 278, J: 556, K: 722, L: 611, M: 833, N: 722,
+      O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722,
+      V: 667, W: 944, X: 667, Y: 667, Z: 611,
+      Ã: 722, Á: 722, Â: 722, À: 722,
+    };
+    const estimateTextWidth = (value: string, size = 10, font = "F1") => {
+      const widths = font === "F2" ? helveticaBoldWidths : helveticaWidths;
+      return Array.from(value).reduce((total, char) => total + (widths[char] ?? 556), 0) * size / 1000;
+    };
+    const textRight = (value: string, rightX: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
+      text(value, rightX - estimateTextWidth(value, size, font), yy, size, font, color);
+    };
     const rect = (x: number, yy: number, w: number, h: number, color: string) => {
       ops.push(`q ${color} rg ${x} ${yy} ${w} ${h} re f Q`);
     };
@@ -3931,8 +3958,9 @@ export async function registerRoutes(
         text("BUILT", 46, 796, 32, "F2", "1 1 1");
         text("Builders United for Investment, Logistics and Trade", 48, 780, 8, "F1", "1 1 1");
       }
-      text("MOU PADRÃO BUILT", 360, 804, 11, "F2", gold);
-      text(new Date().toLocaleDateString("pt-BR"), 452, 788, 8, "F1", "0.85 0.90 0.95");
+      const headerRight = 505;
+      textRight("MOU PADRÃO BUILT", headerRight, 804, 11, "F2", gold);
+      textRight(new Date().toLocaleDateString("pt-BR"), headerRight, 788, 8, "F1", "0.85 0.90 0.95");
       rect(0, 764, 595, 4, gold);
       y = 730;
     };
@@ -4452,9 +4480,11 @@ export async function registerRoutes(
       };
       const participants = await getMouParticipantsForBia(biaComInfo, req.params.id);
       const allocationRows = await getBiaAllocationMap(biaComInfo, req.params.id);
+      const mouPadrao = readMouAsset("mou-padrao-built.txt") || "MOU Padrão BUILT não localizado nos assets do servidor.";
       const anexoIII = readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III não localizado nos assets do servidor.";
       const anexoIV = readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV não localizado nos assets do servidor.";
       const sections = [
+        { title: "MOU Padrão BUILT", body: mouPadrao },
         { title: "Anexo I - Qualificação das Partes", body: buildAnexoIQualificacao(biaComInfo, req.params.id, participants) },
         { title: "Anexo II - Mapa de Alocação Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
         { title: "Anexo III - Termo de Adesão à Metodologia BUILT", body: anexoIII },
@@ -4473,7 +4503,7 @@ export async function registerRoutes(
           bia_id: req.params.id,
           alianca_tipo: "juridica",
           tipo_documento: "MOU Padrão BUILT",
-          descricao: `PDF gerado automaticamente com 4 anexos em ${now.toLocaleString("pt-BR")}.`,
+          descricao: `PDF gerado automaticamente com MOU Padrão e 4 anexos em ${now.toLocaleString("pt-BR")}.`,
           membro_responsavel: (req.session as any).membroId || null,
           arquivo_ids: [fileId],
         }).returning();
@@ -4484,7 +4514,7 @@ export async function registerRoutes(
           bia_id: req.params.id,
           alianca_tipo: "juridica",
           tipo_documento: "MOU Padrão BUILT",
-          descricao: `PDF gerado automaticamente com 4 anexos em ${now.toLocaleString("pt-BR")}.`,
+          descricao: `PDF gerado automaticamente com MOU Padrão e 4 anexos em ${now.toLocaleString("pt-BR")}.`,
           membro_responsavel: (req.session as any).membroId || null,
           arquivo_ids: [fileId],
           created_at: now,

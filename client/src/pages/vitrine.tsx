@@ -33,6 +33,27 @@ import {
 import { getAllTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 
 const WORLD_GEO = "/world-countries-50m.json";
+const ASSET_CACHE_VERSION = "directus-db-20260616";
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+function assetUrl(id: any, params: string) {
+  const assetId = directusAssetId(id);
+  if (!assetId) return null;
+  return `/api/assets/${assetId}?${params}&v=${ASSET_CACHE_VERSION}`;
+}
+function versionAssetUrl(url?: any) {
+  if (typeof url !== "string") {
+    const assetId = directusAssetId(url);
+    return assetId ? `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}` : null;
+  }
+  if (!url) return null;
+  if (!url.includes("/api/assets/")) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}v=${ASSET_CACHE_VERSION}`;
+}
 const NUCLEOS = [
   "Diretoria da Aliança",
   "Núcleo Técnico",
@@ -97,7 +118,7 @@ function WorldMapHeader({ membros }: { membros: MembroVitrine[] }) {
 function fotoUrlMap(m: MembroVitrine): string | null {
   const f = m.foto || m.foto_perfil;
   if (!f) return null;
-  return `/api/assets/${f}?width=80&height=80&fit=cover`;
+  return assetUrl(f, "width=80&height=80&fit=cover");
 }
 
   function getInitialsMap(nome: string): string {
@@ -375,7 +396,7 @@ interface EspecialidadeOption {
 function fotoUrl(m: MembroVitrine): string | null {
   const f = m.foto || m.foto_perfil;
   if (!f) return null;
-  return `/api/assets/${f}?width=200&height=200&fit=cover`;
+  return assetUrl(f, "width=200&height=200&fit=cover");
 }
 
 function logoEmpresaUrl(m: MembroVitrine): string | null {
@@ -383,7 +404,7 @@ function logoEmpresaUrl(m: MembroVitrine): string | null {
   if (!logo) return null;
   const id = typeof logo === "string" ? logo : logo.id;
   if (!id) return null;
-  return `/api/assets/${id}?width=160&height=80&fit=contain`;
+  return assetUrl(id, "width=160&height=80&fit=contain");
 }
 
 function getInitials(nome: string): string {
@@ -620,8 +641,10 @@ function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
       titulo: safeAdText(item.titulo),
       descricao: safeAdText(item.descricao) || null,
       link: safeAdText(item.link) || null,
-      imagem_url: safeAdText(item.imagem_url) || null,
-      imagem_directus_id: safeAdText(item.imagem_directus_id) || null,
+      imagem_url: typeof item.imagem_url === "string"
+        ? safeAdText(item.imagem_url) || null
+        : (directusAssetId(item.imagem_url) ? `/api/assets/${directusAssetId(item.imagem_url)}` : null),
+      imagem_directus_id: directusAssetId(item.imagem_directus_id) || null,
       slot_tipo: safeAdText(item.slot_tipo) || "padrao",
       membro_nome: safeAdText(item.membro_nome) || null,
       membro_empresa: safeAdText(item.membro_empresa) || null,
@@ -676,7 +699,7 @@ function AnuncioCard({
       {/* Full image */}
       {anuncio.imagem_url ? (
         <img
-          src={anuncio.imagem_url}
+          src={versionAssetUrl(anuncio.imagem_url) || ""}
           alt={titulo}
           className="w-full h-full object-cover"
           style={{ display: "block" }}
@@ -769,7 +792,7 @@ function AnuncioHeroCard({
     >
       {anuncio?.imagem_url ? (
         <img
-          src={anuncio.imagem_url}
+          src={versionAssetUrl(anuncio.imagem_url) || ""}
           alt={altTitulo}
           className="absolute inset-0 h-full w-full object-cover"
         />
@@ -1012,7 +1035,7 @@ export default function VitrinePage() {
       link: alvo.link || "",
     });
     setAnuncioImagemId(alvo.imagem_directus_id || null);
-    setAnuncioImagemPreview(alvo.imagem_url || null);
+    setAnuncioImagemPreview(versionAssetUrl(alvo.imagem_url));
     setAnuncioSlotTipo(alvo.slot_tipo === "hero" ? "hero" : "padrao");
     setAnuncioDialogOpen(true);
   }
@@ -1425,7 +1448,7 @@ export default function VitrinePage() {
                 <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   {a.imagem_url ? (
-                    <img src={a.imagem_url} alt="" className="w-10 h-7 rounded object-cover shrink-0" />
+                    <img src={versionAssetUrl(a.imagem_url) || ""} alt="" className="w-10 h-7 rounded object-cover shrink-0" />
                   ) : (
                     <div className="w-10 h-7 rounded shrink-0 flex items-center justify-center"
                       style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.15)" }}>
@@ -2217,7 +2240,7 @@ function OpaDestaqueCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: ()
     >
       <div className="relative h-[86px] w-full bg-gradient-to-br from-blue-50 to-slate-100">
         {opa.imagem_url ? (
-          <img src={opa.imagem_url} alt={opa.nome_oportunidade || "OPA"} className="h-full w-full object-cover" />
+          <img src={versionAssetUrl(opa.imagem_url) || ""} alt={opa.nome_oportunidade || "OPA"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-blue-500/25">
             <Target className="h-8 w-8" />

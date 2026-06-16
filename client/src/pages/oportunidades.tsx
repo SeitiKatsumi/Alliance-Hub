@@ -29,6 +29,24 @@ import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
 
 const WORLD_GEO = "/world-countries-50m.json";
+const ASSET_CACHE_VERSION = "directus-db-20260616";
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+
+function versionAssetUrl(value?: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("/api/assets/")) {
+    return `${value}${value.includes("?") ? "&" : "?"}v=${ASSET_CACHE_VERSION}`;
+  }
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+  const assetId = directusAssetId(value);
+  return assetId ? `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}` : null;
+}
 
 // ---- Types ----
 type AnexoFile = { id: string; title?: string; filename?: string; url?: string; size?: string };
@@ -644,7 +662,7 @@ function OpaCard({
   const currentStatus = (opa.status || "ativa") as OpaStatus;
   const statusBadge = OPA_STATUS_BADGES[currentStatus] || OPA_STATUS_BADGES.ativa;
   const isClosed = ["cancelado", "encerrada", "concluida", "desistencia"].includes(currentStatus);
-  const imageUrl = opa.imagem_url || (opa.imagem_directus_id ? `/api/assets/${opa.imagem_directus_id}` : null);
+  const imageUrl = versionAssetUrl(opa.imagem_url) || versionAssetUrl(opa.imagem_directus_id);
   const locationLabel = [opa.cidade, opa.estado].filter(Boolean).join(", ") || opa.pais || bia?.localizacao || "";
 
   return (
@@ -814,7 +832,7 @@ export function OpaFormDialog({
       setFormLng(opa.longitude ?? null);
       setExistingAnexos(opa.Anexos || []);
       setImagemOpaId(opa.imagem_directus_id || null);
-      setImagemOpaPreview(opa.imagem_url || (opa.imagem_directus_id ? `/api/assets/${opa.imagem_directus_id}` : null));
+      setImagemOpaPreview(versionAssetUrl(opa.imagem_url) || versionAssetUrl(opa.imagem_directus_id));
     } else {
       setForm({ ...EMPTY_OPA });
       setFormLat(null);

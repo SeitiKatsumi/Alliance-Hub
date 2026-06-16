@@ -53,6 +53,25 @@ interface InteresseResponse {
   total: number;
 }
 
+const ASSET_CACHE_VERSION = "directus-db-20260616";
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+
+function versionAssetUrl(value?: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("/api/assets/")) {
+    return `${value}${value.includes("?") ? "&" : "?"}v=${ASSET_CACHE_VERSION}`;
+  }
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+  const assetId = directusAssetId(value);
+  return assetId ? `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}` : null;
+}
+
 function num(value: string | number | null | undefined): number {
   if (value === null || value === undefined || value === "") return 0;
   return Number(String(value).replace(",", ".")) || 0;
@@ -86,7 +105,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 
 function getOpaImage(opa?: OportunidadePublica | null) {
   if (!opa) return null;
-  return opa.imagem_url || (opa.imagem_directus_id ? `/api/assets/${opa.imagem_directus_id}` : null);
+  return versionAssetUrl(opa.imagem_url) || versionAssetUrl(opa.imagem_directus_id);
 }
 
 export default function VitrineOpaDetalhePage() {

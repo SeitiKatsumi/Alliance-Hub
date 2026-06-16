@@ -49,6 +49,7 @@ import {
 
 const BRAZIL_GEO = "/brazil-states.json";
 const INVITE_APP_URL = "https://app.builtalliances.com";
+const ASSET_CACHE_VERSION = "directus-db-20260616";
 const INVITE_TYPE_OPTIONS = [
   { value: "vitrine", label: "BUILT Vitrine" },
   { value: "capital", label: "BUILT Capital (Investidor)" },
@@ -66,6 +67,23 @@ function normalizeInviteLink(link?: string | null) {
   }
   if (/^https?:\/\//i.test(link)) return link;
   return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
+}
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+
+function versionAssetUrl(value?: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("/api/assets/")) {
+    return `${value}${value.includes("?") ? "&" : "?"}v=${ASSET_CACHE_VERSION}`;
+  }
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+  const assetId = directusAssetId(value);
+  return assetId ? `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}` : null;
 }
 
 // ---- Types ----
@@ -1550,8 +1568,8 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
     : "border-blue-200 bg-blue-50 text-blue-700";
   const biasOpas = opas.filter(o => o.bia_id === bia.id);
   const firstImageOpa = biasOpas.find(o => o.imagem_url || o.imagem_directus_id);
-  const biaImageUrl = bia.imagem_url || (bia.imagem_directus_id ? `/api/assets/${bia.imagem_directus_id}` : null);
-  const imageUrl = biaImageUrl || firstImageOpa?.imagem_url || (firstImageOpa?.imagem_directus_id ? `/api/assets/${firstImageOpa.imagem_directus_id}` : null);
+  const biaImageUrl = versionAssetUrl(bia.imagem_url) || versionAssetUrl(bia.imagem_directus_id);
+  const imageUrl = biaImageUrl || versionAssetUrl(firstImageOpa?.imagem_url) || versionAssetUrl(firstImageOpa?.imagem_directus_id);
   const cppCount = [
     bia.cpp_autor_opa,
     bia.cpp_aliado_built,
@@ -1892,7 +1910,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
       setActiveTab("geral");
       setExistingAnexos(bia?.Anexos ?? []);
       setPendingFiles([]);
-      setBiaImagePreview(bia?.imagem_url || (bia?.imagem_directus_id ? `/api/assets/${bia.imagem_directus_id}` : null));
+      setBiaImagePreview(versionAssetUrl(bia?.imagem_url) || versionAssetUrl(bia?.imagem_directus_id));
       setUploading(false);
       setFormaPagamento("");
       setNumeroParcelas("");

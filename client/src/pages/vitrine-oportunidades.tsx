@@ -18,8 +18,8 @@ interface OportunidadeVitrine {
   localizacao?: string | null;
   status?: string | null;
   perfil_aliado?: string | null;
-  imagem_directus_id?: string | null;
-  imagem_url?: string | null;
+  imagem_directus_id?: any;
+  imagem_url?: any;
 }
 
 function num(value: string | number | null | undefined): number {
@@ -38,8 +38,19 @@ function isActiveOpa(opa: OportunidadeVitrine) {
   return ["ativa", "em_formacao", "em formação"].includes(status);
 }
 
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+
 function getOpaImage(opa: OportunidadeVitrine) {
-  return opa.imagem_url || (opa.imagem_directus_id ? `/api/assets/${opa.imagem_directus_id}` : null);
+  const existingUrl = typeof opa.imagem_url === "string" ? opa.imagem_url : null;
+  const assetId = directusAssetId(opa.imagem_url) || directusAssetId(opa.imagem_directus_id);
+  const url = existingUrl || (assetId ? `/api/assets/${assetId}` : null);
+  if (!url) return null;
+  return `${url}${url.includes("?") ? "&" : "?"}v=directus-db-20260616`;
 }
 
 function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () => void }) {

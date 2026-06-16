@@ -27,6 +27,14 @@ import { formatSegmentosDisplay } from "@/lib/ramos-segmentos";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const ASSET_CACHE_VERSION = "directus-db-20260616";
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
 
 interface MembroBuilt {
   id: string;
@@ -47,6 +55,7 @@ interface MembroBuilt {
   perfil_aliado?: string;
   nucleo_alianca?: string;
   na_vitrine?: boolean;
+  em_membros_built?: boolean | number | null;
   link_site?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -54,22 +63,22 @@ interface MembroBuilt {
 }
 
 function fotoUrl(m: MembroBuilt): string | null {
-  const f = m.foto || m.foto_perfil;
+  const f = directusAssetId(m.foto || m.foto_perfil);
   if (!f) return null;
-  return `/api/assets/${f}?width=200&height=200&fit=cover`;
+  return `/api/assets/${f}?width=200&height=200&fit=cover&v=${ASSET_CACHE_VERSION}`;
 }
 
 function logoEmpresaUrl(m: MembroBuilt): string | null {
   const logo = m.logo_empresa;
-  const id = typeof logo === "string" ?logo : logo?.id;
+  const id = directusAssetId(logo);
   if (!id) return null;
-  return `/api/assets/${id}?width=160&height=80&fit=contain`;
+  return `/api/assets/${id}?width=160&height=80&fit=contain&v=${ASSET_CACHE_VERSION}`;
 }
 
 function fotoUrlMap(m: MembroBuilt): string | null {
-  const f = m.foto || m.foto_perfil;
+  const f = directusAssetId(m.foto || m.foto_perfil);
   if (!f) return null;
-  return `/api/assets/${f}?width=80&height=80&fit=cover`;
+  return `/api/assets/${f}?width=80&height=80&fit=cover&v=${ASSET_CACHE_VERSION}`;
 }
 
 function getInitials(nome?: string): string {
@@ -711,20 +720,29 @@ export default function AreMembroPage() {
 
   const membroId = user?.membro_directus_id;
 
-  // Fetch current user's membro data to check BUILT_PROUD_MEMBER access
+  // Fetch current user's membro data to check BUILT Alliances access.
   const { data: myMembro, isLoading: loadingMe } = useQuery<any>({
     queryKey: ["/api/membros", membroId],
     queryFn: () => fetch(`/api/membros/${membroId}`).then(r => r.json()),
     enabled: !!membroId,
   });
 
-  const isProudMember = useMemo(() => {
+  const canAccessMembrosAliados = useMemo(() => {
+    const role = String(user?.role || "").toLowerCase();
+    if (["admin", "manager", "aliado", "membro"].includes(role)) return true;
+    if (user?.em_membros_built === true) return true;
     if (!myMembro) return false;
     const redes = myMembro.Outras_redes_as_quais_pertenco || [];
-    return Array.isArray(redes) && redes.includes("BUILT_PROUD_MEMBER");
-  }, [myMembro]);
+    return myMembro.em_membros_built === true ||
+      myMembro.em_membros_built === 1 ||
+      (Array.isArray(redes) && (
+        redes.includes("BUILT_PROUD_MEMBER") ||
+        redes.includes("BUILT_FOUNDING_MEMBER") ||
+        redes.includes("BUILT_ALLIANCE_PARTNER")
+      ));
+  }, [myMembro, user]);
 
-  // Only fetch membros if user is a Proud Member
+  // Only fetch membros if user can access BUILT Alliances members.
   const { data: membros = [], isLoading } = useQuery<MembroBuilt[]>({
     queryKey: ["/api/membros-built"],
     queryFn: async () => {
@@ -733,7 +751,7 @@ export default function AreMembroPage() {
       const data = await r.json();
       return Array.isArray(data) ?data : [];
     },
-    enabled: isProudMember,
+    enabled: canAccessMembrosAliados,
   });
 
   const filtered = useMemo(() => {
@@ -758,7 +776,7 @@ export default function AreMembroPage() {
   }
 
   // Access denied
-  if (!isProudMember) {
+  if (!canAccessMembrosAliados) {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-6 p-8"

@@ -22,6 +22,7 @@ const openai = new OpenAI({
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 const PRODUCTION_APP_API_URL = (process.env.PRODUCTION_APP_API_URL || "https://app.builtalliances.com").replace(/\/$/, "");
+const ASSET_CACHE_VERSION = "directus-db-20260616";
 const ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url));
 const nucleoTecnicoDocsFallback: any[] = [];
 
@@ -723,6 +724,21 @@ async function proxyDirectusAsset(req: any, res: any) {
   }
 
   return sendAssetPlaceholder(res, id, width, height);
+}
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    return value.id || value.uuid || value.directus_files_id || value.file || null;
+  }
+  return String(value);
+}
+
+function assetApiUrl(id: any) {
+  const assetId = directusAssetId(id);
+  if (!assetId) return null;
+  return `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}`;
 }
 
 async function directusFetchOne(collection: string, id: string, params: string = "") {
@@ -2073,6 +2089,62 @@ export async function registerRoutes(
     }
   });
 
+  // ========== MEMBROS BUILT / BUILT Alliances (robust fallback) ==========
+  app.get("/api/membros-built", async (req, res, next) => {
+    if (!(req.session as any).directusUserId) {
+      return res.status(401).json({ error: "NÃ£o autenticado" });
+    }
+    const isBuiltAllianceMember = (m: any) => {
+      const redes = Array.isArray(m?.Outras_redes_as_quais_pertenco) ? m.Outras_redes_as_quais_pertenco : [];
+      const text = [
+        m?.tipo_de_cadastro,
+        m?.tipo_alianca,
+        m?.nucleo_alianca,
+        ...(Array.isArray(m?.tipos_alianca) ? m.tipos_alianca : []),
+        ...(Array.isArray(m?.nucleos_alianca) ? m.nucleos_alianca : []),
+        ...redes,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return m?.em_membros_built === true
+        || m?.em_membros_built === 1
+        || redes.includes("BUILT_PROUD_MEMBER")
+        || redes.includes("BUILT_FOUNDING_MEMBER")
+        || redes.includes("BUILT_ALLIANCE_PARTNER")
+        || text.includes("membro")
+        || text.includes("alian");
+    };
+    const normalizeBuiltMember = (m: any) => {
+      const especialidades = (m.Especialidades || [])
+        .map((e: any) => e?.especialidades_id?.nome_especialidade)
+        .filter(Boolean);
+      return {
+        ...m,
+        cargo: m.cargo || m.responsavel_cargo || null,
+        foto: m.foto_perfil || m.foto || null,
+        especialidade: especialidades[0] || m.especialidade || m.especialidade_livre || null,
+        latitude: m.latitude ? parseFloat(m.latitude) : null,
+        longitude: m.longitude ? parseFloat(m.longitude) : null,
+      };
+    };
+    try {
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,em_membros_built,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      if (!response.ok) throw new Error(`Directus error: ${response.status}`);
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) throw new Error(`Directus retornou ${contentType || "conteudo nao-json"}`);
+      const json = await response.json();
+      return res.json((json.data || []).filter(isBuiltAllianceMember).map(normalizeBuiltMember));
+    } catch (error: any) {
+      const cached = readCachedApiArrayFromLogs("/api/membros-built")
+        || readCachedApiArrayFromLogs("/api/membros")
+        || readCachedApiArrayFromLogs("/api/vitrine");
+      if (cached) {
+        console.warn("[membros-built] Directus indisponivel; usando ultimo snapshot local dos logs.");
+        return res.json(cached.filter(isBuiltAllianceMember).map(normalizeBuiltMember));
+      }
+      return next(error);
+    }
+  });
+
   // ========== MEMBROS BUILT (PROUD MEMBER only) ==========
   app.get("/api/membros-built", async (req, res) => {
     if (!(req.session as any).directusUserId) {
@@ -2192,8 +2264,8 @@ export async function registerRoutes(
       ...a,
       membro_nome: membro?.nome || null,
       membro_empresa: membro?.empresa || null,
-      membro_foto: membro?.foto_perfil ? `/api/assets/${membro.foto_perfil}` : null,
-      imagem_url: a.imagem_directus_id ? `/api/assets/${a.imagem_directus_id}` : null,
+      membro_foto: assetApiUrl(membro?.foto_perfil),
+      imagem_url: assetApiUrl(a.imagem_directus_id),
     };
   }
 
@@ -3015,7 +3087,7 @@ export async function registerRoutes(
     return items.map((b: any) => ({
       ...b,
       bia_publica: b.bia_publica !== false,
-      imagem_url: b.imagem_directus_id ? `/api/assets/${b.imagem_directus_id}` : null,
+      imagem_url: assetApiUrl(b.imagem_directus_id),
       socios_multiplicadores: parseBiaMemberList(b.socios_multiplicadores),
       socios_guardioes: parseBiaMemberList(b.socios_guardioes),
       terceiros: parseBiaMemberList(b.terceiros),
@@ -6585,7 +6657,7 @@ export async function registerRoutes(
       descricao: o.descricao,
       perfil_aliado: o.perfil_aliado,
       imagem_directus_id: o.imagem_directus_id || null,
-      imagem_url: o.imagem_directus_id ? `/api/assets/${o.imagem_directus_id}` : null,
+      imagem_url: assetApiUrl(o.imagem_directus_id),
       status: o.status || "ativa",
       motivo_encerramento: o.motivo_encerramento || null,
       date_created: o.date_created || null,
@@ -6604,7 +6676,7 @@ export async function registerRoutes(
           id: f.id,
           title,
           filename,
-          url: f.id ? `/api/assets/${f.id}` : null,
+          url: assetApiUrl(f.id),
           size: f.filesize ? `${Math.round(f.filesize / 1024)} KB` : null,
         };
       }).filter(Boolean) : [],
@@ -7762,7 +7834,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       na_vitrine: naVitrine,
       em_membros_built: emMembrosBuilt,
       em_built_capital: emBuiltCapital,
-      foto_perfil: fotoPerfil ? `/api/assets/${fotoPerfil}` : null,
+      foto_perfil: assetApiUrl(fotoPerfil),
       vitrine_termo_aceito_em: vitrineTermoAceitoEm,
       vitrine_termo_versao: vitrineTermoVersao,
       area_aliancas_termo_aceito_em: areaAliancasTermoAceitoEm,

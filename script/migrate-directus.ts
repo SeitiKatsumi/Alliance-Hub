@@ -1,6 +1,6 @@
 import pg from "pg";
 
-const DIRECTUS_URL = "https://app.builtalliances.com";
+const DIRECTUS_URL = "https://databases.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN!;
 const DATABASE_URL = process.env.DATABASE_URL!;
 

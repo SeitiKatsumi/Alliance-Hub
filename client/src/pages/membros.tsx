@@ -30,7 +30,7 @@ import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { PhoneInput } from "@/components/phone-input";
 
-const DIRECTUS_URL = "https://app.builtalliances.com";
+const DIRECTUS_URL = "https://databases.builtalliances.com";
 
 interface Membro {
   id: string;

@@ -3,7 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import type { Express, NextFunction, Request, Response } from "express";
 import { storage } from "./storage";
 
-const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
+const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://databases.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 
 function getMembroDisplayName(membro: any): string | null {

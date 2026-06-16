@@ -63,7 +63,7 @@ interface SaveBiaResponse {
   [key: string]: unknown;
 }
 
-const DIRECTUS_URL = "https://app.builtalliances.com";
+const DIRECTUS_URL = "https://databases.builtalliances.com";
 
 function membroNome(m: Membro): string {
   return m.nome || m.Nome_de_usuario || m.id;

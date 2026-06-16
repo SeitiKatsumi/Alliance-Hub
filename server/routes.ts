@@ -10,20 +10,31 @@ import express from "express";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
-import { fileURLToPath } from "url";
 import { PNG } from "pngjs";
 import { deflateSync } from "zlib";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let openaiClient: OpenAI | null = null;
+function getOpenAI() {
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!apiKey) {
+    const error: any = new Error("OPENAI_API_KEY nao configurada no servidor.");
+    error.status = 503;
+    throw error;
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey,
+      baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return openaiClient;
+}
 
-const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
+const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://databases.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 const PRODUCTION_APP_API_URL = (process.env.PRODUCTION_APP_API_URL || "https://app.builtalliances.com").replace(/\/$/, "");
 const ASSET_CACHE_VERSION = "directus-db-20260616";
-const ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROUTES_DIR = process.env.NODE_ENV === "production" ? path.join(process.cwd(), "dist") : process.cwd();
 const nucleoTecnicoDocsFallback: any[] = [];
 
 const BOOTSTRAP_SUPERADMIN_EMAILS = new Set(["seitikatsumi@gmail.com"]);
@@ -7028,7 +7039,7 @@ Regras:
 DOCUMENTO:
 ${textContent}`;
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
@@ -7080,7 +7091,7 @@ PROJETO BIA EM ANÁLISE:
 - Dados: ${JSON.stringify(bia)}
 Responda em português brasileiro, de forma clara e objetiva.`;
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
@@ -7101,7 +7112,7 @@ Responda em português brasileiro, de forma clara e objetiva.`;
     try {
       const { question } = req.body;
       const systemPrompt = `Você é um analista especializado em oportunidades de negócio da Built Alliances. Responda em português brasileiro.`;
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
@@ -7144,7 +7155,7 @@ ${allBias.slice(0, 15).map((b) => `- ${b.nome_bia} | Local: ${b.localizacao || '
 
 Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
@@ -7173,7 +7184,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         ? `Você é um consultor especialista em construção civil e investimentos imobiliários da Built Alliances. Analise as oportunidades de aliança (OPAs) e forneça insights estratégicos em português brasileiro. Seja conciso. Máximo 3 parágrafos.`
         : `Você é um consultor especialista da Built Alliances em BIAs. Analise os projetos de aliança e forneça insights. Seja conciso. Máximo 3 parágrafos.`;
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
@@ -9357,7 +9368,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return palavras;
       };
       try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAI().chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             {
@@ -9434,7 +9445,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const { toFile } = await import("openai");
       const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
       const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
-      const transcription = await openai.audio.transcriptions.create({
+      const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "gpt-4o-mini-transcribe",
       });
@@ -10512,7 +10523,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       : [];
 
     try {
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -10660,7 +10671,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       return palavras;
     };
     try {
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -10751,7 +10762,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const { toFile } = await import("openai");
       const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
       const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
-      const transcription = await openai.audio.transcriptions.create({
+      const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "gpt-4o-mini-transcribe",
       });

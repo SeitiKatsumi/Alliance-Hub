@@ -303,6 +303,7 @@ export default function LoginPage() {
   const [regEmpresa, setRegEmpresa] = useState("");
   const [regCargo, setRegCargo] = useState("");
   const [regCpf, setRegCpf] = useState("");
+  const regCpfInputRef = useRef<HTMLInputElement | null>(null);
   const [regTelefone, setRegTelefone] = useState("");
   const [regWhatsapp, setRegWhatsapp] = useState("");
   const [regCidade, setRegCidade] = useState("");
@@ -508,6 +509,8 @@ export default function LoginPage() {
     const isInvestidor = selectedInteresses.includes("capital");
     if (!regCpf.trim()) {
       setRegError("Informe seu CPF para continuar.");
+      regCpfInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => regCpfInputRef.current?.focus(), 250);
       return;
     }
     if (!hasInternationalDialCode(regTelefone)) {
@@ -1124,7 +1127,17 @@ export default function LoginPage() {
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <Input value={regEmpresa} onChange={e => setRegEmpresa(e.target.value)} placeholder="Empresa" />
                         <Input value={regCargo} onChange={e => setRegCargo(e.target.value)} placeholder="Cargo" />
-                        <Input value={regCpf} onChange={e => setRegCpf(e.target.value)} placeholder="CPF *" />
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cadastro-cpf" className="text-xs font-semibold text-slate-700">CPF *</Label>
+                          <Input
+                            id="cadastro-cpf"
+                            ref={regCpfInputRef}
+                            value={regCpf}
+                            onChange={e => setRegCpf(e.target.value)}
+                            placeholder="000.000.000-00"
+                            data-testid="input-cadastro-cpf"
+                          />
+                        </div>
                         <PhoneInput value={regTelefone} onChange={setRegTelefone} required placeholder="Telefone *" data-testid="input-cadastro-telefone" />
                         <PhoneInput value={regWhatsapp} onChange={setRegWhatsapp} placeholder="WhatsApp" data-testid="input-cadastro-whatsapp" />
                         <Input value={regCidade} onChange={e => setRegCidade(e.target.value)} placeholder="Cidade *" list="cadastro-cidades" />
@@ -1188,6 +1201,10 @@ export default function LoginPage() {
                         </div>
                       </div>
                       <div className="mt-4 space-y-3 text-xs">
+                        <div className="grid grid-cols-2 gap-2">
+                          <p className="font-bold text-slate-700">CPF</p>
+                          <p className={regCpf ? "text-slate-600" : "font-semibold text-red-600"}>{regCpf || "Pendente"}</p>
+                        </div>
                         <div><p className="font-bold text-slate-700">Papel na BUILT</p><p className="mt-1 text-slate-600">{interessesSelecionados.includes("capital") ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p></div>
                         <div><p className="font-bold text-slate-700">Áreas de contribuição ({interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : regTiposAlianca).map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>
                         <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Área de atuação</p><p className="text-slate-600">{regCidade || "-"}</p></div>

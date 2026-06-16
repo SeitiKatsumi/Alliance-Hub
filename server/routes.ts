@@ -3249,6 +3249,27 @@ export async function registerRoutes(
 
   function substituirBiaMouPlaceholders(texto: string, bia: any) {
     const campos = biaMouAtivoCampos(bia);
+    const normalizePlaceholder = (value: string) => {
+      const decoded = /[ÃÂ]/.test(value) ? Buffer.from(value, "latin1").toString("utf8") : value;
+      return decoded
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/º/g, "o")
+        .replace(/[^a-z0-9]+/gi, " ")
+        .trim()
+        .toLowerCase();
+    };
+    const valuesByKey: Record<string, string> = {
+      "descricao do ativo": campos.descricao,
+      municipio: campos.municipio,
+      estado: campos.estado,
+      "no da matricula": campos.matricula,
+      "n da matricula": campos.matricula,
+      cartorio: campos.cartorio,
+      comarca: campos.comarca,
+      destinacao: campos.destinacao,
+    };
+    return texto.replace(/\[([^\]]+)\]/g, (match, key) => valuesByKey[normalizePlaceholder(String(key))] ?? match);
     const replacements: Array<[RegExp, string]> = [
       [/\[Descri[çc][ãa]o do ativo\]/gi, campos.descricao],
       [/\[Munic[íi]pio\]/gi, campos.municipio],
@@ -7248,6 +7269,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         username,
         password,
         cpf,
+        cnpj,
         telefone,
         whatsapp,
         empresa,
@@ -7355,6 +7377,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
       if (telefone) directusPayload.telefone = telefone;
       if (cpf) directusPayload.cpf = cpf;
+      if (cnpj) directusPayload.cnpj = cnpj;
       if (whatsapp) directusPayload.whatsapp = whatsapp;
       if (empresa) directusPayload.empresa = empresa;
       if (cargo) directusPayload.cargo = cargo;
@@ -7507,6 +7530,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           status: "termos_pendentes",
           tipo: conviteTipo,
           dados_contratuais: {
+            nome_completo: nome,
+            email,
+            telefone: telefone || whatsapp || null,
+            whatsapp: whatsapp || null,
+            cpf: cpf || null,
+            cnpj: cnpj || null,
+            nome_empresa: empresa || null,
+            empresa: empresa || null,
+            cargo: cargo || null,
+            cidade: cidade || null,
+            estado: estado || null,
+            pais: pais || null,
             interesses: interessesArr,
             origem: "cadastro_inicial",
             convite_link_tipo: conviteDestino,
@@ -9006,6 +9041,36 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode ver candidatos" });
         }
         items = await storage.getConvitesByComunidade(comunidade_id);
+        items = await Promise.all(items.map(async (convite: any) => {
+          if (!convite?.candidato_membro_id) return convite;
+          const membro = await directusFetchOne(
+            "cadastro_geral",
+            String(convite.candidato_membro_id),
+            "fields=id,nome,email,telefone,whatsapp,cpf,cnpj,empresa,cargo,cidade,estado,pais"
+          ).catch(() => null);
+          if (!membro) return convite;
+          const dados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
+            ? convite.dados_contratuais
+            : {};
+          return {
+            ...convite,
+            dados_contratuais: {
+              ...dados,
+              nome_completo: dados.nome_completo || membro.nome || convite.candidato_nome,
+              email: dados.email || membro.email || convite.candidato_email,
+              telefone: dados.telefone || membro.telefone || membro.whatsapp || null,
+              whatsapp: dados.whatsapp || membro.whatsapp || null,
+              cpf: dados.cpf || membro.cpf || null,
+              cnpj: dados.cnpj || membro.cnpj || null,
+              nome_empresa: dados.nome_empresa || membro.empresa || null,
+              empresa: dados.empresa || membro.empresa || null,
+              cargo: dados.cargo || membro.cargo || null,
+              cidade: dados.cidade || membro.cidade || null,
+              estado: dados.estado || membro.estado || null,
+              pais: dados.pais || membro.pais || null,
+            },
+          };
+        }));
         // Filter by tipo if specified
         if (tipo) {
           items = items.filter((c: any) => c.tipo === tipo);

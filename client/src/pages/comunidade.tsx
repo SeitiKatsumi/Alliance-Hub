@@ -735,6 +735,16 @@ const candidateHiddenFields = new Set([
   "avaliacao_token",
 ]);
 
+const candidateRestrictedFields = new Set([
+  "cpf",
+  "cpf_cnpj",
+  "cnpj",
+  "telefone",
+  "whatsapp",
+  "celular",
+  "phone",
+]);
+
 function candidateLabel(key: string) {
   return candidateFieldLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
 }
@@ -742,18 +752,23 @@ function candidateLabel(key: string) {
 function CandidateInfoPanel({
   convite,
   compact = false,
+  showRestrictedData = false,
 }: {
   convite: any;
   compact?: boolean;
+  showRestrictedData?: boolean;
 }) {
   const dados = (convite?.dados_contratuais || {}) as any;
+  const restrictedRows = showRestrictedData ? [
+    ["CPF", dados.cpf || dados.cpf_cnpj],
+    ["CNPJ", dados.cnpj],
+    ["Telefone", dados.telefone || dados.whatsapp || dados.celular || dados.phone],
+  ] : [];
   const rows = [
     ["Nome completo", dados.nome_completo || convite?.candidato_nome],
-    ["CPF", dados.cpf || dados.cpf_cnpj],
     ["Nome da empresa", dados.nome_empresa || dados.empresa],
-    ["CNPJ", dados.cnpj],
-    ["Telefone", dados.telefone],
     ["E-mail", dados.email || convite?.candidato_email],
+    ...restrictedRows,
     ["Endereço", dados.endereco],
     ["Cidade", dados.cidade],
     ["Estado", dados.estado],
@@ -761,7 +776,11 @@ function CandidateInfoPanel({
   ];
   const visibleRows = rows.filter(([, value]) => candidateValue(value) !== "—");
   const extraRows = compact ? [] : Object.entries(dados)
-    .filter(([key, value]) => !candidatePrimaryFields.has(key) && !candidateHiddenFields.has(key) && candidateValue(value) !== "—")
+    .filter(([key, value]) => {
+      if (candidatePrimaryFields.has(key) || candidateHiddenFields.has(key)) return false;
+      if (!showRestrictedData && candidateRestrictedFields.has(key)) return false;
+      return candidateValue(value) !== "—";
+    })
     .map(([key, value]) => [candidateLabel(key), value] as [string, any]);
   const allRows = [...visibleRows, ...extraRows];
 
@@ -1039,6 +1058,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
 
   // Admins/managers see all communities; aliados see only their own
   const comunidadesParaConvites = (isAdmin || isManager) ?comunidades : minhasComunidadesComoAliado;
+  const canViewCandidateRestrictedData = (convite: any) => {
+    if (isAdmin || isManager) return true;
+    if (!convite?.comunidade_id || !user?.membro_directus_id) return false;
+    return minhasComunidadesComoAliado.some(c => String(c.id) === String(convite.comunidade_id));
+  };
 
   // Fetch convites for relevant communities
   const { data: convitesPorComunidade } = useQuery<Record<string, any[]>>({
@@ -1985,11 +2009,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                           </p>
                         )}
                         <p className="text-[10px] font-mono text-slate-400">{comNome}</p>
-                        {!isVitrine && dados && (
+                        {!isVitrine && dados && canViewCandidateRestrictedData(convite) && (
                           <div className="flex flex-wrap gap-3 mt-1">
                             {(dados.cpf || dados.cpf_cnpj) && <span className="text-[10px] font-mono text-slate-500">CPF: {dados.cpf || dados.cpf_cnpj}</span>}
                             {dados.cnpj && <span className="text-[10px] font-mono text-slate-500">CNPJ: {dados.cnpj}</span>}
-                            {dados.telefone && <span className="text-[10px] font-mono text-slate-500">Tel: {dados.telefone}</span>}
+                            {(dados.telefone || dados.whatsapp || dados.celular) && <span className="text-[10px] font-mono text-slate-500">Tel: {dados.telefone || dados.whatsapp || dados.celular}</span>}
                             {dados.cidade && <span className="text-[10px] font-mono text-slate-500">Local: {dados.cidade}, {dados.estado}</span>}
                           </div>
                         )}
@@ -2002,7 +2026,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                           </p>
                         )}
                         {!isVitrine && convite.status === "candidato" && (
-                          <CandidateInfoPanel convite={convite} compact />
+                          <CandidateInfoPanel convite={convite} compact showRestrictedData={canViewCandidateRestrictedData(convite)} />
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0">
@@ -2431,6 +2455,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         const sc = selectedConvite;
         const dados = sc.dados_contratuais as any;
         const statusInfo = STATUS_LABELS[sc.status] || { label: sc.status, color: "text-white/50" };
+        const canViewRestricted = canViewCandidateRestrictedData(sc);
         return (
           <Dialog open={!!selectedConvite} onOpenChange={open => !open && setSelectedConvite(null)}>
             <DialogContent className="max-w-lg border-brand-gold/15 text-white p-0 overflow-hidden" style={{ background: "linear-gradient(145deg,#071626,#040e1c)" }}>
@@ -2468,7 +2493,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   );
                 })()}
 
-                <CandidateInfoPanel convite={sc} />
+                <CandidateInfoPanel convite={sc} showRestrictedData={canViewRestricted} />
 
                 {/* Contact */}
                 <div className="space-y-2.5">
@@ -2480,10 +2505,10 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         <span className="font-mono text-white/70">{sc.candidato_email}</span>
                       </div>
                     )}
-                    {dados?.telefone && (
+                    {canViewRestricted && (dados?.telefone || dados?.whatsapp || dados?.celular) && (
                       <div className="flex items-center gap-2.5 text-sm">
                         <Phone className="w-3.5 h-3.5 text-white/25 shrink-0" />
-                        <span className="font-mono text-white/70">{dados.telefone}</span>
+                        <span className="font-mono text-white/70">{dados.telefone || dados.whatsapp || dados.celular}</span>
                       </div>
                     )}
                     {(dados?.cidade || dados?.estado) && (
@@ -2502,7 +2527,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 </div>
 
                 {/* Document */}
-                {(dados?.cpf || dados?.cnpj || dados?.cpf_cnpj) && (
+                {canViewRestricted && (dados?.cpf || dados?.cnpj || dados?.cpf_cnpj) && (
                   <div className="space-y-2">
                     <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Documentos</p>
                     {(dados.cpf || dados.cpf_cnpj) && (

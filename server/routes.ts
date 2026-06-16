@@ -3231,6 +3231,15 @@ export async function registerRoutes(
     ].join("\n\n");
   }
 
+  function personalizarBiaMouTexto(texto: string, biaId: string, bia: any) {
+    const blocoAtivo = buildBiaMouAtivoTexto(bia);
+    const textoComAtivo = texto.replace(
+      /O Ativo em quest[\s\S]*?A explora[\s\S]*?destinada[\s\S]*?\./i,
+      blocoAtivo
+    );
+    return appendBiaMouRodape(textoComAtivo, biaId, bia);
+  }
+
   function appendBiaMouRodape(texto: string, biaId: string, bia: any) {
     const biaLabel = [bia?.nome_bia, biaId].filter(Boolean).join(" / ");
     const rodape = `Esta página integra o MoU Padrão BUILT vinculado à BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberações internas e instrumentos jurídicos específicos da respectiva Aliança.`;
@@ -3252,11 +3261,7 @@ export async function registerRoutes(
       ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
       ...pickFilledBiaInfoComercialFields(bia ?? {}),
     };
-    const textoComAtivo = texto.replace(
-      /O Ativo em questão é[\s\S]*?A exploração econômica será destinada à renda\./,
-      buildBiaMouAtivoTexto(biaComInfo)
-    );
-    return appendBiaMouRodape(textoComAtivo, String(biaId), biaComInfo);
+    return personalizarBiaMouTexto(texto, String(biaId), biaComInfo);
   }
 
   const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para aliança de Liderança";
@@ -4757,7 +4762,8 @@ export async function registerRoutes(
       };
       const participants = await getMouParticipantsForBia(biaComInfo, req.params.id);
       const allocationRows = await getBiaAllocationMap(biaComInfo, req.params.id);
-      const mouPadrao = readMouAsset("mou-padrao-built.txt") || "MOU Padrão BUILT não localizado nos assets do servidor.";
+      const mouPadraoBase = readMouAsset("mou-padrao-built.txt") || "MOU Padrão BUILT não localizado nos assets do servidor.";
+      const mouPadrao = personalizarBiaMouTexto(mouPadraoBase, req.params.id, biaComInfo);
       const anexoIII = readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III não localizado nos assets do servidor.";
       const anexoIV = readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV não localizado nos assets do servidor.";
       const sections = [

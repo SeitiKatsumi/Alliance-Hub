@@ -1,17 +1,17 @@
-[vitrine-fields] Field na_vitrine response: 400
 [geo-opa] Field latitude response: 400
 [geo-bias] Field latitude response: 400
+[vitrine-fields] Field na_vitrine response: 400
 [opa-media] Field imagem_directus_id response: 400
-[geo-opa] Field longitude response: 400
 [geo-bias] Field longitude response: 400
 [vitrine-fields] Field em_membros_built response: 400
-[geo-bias] Field localizacao response: 400
-[geo-opa] Field localizacao response: 400
 [opa-media] Field ramo_atuacao response: 400
-[vitrine-fields] Field em_built_capital response: 400
-[vitrine-fields] Field link_site response: 400
+[geo-opa] Field longitude response: 400
 [opa-media] Field criado_por_user_id response: 400
+[geo-opa] Field localizacao response: 400
+[geo-bias] Field localizacao response: 400
+[vitrine-fields] Field em_built_capital response: 400
 [opa-media] Field criado_por_membro_id response: 400
+[vitrine-fields] Field link_site response: 400
 [vitrine-fields] Field latitude response: 400
 [vitrine-fields] Field longitude response: 400
 [vitrine-fields] Field foto_posicao_x response: 400
@@ -27,13 +27,13 @@
 [vitrine-fields] Field tipos_alianca response: 400
 [vitrine-fields] Field codigo_etica_aceito_em response: 400
 [vitrine-fields] Field codigo_etica_versao response: 400
-[vitrine-fields] Field politicas_participacao_aceito_em response: 400
 Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
   npx update-browserslist-db@latest
   Why you should do it regularly: https://github.com/browserslist/update-db#readme
-[vitrine-fields] Field politicas_participacao_versao response: 400
+[vitrine-fields] Field politicas_participacao_aceito_em response: 400
 
 A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[vitrine-fields] Field politicas_participacao_versao response: 400
 [vitrine-fields] Field vitrine_termo_aceito_em response: 400
 [vitrine-fields] Field vitrine_termo_versao response: 400
 [vitrine-fields] Field built_capital_termo_aceito_em response: 400
@@ -46,6 +46,7 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [vitrine-fields] Field data_nascimento response: 400
 [vitrine-fields] Field profissao response: 400
 [vitrine-fields] Field cpf response: 400
+[vitrine-fields] Field cnpj response: 400
 [vitrine-fields] Field rg response: 400
 [vitrine-fields] Field estado_civil response: 400
 [vitrine-fields] Field regime_comunhao response: 400
@@ -72,5 +73,8 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [vitrine-fields] Field conjuge_cidade response: 400
 [vitrine-fields] Field conjuge_estado response: 400
 [vitrine-fields] Field conjuge_pais response: 400
-[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com.br/api/oportunidades
-[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades

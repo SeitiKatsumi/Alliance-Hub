@@ -979,17 +979,24 @@ export default function LoginPage() {
 
           {primeiroAcessoStep === "perfil" ? (
             <>
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-6 md:px-8 md:py-8">
-                <div className="mb-4 space-y-2 md:mb-6">
-                  <p className="text-xs text-slate-500">Inicio / Primeiro acesso</p>
-                  <h2 className="flex items-center gap-3 text-xl font-bold text-[#001D34] md:text-2xl"><span aria-hidden="true" className="text-2xl md:text-3xl">👋</span>Vamos personalizar sua experiência</h2>
-                  <p className="max-w-2xl text-sm text-slate-600">Conte-nos mais sobre você para recomendarmos oportunidades, BIAs e conexões mais relevantes.</p>
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 pb-[calc(8.5rem+env(safe-area-inset-bottom))] sm:px-4 md:px-8 md:py-8 md:pb-6">
+                <div className="mb-3 space-y-2 md:mb-6">
+                  <p className="text-[11px] font-medium text-slate-500 md:text-xs">Inicio / Primeiro acesso</p>
+                  <div className="flex items-start gap-2.5">
+                    <span aria-hidden="true" className="mt-0.5 text-xl leading-none md:text-3xl">👋</span>
+                    <h2 className="max-w-[17rem] text-[26px] font-extrabold leading-[1.08] text-[#001D34] sm:max-w-none md:text-2xl">
+                      Vamos personalizar sua experiência
+                    </h2>
+                  </div>
+                  <p className="max-w-2xl text-[15px] leading-relaxed text-slate-600 md:text-sm">
+                    Conte-nos mais sobre você para recomendarmos oportunidades, BIAs e conexões mais relevantes.
+                  </p>
                 </div>
-                <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
-                  <div className="space-y-4">
-                    <section className="rounded-xl border border-slate-200 bg-white p-4">
-                      <h3 className="text-sm font-bold text-[#001D34]">1. Qual o seu papel na BUILT?</h3>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 md:gap-4 lg:grid-cols-[1fr_330px]">
+                  <div className="space-y-3 md:space-y-4">
+                    <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
+                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">1. Qual o seu papel na BUILT?</h3>
+                      <div className="mt-3 grid gap-2.5 sm:grid-cols-2 md:gap-3">
                         {[
                           { id: "prestador", titulo: "Prestador de serviços, fornecedor ou profissional independente", desc: "Atuo oferecendo serviços, insumos ou experiência profissional.", icon: <Store className="h-5 w-5" />, color: "blue" },
                           { id: "capital", titulo: "Parceiro de Capital", desc: "Atuo como investidor ou parceiro de capital.", icon: <TrendingUp className="h-5 w-5" />, color: "green" },
@@ -1001,12 +1008,12 @@ export default function LoginPage() {
                             : selected ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-700";
                           const checkClass = papel.color === "green" ? "text-emerald-600" : "text-blue-600";
                           return (
-                            <div key={papel.id} className={`rounded-lg border p-3 ${selected ? selectedCardClass : "border-slate-200"}`}>
-                              <div className="flex gap-3">
-                                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${iconClass}`}>{papel.icon}</span>
-                                <div>
-                                  <p className="text-sm font-bold text-[#001D34]">{papel.titulo}</p>
-                                  <p className="mt-1 text-xs leading-relaxed text-slate-600">{papel.desc}</p>
+                            <div key={papel.id} className={`rounded-lg border p-3 transition-colors md:p-3 ${selected ? selectedCardClass : "border-slate-200"}`}>
+                              <div className="flex items-start gap-3">
+                                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full md:h-10 md:w-10 ${iconClass}`}>{papel.icon}</span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[15px] font-extrabold leading-snug text-[#001D34] md:text-sm md:font-bold">{papel.titulo}</p>
+                                  <p className="mt-1 text-[13px] leading-relaxed text-slate-600 md:text-xs">{papel.desc}</p>
                                 </div>
                                 {selected && <CheckCircle className={`ml-auto h-4 w-4 shrink-0 ${checkClass}`} />}
                               </div>
@@ -1016,10 +1023,10 @@ export default function LoginPage() {
                       </div>
                     </section>
 
-                    <section className="rounded-xl border border-slate-200 bg-white p-4">
-                      <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
-                      <p className="mt-1 text-xs text-slate-500">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Investimento é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
+                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">2. Áreas de Contribuição</h3>
+                      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Investimento é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
+                      <div className="mt-3 grid max-h-[18rem] gap-2 overflow-y-auto pr-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
                         {sortContributionAreas(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {
                           const selected = interessesSelecionados.includes("capital") || regTiposAlianca.includes(tipo);
                           const label = getTipoDisplayName(tipo);
@@ -1036,7 +1043,7 @@ export default function LoginPage() {
                                 event.preventDefault();
                                 toggleAreaContribuicao(tipo);
                               }}
-                              className={`relative flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}
+                              className={`relative flex min-h-11 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-[13px] font-semibold transition-colors md:min-h-10 md:text-xs ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}
                             >
                               <span className="flex min-w-0 items-center gap-2">
                                 <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${iconConfig.bg} ${iconConfig.color}`}>
@@ -1055,8 +1062,8 @@ export default function LoginPage() {
                       <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length}</p>
                     </section>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <section className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
+                      <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                         <h3 className="text-sm font-bold text-[#001D34]">3. Ramo de atuação</h3>
                         <Select value={regRamoAtuacao} onValueChange={(value) => { setRegRamoAtuacao(value); setRegSegmento(""); }}>
                           <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o ramo" /></SelectTrigger>
@@ -1081,7 +1088,7 @@ export default function LoginPage() {
                           )}
                         </div>
                       </section>
-                      <section className="rounded-xl border border-slate-200 bg-white p-4">
+                      <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                         <h3 className="text-sm font-bold text-[#001D34]">5. Perfil Técnico</h3>
                         <Textarea value={regPerfilAliado} onChange={e => setRegPerfilAliado(e.target.value.slice(0, 500))} rows={6} placeholder="Descreva suas principais competências, especialidades e diferenciais técnicos." className="mt-2 resize-none" />
                         <p className="mt-1 text-right text-[11px] text-slate-400">{regPerfilAliado.length}/500</p>
@@ -1179,7 +1186,7 @@ export default function LoginPage() {
                     </section>
                   </div>
                   <aside className="space-y-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                       <p className="text-sm font-bold text-[#001D34]">Resumo do seu perfil</p>
                       <div className="mt-4 flex items-center gap-3 border-b border-slate-100 pb-4">
                         <span className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 text-lg font-bold text-[#001D34]">{(regNome || "BU").split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase()}</span>
@@ -1207,10 +1214,10 @@ export default function LoginPage() {
                         </div>
                         <div><p className="font-bold text-slate-700">Papel na BUILT</p><p className="mt-1 text-slate-600">{interessesSelecionados.includes("capital") ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p></div>
                         <div><p className="font-bold text-slate-700">Áreas de contribuição ({interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : regTiposAlianca).map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>
-                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Área de atuação</p><p className="text-slate-600">{regCidade || "-"}</p></div>
+                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>
                       </div>
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                       <p className="text-sm font-bold text-[#001D34]">Permissões iniciais</p>
                       <div className="mt-3 space-y-2 text-xs text-slate-600">{["Receber recomendações personalizadas", "Acessar oportunidades e BIAs compatíveis", "Conectar-se com aliados recomendados", "Receber comunicações da BUILT"].map(item => <p key={item} className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600" />{item}</p>)}</div>
                     </div>
@@ -1221,9 +1228,9 @@ export default function LoginPage() {
                   Você poderá alterar essas informações depois nas configurações do seu perfil.
                 </p>
               </div>
-              <div className="sticky bottom-0 z-10 mt-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row md:static md:mt-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0">
-                <Button type="button" variant="ghost" onClick={() => setShowInteressesModal(false)} disabled={regLoading} className="flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50"><ArrowLeft className="w-4 h-4 mr-1.5" />Voltar</Button>
-                <Button type="button" onClick={() => handleConfirmarCadastro()} disabled={regLoading || regFotoUploading || regLogoUploading} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-50">{regFotoUploading ? "Enviando foto..." : regLogoUploading ? "Enviando marca..." : regLoading ? "Criando..." : "Concluir e acessar a BUILT"}</Button>
+              <div className="sticky bottom-0 z-10 mt-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-3 py-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row md:static md:mt-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0">
+                <Button type="button" variant="ghost" onClick={() => setShowInteressesModal(false)} disabled={regLoading} className="h-11 flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 md:h-10"><ArrowLeft className="w-4 h-4 mr-1.5" />Voltar</Button>
+                <Button type="button" onClick={() => handleConfirmarCadastro()} disabled={regLoading || regFotoUploading || regLogoUploading} className="h-12 flex-1 bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 md:h-10">{regFotoUploading ? "Enviando foto..." : regLogoUploading ? "Enviando marca..." : regLoading ? "Criando..." : "Concluir e acessar a BUILT"}</Button>
               </div>
             </>
           ) : primeiroAcessoStep === "perfil_antigo" ? (

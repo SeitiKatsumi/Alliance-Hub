@@ -3231,9 +3231,39 @@ export async function registerRoutes(
     ].join("\n\n");
   }
 
+  function biaMouAtivoCampos(bia: any) {
+    const localizacaoPartes = String(bia?.localizacao || "")
+      .split(",")
+      .map((parte) => parte.trim())
+      .filter(Boolean);
+    return {
+      descricao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃ£o informado"),
+      municipio: mouValue(bia?.ativo_municipio || bia?.cidade || localizacaoPartes[0]),
+      estado: mouValue(bia?.ativo_estado || bia?.estado || localizacaoPartes[1]),
+      matricula: mouValue(bia?.ativo_numero_matricula),
+      cartorio: mouValue(bia?.ativo_cartorio, "CartÃ³rio nÃ£o informado"),
+      comarca: mouValue(bia?.ativo_comarca, "Comarca nÃ£o informada"),
+      destinacao: mouValue(bia?.destinacao, "nÃ£o informada"),
+    };
+  }
+
+  function substituirBiaMouPlaceholders(texto: string, bia: any) {
+    const campos = biaMouAtivoCampos(bia);
+    const replacements: Array<[RegExp, string]> = [
+      [/\[Descri[çc][ãa]o do ativo\]/gi, campos.descricao],
+      [/\[Munic[íi]pio\]/gi, campos.municipio],
+      [/\[Estado\]/gi, campos.estado],
+      [/\[n[ºo]\s*da matr[íi]cula\]/gi, campos.matricula],
+      [/\[Cart[óo]rio\]/gi, campos.cartorio],
+      [/\[Comarca\]/gi, campos.comarca],
+      [/\[Destina[çc][ãa]o\]/gi, campos.destinacao],
+    ];
+    return replacements.reduce((acc, [pattern, value]) => acc.replace(pattern, value), texto);
+  }
+
   function personalizarBiaMouTexto(texto: string, biaId: string, bia: any) {
     const blocoAtivo = buildBiaMouAtivoTexto(bia);
-    const textoComAtivo = texto.replace(
+    const textoComAtivo = substituirBiaMouPlaceholders(texto, bia).replace(
       /O Ativo em quest[\s\S]*?A explora[\s\S]*?destinada[\s\S]*?\./i,
       blocoAtivo
     );

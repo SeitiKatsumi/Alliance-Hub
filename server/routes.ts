@@ -7752,14 +7752,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         console.error("[login] cadastro_geral lookup error:", err.message);
       }
 
-      // Check local users table for admin role + permissions by email
+      // Check local users table for role + permissions, preferring the exact Directus user/member.
       let role = "user";
       let permissions: Record<string, string> = {};
       try {
-        const localUser = await storage.getUserByEmail(email);
+        const localUsers = await storage.getUsersByEmail(email);
+        const localUser = localUsers.find((u: any) => String(u.id) === String(directusUser.id))
+          || (membroId ? localUsers.find((u: any) => String(u.membro_directus_id || "") === String(membroId)) : undefined)
+          || localUsers[0];
         if (localUser && localUser.ativo) {
           role = localUser.role || "user";
           permissions = (localUser.permissions as Record<string, string>) || {};
+          if (localUser.membro_directus_id) {
+            membroId = localUser.membro_directus_id;
+            nome = localUser.nome || nome;
+          }
         }
       } catch (e: any) {
         console.warn("[login] local user lookup error:", e.message);
@@ -7806,14 +7813,20 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     let role = (req.session as any).role || "user";
     let permissions = (req.session as any).permissions || {};
     const email = (req.session as any).email || "";
-    // Always re-check local users table to ensure correct role
+    // Always re-check local users table to ensure correct role without mixing duplicate e-mails.
+    let matchedLocalUser: any | null = null;
     try {
       if (email) {
-        const localUser = await storage.getUserByEmail(email);
-        if (localUser && localUser.ativo) {
-          role = localUser.role || role;
-          if ((localUser.permissions as any) && Object.keys(localUser.permissions as any).length > 0) {
-            permissions = localUser.permissions as Record<string, string>;
+        const localUsers = await storage.getUsersByEmail(email);
+        const sessionMembroId = (req.session as any).membroId;
+        matchedLocalUser = localUsers.find((u: any) => String(u.id) === String(directusUserId))
+          || (sessionMembroId ? localUsers.find((u: any) => String(u.membro_directus_id || "") === String(sessionMembroId)) : null)
+          || localUsers[0]
+          || null;
+        if (matchedLocalUser && matchedLocalUser.ativo) {
+          role = matchedLocalUser.role || role;
+          if ((matchedLocalUser.permissions as any) && Object.keys(matchedLocalUser.permissions as any).length > 0) {
+            permissions = matchedLocalUser.permissions as Record<string, string>;
           }
         }
       }
@@ -7829,13 +7842,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
     let membroId = (req.session as any).membroId as string | null;
     try {
-      if (email) {
-        const localUser = await storage.getUserByEmail(email);
-        if (localUser?.membro_directus_id && localUser.membro_directus_id !== membroId) {
-          membroId = localUser.membro_directus_id;
+      if (!membroId && matchedLocalUser?.membro_directus_id) {
+          membroId = matchedLocalUser.membro_directus_id;
           (req.session as any).membroId = membroId;
-          (req.session as any).nome = localUser.nome || (req.session as any).nome;
-        }
+          (req.session as any).nome = matchedLocalUser.nome || (req.session as any).nome;
       }
     } catch (_) {}
     let tipos_alianca: string[] = [];

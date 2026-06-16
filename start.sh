@@ -5,9 +5,9 @@ echo "=== Aplicando migrações do banco de dados ==="
 node migrate.cjs
 
 if [ "$NODE_ENV" = "production" ]; then
-  # CapRover encaminha HTTP para a porta interna 80 por padrao.
-  # Forcamos aqui para evitar que uma variavel PORT antiga no painel cause 502.
-  export PORT=80
+  # A porta interna da aplicacao precisa bater com "Container HTTP Port" no CapRover.
+  # Mantemos 5000 explicito para evitar mismatch com variaveis antigas do painel.
+  export PORT=5000
 fi
 
 echo "=== Iniciando servidor ==="

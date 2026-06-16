@@ -33,7 +33,7 @@ RUN cp node_modules/connect-pg-simple/table.sql dist/table.sql
 RUN chmod +x start.sh
 
 ENV NODE_ENV=production
-ENV PORT=80
-EXPOSE 80
+ENV PORT=5000
+EXPOSE 5000
 
 CMD ["./start.sh"]

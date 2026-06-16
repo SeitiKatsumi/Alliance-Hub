@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.com>";
-const BASE_URL = process.env.APP_URL || "https://built.dna11.com.br";
+const BASE_URL = process.env.APP_URL || "https://app.builtalliances.com";
 
 async function send(to: string, subject: string, html: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const safeTo = to.replace(/^(.{2}).*(@.*)$/, "$1***$2");

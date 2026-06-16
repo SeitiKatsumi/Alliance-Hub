@@ -660,10 +660,83 @@ function CandidatoAuraBadge({ membroId }: { membroId?: string | null }) {
   );
 }
 
-function candidateValue(value: any) {
+function candidateValue(value: any): string {
   if (value === null || value === undefined) return "—";
+  if (Array.isArray(value)) {
+    const text: string = value.map((item: any) => candidateValue(item)).filter((item: string) => item !== "—").join(", ");
+    return text || "—";
+  }
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  if (typeof value === "object") {
+    const text: string = Object.values(value)
+      .map((item: any) => candidateValue(item))
+      .filter((item: string) => item !== "—")
+      .join(", ");
+    return text || "—";
+  }
   const text = String(value).trim();
   return text || "—";
+}
+
+const candidateFieldLabels: Record<string, string> = {
+  nome_completo: "Nome completo",
+  cpf_cnpj: "CPF/CNPJ",
+  cpf: "CPF",
+  cnpj: "CNPJ",
+  rg: "RG",
+  nacionalidade: "Nacionalidade",
+  estado_civil: "Estado civil",
+  data_nascimento: "Data de nascimento",
+  nome_pai: "Nome do pai",
+  nome_mae: "Nome da mãe",
+  email: "E-mail",
+  telefone: "Telefone",
+  endereco: "Endereço",
+  cidade: "Cidade",
+  estado: "Estado",
+  pais: "País",
+  nome_empresa: "Nome da empresa",
+  empresa: "Empresa",
+  razao_social: "Razão social",
+  nome_fantasia: "Nome fantasia",
+  cargo: "Cargo",
+  inscricao_estadual: "Inscrição estadual",
+  ramo_atuacao: "Ramo de atuação",
+  ramos_atuacao: "Ramos de atuação",
+  segmento: "Segmento",
+  segmentos: "Segmentos",
+  area_atuacao: "Área de atuação",
+  especialidade: "Especialidade",
+  idiomas: "Idiomas",
+  mensagem: "Mensagem",
+};
+
+const candidatePrimaryFields = new Set([
+  "nome_completo",
+  "cpf",
+  "cpf_cnpj",
+  "nome_empresa",
+  "empresa",
+  "cnpj",
+  "telefone",
+  "email",
+  "endereco",
+  "cidade",
+  "estado",
+  "pais",
+  "mensagem",
+]);
+
+const candidateHiddenFields = new Set([
+  "senha",
+  "password",
+  "token",
+  "convite_token",
+  "avaliacao_token",
+]);
+
+function candidateLabel(key: string) {
+  return candidateFieldLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 function CandidateInfoPanel({
@@ -687,8 +760,12 @@ function CandidateInfoPanel({
     ["País", dados.pais],
   ];
   const visibleRows = rows.filter(([, value]) => candidateValue(value) !== "—");
+  const extraRows = compact ? [] : Object.entries(dados)
+    .filter(([key, value]) => !candidatePrimaryFields.has(key) && !candidateHiddenFields.has(key) && candidateValue(value) !== "—")
+    .map(([key, value]) => [candidateLabel(key), value] as [string, any]);
+  const allRows = [...visibleRows, ...extraRows];
 
-  if (visibleRows.length === 0 && !dados.mensagem) return null;
+  if (allRows.length === 0 && !dados.mensagem) return null;
 
   return (
     <div
@@ -699,9 +776,9 @@ function CandidateInfoPanel({
         <FileText className="w-3.5 h-3.5 text-brand-gold/60" />
         <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-widest">Dados da candidatura</p>
       </div>
-      {visibleRows.length > 0 && (
+      {allRows.length > 0 && (
         <div className={`grid grid-cols-1 ${compact ?"sm:grid-cols-2" : "sm:grid-cols-2"} gap-2`}>
-          {visibleRows.map(([label, value]) => (
+          {allRows.map(([label, value]) => (
             <div key={label} className="min-w-0 rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
               <p className="text-[9px] font-mono uppercase tracking-widest text-white/30">{label}</p>
               <p className="mt-0.5 text-xs font-mono text-white/75 break-words">{candidateValue(value)}</p>
@@ -1929,14 +2006,14 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        {!isVitrine && (
+                        {(!isVitrine || isAguardandoAura) && (
                           <button
                             onClick={() => setSelectedConvite({ ...convite, comNome })}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
                             data-testid={"btn-ver-candidato-tab-" + convite.id}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            Ver detalhes
+                            {isAguardandoAura ? "Ver perfil" : "Ver detalhes"}
                           </button>
                         )}
                         {isVitrine ?(
@@ -2509,6 +2586,20 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   >
                     <Clock className="w-3.5 h-3.5" />
                     Reenviar Termos
+                  </button>
+                )}
+                {sc.status === "aguardando_avaliacao_aura" && sc.avaliacao_token && (
+                  <button
+                    onClick={() => {
+                      setAuraDialogConvite({ avaliacaoToken: sc.avaliacao_token, candidatoNome: sc.candidato_nome || dados?.nome_completo || "Candidato" });
+                      setAuraSelectedWords([]);
+                      setAuraSearch("");
+                      setSelectedConvite(null);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono font-bold text-brand-gold border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Registrar Aura
                   </button>
                 )}
                 <button

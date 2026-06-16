@@ -1,54 +1,308 @@
-[google-auth] Google OAuth enabled (callback: https://built.dna11.com.br/auth/google/callback)
-[estudos] Collection already exists
+[google-auth] Google OAuth enabled (callback: https://app.builtalliances.com.br/auth/google/callback)
 [comunidade] Found collection as 'Comunidade'
+[estudos] Collection already exists
+[bia] Field situacao created in bias_projetos
 [nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
-[perms] No reference permissions found
-[bias-valid] No field validations to clear
-[bia] nome_bia varchar length OK, skipping
+[bia] Field destinacao created in bias_projetos
 [cadastro_geral] nome expanded to varchar(500)
-[cadastro_geral] perfil_aliado already OK (text/null), skipping
-[cadastro_geral] nucleo_alianca already OK (text/null), skipping
+[bia] Field bia_publica created in bias_projetos
+[cadastro_geral] perfil_aliado expanded to text
+[cadastro_geral] nucleo_alianca expanded to text
+[bia] Field diretor_nucleo_tecnico created in bias_projetos
 [cadastro_geral] empresa expanded to varchar(500)
+[bia] Field selo_certified_alliance created in bias_projetos
 [cadastro_geral] cargo expanded to varchar(500)
-[comunidade] M2M 'membros': parent_id=integer, related_id=uuid
-10:52:15 PM [express] serving on port 3004
+[bia] Field imagem_directus_id created in bias_projetos
+[bia] Field comissao_realizada created in bias_projetos
+[bia] Field ir_realizado created in bias_projetos
+[bia] Field inss_realizado created in bias_projetos
+[bia] Field manutencao_realizada created in bias_projetos
+[bia] Field perc_dir_alianca created in bias_projetos
+[bia] Field cpp_dir_alianca created in bias_projetos
+[bia] Field moeda created in bias_projetos
+8:14:02 AM [express] serving on port 3004
+[bia] Field socios_multiplicadores created in bias_projetos
+8:14:03 AM [express] GET /api/me 401 in 5ms :: {"error":"Não autenticado"}
+[bia] Field socios_guardioes created in bias_projetos
+[comunidade] M2M 'membros': parent_id=uuid, related_id=uuid
 [comunidade] Junction 'comunidade_membros' already exists
-[comunidade] M2M alias 'membros': INVALID_PAYLOAD
-[comunidade] M2M rel1 'membros': INVALID_PAYLOAD
-[comunidade] M2M rel2 'membros': INVALID_PAYLOAD
-[comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+[bia] Field terceiros created in bias_projetos
+[bia] Field razao_social created in bias_projetos
+[bia] Field cnpj created in bias_projetos
+[bia] Field nome_fantasia created in bias_projetos
+[bia] Field inscricao_estadual created in bias_projetos
+[comunidade] M2M 'bias': parent_id=uuid, related_id=uuid
+[bia] Field banco created in bias_projetos
+[bia] Field agencia created in bias_projetos
 [comunidade] Junction 'comunidade_bias' already exists
-10:52:20 PM [express] GET /api/me 401 in 2ms :: {"error":"Não autenticado"}
-[comunidade] M2M alias 'bias': INVALID_PAYLOAD
-[comunidade] M2M rel1 'bias': INVALID_PAYLOAD
-[comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+8:14:08 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+[bia] Field conta created in bias_projetos
+[bia] Field tipo_conta created in bias_projetos
 [comunidade] Fields ensured (M2O/M2M)
-10:52:50 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-10:53:20 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:53:51 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-10:53:55 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:54:25 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:54:55 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:55:20 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:55:50 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:56:20 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-10:56:51 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:57:21 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-10:57:51 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:58:21 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-10:58:51 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-10:59:21 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-[2m10:59:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/phone-input.tsx, /src/index.css[22m
-[2m10:59:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/components/phone-input.tsx[22m Could not Fast Refresh ("hasInternationalDialCode" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-[2m10:59:21 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/pages/convite.tsx, /src/pages/admin.tsx, /src/pages/meu-perfil.tsx, /src/pages/login.tsx, /src/pages/membros.tsx, /src/pages/vitrine.tsx, /src/pages/comunidade.tsx[22m
-10:59:53 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-11:00:23 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-11:00:54 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-11:01:24 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-11:01:54 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-11:02:24 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-11:02:54 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-11:03:24 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-11:03:55 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
-11:04:25 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
-11:04:55 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+[bia] Field titular_conta created in bias_projetos
+[bia] Field chave_pix created in bias_projetos
+[bia] Field ativo_endereco created in bias_projetos
+[bia] Field ativo_qualificacao created in bias_projetos
+[bia] Field ativo_numero_matricula created in bias_projetos
+[bia] Field ativo_cartorio created in bias_projetos
+[bia] Field ativo_comarca created in bias_projetos
+8:14:38 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:15:08 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:15:39 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:16:09 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:16:39 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:16:48 AM [express] POST /api/login 401 in 578ms :: {"error":"Credenciais inválidas"}
+8:16:55 AM [express] POST /api/login 401 in 555ms :: {"error":"Credenciais inválidas"}
+8:17:00 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:17:10 AM [express] POST /api/login 401 in 580ms :: {"error":"Credenciais inválidas"}
+8:17:30 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:18:00 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:18:31 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:19:01 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:19:31 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:20:01 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:20:13 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:20:32 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:20:43 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:20:55 AM [express] POST /api/login 401 in 672ms :: {"error":"Credenciais inválidas"}
+8:21:02 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:21:13 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:21:32 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:21:34 AM [express] POST /api/login 401 in 628ms :: {"error":"Credenciais inválidas"}
+8:21:44 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:22:02 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:22:15 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:22:32 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:22:46 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:23:02 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:23:16 AM [express] POST /api/login 200 in 684ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+8:23:17 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:23:32 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:23:37 AM [express] POST /api/login 200 in 631ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"}}
+8:23:37 AM [express] GET /api/me 200 in 204ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:23:37 AM [express] GET /api/membros/90d2589b-c318-4562-8421-36c7467475c5 500 in 194ms :: {"error":"Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"}
+8:23:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 200 in 4ms :: []
+8:23:38 AM [express] GET /api/agenda 200 in 4ms :: []
+8:23:38 AM [express] GET /api/chamadas-alianca/minhas 200 in 4ms :: []
+8:23:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 3ms :: []
+8:23:38 AM [express] GET /api/meu-convite 200 in 27ms
+8:23:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 200 in 26ms :: []
+8:23:38 AM [express] GET /api/chamadas-alianca/minhas 304 in 22ms :: []
+8:23:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 2ms :: []
+8:23:38 AM [express] GET /api/dashboard 500 in 193ms :: {"error":"Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"}
+8:23:38 AM [express] GET /api/aura/score/90d2589b-c318-4562-8421-36c7467475c5 200 in 579ms :: {"score":null,"T":null,"R":null,"C":null,"n":0,"faixa":null,"FR_T":1,"FR_R":1,"FR_C":1,"confianca":"Sem base reputacional","confianca_descricao":"Aguardando primeira avaliação","total_palavras":0,"dimensoes_sem_evidencia":["T","R","C"],"correspondencia_valores":{"T":0,"R":0,"C":0},"redutor_reputacional":0,"pontos_atencao_reputacional":[],"palavras_recebidas":[]}
+8:23:49 AM [express] GET /api/me 304 in 589ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:23:49 AM [express] GET /api/membros/90d2589b-c318-4562-8421-36c7467475c5 500 in 196ms :: {"error":"Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"}
+8:23:49 AM [express] GET /api/meu-convite 304 in 2ms
+8:23:49 AM [express] GET /api/agenda 304 in 2ms :: []
+8:23:49 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:23:49 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:23:49 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:23:49 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:23:49 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 18ms :: []
+8:23:49 AM [express] GET /api/chamadas-alianca/minhas 304 in 19ms :: []
+8:23:49 AM [express] GET /api/aura/score/90d2589b-c318-4562-8421-36c7467475c5 304 in 193ms :: {"score":null,"T":null,"R":null,"C":null,"n":0,"faixa":null,"FR_T":1,"FR_R":1,"FR_C":1,"confianca":"Sem base reputacional","confianca_descricao":"Aguardando primeira avaliação","total_palavras":0,"dimensoes_sem_evidencia":["T","R","C"],"correspondencia_valores":{"T":0,"R":0,"C":0},"redutor_reputacional":0,"pontos_atencao_reputacional":[],"palavras_recebidas":[]}
+8:23:50 AM [express] GET /api/dashboard 500 in 573ms :: {"error":"Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"}
+8:24:08 AM [express] GET /api/me 304 in 601ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:24:08 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:24:08 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:24:08 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:24:18 AM [express] GET /api/especialidades 500 in 581ms :: {"error":"Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"}
+8:24:19 AM [express] GET /api/me 304 in 217ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:24:20 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 3ms :: []
+8:24:20 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 19ms :: []
+8:24:20 AM [express] GET /api/chamadas-alianca/minhas 304 in 22ms :: []
+8:24:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 22ms :: []
+8:24:38 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:24:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:24:38 AM [express] GET /api/me 304 in 597ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:24:51 AM [express] GET /api/me 304 in 592ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:24:51 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:24:51 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:24:51 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 19ms :: []
+8:25:08 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 18ms :: []
+8:25:08 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:25:08 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:25:09 AM [express] GET /api/me 304 in 565ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:25:21 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 24ms :: []
+8:25:21 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:25:21 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 2ms :: []
+8:25:22 AM [express] GET /api/me 304 in 587ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:25:38 AM [express] GET /api/chamadas-alianca/minhas 304 in 21ms :: []
+8:25:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 23ms :: []
+8:25:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:25:40 AM [express] GET /api/me 304 in 579ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:25:52 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 19ms :: []
+8:25:52 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:25:52 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:25:53 AM [express] GET /api/me 304 in 586ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:26:08 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 20ms :: []
+8:26:08 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 22ms :: []
+8:26:08 AM [express] GET /api/chamadas-alianca/minhas 304 in 119ms :: []
+8:26:10 AM [express] GET /api/me 304 in 554ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:26:23 AM [express] GET /api/chamadas-alianca/minhas 304 in 18ms :: []
+8:26:23 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 19ms :: []
+8:26:23 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 20ms :: []
+8:26:24 AM [express] GET /api/me 304 in 579ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:26:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 22ms :: []
+8:26:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:26:38 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:26:41 AM [express] GET /api/me 304 in 577ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:26:54 AM [express] GET /api/chamadas-alianca/minhas 304 in 18ms :: []
+8:26:54 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:26:54 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:26:55 AM [express] GET /api/me 304 in 552ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:27:08 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 20ms :: []
+8:27:08 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 20ms :: []
+8:27:08 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:27:11 AM [express] GET /api/me 304 in 575ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:27:25 AM [express] GET /api/chamadas-alianca/minhas 304 in 18ms :: []
+8:27:25 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:27:25 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:27:26 AM [express] GET /api/me 304 in 591ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:27:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 23ms :: []
+8:27:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 22ms :: []
+8:27:38 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:27:42 AM [express] GET /api/me 304 in 585ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:27:56 AM [express] GET /api/chamadas-alianca/minhas 304 in 18ms :: []
+8:27:56 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:27:56 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 0ms :: []
+8:27:57 AM [express] GET /api/me 304 in 569ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:28:08 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 20ms :: []
+8:28:08 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 22ms :: []
+8:28:08 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:28:12 AM [express] GET /api/me 304 in 577ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:28:27 AM [express] GET /api/chamadas-alianca/minhas 304 in 16ms :: []
+8:28:27 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:28:27 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:28:28 AM [express] GET /api/me 304 in 626ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:28:37 AM [express] GET /api/aura/lexico 304 in 1ms :: ["ABERTO","ACCOUNTABILITY","ACESSÍVEL","ACOLHEDOR","ACREDITÁVEL","ADAPTABILIDADE","ADAPTÁVEL","AFETIVO","AGENTE DE MUDANÇA","ÁGIL","AGREGADOR","AJUDA MÚTUA","AJUSTÁVEL","ALEGRE","ALIADO","ALIANÇA","ALINHADO","ALTO PADRÃO","ALTRUÍSMO","ALTRUÍSTA","AMADURECIMENTO","AMIGÁVEL","ANÁLISE","ANALÍTICO","ANIMADO","ANTECIPA","ANTI ETICO","ANTIÉTICO","APAIXONADO","APREÇO","APRENDER","APRENDIZADO","APRENDIZAGEM","ARROGANTE","ARTICULADO","ARTICULADOR","ASSERTIVIDADE","ASSERTIVO","ASSUME ERRO","ATENCIOSO","ATENTO","ATIVO","ATUALIZADO","AUDAZ","AUTENTICIDADE","AUTÊNTICO","AUTODIDATA","AUTONOMIA","AUTÔNOMO","AUTOSSUFICIENTE","BAGUNCADO","BENEVOLENTE","BOM OUVINTE","BOM SENSO","BRAVURA","CAPAZ","CAPRICHOSO","CARÁTER","CENTRADO","CLARIVIDENTE","CLARO","COERENTE","COESO","COLABORAÇÃO","COLABORATIVO","COLEGA","COLETIVO","COMPANHEIRISMO","COMPARTILHADOR","COMPASSIVO","COMPETENTE","COMPREENSIVO","COMPROMETIDO","COMPROMETIMENTO","COMUNICAÇÃO","COMUNICATIVO","CONCENTRADO","CONCILIADOR","CONECTADO","CONEXÃO","CONFIANÇA","CONFIÁVEL","CONFLITIVO","CONSCIENTE","CONSISTENTE","CONSTANTE","CONTAGIANTE","CONTROLADO","CONVINCENTE","COOPERATIVO","COORDENADOR","CORAGEM","CORAJOSO","CORDIAL","CORRETO","CREDIBILIDADE","CRESCIMENTO","CRIADOR","CRIATIVIDADE","CRIATIVO","CRÍVEL","CUIDADO","CUIDADOSO","CUMPRE PRAZOS","CUMPRE PROMESSA","CURIOSO","DECIDIDO","DEDICADO","DESAGREGADOR","DESATENTO","DESCOMPROMETIDO","DESENVOLVIMENTO","DESESTRUTURADO","DESONESTO","DESORGANIZADO","DESTEMIDO","DETALHISTA","DETERMINADO","DEVOTADO","DIDÁTICO","DIFICIL ACESSO","DIGNO","DINÂMICO","DIRECIONADO","DIRETO","DISCIPLINADO","DISPERSO","DISPONÍVEL","DISRUPTIVO","DISTANTE","DIVIDE EQUIPE","DOADOR","DURADOURO","ECOLÓGICO","EDUCADO","EFETIVO","EFICÁCIA","EFICAZ","EFICIENTE","ELOQUENTE","EMPATIA","EMPÁTICO","EMPREENDEDOR","ENERGIZADO","ENFRENTA DESAFIOS","ENGAJADO","ENGENHOSO","ENTENDER","ENTENDIMENTO","ENTREGA RESULTADOS","ENTUSIASMO","ENVOLVIDO","EQUILIBRADO","EQUILÍBRIO","EQUITATIVO","ESCUTA","ESCUTADOR","ESPECIALISTA","ESPONTÂNEO","ESTABILIDADE","ESTÁVEL","ESTÍMULO","ESTRATÉGICO","ESTRUTURADO","ÉTICO","EVOLUÇÃO","EVOLUTIVO","EXCELÊNCIA","EXECUTOR","EXEMPLAR","EXEMPLO","EXIGENTE","EXPERIENTE","EXPERIMENTAL","EXPRESSIVO","FACILITADOR","FAZ ACONTECER","FIEL","FIRME","FLEXÍVEL","FOCO","FORTE","FRAUDE","FRAUDULENTO","FUNCIONAL","GENEROSIDADE","GENEROSO","GENTIL","GENUÍNO","GRATIDÃO","GRATO","GUIA","HARMÔNICO","HESITANTE","HONESTO","HONRA","HUMANO","HUMILDADE","HUMILDE","ILUMINADOR","IMAGINATIVO","IMPARCIAL","IMPECÁVEL","IMPRUDENTE","INACESSÍVEL","INCANSÁVEL","INCENTIVO","INCOMPETENTE","INCONSISTENTE","INCONSTANTE","INDECISO","INDEPENDENTE","INDISPONIVEL","INFLUENTE","INICIATIVA","INOVAÇÃO","INOVADOR","INOVAR","INQUIETO","INSEGURO","INSISTENTE","INSPIRAÇÃO","INSPIRADOR","INSTAVEL","INTEGRADOR","INTEGRIDADE","INTELIGENTE","INTENSO","INVENTIVO","IRREGULAR","IRRESPONSÁVEL","JUSTO","LEAL","LEALDADE","LEGÍTIMO","LÍDER","LIDERANÇA","LÓGICO","LONGO PRAZO","MADURO","MATURIDADE","MENTOR","METICULOSO","METÓDICO","MOBILIZADOR","MODERNO","MODESTO","MOTIVADO","MOTIVADOR","NAO COLABORATIVO","NAO ENGAJADO","NATURAL","NEGLIGENTE","NEUTRO","OBJETIVO","OBSERVADOR","ORDENADO","ORGANIZADO","ORIENTADOR","ORIGINAL","OSCILANTE","OTIMIZADO","OUSADO","OUVINTE","PACIENTE","PAIXÃO","PARCEIRO","PARCERIA","PARTICIPATIVO","PERCEPÇÃO","PERFECCIONISTA","PERFEITO","PERITO","PERSEVERANTE","PERSISTÊNCIA","PESQUISADOR","PIONEIRO","PLANEJADO","PLANEJADOR","PONDERADO","PONTUAL","PONTUALIDADE","POSITIVO","PRAGMÁTICO","PRÁTICO","PRECISO","PREPOTENTE","PRESENTE","PRESTA CONTAS","PRESTATIVO","PREVISÍVEL","PRIMOROSO","PROATIVIDADE","PROATIVO","PRODUTIVO","PROFUNDO","PROGRESSO","PROTAGONISMO","PROTAGONISTA","PROTETOR","PRUDENTE","QUALIDADE","QUALIFICADO","RACIONAL","RÁPIDO","REALIZADOR","RECEPTIVO","RECÍPROCO","RECONHECE ERROS","RECONHECIDO","RECONHECIMENTO","REDE","REFERÊNCIA","REFLEXIVO","RELACIONAL","RESERVADO DEMAIS","RESILIENTE","RESISTENTE","RESOLUTIVO","RESOLVEDOR","RESPEITOSO","RESPONSABILIDADE","RESPONSÁVEL","RETRAIDO","RIGOROSO","SABEDORIA","SÁBIO","SATISFEITO","SEGURO","SEM COMPROMISSO","SEM FOCO","SENSATEZ","SENSATO","SENSÍVEL","SERENO","SIMPÁTICO","SIMPLES","SINCERIDADE","SINERGIA","SISTEMÁTICO","SISTÊMICO","SOBERBO","SOLIDÁRIO","SÓLIDO","SOMA","SUSTENTABILIDADE","SUSTENTÁVEL","TÉCNICO","TENAZ","TÍMIDO","TRABALHA EM EQUIPE","TRABALHO EM EQUIPE","TRANQUILO","TRANSFORMADOR","TRANSPARENTE","UNIÃO","UNIDO","VALENTE","VALENTIA","VALIDADO","VALORIZAÇÃO","VALORIZAR","VERDADEIRO","VERSÁTIL","VIBRANTE","VISÃO","VISIONÁRIO","VOCAÇÃO","ZELOSO"]
+8:28:37 AM [express] GET /api/aura/minhas-avaliacoes 200 in 20ms :: {"recebidas":[],"dadas":[]}
+8:28:38 AM [express] GET /api/meu-convite 304 in 3ms
+8:28:38 AM [express] GET /api/aura/membros/busca 200 in 1145ms :: []
+8:28:38 AM [express] GET /api/especialidades 500 in 198ms :: {"error":"Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"}
+8:28:38 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 3ms :: []
+8:28:38 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 3ms :: []
+8:28:38 AM [express] GET /api/chamadas-alianca/minhas 304 in 133ms :: []
+8:28:44 AM [express] GET /api/me 304 in 559ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:28:57 AM [express] GET /api/chamadas-alianca/minhas 304 in 20ms :: []
+8:28:57 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 44ms :: []
+8:28:57 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 45ms :: []
+8:28:58 AM [express] GET /api/me 304 in 587ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:29:09 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 22ms :: []
+8:29:09 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 21ms :: []
+8:29:09 AM [express] GET /api/chamadas-alianca/minhas 304 in 24ms :: []
+8:29:15 AM [express] GET /api/me 304 in 580ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:29:27 AM [express] GET /api/chamadas-alianca/minhas 304 in 17ms :: []
+8:29:27 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:29:27 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:29:29 AM [express] GET /api/me 304 in 568ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:29:40 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 20ms :: []
+8:29:40 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:29:40 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:29:46 AM [express] GET /api/me 304 in 570ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:29:57 AM [express] GET /api/chamadas-alianca/minhas 304 in 19ms :: []
+8:29:57 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:29:57 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 19ms :: []
+8:30:00 AM [express] GET /api/me 304 in 560ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:30:11 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 18ms :: []
+8:30:11 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:30:11 AM [express] GET /api/chamadas-alianca/minhas 304 in 0ms :: []
+8:30:17 AM [express] GET /api/me 304 in 601ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+[2m8:30:22 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/pages/membro-detalhe.tsx, /src/pages/vitrine-detalhe.tsx, /src/pages/built-capital.tsx, /src/pages/area-membros.tsx, /src/pages/membros.tsx, /src/pages/meu-perfil.tsx, /src/pages/login.tsx, /src/pages/vitrine.tsx, /src/pages/oportunidades.tsx, /src/index.css[22m
+8:30:22 AM [express] GET /api/meu-convite 304 in 8ms
+8:30:22 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:30:22 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 27ms :: []
+8:30:22 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 29ms :: []
+8:30:22 AM [express] GET /api/meu-convite 304 in 3ms
+8:30:30 AM [express] GET /api/me 304 in 565ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+[2m8:30:40 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/meu-perfil.tsx, /src/index.css[22m
+8:30:48 AM [express] GET /api/me 304 in 569ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:30:52 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:30:52 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:30:52 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 19ms :: []
+8:30:53 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:30:53 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:30:53 AM [express] GET /api/chamadas-alianca/minhas 304 in 0ms :: []
+[2m8:30:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/login.tsx, /src/index.css[22m
+8:31:01 AM [express] GET /api/me 304 in 580ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:31:19 AM [express] GET /api/me 304 in 569ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:31:22 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:31:22 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:31:22 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:31:24 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:31:24 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:31:24 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 19ms :: []
+8:31:31 AM [express] GET /api/me 304 in 602ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:31:50 AM [express] GET /api/me 304 in 601ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:31:52 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:31:52 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:31:52 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 2ms :: []
+8:31:55 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:31:55 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:31:55 AM [express] GET /api/chamadas-alianca/minhas 304 in 18ms :: []
+8:32:02 AM [express] GET /api/me 304 in 677ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+[2m8:32:16 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/pages/membro-detalhe.tsx, /src/pages/vitrine-detalhe.tsx, /src/pages/built-capital.tsx, /src/pages/area-membros.tsx, /src/pages/membros.tsx, /src/pages/meu-perfil.tsx, /src/pages/login.tsx, /src/pages/vitrine.tsx, /src/pages/oportunidades.tsx, /src/index.css[22m
+8:32:17 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 25ms :: []
+8:32:17 AM [express] GET /api/meu-convite 304 in 32ms
+8:32:17 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 31ms :: []
+8:32:17 AM [express] GET /api/chamadas-alianca/minhas 304 in 31ms :: []
+8:32:17 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:32:17 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 3ms :: []
+8:32:17 AM [express] GET /api/chamadas-alianca/minhas 304 in 3ms :: []
+8:32:17 AM [express] GET /api/meu-convite 304 in 5ms
+8:32:21 AM [express] GET /api/me 304 in 601ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+[2m8:32:32 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/meu-perfil.tsx, /src/index.css[22m
+8:32:34 AM [express] GET /api/me 304 in 1603ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:32:47 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 21ms :: []
+8:32:47 AM [express] GET /api/chamadas-alianca/minhas 304 in 24ms :: []
+8:32:47 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 120ms :: []
+8:32:48 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:32:48 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:32:48 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 3ms :: []
+8:32:51 AM [express] GET /api/me 304 in 612ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:33:05 AM [express] GET /api/me 304 in 591ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:33:17 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 22ms :: []
+8:33:17 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:33:17 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:33:18 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:33:18 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:33:18 AM [express] GET /api/chamadas-alianca/minhas 304 in 122ms :: []
+8:33:23 AM [express] GET /api/me 304 in 566ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:33:36 AM [express] GET /api/me 304 in 575ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+[2m8:33:39 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/pages/membro-detalhe.tsx, /src/pages/vitrine-detalhe.tsx, /src/pages/built-capital.tsx, /src/pages/area-membros.tsx, /src/pages/membros.tsx, /src/pages/meu-perfil.tsx, /src/pages/login.tsx, /src/pages/vitrine.tsx, /src/pages/oportunidades.tsx, /src/index.css[22m
+8:33:39 AM [express] GET /api/meu-convite 304 in 4ms
+8:33:39 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:33:39 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:33:39 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 21ms :: []
+8:33:40 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:33:40 AM [express] GET /api/meu-convite 304 in 3ms
+8:33:40 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 21ms :: []
+8:33:40 AM [express] GET /api/chamadas-alianca/minhas 304 in 22ms :: []
+8:33:54 AM [express] GET /api/me 304 in 715ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+[2m8:33:55 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/meu-perfil.tsx, /src/index.css[22m
+[2m8:34:02 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/meu-perfil.tsx, /src/index.css[22m
+8:34:06 AM [express] GET /api/me 304 in 585ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:34:09 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:34:09 AM [express] GET /api/chamadas-alianca/minhas 304 in 17ms :: []
+8:34:09 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:34:11 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 2ms :: []
+8:34:11 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 2ms :: []
+8:34:11 AM [express] GET /api/chamadas-alianca/minhas 304 in 19ms :: []
+[2m8:34:17 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/login.tsx, /src/index.css[22m
+8:34:25 AM [express] GET /api/me 304 in 592ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:34:37 AM [express] GET /api/me 304 in 582ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:34:39 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 1ms :: []
+8:34:39 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:34:39 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:34:42 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []
+8:34:42 AM [express] GET /api/chamadas-alianca/minhas 304 in 2ms :: []
+8:34:42 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 21ms :: []
+[2m8:34:45 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/meu-perfil.tsx, /src/index.css[22m
+8:34:45 AM [express] GET /api/meu-convite 304 in 3ms
+8:34:45 AM [express] GET /api/meu-convite 304 in 1ms
+8:34:56 AM [express] GET /api/me 304 in 598ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:35:07 AM [express] GET /api/me 304 in 597ms :: {"id":"98d4ed18-35e9-426b-a523-bc559f3eaf9a","nome":"Rodrigo Admin","email":"seitikatsumi@gmail.com","membro_directus_id":"90d2589b-c318-4562-8421-36c7467475c5","role":"admin","permissions":{"aura":"edit","bias":"edit","admin":"edit","painel":"edit","membros":"edit","calculadora":"edit","fluxo_caixa":"edit","oportunidades":"edit","cadastro_geral":"edit"},"tipos_alianca":[],"Outras_redes_as_quais_pertenco":[],"na_vitrine":null,"em_membros_built":null,"em_built_capital":null,"foto_perfil":null,"pending_vitrine":false,"convite_pendente":null,"adesao_pendente":null}
+8:35:09 AM [express] GET /api/bia-socio-solicitacoes/minhas 304 in 2ms :: []
+8:35:09 AM [express] GET /api/chamadas-alianca/minhas 304 in 1ms :: []
+8:35:09 AM [express] GET /api/bia-diretor-solicitacoes/minhas 304 in 1ms :: []

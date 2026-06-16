@@ -306,13 +306,13 @@ export default function BiaDetalhePage() {
   const cpp = useMemo(() => {
     if (!bia) return [];
     return [
-      { label: "Aliado BUILT", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
-      { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
-      { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
       { label: "Dir. Aliança", perc: bia.perc_dir_alianca, cpp: bia.cpp_dir_alianca },
+      { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
       { label: "Dir. Núcleo de Obra", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
       { label: "Dir. Núcleo Comercial", perc: bia.perc_dir_comercial, cpp: bia.cpp_dir_comercial },
       { label: "Dir. Núcleo de Capital", perc: bia.perc_dir_capital, cpp: bia.cpp_dir_capital },
+      { label: "Aliado BUILT", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
+      { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
     ].filter(row => n(row.perc) > 0 || n(row.cpp) > 0);
   }, [bia]);
 

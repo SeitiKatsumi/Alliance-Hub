@@ -48,7 +48,7 @@ import {
 } from "react-simple-maps";
 
 const BRAZIL_GEO = "/brazil-states.json";
-const INVITE_APP_URL = "https://built.dna11.com.br";
+const INVITE_APP_URL = "https://app.builtalliances.com";
 const INVITE_TYPE_OPTIONS = [
   { value: "vitrine", label: "BUILT Vitrine" },
   { value: "capital", label: "BUILT Capital (Investidor)" },
@@ -58,6 +58,12 @@ const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYP
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
+  if (/^https?:\/\/built\.dna11\.com\.br/i.test(link)) {
+    return link.replace(/^https?:\/\/built\.dna11\.com\.br/i, INVITE_APP_URL);
+  }
+  if (/^https?:\/\/app\.builtalliances\.com\.br/i.test(link)) {
+    return link.replace(/^https?:\/\/app\.builtalliances\.com\.br/i, INVITE_APP_URL);
+  }
   if (/^https?:\/\//i.test(link)) return link;
   return `${INVITE_APP_URL}${link.startsWith("/") ? "" : "/"}${link}`;
 }
@@ -3529,12 +3535,18 @@ export default function BiasPage() {
     (!!editingBia?.aliado_built && editingBia.aliado_built === user.membro_directus_id)
   );
 
-  const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
+  const { data: biasRaw = [], isLoading: loadingBias, isError: biasLoadError, error: biasLoadErrorInfo } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
   });
 
   const { data: membrosRaw = [], isLoading: loadingMembros } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
+    queryFn: async () => {
+      const res = await fetch("/api/membros", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: opasRaw = [] } = useQuery<Oportunidade[]>({
@@ -3781,6 +3793,18 @@ export default function BiasPage() {
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
         </div>
+      ) : biasLoadError ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-8 text-center">
+            <h3 className="text-lg font-semibold text-red-700 mb-2">Falha ao carregar o banco de dados</h3>
+            <p className="text-sm text-red-600">
+              Não foi possível conectar ao Directus agora. Os dados não foram apagados; a API de dados está retornando erro.
+            </p>
+            {biasLoadErrorInfo instanceof Error && (
+              <p className="mt-3 text-xs font-mono text-red-500">{biasLoadErrorInfo.message}</p>
+            )}
+          </CardContent>
+        </Card>
       ) : bias.length === 0 ?(
         <Card>
           <CardContent className="p-12 text-center">

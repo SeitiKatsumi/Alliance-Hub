@@ -24,7 +24,7 @@ import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
   Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle,
-  CheckCircle2, FileText, Trash2
+  CheckCircle2, FileText, Trash2, Settings
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
@@ -1499,6 +1499,7 @@ export default function MembrosPage() {
   const [filterTipoCadastro, setFilterTipoCadastro] = useState("");
   const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Membro | null>(null);
+  const [adminTab, setAdminTab] = useState<"cadastro" | "configuracoes">("cadastro");
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
@@ -1747,7 +1748,7 @@ export default function MembrosPage() {
             <h1
               className="text-3xl font-bold text-brand-navy"
             >
-              Cadastro Geral
+              Administração
             </h1>
           </div>
           <p className="text-sm text-slate-600 mb-6">
@@ -1763,7 +1764,48 @@ export default function MembrosPage() {
       </div>
 
       {/* ── Search & Filter Bar ── */}
-      <div className="sticky top-0 z-20 border-b border-white/5 px-6 py-3 flex flex-wrap gap-3 items-center" style={{ background: "rgba(2,11,22,0.95)", backdropFilter: "blur(12px)" }}>
+      <div className="px-6 pt-5">
+        <div className="grid grid-cols-2 rounded-lg bg-slate-100 p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setAdminTab("cadastro")}
+            className={`flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              adminTab === "cadastro" ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-brand-navy"
+            }`}
+            data-testid="tab-admin-cadastro-geral"
+          >
+            <Users className="h-4 w-4" />
+            Cadastro Geral
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdminTab("configuracoes")}
+            className={`flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              adminTab === "configuracoes" ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-brand-navy"
+            }`}
+            data-testid="tab-admin-configuracoes"
+          >
+            <Settings className="h-4 w-4" />
+            Configurações
+          </button>
+        </div>
+      </div>
+
+      {adminTab === "configuracoes" ? (
+        <div className="p-6">
+          <div className="flex min-h-[340px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <Settings className="h-7 w-7" />
+            </div>
+            <h2 className="text-xl font-bold text-brand-navy">Configurações</h2>
+            <p className="mt-2 max-w-md text-sm text-slate-500">
+              Esta área ainda está em desenvolvimento.
+            </p>
+          </div>
+        </div>
+      ) : (
+      <div>
+        <div className="sticky top-0 z-20 border-b border-white/5 px-6 py-3 flex flex-wrap gap-3 items-center" style={{ background: "rgba(2,11,22,0.95)", backdropFilter: "blur(12px)" }}>
         <div className="relative flex-1 min-w-52 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-gold/40" />
           <Input
@@ -1895,6 +1937,9 @@ export default function MembrosPage() {
           </div>
         )}
       </div>
+
+      </div>
+      )}
 
       {/* Edit Sheet */}
       {editingMembro && (

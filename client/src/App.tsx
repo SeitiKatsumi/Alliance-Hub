@@ -430,7 +430,7 @@ function PerfilOnboardingModal({
   fallbackUser?: { nome?: string | null; email?: string | null } | null;
 }) {
   const { toast } = useToast();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [form, setForm] = useState<Partial<OnboardingMembro>>({});
   const [profileCompletedLocally, setProfileCompletedLocally] = useState(false);
   const [idiomaInput, setIdiomaInput] = useState("");
@@ -633,8 +633,16 @@ function PerfilOnboardingModal({
     });
   }
 
+  function handleDialogOpenChange(open: boolean) {
+    if (open) return;
+    if (termoModuloPendente) {
+      termoModulo?.setChecked(false);
+      navigate("/");
+    }
+  }
+
   return (
-    <Dialog open={shouldOpen} onOpenChange={() => {}}>
+    <Dialog open={shouldOpen} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

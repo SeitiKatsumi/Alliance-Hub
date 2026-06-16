@@ -2600,11 +2600,16 @@ export default function FluxoCaixaPage({
                   .filter((c) => isValorOrigemCategoriaName(c.Nome_da_categoria))
                   .map((c) => c.id)
               );
-              const valorOrigemPago = fluxoItemsContabeis
-                .filter((i) => i.tipo === "saida" && i.status === "pago" && i.Categoria.some((c) => {
-                  const id = typeof c === "object" && c !== null ?(c as CategoriaItem).id : c;
-                  return catValorOrigemIds.has(Number(id));
-                }))
+              const valorOrigemPago = fluxoItemsAll
+                .filter((i) => {
+                  const isValorOrigem =
+                    isValorOrigemText(i.descricao) ||
+                    i.Categoria.some((c) => {
+                      const id = typeof c === "object" && c !== null ?(c as CategoriaItem).id : c;
+                      return catValorOrigemIds.has(Number(id));
+                    });
+                  return i.tipo === "saida" && i.status === "pago" && isValorOrigem;
+                })
                 .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
               const percPago = valorOrigemTotal > 0 ?(valorOrigemPago / valorOrigemTotal) * 100 : 0;
               return (

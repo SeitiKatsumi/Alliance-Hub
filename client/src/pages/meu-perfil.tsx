@@ -26,12 +26,12 @@ import {
   ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw, ChevronDown,
   Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info
 } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
-import { RAMOS_SEGMENTOS, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamo, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseSegmentosValue } from "@/lib/ramos-segmentos";
+import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamos, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseRamosValue, parseSegmentosValue } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 
 interface NominatimResult {
@@ -50,7 +50,7 @@ interface NominatimResult {
   };
 }
 
-const INVITE_APP_URL = "https://built.dna11.com.br";
+const INVITE_APP_URL = "https://app.builtalliances.com";
 const FOTO_CROP_BOX = 320;
 const FOTO_CROP_OUTPUT = 640;
 const INVITE_TYPE_OPTIONS = [
@@ -73,14 +73,42 @@ const REGIME_COMUNHAO_OPTIONS = [
   { value: "separacao_total", label: "Separação total de bens" },
   { value: "participacao_final", label: "Participação final nos aquestos" },
 ];
+const CONTRIBUTION_AREA_ORDER = [
+  "lideranca tecnica",
+  "projeto",
+  "juridicas",
+  "inteligencia",
+  "integridade e sustentabilidade",
+  "lideranca de obras",
+  "execucao",
+  "fornecimento",
+  "construcao",
+  "lideranca comercial",
+  "comerciais",
+  "vendas e locacao",
+  "marketing",
+  "operacoes e facilities",
+  "gestao de relacionamento com cliente",
+  "relacionamento",
+  "lideranca de capital",
+  "investimento",
+  "credito e captacao",
+  "contabeis e tributarias",
+  "gestao financeira",
+];
+const CONTRIBUTION_AREA_ORDER_MAP = new Map(CONTRIBUTION_AREA_ORDER.map((key, index) => [key, index]));
 const AREA_ICON_CONFIG: Record<string, { icon: typeof Flag; color: string; bg: string }> = {
-  "Liderança": { icon: Flag, color: "text-amber-600", bg: "bg-amber-50" },
+  "Liderança Técnica": { icon: Flag, color: "text-blue-600", bg: "bg-blue-50" },
+  "Liderança de Obras": { icon: Flag, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Liderança Comercial": { icon: Flag, color: "text-purple-600", bg: "bg-purple-50" },
+  "Liderança de Capital": { icon: Flag, color: "text-orange-600", bg: "bg-orange-50" },
   "Projeto": { icon: FolderKanban, color: "text-blue-600", bg: "bg-blue-50" },
   "Jurídicas": { icon: Scale, color: "text-blue-600", bg: "bg-blue-50" },
   "Inteligência": { icon: Lightbulb, color: "text-blue-600", bg: "bg-blue-50" },
-  "Governança": { icon: ShieldCheck, color: "text-blue-600", bg: "bg-blue-50" },
+  "Integridade e sustentabilidade": { icon: ShieldCheck, color: "text-blue-600", bg: "bg-blue-50" },
   "Execução": { icon: CircleCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
   "Fornecimento": { icon: Truck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Construção": { icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
   "Comerciais": { icon: BriefcaseBusiness, color: "text-purple-600", bg: "bg-purple-50" },
   "Vendas e Locação": { icon: Tags, color: "text-purple-600", bg: "bg-purple-50" },
   "Marketing": { icon: Megaphone, color: "text-purple-600", bg: "bg-purple-50" },
@@ -88,12 +116,194 @@ const AREA_ICON_CONFIG: Record<string, { icon: typeof Flag; color: string; bg: s
   "Gestão de Relacionamento com Cliente": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   "Relacionamento": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   "Investimento": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
+  "Crédito e Captação": { icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50" },
   "Contábeis e Tributárias": { icon: ReceiptText, color: "text-orange-600", bg: "bg-orange-50" },
   "Gestão Financeira": { icon: CircleDollarSign, color: "text-orange-600", bg: "bg-orange-50" },
 };
 
+const AREA_INFO_CONFIG: Record<string, { nucleo: string; cpp: string; description: string; footer?: string }> = {
+  "Liderança Técnica": {
+    nucleo: "Diretoria da Aliança",
+    cpp: "Liderança Técnica",
+    description: "Coordenação técnica, integração das alianças técnicas, viabilidade, conformidade e prevenção de riscos.",
+  },
+  "Liderança de Obras": {
+    nucleo: "Diretoria da Aliança",
+    cpp: "Liderança de Obras",
+    description: "Coordenação da execução, integração de equipes, fornecedores, cronograma, qualidade e aderência aos projetos.",
+  },
+  "Liderança Comercial": {
+    nucleo: "Diretoria da Aliança",
+    cpp: "Liderança Comercial",
+    description: "Coordenação comercial, integração de vendas, locação, marketing, relacionamento e geração de receita.",
+  },
+  "Liderança de Capital": {
+    nucleo: "Diretoria da Aliança",
+    cpp: "Liderança de Capital",
+    description: "Coordenação econômica e financeira, integração de investimentos, captação, controle, prestação de contas e resultados.",
+  },
+  "Projeto": {
+    nucleo: "Núcleo de Alianças Técnicas",
+    cpp: "CPP Técnica",
+    description: "Arquitetos, engenheiros, projetistas, designers, urbanistas e demais profissionais responsáveis pela concepção, desenvolvimento, compatibilização e detalhamento técnico dos projetos.",
+    footer: "Contribui para a viabilidade técnica, consistência dos projetos e conformidade das entregas.",
+  },
+  "Jurídicas": {
+    nucleo: "Núcleo de Alianças Técnicas",
+    cpp: "CPP Técnica",
+    description: "Profissionais especializados em direito imobiliário, societário, contratual, urbanístico, regulatório e compliance jurídico, responsáveis pela segurança jurídica das operações, contratos, ativos e relações da BIA.",
+    footer: "Ajuda a garantir conformidade legal e prevenção de riscos.",
+  },
+  "Inteligência": {
+    nucleo: "Núcleo de Alianças Técnicas",
+    cpp: "CPP Técnica",
+    description: "Especialistas em inteligência de mercado, estudos de viabilidade, análise de produto, estratégia imobiliária, masterplan, posicionamento e modelagem da oportunidade.",
+    footer: "Apoia decisões estratégicas e leitura de mercado da BIA.",
+  },
+  "Integridade e sustentabilidade": {
+    nucleo: "Núcleo de Alianças Técnicas",
+    cpp: "CPP Técnica",
+    description: "Profissionais de compliance, segurança, qualidade, consultoria, auditoria, meio ambiente e ESG, responsáveis por fortalecer conformidade, prevenção de riscos, qualidade das entregas e sustentabilidade da BIA.",
+  },
+  "Execução": {
+    nucleo: "Núcleo de Alianças de Obras",
+    cpp: "CPP de Obra",
+    description: "Profissionais e equipes responsáveis pela execução direta dos serviços de obra, incluindo engenheiros de obra, mestres, encarregados, supervisores, técnicos e demais executores especializados.",
+  },
+  "Construção": {
+    nucleo: "Núcleo de Alianças de Obras",
+    cpp: "CPP de Obra",
+    description: "Construtoras, empreiteiras, subempreiteiras e empresas especializadas responsáveis pela execução de etapas construtivas, frentes de serviço, instalações, montagem, reforma, retrofit ou construção integral.",
+  },
+  "Fornecimento": {
+    nucleo: "Núcleo de Alianças de Obras",
+    cpp: "CPP de Obra",
+    description: "Fornecedores de materiais, insumos, equipamentos, ferramentas, sistemas construtivos, soluções técnicas e serviços logísticos necessários à execução da obra.",
+    footer: "Garante execução física com controle de prazo, custo, qualidade, fornecimento e aderência aos projetos aprovados.",
+  },
+  "Comerciais": {
+    nucleo: "Núcleo de Alianças Comerciais",
+    cpp: "CPP Comercial",
+    description: "Corretores, executivos de negócios, articuladores comerciais e parceiros de mercado responsáveis por prospecção, abertura de portas, negociação, captação de demanda e conversão de oportunidades.",
+  },
+  "Vendas e Locação": {
+    nucleo: "Núcleo de Alianças Comerciais",
+    cpp: "CPP Comercial",
+    description: "Corretores, consultores, imobiliárias, plataformas e canais especializados responsáveis pela comercialização, locação, permuta, ocupação ou distribuição comercial do ativo.",
+  },
+  "Marketing": {
+    nucleo: "Núcleo de Alianças Comerciais",
+    cpp: "CPP Comercial",
+    description: "Profissionais e empresas de marketing, branding, performance, conteúdo, mídia, eventos e relacionamento responsáveis por posicionar a BIA, gerar demanda qualificada e fortalecer a percepção de valor do ativo.",
+  },
+  "Operações e Facilities": {
+    nucleo: "Núcleo de Alianças Comerciais",
+    cpp: "CPP Comercial",
+    description: "Operadores, gestores de facilities, administradoras, manutenção, terceirização e prestadores responsáveis pela operação, conservação, eficiência, ocupação e experiência de uso do ativo.",
+  },
+  "Gestão de Relacionamento com Cliente": {
+    nucleo: "Núcleo de Alianças Comerciais",
+    cpp: "CPP Comercial",
+    description: "Profissionais e empresas responsáveis por atendimento, pós-venda, SAC, garantias, jornada do cliente, retenção, reputação e continuidade da relação comercial.",
+    footer: "Transforma o ativo físico em ativo econômico por meio de venda, locação, operação, relacionamento e geração de receita.",
+  },
+  "Investimento": {
+    nucleo: "Núcleo de Alianças de Capital",
+    cpp: "CPP de Capital",
+    description: "Investidores, cotistas, financiadores e parceiros de capital responsáveis por aportar recursos financeiros.",
+  },
+  "Crédito e Captação": {
+    nucleo: "Núcleo de Alianças de Capital",
+    cpp: "CPP de Capital",
+    description: "Bancos, instituições financeiras, fundos, securitizadoras, family offices e parceiros de crédito responsáveis por viabilizar recursos, financiamentos, antecipações, operações de crédito e demais instrumentos de captação para a BIA.",
+  },
+  "Contábeis e Tributárias": {
+    nucleo: "Núcleo de Alianças de Capital",
+    cpp: "CPP de Capital",
+    description: "Profissionais e empresas responsáveis pela contabilidade, planejamento tributário, obrigações fiscais e acessórias, apuração de tributos, relatórios contábeis, prestação de contas e conformidade fiscal da BIA.",
+  },
+  "Gestão Financeira": {
+    nucleo: "Núcleo de Alianças de Capital",
+    cpp: "CPP de Capital",
+    description: "Profissionais e empresas responsáveis pelo planejamento financeiro, fluxo de caixa, controladoria, projeções, acompanhamento orçamentário, gestão financeira da operação e suporte à tomada de decisão econômica da BIA.",
+    footer: "Garante gestão econômica, financeira, contábil e tributária com controle de caixa, transparência, conformidade fiscal e apuração segura dos resultados.",
+  },
+};
+
+function ContributionAreaInfo({ label }: { label: string }) {
+  const [open, setOpen] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const info = AREA_INFO_CONFIG[label];
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const scheduleClose = () => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => setOpen(false), 140);
+  };
+
+  useEffect(() => () => clearCloseTimer(), []);
+
+  if (!info) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Informações sobre ${label}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(value => !value);
+          }}
+          onMouseEnter={() => {
+            clearCloseTimer();
+            setOpen(true);
+          }}
+          onMouseLeave={scheduleClose}
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-white hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="top"
+        onMouseEnter={() => {
+          clearCloseTimer();
+          setOpen(true);
+        }}
+        onMouseLeave={scheduleClose}
+        className="w-80 max-w-[calc(100vw-2rem)] space-y-2 text-left"
+      >
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{info.nucleo}</p>
+          <p className="text-[10px] font-semibold text-blue-600">{info.cpp}</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-[#001D34]">{label}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">{info.description}</p>
+        </div>
+        {info.footer && <p className="border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-500">{info.footer}</p>}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
+  if (/^https?:\/\/built\.dna11\.com\.br/i.test(link)) {
+    return link.replace(/^https?:\/\/built\.dna11\.com\.br/i, INVITE_APP_URL);
+  }
+  if (/^https?:\/\/app\.builtalliances\.com\.br/i.test(link)) {
+    return link.replace(/^https?:\/\/app\.builtalliances\.com\.br/i, INVITE_APP_URL);
+  }
   if (/^https?:\/\//i.test(link)) return link;
   return `${INVITE_APP_URL}${link.startsWith("/") ?"" : "/"}${link}`;
 }
@@ -275,6 +485,7 @@ interface Membro {
   latitude?: string | null;
   longitude?: string | null;
   empresa?: string;
+  cnpj?: string | null;
   cargo?: string;
   especialidade?: string;
   especialidade_id?: string | null;
@@ -318,9 +529,27 @@ function contributionKey(tipo: string): string {
     .toLowerCase();
 }
 
+function sortContributionAreas<T>(items: T[], getValue: (item: T) => string): T[] {
+  return [...items].sort((a, b) => {
+    const aKey = contributionKey(getValue(a));
+    const bKey = contributionKey(getValue(b));
+    const aIndex = CONTRIBUTION_AREA_ORDER_MAP.get(aKey) ?? 999;
+    const bIndex = CONTRIBUTION_AREA_ORDER_MAP.get(bKey) ?? 999;
+    return aIndex === bIndex ? aKey.localeCompare(bKey) : aIndex - bIndex;
+  });
+}
+
+function canonicalContributionArea(tipo: string): string {
+  const key = contributionKey(tipo);
+  if (key === "lideranca") return "Alianças de Liderança Comercial";
+  if (key === "governanca") return "Alianças de Integridade e sustentabilidade";
+  if (key === "credito" || key === "captacao") return "Alianças de Crédito e Captação";
+  return tipo;
+}
+
 function uniqueContributionAreas(tipos?: string[] | null): string[] {
   const seen = new Set<string>();
-  return (tipos || []).filter((tipo) => {
+  return (tipos || []).map((tipo) => canonicalContributionArea(String(tipo || "").trim())).filter((tipo) => {
     const label = String(tipo || "").trim();
     if (!label) return false;
     const key = contributionKey(label);
@@ -354,6 +583,8 @@ export default function MeuPerfilPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [idiomaInput, setIdiomaInput] = useState("");
+  const [ramoSearch, setRamoSearch] = useState("");
+  const [ramoOpen, setRamoOpen] = useState(false);
   const [segmentoSearch, setSegmentoSearch] = useState("");
   const [segmentoOpen, setSegmentoOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -579,12 +810,39 @@ export default function MeuPerfilPage() {
     setForm(f => ({ ...f, [field]: value }));
   }
 
+  const selectedRamos = parseRamosValue(form.ramo_atuacao);
   const selectedSegmentos = parseSegmentosValue(form.segmento);
-  const availableSegmentos = getSegmentosForRamo(form.ramo_atuacao || "");
+  const availableSegmentos = getSegmentosForRamos(selectedRamos);
+  const normalizedRamoSearch = ramoSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const filteredRamos = RAMOS_SEGMENTOS.filter((ramo) =>
+    ramo.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedRamoSearch)
+  );
   const normalizedSegmentoSearch = segmentoSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filteredSegmentos = availableSegmentos.filter((segmento) =>
     segmento.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedSegmentoSearch)
   );
+
+  function toggleRamo(ramo: string) {
+    setForm(current => {
+      const currentRamos = parseRamosValue(current.ramo_atuacao);
+      const nextRamos = currentRamos.includes(ramo)
+        ? currentRamos.filter(item => item !== ramo)
+        : [...currentRamos, ramo];
+      const availableNames = new Set(getSegmentosForRamos(nextRamos).map(segmento => segmento.nome));
+      const nextSegmentos = parseSegmentosValue(current.segmento).filter(segmento => availableNames.has(segmento));
+      return {
+        ...current,
+        ramo_atuacao: formatRamosValue(nextRamos),
+        segmento: formatSegmentosValue(nextSegmentos),
+      };
+    });
+  }
+
+  function clearRamos() {
+    setForm(current => ({ ...current, ramo_atuacao: null, segmento: null }));
+    setRamoSearch("");
+    setSegmentoSearch("");
+  }
 
   function toggleSegmento(segmento: string) {
     setForm(current => {
@@ -625,6 +883,14 @@ export default function MeuPerfilPage() {
     }
     if (!hasInternationalDialCode(form.telefone)) {
       toast({ title: "Telefone obrigatório", description: "Informe um telefone com código internacional.", variant: "destructive" });
+      return;
+    }
+    if (!String(form.cpf || "").trim()) {
+      toast({ title: "CPF obrigatÃ³rio", description: "Informe o CPF para salvar o perfil.", variant: "destructive" });
+      return;
+    }
+    if (String(form.empresa || "").trim() && !String(form.cnpj || "").trim()) {
+      toast({ title: "CNPJ obrigatÃ³rio", description: "Informe o CNPJ quando houver nome de empresa.", variant: "destructive" });
       return;
     }
     const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
@@ -707,7 +973,7 @@ export default function MeuPerfilPage() {
           </div>
         </div>
         <div className="grid grid-cols-[minmax(88px,110px)_minmax(0,1fr)] gap-2">
-          <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{form.ramo_atuacao || "-"}</p>
+          <p className="font-bold text-slate-700">Ramo</p><p className="break-words text-slate-600">{formatRamosDisplay(form.ramo_atuacao) || "-"}</p>
           <p className="font-bold text-slate-700">Segmento</p><p className="break-words text-slate-600">{formatSegmentosDisplay(form.segmento) || "-"}</p>
           <p className="font-bold text-slate-700">Área de atuação</p><p className="break-words text-slate-600">{form.area_atuacao || "-"}</p>
           <p className="font-bold text-slate-700">Localização</p><p className="break-words text-slate-600">{[form.cidade, form.estado].filter(Boolean).join(", ") || "-"}</p>
@@ -934,17 +1200,26 @@ export default function MeuPerfilPage() {
                   <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
-                    {getAllTipos().map((tipo) => {
+                    {sortContributionAreas(getAllTipos(), (tipo) => tipo.nome).map((tipo) => {
                       const currentTipos = uniqueContributionAreas(form.tipos_alianca);
                       const selected = currentTipos.some((current) => contributionKey(current) === contributionKey(tipo.nome));
                       const label = getTipoDisplayName(tipo.nome);
                       const iconConfig = AREA_ICON_CONFIG[label] || { icon: FolderKanban, color: "text-slate-600", bg: "bg-slate-50" };
                       const AreaIcon = iconConfig.icon;
                       return (
-                        <button
+                        <div
                           key={tipo.nome}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
+                            const current = uniqueContributionAreas(form.tipos_alianca);
+                            const tipoKey = contributionKey(tipo.nome);
+                            const novos = selected ? current.filter(x => contributionKey(x) !== tipoKey) : [...current, tipo.nome];
+                            setForm(f => ({ ...f, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter" && event.key !== " ") return;
+                            event.preventDefault();
                             const current = uniqueContributionAreas(form.tipos_alianca);
                             const tipoKey = contributionKey(tipo.nome);
                             const novos = selected ? current.filter(x => contributionKey(x) !== tipoKey) : [...current, tipo.nome];
@@ -960,8 +1235,11 @@ export default function MeuPerfilPage() {
                             </span>
                             <span className="truncate">{label}</span>
                           </span>
-                          {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
-                        </button>
+                          <span className="flex shrink-0 items-center gap-1">
+                            <ContributionAreaInfo label={label} />
+                            {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
+                          </span>
+                        </div>
                       );
                     })}
                   </div>
@@ -990,6 +1268,16 @@ export default function MeuPerfilPage() {
                       required
                       className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                       data-testid="input-perfil-email"
+                    />
+                  </Field>
+                  <Field label="CPF *">
+                    <Input
+                      value={form.cpf || ""}
+                      onChange={e => set("cpf", e.target.value)}
+                      required
+                      placeholder="000.000.000-00"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                      data-testid="input-perfil-cpf"
                     />
                   </Field>
                   <Field label="Telefone *">
@@ -1165,31 +1453,113 @@ export default function MeuPerfilPage() {
                       data-testid="input-perfil-empresa"
                     />
                   </Field>
+                  <Field label={`CNPJ${String(form.empresa || "").trim() ? " *" : ""}`}>
+                    <Input
+                      value={form.cnpj || ""}
+                      onChange={e => set("cnpj", e.target.value)}
+                      required={!!String(form.empresa || "").trim()}
+                      placeholder="00.000.000/0000-00"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
+                      data-testid="input-perfil-cnpj"
+                    />
+                  </Field>
                   <Field label="Ramo de Atuação">
-                    <Select
-                      value={form.ramo_atuacao || ""}
-                      onValueChange={v => {
-                        setForm(f => ({ ...f, ramo_atuacao: v, segmento: null }));
-                      }}
-                    >
-                      <SelectTrigger
-                        className="bg-white/5 border-white/10 text-white focus:border-brand-gold/40"
-                        data-testid="select-perfil-ramo"
-                      >
-                        <SelectValue placeholder="Selecione o ramo" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
-                        {RAMOS_SEGMENTOS.map(r => (
-                          <SelectItem
-                            key={r.codigo}
-                            value={r.nome}
-                            className="text-white/80 focus:bg-brand-gold/10 focus:text-white"
+                    <div className="space-y-2" data-testid="select-perfil-ramo">
+                      <Popover open={ramoOpen} onOpenChange={(open) => {
+                        setRamoOpen(open);
+                        if (!open) setRamoSearch("");
+                      }}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-auto min-h-11 w-full justify-between rounded-md border-white/10 bg-white/5 px-3 py-2 text-left font-normal text-white hover:bg-white/10 hover:text-white"
                           >
-                            {r.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            <span className="min-w-0 flex-1 truncate">
+                              {selectedRamos.length
+                                ? `${selectedRamos.length} ramo${selectedRamos.length > 1 ? "s" : ""} selecionado${selectedRamos.length > 1 ? "s" : ""}`
+                                : "Buscar e selecionar ramos"}
+                            </span>
+                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-white/60" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          className="w-[var(--radix-popover-trigger-width)] border-slate-200 bg-white p-0 text-slate-900"
+                        >
+                          <div className="border-b border-slate-100 p-3">
+                            <div className="relative">
+                              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <Input
+                                autoFocus
+                                value={ramoSearch}
+                                onChange={(event) => setRamoSearch(event.target.value)}
+                                placeholder="Pesquisar ramo..."
+                                className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
+                                data-testid="input-search-perfil-ramo"
+                              />
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+                              <span>{selectedRamos.length} de {RAMOS_SEGMENTOS.length} selecionado{selectedRamos.length !== 1 ? "s" : ""}</span>
+                              {selectedRamos.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={clearRamos}
+                                  className="font-medium text-blue-600 hover:text-blue-700"
+                                >
+                                  Limpar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="max-h-72 overflow-y-auto p-2">
+                            {filteredRamos.length > 0 ? (
+                              filteredRamos.map(r => {
+                                const checked = selectedRamos.includes(r.nome);
+                                return (
+                                  <label
+                                    key={r.codigo}
+                                    className={`flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 text-sm transition-colors ${
+                                      checked ? "bg-blue-50 text-slate-950" : "text-slate-700 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={() => toggleRamo(r.nome)}
+                                      className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
+                                    />
+                                    <span className="leading-5">{r.nome}</span>
+                                  </label>
+                                );
+                              })
+                            ) : (
+                              <p className="px-3 py-6 text-center text-sm text-slate-500">Nenhum ramo encontrado.</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+
+                      {selectedRamos.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedRamos.map(ramo => (
+                            <span
+                              key={ramo}
+                              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+                            >
+                              <span className="truncate">{ramo}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleRamo(ramo)}
+                                className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
+                                aria-label={`Remover ${ramo}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </Field>
                   <Field label="Cargo">
                     <Input
@@ -1209,12 +1579,12 @@ export default function MeuPerfilPage() {
                           <Button
                             type="button"
                             variant="outline"
-                            disabled={!form.ramo_atuacao}
+                            disabled={selectedRamos.length === 0}
                             className="h-auto min-h-11 w-full justify-between rounded-md border-white/10 bg-white/5 px-3 py-2 text-left font-normal text-white hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <span className="min-w-0 flex-1 truncate">
-                              {!form.ramo_atuacao
-                                ? "Selecione o ramo primeiro"
+                              {selectedRamos.length === 0
+                                ? "Selecione ao menos um ramo primeiro"
                                 : selectedSegmentos.length
                                   ? `${selectedSegmentos.length} segmento${selectedSegmentos.length > 1 ? "s" : ""} selecionado${selectedSegmentos.length > 1 ? "s" : ""}`
                                   : "Buscar e selecionar segmentos"}
@@ -1922,7 +2292,7 @@ function DadosFormalizacaoSection({
           <Input type="date" value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} data-testid="input-perfil-data-nascimento" />
         </Field>
         <Field label="CPF">
-          <Input value={form.cpf || ""} onChange={e => setField("cpf", e.target.value)} data-testid="input-perfil-cpf" />
+          <Input value={form.cpf || ""} onChange={e => setField("cpf", e.target.value)} data-testid="input-formalizacao-cpf" />
         </Field>
         <Field label="RG">
           <Input value={form.rg || ""} onChange={e => setField("rg", e.target.value)} data-testid="input-perfil-rg" />

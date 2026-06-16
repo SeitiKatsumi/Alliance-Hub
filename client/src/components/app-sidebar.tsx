@@ -116,13 +116,13 @@ export function AppSidebar() {
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Cadastro Geral — Super Admin only */}
+              {/* Administração — Super Admin only */}
               {isSuperAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
                     <Link href="/membros">
                       <Users className="w-3.5 h-3.5" />
-                      <span>Cadastro Geral</span>
+                      <span>Administração</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

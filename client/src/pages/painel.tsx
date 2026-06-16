@@ -199,7 +199,7 @@ function normalizeText(value?: string | number | null): string {
 }
 
 const CHART_COLORS = ["#0B4EA2", "#0B63F6", "#12B981", "#38BDF8", "#22C55E", "#1E40AF", "#64748B"];
-const INVITE_APP_URL = "https://built.dna11.com.br";
+const INVITE_APP_URL = "https://app.builtalliances.com";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const INVITE_TYPE_OPTIONS = [
   { value: "vitrine", label: "BUILT Vitrine" },
@@ -211,6 +211,12 @@ const DASHBOARD_ENV_IMAGES = Array.from({ length: 10 }, (_, index) => `/dashboar
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
+  if (/^https?:\/\/built\.dna11\.com\.br/i.test(link)) {
+    return link.replace(/^https?:\/\/built\.dna11\.com\.br/i, INVITE_APP_URL);
+  }
+  if (/^https?:\/\/app\.builtalliances\.com\.br/i.test(link)) {
+    return link.replace(/^https?:\/\/app\.builtalliances\.com\.br/i, INVITE_APP_URL);
+  }
   if (/^https?:\/\//i.test(link)) return link;
   return `${INVITE_APP_URL}${link.startsWith("/") ?"" : "/"}${link}`;
 }

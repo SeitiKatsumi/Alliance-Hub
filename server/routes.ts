@@ -21,6 +21,7 @@ const openai = new OpenAI({
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://app.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
+const PRODUCTION_APP_API_URL = (process.env.PRODUCTION_APP_API_URL || "https://app.builtalliances.com").replace(/\/$/, "");
 const ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url));
 const nucleoTecnicoDocsFallback: any[] = [];
 
@@ -482,6 +483,7 @@ async function ensureVitrineFields() {
     { field: "data_nascimento", type: "date", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de nascimento para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "profissao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Profissao para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "cpf", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "CPF para formalizacao de BIA" }, schema: { is_nullable: true } },
+    { field: "cnpj", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "CNPJ da empresa vinculada ao perfil" }, schema: { is_nullable: true } },
     { field: "rg", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "RG para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "estado_civil", type: "string", meta: { interface: "select-dropdown", display: "raw", hidden: false, note: "Estado civil para formalizacao de BIA", options: { choices: [
       { text: "Solteiro(a)", value: "solteiro" },
@@ -558,35 +560,190 @@ async function geocodeMembrosCadastro(membros: any[]): Promise<void> {
 
 async function directusFetch(collection: string, params: string = "") {
   const url = `${DIRECTUS_URL}/items/${collection}?limit=-1&fields=*${params ? "&" + params : ""}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-  });
-  if (!res.ok) throw new Error(`Directus error: ${res.status}`);
-  const json = await res.json();
-  return json.data || [];
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!res.ok) throw new Error(`Directus error: ${res.status}`);
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(`Directus retornou ${contentType || "conteudo nao JSON"}`);
+    }
+    const json = await res.json();
+    return json.data || [];
+  } catch (error: any) {
+    const fallback = await fetchProductionCollectionFallback(collection);
+    if (fallback) return fallback;
+    throw error;
+  }
 }
 
 // Like directusFetch but does NOT prepend fields=* — for targeted queries with explicit fields + filters
 async function directusFetchScoped(collection: string, params: string) {
   const hasLimit = /(^|&)limit=/.test(params);
   const url = `${DIRECTUS_URL}/items/${collection}?${hasLimit ? "" : "limit=-1&"}${params}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-  });
-  if (!res.ok) throw new Error(`Directus error: ${res.status}`);
-  const json = await res.json();
-  return json.data || [];
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!res.ok) throw new Error(`Directus error: ${res.status}`);
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(`Directus retornou ${contentType || "conteudo nao JSON"}`);
+    }
+    const json = await res.json();
+    return json.data || [];
+  } catch (error: any) {
+    const fallback = await fetchProductionCollectionFallback(collection);
+    if (fallback) return fallback;
+    throw error;
+  }
+}
+
+async function fetchProductionCollectionFallback(collection: string): Promise<any[] | null> {
+  const normalizedCollection = String(collection || "").toLowerCase();
+  if (normalizedCollection === "cadastro_geral") {
+    const cached = readCachedApiArrayFromLogs("/api/membros") || readCachedApiArrayFromLogs("/api/vitrine");
+    if (cached) {
+      console.warn(`[directus-fallback] ${collection} carregado do ultimo snapshot local dos logs`);
+      return cached;
+    }
+  }
+  if (normalizedCollection === "comunidade" || normalizedCollection === "comunidades") {
+    const cached = readCachedApiArrayFromLogs("/api/comunidades");
+    if (cached) {
+      console.warn(`[directus-fallback] ${collection} carregado do ultimo snapshot local dos logs`);
+      return cached;
+    }
+  }
+  const endpointByCollection: Record<string, string> = {
+    bias_projetos: "/api/bias",
+    tipos_oportunidades: "/api/oportunidades",
+  };
+  const endpoint = endpointByCollection[collection];
+  if (!endpoint) return null;
+  try {
+    const res = await fetch(`${PRODUCTION_APP_API_URL}${endpoint}`);
+    if (!res.ok) throw new Error(`Production API fallback error: ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+    console.warn(`[directus-fallback] ${collection} carregado via ${PRODUCTION_APP_API_URL}${endpoint}`);
+    return data;
+  } catch (fallbackError: any) {
+    console.warn(`[directus-fallback] falha em ${collection}:`, fallbackError?.message || fallbackError);
+    return null;
+  }
+}
+
+async function fetchProductionItemFallback(collection: string, id: string): Promise<any | null> {
+  const items = await fetchProductionCollectionFallback(collection);
+  if (!items) return null;
+  return items.find((item) => String(item?.id) === String(id)) || null;
+}
+
+function readCachedApiArrayFromLogs(endpoint: string): any[] | null {
+  const candidates = fs.readdirSync(process.cwd())
+    .filter((file) => file.endsWith(".log"))
+    .map((file) => path.resolve(process.cwd(), file));
+  for (const file of candidates) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).reverse();
+      const line = lines.find((entry) => entry.includes(`GET ${endpoint} `) && entry.includes(":: ["));
+      if (!line) continue;
+      const jsonStart = line.indexOf(":: ");
+      if (jsonStart < 0) continue;
+      const data = JSON.parse(line.slice(jsonStart + 3));
+      if (Array.isArray(data)) return data;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function sendAssetPlaceholder(res: any, id: string, width = 640, height = 360) {
+  const hash = Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const palette = [
+    ["#071523", "#123f6b", "#6de6ff"],
+    ["#061722", "#174d3e", "#46d989"],
+    ["#120f19", "#4d2f78", "#d7bb7d"],
+    ["#101820", "#654321", "#f2b84b"],
+  ][hash % 4];
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="${palette[0]}"/>
+      <stop offset="0.65" stop-color="${palette[1]}"/>
+      <stop offset="1" stop-color="${palette[2]}"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0v48" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#g)"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+  <circle cx="${Math.round(width * 0.78)}" cy="${Math.round(height * 0.28)}" r="${Math.round(Math.min(width, height) * 0.22)}" fill="rgba(255,255,255,.08)"/>
+  <path d="M${Math.round(width * 0.08)} ${Math.round(height * 0.72)} C ${Math.round(width * 0.28)} ${Math.round(height * 0.46)}, ${Math.round(width * 0.46)} ${Math.round(height * 0.88)}, ${Math.round(width * 0.68)} ${Math.round(height * 0.58)} S ${Math.round(width * 0.92)} ${Math.round(height * 0.36)}, ${Math.round(width * 0.98)} ${Math.round(height * 0.44)}" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="3"/>
+  <text x="${Math.round(width * 0.08)}" y="${Math.round(height * 0.18)}" fill="rgba(255,255,255,.92)" font-family="Arial, sans-serif" font-size="${Math.round(height * 0.14)}" font-weight="800" letter-spacing="4">BUILT</text>
+  <text x="${Math.round(width * 0.08)}" y="${Math.round(height * 0.3)}" fill="rgba(255,255,255,.7)" font-family="Arial, sans-serif" font-size="${Math.round(height * 0.045)}" letter-spacing="3">ALLIANCES</text>
+</svg>`;
+  res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(svg);
+}
+
+async function proxyDirectusAsset(req: any, res: any) {
+  const { id } = req.params;
+  const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+  const width = Number(req.query.width) || 640;
+  const height = Number(req.query.height) || 360;
+  const assetUrls = [
+    `${DIRECTUS_URL}/assets/${id}${qs ? `?${qs}` : ""}`,
+    `${PRODUCTION_APP_API_URL}/api/assets/${id}${qs ? `?${qs}` : ""}`,
+    `${PRODUCTION_APP_API_URL}/assets/${id}${qs ? `?${qs}` : ""}`,
+  ];
+
+  for (const url of assetUrls) {
+    try {
+      const headers: Record<string, string> = {};
+      if (url.startsWith(DIRECTUS_URL) && DIRECTUS_TOKEN) headers.Authorization = `Bearer ${DIRECTUS_TOKEN}`;
+      const upstream = await fetch(url, { headers });
+      if (!upstream.ok) continue;
+      const contentType = upstream.headers.get("content-type") || "";
+      if (!contentType.startsWith("image/")) continue;
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const buf = await upstream.arrayBuffer();
+      return res.send(Buffer.from(buf));
+    } catch {
+      continue;
+    }
+  }
+
+  return sendAssetPlaceholder(res, id, width, height);
 }
 
 async function directusFetchOne(collection: string, id: string, params: string = "") {
   const url = `${DIRECTUS_URL}/items/${collection}/${id}?fields=*${params ? "&" + params : ""}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-  });
-  if (res.status === 404 || res.status === 403) return null;
-  if (!res.ok) throw new Error(`Directus error: ${res.status}`);
-  const json = await res.json();
-  return json.data || null;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (res.status === 404 || res.status === 403) return null;
+    if (!res.ok) throw new Error(`Directus error: ${res.status}`);
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(`Directus retornou ${contentType || "conteudo nao JSON"}`);
+    }
+    const json = await res.json();
+    return json.data || null;
+  } catch (error: any) {
+    const fallback = await fetchProductionItemFallback(collection, id);
+    if (fallback) return fallback;
+    throw error;
+  }
 }
 
 async function directusBulkCreate(collection: string, items: Record<string, any>[]) {
@@ -1871,7 +2028,12 @@ export async function registerRoutes(
       if (needGeo.length > 0) geocodeMembrosCadastro(needGeo).catch(() => {});
       res.json(items);
     } catch (error: any) {
-      console.error(`[comunidades DELETE ${req.params.id}] error:`, error.message);
+      const cached = readCachedApiArrayFromLogs("/api/vitrine");
+      if (cached) {
+        console.warn("[vitrine] Directus indisponivel; usando ultimo snapshot local dos logs.");
+        return res.json(cached);
+      }
+      console.error(`[vitrine] error:`, error.message);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1897,6 +2059,12 @@ export async function registerRoutes(
         longitude: m.longitude ? parseFloat(m.longitude) : null,
       });
     } catch (error: any) {
+      const cached = readCachedApiArrayFromLogs("/api/vitrine");
+      const item = cached?.find((m: any) => String(m.id) === String(req.params.id));
+      if (item) {
+        console.warn("[vitrine] Directus indisponivel; usando membro do ultimo snapshot local dos logs.");
+        return res.json(item);
+      }
       if (String(error?.message || "").includes("ECONNREFUSED")) {
         console.warn("[chamadas-alianca] Banco local indisponivel em /minhas:", error.message);
         return res.json([]);
@@ -1952,6 +2120,8 @@ export async function registerRoutes(
       const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,area_atuacao,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
       const response = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!response.ok) throw new Error(`Directus error: ${response.status}`);
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) throw new Error(`Directus retornou ${contentType || "conteudo nao-json"}`);
       const json = await response.json();
       const items = (json.data || []).map((m: any) => {
         const especialidades = (m.Especialidades || [])
@@ -1967,26 +2137,28 @@ export async function registerRoutes(
       });
       res.json(items);
     } catch (error: any) {
+      const cached = readCachedApiArrayFromLogs("/api/parceiros-capital")
+        || readCachedApiArrayFromLogs("/api/membros")
+        || readCachedApiArrayFromLogs("/api/vitrine");
+      if (cached) {
+        const isCapital = (m: any) => {
+          const redes = Array.isArray(m?.Outras_redes_as_quais_pertenco) ? m.Outras_redes_as_quais_pertenco : [];
+          const text = [m?.perfil_aliado, m?.nucleo_alianca, m?.tipo_alianca, m?.ramo_atuacao, m?.empresa, ...redes]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return m?.em_built_capital === true || m?.em_built_capital === 1 || text.includes("capital");
+        };
+        console.warn("[parceiros-capital] Directus indisponivel; usando ultimo snapshot local dos logs.");
+        return res.json(cached.filter(isCapital));
+      }
       res.status(500).json({ error: error.message });
     }
   });
 
   // ========== ASSETS PROXY (Directus images with auth) ==========
   app.get("/api/assets/:id", async (req, res) => {
-    try {
-      const assetUrl = `${DIRECTUS_URL}/assets/${req.params.id}`;
-      const upstream = await fetch(assetUrl, {
-        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-      });
-      if (!upstream.ok) return res.status(upstream.status).end();
-      const contentType = upstream.headers.get("content-type") || "image/jpeg";
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=86400");
-      const buf = await upstream.arrayBuffer();
-      res.send(Buffer.from(buf));
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
+    return proxyDirectusAsset(req, res);
   });
 
   // ========== ANÚNCIOS ==========
@@ -2371,6 +2543,11 @@ export async function registerRoutes(
       });
       res.json(mapped);
     } catch (error: any) {
+      const cached = readCachedApiArrayFromLogs("/api/membros") || readCachedApiArrayFromLogs("/api/vitrine");
+      if (cached) {
+        console.warn("[membros] Directus indisponivel; usando ultimo snapshot local dos logs.");
+        return res.json(cached);
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -2391,6 +2568,22 @@ export async function registerRoutes(
         especialidade: (typeof firstEsp === "object" ? firstEsp?.nome_especialidade : null) ?? null,
       });
     } catch (error: any) {
+      const cached = readCachedApiArrayFromLogs("/api/membros") || readCachedApiArrayFromLogs("/api/vitrine");
+      const item = cached?.find((m: any) => String(m.id) === String(req.params.id));
+      if (item) {
+        console.warn("[membros] Directus indisponivel; usando membro do ultimo snapshot local dos logs.");
+        return res.json(item);
+      }
+      const sessionMembroId = (req.session as any).membroId;
+      if (sessionMembroId && String(sessionMembroId) === String(req.params.id)) {
+        return res.json({
+          id: sessionMembroId,
+          nome: (req.session as any).nome || (req.session as any).email || "Membro BUILT",
+          email: (req.session as any).email || null,
+          foto: null,
+          foto_perfil: null,
+        });
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -2485,6 +2678,7 @@ export async function registerRoutes(
         "data_nascimento",
         "profissao",
         "cpf",
+        "cnpj",
         "rg",
         "estado_civil",
         "regime_comunhao",
@@ -3639,7 +3833,7 @@ export async function registerRoutes(
     const start = Number.isNaN(params.dataHora.getTime()) ? new Date() : params.dataHora;
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     const format = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-    const opaLink = params.opaId ? `${process.env.APP_URL || "https://built.dna11.com.br"}/opas/${params.opaId}` : null;
+    const opaLink = params.opaId ? `${process.env.APP_URL || "https://app.builtalliances.com"}/opas/${params.opaId}` : null;
     const details = [
       `Chamada para alianca vinculada a BIA ${params.biaNome || "BUILT"}.`,
       params.nucleo ? `Nucleo: ${params.nucleo}.` : null,
@@ -3696,7 +3890,7 @@ export async function registerRoutes(
               nucleo ? `Nucleo: ${nucleo}.` : null,
               escopo ? `Escopo: ${escopo}.` : null,
               linkReuniao ? `Link da reuniao: ${linkReuniao}` : null,
-              opaId ? `OPA: ${(process.env.APP_URL || "https://built.dna11.com.br")}/opas/${opaId}` : null,
+              opaId ? `OPA: ${(process.env.APP_URL || "https://app.builtalliances.com")}/opas/${opaId}` : null,
             ].filter(Boolean).join("\n"),
             data: dataBase.toISOString().slice(0, 10),
             hora: dataBase.toTimeString().slice(0, 5),
@@ -4635,7 +4829,10 @@ export async function registerRoutes(
         ...(Array.isArray(membroPerfil?.tipos_alianca) ? membroPerfil.tipos_alianca : []),
         membroPerfil?.tipo_alianca,
       ].filter(Boolean);
-      const userRamoAtuacao = normalize(membroPerfil?.ramo_atuacao);
+      const userRamosAtuacao = String(membroPerfil?.ramo_atuacao || "")
+        .split("; ")
+        .map((ramo) => normalize(ramo))
+        .filter(Boolean);
       const keywordsForArea = (area: string): string[] => {
         const normalizedArea = normalize(area);
         const rules: Array<[RegExp, string[]]> = [
@@ -4643,8 +4840,8 @@ export async function registerRoutes(
           [/(projeto)/, ["projeto"]],
           [/(juridic)/, ["juridicas", "juridica", "juridico"]],
           [/(inteligencia)/, ["inteligencia"]],
-          [/(governanca)/, ["governanca"]],
-          [/(execucao)/, ["execucao"]],
+          [/(governanca|integridade|sustentabilidade)/, ["governanca", "integridade", "sustentabilidade"]],
+          [/(execucao|construcao)/, ["execucao", "construcao"]],
           [/(fornecimento)/, ["fornecimento"]],
           [/(comerciais|comercial)/, ["comerciais", "comercial"]],
           [/(venda|vendas|locacao)/, ["vendas", "venda", "locacao"]],
@@ -4652,6 +4849,7 @@ export async function registerRoutes(
           [/(operacoes|facilities)/, ["operacoes", "facilities"]],
           [/(relacionamento)/, ["relacionamento"]],
           [/(investimento)/, ["investimento"]],
+          [/(credito|captacao)/, ["credito", "captacao", "funding", "financiamento"]],
           [/(contabe|contabil|tributari)/, ["contabeis", "contabil", "tributarias", "tributaria"]],
           [/(gestao financeira)/, ["gestao financeira", "financeira"]],
         ];
@@ -4674,7 +4872,7 @@ export async function registerRoutes(
         }))
         .filter((o: any) => {
           const matchTipo = activeAreaKeywords.some((keyword) => o._tipoText.includes(keyword));
-          const matchRamo = !!userRamoAtuacao && !!o._ramoText && o._ramoText === userRamoAtuacao;
+          const matchRamo = !!o._ramoText && userRamosAtuacao.some((ramo) => o._ramoText === ramo);
           return matchTipo || matchRamo;
         });
       const convergencias = convergenciasFull
@@ -4910,7 +5108,7 @@ export async function registerRoutes(
               isAliadoBuilt = true;
               canCreate = true;
             }
-            if (tiposAlianca.includes("Liderança")) {
+            if (tiposAlianca.some((tipo) => String(tipo || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes("lideranca"))) {
               isDiretorAlianca = true;
               canCreate = true;
             }
@@ -4932,7 +5130,7 @@ export async function registerRoutes(
       }
 
       if (!canCreate) {
-        return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição Liderança ou administradores podem criar BIAs." });
+        return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição de Liderança ou administradores podem criar BIAs." });
       }
 
       // Create the BIA in Directus
@@ -5321,6 +5519,24 @@ export async function registerRoutes(
       }
       res.json(items);
     } catch (error: any) {
+      const cached = readCachedApiArrayFromLogs("/api/comunidades");
+      if (cached) {
+        const membroId = req.query.membro_id as string | undefined;
+        let items = cached;
+        if (membroId) {
+          items = cached.filter((c: any) => {
+            const aId = typeof c.aliado === "string" ? c.aliado : c.aliado?.id;
+            if (String(aId || "") === String(membroId)) return true;
+            const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+            return membros.some((m: any) => {
+              const id = typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id;
+              return String(id || "") === String(membroId);
+            });
+          });
+        }
+        console.warn("[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.");
+        return res.json(items);
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -7276,7 +7492,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         body: JSON.stringify({ email, password }),
       });
 
-      if (!authRes.ok) {
+      const authText = await authRes.text();
+      const authContentType = authRes.headers.get("content-type") || "";
+      let authData: any = null;
+      if (authContentType.includes("application/json")) {
+        try {
+          authData = JSON.parse(authText);
+        } catch {
+          authData = null;
+        }
+      }
+
+      if (!authRes.ok || !authData) {
         // Directus auth failed — try local-only user auth (for admin-created users)
         try {
           const { comparePasswords } = await import("./storage");
@@ -7314,7 +7541,6 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(401).json({ error: "Credenciais inválidas" });
       }
 
-      const authData = await authRes.json();
       const accessToken = authData.data?.access_token;
       if (!accessToken) return res.status(401).json({ error: "Erro ao obter token" });
 
@@ -7447,17 +7673,33 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     if ((role === "admin" || role === "manager") && Object.keys(permissions).length === 0) {
       permissions = FULL_ADMIN_PERMISSIONS;
     }
-    const membroId = (req.session as any).membroId as string | null;
+    let membroId = (req.session as any).membroId as string | null;
+    try {
+      if (email) {
+        const localUser = await storage.getUserByEmail(email);
+        if (localUser?.membro_directus_id && localUser.membro_directus_id !== membroId) {
+          membroId = localUser.membro_directus_id;
+          (req.session as any).membroId = membroId;
+          (req.session as any).nome = localUser.nome || (req.session as any).nome;
+        }
+      }
+    } catch (_) {}
     let tipos_alianca: string[] = [];
     let Outras_redes_as_quais_pertenco: string[] = [];
     let fotoPerfil: string | null = null;
     let naVitrine: boolean | null = null;
     let emMembrosBuilt: boolean | null = null;
     let emBuiltCapital: boolean | null = null;
+    let vitrineTermoAceitoEm: string | null = null;
+    let vitrineTermoVersao: string | null = null;
+    let areaAliancasTermoAceitoEm: string | null = null;
+    let areaAliancasTermoVersao: string | null = null;
+    let builtCapitalTermoAceitoEm: string | null = null;
+    let builtCapitalTermoVersao: string | null = null;
     let nomePerfil = (req.session as any).nome || "";
     if (membroId) {
       try {
-        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil,na_vitrine,em_membros_built,em_built_capital");
+        const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil,na_vitrine,em_membros_built,em_built_capital,vitrine_termo_aceito_em,vitrine_termo_versao,area_aliancas_termo_aceito_em,area_aliancas_termo_versao,built_capital_termo_aceito_em,built_capital_termo_versao");
         if (membro) {
           nomePerfil = membro.Nome_de_usuario || membro.nome || nomePerfil;
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
@@ -7466,9 +7708,21 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           naVitrine = membro.na_vitrine === true || membro.na_vitrine === 1;
           emMembrosBuilt = membro.em_membros_built === true || membro.em_membros_built === 1;
           emBuiltCapital = membro.em_built_capital === true || membro.em_built_capital === 1;
+          vitrineTermoAceitoEm = membro.vitrine_termo_aceito_em || null;
+          vitrineTermoVersao = membro.vitrine_termo_versao || null;
+          areaAliancasTermoAceitoEm = membro.area_aliancas_termo_aceito_em || null;
+          areaAliancasTermoVersao = membro.area_aliancas_termo_versao || null;
+          builtCapitalTermoAceitoEm = membro.built_capital_termo_aceito_em || null;
+          builtCapitalTermoVersao = membro.built_capital_termo_versao || null;
           (req.session as any).nome = nomePerfil;
         }
       } catch (_) {}
+    }
+    if ((role === "admin" || role === "manager") && !vitrineTermoAceitoEm) {
+      const acceptedAt = new Date().toISOString();
+      vitrineTermoAceitoEm = acceptedAt;
+      areaAliancasTermoAceitoEm = areaAliancasTermoAceitoEm || acceptedAt;
+      builtCapitalTermoAceitoEm = builtCapitalTermoAceitoEm || acceptedAt;
     }
     // Check for pending or rejected vitrine approval (only for "user" role)
     let pending_vitrine = false;
@@ -7509,6 +7763,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       em_membros_built: emMembrosBuilt,
       em_built_capital: emBuiltCapital,
       foto_perfil: fotoPerfil ? `/api/assets/${fotoPerfil}` : null,
+      vitrine_termo_aceito_em: vitrineTermoAceitoEm,
+      vitrine_termo_versao: vitrineTermoVersao,
+      area_aliancas_termo_aceito_em: areaAliancasTermoAceitoEm,
+      area_aliancas_termo_versao: areaAliancasTermoVersao,
+      built_capital_termo_aceito_em: builtCapitalTermoAceitoEm,
+      built_capital_termo_versao: builtCapitalTermoVersao,
       pending_vitrine,
       convite_pendente,
       adesao_pendente,
@@ -7899,18 +8159,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // ── Directus Asset Proxy ────────────────────────────────────────
   app.get("/api/assets/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const qs = new URLSearchParams(req.query as Record<string, string>).toString();
-      const url = `${DIRECTUS_URL}/assets/${id}${qs ? `?${qs}` : ""}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}` } });
-      if (!r.ok) return res.status(r.status).end();
-      const ct = r.headers.get("content-type") || "application/octet-stream";
-      res.setHeader("Content-Type", ct);
-      res.setHeader("Cache-Control", "public, max-age=86400");
-      const buf = await r.arrayBuffer();
-      res.end(Buffer.from(buf));
-    } catch (error: any) { res.status(500).end(); }
+    return proxyDirectusAsset(req, res);
   });
 
   // ── Aliança Docs (Obra / Comercial / Capital) ────────────────────
@@ -8541,7 +8790,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         });
       }
 
-      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
       res.json({
         token: convite.token,
         status: convite.status,
@@ -9362,7 +9611,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!forceNew) {
         const existing = await storage.getActiveConviteLinkByUserId(userId);
         if (existing && new Date() < new Date(existing.expires_at) && ((existing as any).tipo || "vitrine") === tipoConvite) {
-          const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
+          const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
           return res.json({ ...existing, link: `${rawDomain}/login?convite=${existing.token}` });
         }
       }
@@ -9422,7 +9671,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         expires_at: expires,
       });
 
-      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -9444,7 +9693,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         await storage.updateConviteLink(convite.id, { status: "expirado" }).catch(() => {});
         return res.json(null);
       }
-      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://built.dna11.com.br");
+      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
       res.json({ ...convite, link: `${rawDomain}/login?convite=${convite.token}` });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

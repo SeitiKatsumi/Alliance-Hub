@@ -181,7 +181,7 @@ app.use((req, res, next) => {
       return next(err);
     }
 
-    return res.status(status).json({ message });
+    return res.status(status).json({ error: message, message });
   });
 
   if (process.env.NODE_ENV === "production") {

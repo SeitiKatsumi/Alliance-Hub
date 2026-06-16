@@ -43,7 +43,12 @@ export function useAuth() {
         credentials: "include",
         body: JSON.stringify(creds),
       });
-      const data = await res.json();
+      const contentType = res.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+      const data = isJson ? await res.json().catch(() => null) : null;
+      if (!isJson) {
+        throw new Error("Servidor de login indisponível. Verifique se a API está ativa.");
+      }
       if (!res.ok) throw new Error(data.error || "Credenciais inválidas");
       return data;
     },

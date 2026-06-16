@@ -881,11 +881,14 @@ export default function VitrinePage() {
   const isSuperAdmin = user?.role === "admin";
 
   // Fetch all vitrine members
-  const { data: membros = [], isLoading } = useQuery<MembroVitrine[]>({
+  const { data: membros = [], isLoading, isError: vitrineLoadError, error: vitrineLoadErrorInfo } = useQuery<MembroVitrine[]>({
     queryKey: ["/api/vitrine"],
     queryFn: async () => {
       const r = await fetch("/api/vitrine");
-      if (!r.ok) return [];
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data?.error || "Falha ao carregar Vitrine");
+      }
       const data = await r.json();
       return Array.isArray(data) ? fixMojibakeDeep(data) : [];
     },
@@ -1257,6 +1260,11 @@ export default function VitrinePage() {
         {/* World Map */}
         {isLoading ? (
           <Skeleton className="aspect-[16/9] max-h-[360px] rounded-2xl" />
+        ) : vitrineLoadError ? (
+          <div className="aspect-[16/9] max-h-[360px] rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700 flex flex-col items-center justify-center">
+            <p className="text-sm font-semibold">Falha ao carregar o banco de dados</p>
+            <p className="mt-1 text-xs text-red-600">A conexão com o Directus está indisponível.</p>
+          </div>
         ) : (
           <WorldMapHeader membros={membros} />
         )}
@@ -1559,6 +1567,17 @@ export default function VitrinePage() {
       {isLoading ? (
         <div className={viewMode === "list" ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}>
           {[...Array(8)].map((_, i) => <Skeleton key={i} className={viewMode === "list" ? "h-24 rounded-xl" : "h-52 rounded-xl"} />)}
+        </div>
+      ) : vitrineLoadError ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-12 text-center">
+          <Store className="w-12 h-12 text-red-300 mb-4" />
+          <p className="text-sm font-semibold text-red-700">Falha ao carregar parceiros da Vitrine</p>
+          <p className="mt-1 max-w-lg text-xs text-red-600">
+            Os dados não foram apagados. O servidor local não está conseguindo acessar o Directus.
+          </p>
+          {vitrineLoadErrorInfo instanceof Error && (
+            <p className="mt-3 max-w-lg text-xs font-mono text-red-500">{vitrineLoadErrorInfo.message}</p>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">

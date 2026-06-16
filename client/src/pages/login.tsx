@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { queryClient } from "@/lib/queryClient";
@@ -14,7 +14,7 @@ import {
   Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, ArrowRight, Mail,
   Store, TrendingUp, Handshake, Shield, Send, Crown, FolderKanban, Scale, Lightbulb,
   ShieldCheck, CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Building2, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera,
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info,
 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
 import { formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -47,14 +48,42 @@ const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário & Negócios Aplicados";
 const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
 const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
 const DEFAULT_AREAS: string[] = [];
+const CONTRIBUTION_AREA_ORDER = [
+  "lideranca tecnica",
+  "projeto",
+  "juridicas",
+  "inteligencia",
+  "integridade e sustentabilidade",
+  "lideranca de obras",
+  "execucao",
+  "fornecimento",
+  "construcao",
+  "lideranca comercial",
+  "comerciais",
+  "vendas e locacao",
+  "marketing",
+  "operacoes e facilities",
+  "gestao de relacionamento com cliente",
+  "relacionamento",
+  "lideranca de capital",
+  "investimento",
+  "credito e captacao",
+  "contabeis e tributarias",
+  "gestao financeira",
+];
+const CONTRIBUTION_AREA_ORDER_MAP = new Map(CONTRIBUTION_AREA_ORDER.map((key, index) => [key, index]));
 const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: string }> = {
-  "Liderança": { icon: Crown, color: "text-amber-600", bg: "bg-amber-50" },
+  "Liderança Técnica": { icon: Crown, color: "text-blue-600", bg: "bg-blue-50" },
+  "Liderança de Obras": { icon: Crown, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Liderança Comercial": { icon: Crown, color: "text-purple-600", bg: "bg-purple-50" },
+  "Liderança de Capital": { icon: Crown, color: "text-orange-600", bg: "bg-orange-50" },
   "Projeto": { icon: FolderKanban, color: "text-blue-600", bg: "bg-blue-50" },
   "Jurídicas": { icon: Scale, color: "text-blue-600", bg: "bg-blue-50" },
   "Inteligência": { icon: Lightbulb, color: "text-blue-600", bg: "bg-blue-50" },
-  "Governança": { icon: ShieldCheck, color: "text-blue-600", bg: "bg-blue-50" },
+  "Integridade e sustentabilidade": { icon: ShieldCheck, color: "text-blue-600", bg: "bg-blue-50" },
   "Execução": { icon: CircleCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
   "Fornecimento": { icon: Truck, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "Construção": { icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
   "Comerciais": { icon: BriefcaseBusiness, color: "text-purple-600", bg: "bg-purple-50" },
   "Vendas e Locação": { icon: Tags, color: "text-purple-600", bg: "bg-purple-50" },
   "Marketing": { icon: Megaphone, color: "text-purple-600", bg: "bg-purple-50" },
@@ -62,9 +91,117 @@ const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: 
   "Gestão de Relacionamento com Cliente": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   "Relacionamento": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   "Investimento": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
+  "Crédito e Captação": { icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50" },
   "Contábeis e Tributárias": { icon: ReceiptText, color: "text-orange-600", bg: "bg-orange-50" },
   "Gestão Financeira": { icon: CircleDollarSign, color: "text-orange-600", bg: "bg-orange-50" },
 };
+
+function contributionAreaSortKey(value: string): string {
+  return getTipoDisplayName(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function sortContributionAreas<T>(items: T[], getValue: (item: T) => string): T[] {
+  return [...items].sort((a, b) => {
+    const aKey = contributionAreaSortKey(getValue(a));
+    const bKey = contributionAreaSortKey(getValue(b));
+    const aIndex = CONTRIBUTION_AREA_ORDER_MAP.get(aKey) ?? 999;
+    const bIndex = CONTRIBUTION_AREA_ORDER_MAP.get(bKey) ?? 999;
+    return aIndex === bIndex ? aKey.localeCompare(bKey) : aIndex - bIndex;
+  });
+}
+
+const AREA_INFO_CONFIG: Record<string, { nucleo: string; cpp: string; description: string; footer?: string }> = {
+  "Liderança Técnica": { nucleo: "Diretoria da Aliança", cpp: "Liderança Técnica", description: "Coordenação técnica, integração das alianças técnicas, viabilidade, conformidade e prevenção de riscos." },
+  "Liderança de Obras": { nucleo: "Diretoria da Aliança", cpp: "Liderança de Obras", description: "Coordenação da execução, integração de equipes, fornecedores, cronograma, qualidade e aderência aos projetos." },
+  "Liderança Comercial": { nucleo: "Diretoria da Aliança", cpp: "Liderança Comercial", description: "Coordenação comercial, integração de vendas, locação, marketing, relacionamento e geração de receita." },
+  "Liderança de Capital": { nucleo: "Diretoria da Aliança", cpp: "Liderança de Capital", description: "Coordenação econômica e financeira, integração de investimentos, captação, controle, prestação de contas e resultados." },
+  "Projeto": { nucleo: "Núcleo de Alianças Técnicas", cpp: "CPP Técnica", description: "Arquitetos, engenheiros, projetistas, designers, urbanistas e demais profissionais responsáveis pela concepção, desenvolvimento, compatibilização e detalhamento técnico dos projetos.", footer: "Contribui para a viabilidade técnica, consistência dos projetos e conformidade das entregas." },
+  "Jurídicas": { nucleo: "Núcleo de Alianças Técnicas", cpp: "CPP Técnica", description: "Profissionais especializados em direito imobiliário, societário, contratual, urbanístico, regulatório e compliance jurídico, responsáveis pela segurança jurídica das operações, contratos, ativos e relações da BIA.", footer: "Ajuda a garantir conformidade legal e prevenção de riscos." },
+  "Inteligência": { nucleo: "Núcleo de Alianças Técnicas", cpp: "CPP Técnica", description: "Especialistas em inteligência de mercado, estudos de viabilidade, análise de produto, estratégia imobiliária, masterplan, posicionamento e modelagem da oportunidade.", footer: "Apoia decisões estratégicas e leitura de mercado da BIA." },
+  "Integridade e sustentabilidade": { nucleo: "Núcleo de Alianças Técnicas", cpp: "CPP Técnica", description: "Profissionais de compliance, segurança, qualidade, consultoria, auditoria, meio ambiente e ESG, responsáveis por fortalecer conformidade, prevenção de riscos, qualidade das entregas e sustentabilidade da BIA." },
+  "Execução": { nucleo: "Núcleo de Alianças de Obras", cpp: "CPP de Obra", description: "Profissionais e equipes responsáveis pela execução direta dos serviços de obra, incluindo engenheiros de obra, mestres, encarregados, supervisores, técnicos e demais executores especializados." },
+  "Construção": { nucleo: "Núcleo de Alianças de Obras", cpp: "CPP de Obra", description: "Construtoras, empreiteiras, subempreiteiras e empresas especializadas responsáveis pela execução de etapas construtivas, frentes de serviço, instalações, montagem, reforma, retrofit ou construção integral." },
+  "Fornecimento": { nucleo: "Núcleo de Alianças de Obras", cpp: "CPP de Obra", description: "Fornecedores de materiais, insumos, equipamentos, ferramentas, sistemas construtivos, soluções técnicas e serviços logísticos necessários à execução da obra.", footer: "Garante execução física com controle de prazo, custo, qualidade, fornecimento e aderência aos projetos aprovados." },
+  "Comerciais": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Corretores, executivos de negócios, articuladores comerciais e parceiros de mercado responsáveis por prospecção, abertura de portas, negociação, captação de demanda e conversão de oportunidades." },
+  "Vendas e Locação": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Corretores, consultores, imobiliárias, plataformas e canais especializados responsáveis pela comercialização, locação, permuta, ocupação ou distribuição comercial do ativo." },
+  "Marketing": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Profissionais e empresas de marketing, branding, performance, conteúdo, mídia, eventos e relacionamento responsáveis por posicionar a BIA, gerar demanda qualificada e fortalecer a percepção de valor do ativo." },
+  "Operações e Facilities": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Operadores, gestores de facilities, administradoras, manutenção, terceirização e prestadores responsáveis pela operação, conservação, eficiência, ocupação e experiência de uso do ativo." },
+  "Gestão de Relacionamento com Cliente": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Profissionais e empresas responsáveis por atendimento, pós-venda, SAC, garantias, jornada do cliente, retenção, reputação e continuidade da relação comercial.", footer: "Transforma o ativo físico em ativo econômico por meio de venda, locação, operação, relacionamento e geração de receita." },
+  "Investimento": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Investidores, cotistas, financiadores e parceiros de capital responsáveis por aportar recursos financeiros." },
+  "Crédito e Captação": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Bancos, instituições financeiras, fundos, securitizadoras, family offices e parceiros de crédito responsáveis por viabilizar recursos, financiamentos, antecipações, operações de crédito e demais instrumentos de captação para a BIA." },
+  "Contábeis e Tributárias": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Profissionais e empresas responsáveis pela contabilidade, planejamento tributário, obrigações fiscais e acessórias, apuração de tributos, relatórios contábeis, prestação de contas e conformidade fiscal da BIA." },
+  "Gestão Financeira": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Profissionais e empresas responsáveis pelo planejamento financeiro, fluxo de caixa, controladoria, projeções, acompanhamento orçamentário, gestão financeira da operação e suporte à tomada de decisão econômica da BIA.", footer: "Garante gestão econômica, financeira, contábil e tributária com controle de caixa, transparência, conformidade fiscal e apuração segura dos resultados." },
+};
+
+function ContributionAreaInfo({ label }: { label: string }) {
+  const [open, setOpen] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const info = AREA_INFO_CONFIG[label];
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const scheduleClose = () => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => setOpen(false), 140);
+  };
+
+  useEffect(() => () => clearCloseTimer(), []);
+
+  if (!info) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Informações sobre ${label}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(value => !value);
+          }}
+          onMouseEnter={() => {
+            clearCloseTimer();
+            setOpen(true);
+          }}
+          onMouseLeave={scheduleClose}
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-white hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="top"
+        onMouseEnter={() => {
+          clearCloseTimer();
+          setOpen(true);
+        }}
+        onMouseLeave={scheduleClose}
+        className="w-80 max-w-[calc(100vw-2rem)] space-y-2 text-left"
+      >
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{info.nucleo}</p>
+          <p className="text-[10px] font-semibold text-blue-600">{info.cpp}</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-[#001D34]">{label}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">{info.description}</p>
+        </div>
+        {info.footer && <p className="border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-500">{info.footer}</p>}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const PAIS_OPTIONS = [
   "Brasil", "Argentina", "Chile", "Colômbia", "Estados Unidos", "México", "Paraguai", "Peru", "Portugal", "Uruguai",
@@ -880,21 +1017,35 @@ export default function LoginPage() {
                       <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
                       <p className="mt-1 text-xs text-slate-500">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Investimento é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS).map((tipo) => {
+                        {sortContributionAreas(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {
                           const selected = interessesSelecionados.includes("capital") || regTiposAlianca.includes(tipo);
                           const label = getTipoDisplayName(tipo);
                           const iconConfig = AREA_ICON_CONFIG[label] || { icon: FolderKanban, color: "text-slate-600", bg: "bg-slate-50" };
                           const AreaIcon = iconConfig.icon;
                           return (
-                            <button key={tipo} type="button" onClick={() => toggleAreaContribuicao(tipo)} className={`relative flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}>
+                            <div
+                              key={tipo}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => toggleAreaContribuicao(tipo)}
+                              onKeyDown={(event) => {
+                                if (event.key !== "Enter" && event.key !== " ") return;
+                                event.preventDefault();
+                                toggleAreaContribuicao(tipo);
+                              }}
+                              className={`relative flex min-h-10 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}
+                            >
                               <span className="flex min-w-0 items-center gap-2">
                                 <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${iconConfig.bg} ${iconConfig.color}`}>
                                   <AreaIcon className="h-4 w-4" />
                                 </span>
                                 <span className="truncate">{label}</span>
                               </span>
-                              {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
-                            </button>
+                              <span className="flex shrink-0 items-center gap-1">
+                                <ContributionAreaInfo label={label} />
+                                {selected && <CheckCircle className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
+                              </span>
+                            </div>
                           );
                         })}
                       </div>

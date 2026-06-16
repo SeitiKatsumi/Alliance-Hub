@@ -1037,13 +1037,29 @@ export function parseSegmentosValue(value?: string | null): string[] {
     .filter(Boolean);
 }
 
+export function parseRamosValue(value?: string | null): string[] {
+  return String(value || "")
+    .split(SEGMENTOS_MULTI_SEPARATOR)
+    .map(ramo => ramo.trim())
+    .filter(Boolean);
+}
+
 export function formatSegmentosValue(segmentos: string[]): string | null {
   const unique = Array.from(new Set(segmentos.map(segmento => segmento.trim()).filter(Boolean)));
   return unique.length ? unique.join(SEGMENTOS_MULTI_SEPARATOR) : null;
 }
 
+export function formatRamosValue(ramos: string[]): string | null {
+  const unique = Array.from(new Set(ramos.map(ramo => ramo.trim()).filter(Boolean)));
+  return unique.length ? unique.join(SEGMENTOS_MULTI_SEPARATOR) : null;
+}
+
 export function formatSegmentosDisplay(value?: string | null): string {
   return parseSegmentosValue(value).join(", ");
+}
+
+export function formatRamosDisplay(value?: string | null): string {
+  return parseRamosValue(value).join(", ");
 }
 
 // ========== N?CLEOS DE ALIAN?A ? TIPOS ==========
@@ -1060,17 +1076,21 @@ export interface NucleoTiposItem {
 
 export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = {
   "Diretoria da Aliança": [
-    { nome: "Aliança de Liderança", descricao: "Liderança estratégica e governança da aliança" },
+    { nome: "Alianças de Liderança Técnica", descricao: "Coordenação técnica, integração das alianças técnicas, viabilidade, conformidade e prevenção de riscos" },
+    { nome: "Alianças de Liderança de Obras", descricao: "Coordenação da execução, integração de equipes, fornecedores, cronograma, qualidade e aderência aos projetos" },
+    { nome: "Alianças de Liderança Comercial", descricao: "Coordenação comercial, integração de vendas, locação, marketing, relacionamento e geração de receita" },
+    { nome: "Alianças de Liderança de Capital", descricao: "Coordenação econômica e financeira, integração de investimentos, captação, controle, prestação de contas e resultados" },
   ],
   "Núcleo Técnico": [
     { nome: "Alianças de Projeto", descricao: "Arquitetos, engenheiros, projetistas, designers urbanistas" },
     { nome: "Alianças Jurídicas", descricao: "Especialistas em direito imobiliário, societário, contratual e compliance" },
     { nome: "Alianças de Inteligência", descricao: "Inteligência de mercado, viabilidade de produto, marketing" },
-    { nome: "Alianças de Governança", descricao: "Compliance, segurança, qualidade, rastreamento, auditoria, ambiental, ESG" },
+    { nome: "Alianças de Integridade e sustentabilidade", descricao: "Compliance, segurança, qualidade, rastreamento, auditoria, ambiental, ESG" },
   ],
   "Núcleo de Obra": [
     { nome: "Alianças de Execução", descricao: "Profissionais independentes, engenheiros de obra, supervisores, construtoras, empreiteiras" },
     { nome: "Alianças de Fornecimento", descricao: "Materiais, equipamentos e logística" },
+    { nome: "Alianças de Construção", descricao: "Construtoras, empreiteiras, obra civil e execução construtiva" },
   ],
   "Núcleo Comercial": [
     { nome: "Alianças Comerciais", descricao: "Captadores, executivos de negócios, articuladores" },
@@ -1081,6 +1101,7 @@ export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = {
   ],
   "Núcleo de Capital": [
     { nome: "Alianças de Investimento", descricao: "Captação de recursos, relacionamento com investidores, estruturação de investimentos" },
+    { nome: "Alianças de Crédito e Captação", descricao: "Crédito, financiamento, funding, captação de investidores, recursos e parceiros financeiros" },
     { nome: "Alianças Contábeis e Tributárias", descricao: "Contabilidade, tributos e conciliação" },
     { nome: "Alianças de Gestão Financeira", descricao: "Orçamento, caixa, controle" },
   ],
@@ -1126,10 +1147,13 @@ export function getNucleoForTipo(tipoNome: string): string | null {
 }
 
 export function getTipoDisplayName(nome: string): string {
-  return nome
+  const display = nome
     .replace(/^Aliança de /i, "")
     .replace(/^Alianças de /i, "")
     .replace(/^Alianças /i, "");
+  if (display === "Governança") return "Integridade e sustentabilidade";
+  if (display === "Crédito" || display === "Captação") return "Crédito e Captação";
+  return display;
 }
 
 export function getNucleosForTipos(tiposNomes: string[]): string[] {
@@ -1147,6 +1171,20 @@ export function getRamoNome(ramo_atuacao: string): string {
 
 export function getSegmentosForRamo(ramo_atuacao: string): SegmentoItem[] {
   return RAMOS_SEGMENTOS.find(r => r.nome === ramo_atuacao)?.segmentos ?? [];
+}
+
+export function getSegmentosForRamos(ramosAtuacao: string[]): SegmentoItem[] {
+  const seen = new Set<string>();
+  const segmentos: SegmentoItem[] = [];
+  for (const ramo of ramosAtuacao) {
+    for (const segmento of getSegmentosForRamo(ramo)) {
+      if (!seen.has(segmento.nome)) {
+        seen.add(segmento.nome);
+        segmentos.push(segmento);
+      }
+    }
+  }
+  return segmentos;
 }
 
 

@@ -941,7 +941,7 @@ export default function PainelPage() {
             <div className="mt-3 grid grid-cols-2 gap-3">
               {[
                 { label: "Nova BIA", icon: Plus, path: "/area-aliancas?tab=bias&criar=true" },
-                { label: "Nova OPA", icon: Target, path: "/area-aliancas?tab=opas&criar=true" },
+                { label: "Registrar Percepção de AURA", icon: Sparkles, path: "/aura?registrar=1" },
                 { label: "Criar anúncio", icon: Megaphone, path: "/vitrine?criarAnuncio=true", target: "vitrine" as const },
                 { label: "Registrar aporte", icon: Wallet, path: "/built-capital", target: "capital" as const },
               ].map((acao) => {

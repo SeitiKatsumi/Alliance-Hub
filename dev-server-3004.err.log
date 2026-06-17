@@ -78,3 +78,79 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
 [directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
 [directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
+[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
+[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[2m10:14:48 PM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\ESPC\Documents\New project 2\client\src\pages\oportunidades.tsx: Expected corresponding JSX closing tag for <div>. (1456:6)
+
+[0m [90m 1454 |[31m           [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m 1455 |[31m         [33m<[31m[33m/[31m[33mDialogFooter[31m[33m>[31m
+[31m[1m>[22m[31m[90m 1456 |[31m       [33m<[31m[33m/[31m[33mDialogContent[31m[33m>[31m
+ [90m      |[31m       [31m[1m^[22m[31m
+ [90m 1457 |[31m       [33m<[31m[33mLocationPickerModal[31m
+ [90m 1458 |[31m         open[33m=[31m{locationPickerOpen}
+ [90m 1459 |[31m         onClose[33m=[31m{() [33m=>[31m setLocationPickerOpen([36mfalse[31m)}[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/ESPC/Documents/New project 2/client/src/pages/oportunidades.tsx[39m:1456:6
+[33m  1454 |            </div>
+  1455 |          </DialogFooter>
+  1456 |        </DialogContent>
+       |        ^
+  1457 |        <LocationPickerModal
+  1458 |          open={locationPickerOpen}[39m
+      at toParseError (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parse-error.ts:95:45)
+      at TypeScriptParserMixin.raise (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\tokenizer\index.ts:1503:19)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:527:18)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:483:34)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:483:34)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:483:34)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:559:19)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:573:21)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:734:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:713:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:675:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3855:20)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:409:14)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:421:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:376:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:301:21)
+      at fn (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3708:23)
+      at TypeScriptParserMixin.tryParse (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\util.ts:174:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3707:20)
+      at callback (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:257:12)
+      at TypeScriptParserMixin.allowInAnd (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:3192:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:256:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:3306:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:1813:16)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:1162:21)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\jsx\index.ts:583:22)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:734:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:713:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:675:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3855:20)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:409:14)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:421:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:376:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:301:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3727:22)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:226:23)
+      at callback (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:217:39)
+      at TypeScriptParserMixin.allowInAnd (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:3187:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:217:17)
+      at TypeScriptParserMixin.parseReturnStatement (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:1110:28)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:538:21)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:3185:20)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:477:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:426:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:1439:16)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:1412:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\statement.ts:1380:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:2616:24)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\parser\expression.ts:2585:10)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\ESPC\Documents\New project 2\node_modules\@babel\parser\src\plugins\typescript\index.ts:2646:20)

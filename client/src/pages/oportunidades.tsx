@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
 import { RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
@@ -46,6 +47,12 @@ function versionAssetUrl(value?: any): string | null {
   if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
   const assetId = directusAssetId(value);
   return assetId ? `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}` : null;
+}
+
+function relationId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "object") return value.id ? String(value.id) : null;
+  return String(value);
 }
 
 // ---- Types ----
@@ -93,6 +100,53 @@ interface BiasProjeto {
   localizacao?: string;
   latitude?: number | null;
   longitude?: number | null;
+  autor_bia?: string | { id?: string } | null;
+  aliado_built?: string | { id?: string } | null;
+  diretor_alianca?: string | { id?: string } | null;
+  diretor_nucleo_tecnico?: string | { id?: string } | null;
+  diretor_execucao?: string | { id?: string } | null;
+  diretor_comercial?: string | { id?: string } | null;
+  diretor_capital?: string | { id?: string } | null;
+  socios_guardioes?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
+  socios_multiplicadores?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
+  terceiros?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
+}
+
+function parseMemberIds(value: BiasProjeto["socios_guardioes"]): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        return relationId(item.cadastro_geral_id) || relationId(item);
+      })
+      .filter((id): id is string => !!id);
+  }
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parseMemberIds(parsed as any);
+  } catch {}
+  return value.split(",").map((id) => id.trim()).filter(Boolean);
+}
+
+function isMembroAssociatedToBia(bia: BiasProjeto, membroId?: string | null): boolean {
+  if (!membroId) return false;
+  const directRoles = [
+    bia.autor_bia,
+    bia.aliado_built,
+    bia.diretor_alianca,
+    bia.diretor_nucleo_tecnico,
+    bia.diretor_execucao,
+    bia.diretor_comercial,
+    bia.diretor_capital,
+  ].map(relationId);
+  const listRoles = [
+    ...parseMemberIds(bia.socios_guardioes),
+    ...parseMemberIds(bia.socios_multiplicadores),
+    ...parseMemberIds(bia.terceiros),
+  ];
+  return [...directRoles, ...listRoles].some((id) => String(id) === String(membroId));
 }
 
 const OPA_STATUS_BADGES: Record<OpaStatus, { label: string; className: string }> = {
@@ -790,6 +844,7 @@ export function OpaFormDialog({
   bias: BiasProjeto[];
 }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const [form, setForm] = useState({ ...EMPTY_OPA });
   const [formLat, setFormLat] = useState<number | null>(null);
@@ -808,6 +863,16 @@ export function OpaFormDialog({
     queryKey: ["/api/oportunidades/tipos"],
     staleTime: 1000 * 60 * 10,
   });
+
+  const membroId = (user as any)?.membro_directus_id || null;
+  const associatedBias = useMemo(
+    () => bias.filter((bia) => isMembroAssociatedToBia(bia, membroId)),
+    [bias, membroId],
+  );
+  const selectedBiaIsAllowed = useMemo(
+    () => !!form.bia_id && associatedBias.some((bia) => bia.id === form.bia_id),
+    [associatedBias, form.bia_id],
+  );
 
   useMemo(() => {
     if (opa) {
@@ -843,6 +908,11 @@ export function OpaFormDialog({
     }
     setPendingFiles([]);
   }, [opa, open]);
+
+  useEffect(() => {
+    if (!open || !membroId || !form.bia_id || selectedBiaIsAllowed) return;
+    setForm((current) => ({ ...current, bia_id: "" }));
+  }, [form.bia_id, membroId, open, selectedBiaIsAllowed]);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) =>
@@ -926,6 +996,14 @@ export function OpaFormDialog({
     }
     if (!form.bia_id) {
       toast({ title: "BIA Vinculada é obrigatória", variant: "destructive" });
+      return;
+    }
+    if (!selectedBiaIsAllowed) {
+      toast({
+        title: "BIA não permitida",
+        description: "Você só pode vincular OPAs a BIAs em que está associado.",
+        variant: "destructive",
+      });
       return;
     }
     if (!form.valor_origem_opa || parseBRLToNumber(form.valor_origem_opa) <= 0) {
@@ -1066,9 +1144,15 @@ export function OpaFormDialog({
                 <SelectValue placeholder="Selecione a BIA..." />
               </SelectTrigger>
               <SelectContent>
-                {bias.map(b => (
-                  <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
-                ))}
+                {associatedBias.length > 0 ? (
+                  associatedBias.map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.nome_bia}</SelectItem>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    Nenhuma BIA associada disponível.
+                  </div>
+                )}
               </SelectContent>
             </Select>
             <button
@@ -1341,7 +1425,6 @@ export function OpaFormDialog({
             />
           </div>
         </div>
-
         <DialogFooter className="gap-2 sm:justify-between">
           {opa ? (
             <Button

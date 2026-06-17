@@ -3085,11 +3085,18 @@ export async function registerRoutes(
 
   // ========== BIAS PROJETOS (from Directus) ==========
   function parseBiaMemberList(value: unknown): string[] {
-    if (Array.isArray(value)) return value.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+    if (Array.isArray(value)) {
+      return value
+        .map((item: any) => {
+          if (typeof item === "string") return item.trim();
+          return directusRelationId(item?.cadastro_geral_id) || directusRelationId(item) || "";
+        })
+        .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+    }
     if (typeof value !== "string" || !value.trim()) return [];
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+      if (Array.isArray(parsed)) return parseBiaMemberList(parsed);
     } catch {}
     return value.split(",").map((id) => id.trim()).filter(Boolean);
   }
@@ -3122,7 +3129,7 @@ export async function registerRoutes(
       "autor_bia", "aliado_built", "diretor_alianca", "diretor_nucleo_tecnico",
       "diretor_execucao", "diretor_comercial", "diretor_capital",
     ];
-    if (singleMemberFields.some((field) => bia[field] === membroId)) return true;
+    if (singleMemberFields.some((field) => String(directusRelationId(bia[field]) || "") === String(membroId))) return true;
     return [
       ...parseBiaMemberList(bia.socios_guardioes),
       ...parseBiaMemberList(bia.socios_multiplicadores),
@@ -6800,11 +6807,40 @@ export async function registerRoutes(
     return String(directusRelationId(bia?.aliado_built) || bia?.aliado_built || "") === String(sessionMembroId);
   }
 
+  async function ensureCanLinkOpaToBia(req: Request, payload: Record<string, any>) {
+    const biaId = directusRelationId(payload.bia) || directusRelationId(payload.bia_id) || null;
+    if (!biaId) return;
+
+    const sessionMembroId = (req.session as any).membroId as string | undefined;
+    if (!sessionMembroId) {
+      const error: any = new Error("Seu perfil não está vinculado a um membro para criar OPA nesta BIA.");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const bia = await directusFetchOne(
+      "bias_projetos",
+      String(biaId),
+      "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
+    );
+    if (!bia) {
+      const error: any = new Error("BIA vinculada não encontrada.");
+      error.statusCode = 404;
+      throw error;
+    }
+    if (!isUserLinkedToBia(bia, sessionMembroId)) {
+      const error: any = new Error("Você só pode vincular OPAs a BIAs em que está associado.");
+      error.statusCode = 403;
+      throw error;
+    }
+  }
+
   app.post("/api/oportunidades", async (req, res) => {
     try {
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
+      await ensureCanLinkOpaToBia(req, payload);
       payload.criado_por_user_id = (req.session as any).directusUserId || null;
       payload.criado_por_membro_id = (req.session as any).membroId || null;
       let item;
@@ -6818,7 +6854,7 @@ export async function registerRoutes(
       }
       res.json(item);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -6842,10 +6878,12 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Sem permissão para editar esta OPA" });
       }
       await ensureOpaMediaFields();
-      const item = await directusUpdate("tipos_oportunidades", req.params.id, prepareOpaPayload(req.body));
+      const payload = prepareOpaPayload(req.body);
+      await ensureCanLinkOpaToBia(req, payload);
+      const item = await directusUpdate("tipos_oportunidades", req.params.id, payload);
       res.json(item);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 

@@ -1703,7 +1703,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
 }
 
 // ---- BIA Form Sheet ----
-function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = false, onRequestDelete }: {
+export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = false, onRequestDelete }: {
   open: boolean;
   onClose: () => void;
   bia: BiasProjeto | null;
@@ -2338,6 +2338,7 @@ function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = fals
         }).catch(() => {});
       }
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      if (biaId) queryClient.invalidateQueries({ queryKey: ["/api/bias", biaId] });
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });

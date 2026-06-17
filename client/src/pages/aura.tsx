@@ -389,7 +389,7 @@ export default function AuraPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const { membroId: routeMembroId } = useParams<{ membroId: string }>();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [lookupOpen, setLookupOpen] = useState(false);
@@ -411,6 +411,13 @@ export default function AuraPage() {
   const isVitrineOnly = isVitrineOnlyUser(user);
   const authResolved = !authLoading;
   const canViewRequestedAura = !!viewedMembroId && authResolved && (!isVitrineOnly || isOwnAura);
+
+  useEffect(() => {
+    const shouldOpenLookup = new URLSearchParams(location.split("?")[1] || "").get("registrar") === "1";
+    if (shouldOpenLookup && canConsultAndRegisterAura) {
+      setLookupOpen(true);
+    }
+  }, [location, canConsultAndRegisterAura]);
 
   useEffect(() => {
     if (isVitrineOnly && routeMembroId && routeMembroId !== myId) {

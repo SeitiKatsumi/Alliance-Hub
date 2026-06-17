@@ -17,6 +17,7 @@ import NucleoTecnicoPage from "./nucleo-tecnico";
 import NucleoObraPage from "./nucleo-obra";
 import NucleoComercialPage from "./nucleo-comercial";
 import NucleoCapitalPage from "./nucleo-capital";
+import { BiaFormSheet } from "./bias";
 
 // ---- Types ----
 interface AnexoFile {
@@ -265,6 +266,7 @@ export default function BiaDetalhePage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [activeDetailTab, setActiveDetailTab] = useState("visao");
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
     queryKey: ["/api/bias", id],
@@ -441,7 +443,7 @@ export default function BiaDetalhePage() {
         <Button
           size="sm"
           className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-          onClick={() => navigate(`/area-aliancas?tab=bias&edit=${id}`)}
+          onClick={() => setEditOpen(true)}
           data-testid="btn-edit-bia-detail"
         >
           <Pencil className="w-3.5 h-3.5" />
@@ -524,7 +526,6 @@ export default function BiaDetalhePage() {
         )}
         {lucro !== 0 && <StatBox label="Lucro Previsto" value={formatMoney(lucro, bia.moeda || "BRL")} />}
         {custoFinal > 0 && <StatBox label="Custo Final Previsto" value={formatMoney(custoFinal, bia.moeda || "BRL")} />}
-        {totalAportes > 0 && <StatBox label="Total de Aportes" value={formatMoney(totalAportes, bia.moeda || "BRL")} />}
       </div>
 
         <TabsContent value="visao" className="space-y-6">
@@ -872,6 +873,13 @@ export default function BiaDetalhePage() {
           </>
         )}
       </Tabs>
+      <BiaFormSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        bia={bia}
+        membros={membrosRaw as any}
+        isLoading={loadingBia}
+      />
     </div>
   );
 }

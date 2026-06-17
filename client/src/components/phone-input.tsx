@@ -40,6 +40,18 @@ function parsePhoneValue(value?: string | null) {
       number: raw.slice(matched.dialCode.length).replace(/^\s+/, ""),
     };
   }
+  const digitsOnly = raw.replace(/\D/g, "");
+  const matchedDigits = sortedCodes.find((item) => {
+    const dialDigits = item.dialCode.replace(/\D/g, "");
+    return digitsOnly.startsWith(dialDigits) && digitsOnly.length > dialDigits.length + 6;
+  });
+  if (matchedDigits) {
+    const dialDigits = matchedDigits.dialCode.replace(/\D/g, "");
+    return {
+      dialCode: matchedDigits.dialCode,
+      number: digitsOnly.slice(dialDigits.length),
+    };
+  }
   return { dialCode: "+55", number: raw.replace(/^\+/, "") };
 }
 
@@ -49,7 +61,12 @@ function formatPhoneValue(dialCode: string, number: string) {
 }
 
 export function hasInternationalDialCode(value?: string | null) {
-  return /^\+\d{1,4}\s+\d/.test(String(value || "").trim());
+  return /^\+\d{1,4}\s+\d/.test(normalizePhoneValue(value));
+}
+
+export function normalizePhoneValue(value?: string | null) {
+  const parsed = parsePhoneValue(value);
+  return formatPhoneValue(parsed.dialCode, parsed.number);
 }
 
 export function PhoneInput({

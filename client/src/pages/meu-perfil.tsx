@@ -32,7 +32,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
 import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamos, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseRamosValue, parseSegmentosValue } from "@/lib/ramos-segmentos";
-import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
+import { PhoneInput, hasInternationalDialCode, normalizePhoneValue } from "@/components/phone-input";
 
 interface NominatimResult {
   place_id: number;
@@ -881,11 +881,13 @@ export default function MeuPerfilPage() {
   }
 
   function handleSave() {
+    const normalizedTelefone = normalizePhoneValue(form.telefone);
+    const normalizedWhatsapp = normalizePhoneValue(form.whatsapp);
     if (!String(form.email || "").trim()) {
       toast({ title: "E-mail obrigatório", description: "Informe um e-mail para salvar o perfil.", variant: "destructive" });
       return;
     }
-    if (!hasInternationalDialCode(form.telefone)) {
+    if (!hasInternationalDialCode(normalizedTelefone)) {
       toast({ title: "Telefone obrigatório", description: "Informe um telefone com código internacional.", variant: "destructive" });
       return;
     }
@@ -899,7 +901,13 @@ export default function MeuPerfilPage() {
     }
     const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
-    const payload: Record<string, any> = { ...rest, tipos_alianca: tiposAlianca, nucleos_alianca: getNucleosForTipos(tiposAlianca) };
+    const payload: Record<string, any> = {
+      ...rest,
+      telefone: normalizedTelefone,
+      whatsapp: normalizedWhatsapp || null,
+      tipos_alianca: tiposAlianca,
+      nucleos_alianca: getNucleosForTipos(tiposAlianca),
+    };
     // Send Especialidades as Directus M2M array
     payload.Especialidades = especialidade_id
       ?[{ especialidades_id: especialidade_id }]

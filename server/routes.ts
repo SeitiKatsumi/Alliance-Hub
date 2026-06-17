@@ -863,6 +863,51 @@ async function directusUpdate(collection: string, id: string, data: Record<strin
   }
 }
 
+type DirectusFieldInfo = { field: string; type?: string; special?: string[] | null };
+const directusFieldInfoCache = new Map<string, DirectusFieldInfo[]>();
+
+async function getDirectusFieldInfo(collection: string): Promise<DirectusFieldInfo[]> {
+  const cached = directusFieldInfoCache.get(collection);
+  if (cached) return cached;
+  try {
+    const res = await fetch(`${DIRECTUS_URL}/fields/${collection}`, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const fields = (json.data || []).map((item: any) => ({
+      field: item.field,
+      type: item.type,
+      special: item.meta?.special || item.special || null,
+    })).filter((item: DirectusFieldInfo) => !!item.field);
+    directusFieldInfoCache.set(collection, fields);
+    return fields;
+  } catch {
+    return [];
+  }
+}
+
+async function normalizeDirectusPatchPayload(collection: string, payload: Record<string, any>) {
+  const fields = await getDirectusFieldInfo(collection);
+  if (!fields.length) return payload;
+  const fieldByName = new Map(fields.map((field) => [field.field, field]));
+  const normalized: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(payload)) {
+    const field = fieldByName.get(key);
+    if (!field) continue;
+
+    if ((field.type === "string" || field.type === "text") && (Array.isArray(value) || (value && typeof value === "object"))) {
+      normalized[key] = Array.isArray(value) ? value.join(", ") : JSON.stringify(value);
+      continue;
+    }
+
+    normalized[key] = value;
+  }
+
+  return normalized;
+}
+
 async function directusDelete(collection: string, id: string) {
   const url = `${DIRECTUS_URL}/items/${collection}/${id}`;
   const res = await fetch(url, {
@@ -2738,7 +2783,7 @@ export async function registerRoutes(
           if (v === "" || v === null || v === undefined) {
             payload[f] = null;
           } else {
-            const n = parseFloat(v);
+            const n = parseFloat(String(v));
             payload[f] = isNaN(n) ? null : n;
           }
         }
@@ -2793,8 +2838,9 @@ export async function registerRoutes(
         await ensureVitrineFields();
       }
 
-      console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(payload));
-      const item = await directusUpdate("cadastro_geral", req.params.id, payload);
+      const directusPayload = await normalizeDirectusPatchPayload("cadastro_geral", payload);
+      console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(directusPayload));
+      const item = await directusUpdate("cadastro_geral", req.params.id, directusPayload);
       res.json(item);
     } catch (error: any) {
       console.error(`[membros PATCH ${req.params.id}] error:`, error.message);
@@ -7880,10 +7926,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
     let membroId = (req.session as any).membroId as string | null;
     try {
-      if (!membroId && matchedLocalUser?.membro_directus_id) {
-          membroId = matchedLocalUser.membro_directus_id;
-          (req.session as any).membroId = membroId;
-          (req.session as any).nome = matchedLocalUser.nome || (req.session as any).nome;
+      if (
+        matchedLocalUser?.membro_directus_id
+        && String(matchedLocalUser.membro_directus_id) !== String(membroId || "")
+      ) {
+        membroId = matchedLocalUser.membro_directus_id;
+        (req.session as any).membroId = membroId;
+        (req.session as any).nome = matchedLocalUser.nome || (req.session as any).nome;
       }
     } catch (_) {}
     let tipos_alianca: string[] = [];

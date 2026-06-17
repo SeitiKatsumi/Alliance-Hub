@@ -11,6 +11,14 @@ function getMembroDisplayName(membro: any): string | null {
 }
 
 function getCallbackURL(req?: Request): string {
+  if (req) {
+    const host = req.get("x-forwarded-host") || req.get("host");
+    if (host && !/^localhost(:|$)|^127\.0\.0\.1(:|$)/i.test(host)) {
+      const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
+      const protocol = forwardedProto || (req.secure ? "https" : "http");
+      return `${protocol}://${host}/auth/google/callback`;
+    }
+  }
   if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
   if (process.env.APP_URL) return `${process.env.APP_URL.replace(/\/$/, "")}/auth/google/callback`;
   const domain = process.env.REPLIT_DEV_DOMAIN;

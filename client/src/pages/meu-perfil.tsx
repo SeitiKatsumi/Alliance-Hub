@@ -669,8 +669,12 @@ export default function MeuPerfilPage() {
       setTimeout(() => setSaved(false), 2500);
       toast({ title: "Perfil atualizado com sucesso!" });
     },
-    onError: () => {
-      toast({ title: "Erro ao salvar", variant: "destructive" });
+    onError: (err: any) => {
+      toast({
+        title: "Erro ao salvar",
+        description: err?.message || "Não foi possível atualizar o perfil.",
+        variant: "destructive",
+      });
     },
   });
 

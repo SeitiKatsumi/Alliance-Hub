@@ -2763,6 +2763,20 @@ export async function registerRoutes(
         Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key))
       );
 
+      if ("tipo_pessoa" in payload) {
+        const tipoPessoa = String(payload.tipo_pessoa || "").trim();
+        const tipoPessoaLower = tipoPessoa.toLowerCase();
+        if (tipoPessoa === "" || tipoPessoaLower === "null") {
+          payload.tipo_pessoa = null;
+        } else if (tipoPessoa === "PF" || tipoPessoaLower.includes("física") || tipoPessoaLower.includes("fisica")) {
+          payload.tipo_pessoa = "PF";
+        } else if (tipoPessoa === "PJ" || tipoPessoaLower.includes("jurídica") || tipoPessoaLower.includes("juridica")) {
+          payload.tipo_pessoa = "PJ";
+        } else if (tipoPessoa.length > 10) {
+          delete payload.tipo_pessoa;
+        }
+      }
+
       // Non-superadmins cannot modify BUILT_ seals
       const sessionRole = (req.session as any).role || "user";
       if (sessionRole !== "admin" && payload.Outras_redes_as_quais_pertenco !== undefined) {

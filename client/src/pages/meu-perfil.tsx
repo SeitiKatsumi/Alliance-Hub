@@ -512,6 +512,82 @@ interface Membro {
   Outras_redes_as_quais_pertenco?: string[] | null;
 }
 
+const PROFILE_EDITABLE_FIELDS: Array<keyof Membro> = [
+  "nome",
+  "email",
+  "telefone",
+  "whatsapp",
+  "nacionalidade",
+  "nome_mae",
+  "nome_pai",
+  "data_nascimento",
+  "profissao",
+  "cpf",
+  "rg",
+  "estado_civil",
+  "regime_comunhao",
+  "conjuge_nome_completo",
+  "conjuge_nacionalidade",
+  "conjuge_nome_mae",
+  "conjuge_nome_pai",
+  "conjuge_data_nascimento",
+  "conjuge_profissao",
+  "conjuge_email",
+  "conjuge_telefone",
+  "conjuge_cpf",
+  "conjuge_rg",
+  "mesmo_endereco",
+  "endereco",
+  "bairro",
+  "titular_endereco",
+  "titular_bairro",
+  "titular_cidade",
+  "titular_estado",
+  "titular_pais",
+  "conjuge_endereco",
+  "conjuge_bairro",
+  "conjuge_cidade",
+  "conjuge_estado",
+  "conjuge_pais",
+  "cidade",
+  "estado",
+  "pais",
+  "latitude",
+  "longitude",
+  "empresa",
+  "cnpj",
+  "cargo",
+  "foto_perfil",
+  "foto_posicao_x",
+  "foto_posicao_y",
+  "perfil_aliado",
+  "nucleo_alianca",
+  "tipo_alianca",
+  "nucleos_alianca",
+  "tipos_alianca",
+  "na_vitrine",
+  "em_membros_built",
+  "em_built_capital",
+  "link_site",
+  "logo_empresa",
+  "especialidade_livre",
+  "ramo_atuacao",
+  "segmento",
+  "area_atuacao",
+  "idiomas",
+  "Outras_redes_as_quais_pertenco",
+];
+
+function buildProfilePayload(form: Partial<Membro>): Record<string, any> {
+  const payload: Record<string, any> = {};
+  for (const field of PROFILE_EDITABLE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(form, field)) {
+      payload[field] = form[field];
+    }
+  }
+  return payload;
+}
+
 function fotoUrl(foto?: string | null): string | null {
   if (!foto) return null;
   return `/api/assets/${foto}?width=200&height=200&fit=cover`;
@@ -899,10 +975,9 @@ export default function MeuPerfilPage() {
       toast({ title: "CNPJ obrigatÃ³rio", description: "Informe o CNPJ quando houver nome de empresa.", variant: "destructive" });
       return;
     }
-    const { id, nome, especialidade_id, especialidade, ...rest } = form as Membro;
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
     const payload: Record<string, any> = {
-      ...rest,
+      ...buildProfilePayload(form),
       telefone: normalizedTelefone,
       whatsapp: normalizedWhatsapp || null,
       tipos_alianca: tiposAlianca,

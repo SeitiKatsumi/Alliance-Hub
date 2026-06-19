@@ -3675,6 +3675,11 @@ export async function registerRoutes(
     const aceite = await storage.getBiaMouAceite(biaId, membroId, BIA_MOU_VERSAO);
     if (aceite) return { ok: true };
     if (!aceitarMou) {
+      const biaResumo = await directusFetchOne(
+        "bias_projetos",
+        biaId,
+        "fields=id,nome_bia"
+      ).catch(() => null);
       return {
         ok: false,
         response: {
@@ -3682,6 +3687,8 @@ export async function registerRoutes(
           mou: {
             titulo: BIA_MOU_TITULO,
             versao: BIA_MOU_VERSAO,
+            bia_id: biaId,
+            bia_nome: biaResumo?.nome_bia || null,
             texto: await getBiaMouTextoPersonalizado(biaId),
           },
         },
@@ -4507,7 +4514,7 @@ export async function registerRoutes(
         text("Builders United for Investment, Logistics and Trade", 48, 780, 8, "F1", "1 1 1");
       }
       const headerRight = 505;
-      textRight("MOU PADR\u00C3O BUILT", headerRight, 804, 11, "F2", gold);
+      textRight(options.headerLabel || "MOU PADR\u00C3O BUILT", headerRight, 804, 11, "F2", gold);
       textRight(new Date().toLocaleDateString("pt-BR"), headerRight, 788, 8, "F1", "0.85 0.90 0.95");
       rect(0, 764, 595, 4, gold);
       if (options.footerLabel) {
@@ -4517,7 +4524,7 @@ export async function registerRoutes(
           ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 78 20 cm /OfficialSeal Do Q`);
         }
         if (footerCertifiedImage) {
-          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 138 20 cm /CertifiedSeal Do Q`);
+          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 144 20 cm /CertifiedSeal Do Q`);
         }
         text(options.footerLabel, 210, 58, 7.3, "F2", navy);
         text("Documento oficial BUILT - uso vinculado aos registros formais da respectiva Alian\u00E7a.", 210, 43, 6.8, "F1", slate);
@@ -4632,8 +4639,9 @@ export async function registerRoutes(
       if (sectionIndex > 0) newPage();
       sectionTitle(section.title);
       const paragraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
-      if (section.title.includes("Mapa de AlocaÃ§Ã£o") || section.title.includes("Mapa de Alocacao")) {
-        const tableStart = paragraphs.findIndex((item) => item.includes("AlocaÃ§Ã£o") || item.includes("Alocacao"));
+      const normalizedSectionTitle = normalizePdfText(section.title);
+      if (normalizedSectionTitle.includes("Mapa de Aloca\u00E7\u00E3o") || normalizedSectionTitle.includes("Mapa de Alocacao")) {
+        const tableStart = paragraphs.findIndex((item) => item.includes("Aloca\u00E7\u00E3o") || item.includes("Alocacao"));
         const intro = tableStart >= 0 ? paragraphs.slice(0, tableStart) : paragraphs.slice(0, 5);
         infoBox(intro);
         allocationTable(paragraphs);
@@ -4643,7 +4651,13 @@ export async function registerRoutes(
         continue;
       }
       for (const item of paragraphs) {
-        const isSubheading = item.length < 70 && /^[A-Z0-9 .IVX-]+$/.test(normalizePdfText(item).toUpperCase()) && !item.includes(".");
+        const normalizedItem = normalizePdfText(item);
+        const isAllCapsHeading = item.length < 70 && /^[A-Z0-9 .IVX-]+$/.test(normalizedItem.toUpperCase()) && !item.includes(".");
+        const isNumberedHeading = /^\d+(?:\.\d+)*\.\s+/.test(normalizedItem)
+          && normalizedItem.length < 95
+          && !/[,:;]/.test(normalizedItem)
+          && !/\b(é|são|será|serão|deverá|deverão|poderá|poderão|constitui|representa|reconhecem|tem|têm)\b/i.test(normalizedItem);
+        const isSubheading = isAllCapsHeading || isNumberedHeading;
         if (isSubheading) {
           ensure(34);
           y -= 8;
@@ -4731,6 +4745,18 @@ export async function registerRoutes(
     ];
     const found = candidates.find((candidate) => fs.existsSync(candidate));
     return found ? fs.readFileSync(found, "utf8") : "";
+  }
+
+  function readTermAsset(name: string): string {
+    const candidates = [
+      path.resolve(process.cwd(), "server", "assets", "termos", name),
+      path.resolve(process.cwd(), "dist", "server", "assets", "termos", name),
+      path.resolve(process.cwd(), "dist", "assets", "termos", name),
+      path.resolve(ROUTES_DIR, "server", "assets", "termos", name),
+      path.resolve(ROUTES_DIR, "assets", "termos", name),
+    ];
+    const found = candidates.find((candidate) => fs.existsSync(candidate));
+    return found ? fs.readFileSync(found, "utf8").trim() : "";
   }
 
   function loadMouAssetPngForPdf(name: string) {
@@ -4862,10 +4888,18 @@ export async function registerRoutes(
   }
 
   async function fetchCadastroGeralForMou(memberId: string, fields: string) {
-    const rows = await directusFetchScoped(
-      "cadastro_geral",
-      `fields=${encodeURIComponent(fields)}&filter[id][_eq]=${encodeURIComponent(String(memberId))}&limit=1`
-    ).catch(() => []);
+    const query = (selectedFields: string) =>
+      directusFetchScoped(
+        "cadastro_geral",
+        `fields=${encodeURIComponent(selectedFields)}&filter[id][_eq]=${encodeURIComponent(String(memberId))}&limit=1`
+      );
+    let rows: any[] = [];
+    try {
+      rows = await query(fields);
+    } catch (error: any) {
+      console.warn("[bia-mou-padrao] Campos completos do cadastro indisponiveis; usando identificacao basica:", error?.message || error);
+      rows = await query("id,nome,Nome_de_usuario,email").catch(() => []);
+    }
     return rows[0] || null;
   }
 
@@ -4971,20 +5005,34 @@ export async function registerRoutes(
       if (value && typeof value === "object") return value.id ? String(value.id) : null;
       return value ? String(value) : null;
     };
-    const allEntries = await directusFetch(
-      "fluxo_caixa",
-      "fields=id,bia,tipo,valor,descricao,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario,favorecido_id.nome_completo,favorecido_id.razao_social,favorecido_id.email"
-    ).catch((error: any) => {
-      console.warn("[bia-mou-padrao] Nao foi possivel buscar fluxo_caixa para o MAP:", error?.message || error);
-      return [];
-    });
-    const entries = allEntries.filter((entry: any) => directusRelationId(entry?.bia) === biaId);
+    const relationArrayFirst = (value: any) => {
+      if (Array.isArray(value)) return value[0] || null;
+      return value || null;
+    };
+    let allEntries: any[] = [];
+    try {
+      allEntries = await directusFetchScoped(
+        "fluxo_caixa",
+        `fields=id,bia,tipo,valor,descricao,status,favorecido_id,Favorecido&filter[bia][_eq]=${encodeURIComponent(biaId)}`
+      );
+    } catch (error: any) {
+      console.warn("[bia-mou-padrao] Consulta MAP com Favorecido indisponivel, tentando favorecido_id:", error?.message || error);
+      allEntries = await directusFetchScoped(
+        "fluxo_caixa",
+        `fields=id,bia,tipo,valor,descricao,status,favorecido_id&filter[bia][_eq]=${encodeURIComponent(biaId)}`
+      ).catch((fallbackError: any) => {
+        console.warn("[bia-mou-padrao] Nao foi possivel buscar fluxo_caixa para o MAP:", fallbackError?.message || fallbackError);
+        return [];
+      });
+    }
+    const entries = allEntries.filter((entry: any) => directusRelationId(entry?.bia) === biaId || String(entry?.bia || "") === biaId);
 
     const values = new Map<string, { memberId: string; name: string; value: number }>();
     for (const entry of entries) {
       if (entry?.tipo !== "entrada") continue;
       if (entry?.descricao === "Valor de Origem da BIA") continue;
-      const favorecido = Array.isArray(entry?.favorecido_id) ? entry.favorecido_id[0] : entry?.favorecido_id;
+      const favorecidoRel = entry?.favorecido_id || relationArrayFirst(entry?.Favorecido);
+      const favorecido = favorecidoRel?.cadastro_geral_id || favorecidoRel;
       const id = memberId(favorecido);
       if (!id) continue;
       const current = values.get(id) || { memberId: id, name: memberName(favorecido), value: 0 };
@@ -5095,7 +5143,7 @@ export async function registerRoutes(
     if (response.status === 404 || response.status === 403) return null;
     if (!response.ok) throw new Error(`Directus error: ${response.status}`);
     const json = await response.json();
-    return json.data || null;
+    return json.data ? await ensureBiaPublicCode(json.data) : null;
   }
 
   app.post("/api/bias/:id/gerar-mou-padrao", async (req, res) => {
@@ -5120,13 +5168,14 @@ export async function registerRoutes(
       const sections = [
         { title: "MOU PadrÃ£o BUILT", body: mouPadrao },
         { title: "Anexo I - QualificaÃ§Ã£o das Partes", body: buildAnexoIQualificacao(biaComInfo, req.params.id, participants) },
-        { title: "Anexo II - Mapa de AlocaÃ§Ã£o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
+        { title: "Anexo II - Mapa de Aloca\u00E7\u00E3o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
         { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: anexoIII },
         { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: anexoIV },
       ];
       const now = new Date();
       const title = `MOU PadrÃ£o BUILT - ${biaComInfo.nome_bia || req.params.id}`;
-      const footerLabel = `BIA: ${biaComInfo.nome_bia || "BIA"} | C\u00F3digo rastre\u00E1vel: ${req.params.id}`;
+      const codigoRastreavel = String(biaComInfo.codigo_publico || req.params.id);
+      const footerLabel = `BIA: ${biaComInfo.nome_bia || "BIA"} | C\u00F3digo rastre\u00E1vel: ${codigoRastreavel}`;
       const pdf = buildSimpleTextPdf(title, sections, { footerLabel });
       const safeName = String(biaComInfo.nome_bia || req.params.id).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || req.params.id;
       const fileId = await uploadPdfToDirectus(pdf, `mou-padrao-built-${safeName}-${now.toISOString().slice(0, 10)}.pdf`);
@@ -5227,10 +5276,10 @@ export async function registerRoutes(
       ].join("\n"),
     },
     vitrine: {
-      titulo: "Termo BUILT Vitrine",
+      titulo: "Termo de Acesso e Uso da Vitrine Pública BUILT",
       versao: "BUILT JUR - 2",
       origem: "BUILT Vitrine",
-      body: [
+      body: readTermAsset("built-jur-2-vitrine.txt") || [
         "TERMO DE ACESSO E USO DA VITRINE PÃšBLICA BUILT",
         "",
         "Este Termo regula o acesso Ã  vitrine pÃºblica da BUILT, ambiente digital destinado Ã  exposiÃ§Ã£o institucional, descoberta de perfis, consulta de categorias, apresentaÃ§Ã£o pÃºblica controlada de empresas e profissionais formalmente habilitados e demais funcionalidades abertas pela BUILT.",
@@ -5245,28 +5294,28 @@ export async function registerRoutes(
       ].join("\n"),
     },
     area_aliancas: {
-      titulo: "Termo de Acesso Ã  Ãrea de AlianÃ§as BUILT",
+      titulo: "Termo de Acesso à Área de Alianças BUILT",
       versao: "BUILT JUR - 4",
       origem: "BUILT Alliances",
-      body: [
-        "TERMO DE ACESSO Ã€ ÃREA DE ALIANÃ‡AS BUILT",
+      body: readTermAsset("built-jur-4-area-aliancas.txt") || [
+        "TERMO DE ACESSO \u00C0 \u00C1REA DE ALIAN\u00C7AS BUILT",
         "",
-        "Este Termo disciplina o ingresso e a permanÃªncia do usuÃ¡rio na Ãrea de AlianÃ§as BUILT, ambiente restrito destinado a empresÃ¡rios sÃ³cios, profissionais formalmente habilitados e demais participantes elegÃ­veis aprovados pela BUILT.",
+        "Este Termo disciplina o ingresso e a perman\u00EAncia do usu\u00E1rio na \u00C1rea de Alian\u00E7as BUILT, ambiente restrito destinado a empres\u00E1rios s\u00F3cios, profissionais formalmente habilitados e demais participantes eleg\u00EDveis aprovados pela BUILT.",
         "",
-        "O acesso Ã  Ãrea de AlianÃ§as depende de aprovaÃ§Ã£o cadastral, reputacional, tÃ©cnica e documental, conforme os critÃ©rios internos da BUILT.",
+        "O acesso \u00E0 \u00C1rea de Alian\u00E7as depende de aprova\u00E7\u00E3o cadastral, reputacional, t\u00E9cnica e documental, conforme os crit\u00E9rios internos da BUILT.",
         "",
-        "O Membro Aliado compromete-se a atuar com Ã©tica, boa-fÃ©, lealdade, diligÃªncia, respeito Ã  legislaÃ§Ã£o aplicÃ¡vel e aderÃªncia integral ao CÃ³digo de Ã‰tica, Ã s PolÃ­ticas de ParticipaÃ§Ã£o e ProteÃ§Ã£o, aos manuais internos e aos instrumentos especÃ­ficos da BUILT.",
+        "O Membro Aliado compromete-se a atuar com \u00E9tica, boa-f\u00E9, lealdade, dilig\u00EAncia, respeito \u00E0 legisla\u00E7\u00E3o aplic\u00E1vel e ader\u00EAncia integral ao C\u00F3digo de \u00C9tica, \u00E0s Pol\u00EDticas de Participa\u00E7\u00E3o e Prote\u00E7\u00E3o, aos manuais internos e aos instrumentos espec\u00EDficos da BUILT.",
         "",
-        "Toda participaÃ§Ã£o relevante do Membro Aliado em oportunidades, validaÃ§Ãµes, alianÃ§as, entregas, CPPs, comunidades ou BIAs deverÃ¡ ser registrada no ambiente indicado pela BUILT para fins de governanÃ§a, transparÃªncia, compliance e auditoria.",
+        "Toda participa\u00E7\u00E3o relevante do Membro Aliado em oportunidades, valida\u00E7\u00F5es, alian\u00E7as, entregas, CPPs, comunidades ou BIAs dever\u00E1 ser registrada no ambiente indicado pela BUILT para fins de governan\u00E7a, transpar\u00EAncia, compliance e auditoria.",
         "",
-        "A condiÃ§Ã£o de Membro Aliado nÃ£o garante participaÃ§Ã£o automÃ¡tica em BIAs, recebimento de oportunidades, contrataÃ§Ã£o, remuneraÃ§Ã£o, retorno econÃ´mico, indicaÃ§Ã£o comercial ou aporte de capital.",
+        "A condi\u00E7\u00E3o de Membro Aliado n\u00E3o garante participa\u00E7\u00E3o autom\u00E1tica em BIAs, recebimento de oportunidades, contrata\u00E7\u00E3o, remunera\u00E7\u00E3o, retorno econ\u00F4mico, indica\u00E7\u00E3o comercial ou aporte de capital.",
       ].join("\n"),
     },
     built_capital: {
-      titulo: "Termo BUILT Capital",
-      versao: "built_capital_v1_provisorio",
+      titulo: "Termo de Acesso à Área de Parceiros de Capital BUILT",
+      versao: "BUILT JUR - 3",
       origem: "BUILT Capital",
-      body: [
+      body: readTermAsset("built-jur-3-capital.txt") || [
         "TERMO PROVISÃ“RIO DE ACESSO AO BUILT CAPITAL",
         "",
         "Este termo regula o acesso inicial ao BUILT Capital, ambiente restrito voltado Ã  conexÃ£o, qualificaÃ§Ã£o e relacionamento com parceiros de capital, investidores, originadores e participantes estratÃ©gicos da rede BUILT.",
@@ -5279,6 +5328,18 @@ export async function registerRoutes(
       ].join("\n"),
     },
   };
+
+  app.get("/api/termos-aceite/:chave", (req, res) => {
+    const term = TERMOS_ACEITE_BUILT[req.params.chave];
+    if (!term) return res.status(404).json({ error: "Termo não encontrado" });
+    res.json({
+      chave: req.params.chave,
+      titulo: term.titulo,
+      versao: term.versao,
+      origem: term.origem,
+      body: term.body,
+    });
+  });
 
   const acceptedDocDate = (value: any) => {
     if (!value) return null;
@@ -5352,7 +5413,9 @@ export async function registerRoutes(
         docs.set(id, {
           id,
           tipo: "mou",
-          titulo: aceite.mou_titulo || "MOU PadrÃ£o BUILT",
+          titulo: biaNome
+            ? `${aceite.mou_titulo || "MOU PadrÃ£o BUILT"} - ${biaNome}`
+            : aceite.mou_titulo || "MOU PadrÃ£o BUILT",
           versao: aceite.mou_versao || null,
           aceito_em: acceptedDocDate(aceite.aceito_em),
           origem: biaNome ? `BIA ${biaNome}` : `BIA ${aceite.bia_id}`,
@@ -5388,8 +5451,23 @@ export async function registerRoutes(
       const documentos = await listarDocumentosAceitosDoUsuario(req);
       const documento = documentos.find((item) => item.id === req.params.documentoId);
       if (!documento) return res.status(404).json({ error: "Documento nÃ£o encontrado" });
+      const membroAceiteId = (req.session as any).membroId as string | null;
+      const membroAceite = membroAceiteId
+        ? await directusFetchOne(
+          "cadastro_geral",
+          membroAceiteId,
+          "fields=id,nome,Nome_de_usuario,email"
+        ).catch(() => null)
+        : null;
+      const membroAceiteNome = String(
+        membroAceite?.nome ||
+        membroAceite?.Nome_de_usuario ||
+        membroAceite?.email ||
+        "nÃ£o informado"
+      );
 
       let sections: Array<{ title: string; body: string }> = [];
+      let footerLabel: string | undefined;
       if (documento.tipo === "mou") {
         const biaId = documento.bia_id;
         if (!biaId) return res.status(404).json({ error: "BIA do MOU nÃ£o encontrada" });
@@ -5407,32 +5485,39 @@ export async function registerRoutes(
         sections = [
           { title: "MOU PadrÃ£o BUILT", body: personalizarBiaMouTexto(mouPadraoBase, biaId, biaComInfo) },
           { title: "Anexo I - QualificaÃ§Ã£o das Partes", body: buildAnexoIQualificacao(biaComInfo, biaId, participants) },
-          { title: "Anexo II - Mapa de AlocaÃ§Ã£o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, biaId, allocationRows) },
+          { title: "Anexo II - Mapa de Aloca\u00E7\u00E3o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, biaId, allocationRows) },
           { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III nÃ£o localizado nos assets do servidor." },
           { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV nÃ£o localizado nos assets do servidor." },
         ];
+        const codigoRastreavel = String(biaComInfo.codigo_publico || biaId);
+        footerLabel = `BIA: ${biaComInfo.nome_bia || "BIA"} | C\u00F3digo rastre\u00E1vel: ${codigoRastreavel}`;
       } else {
         const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
         const body = term?.body || [
-          "Documento histÃ³rico de aceite.",
+          "Documento hist\u00F3rico de aceite.",
           "",
-          "O texto completo desta versÃ£o nÃ£o estÃ¡ mapeado no sistema atual. Este comprovante preserva os metadados do aceite registrado.",
+          "O texto completo desta vers\u00E3o n\u00E3o est\u00E1 mapeado no sistema atual. Este comprovante preserva os metadados do aceite registrado.",
         ].join("\n");
         sections = [
           {
             title: "Comprovante de aceite",
             body: [
               `Documento: ${documento.titulo}`,
-              `VersÃ£o: ${documento.versao || "nÃ£o informada"}`,
+              `Vers\u00E3o: ${documento.versao || "n\u00E3o informada"}`,
               `Origem: ${documento.origem}`,
-              `Aceito em: ${documento.aceito_em ? new Date(documento.aceito_em).toLocaleString("pt-BR") : "nÃ£o informado"}`,
+              `Pessoa: ${membroAceiteNome}`,
+              `C\u00F3digo rastre\u00E1vel da pessoa: ${membroAceite?.id || membroAceiteId || "n\u00E3o informado"}`,
+              `Aceito em: ${documento.aceito_em ? new Date(documento.aceito_em).toLocaleString("pt-BR") : "n\u00E3o informado"}`,
             ].join("\n"),
           },
           { title: documento.titulo, body },
         ];
       }
 
-      const pdf = buildSimpleTextPdf(documento.titulo, sections);
+      const pdf = buildSimpleTextPdf(documento.titulo, sections, {
+        headerLabel: documento.tipo === "mou" ? "MOU PADR\u00C3O BUILT" : "COMPROVANTE BUILT",
+        ...(footerLabel ? { footerLabel } : {}),
+      });
       const filename = `${documento.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "documento-aceito"}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="${filename}"`);

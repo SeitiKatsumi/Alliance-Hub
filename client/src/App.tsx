@@ -271,7 +271,7 @@ e) usar o nome BUILT para assumir obrigações com terceiros sem autorização.
 10.2. Em caso de risco relevante, a BUILT poderá adotar medidas cautelares imediatas.
 `.trim();
 
-const TERMO_BUILT_CAPITAL_VERSAO = "built_capital_v1_provisorio";
+const TERMO_BUILT_CAPITAL_VERSAO = "BUILT JUR - 3";
 const TERMO_BUILT_CAPITAL = `
 TERMO PROVISÓRIO DE ACESSO AO BUILT CAPITAL
 
@@ -490,11 +490,32 @@ function PerfilOnboardingModal({
   const termoModuloPendente = termoVitrinePendente || termoAreaAliancasPendente || termoBuiltCapitalPendente;
   const shouldOpen = !!membroId && !completed && !isLoading && !!membro && (requiredMissing || termoModuloPendente);
   const mostrarPerfilCompleto = requiredMissing;
+  const termoModuloKey = termoVitrinePendente
+    ? "vitrine"
+    : termoAreaAliancasPendente
+      ? "area_aliancas"
+      : termoBuiltCapitalPendente
+        ? "built_capital"
+        : null;
+  const { data: termoModuloRemoto } = useQuery<{
+    titulo: string;
+    versao: string;
+    origem: string;
+    body: string;
+  }>({
+    queryKey: ["/api/termos-aceite", termoModuloKey],
+    queryFn: () => fetch(`/api/termos-aceite/${termoModuloKey}`).then(r => {
+      if (!r.ok) throw new Error("Falha ao carregar termo");
+      return r.json();
+    }),
+    enabled: !!termoModuloKey,
+    staleTime: 1000 * 60 * 10,
+  });
   const termoModulo = termoVitrinePendente
     ? {
-      titulo: "Termo BUILT Vitrine",
-      descricao: "Para acessar a Vitrine pela primeira vez, confirme que leu e concorda com o Termo BUILT Vitrine.",
-      texto: TERMO_VITRINE_BUILT,
+      titulo: termoModuloRemoto?.titulo || "Termo de Acesso e Uso da Vitrine Pública BUILT",
+      descricao: "Para acessar a Vitrine pela primeira vez, confirme que leu e concorda com o termo de acesso.",
+      texto: termoModuloRemoto?.body || TERMO_VITRINE_BUILT,
       checked: termoVitrineAceito,
       setChecked: setTermoVitrineAceito,
       checkboxTestId: "checkbox-onboarding-termo-vitrine",
@@ -502,14 +523,14 @@ function PerfilOnboardingModal({
       accepted: !!membro?.vitrine_termo_aceito_em,
       payload: {
         vitrine_termo_aceito_em: new Date().toISOString(),
-        vitrine_termo_versao: TERMO_VITRINE_BUILT_VERSAO,
+        vitrine_termo_versao: termoModuloRemoto?.versao || TERMO_VITRINE_BUILT_VERSAO,
       },
     }
     : termoAreaAliancasPendente
       ? {
-        titulo: "Termo Área de Alianças",
-        descricao: "Para acessar a Área de Alianças pela primeira vez, confirme que leu e concorda com o termo provisório.",
-        texto: TERMO_AREA_ALIANCAS,
+        titulo: termoModuloRemoto?.titulo || "Termo de Acesso à Área de Alianças BUILT",
+        descricao: "Para acessar o BUILT Alliances pela primeira vez, confirme que leu e concorda com o termo de acesso.",
+        texto: termoModuloRemoto?.body || TERMO_AREA_ALIANCAS,
         checked: termoAreaAliancasAceito,
         setChecked: setTermoAreaAliancasAceito,
         checkboxTestId: "checkbox-onboarding-termo-area-aliancas",
@@ -517,14 +538,14 @@ function PerfilOnboardingModal({
         accepted: !!membro?.area_aliancas_termo_aceito_em,
         payload: {
           area_aliancas_termo_aceito_em: new Date().toISOString(),
-          area_aliancas_termo_versao: TERMO_AREA_ALIANCAS_VERSAO,
+          area_aliancas_termo_versao: termoModuloRemoto?.versao || TERMO_AREA_ALIANCAS_VERSAO,
         },
       }
       : termoBuiltCapitalPendente
         ? {
-          titulo: "Termo BUILT Capital",
-          descricao: "Para acessar o BUILT Capital pela primeira vez, confirme que leu e concorda com o termo provisório.",
-          texto: TERMO_BUILT_CAPITAL,
+          titulo: termoModuloRemoto?.titulo || "Termo de Acesso à Área de Parceiros de Capital BUILT",
+          descricao: "Para acessar o BUILT Capital pela primeira vez, confirme que leu e concorda com o termo de acesso.",
+          texto: termoModuloRemoto?.body || TERMO_BUILT_CAPITAL,
           checked: termoBuiltCapitalAceito,
           setChecked: setTermoBuiltCapitalAceito,
           checkboxTestId: "checkbox-onboarding-termo-built-capital",
@@ -532,7 +553,7 @@ function PerfilOnboardingModal({
           accepted: !!membro?.built_capital_termo_aceito_em,
           payload: {
             built_capital_termo_aceito_em: new Date().toISOString(),
-            built_capital_termo_versao: TERMO_BUILT_CAPITAL_VERSAO,
+            built_capital_termo_versao: termoModuloRemoto?.versao || TERMO_BUILT_CAPITAL_VERSAO,
           },
         }
         : null;

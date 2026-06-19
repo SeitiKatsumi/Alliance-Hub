@@ -180,19 +180,19 @@ const TERM_ACCEPTANCE_FIELDS = [
   },
   {
     key: "vitrine",
-    label: "Termo BUILT Vitrine",
+    label: "Termo de Acesso e Uso da Vitrine P\u00fablica BUILT",
     acceptedAt: "vitrine_termo_aceito_em",
     version: "vitrine_termo_versao",
   },
   {
     key: "area_aliancas",
-    label: "Termo Área de Alianças",
+    label: "Termo de Acesso \u00e0 \u00c1rea de Alian\u00e7as BUILT",
     acceptedAt: "area_aliancas_termo_aceito_em",
     version: "area_aliancas_termo_versao",
   },
   {
     key: "built_capital",
-    label: "Termo BUILT Capital",
+    label: "Termo de Acesso \u00e0 \u00c1rea de Parceiros de Capital BUILT",
     acceptedAt: "built_capital_termo_aceito_em",
     version: "built_capital_termo_versao",
   },

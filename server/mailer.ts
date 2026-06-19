@@ -13,22 +13,97 @@ const transporter = nodemailer.createTransport({
 const FROM = process.env.SMTP_FROM || "Built Alliances <noreply@builtalliances.com>";
 const BASE_URL = process.env.APP_URL || "https://app.builtalliances.com";
 
+const WINDOWS_1252_BYTE_BY_CHAR: Record<number, number> = {
+  0x20ac: 0x80,
+  0x201a: 0x82,
+  0x0192: 0x83,
+  0x201e: 0x84,
+  0x2026: 0x85,
+  0x2020: 0x86,
+  0x2021: 0x87,
+  0x02c6: 0x88,
+  0x2030: 0x89,
+  0x0160: 0x8a,
+  0x2039: 0x8b,
+  0x0152: 0x8c,
+  0x017d: 0x8e,
+  0x2018: 0x91,
+  0x2019: 0x92,
+  0x201c: 0x93,
+  0x201d: 0x94,
+  0x2022: 0x95,
+  0x2013: 0x96,
+  0x2014: 0x97,
+  0x02dc: 0x98,
+  0x2122: 0x99,
+  0x0161: 0x9a,
+  0x203a: 0x9b,
+  0x0153: 0x9c,
+  0x017e: 0x9e,
+  0x0178: 0x9f,
+};
+
+function decodeMojibakeUtf8(value: string): string {
+  let text = value;
+
+  for (let attempt = 0; attempt < 3 && /[ÃÂâðï¿½]/.test(text); attempt++) {
+    const bytes: number[] = [];
+    let canDecode = true;
+
+    for (const char of text) {
+      const code = char.charCodeAt(0);
+      const byte = code <= 0xff ? code : WINDOWS_1252_BYTE_BY_CHAR[code];
+      if (byte === undefined) {
+        canDecode = false;
+        break;
+      }
+      bytes.push(byte);
+    }
+
+    if (!canDecode) break;
+
+    const decoded = Buffer.from(bytes).toString("utf8");
+    if (!decoded || decoded === text || decoded.includes("\uFFFD")) break;
+    text = decoded;
+  }
+
+  return text
+    .replace(/ï¿½/g, "")
+    .replace(/\uFFFD/g, "")
+    .replace(/\u00A0/g, " ");
+}
+
 async function send(to: string, subject: string, html: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const safeTo = to.replace(/^(.{2}).*(@.*)$/, "$1***$2");
+  const cleanSubject = decodeMojibakeUtf8(subject);
+  const cleanHtml = decodeMojibakeUtf8(html);
   try {
-    const info = await transporter.sendMail({ from: FROM, to, subject, html });
-    console.log(`[mailer] Email accepted by SMTP: to=${safeTo} subject="${subject}" messageId=${info.messageId || "n/a"}`);
+    const info = await transporter.sendMail({
+      from: FROM,
+      to,
+      subject: cleanSubject,
+      html: cleanHtml,
+      encoding: "utf-8",
+    });
+    console.log(`[mailer] Email accepted by SMTP: to=${safeTo} subject="${cleanSubject}" messageId=${info.messageId || "n/a"}`);
     return { ok: true, messageId: info.messageId };
   } catch (err: any) {
     // Email failures are logged but not re-thrown so SMTP errors never break
     // API routes that have already committed a DB change.
-    console.error(`[mailer] Failed to send email to ${safeTo} ("${subject}"): ${err.message}`);
+    console.error(`[mailer] Failed to send email to ${safeTo} ("${cleanSubject}"): ${err.message}`);
     return { ok: false, error: err.message };
   }
 }
 
 function baseTemplate(content: string): string {
   return `
+    <!doctype html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    </head>
+    <body style="margin:0;padding:0;background:#f5f7fb">
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#001D34;color:#fff;border-radius:12px;overflow:hidden">
       <div style="background:linear-gradient(135deg,#001D34,#0a2a4a);padding:28px 24px;text-align:center;border-bottom:1px solid rgba(215,187,125,0.2)">
         <img src="${BASE_URL}/built-logo-horizontal-branca-email.png?v=20260514" alt="BUILT Alliances" style="width:280px;max-width:88%;height:auto;display:inline-block" />
@@ -40,6 +115,8 @@ function baseTemplate(content: string): string {
         <p style="margin:0;color:rgba(255,255,255,0.3);font-size:11px">© Built Alliances • Rede de Alianças Estratégicas</p>
       </div>
     </div>
+    </body>
+    </html>
   `;
 }
 

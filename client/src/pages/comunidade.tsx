@@ -286,6 +286,8 @@ type MouPendente = {
   id: string;
   titulo: string;
   versao: string;
+  bia_id?: string;
+  bia_nome?: string | null;
   texto: string;
 };
 
@@ -1175,6 +1177,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/documentos-aceitos"] });
       toast({ title: "MOU aceito", description: "Sua participação na BIA foi confirmada." });
       setMouPendente(null);
       setMouAceito(false);
@@ -2671,12 +2674,20 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="max-h-[46vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+            <div
+              className="max-h-[46vh] select-none overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700"
+              onCopy={(event) => event.preventDefault()}
+              onCut={(event) => event.preventDefault()}
+              onContextMenu={(event) => event.preventDefault()}
+              style={{ WebkitUserSelect: "none", userSelect: "none" }}
+            >
               {mouPendente?.texto}
             </div>
             <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
               <Checkbox checked={mouAceito} onCheckedChange={checked => setMouAceito(checked === true)} />
-              <span>Li e aceito o MOU Padrão BUILT para esta BIA.</span>
+              <span>
+                Li e aceito o MOU Padrão BUILT para a BIA {mouPendente?.bia_nome || "selecionada"}.
+              </span>
             </label>
           </div>
           <DialogFooter>

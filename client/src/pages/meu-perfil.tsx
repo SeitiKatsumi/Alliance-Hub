@@ -2052,7 +2052,7 @@ export default function MeuPerfilPage() {
                       <span className="flex-1 text-xs font-mono text-white/60 truncate" data-testid="text-convite-link">{meuConviteLink}</span>
                       <button
                         onClick={async () => {
-                          const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink));
+                          const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink, meuConvite?.expires_at));
                           if (copied) {
                             toast({ title: "Convite copiado!", description: "A mensagem completa está pronta para compartilhar." });
                           } else {

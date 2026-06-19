@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { InviteQrCode } from "@/components/invite-qr-code";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +21,14 @@ import {
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
   AlertTriangle, Clock, FileWarning, AlarmClock, BookOpen, UserCheck,
+  Crosshair,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
+import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import {
   Bar,
   BarChart,
@@ -42,14 +44,33 @@ import {
 
 interface DashboardBia {
   id: string;
+  codigo_publico?: string | null;
   nome_bia: string;
   situacao?: "ativa" | "em_formacao" | null;
   objetivo_alianca?: string | null;
   destinacao?: string | null;
   localizacao?: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  observacoes?: string | null;
+  imagem_directus_id?: string | null;
   valor_origem?: number | string | null;
+  valor_geral_venda_vgv?: number | string | null;
+  valor_realizado_venda?: number | string | null;
   custo_final_previsto?: number | string | null;
   resultado_liquido?: number | string | null;
+  cpp_autor_opa?: number | string | null;
+  cpp_aliado_built?: number | string | null;
+  cpp_built?: number | string | null;
+  cpp_dir_alianca?: number | string | null;
+  cpp_dir_tecnico?: number | string | null;
+  cpp_dir_obras?: number | string | null;
+  cpp_dir_comercial?: number | string | null;
+  cpp_dir_capital?: number | string | null;
+  diretor_nucleo_tecnico?: string | null;
+  diretor_execucao?: string | null;
+  diretor_comercial?: string | null;
+  diretor_capital?: string | null;
   investimento_usuario_valor?: number | string | null;
   investimento_usuario_percentual?: number | string | null;
   receita_usuario_valor?: number | string | null;
@@ -200,6 +221,7 @@ function normalizeText(value?: string | number | null): string {
 
 const CHART_COLORS = ["#0B4EA2", "#0B63F6", "#12B981", "#38BDF8", "#22C55E", "#1E40AF", "#64748B"];
 const INVITE_APP_URL = "https://app.builtalliances.com";
+const ASSET_CACHE_VERSION = "directus-db-20260616";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const INVITE_TYPE_OPTIONS = [
   { value: "vitrine", label: "Parceiro de Mercado" },
@@ -222,6 +244,23 @@ function normalizeInviteLink(link?: string | null) {
   }
   if (/^https?:\/\//i.test(link)) return link;
   return `${INVITE_APP_URL}${link.startsWith("/") ?"" : "/"}${link}`;
+}
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+
+function versionAssetUrl(value?: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("/api/assets/")) {
+    return `${value}${value.includes("?") ? "&" : "?"}v=${ASSET_CACHE_VERSION}`;
+  }
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+  const assetId = directusAssetId(value);
+  return assetId ? `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}` : null;
 }
 
 function compactLabel(value?: string | null): string {
@@ -270,6 +309,135 @@ function groupCurrencyBy(items: DashboardBia[], key: keyof DashboardBia) {
     .map(({ name, value }) => ({ name, value, percent: total > 0 ?(value / total) * 100 : 0 }))
     .filter((item) => item.value > 0)
     .sort((a, b) => b.value - a.value);
+}
+
+function DashboardBiaCard({ bia }: { bia: DashboardBia }) {
+  const [, navigate] = useLocation();
+  const vgv = n(bia.valor_geral_venda_vgv ?? bia.valor_origem);
+  const valorRealizado = n(bia.valor_realizado_venda);
+  const progresso = vgv > 0
+    ? Math.max(0, Math.min(100, Math.round((valorRealizado / vgv) * 100)))
+    : bia.situacao === "ativa" ? 35 : 15;
+  const situacaoLabel = bia.situacao === "em_formacao" ? "Em estruturação" : "Ativa";
+  const situacaoClass = bia.situacao === "em_formacao"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-blue-200 bg-blue-50 text-blue-700";
+  const imageUrl = versionAssetUrl(bia.imagem_directus_id);
+  const cppCount = [
+    bia.cpp_autor_opa,
+    bia.cpp_aliado_built,
+    bia.cpp_built,
+    bia.cpp_dir_alianca,
+    bia.cpp_dir_tecnico,
+    bia.cpp_dir_obras,
+    bia.cpp_dir_comercial,
+    bia.cpp_dir_capital,
+  ].filter(value => n(value) > 0).length;
+  const nucleosAtivos = [
+    bia.diretor_nucleo_tecnico,
+    bia.diretor_execucao,
+    bia.diretor_comercial,
+    bia.diretor_capital,
+  ].filter(Boolean).length;
+
+  return (
+    <Card
+      className="group cursor-pointer overflow-hidden border-border/70 bg-card shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+      data-testid={`dashboard-card-bia-${bia.id}`}
+      onClick={() => navigate(getBiaUrl(bia))}
+    >
+      <CardContent className="p-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 to-slate-100 lg:h-[96px] lg:w-[142px]">
+            {imageUrl ? (
+              <img src={imageUrl} alt={bia.nome_bia} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_30%,rgba(37,99,235,0.18),rgba(241,245,249,0.95))] text-blue-500/35">
+                <Building2 className="h-10 w-10" />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 lg:flex-[1.05]">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={`h-5 px-2 text-[9px] font-semibold ${situacaoClass}`}>
+                {situacaoLabel}
+              </Badge>
+              {bia.destinacao && (
+                <Badge variant="secondary" className="h-5 bg-blue-500 px-2 text-[9px] font-medium text-white">
+                  {bia.destinacao}
+                </Badge>
+              )}
+              {bia.papel_usuario && (
+                <Badge variant="outline" className="h-5 border-blue-200 bg-blue-50 px-2 text-[9px] font-medium text-blue-700">
+                  {bia.papel_usuario}
+                </Badge>
+              )}
+            </div>
+            <CardTitle className="line-clamp-1 text-sm font-semibold leading-tight sm:text-base" data-testid={`dashboard-text-bia-nome-${bia.id}`}>
+              {bia.nome_bia}
+            </CardTitle>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              {bia.localizacao && (
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{bia.localizacao}</span>
+                  {bia.latitude && bia.longitude && <Crosshair className="h-3 w-3 shrink-0 text-blue-500/60" aria-label="Geolocalizado" />}
+                </span>
+              )}
+              {(bia.codigo_publico || bia.id) && <span className="font-mono text-[11px]">BIA-{getBiaPublicRef(bia).toUpperCase()}</span>}
+            </div>
+            <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+              {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
+            </p>
+          </div>
+
+          <div className="min-w-0 space-y-2 lg:max-w-[440px] lg:flex-[1.3] xl:max-w-[500px]">
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                <span>Progresso geral</span>
+                <span className="font-semibold text-foreground">{progresso}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full ${bia.situacao === "em_formacao" ? "bg-emerald-500" : "bg-blue-600"}`}
+                  style={{ width: `${progresso}%` }}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-[72px_minmax(130px,1fr)_72px] gap-4">
+              <div>
+                <p className="text-[9px] text-muted-foreground">CPPs distribuídas</p>
+                <p className="text-xs font-semibold text-foreground">{cppCount || "-"}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] text-muted-foreground">VGV</p>
+                <p className="break-words text-xs font-semibold leading-tight text-foreground" data-testid={`dashboard-text-vgv-${bia.id}`}>
+                  {vgv > 0 ? fmt(vgv, bia.moeda || "BRL") : "-"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] text-muted-foreground">Núcleos</p>
+                <p className="text-xs font-semibold text-foreground">{nucleosAtivos || "-"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 lg:ml-auto lg:w-[220px] lg:shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 min-w-[112px] border-blue-200 px-4 text-xs text-blue-700 hover:bg-blue-50"
+              onClick={(event) => { event.stopPropagation(); navigate(getBiaUrl(bia)); }}
+              data-testid={`dashboard-btn-view-bia-${bia.id}`}
+            >
+              Ver detalhes
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function EmptyChart({ text = "Sem dados suficientes" }: { text?: string }) {
@@ -1189,7 +1357,7 @@ export default function PainelPage() {
           )}
 
           {isLoading ?(
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {Array.from({ length: 4 }).map((_, i) => <BiaCardSkeleton key={i} />)}
             </div>
           ) : bias.length === 0 ?(
@@ -1215,83 +1383,9 @@ export default function PainelPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {filteredBias.map(b => (
-                <Card
-                  key={b.id}
-                  className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/bias/${b.id}`)}
-                  data-testid={`card-bia-${b.id}`}
-                >
-                  <CardContent className="p-4 space-y-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground leading-snug line-clamp-2 flex-1">
-                        {b.nome_bia}
-                      </p>
-                      {situacaoBadge(b.situacao)}
-                    </div>
-
-                    {(b.papel_usuario || b.objetivo_alianca || b.destinacao) && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {b.papel_usuario && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] text-blue-700 border-blue-200 bg-blue-50"
-                            data-testid={`badge-papel-${b.id}`}
-                          >
-                            {b.papel_usuario}
-                          </Badge>
-                        )}
-                        {b.objetivo_alianca && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] text-muted-foreground border-border/70 bg-muted/30"
-                            data-testid={`badge-objetivo-${b.id}`}
-                          >
-                            {b.objetivo_alianca}
-                          </Badge>
-                        )}
-                        {b.destinacao && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] text-blue-700 border-blue-200 bg-blue-50"
-                            data-testid={`badge-destinacao-${b.id}`}
-                          >
-                            {b.destinacao}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-
-                    {b.localizacao && (
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{b.localizacao}</span>
-                      </div>
-                    )}
-
-                    <div className="pt-1 border-t border-border/40 grid grid-cols-3 gap-2">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Investido</p>
-                        <p className="text-xs font-medium tabular-nums" data-testid={`investido-usuario-${b.id}`}>
-                          {n(b.investimento_usuario_valor) > 0 ?fmt(n(b.investimento_usuario_valor), b.moeda || "BRL") : "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">CPP</p>
-                        <p className="text-xs font-medium tabular-nums" data-testid={`participacao-usuario-${b.id}`}>
-                          {n(b.investimento_usuario_percentual) > 0 ?fmtPercent(n(b.investimento_usuario_percentual)) : "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground">Receita</p>
-                        <p className="text-xs font-medium tabular-nums" data-testid={`receita-usuario-${b.id}`}>
-                          {n(b.receita_usuario_valor) > 0 ?fmt(n(b.receita_usuario_valor), b.moeda || "BRL") : "-"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DashboardBiaCard key={b.id} bia={b} />
               ))}
             </div>
           )}
@@ -1674,7 +1768,7 @@ export default function PainelPage() {
               <Card
                 className="border border-border/60 hover:border-violet-500/40 cursor-pointer transition-colors"
                 onClick={() => navigate("/documentacao")}
-                data-testid="card-gestao-documentacao-plataforma"
+                data-testid="card-gestao-documentacoes-aceite"
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
@@ -1685,10 +1779,10 @@ export default function PainelPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">
-                            Documentação da plataforma
+                            Documentações de aceite
                           </p>
                           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                            Estrutura, módulos, rotas e referências operacionais da BUILT.
+                            Consulte termos, políticas e MOUs aceitos por você.
                           </p>
                         </div>
                         <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" />
@@ -1743,7 +1837,7 @@ export default function PainelPage() {
                   type="button"
                   title="Copiar link"
                   onClick={async () => {
-                    const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink));
+                    const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink, meuConvite?.expires_at));
                     if (copied) {
                       toast({ title: "Convite copiado!", description: "A mensagem completa está pronta para compartilhar." });
                     } else {
@@ -1761,7 +1855,6 @@ export default function PainelPage() {
                   Expira em: {new Date(meuConvite.expires_at).toLocaleDateString("pt-BR")}
                 </p>
               )}
-              <InviteQrCode link={meuConviteLink} variant="light" />
               <button
                 type="button"
                 onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
@@ -1772,6 +1865,7 @@ export default function PainelPage() {
                 <RefreshCw className={`w-3.5 h-3.5 ${gerarConviteMutation.isPending ?"animate-spin" : ""}`} />
                 Gerar novo link
               </button>
+              <InviteQrCode link={meuConviteLink} variant="light" />
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-5 text-center space-y-3">

@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { useParams, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getBiaUrl } from "@/lib/bia-url";
 import {
   ArrowLeft, MapPin, Users, Briefcase, Shield,
   MessageCircle, Pencil, Globe, Calendar, Hash
@@ -47,6 +48,7 @@ interface Membro {
 }
 interface Bia {
   id: string;
+  codigo_publico?: string | null;
   nome_bia?: string;
   localizacao?: string;
 }
@@ -622,7 +624,7 @@ export default function ComunidadeDetalhePage() {
             {bias.map(b => (
               <button
                 key={b.id}
-                onClick={() => navigate(`/bias/${b.id}`)}
+                onClick={() => navigate(getBiaUrl(b))}
                 className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors hover:bg-white/5 group"
                 style={{ border: "1px solid rgba(255,255,255,0.04)" }}
                 data-testid={`btn-bia-${b.id}`}

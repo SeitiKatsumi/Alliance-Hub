@@ -69,12 +69,6 @@ function extractLexicoDimension(item: RawLexicoItem): LexicoItem["dimensao"] {
   return value === "T" || value === "R" || value === "C" ? value : undefined;
 }
 
-const DIMENSAO_LABEL: Record<string, string> = {
-  T: "Técnica",
-  R: "Relacional",
-  C: "Comportamental",
-};
-
 const DIMENSAO_COLOR: Record<string, string> = {
   T: "text-sky-400 border-sky-500/30 bg-sky-500/10",
   R: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
@@ -528,7 +522,7 @@ export default function AvaliarAuraCandidatoPage() {
                 key={item.canonico}
                 onClick={() => !isDisabled && toggleWord(item.canonico)}
                 disabled={isDisabled}
-                className={`flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-mono ${isSelected
+                className={`flex min-h-11 items-center px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-mono ${isSelected
                   ?`${DIMENSAO_COLOR[dimensao]} border-opacity-60`
                   : isDisabled
                     ?"border-white/5 text-white/20 cursor-not-allowed"
@@ -536,8 +530,7 @@ export default function AvaliarAuraCandidatoPage() {
                 data-testid={`btn-palavra-${item.canonico}`}
                 style={{ background: isSelected ?undefined : "rgba(255,255,255,0.02)" }}
               >
-                <span className="font-semibold">{item.canonico}</span>
-                <span className="text-[10px] opacity-60">{DIMENSAO_LABEL[dimensao]}</span>
+                <span className="font-semibold leading-snug">{item.canonico}</span>
               </button>
             );
           })}

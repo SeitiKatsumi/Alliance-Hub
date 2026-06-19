@@ -87,11 +87,14 @@ export function PhoneInput({
       <select
         value={selected.dialCode}
         onChange={(event) => onChange(formatPhoneValue(event.target.value, parsed.number))}
-        className={cn("w-[92px] shrink-0 border-0 border-r border-input bg-muted/40 px-2 text-sm font-medium text-foreground outline-none", selectClassName)}
+        className={cn(
+          "w-[92px] shrink-0 border-0 border-r border-input bg-[#001D34] px-2 text-sm font-medium text-white outline-none [&>option]:bg-[#001D34] [&>option]:text-white",
+          selectClassName,
+        )}
         aria-label="Código internacional"
       >
         {COUNTRY_CODES.map((item) => (
-          <option key={`${item.country}-${item.dialCode}`} value={item.dialCode}>
+          <option key={`${item.country}-${item.dialCode}`} value={item.dialCode} className="bg-[#001D34] text-white">
             {item.country} {item.dialCode}
           </option>
         ))}

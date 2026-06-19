@@ -5,6 +5,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
+import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { InviteQrCode } from "@/components/invite-qr-code";
@@ -144,6 +145,7 @@ interface ChamadaAlianca {
 
 interface BiasProjeto {
   id: string;
+  codigo_publico?: string | null;
   nome_bia: string;
   situacao?: "ativa" | "em_formacao" | null;
   bia_publica?: boolean | null;
@@ -1407,7 +1409,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
           {/* Close button */}
           <div className="absolute top-3 right-4 flex items-center gap-3">
             <button
-              onClick={() => navigate(`/bias/${selectedBia.id}`)}
+              onClick={() => navigate(getBiaUrl(selectedBia))}
               className="text-brand-gold/70 hover:text-brand-gold transition-colors font-mono text-xs tracking-widest border border-brand-gold/20 hover:border-brand-gold/50 px-2 py-0.5 rounded"
               data-testid="btn-map-navigate-bia"
             >
@@ -1597,7 +1599,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
     <Card
       className="group cursor-pointer overflow-hidden border-border/70 bg-card shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
       data-testid={`card-bia-${bia.id}`}
-      onClick={() => navigate(`/bias/${bia.id}`)}
+      onClick={() => navigate(getBiaUrl(bia))}
     >
       <CardContent className="p-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -1638,7 +1640,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
                   {bia.latitude && bia.longitude && <Crosshair className="h-3 w-3 shrink-0 text-blue-500/60" aria-label="Geolocalizado" />}
                 </span>
               )}
-              {bia.id && <span className="font-mono text-[11px]">BIA-{bia.id.slice(0, 8).toUpperCase()}</span>}
+              {(bia.codigo_publico || bia.id) && <span className="font-mono text-[11px]">BIA-{getBiaPublicRef(bia).toUpperCase()}</span>}
             </div>
             <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
               {bia.observacoes || bia.objetivo_alianca || "Aliança patrimonial integrada BUILT."}
@@ -1693,7 +1695,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
               variant="outline"
               size="sm"
               className="h-8 min-w-[112px] border-blue-200 px-4 text-xs text-blue-700 hover:bg-blue-50"
-              onClick={(e) => { e.stopPropagation(); navigate(`/bias/${bia.id}`); }}
+              onClick={(e) => { e.stopPropagation(); navigate(getBiaUrl(bia)); }}
               data-testid={`btn-view-bia-${bia.id}`}
             >
               Ver detalhes
@@ -3390,7 +3392,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   type="button"
                   title="Copiar link"
                   onClick={async () => {
-                    const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink));
+                    const copied = await copyTextToClipboard(formatBuiltInviteMessage(meuConviteLink, meuConvite?.expires_at));
                     if (copied) {
                       toast({ title: "Convite copiado!", description: "A mensagem completa está pronta para compartilhar." });
                     } else {
@@ -3408,7 +3410,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   Expira em: {new Date(meuConvite.expires_at).toLocaleDateString("pt-BR")}
                 </p>
               )}
-              <InviteQrCode link={meuConviteLink} variant="light" />
               <button
                 type="button"
                 onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
@@ -3419,6 +3420,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 <RefreshCw className={`w-3.5 h-3.5 ${gerarConviteMutation.isPending ? "animate-spin" : ""}`} />
                 Gerar novo link
               </button>
+              <InviteQrCode link={meuConviteLink} variant="light" />
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border p-5 text-center space-y-3">

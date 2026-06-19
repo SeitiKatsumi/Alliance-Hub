@@ -1,11 +1,25 @@
 import { useParams, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getBiaUrl } from "@/lib/bia-url";
 import FluxoCaixaPage from "./fluxo-caixa";
+
+type BiaRef = {
+  id: string;
+  codigo_publico?: string | null;
+  nome_bia?: string | null;
+};
 
 export default function MovimentacaoCotasPage() {
   const { biaId } = useParams<{ biaId: string }>();
   const [, navigate] = useLocation();
+  const { data: bia } = useQuery<BiaRef>({
+    queryKey: ["/api/bias", biaId],
+    queryFn: () => fetch(`/api/bias/${biaId}`).then(r => r.json()),
+    enabled: !!biaId,
+  });
+  const internalBiaId = bia?.id || biaId;
 
   return (
     <div className="space-y-4">
@@ -14,7 +28,7 @@ export default function MovimentacaoCotasPage() {
           variant="ghost"
           size="sm"
           className="-ml-2 gap-2 text-muted-foreground"
-          onClick={() => navigate(`/bias/${biaId}`)}
+          onClick={() => navigate(bia ? getBiaUrl(bia) : `/bias/${biaId}`)}
           data-testid="btn-voltar-bia-movimentacao-cotas"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -33,7 +47,7 @@ export default function MovimentacaoCotasPage() {
         </div>
       </div>
       <div className="mx-auto max-w-7xl px-8 pb-6 lg:px-10">
-        <FluxoCaixaPage initialBiaId={biaId} embedded cotasOnly />
+        <FluxoCaixaPage initialBiaId={internalBiaId} embedded cotasOnly />
       </div>
     </div>
   );

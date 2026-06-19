@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
   Wallet, TrendingDown, Target, Building2, Globe,
-  Pencil, Layers, FileText, Users, Paperclip, ExternalLink
+  Pencil, Layers, FileText, Users, Paperclip, ExternalLink, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,9 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { getBiaPublicRef } from "@/lib/bia-url";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import NucleoTecnicoPage from "./nucleo-tecnico";
 import NucleoObraPage from "./nucleo-obra";
 import NucleoComercialPage from "./nucleo-comercial";
@@ -30,6 +33,7 @@ interface AnexoFile {
 
 interface BiasProjeto {
   id: string;
+  codigo_publico?: string | null;
   nome_bia: string;
   objetivo_alianca?: string;
   observacoes?: string;
@@ -265,6 +269,7 @@ export default function BiaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activeDetailTab, setActiveDetailTab] = useState("visao");
   const [editOpen, setEditOpen] = useState(false);
 
@@ -277,10 +282,49 @@ export default function BiaDetalhePage() {
   const { data: membrosRaw = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
   const { data: opasRaw = [] } = useQuery<Oportunidade[]>({ queryKey: ["/api/oportunidades"] });
   const { data: aportesRaw = [] } = useQuery<AporteEntry[]>({
-    queryKey: ["/api/bias", id, "aportes"],
-    queryFn: () => fetch(`/api/bias/${id}/aportes`).then(r => r.json()),
-    enabled: !!id,
+    queryKey: ["/api/bias", bia?.id, "aportes"],
+    queryFn: () => fetch(`/api/bias/${bia!.id}/aportes`).then(r => r.json()),
+    enabled: !!bia?.id,
   });
+
+  const gerarMouMutation = useMutation({
+    mutationFn: async () => {
+      if (!bia?.id) throw new Error("BIA nao encontrada.");
+      const res = await apiRequest("POST", `/api/bias/${bia.id}/gerar-mou-padrao`);
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nucleo-tecnico-docs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alianca-docs", "tecnico"] });
+      toast({
+        title: "MOU Padrao gerado",
+        description: data?.warning || "O documento foi salvo em Juridicas da BIA.",
+        variant: data?.warning ? "destructive" : undefined,
+      });
+      const url = data?.arquivo?.url || data?.item?.arquivos?.[0]?.url;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e: any) => {
+      const message = String(e?.message || "");
+      if (message.includes("401") || message.toLowerCase().includes("nao autenticado") || message.toLowerCase().includes("não autenticado")) {
+        toast({
+          title: "Sessao expirada",
+          description: "Entre novamente para gerar o MOU Padrao.",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+      toast({ title: "Erro ao gerar MOU", description: e.message, variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    const publicRef = getBiaPublicRef(bia);
+    if (id && publicRef && publicRef !== id) {
+      navigate(`/bias/${publicRef}`, { replace: true });
+    }
+  }, [bia, id, navigate]);
 
   const membros = useMemo(() => {
     const m: Record<string, string> = {};
@@ -289,8 +333,8 @@ export default function BiaDetalhePage() {
   }, [membrosRaw]);
 
   const opas = useMemo(
-    () => (opasRaw as Oportunidade[]).filter(o => o.bia_id === id),
-    [opasRaw, id]
+    () => (opasRaw as Oportunidade[]).filter(o => o.bia_id === bia?.id),
+    [opasRaw, bia?.id]
   );
 
   const equipe = useMemo(() => {
@@ -492,6 +536,10 @@ export default function BiaDetalhePage() {
         <div className="relative z-10">
           <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono mb-1">// BUILT Alliances · BIA</p>
           <h1 className="text-2xl font-bold text-cyan-300 font-mono tracking-wide">{bia.nome_bia}</h1>
+          <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-mono text-cyan-100/80">
+            <span className="uppercase tracking-[0.22em] text-cyan-300/55">Código da BIA</span>
+            <span className="truncate text-cyan-100">{getBiaPublicRef(bia).toUpperCase()}</span>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {bia.localizacao && (
@@ -725,6 +773,23 @@ export default function BiaDetalhePage() {
                     <p className="mb-4 text-sm text-muted-foreground">
                       Governança, papéis estratégicos e coordenação da BIA.
                     </p>
+                    <div className="mb-4 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => gerarMouMutation.mutate()}
+                        disabled={gerarMouMutation.isPending}
+                        className="h-9 shrink-0 gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                        data-testid="btn-gerar-mou-padrao-diretoria"
+                      >
+                        {gerarMouMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4" />
+                        )}
+                        {gerarMouMutation.isPending ? "Gerando..." : "Gerar MOU Padrão"}
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {equipe.map((e, i) => (
                         <MembroChip

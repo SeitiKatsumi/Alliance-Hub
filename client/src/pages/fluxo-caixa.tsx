@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getBiaPublicRef } from "@/lib/bia-url";
 import { useToast } from "@/hooks/use-toast";
 import {
   Wallet,
@@ -69,6 +70,7 @@ import {
 
 interface BiasProjeto {
   id: string;
+  codigo_publico?: string | null;
   nome_bia: string;
   objetivo_alianca?: string;
   valor_origem?: string | number | null;
@@ -2737,7 +2739,7 @@ export default function FluxoCaixaPage({
                 <Button
                   variant="outline"
                   className="shrink-0 gap-2 border-blue-500/40 text-blue-700 hover:bg-blue-50"
-                  onClick={() => navigate(`/movimentacao-cotas/${selectedBiaId}`)}
+                  onClick={() => navigate(`/movimentacao-cotas/${getBiaPublicRef(selectedBia) || selectedBiaId}`)}
                   data-testid="btn-abrir-movimentacao-cotas"
                 >
                   Abrir Mapa

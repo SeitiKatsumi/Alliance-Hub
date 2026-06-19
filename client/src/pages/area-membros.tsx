@@ -81,6 +81,11 @@ function fotoUrlMap(m: MembroBuilt): string | null {
   return `/api/assets/${f}?width=80&height=80&fit=cover&v=${ASSET_CACHE_VERSION}`;
 }
 
+function hasMembroBuiltSeal(m?: Pick<MembroBuilt, "Outras_redes_as_quais_pertenco"> | null): boolean {
+  const redes = Array.isArray(m?.Outras_redes_as_quais_pertenco) ? m.Outras_redes_as_quais_pertenco : [];
+  return redes.includes("BUILT_PROUD_MEMBER");
+}
+
 function getInitials(nome?: string): string {
   if (!nome) return "?";
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -754,8 +759,10 @@ export default function AreMembroPage() {
     enabled: canAccessMembrosAliados,
   });
 
+  const membrosComSelo = useMemo(() => membros.filter(hasMembroBuiltSeal), [membros]);
+
   const filtered = useMemo(() => {
-    return membros.filter(m => {
+    return membrosComSelo.filter(m => {
       const nome = (m.nome || "").toLowerCase();
       const empresa = (m.empresa || "").toLowerCase();
       const esp = (m.especialidade || "").toLowerCase();
@@ -764,7 +771,7 @@ export default function AreMembroPage() {
       const matchEstado = filterEstado === "all" || (m.estado || "").toUpperCase() === filterEstado;
       return matchSearch && matchEstado;
     });
-  }, [membros, search, filterEstado]);
+  }, [membrosComSelo, search, filterEstado]);
 
   // Loading state
   if (loadingMe || (membroId && loadingMe)) {
@@ -825,12 +832,12 @@ export default function AreMembroPage() {
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-gold/20"
           style={{ background: "rgba(215,187,125,0.06)" }}>
           <Users className="w-4 h-4 text-brand-gold/60" />
-          <span className="text-sm font-mono text-brand-gold/80">{membros.length} membros</span>
+          <span className="text-sm font-mono text-brand-gold/80">{membrosComSelo.length} membros</span>
         </div>
       </div>
 
       {/* Map */}
-      <MapaMembros membros={membros} />
+      <MapaMembros membros={membrosComSelo} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">

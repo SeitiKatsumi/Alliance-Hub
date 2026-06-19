@@ -18,6 +18,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { getBiaUrl } from "@/lib/bia-url";
 import { OpaFormDialog } from "@/pages/oportunidades";
 
 interface AnexoFile {
@@ -51,6 +52,7 @@ interface Oportunidade {
 
 interface BiasProjeto {
   id: string;
+  codigo_publico?: string | null;
   nome_bia: string;
   localizacao?: string;
   moeda?: string;
@@ -425,7 +427,7 @@ export default function OpaDetalhePage() {
                     hasSeal ?"cursor-pointer hover:border-brand-gold/40" : "cursor-default"
                   }`}
                   style={{ background: "rgba(215,187,125,0.04)" }}
-                  onClick={hasSeal ?() => navigate(`/bias/${bia.id}`) : undefined}
+                  onClick={hasSeal ?() => navigate(getBiaUrl(bia)) : undefined}
                   data-testid="link-bia-vinculada"
                 >
                   <Layers className="w-4 h-4 text-brand-gold/50 shrink-0" />
@@ -707,7 +709,7 @@ export default function OpaDetalhePage() {
                   {bia && (
                     <Button
                       variant="outline"
-                      onClick={() => navigate(`/bias/${bia.id}`)}
+                      onClick={() => navigate(getBiaUrl(bia))}
                       data-testid="btn-opa-gestao-bia"
                     >
                       Abrir BIA

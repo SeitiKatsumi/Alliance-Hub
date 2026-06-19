@@ -1,4 +1,4 @@
-import type { Express, Request } from "express";
+﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites } from "@shared/schema";
@@ -53,10 +53,10 @@ const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
 function isBootstrapSuperAdmin(email?: string | null) {
   return !!email && BOOTSTRAP_SUPERADMIN_EMAILS.has(String(email).trim().toLowerCase());
 }
-// Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE — discovered at runtime
+// Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE â€” discovered at runtime
 const biasBlockedFields = new Set<string>();
 
-// Resolved at startup: actual collection name for comunidade (default is "Comunidade" — confirmed always correct)
+// Resolved at startup: actual collection name for comunidade (default is "Comunidade" â€” confirmed always correct)
 let COMUNIDADE_COL = "Comunidade";
 // Promise that resolves once ensureComunidadeFields() has discovered the real collection name
 let comunidadeColResolve: (() => void) | null = null;
@@ -101,9 +101,15 @@ function pickFilledBiaInfoComercialFields(source: Record<string, any> = {}) {
 async function ensureBiasExtraFields() {
   const fields = [
     {
+      field: "codigo_publico",
+      type: "string",
+      meta: { interface: "input", display: "raw", hidden: false, note: "Codigo publico curto usado na URL da BIA" },
+      schema: { is_nullable: true, is_unique: true, max_length: 10 },
+    },
+    {
       field: "situacao",
       type: "string",
-      meta: { interface: "select-dropdown", display: "raw", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Em Formação", value: "em_formacao" }] } },
+      meta: { interface: "select-dropdown", display: "raw", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Em FormaÃ§Ã£o", value: "em_formacao" }] } },
       schema: { is_nullable: true, default_value: "ativa" },
     },
     {
@@ -115,7 +121,7 @@ async function ensureBiasExtraFields() {
     {
       field: "bia_publica",
       type: "boolean",
-      meta: { interface: "boolean", display: "boolean", hidden: false, note: "Controla se a BIA aparece na listagem pública" },
+      meta: { interface: "boolean", display: "boolean", hidden: false, note: "Controla se a BIA aparece na listagem pÃºblica" },
       schema: { is_nullable: true, default_value: true },
     },
     {
@@ -180,25 +186,25 @@ async function ensureBiasExtraFields() {
     {
       field: "moeda",
       type: "string",
-      meta: { interface: "input", display: "raw", hidden: false, note: "Código ISO da moeda (ex: BRL, USD, EUR)" },
+      meta: { interface: "input", display: "raw", hidden: false, note: "CÃ³digo ISO da moeda (ex: BRL, USD, EUR)" },
       schema: { is_nullable: true, default_value: "BRL" },
     },
     {
       field: "socios_multiplicadores",
       type: "text",
-      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs dos Sócios Multiplicadores" },
+      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs dos SÃ³cios Multiplicadores" },
       schema: { is_nullable: true },
     },
     {
       field: "socios_guardioes",
       type: "text",
-      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs dos Sócios Guardiões" },
+      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs dos SÃ³cios GuardiÃµes" },
       schema: { is_nullable: true },
     },
     {
       field: "terceiros",
       type: "text",
-      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs de Terceiros vinculados à BIA" },
+      meta: { interface: "input-code", display: "raw", hidden: false, note: "JSON com IDs de Terceiros vinculados Ã  BIA" },
       schema: { is_nullable: true },
     },
     ...BIA_INFO_COMERCIAL_FIELDS.map((field) => ({
@@ -208,7 +214,7 @@ async function ensureBiasExtraFields() {
         interface: "input",
         display: "raw",
         hidden: false,
-        note: "Campo da aba Informações da BIA",
+        note: "Campo da aba InformaÃ§Ãµes da BIA",
       },
       schema: { is_nullable: true },
     })),
@@ -251,7 +257,7 @@ async function ensureNomeBiaLength() {
     }
     console.log("[bia] nome_bia current schema:", JSON.stringify(nomeBiaField?.schema));
 
-    // Force ALTER TABLE to varchar(500) — fix MySQL column that may be too short or wrongly typed as text
+    // Force ALTER TABLE to varchar(500) â€” fix MySQL column that may be too short or wrongly typed as text
     const patchRes = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/nome_bia`, {
       method: "PATCH",
       headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
@@ -396,7 +402,7 @@ async function ensureOpaMediaFields() {
         interface: "input",
         display: "raw",
         hidden: false,
-        note: "Ramo de atuação da OPA usado no Painel de Convergência",
+        note: "Ramo de atuaÃ§Ã£o da OPA usado no Painel de ConvergÃªncia",
       },
       schema: { is_nullable: true },
     },
@@ -407,7 +413,7 @@ async function ensureOpaMediaFields() {
         interface: "input",
         display: "raw",
         hidden: true,
-        note: "Usuário local que criou a OPA",
+        note: "UsuÃ¡rio local que criou a OPA",
       },
       schema: { is_nullable: true },
     },
@@ -455,8 +461,8 @@ async function ensureVitrineFields() {
     { field: "foto_posicao_y", type: "float", meta: { interface: "input", hidden: false, note: "Posicao vertical da foto de perfil (0 a 100)" }, schema: { is_nullable: true, default_value: 50 } },
     { field: "logo_empresa", type: "uuid", meta: { interface: "file-image", display: "image", hidden: false, note: "Logo ou marca da empresa" }, schema: { is_nullable: true } },
     { field: "especialidade_livre", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Especialidade em texto livre" }, schema: { is_nullable: true } },
-    { field: "ramo_atuacao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Ramo de atuação (cascata)" }, schema: { is_nullable: true } },
-    { field: "segmento", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Segmento dentro do ramo de atuação" }, schema: { is_nullable: true } },
+    { field: "ramo_atuacao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Ramo de atuaÃ§Ã£o (cascata)" }, schema: { is_nullable: true } },
+    { field: "segmento", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Segmento dentro do ramo de atuaÃ§Ã£o" }, schema: { is_nullable: true } },
     {
       field: "area_atuacao",
       type: "string",
@@ -464,7 +470,7 @@ async function ensureVitrineFields() {
         interface: "select-dropdown",
         display: "raw",
         hidden: false,
-        note: "Abrangência de atuação do membro",
+        note: "AbrangÃªncia de atuaÃ§Ã£o do membro",
         options: {
           choices: [
             { text: "Local", value: "Local" },
@@ -477,8 +483,8 @@ async function ensureVitrineFields() {
       schema: { is_nullable: true },
     },
     { field: "idiomas", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Idiomas falados" }, schema: { is_nullable: true } },
-    { field: "nucleos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos núcleos de aliança" }, schema: { is_nullable: true } },
-    { field: "tipos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "Múltiplos tipos de aliança" }, schema: { is_nullable: true } },
+    { field: "nucleos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "MÃºltiplos nÃºcleos de alianÃ§a" }, schema: { is_nullable: true } },
+    { field: "tipos_alianca", type: "json", meta: { interface: "tags", display: "raw", hidden: false, note: "MÃºltiplos tipos de alianÃ§a" }, schema: { is_nullable: true } },
     { field: "codigo_etica_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Codigo de Etica BUILT" }, schema: { is_nullable: true } },
     { field: "codigo_etica_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Codigo de Etica aceito" }, schema: { is_nullable: true } },
     { field: "politicas_participacao_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite das Politicas de Participacao e Protecao BUILT" }, schema: { is_nullable: true } },
@@ -590,7 +596,7 @@ async function directusFetch(collection: string, params: string = "") {
   }
 }
 
-// Like directusFetch but does NOT prepend fields=* — for targeted queries with explicit fields + filters
+// Like directusFetch but does NOT prepend fields=* â€” for targeted queries with explicit fields + filters
 async function directusFetchScoped(collection: string, params: string) {
   const hasLimit = /(^|&)limit=/.test(params);
   const url = `${DIRECTUS_URL}/items/${collection}?${hasLimit ? "" : "limit=-1&"}${params}`;
@@ -863,6 +869,65 @@ async function directusUpdate(collection: string, id: string, data: Record<strin
   }
 }
 
+const BIA_PUBLIC_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const BIA_PUBLIC_CODE_LENGTH = 10;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const BIA_PUBLIC_CODE_RE = /^[A-Z2-9]{10}$/;
+
+function generateBiaPublicCode(): string {
+  let code = "";
+  for (let i = 0; i < BIA_PUBLIC_CODE_LENGTH; i++) {
+    code += BIA_PUBLIC_CODE_ALPHABET[Math.floor(Math.random() * BIA_PUBLIC_CODE_ALPHABET.length)];
+  }
+  return code;
+}
+
+function normalizeBiaPublicCode(value: string): string {
+  return String(value || "").trim().toUpperCase();
+}
+
+async function findBiaByPublicCode(code: string, fields = "id,codigo_publico") {
+  const normalized = normalizeBiaPublicCode(code);
+  if (!BIA_PUBLIC_CODE_RE.test(normalized)) return null;
+  const items = await directusFetchScoped(
+    "bias_projetos",
+    `filter[codigo_publico][_eq]=${encodeURIComponent(normalized)}&limit=1&fields=${encodeURIComponent(fields)}`
+  );
+  return items[0] || null;
+}
+
+async function createUniqueBiaPublicCode(): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const code = generateBiaPublicCode();
+    const existing = await findBiaByPublicCode(code, "id").catch(() => null);
+    if (!existing) return code;
+  }
+  throw new Error("Nao foi possivel gerar codigo publico unico para a BIA.");
+}
+
+async function ensureBiaPublicCode(item: any): Promise<any> {
+  if (!item?.id || item.codigo_publico) return item;
+  const codigo_publico = await createUniqueBiaPublicCode();
+  try {
+    const updated = await directusUpdate("bias_projetos", item.id, { codigo_publico });
+    return updated && Object.keys(updated).length > 0 ? updated : { ...item, codigo_publico };
+  } catch (error: any) {
+    console.warn(`[bia] nao foi possivel salvar codigo_publico para ${item.id}:`, error?.message || error);
+    return { ...item, codigo_publico };
+  }
+}
+
+async function resolveBiaByIdOrPublicCode(idOrCode: string, fields = "*,Anexos.directus_files_id.*") {
+  const ref = String(idOrCode || "").trim();
+  if (!ref) return null;
+  if (UUID_RE.test(ref)) {
+    const item = await directusFetchOne("bias_projetos", ref, `fields=${fields}`);
+    return item ? await ensureBiaPublicCode(item) : null;
+  }
+  const byCode = await findBiaByPublicCode(ref, fields);
+  return byCode ? await ensureBiaPublicCode(byCode) : null;
+}
+
 type DirectusFieldInfo = { field: string; type?: string; special?: string[] | null };
 const directusFieldInfoCache = new Map<string, DirectusFieldInfo[]>();
 
@@ -1030,13 +1095,13 @@ async function findOrCreateValorOrigemCategoria(): Promise<number> {
   if (existing) return existing.id;
   const created = await directusCreate("Categorias", {
     Nome_da_categoria: "1.1 Valor de Origem",
-    Tipo_de_categoria: "Saída",
-    Descricao_das_categorias: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO",
+    Tipo_de_categoria: "SaÃ­da",
+    Descricao_das_categorias: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO",
   });
   return created.id;
 }
 
-// Cache of category name → id to avoid repeated Directus calls within a sync
+// Cache of category name â†’ id to avoid repeated Directus calls within a sync
 let _catCache: Record<string, number> | null = null;
 async function findCppCategoriaId(categoryName: string): Promise<number | null> {
   if (!_catCache) {
@@ -1066,7 +1131,7 @@ async function findTipoCppId(nome: string): Promise<number | null> {
         if (n) _tipoCppCache[n.trim()] = t.id;
       }
     } catch (err: any) {
-      console.warn(`[findTipoCppId] Could not fetch tipos_cpp: ${err.message} — tipo_de_cpp will be empty`);
+      console.warn(`[findTipoCppId] Could not fetch tipos_cpp: ${err.message} â€” tipo_de_cpp will be empty`);
       _tipoCppCache = {};
     }
   }
@@ -1074,13 +1139,13 @@ async function findTipoCppId(nome: string): Promise<number | null> {
 }
 
 const CPP_CONTRIBUTOR_CATEGORY: Record<string, string> = {
-  "BUILT":               "Direito Econômico Institucional BUILT (DEI-B)",
-  "Aliado BUILT":        "Direito Econômico Institucional do Aliado (DEI-A)",
-  "Dir. de Aliança":     "Direito Econômico por Liderança de Aliança (DE-LA)",
-  "Dir. Núcleo Técnico": "Direito Econômico por Liderança Técnica (DE-LTec)",
-  "Dir. Núcleo de Obra": "Direito Econômico por Liderança de Obra (DE-LObr)",
-  "Dir. Núcleo Comercial":"Direito Econômico por Liderança Comercial (DE-LCom)",
-  "Dir. Núcleo de Capital":"Direito Econômico por Liderança de Capital (DE-LCap)",
+  "BUILT":               "Direito EconÃ´mico Institucional BUILT (DEI-B)",
+  "Aliado BUILT":        "Direito EconÃ´mico Institucional do Aliado (DEI-A)",
+  "Dir. de AlianÃ§a":     "Direito EconÃ´mico por LideranÃ§a de AlianÃ§a (DE-LA)",
+  "Dir. NÃºcleo TÃ©cnico": "Direito EconÃ´mico por LideranÃ§a TÃ©cnica (DE-LTec)",
+  "Dir. NÃºcleo de Obra": "Direito EconÃ´mico por LideranÃ§a de Obra (DE-LObr)",
+  "Dir. NÃºcleo Comercial":"Direito EconÃ´mico por LideranÃ§a Comercial (DE-LCom)",
+  "Dir. NÃºcleo de Capital":"Direito EconÃ´mico por LideranÃ§a de Capital (DE-LCap)",
 };
 
 interface CppContributor {
@@ -1111,11 +1176,11 @@ async function syncValorOrigemLancamento(
   const MARCA_BASE = "Valor de Origem da BIA";
   const CPP_MARCA = "CPP";
   const DIVISOR_MARCA = "Divisor Multiplicador";
-  const APORTE_MARCA = "Aporte do Fator de Multiplicação";
+  const APORTE_MARCA = "Aporte do Fator de MultiplicaÃ§Ã£o";
   _catCache = null;
   _tipoCppCache = null; // reset per-sync so stale IDs are never used
 
-  // Fetch only this BIA's fluxo_caixa entries — server-side filtered, minimal fields
+  // Fetch only this BIA's fluxo_caixa entries â€” server-side filtered, minimal fields
   let existing: any[] = [];
   try {
     const biaEntries = await directusFetchScoped(
@@ -1127,7 +1192,7 @@ async function syncValorOrigemLancamento(
       return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId)) || desc.startsWith(DIVISOR_MARCA) || desc.startsWith(APORTE_MARCA);
     });
   } catch (fetchErr: any) {
-    console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} — skipping cleanup`);
+    console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} â€” skipping cleanup`);
   }
 
   // Bulk-clear M2M relations then bulk-delete all existing entries (2 API calls regardless of count)
@@ -1163,8 +1228,8 @@ async function syncValorOrigemLancamento(
     }
     const hasAporte = contributors.some(c => c.isAporte && c.memberId);
     if (hasAporte) {
-      aporteCatId = await findCppCategoriaId("Esforço multiplicador convertido em CPP");
-      aporteTipoCppId = await findTipoCppId("CPP de Liderança");
+      aporteCatId = await findCppCategoriaId("EsforÃ§o multiplicador convertido em CPP");
+      aporteTipoCppId = await findTipoCppId("CPP de LideranÃ§a");
     }
   }
 
@@ -1342,7 +1407,7 @@ const upload = multer({
     if (allowed.includes(ext) || allowedMime.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Tipo de arquivo não permitido: ${ext || file.mimetype}`));
+      cb(new Error(`Tipo de arquivo nÃ£o permitido: ${ext || file.mimetype}`));
     }
   },
 });
@@ -1411,10 +1476,10 @@ async function ensureNucleoTecnicoCollection() {
         fields: [
           { field: "id", type: "uuid", meta: { hidden: true, readonly: true, interface: "input", special: ["uuid"] }, schema: { is_primary_key: true, has_auto_increment: false } },
           { field: "bia_id", type: "string", meta: { interface: "input", label: "BIA ID" }, schema: { is_nullable: true } },
-          { field: "alianca_tipo", type: "string", meta: { interface: "select-dropdown", label: "Tipo de Aliança" }, schema: { is_nullable: true } },
+          { field: "alianca_tipo", type: "string", meta: { interface: "select-dropdown", label: "Tipo de AlianÃ§a" }, schema: { is_nullable: true } },
           { field: "tipo_documento", type: "string", meta: { interface: "input", label: "Tipo de Documento" }, schema: { is_nullable: true } },
-          { field: "descricao", type: "text", meta: { interface: "input-multiline", label: "Descrição" }, schema: { is_nullable: true } },
-          { field: "membro_responsavel", type: "string", meta: { interface: "input", label: "Membro Responsável" }, schema: { is_nullable: true } },
+          { field: "descricao", type: "text", meta: { interface: "input-multiline", label: "DescriÃ§Ã£o" }, schema: { is_nullable: true } },
+          { field: "membro_responsavel", type: "string", meta: { interface: "input", label: "Membro ResponsÃ¡vel" }, schema: { is_nullable: true } },
           { field: "arquivo_ids", type: "json", meta: { interface: "tags", label: "Arquivos (IDs)" }, schema: { is_nullable: true } },
           { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
         ],
@@ -1450,8 +1515,8 @@ async function ensureEstudosViabilidadeCollection() {
     const fields = [
       { field: "bia_id", type: "string", meta: { interface: "input", label: "BIA ID" }, schema: { is_nullable: true } },
       { field: "tipo_documento", type: "string", meta: { interface: "select-dropdown", label: "Tipo de Documento" }, schema: { is_nullable: true } },
-      { field: "descricao", type: "text", meta: { interface: "input-multiline", label: "Descrição" }, schema: { is_nullable: true } },
-      { field: "membro_responsavel", type: "string", meta: { interface: "input", label: "Membro Responsável" }, schema: { is_nullable: true } },
+      { field: "descricao", type: "text", meta: { interface: "input-multiline", label: "DescriÃ§Ã£o" }, schema: { is_nullable: true } },
+      { field: "membro_responsavel", type: "string", meta: { interface: "input", label: "Membro ResponsÃ¡vel" }, schema: { is_nullable: true } },
       { field: "arquivo_ids", type: "json", meta: { interface: "tags", label: "Arquivos (IDs)" }, schema: { is_nullable: true } },
       { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
     ];
@@ -1782,7 +1847,7 @@ async function ensureComunidadeM2M(col: string, aliasField: string, relatedColle
   if (!ar.ok && !silent.has(ar.code!)) console.warn(`[comunidade] M2M alias '${aliasField}': ${ar.code}`);
   else if (!ar.ok) console.log(`[comunidade] M2M alias '${aliasField}': ${ar.code}`);
 
-  // 3. Relation: junction.fkParent → parent (carries one_field alias)
+  // 3. Relation: junction.fkParent â†’ parent (carries one_field alias)
   const r1 = await directusRelationPost({
     collection: junction, field: fkParent, related_collection: col,
     meta: {
@@ -1794,7 +1859,7 @@ async function ensureComunidadeM2M(col: string, aliasField: string, relatedColle
   if (!r1.ok && !silent.has(r1.code!)) console.warn(`[comunidade] M2M rel1 '${aliasField}': ${r1.code}`);
   else if (!r1.ok) console.log(`[comunidade] M2M rel1 '${aliasField}': ${r1.code}`);
 
-  // 4. Relation: junction.fkRelated → related collection
+  // 4. Relation: junction.fkRelated â†’ related collection
   const r2 = await directusRelationPost({
     collection: junction, field: fkRelated, related_collection: relatedCollection,
     meta: {
@@ -1819,7 +1884,7 @@ async function ensureComunidadeFields() {
       if (check.ok) { COL = name; break; }
     }
     if (!COL) {
-      console.warn("[comunidade] Collection not found in Directus — skipping field creation");
+      console.warn("[comunidade] Collection not found in Directus â€” skipping field creation");
       comunidadeColResolve?.(); // Unblock pending requests using default "Comunidade"
       return;
     }
@@ -1833,13 +1898,13 @@ async function ensureComunidadeFields() {
   // Scalar fields (INVALID_PAYLOAD can occur when field already exists with different meta)
   const silent = new Set(["RECORD_NOT_UNIQUE", "FORBIDDEN", "INVALID_PAYLOAD"]);
   const scalarFields = [
-    { field: "nome", type: "string", meta: { interface: "input", hidden: false, note: "BUILT País | Território | Comunidade A01" }, schema: { is_nullable: true } },
-    { field: "sigla", type: "string", meta: { interface: "input", hidden: false, note: "Código sistêmico: BR-BHZ-COM-A01" }, schema: { is_nullable: true } },
+    { field: "nome", type: "string", meta: { interface: "input", hidden: false, note: "BUILT PaÃ­s | TerritÃ³rio | Comunidade A01" }, schema: { is_nullable: true } },
+    { field: "sigla", type: "string", meta: { interface: "input", hidden: false, note: "CÃ³digo sistÃªmico: BR-BHZ-COM-A01" }, schema: { is_nullable: true } },
     { field: "pais", type: "string", meta: { interface: "input", hidden: false }, schema: { is_nullable: true } },
     { field: "sigla_pais", type: "string", meta: { interface: "input", hidden: false, note: "Ex: BR, PT, US" }, schema: { is_nullable: true } },
-    { field: "territorio", type: "string", meta: { interface: "input", hidden: false, note: "Cidade ou região" }, schema: { is_nullable: true } },
+    { field: "territorio", type: "string", meta: { interface: "input", hidden: false, note: "Cidade ou regiÃ£o" }, schema: { is_nullable: true } },
     { field: "sigla_territorio", type: "string", meta: { interface: "input", hidden: false, note: "Ex: BHZ, SPO" }, schema: { is_nullable: true } },
-    { field: "codigo_sequencial", type: "string", meta: { interface: "input", hidden: false, note: "A01, A02…B01" }, schema: { is_nullable: true } },
+    { field: "codigo_sequencial", type: "string", meta: { interface: "input", hidden: false, note: "A01, A02â€¦B01" }, schema: { is_nullable: true } },
     { field: "status", type: "string", meta: { interface: "select-dropdown", hidden: false, options: { choices: [{ text: "Ativa", value: "ativa" }, { text: "Inativa", value: "inativa" }] }, default_value: "ativa" }, schema: { is_nullable: true, default_value: "ativa" } },
     { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, hidden: false, special: ["date-created"] }, schema: { is_nullable: true } },
   ];
@@ -1848,13 +1913,13 @@ async function ensureComunidadeFields() {
     if (!r.ok && !silent.has(r.code!)) console.warn(`[comunidade] Scalar field '${f.field}': ${r.code}`);
   }
 
-  // M2O: aliado → cadastro_geral
+  // M2O: aliado â†’ cadastro_geral
   await ensureComunidadeM2O(COL, "aliado", "cadastro_geral");
 
-  // M2M: membros ↔ cadastro_geral (junction: ${COL}_membros)
+  // M2M: membros â†” cadastro_geral (junction: ${COL}_membros)
   await ensureComunidadeM2M(COL, "membros", "cadastro_geral");
 
-  // M2M: bias ↔ bias_projetos (junction: ${COL}_bias)
+  // M2M: bias â†” bias_projetos (junction: ${COL}_bias)
   await ensureComunidadeM2M(COL, "bias", "bias_projetos");
 
   console.log("[comunidade] Fields ensured (M2O/M2M)");
@@ -1993,7 +2058,7 @@ export async function registerRoutes(
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
     headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ meta: { note: "Descrição da BIA" } }),
+    body: JSON.stringify({ meta: { note: "DescriÃ§Ã£o da BIA" } }),
   }).catch(() => {});
 
   // Proxy para servir arquivos do Directus sem expor o token
@@ -2004,7 +2069,7 @@ export async function registerRoutes(
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
       });
       if (!directusRes.ok) {
-        return res.status(directusRes.status).json({ error: "Arquivo não encontrado" });
+        return res.status(directusRes.status).json({ error: "Arquivo nÃ£o encontrado" });
       }
       const contentType = directusRes.headers.get("content-type") || "application/octet-stream";
       const contentDisposition = directusRes.headers.get("content-disposition");
@@ -2023,7 +2088,7 @@ export async function registerRoutes(
       if (err) {
         if (err instanceof multer.MulterError) {
           if (err.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "Arquivo excede o limite de 10MB" });
-          if (err.code === "LIMIT_FILE_COUNT") return res.status(400).json({ error: "Máximo de 10 arquivos por vez" });
+          if (err.code === "LIMIT_FILE_COUNT") return res.status(400).json({ error: "MÃ¡ximo de 10 arquivos por vez" });
           return res.status(400).json({ error: err.message });
         }
         return res.status(400).json({ error: err.message });
@@ -2049,7 +2114,7 @@ export async function registerRoutes(
           if (!directusRes.ok) {
             const errText = await directusRes.text();
             console.error("Directus file upload error:", errText);
-            throw new Error(`Erro ao enviar arquivo ao Directus: ${directusRes.status} — ${errText}`);
+            throw new Error(`Erro ao enviar arquivo ao Directus: ${directusRes.status} â€” ${errText}`);
           }
 
           const json = await directusRes.json();
@@ -2065,14 +2130,14 @@ export async function registerRoutes(
 
   // ========== VITRINE (membros que optaram por aparecer na Vitrine) ==========
   app.get("/api/vitrine", async (req, res) => {
-    // Require authenticated session — Vitrine is available to all logged-in users
+    // Require authenticated session â€” Vitrine is available to all logged-in users
     if (!(req.session as any).directusUserId) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return res.status(401).json({ error: "NÃ£o autenticado" });
     }
     try {
       // Fetch all members with the na_vitrine field and filter server-side
       // (avoids URL bracket encoding issues with Directus filter API)
-      // Note: "especialidade" and "foto" are not direct fields — use Especialidades relation and foto_perfil instead
+      // Note: "especialidade" and "foto" are not direct fields â€” use Especialidades relation and foto_perfil instead
       const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
@@ -2110,15 +2175,15 @@ export async function registerRoutes(
     }
   });
 
-  // Single vitrine member — accessible to all authenticated users
+  // Single vitrine member â€” accessible to all authenticated users
   app.get("/api/vitrine/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return res.status(401).json({ error: "NÃ£o autenticado" });
     }
     try {
       const fields = "id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade";
       const m = await directusFetchOne("cadastro_geral", req.params.id, `fields=${fields}`);
-      if (!m) return res.status(404).json({ error: "Membro não encontrado" });
+      if (!m) return res.status(404).json({ error: "Membro nÃ£o encontrado" });
       const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
       const firstEsp = espArr[0]?.especialidades_id;
       res.json({
@@ -2148,25 +2213,11 @@ export async function registerRoutes(
   // ========== MEMBROS BUILT / BUILT Alliances (robust fallback) ==========
   app.get("/api/membros-built", async (req, res, next) => {
     if (!(req.session as any).directusUserId) {
-      return res.status(401).json({ error: "NÃ£o autenticado" });
+      return res.status(401).json({ error: "NÃƒÂ£o autenticado" });
     }
     const isBuiltAllianceMember = (m: any) => {
       const redes = Array.isArray(m?.Outras_redes_as_quais_pertenco) ? m.Outras_redes_as_quais_pertenco : [];
-      const text = [
-        m?.tipo_de_cadastro,
-        m?.tipo_alianca,
-        m?.nucleo_alianca,
-        ...(Array.isArray(m?.tipos_alianca) ? m.tipos_alianca : []),
-        ...(Array.isArray(m?.nucleos_alianca) ? m.nucleos_alianca : []),
-        ...redes,
-      ].filter(Boolean).join(" ").toLowerCase();
-      return m?.em_membros_built === true
-        || m?.em_membros_built === 1
-        || redes.includes("BUILT_PROUD_MEMBER")
-        || redes.includes("BUILT_FOUNDING_MEMBER")
-        || redes.includes("BUILT_ALLIANCE_PARTNER")
-        || text.includes("membro")
-        || text.includes("alian");
+      return redes.includes("BUILT_PROUD_MEMBER");
     };
     const normalizeBuiltMember = (m: any) => {
       const especialidades = (m.Especialidades || [])
@@ -2204,7 +2255,7 @@ export async function registerRoutes(
   // ========== MEMBROS BUILT (PROUD MEMBER only) ==========
   app.get("/api/membros-built", async (req, res) => {
     if (!(req.session as any).directusUserId) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return res.status(401).json({ error: "NÃ£o autenticado" });
     }
     try {
       const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
@@ -2242,7 +2293,7 @@ export async function registerRoutes(
   // ========== PARCEIROS CAPITAL ==========
   app.get("/api/parceiros-capital", async (req, res) => {
     if (!(req.session as any).directusUserId) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return res.status(401).json({ error: "NÃ£o autenticado" });
     }
     try {
       const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,ramo_atuacao,segmento,area_atuacao,latitude,longitude,link_site,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade&filter[em_built_capital][_eq]=true`;
@@ -2289,7 +2340,7 @@ export async function registerRoutes(
     return proxyDirectusAsset(req, res);
   });
 
-  // ========== ANÚNCIOS ==========
+  // ========== ANÃšNCIOS ==========
   await ensureAnunciosPagamentoFields().catch((err: any) => {
     console.warn(`[anuncios_pagamento] Campos de pagamento nao sincronizados: ${err.message}`);
   });
@@ -2408,7 +2459,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/anuncios/mine", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = (req.session as any).membroId;
       if (!membroId) return res.json([]);
@@ -2421,10 +2472,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/anuncios", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = (req.session as any).membroId;
-      if (!membroId) return res.status(400).json({ error: "Perfil de membro não vinculado" });
+      if (!membroId) return res.status(400).json({ error: "Perfil de membro nÃ£o vinculado" });
 
       const { titulo, descricao, link, imagem_directus_id } = req.body;
       const slotTipo = req.body?.slot_tipo === "hero" ? "hero" : "padrao";
@@ -2432,7 +2483,7 @@ export async function registerRoutes(
       const isSuperAdmin = (req.session as any).role === "admin";
       const janela = await getProximaJanelaAnuncio(slotTipo);
       const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, janela.inicio, janela.fim, undefined, slotTipo);
-      if (hasConflito) return res.status(409).json({ error: "Você já tem um anúncio ativo, agendado ou pendente neste intervalo." });
+      if (hasConflito) return res.status(409).json({ error: "VocÃª jÃ¡ tem um anÃºncio ativo, agendado ou pendente neste intervalo." });
 
       const anuncio = await storage.createAnuncio({
         membro_id: membroId,
@@ -2469,14 +2520,14 @@ export async function registerRoutes(
   });
 
   app.patch("/api/anuncios/:id", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = (req.session as any).membroId;
       const role = (req.session as any).role;
       const anuncio = await storage.getAnuncioById(req.params.id);
-      if (!anuncio) return res.status(404).json({ error: "Anúncio não encontrado" });
+      if (!anuncio) return res.status(404).json({ error: "AnÃºncio nÃ£o encontrado" });
       if (anuncio.membro_id !== membroId && role !== "admin") {
-        return res.status(403).json({ error: "Sem permissão" });
+        return res.status(403).json({ error: "Sem permissÃ£o" });
       }
       const { titulo, descricao, link, imagem_directus_id } = req.body;
       const updated = await storage.updateAnuncio(req.params.id, {
@@ -2492,14 +2543,14 @@ export async function registerRoutes(
   });
 
   app.delete("/api/anuncios/:id", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = (req.session as any).membroId;
       const role = (req.session as any).role;
       const anuncio = await storage.getAnuncioById(req.params.id);
-      if (!anuncio) return res.status(404).json({ error: "Anúncio não encontrado" });
+      if (!anuncio) return res.status(404).json({ error: "AnÃºncio nÃ£o encontrado" });
       if (anuncio.membro_id !== membroId && role !== "admin") {
-        return res.status(403).json({ error: "Sem permissão" });
+        return res.status(403).json({ error: "Sem permissÃ£o" });
       }
       await storage.deleteAnuncio(req.params.id);
       res.json({ success: true });
@@ -2525,7 +2576,7 @@ export async function registerRoutes(
     try {
       const { nome_especialidade, categoria } = req.body;
       if (!nome_especialidade?.trim()) {
-        return res.status(400).json({ error: "Nome da especialidade é obrigatório." });
+        return res.status(400).json({ error: "Nome da especialidade Ã© obrigatÃ³rio." });
       }
       const url = `${DIRECTUS_URL}/items/especialidades`;
       const r = await fetch(url, {
@@ -2577,7 +2628,7 @@ export async function registerRoutes(
 
   app.get("/api/membros", async (req, res) => {
     if (!(req.session as any).directusUserId) {
-      return res.status(401).json({ error: "Não autenticado" });
+      return res.status(401).json({ error: "NÃ£o autenticado" });
     }
     try {
       const items = await directusFetch("cadastro_geral", "fields=*,Especialidades.*.*");
@@ -2636,7 +2687,7 @@ export async function registerRoutes(
           especialidades_arr = esp.map((e: any) => {
             if (typeof e === "string") return e;
             if (typeof e === "number") return String(e);
-            // M2M junction: junction field is especialidades_id → nome_especialidade
+            // M2M junction: junction field is especialidades_id â†’ nome_especialidade
             const nested = e?.especialidades_id || e?.Especialidades_id || e?.especialidade_id || e;
             if (typeof nested === "object" && nested !== null) {
               return nested.nome_especialidade || nested.nome || nested.name || nested.titulo || nested.label || String(nested.id || "");
@@ -2681,10 +2732,10 @@ export async function registerRoutes(
   });
 
   app.get("/api/membros/:id", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const m = await directusFetchOne("cadastro_geral", req.params.id, "fields=*,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade");
-      if (!m) return res.status(404).json({ error: "Membro não encontrado" });
+      if (!m) return res.status(404).json({ error: "Membro nÃ£o encontrado" });
       // Extract first specialty id and name from M2M relation
       const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
       const firstEsp = espArr[0]?.especialidades_id;
@@ -2717,9 +2768,9 @@ export async function registerRoutes(
   });
 
   app.post("/api/membros/criar-favorecido", async (req, res) => {
-    if (!(req.session as any)?.membroId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any)?.membroId) return res.status(401).json({ error: "NÃ£o autenticado" });
     const { nome, empresa } = req.body;
-    if (!nome || !String(nome).trim()) return res.status(400).json({ error: "Nome é obrigatório" });
+    if (!nome || !String(nome).trim()) return res.status(400).json({ error: "Nome Ã© obrigatÃ³rio" });
     try {
       const item = await directusCreate("cadastro_geral", {
         nome: String(nome).trim(),
@@ -2743,7 +2794,7 @@ export async function registerRoutes(
           `filter[email][_eq]=${encodeURIComponent(emailInput)}&limit=1&fields=id,email`
         );
         if (existing && existing.length > 0) {
-          return res.status(409).json({ error: "Já existe um membro cadastrado com este e-mail." });
+          return res.status(409).json({ error: "JÃ¡ existe um membro cadastrado com este e-mail." });
         }
       }
       const item = await directusCreate("cadastro_geral", req.body);
@@ -2757,7 +2808,7 @@ export async function registerRoutes(
     if (!await requireCadastroOrOwn(req, res)) return;
     try {
       // Strip client-side computed and relational fields that must not be sent to Directus as plain PATCH
-      // Especialidades is a M2M junction — sending the full junction object array breaks the update silently
+      // Especialidades is a M2M junction â€” sending the full junction object array breaks the update silently
       const STRIP_FIELDS = ["Especialidades", "especialidades", "especialidade", "foto", "_nome", "cargo_computed"];
       const payload = Object.fromEntries(
         Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key))
@@ -2768,9 +2819,9 @@ export async function registerRoutes(
         const tipoPessoaLower = tipoPessoa.toLowerCase();
         if (tipoPessoa === "" || tipoPessoaLower === "null") {
           payload.tipo_pessoa = null;
-        } else if (tipoPessoa === "PF" || tipoPessoaLower.includes("física") || tipoPessoaLower.includes("fisica")) {
+        } else if (tipoPessoa === "PF" || tipoPessoaLower.includes("fÃ­sica") || tipoPessoaLower.includes("fisica")) {
           payload.tipo_pessoa = "PF";
-        } else if (tipoPessoa === "PJ" || tipoPessoaLower.includes("jurídica") || tipoPessoaLower.includes("juridica")) {
+        } else if (tipoPessoa === "PJ" || tipoPessoaLower.includes("jurÃ­dica") || tipoPessoaLower.includes("juridica")) {
           payload.tipo_pessoa = "PJ";
         } else if (tipoPessoa.length > 10) {
           delete payload.tipo_pessoa;
@@ -2906,9 +2957,9 @@ export async function registerRoutes(
     }
   });
 
-  // GET /api/membros/:id/comunidade — find which community this member belongs to
+  // GET /api/membros/:id/comunidade â€” find which community this member belongs to
   app.get("/api/membros/:id/comunidade", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
       const memberId = req.params.id;
@@ -2933,9 +2984,9 @@ export async function registerRoutes(
     }
   });
 
-  // GET /api/membros/:id/convidador — who invited this member (via vitrine invite link)
+  // GET /api/membros/:id/convidador â€” who invited this member (via vitrine invite link)
   app.get("/api/membros/:id/convidador", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const candidatoId = req.params.id;
       const convites = await storage.getConvitesByCandidato(candidatoId).catch((conviteError: any) => {
@@ -2962,7 +3013,7 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/membros/:id/comunidade — assign member to a community (and remove from old one)
+  // POST /api/membros/:id/comunidade â€” assign member to a community (and remove from old one)
   app.patch("/api/membros/:id/convidador", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;
     try {
@@ -2981,7 +3032,7 @@ export async function registerRoutes(
 
       const candidato = await getDirectusMembro(candidatoId).catch(() => null);
       const convidador = await getDirectusMembro(convidadorId).catch(() => null);
-      if (!convidador) return res.status(404).json({ error: "Convidador não encontrado" });
+      if (!convidador) return res.status(404).json({ error: "Convidador nÃ£o encontrado" });
 
       let comunidadeId = req.body?.comunidade_id ? String(req.body.comunidade_id) : null;
       if (!comunidadeId) {
@@ -3034,7 +3085,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/membros/:id/convites-comunidade", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = req.params.id;
       const col = await getComunidadeCol();
@@ -3232,11 +3283,11 @@ export async function registerRoutes(
   }
 
   const DIRETOR_SOLICITACAO_CONFIG = [
-    { campoDiretor: "diretor_alianca", campoPercentual: "perc_dir_alianca", papel: "Diretor de Aliança" },
-    { campoDiretor: "diretor_nucleo_tecnico", campoPercentual: "perc_dir_tecnico", papel: "Dir. Núcleo Técnico" },
-    { campoDiretor: "diretor_execucao", campoPercentual: "perc_dir_obras", papel: "Dir. Núcleo de Obra" },
-    { campoDiretor: "diretor_comercial", campoPercentual: "perc_dir_comercial", papel: "Dir. Núcleo Comercial" },
-    { campoDiretor: "diretor_capital", campoPercentual: "perc_dir_capital", papel: "Dir. Núcleo de Capital" },
+    { campoDiretor: "diretor_alianca", campoPercentual: "perc_dir_alianca", papel: "Diretor de AlianÃ§a" },
+    { campoDiretor: "diretor_nucleo_tecnico", campoPercentual: "perc_dir_tecnico", papel: "Dir. NÃºcleo TÃ©cnico" },
+    { campoDiretor: "diretor_execucao", campoPercentual: "perc_dir_obras", papel: "Dir. NÃºcleo de Obra" },
+    { campoDiretor: "diretor_comercial", campoPercentual: "perc_dir_comercial", papel: "Dir. NÃºcleo Comercial" },
+    { campoDiretor: "diretor_capital", campoPercentual: "perc_dir_capital", papel: "Dir. NÃºcleo de Capital" },
   ];
 
   const SOCIO_SOLICITACAO_CONFIG = [
@@ -3276,25 +3327,33 @@ export async function registerRoutes(
     return biaMouTextoCache;
   }
 
-  function mouValue(value: any, fallback = "não informado") {
+  function mouValue(value: any, fallback = "nÃ£o informado") {
     const text = value === null || value === undefined ? "" : String(value).trim();
     return text || fallback;
   }
 
+  function formatMouGenerationDate(date = new Date()) {
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  function substituirLocalAssinaturaPorData(texto: string, date = new Date()) {
+    return texto.replace(/^\s*Gramado\/RS,\s*$/gim, formatMouGenerationDate(date));
+  }
+
   function buildBiaMouAtivoTexto(bia: any) {
-    const qualificacao = mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo não informado");
+    const qualificacao = mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃ£o informado");
     const endereco = mouValue(bia?.ativo_endereco || bia?.localizacao);
     const matricula = mouValue(bia?.ativo_numero_matricula);
-    const cartorio = mouValue(bia?.ativo_cartorio, "Cartório não informado");
-    const comarca = mouValue(bia?.ativo_comarca, "Comarca não informada");
-    const destinacao = mouValue(bia?.destinacao, "não informada");
+    const cartorio = mouValue(bia?.ativo_cartorio, "CartÃ³rio nÃ£o informado");
+    const comarca = mouValue(bia?.ativo_comarca, "Comarca nÃ£o informada");
+    const destinacao = mouValue(bia?.destinacao, "nÃ£o informada");
 
     return [
-      `O Ativo em questão é ${qualificacao}, situado no ${endereco}, vinculado à Matrícula nº ${matricula} do ${cartorio}, Comarca de ${comarca}, com todas as suas acessões, frações ideais, características e ônus.`,
+      `O Ativo em questÃ£o Ã© ${qualificacao}, situado no ${endereco}, vinculado Ã  MatrÃ­cula nÂº ${matricula} do ${cartorio}, Comarca de ${comarca}, com todas as suas acessÃµes, fraÃ§Ãµes ideais, caracterÃ­sticas e Ã´nus.`,
       "",
-      "A descrição registral constante da matrícula integra este MOU por referência, sendo vedada qualquer interpretação extensiva a outros ativos.",
+      "A descriÃ§Ã£o registral constante da matrÃ­cula integra este MOU por referÃªncia, sendo vedada qualquer interpretaÃ§Ã£o extensiva a outros ativos.",
       "",
-      `A exploração econômica será destinada à finalidade ${destinacao}.`,
+      `A exploraÃ§Ã£o econÃ´mica serÃ¡ destinada Ã  finalidade ${destinacao}.`,
     ].join("\n\n");
   }
 
@@ -3304,24 +3363,24 @@ export async function registerRoutes(
       .map((parte) => parte.trim())
       .filter(Boolean);
     return {
-      descricao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃ£o informado"),
+      descricao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃƒÂ£o informado"),
       municipio: mouValue(bia?.ativo_municipio || bia?.cidade || localizacaoPartes[0]),
       estado: mouValue(bia?.ativo_estado || bia?.estado || localizacaoPartes[1]),
       matricula: mouValue(bia?.ativo_numero_matricula),
-      cartorio: mouValue(bia?.ativo_cartorio, "CartÃ³rio nÃ£o informado"),
-      comarca: mouValue(bia?.ativo_comarca, "Comarca nÃ£o informada"),
-      destinacao: mouValue(bia?.destinacao, "nÃ£o informada"),
+      cartorio: mouValue(bia?.ativo_cartorio, "CartÃƒÂ³rio nÃƒÂ£o informado"),
+      comarca: mouValue(bia?.ativo_comarca, "Comarca nÃƒÂ£o informada"),
+      destinacao: mouValue(bia?.destinacao, "nÃƒÂ£o informada"),
     };
   }
 
   function substituirBiaMouPlaceholders(texto: string, bia: any) {
     const campos = biaMouAtivoCampos(bia);
     const normalizePlaceholder = (value: string) => {
-      const decoded = /[ÃÂ]/.test(value) ? Buffer.from(value, "latin1").toString("utf8") : value;
+      const decoded = /[ÃƒÃ‚]/.test(value) ? Buffer.from(value, "latin1").toString("utf8") : value;
       return decoded
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
-        .replace(/º/g, "o")
+        .replace(/Âº/g, "o")
         .replace(/[^a-z0-9]+/gi, " ")
         .trim()
         .toLowerCase();
@@ -3338,13 +3397,13 @@ export async function registerRoutes(
     };
     return texto.replace(/\[([^\]]+)\]/g, (match, key) => valuesByKey[normalizePlaceholder(String(key))] ?? match);
     const replacements: Array<[RegExp, string]> = [
-      [/\[Descri[çc][ãa]o do ativo\]/gi, campos.descricao],
-      [/\[Munic[íi]pio\]/gi, campos.municipio],
+      [/\[Descri[Ã§c][Ã£a]o do ativo\]/gi, campos.descricao],
+      [/\[Munic[Ã­i]pio\]/gi, campos.municipio],
       [/\[Estado\]/gi, campos.estado],
-      [/\[n[ºo]\s*da matr[íi]cula\]/gi, campos.matricula],
-      [/\[Cart[óo]rio\]/gi, campos.cartorio],
+      [/\[n[Âºo]\s*da matr[Ã­i]cula\]/gi, campos.matricula],
+      [/\[Cart[Ã³o]rio\]/gi, campos.cartorio],
       [/\[Comarca\]/gi, campos.comarca],
-      [/\[Destina[çc][ãa]o\]/gi, campos.destinacao],
+      [/\[Destina[Ã§c][Ã£a]o\]/gi, campos.destinacao],
     ];
     return replacements.reduce((acc, [pattern, value]) => acc.replace(pattern, value), texto);
   }
@@ -3355,12 +3414,12 @@ export async function registerRoutes(
       /O Ativo em quest[\s\S]*?A explora[\s\S]*?destinada[\s\S]*?\./i,
       blocoAtivo
     );
-    return appendBiaMouRodape(textoComAtivo, biaId, bia);
+    return appendBiaMouRodape(substituirLocalAssinaturaPorData(textoComAtivo), biaId, bia);
   }
 
   function appendBiaMouRodape(texto: string, biaId: string, bia: any) {
     const biaLabel = [bia?.nome_bia, biaId].filter(Boolean).join(" / ");
-    const rodape = `Esta página integra o MoU Padrão BUILT vinculado à BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberações internas e instrumentos jurídicos específicos da respectiva Aliança.`;
+    const rodape = `Esta pÃ¡gina integra o MoU PadrÃ£o BUILT vinculado Ã  BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberaÃ§Ãµes internas e instrumentos jurÃ­dicos especÃ­ficos da respectiva AlianÃ§a.`;
     return `${texto.trim()}\n\n${rodape}`;
   }
 
@@ -3382,17 +3441,17 @@ export async function registerRoutes(
     return personalizarBiaMouTexto(texto, String(biaId), biaComInfo);
   }
 
-  const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para aliança de Liderança";
+  const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para alianÃ§a de LideranÃ§a";
   function validateBiaMouDadosContratuais(data: any) {
     const body = data && typeof data === "object" ? data : {};
     const missing: string[] = [];
     const required = [
       ["nome_completo", "Nome completo"],
       ["nacionalidade", "Nacionalidade"],
-      ["nome_mae", "Nome da mãe"],
+      ["nome_mae", "Nome da mÃ£e"],
       ["nome_pai", "Nome do pai"],
       ["data_nascimento", "Data de nascimento"],
-      ["profissao", "Profissão"],
+      ["profissao", "ProfissÃ£o"],
       ["email", "E-mail"],
       ["telefone", "Telefone"],
       ["cpf", "CPF"],
@@ -3407,17 +3466,17 @@ export async function registerRoutes(
     const isCasado = estadoCivil === "casado" || estadoCivil === "casada";
     if (isCasado) {
       [
-        ["regime_comunhao", "Regime de comunhão"],
-        ["conjuge_nome_completo", "Nome do cônjuge"],
-        ["conjuge_nacionalidade", "Nacionalidade do cônjuge"],
-        ["conjuge_nome_mae", "Nome da mãe do cônjuge"],
-        ["conjuge_nome_pai", "Nome do pai do cônjuge"],
-        ["conjuge_data_nascimento", "Data de nascimento do cônjuge"],
-        ["conjuge_profissao", "Profissão do cônjuge"],
-        ["conjuge_email", "E-mail do cônjuge"],
-        ["conjuge_telefone", "Telefone do cônjuge"],
-        ["conjuge_cpf", "CPF do cônjuge"],
-        ["conjuge_rg", "RG do cônjuge"],
+        ["regime_comunhao", "Regime de comunhÃ£o"],
+        ["conjuge_nome_completo", "Nome do cÃ´njuge"],
+        ["conjuge_nacionalidade", "Nacionalidade do cÃ´njuge"],
+        ["conjuge_nome_mae", "Nome da mÃ£e do cÃ´njuge"],
+        ["conjuge_nome_pai", "Nome do pai do cÃ´njuge"],
+        ["conjuge_data_nascimento", "Data de nascimento do cÃ´njuge"],
+        ["conjuge_profissao", "ProfissÃ£o do cÃ´njuge"],
+        ["conjuge_email", "E-mail do cÃ´njuge"],
+        ["conjuge_telefone", "Telefone do cÃ´njuge"],
+        ["conjuge_cpf", "CPF do cÃ´njuge"],
+        ["conjuge_rg", "RG do cÃ´njuge"],
       ].forEach(([key, label]) => {
         if (!String(body[key] || "").trim()) missing.push(label);
       });
@@ -3425,16 +3484,16 @@ export async function registerRoutes(
 
     const mesmoEndereco = body.mesmo_endereco === true || body.mesmo_endereco === "true";
     const addressFields = [
-      ["endereco", "Endereço"],
+      ["endereco", "EndereÃ§o"],
       ["bairro", "Bairro"],
       ["cidade", "Cidade"],
       ["estado", "Estado"],
-      ["pais", "País"],
+      ["pais", "PaÃ­s"],
     ];
     if (isCasado && !mesmoEndereco) {
       addressFields.forEach(([key, label]) => {
         if (!String(body[`titular_${key}`] || "").trim()) missing.push(`${label} do titular`);
-        if (!String(body[`conjuge_${key}`] || "").trim()) missing.push(`${label} do cônjuge`);
+        if (!String(body[`conjuge_${key}`] || "").trim()) missing.push(`${label} do cÃ´njuge`);
       });
     } else {
       addressFields.forEach(([key, label]) => {
@@ -3496,20 +3555,20 @@ export async function registerRoutes(
 
   const CHAMADA_ALIANCA_SEQUENCE = [
     { ordem: 1, escopo: "comunidade", label: "RO para a comunidade" },
-    { ordem: 2, escopo: "territorio", label: "RO para o território" },
+    { ordem: 2, escopo: "territorio", label: "RO para o territÃ³rio" },
     { ordem: 3, escopo: "nacional", label: "RO nacional" },
     { ordem: 4, escopo: "global", label: "RO global" },
   ];
   const CHAMADA_DIRETOR_CONFIG: Record<string, { nucleo: string; tipo: string }> = {
-    diretor_alianca: { nucleo: "Liderança", tipo: "Liderança" },
-    diretor_nucleo_tecnico: { nucleo: "Núcleo técnico", tipo: "Projeto" },
-    diretor_execucao: { nucleo: "Núcleo de Obra", tipo: "Execução" },
-    diretor_comercial: { nucleo: "Núcleo Comercial", tipo: "Comercial" },
-    diretor_capital: { nucleo: "Núcleo de Capital", tipo: "Investimento" },
+    diretor_alianca: { nucleo: "LideranÃ§a", tipo: "LideranÃ§a" },
+    diretor_nucleo_tecnico: { nucleo: "NÃºcleo tÃ©cnico", tipo: "Projeto" },
+    diretor_execucao: { nucleo: "NÃºcleo de Obra", tipo: "ExecuÃ§Ã£o" },
+    diretor_comercial: { nucleo: "NÃºcleo Comercial", tipo: "Comercial" },
+    diretor_capital: { nucleo: "NÃºcleo de Capital", tipo: "Investimento" },
   };
 
   Object.keys(CHAMADA_DIRETOR_CONFIG).forEach((campo) => {
-    CHAMADA_DIRETOR_CONFIG[campo].tipo = "Liderança";
+    CHAMADA_DIRETOR_CONFIG[campo].tipo = "LideranÃ§a";
   });
 
   const CHAMADA_DIRETOR_PERCENTUAL_FIELDS: Record<string, string> = {
@@ -3634,7 +3693,7 @@ export async function registerRoutes(
         ok: false,
         statusCode: 400,
         response: {
-          error: `Preencha os dados obrigatórios antes de concluir: ${dadosCheck.missing.join(", ")}.`,
+          error: `Preencha os dados obrigatÃ³rios antes de concluir: ${dadosCheck.missing.join(", ")}.`,
           campos: dadosCheck.missing,
         },
       };
@@ -4178,7 +4237,7 @@ export async function registerRoutes(
       });
 
       const tituloOpa = String(opaInput.nome_oportunidade || "").trim() || CHAMADA_ALIANCA_TITULO_OPA;
-      const tipoOpa = percentualField ? "Liderança" : (String(opaInput.tipo || "").trim() || diretorConfig.tipo);
+      const tipoOpa = percentualField ? "LideranÃ§a" : (String(opaInput.tipo || "").trim() || diretorConfig.tipo);
       const valorOpaInput = Number(String(opaInput.valor_origem_opa ?? "").replace(/\./g, "").replace(",", "."));
       const valorOpaFinal = percentualField
         ? Number(valorDmDiretor)
@@ -4187,7 +4246,7 @@ export async function registerRoutes(
       const descricaoEditada = String(opaInput.descricao || "").trim();
       const descricao = [
         `${etapa.label} da BIA ${bia.nome_bia || req.params.id}.`,
-        `Area: Liderança.`,
+        `Area: LideranÃ§a.`,
         `Nucleo acionado: ${diretorConfig.nucleo}.`,
         `Papel em aberto: ${(diretorConfig as any).label || diretorConfig.nucleo}.`,
         `Data da reuniao: ${dataHora.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`,
@@ -4269,7 +4328,92 @@ export async function registerRoutes(
   });
 
   function normalizePdfText(value: any): string {
-    return String(value ?? "")
+    let text = String(value ?? "");
+    const cp1252Fallback: Record<number, number> = {
+      0x0192: 0x83,
+      0x201A: 0x82,
+      0x201E: 0x84,
+      0x2026: 0x85,
+      0x2020: 0x86,
+      0x2021: 0x87,
+      0x02C6: 0x88,
+      0x2030: 0x89,
+      0x0160: 0x8A,
+      0x2039: 0x8B,
+      0x0152: 0x8C,
+      0x017D: 0x8E,
+      0x2018: 0x91,
+      0x2019: 0x92,
+      0x201C: 0x93,
+      0x201D: 0x94,
+      0x2022: 0x95,
+      0x2013: 0x96,
+      0x2014: 0x97,
+      0x02DC: 0x98,
+      0x2122: 0x99,
+      0x0161: 0x9A,
+      0x203A: 0x9B,
+      0x0153: 0x9C,
+      0x017E: 0x9E,
+      0x0178: 0x9F,
+    };
+    for (let attempt = 0; attempt < 3 && /[ÃÂâ]/.test(text); attempt++) {
+      const bytes: number[] = [];
+      let canDecode = true;
+      for (const char of text) {
+        const code = char.charCodeAt(0);
+        const byte = code <= 0xFF ? code : cp1252Fallback[code];
+        if (byte === undefined) {
+          canDecode = false;
+          break;
+        }
+        bytes.push(byte);
+      }
+      if (!canDecode) break;
+      const decoded = Buffer.from(bytes).toString("utf8");
+      if (!decoded || decoded === text || decoded.includes("�")) break;
+      text = decoded;
+    }
+    const mojibakeReplacements: Record<string, string> = {
+      "\u00C3\u0192": "Ã",
+      "\u00C3\u00A0": "à",
+      "\u00C3\u00A1": "á",
+      "\u00C3\u00A2": "â",
+      "\u00C3\u00A3": "ã",
+      "\u00C3\u00A7": "ç",
+      "\u00C3\u00A8": "è",
+      "\u00C3\u00A9": "é",
+      "\u00C3\u00AA": "ê",
+      "\u00C3\u00AD": "í",
+      "\u00C3\u00B3": "ó",
+      "\u00C3\u00B4": "ô",
+      "\u00C3\u00B5": "õ",
+      "\u00C3\u00BA": "ú",
+      "\u00C3\u00BC": "ü",
+      "\u00C3\u0080": "À",
+      "\u00C3\u0081": "Á",
+      "\u00C3\u0082": "Â",
+      "\u00C3\u0083": "Ã",
+      "\u00C3\u0087": "Ç",
+      "\u00C3\u0089": "É",
+      "\u00C3\u008A": "Ê",
+      "\u00C3\u0093": "Ó",
+      "\u00C3\u0094": "Ô",
+      "\u00C3\u0095": "Õ",
+      "\u00C3\u009A": "Ú",
+      "\u00C2\u00BA": "º",
+      "\u00C2\u00AA": "ª",
+      "\u00E2\u20AC\u201C": "-",
+      "\u00E2\u20AC\u201D": "-",
+      "\u00E2\u20AC\u0153": '"',
+      "\u00E2\u20AC\u009D": '"',
+      "\u00E2\u20AC\u02DC": "'",
+      "\u00E2\u20AC\u2122": "'",
+    };
+    for (const [broken, replacement] of Object.entries(mojibakeReplacements)) {
+      text = text.split(broken).join(replacement);
+    }
+    return text
       .replace(/[“”]/g, '"')
       .replace(/[‘’]/g, "'")
       .replace(/[–—]/g, "-")
@@ -4300,7 +4444,11 @@ export async function registerRoutes(
     return lines;
   }
 
-  function buildSimpleTextPdf(title: string, sections: Array<{ title: string; body: string }>): Buffer {
+  function buildSimpleTextPdf(
+    title: string,
+    sections: Array<{ title: string; body: string }>,
+    options: { headerLabel?: string; footerLabel?: string } = {}
+  ): Buffer {
     const pages: string[][] = [];
     let ops: string[] = [];
     let y = 0;
@@ -4309,6 +4457,9 @@ export async function registerRoutes(
     const gold = "0.843 0.733 0.490";
     const slate = "0.220 0.290 0.360";
     const logoImage = loadMouLogoForPdf();
+    const footerOfficialImage = loadMouAssetPngForPdf("built-official-document.png");
+    const footerCertifiedImage = loadMouAssetPngForPdf("built-certified-alliance.png");
+    const footerLimit = options.footerLabel ? 142 : 54;
 
     const text = (value: string, x: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
       ops.push(`BT /${font} ${size} Tf ${color} rg ${x} ${yy} Td ${pdfHex(value)} Tj ET`);
@@ -4322,8 +4473,6 @@ export async function registerRoutes(
       H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722,
       O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722,
       V: 667, W: 944, X: 667, Y: 667, Z: 611,
-      Ã: 667, Á: 667, Â: 667, À: 667, Ç: 722, É: 667, Ê: 667,
-      Í: 278, Ó: 778, Õ: 778, Ô: 778, Ú: 722,
     };
     const helveticaBoldWidths: Record<string, number> = {
       ...helveticaWidths,
@@ -4331,7 +4480,6 @@ export async function registerRoutes(
       H: 722, I: 278, J: 556, K: 722, L: 611, M: 833, N: 722,
       O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722,
       V: 667, W: 944, X: 667, Y: 667, Z: 611,
-      Ã: 722, Á: 722, Â: 722, À: 722,
     };
     const estimateTextWidth = (value: string, size = 10, font = "F1") => {
       const widths = font === "F2" ? helveticaBoldWidths : helveticaWidths;
@@ -4351,21 +4499,33 @@ export async function registerRoutes(
       ops = [];
       rect(0, 768, 595, 74, navy);
       if (logoImage) {
-        const logoWidth = 300;
+        const logoWidth = 240;
         const logoHeight = logoWidth * (logoImage.height / logoImage.width);
-        ops.push(`q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} 42 775 cm /Logo Do Q`);
+        ops.push(`q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} 48 783 cm /Logo Do Q`);
       } else {
         text("BUILT", 46, 796, 32, "F2", "1 1 1");
         text("Builders United for Investment, Logistics and Trade", 48, 780, 8, "F1", "1 1 1");
       }
       const headerRight = 505;
-      textRight("MOU PADRÃO BUILT", headerRight, 804, 11, "F2", gold);
+      textRight("MOU PADR\u00C3O BUILT", headerRight, 804, 11, "F2", gold);
       textRight(new Date().toLocaleDateString("pt-BR"), headerRight, 788, 8, "F1", "0.85 0.90 0.95");
       rect(0, 764, 595, 4, gold);
+      if (options.footerLabel) {
+        line(42, 94, 553, 94, "0.86 0.78 0.62", 0.7);
+        const footerSealSize = 50;
+        if (footerOfficialImage) {
+          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 78 20 cm /OfficialSeal Do Q`);
+        }
+        if (footerCertifiedImage) {
+          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 138 20 cm /CertifiedSeal Do Q`);
+        }
+        text(options.footerLabel, 210, 58, 7.3, "F2", navy);
+        text("Documento oficial BUILT - uso vinculado aos registros formais da respectiva Alian\u00E7a.", 210, 43, 6.8, "F1", slate);
+      }
       y = 730;
     };
     const ensure = (height: number) => {
-      if (y - height < 54) newPage();
+      if (y - height < footerLimit) newPage();
     };
     const paragraph = (value: string, options: { size?: number; font?: string; color?: string; width?: number; gap?: number; indent?: number } = {}) => {
       const size = options.size || 9.5;
@@ -4385,7 +4545,7 @@ export async function registerRoutes(
       ensure(58);
       rect(42, y - 8, 511, 28, "0.945 0.970 1.000");
       rect(42, y - 8, 4, 28, blue);
-      text(value.toUpperCase(), 58, y, 12, "F2", navy);
+      text(value, 58, y, 12, "F2", navy);
       y -= 42;
     };
     const infoBox = (lines: string[]) => {
@@ -4405,24 +4565,61 @@ export async function registerRoutes(
       const rows = lines
         .filter((item) => item.includes(":") && item.includes(" - "))
         .map((item) => {
-          const [label, rest] = item.split(":");
+          const separator = item.indexOf(":");
+          const label = item.slice(0, separator).trim();
+          const rest = item.slice(separator + 1);
           const [percent, value] = rest.split(" - ");
-          return { label: label.trim(), percent: (percent || "").trim(), value: (value || "").trim() };
+          const roleSeparator = label.indexOf(" - ");
+          return {
+            group: roleSeparator >= 0 ? label.slice(0, roleSeparator).trim() : "Participantes",
+            name: roleSeparator >= 0 ? label.slice(roleSeparator + 3).trim() : label,
+            percent: (percent || "").trim(),
+            value: (value || "").trim(),
+            percentNumber: Number(String(percent || "").replace("%", "").replace(/\./g, "").replace(",", ".")),
+          };
         });
-      ensure(rows.length * 24 + 70);
-      rect(42, y - 30, 511, 28, navy);
-      text("Participante / Papel", 58, y - 20, 9, "F2", "1 1 1");
-      text("Percentual", 354, y - 20, 9, "F2", "1 1 1");
-      text("Valor CPP/DM", 442, y - 20, 9, "F2", "1 1 1");
-      y -= 54;
-      rows.forEach((row, index) => {
-        rect(42, y - 9, 511, 22, index % 2 === 0 ? "0.965 0.978 0.995" : "1 1 1");
-        text(row.label, 58, y, 9, "F1", "0.05 0.10 0.16");
-        text(row.percent, 358, y, 9, "F2", blue);
-        text(row.value, 442, y, 9, "F2", navy);
-        y -= 24;
-      });
-      y -= 12;
+      if (!rows.length) return;
+      const groups = Array.from(rows.reduce((acc, row) => {
+        if (!acc.has(row.group)) acc.set(row.group, []);
+        acc.get(row.group)!.push(row);
+        return acc;
+      }, new Map<string, typeof rows>()).entries());
+      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 34 + groupRows.length * 36, 30);
+      ensure(totalHeight + 22);
+      const cardX = 42;
+      const cardW = 511;
+      rect(cardX, y - totalHeight + 14, cardW, totalHeight, "1 1 1");
+      rect(cardX, y - totalHeight + 14, 4, totalHeight, "0.945 0.970 1.000");
+      line(cardX, y + 14, cardX + cardW, y + 14, "0.86 0.78 0.62", 0.8);
+      line(cardX, y - totalHeight + 14, cardX + cardW, y - totalHeight + 14, "0.86 0.78 0.62", 0.8);
+      let rowY = y - 12;
+      for (const [group, groupRows] of groups) {
+        text(group, 58, rowY, 8.5, "F2", slate);
+        const countX = Math.min(218, 58 + estimateTextWidth(group, 8.5, "F2") + 10);
+        rect(countX, rowY - 7, 14, 12, "0.90 0.95 1.00");
+        text(String(groupRows.length), countX + 5, rowY - 3, 7, "F2", blue);
+        rowY -= 26;
+        for (const row of groupRows) {
+          const percentNumber = Number.isFinite(row.percentNumber) ? Math.max(0, Math.min(100, row.percentNumber)) : 0;
+          const barX = 238;
+          const barY = rowY - 3;
+          const barW = 142;
+          const fillW = barW * (percentNumber / 100);
+          const goldW = Math.min(fillW, barW * 0.42);
+          const blueW = Math.max(0, fillW - goldW);
+          rect(52, rowY - 14, 486, 24, "0.988 0.992 0.996");
+          text(row.name, 58, rowY, 8.6, "F2", navy);
+          rect(barX, barY, barW, 4.5, "0.92 0.94 0.96");
+          if (goldW > 0) rect(barX, barY, goldW, 4.5, gold);
+          if (blueW > 0) rect(barX + goldW, barY, blueW, 4.5, blue);
+          textRight(row.value, 474, rowY, 8.2, "F1", slate);
+          rect(494, rowY - 8, 42, 15, "0.90 0.95 1.00");
+          textRight(row.percent, 528, rowY - 4, 8, "F2", blue);
+          rowY -= 36;
+        }
+        rowY -= 4;
+      }
+      y = rowY - 8;
     };
 
     newPage();
@@ -4435,8 +4632,8 @@ export async function registerRoutes(
       if (sectionIndex > 0) newPage();
       sectionTitle(section.title);
       const paragraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
-      if (section.title.includes("Mapa de Alocação") || section.title.includes("Mapa de Alocacao")) {
-        const tableStart = paragraphs.findIndex((item) => item.includes("Alocação") || item.includes("Alocacao"));
+      if (section.title.includes("Mapa de AlocaÃ§Ã£o") || section.title.includes("Mapa de Alocacao")) {
+        const tableStart = paragraphs.findIndex((item) => item.includes("AlocaÃ§Ã£o") || item.includes("Alocacao"));
         const intro = tableStart >= 0 ? paragraphs.slice(0, tableStart) : paragraphs.slice(0, 5);
         infoBox(intro);
         allocationTable(paragraphs);
@@ -4480,13 +4677,27 @@ export async function registerRoutes(
       const rgbStream = logoImage.rgb.toString("latin1");
       logoObjectId = addObject(`<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask ${alphaId} 0 R /Length ${logoImage.rgb.length} >>\nstream\n${rgbStream}\nendstream`);
     }
+    const addPngImageObject = (image: ReturnType<typeof loadMouAssetPngForPdf>) => {
+      if (!image) return null;
+      const alphaStream = image.alpha.toString("latin1");
+      const alphaId = addObject(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${image.alpha.length} >>\nstream\n${alphaStream}\nendstream`);
+      const rgbStream = image.rgb.toString("latin1");
+      return addObject(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask ${alphaId} 0 R /Length ${image.rgb.length} >>\nstream\n${rgbStream}\nendstream`);
+    };
+    const officialSealObjectId = addPngImageObject(footerOfficialImage);
+    const certifiedSealObjectId = addPngImageObject(footerCertifiedImage);
     const pageIds: number[] = [];
     const contentIds: number[] = [];
 
     pages.forEach((pageOps) => {
       const stream = pageOps.join("\n");
       const contentId = addObject(`<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`);
-      const xObjectResources = logoObjectId ? ` /XObject << /Logo ${logoObjectId} 0 R >>` : "";
+      const xObjects = [
+        logoObjectId ? `/Logo ${logoObjectId} 0 R` : "",
+        officialSealObjectId ? `/OfficialSeal ${officialSealObjectId} 0 R` : "",
+        certifiedSealObjectId ? `/CertifiedSeal ${certifiedSealObjectId} 0 R` : "",
+      ].filter(Boolean).join(" ");
+      const xObjectResources = xObjects ? ` /XObject << ${xObjects} >>` : "";
       const pageId = addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontId} 0 R /F2 ${boldFontId} 0 R >>${xObjectResources} >> /Contents ${contentId} 0 R >>`);
       contentIds.push(contentId);
       pageIds.push(pageId);
@@ -4522,13 +4733,13 @@ export async function registerRoutes(
     return found ? fs.readFileSync(found, "utf8") : "";
   }
 
-  function loadMouLogoForPdf() {
+  function loadMouAssetPngForPdf(name: string) {
     const candidates = [
-      path.resolve(process.cwd(), "server", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
-      path.resolve(process.cwd(), "dist", "server", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
-      path.resolve(process.cwd(), "dist", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
-      path.resolve(ROUTES_DIR, "server", "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
-      path.resolve(ROUTES_DIR, "assets", "mou-padrao", "logo-built-horizontal-negativo.png"),
+      path.resolve(process.cwd(), "server", "assets", "mou-padrao", name),
+      path.resolve(process.cwd(), "dist", "server", "assets", "mou-padrao", name),
+      path.resolve(process.cwd(), "dist", "assets", "mou-padrao", name),
+      path.resolve(ROUTES_DIR, "server", "assets", "mou-padrao", name),
+      path.resolve(ROUTES_DIR, "assets", "mou-padrao", name),
     ];
     const found = candidates.find((candidate) => fs.existsSync(candidate));
     if (!found) return null;
@@ -4542,6 +4753,10 @@ export async function registerRoutes(
       alpha[a] = png.data[i + 3];
     }
     return { width: png.width, height: png.height, rgb: deflateSync(rgb), alpha: deflateSync(alpha) };
+  }
+
+  function loadMouLogoForPdf() {
+    return loadMouAssetPngForPdf("logo-built-horizontal-negativo.png");
   }
 
   async function uploadPdfToDirectus(buffer: Buffer, filename: string): Promise<string> {
@@ -4562,7 +4777,7 @@ export async function registerRoutes(
   }
 
   function formatPdfMoney(value: any, currency = "BRL"): string {
-    const n = Number(String(value ?? "").replace(/\./g, "").replace(",", "."));
+    const n = typeof value === "number" ? value : Number(String(value ?? "").replace(/\./g, "").replace(",", "."));
     if (!Number.isFinite(n)) return "-";
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(n);
   }
@@ -4570,7 +4785,7 @@ export async function registerRoutes(
   function formatPdfPercent(value: any): string {
     const n = Number(String(value ?? "").replace(",", "."));
     if (!Number.isFinite(n)) return "-";
-    return `${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(n)}%`;
+    return `${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n)}%`;
   }
 
   function parsePdfNumber(value: any): number {
@@ -4626,16 +4841,16 @@ export async function registerRoutes(
 
   function qualificacaoParte(participant: { roles: string[]; member: any; data: Record<string, any> }): string {
     const d = participant.data;
-    const endereco = [d.endereco, d.bairro, d.cidade, d.estado, d.pais].filter(Boolean).join(", ") || "endereço não informado";
+    const endereco = [d.endereco, d.bairro, d.cidade, d.estado, d.pais].filter(Boolean).join(", ") || "endereÃ§o nÃ£o informado";
     const estadoCivil = mouValue(d.estado_civil);
     const regime = d.regime_comunhao ? ` sob o regime de ${d.regime_comunhao}` : "";
     const conjuge = d.conjuge_nome_completo
       ? ` Casado(a) com ${d.conjuge_nome_completo}, ${mouValue(d.conjuge_nacionalidade)}, filho(a) de ${mouValue(d.conjuge_nome_mae)} e ${mouValue(d.conjuge_nome_pai)}, nascido(a) em ${mouValue(d.conjuge_data_nascimento)}, ${mouValue(d.conjuge_profissao)}, e-mail ${mouValue(d.conjuge_email)}, telefone ${mouValue(d.conjuge_telefone)}, CPF ${mouValue(d.conjuge_cpf)} e RG ${mouValue(d.conjuge_rg)}.`
       : "";
     const enderecoConjuge = d.conjuge_nome_completo && String(d.mesmo_endereco_conjuge) === "false"
-      ? ` O cônjuge reside em ${[d.conjuge_endereco, d.conjuge_bairro, d.conjuge_cidade, d.conjuge_estado, d.conjuge_pais].filter(Boolean).join(", ") || "endereço não informado"}.`
+      ? ` O cÃ´njuge reside em ${[d.conjuge_endereco, d.conjuge_bairro, d.conjuge_cidade, d.conjuge_estado, d.conjuge_pais].filter(Boolean).join(", ") || "endereÃ§o nÃ£o informado"}.`
       : "";
-    return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nº ${mouValue(d.cpf)} e no RG sob o nº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
+    return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nÂº ${mouValue(d.cpf)} e no RG sob o nÂº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
   }
 
   function mouMemberName(value: any): string | null {
@@ -4646,16 +4861,24 @@ export async function registerRoutes(
     return null;
   }
 
+  async function fetchCadastroGeralForMou(memberId: string, fields: string) {
+    const rows = await directusFetchScoped(
+      "cadastro_geral",
+      `fields=${encodeURIComponent(fields)}&filter[id][_eq]=${encodeURIComponent(String(memberId))}&limit=1`
+    ).catch(() => []);
+    return rows[0] || null;
+  }
+
   async function getMouParticipantsForBia(bia: any, biaId: string) {
     const roleEntries: Array<{ role: string; memberId: string | null }> = [
       { role: "Aliado Licenciado BUILT", memberId: directusRelationId(bia.aliado_built) },
-      { role: "Diretor(a) de Aliança", memberId: directusRelationId(bia.diretor_alianca) },
-      { role: "Diretor(a) de Núcleo Técnico", memberId: directusRelationId(bia.diretor_nucleo_tecnico) },
-      { role: "Diretor(a) de Núcleo de Obra", memberId: directusRelationId(bia.diretor_execucao) },
-      { role: "Diretor(a) de Núcleo Comercial", memberId: directusRelationId(bia.diretor_comercial) },
-      { role: "Diretor(a) de Núcleo de Capital", memberId: directusRelationId(bia.diretor_capital) },
-      ...parseBiaMemberList(bia.socios_guardioes).map((memberId) => ({ role: "Sócio Guardião", memberId })),
-      ...parseBiaMemberList(bia.socios_multiplicadores).map((memberId) => ({ role: "Sócio Multiplicador", memberId })),
+      { role: "Diretor(a) de AlianÃ§a", memberId: directusRelationId(bia.diretor_alianca) },
+      { role: "Diretor(a) de NÃºcleo TÃ©cnico", memberId: directusRelationId(bia.diretor_nucleo_tecnico) },
+      { role: "Diretor(a) de NÃºcleo de Obra", memberId: directusRelationId(bia.diretor_execucao) },
+      { role: "Diretor(a) de NÃºcleo Comercial", memberId: directusRelationId(bia.diretor_comercial) },
+      { role: "Diretor(a) de NÃºcleo de Capital", memberId: directusRelationId(bia.diretor_capital) },
+      ...parseBiaMemberList(bia.socios_guardioes).map((memberId) => ({ role: "SÃ³cio GuardiÃ£o", memberId })),
+      ...parseBiaMemberList(bia.socios_multiplicadores).map((memberId) => ({ role: "SÃ³cio Multiplicador", memberId })),
     ].filter((entry): entry is { role: string; memberId: string } => !!entry.memberId);
 
     const grouped = new Map<string, string[]>();
@@ -4681,7 +4904,7 @@ export async function registerRoutes(
     ].join(",");
     const participants = [];
     for (const [memberId, roles] of Array.from(grouped.entries())) {
-      const member = await directusFetchOne("cadastro_geral", String(memberId), `fields=${fields}`).catch(() => ({ id: memberId }));
+      const member = await fetchCadastroGeralForMou(String(memberId), fields).catch(() => null) || { id: memberId };
       participants.push({
         memberId,
         roles,
@@ -4697,19 +4920,19 @@ export async function registerRoutes(
     const participantByRole = (role: string) => participants.find((p) => p.roles.includes(role))?.data?.nome_completo || null;
     const fieldOrParticipant = (field: string, role: string) => mouMemberName(bia[field]) || participantByRole(role) || "a definir";
     const diretores = {
-      "Diretor(a) de Aliança": fieldOrParticipant("diretor_alianca", "Diretor(a) de Aliança"),
-      "Diretor(a) de Núcleo Técnico": fieldOrParticipant("diretor_nucleo_tecnico", "Diretor(a) de Núcleo Técnico"),
-      "Diretor(a) de Núcleo de Obra": fieldOrParticipant("diretor_execucao", "Diretor(a) de Núcleo de Obra"),
-      "Diretor(a) de Núcleo Comercial": fieldOrParticipant("diretor_comercial", "Diretor(a) de Núcleo Comercial"),
-      "Diretor(a) de Núcleo de Capital": fieldOrParticipant("diretor_capital", "Diretor(a) de Núcleo de Capital"),
+      "Diretor(a) de AlianÃ§a": fieldOrParticipant("diretor_alianca", "Diretor(a) de AlianÃ§a"),
+      "Diretor(a) de NÃºcleo TÃ©cnico": fieldOrParticipant("diretor_nucleo_tecnico", "Diretor(a) de NÃºcleo TÃ©cnico"),
+      "Diretor(a) de NÃºcleo de Obra": fieldOrParticipant("diretor_execucao", "Diretor(a) de NÃºcleo de Obra"),
+      "Diretor(a) de NÃºcleo Comercial": fieldOrParticipant("diretor_comercial", "Diretor(a) de NÃºcleo Comercial"),
+      "Diretor(a) de NÃºcleo de Capital": fieldOrParticipant("diretor_capital", "Diretor(a) de NÃºcleo de Capital"),
       "Aliado Licenciado BUILT": fieldOrParticipant("aliado_built", "Aliado Licenciado BUILT"),
     };
     const ativo = [
       `BIA: ${mouValue(bia.nome_bia)}`,
       `ID da BIA: ${biaId}`,
       `Ativo: ${mouValue(bia.ativo_qualificacao || bia.objetivo_alianca || bia.destinacao)}`,
-      `Endereço do ativo: ${mouValue(bia.ativo_endereco || bia.localizacao)}`,
-      `Matrícula: ${mouValue(bia.ativo_numero_matricula)} | Cartório: ${mouValue(bia.ativo_cartorio)} | Comarca: ${mouValue(bia.ativo_comarca)}`,
+      `EndereÃ§o do ativo: ${mouValue(bia.ativo_endereco || bia.localizacao)}`,
+      `MatrÃ­cula: ${mouValue(bia.ativo_numero_matricula)} | CartÃ³rio: ${mouValue(bia.ativo_cartorio)} | Comarca: ${mouValue(bia.ativo_comarca)}`,
     ].join("\n");
     const partes = participants.length
       ? participants.map(qualificacaoParte).join("\n\n")
@@ -4722,15 +4945,15 @@ export async function registerRoutes(
       partes,
       "",
       "DIRETORIA DA BIA",
-      "Para fins de governança, organização funcional, exercício de atribuições, participação no Conselho da BIA, registro de responsabilidades e rastreabilidade das deliberações, a Diretoria da BIA será composta pelos participantes formalmente nomeados, ativos e registrados na Plataforma BUILT.",
+      "Para fins de governanÃ§a, organizaÃ§Ã£o funcional, exercÃ­cio de atribuiÃ§Ãµes, participaÃ§Ã£o no Conselho da BIA, registro de responsabilidades e rastreabilidade das deliberaÃ§Ãµes, a Diretoria da BIA serÃ¡ composta pelos participantes formalmente nomeados, ativos e registrados na Plataforma BUILT.",
       diretoria,
       "",
-      "As funções vagas, pendentes ou não preenchidas poderão ser posteriormente preenchidas pela governança mediante registro correspondente na Plataforma BUILT, sem necessidade de aditamento formal deste Anexo, salvo exigência legal, societária, registral ou contratual específica.",
+      "As funÃ§Ãµes vagas, pendentes ou nÃ£o preenchidas poderÃ£o ser posteriormente preenchidas pela governanÃ§a mediante registro correspondente na Plataforma BUILT, sem necessidade de aditamento formal deste Anexo, salvo exigÃªncia legal, societÃ¡ria, registral ou contratual especÃ­fica.",
     ].join("\n");
   }
 
   type MouAllocationRow = {
-    group: "Sócios Guardiões" | "Sócios Multiplicadores" | "Não classificados";
+    group: "SÃ³cios GuardiÃµes" | "SÃ³cios Multiplicadores" | "NÃ£o classificados";
     memberId: string;
     name: string;
     value: number;
@@ -4779,13 +5002,13 @@ export async function registerRoutes(
     const guardioes = new Set(parseBiaMemberList(bia.socios_guardioes));
     const multiplicadores = new Set(parseBiaMemberList(bia.socios_multiplicadores));
     const roleByMember = new Map<string, MouAllocationRow["group"]>();
-    guardioes.forEach((id) => roleByMember.set(id, "Sócios Guardiões"));
-    multiplicadores.forEach((id) => roleByMember.set(id, "Sócios Multiplicadores"));
+    guardioes.forEach((id) => roleByMember.set(id, "SÃ³cios GuardiÃµes"));
+    multiplicadores.forEach((id) => roleByMember.set(id, "SÃ³cios Multiplicadores"));
 
     const nameCache = new Map<string, string>();
     const resolveMemberName = async (id: string) => {
       if (nameCache.has(id)) return nameCache.get(id)!;
-      const member = await directusFetchOne("cadastro_geral", id, "fields=id,nome,Nome_de_usuario,nome_completo,razao_social,email").catch(() => null);
+      const member = await fetchCadastroGeralForMou(id, "id,nome,Nome_de_usuario,nome_completo,razao_social,email").catch(() => null);
       const name = memberName(member || { id });
       nameCache.set(id, name);
       return name;
@@ -4808,21 +5031,31 @@ export async function registerRoutes(
       };
       destino.value += movedValue;
       values.set(destinoId, destino);
-      if (!roleByMember.has(destinoId)) roleByMember.set(destinoId, roleByMember.get(origemId) || "Não classificados");
+      if (!roleByMember.has(destinoId)) roleByMember.set(destinoId, roleByMember.get(origemId) || "NÃ£o classificados");
     }
 
     const rowsBase = Array.from(values.values()).filter((item) => item.value > 0.005);
+    for (const item of rowsBase) {
+      const currentName = String(item.name || "").trim();
+      if (
+        !currentName
+        || currentName === "Membro desconhecido"
+        || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentName)
+      ) {
+        item.name = await resolveMemberName(item.memberId);
+      }
+    }
     const total = rowsBase.reduce((sum, item) => sum + item.value, 0);
     return rowsBase
       .map((item) => ({
-        group: roleByMember.get(item.memberId) || "Não classificados",
+        group: roleByMember.get(item.memberId) || "NÃ£o classificados",
         memberId: item.memberId,
         name: item.name,
         value: item.value,
         percent: total > 0 ? (item.value / total) * 100 : 0,
       }))
       .sort((a, b) => {
-        const order = ["Sócios Guardiões", "Sócios Multiplicadores", "Não classificados"];
+        const order = ["SÃ³cios GuardiÃµes", "SÃ³cios Multiplicadores", "NÃ£o classificados"];
         const groupDiff = order.indexOf(a.group) - order.indexOf(b.group);
         return groupDiff !== 0 ? groupDiff : b.value - a.value;
       });
@@ -4838,12 +5071,12 @@ export async function registerRoutes(
       `BIA: ${mouValue(bia.nome_bia)}`,
       `ID da BIA: ${biaId}`,
       `Total alocado no MAP: ${formatPdfMoney(total, moeda)}`,
-      `Participantes com alocação: ${allocationRows.length}`,
+      `Participantes com alocaÃ§Ã£o: ${allocationRows.length}`,
       "",
-      "Alocação patrimonial atual:",
+      "AlocaÃ§Ã£o patrimonial atual:",
       ...rows.map(([label, percent, value]) => `${label}: ${formatPdfPercent(percent)} - ${formatPdfMoney(value, moeda)}`),
       "",
-      "Este mapa reflete os aportes registrados na Plataforma BUILT e as transferências de cotas aceitas até a data de geração deste documento. Alterações futuras devem ser registradas na plataforma, no MAP atualizado, em ata ou em documento equivalente.",
+      "Este mapa reflete os aportes registrados na Plataforma BUILT e as transferÃªncias de cotas aceitas atÃ© a data de geraÃ§Ã£o deste documento. AlteraÃ§Ãµes futuras devem ser registradas na plataforma, no MAP atualizado, em ata ou em documento equivalente.",
     ].join("\n");
   }
 
@@ -4880,20 +5113,21 @@ export async function registerRoutes(
       };
       const participants = await getMouParticipantsForBia(biaComInfo, req.params.id);
       const allocationRows = await getBiaAllocationMap(biaComInfo, req.params.id);
-      const mouPadraoBase = readMouAsset("mou-padrao-built.txt") || "MOU Padrão BUILT não localizado nos assets do servidor.";
+      const mouPadraoBase = readMouAsset("mou-padrao-built.txt") || "MOU PadrÃ£o BUILT nÃ£o localizado nos assets do servidor.";
       const mouPadrao = personalizarBiaMouTexto(mouPadraoBase, req.params.id, biaComInfo);
-      const anexoIII = readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III não localizado nos assets do servidor.";
-      const anexoIV = readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV não localizado nos assets do servidor.";
+      const anexoIII = readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III nÃ£o localizado nos assets do servidor.";
+      const anexoIV = readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV nÃ£o localizado nos assets do servidor.";
       const sections = [
-        { title: "MOU Padrão BUILT", body: mouPadrao },
-        { title: "Anexo I - Qualificação das Partes", body: buildAnexoIQualificacao(biaComInfo, req.params.id, participants) },
-        { title: "Anexo II - Mapa de Alocação Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
-        { title: "Anexo III - Termo de Adesão à Metodologia BUILT", body: anexoIII },
-        { title: "Anexo IV - Termo de Adesão e Responsabilidade do Parceiro de Capital", body: anexoIV },
+        { title: "MOU PadrÃ£o BUILT", body: mouPadrao },
+        { title: "Anexo I - QualificaÃ§Ã£o das Partes", body: buildAnexoIQualificacao(biaComInfo, req.params.id, participants) },
+        { title: "Anexo II - Mapa de AlocaÃ§Ã£o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, req.params.id, allocationRows) },
+        { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: anexoIII },
+        { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: anexoIV },
       ];
       const now = new Date();
-      const title = `MOU Padrão BUILT - ${biaComInfo.nome_bia || req.params.id}`;
-      const pdf = buildSimpleTextPdf(title, sections);
+      const title = `MOU PadrÃ£o BUILT - ${biaComInfo.nome_bia || req.params.id}`;
+      const footerLabel = `BIA: ${biaComInfo.nome_bia || "BIA"} | C\u00F3digo rastre\u00E1vel: ${req.params.id}`;
+      const pdf = buildSimpleTextPdf(title, sections, { footerLabel });
       const safeName = String(biaComInfo.nome_bia || req.params.id).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || req.params.id;
       const fileId = await uploadPdfToDirectus(pdf, `mou-padrao-built-${safeName}-${now.toISOString().slice(0, 10)}.pdf`);
       const arquivos = await resolveFileIds([fileId]);
@@ -4903,8 +5137,8 @@ export async function registerRoutes(
         const [created] = await db.insert(nucleoTecnicoDocs).values({
           bia_id: req.params.id,
           alianca_tipo: "juridica",
-          tipo_documento: "MOU Padrão BUILT",
-          descricao: `PDF gerado automaticamente com MOU Padrão e 4 anexos em ${now.toLocaleString("pt-BR")}.`,
+          tipo_documento: "MOU PadrÃ£o BUILT",
+          descricao: `PDF gerado automaticamente com MOU PadrÃ£o e 4 anexos em ${now.toLocaleString("pt-BR")}.`,
           membro_responsavel: (req.session as any).membroId || null,
           arquivo_ids: [fileId],
         }).returning();
@@ -4914,8 +5148,8 @@ export async function registerRoutes(
           id: `mou-fallback-${req.params.id}-${Date.now()}`,
           bia_id: req.params.id,
           alianca_tipo: "juridica",
-          tipo_documento: "MOU Padrão BUILT",
-          descricao: `PDF gerado automaticamente com MOU Padrão e 4 anexos em ${now.toLocaleString("pt-BR")}.`,
+          tipo_documento: "MOU PadrÃ£o BUILT",
+          descricao: `PDF gerado automaticamente com MOU PadrÃ£o e 4 anexos em ${now.toLocaleString("pt-BR")}.`,
           membro_responsavel: (req.session as any).membroId || null,
           arquivo_ids: [fileId],
           created_at: now,
@@ -4931,11 +5165,290 @@ export async function registerRoutes(
     }
   });
 
+  type DocumentoAceiteResumo = {
+    id: string;
+    tipo: "termo" | "mou";
+    chave?: string;
+    titulo: string;
+    versao: string | null;
+    aceito_em: string | null;
+    origem: string;
+    bia_id?: string | null;
+    bia_nome?: string | null;
+  };
+
+  const TERMOS_ACEITE_BUILT: Record<string, { titulo: string; versao: string; origem: string; body: string }> = {
+    codigo_etica: {
+      titulo: "CÃ³digo de Ã‰tica BUILT",
+      versao: "BUILT JUR - 1",
+      origem: "Cadastro inicial",
+      body: [
+        "CÃ“DIGO DE Ã‰TICA BUILT",
+        "",
+        "Eu cumprirei minhas entregas, acordos e responsabilidades com excelÃªncia, Ã©tica e compromisso.",
+        "",
+        "Eu agirei com transparÃªncia, lealdade e respeito em todas as relaÃ§Ãµes.",
+        "",
+        "Eu protegerei a confianÃ§a construÃ­da e a reputaÃ§Ã£o coletiva.",
+        "",
+        "Eu assumirei responsabilidade integral por minhas aÃ§Ãµes, decisÃµes e conduta.",
+        "",
+        "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianÃ§as.",
+        "",
+        "Eu honrarei os esforÃ§os e a dignidade dos meus aliados acima do lucro.",
+      ].join("\n"),
+    },
+    politicas_participacao_protecao: {
+      titulo: "PolÃ­ticas de ParticipaÃ§Ã£o e ProteÃ§Ã£o BUILT",
+      versao: "BUILT JUR - 1",
+      origem: "Cadastro inicial",
+      body: [
+        "POLÃTICAS DE PARTICIPAÃ‡ÃƒO E PROTEÃ‡ÃƒO - BUILT",
+        "",
+        "Estas PolÃ­ticas definem as regras gerais de acesso, participaÃ§Ã£o, permanÃªncia, conduta, proteÃ§Ã£o institucional e uso do ecossistema BUILT.",
+        "",
+        "Seu objetivo Ã© proteger a BUILT, seus membros, comunidades, OPAs, BIAs, parceiros, ativos, registros, metodologia, plataforma, marca e reputaÃ§Ã£o.",
+        "",
+        "A BUILT opera com base em boa-fÃ© objetiva, lealdade, comprometimento, transparÃªncia, rastreabilidade, responsabilidade individual, validaÃ§Ã£o reputacional, cooperaÃ§Ã£o estratÃ©gica, proteÃ§Ã£o institucional, integridade patrimonial e disciplina relacional.",
+        "",
+        "O acesso aos ambientes da BUILT poderÃ¡ depender de aceite eletrÃ´nico ou fÃ­sico dos Termos de Acesso, CÃ³digo de Ã‰tica, PolÃ­ticas de ParticipaÃ§Ã£o e ProteÃ§Ã£o e demais instrumentos aplicÃ¡veis.",
+        "",
+        "Todo participante deverÃ¡ atuar com Ã©tica, boa-fÃ©, lealdade, comprometimento, transparÃªncia, diligÃªncia, cooperaÃ§Ã£o, respeito Ã  legislaÃ§Ã£o e aderÃªncia ao CÃ³digo de Ã‰tica, a estas PolÃ­ticas e aos instrumentos aplicÃ¡veis.",
+        "",
+        "SÃ£o confidenciais as informaÃ§Ãµes estratÃ©gicas, comerciais, tÃ©cnicas, financeiras, jurÃ­dicas, societÃ¡rias, patrimoniais, reputacionais, operacionais, metodolÃ³gicas, documentais ou negociais acessadas no ecossistema BUILT, salvo quando expressamente classificadas como pÃºblicas.",
+        "",
+        "A manifestaÃ§Ã£o de interesse em OPA Ã© ato preliminar e dependerÃ¡ de anÃ¡lise, seleÃ§Ã£o, aprovaÃ§Ã£o, aceite especÃ­fico, registro na Plataforma BUILT e instrumentos aplicÃ¡veis da respectiva BIA.",
+        "",
+        "A participaÃ§Ã£o em BIA especÃ­fica dependerÃ¡ de aprovaÃ§Ã£o da governanÃ§a competente, aceite prÃ³prio, registro na Plataforma BUILT, definiÃ§Ã£o de funÃ§Ã£o, aporte, entrega ou responsabilidade, e vinculaÃ§Ã£o aos instrumentos aplicÃ¡veis.",
+        "",
+        "A BUILT atua como plataforma privada de mÃ©todo, rede, governanÃ§a, rastreabilidade, validaÃ§Ã£o reputacional, organizaÃ§Ã£o informacional e proteÃ§Ã£o institucional.",
+        "",
+        "Estas PolÃ­ticas integram, por referÃªncia, os Termos de Acesso da Plataforma BUILT, fluxos de OPA, MOUs de BIA, MAPs, termos de adesÃ£o, atas, registros, anexos e demais instrumentos aplicÃ¡veis.",
+      ].join("\n"),
+    },
+    vitrine: {
+      titulo: "Termo BUILT Vitrine",
+      versao: "BUILT JUR - 2",
+      origem: "BUILT Vitrine",
+      body: [
+        "TERMO DE ACESSO E USO DA VITRINE PÃšBLICA BUILT",
+        "",
+        "Este Termo regula o acesso Ã  vitrine pÃºblica da BUILT, ambiente digital destinado Ã  exposiÃ§Ã£o institucional, descoberta de perfis, consulta de categorias, apresentaÃ§Ã£o pÃºblica controlada de empresas e profissionais formalmente habilitados e demais funcionalidades abertas pela BUILT.",
+        "",
+        "A vitrine pÃºblica possui natureza informativa, institucional e relacional. A presenÃ§a do usuÃ¡rio na vitrine pÃºblica nÃ£o constitui certificaÃ§Ã£o absoluta, endosso profissional, promessa de contrataÃ§Ã£o, garantia de reputaÃ§Ã£o, garantia de capacidade tÃ©cnica ou aval financeiro.",
+        "",
+        "O usuÃ¡rio Ã© integralmente responsÃ¡vel pelos dados, documentos, imagens, currÃ­culos, registros, marcas, portfÃ³lios, links, descriÃ§Ãµes e demais conteÃºdos inseridos.",
+        "",
+        "O acesso Ã© pessoal, revogÃ¡vel, nÃ£o exclusivo e intransferÃ­vel. Ã‰ vedado usar a vitrine pÃºblica para spam, fraude, engenharia social, concorrÃªncia desleal ou desvio de oportunidades.",
+        "",
+        "O aceite deste Termo poderÃ¡ ocorrer por clique, checkbox, autenticaÃ§Ã£o social, assinatura eletrÃ´nica, fluxo de cadastro ou outro mecanismo eletrÃ´nico apto a demonstrar manifestaÃ§Ã£o inequÃ­voca de vontade.",
+      ].join("\n"),
+    },
+    area_aliancas: {
+      titulo: "Termo de Acesso Ã  Ãrea de AlianÃ§as BUILT",
+      versao: "BUILT JUR - 4",
+      origem: "BUILT Alliances",
+      body: [
+        "TERMO DE ACESSO Ã€ ÃREA DE ALIANÃ‡AS BUILT",
+        "",
+        "Este Termo disciplina o ingresso e a permanÃªncia do usuÃ¡rio na Ãrea de AlianÃ§as BUILT, ambiente restrito destinado a empresÃ¡rios sÃ³cios, profissionais formalmente habilitados e demais participantes elegÃ­veis aprovados pela BUILT.",
+        "",
+        "O acesso Ã  Ãrea de AlianÃ§as depende de aprovaÃ§Ã£o cadastral, reputacional, tÃ©cnica e documental, conforme os critÃ©rios internos da BUILT.",
+        "",
+        "O Membro Aliado compromete-se a atuar com Ã©tica, boa-fÃ©, lealdade, diligÃªncia, respeito Ã  legislaÃ§Ã£o aplicÃ¡vel e aderÃªncia integral ao CÃ³digo de Ã‰tica, Ã s PolÃ­ticas de ParticipaÃ§Ã£o e ProteÃ§Ã£o, aos manuais internos e aos instrumentos especÃ­ficos da BUILT.",
+        "",
+        "Toda participaÃ§Ã£o relevante do Membro Aliado em oportunidades, validaÃ§Ãµes, alianÃ§as, entregas, CPPs, comunidades ou BIAs deverÃ¡ ser registrada no ambiente indicado pela BUILT para fins de governanÃ§a, transparÃªncia, compliance e auditoria.",
+        "",
+        "A condiÃ§Ã£o de Membro Aliado nÃ£o garante participaÃ§Ã£o automÃ¡tica em BIAs, recebimento de oportunidades, contrataÃ§Ã£o, remuneraÃ§Ã£o, retorno econÃ´mico, indicaÃ§Ã£o comercial ou aporte de capital.",
+      ].join("\n"),
+    },
+    built_capital: {
+      titulo: "Termo BUILT Capital",
+      versao: "built_capital_v1_provisorio",
+      origem: "BUILT Capital",
+      body: [
+        "TERMO PROVISÃ“RIO DE ACESSO AO BUILT CAPITAL",
+        "",
+        "Este termo regula o acesso inicial ao BUILT Capital, ambiente restrito voltado Ã  conexÃ£o, qualificaÃ§Ã£o e relacionamento com parceiros de capital, investidores, originadores e participantes estratÃ©gicos da rede BUILT.",
+        "",
+        "O acesso ao BUILT Capital nÃ£o constitui recomendaÃ§Ã£o de investimento, oferta pÃºblica, intermediaÃ§Ã£o financeira, promessa de retorno, garantia de rentabilidade ou aprovaÃ§Ã£o automÃ¡tica de aporte.",
+        "",
+        "Toda decisÃ£o de aporte, crÃ©dito, investimento, financiamento ou parceria dependerÃ¡ de anÃ¡lise prÃ³pria, diligÃªncia, instrumentos especÃ­ficos, registro e aprovaÃ§Ã£o das partes envolvidas.",
+        "",
+        "O usuÃ¡rio compromete-se a fornecer informaÃ§Ãµes verdadeiras, manter seus dados atualizados, respeitar confidencialidade, compliance, origem lÃ­cita de recursos e legislaÃ§Ã£o aplicÃ¡vel.",
+      ].join("\n"),
+    },
+  };
+
+  const acceptedDocDate = (value: any) => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+  };
+
+  async function listarDocumentosAceitosDoUsuario(req: any): Promise<DocumentoAceiteResumo[]> {
+    const membroId = req.session?.membroId as string | null;
+    if (!membroId) return [];
+
+    const docs = new Map<string, DocumentoAceiteResumo>();
+    const membro = await directusFetchOne(
+      "cadastro_geral",
+      membroId,
+      "fields=id,nome,Nome_de_usuario,email,codigo_etica_aceito_em,codigo_etica_versao,politicas_participacao_aceito_em,politicas_participacao_versao,vitrine_termo_aceito_em,vitrine_termo_versao,area_aliancas_termo_aceito_em,area_aliancas_termo_versao,built_capital_termo_aceito_em,built_capital_termo_versao"
+    ).catch(() => null);
+
+    const addTerm = (key: string, acceptedAt: any, version?: any, origem?: string) => {
+      if (!acceptedAt) return;
+      const term = TERMOS_ACEITE_BUILT[key];
+      if (!term) return;
+      const id = `termo-${key}`;
+      docs.set(id, {
+        id,
+        tipo: "termo",
+        chave: key,
+        titulo: term.titulo,
+        versao: version || term.versao,
+        aceito_em: acceptedDocDate(acceptedAt),
+        origem: origem || term.origem,
+      });
+    };
+
+    if (membro) {
+      addTerm("codigo_etica", membro.codigo_etica_aceito_em, membro.codigo_etica_versao);
+      addTerm("politicas_participacao_protecao", membro.politicas_participacao_aceito_em, membro.politicas_participacao_versao);
+      addTerm("vitrine", membro.vitrine_termo_aceito_em, membro.vitrine_termo_versao);
+      addTerm("area_aliancas", membro.area_aliancas_termo_aceito_em, membro.area_aliancas_termo_versao);
+      addTerm("built_capital", membro.built_capital_termo_aceito_em, membro.built_capital_termo_versao);
+    }
+
+    try {
+      const convites = await storage.getConvitesByCandidatoMembro(membroId);
+      for (const convite of convites) {
+        const dados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
+          ? convite.dados_contratuais as Record<string, any>
+          : {};
+        const aceitos = dados.termos_aceitos && typeof dados.termos_aceitos === "object" ? dados.termos_aceitos : {};
+        const versoes = dados.termos_versoes && typeof dados.termos_versoes === "object" ? dados.termos_versoes : {};
+        const acceptedAt = dados.aceito_em || convite.termos_aceitos_em;
+        for (const [key, accepted] of Object.entries(aceitos)) {
+          if (accepted) addTerm(key, acceptedAt, (versoes as any)[key]);
+        }
+      }
+    } catch (error: any) {
+      console.warn("[documentos-aceitos] falha ao buscar convites para fallback:", error?.message || error);
+    }
+
+    try {
+      const mouAceites = await db.select().from(biaMouAceites)
+        .where(eq(biaMouAceites.membro_id, membroId))
+        .orderBy(desc(biaMouAceites.aceito_em));
+      for (const aceite of mouAceites) {
+        let biaNome = "";
+        try {
+          const bia = await directusFetchOne("bias_projetos", aceite.bia_id, "fields=id,nome_bia,codigo_publico").catch(() => null);
+          biaNome = bia?.nome_bia || "";
+        } catch {}
+        const id = `mou-${aceite.id}`;
+        docs.set(id, {
+          id,
+          tipo: "mou",
+          titulo: aceite.mou_titulo || "MOU PadrÃ£o BUILT",
+          versao: aceite.mou_versao || null,
+          aceito_em: acceptedDocDate(aceite.aceito_em),
+          origem: biaNome ? `BIA ${biaNome}` : `BIA ${aceite.bia_id}`,
+          bia_id: aceite.bia_id,
+          bia_nome: biaNome || null,
+        });
+      }
+    } catch (error: any) {
+      console.warn("[documentos-aceitos] falha ao buscar MOUs aceitos:", error?.message || error);
+    }
+
+    return Array.from(docs.values()).sort((a, b) => {
+      const da = a.aceito_em ? new Date(a.aceito_em).getTime() : 0;
+      const dbb = b.aceito_em ? new Date(b.aceito_em).getTime() : 0;
+      return dbb - da;
+    });
+  }
+
+  app.get("/api/me/documentos-aceitos", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+    try {
+      const documentos = await listarDocumentosAceitosDoUsuario(req);
+      res.json({ documentos });
+    } catch (error: any) {
+      console.error("[documentos-aceitos] erro ao listar:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/me/documentos-aceitos/:documentoId/pdf", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+    try {
+      const documentos = await listarDocumentosAceitosDoUsuario(req);
+      const documento = documentos.find((item) => item.id === req.params.documentoId);
+      if (!documento) return res.status(404).json({ error: "Documento nÃ£o encontrado" });
+
+      let sections: Array<{ title: string; body: string }> = [];
+      if (documento.tipo === "mou") {
+        const biaId = documento.bia_id;
+        if (!biaId) return res.status(404).json({ error: "BIA do MOU nÃ£o encontrada" });
+        const bia = await fetchBiaForMouPdf(biaId);
+        if (!bia) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
+        const infoLocal = await storage.getBiaInfoComercial(biaId).catch(() => null);
+        const biaComInfo = {
+          ...bia,
+          ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
+          ...pickFilledBiaInfoComercialFields(bia ?? {}),
+        };
+        const participants = await getMouParticipantsForBia(biaComInfo, biaId);
+        const allocationRows = await getBiaAllocationMap(biaComInfo, biaId);
+        const mouPadraoBase = readMouAsset("mou-padrao-built.txt") || "MOU PadrÃ£o BUILT nÃ£o localizado nos assets do servidor.";
+        sections = [
+          { title: "MOU PadrÃ£o BUILT", body: personalizarBiaMouTexto(mouPadraoBase, biaId, biaComInfo) },
+          { title: "Anexo I - QualificaÃ§Ã£o das Partes", body: buildAnexoIQualificacao(biaComInfo, biaId, participants) },
+          { title: "Anexo II - Mapa de AlocaÃ§Ã£o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, biaId, allocationRows) },
+          { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III nÃ£o localizado nos assets do servidor." },
+          { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV nÃ£o localizado nos assets do servidor." },
+        ];
+      } else {
+        const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
+        const body = term?.body || [
+          "Documento histÃ³rico de aceite.",
+          "",
+          "O texto completo desta versÃ£o nÃ£o estÃ¡ mapeado no sistema atual. Este comprovante preserva os metadados do aceite registrado.",
+        ].join("\n");
+        sections = [
+          {
+            title: "Comprovante de aceite",
+            body: [
+              `Documento: ${documento.titulo}`,
+              `VersÃ£o: ${documento.versao || "nÃ£o informada"}`,
+              `Origem: ${documento.origem}`,
+              `Aceito em: ${documento.aceito_em ? new Date(documento.aceito_em).toLocaleString("pt-BR") : "nÃ£o informado"}`,
+            ].join("\n"),
+          },
+          { title: documento.titulo, body },
+        ];
+      }
+
+      const pdf = buildSimpleTextPdf(documento.titulo, sections);
+      const filename = `${documento.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "documento-aceito"}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      res.setHeader("Cache-Control", "private, no-store");
+      res.send(pdf);
+    } catch (error: any) {
+      console.error("[documentos-aceitos] erro ao gerar PDF:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/dashboard", async (req, res) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = (req.session as any).membroId as string | null;
       const directusUserId = (req.session as any).directusUserId as string;
@@ -4982,7 +5495,9 @@ export async function registerRoutes(
 
       const [allBias, allOpas, comunidades, fluxoCaixa] = await Promise.all([
         directusFetchScoped("bias_projetos",
-          "fields=id,nome_bia,situacao,objetivo_alianca,destinacao,localizacao,valor_origem,custo_final_previsto,resultado_liquido,moeda," +
+          "fields=id,codigo_publico,nome_bia,situacao,objetivo_alianca,destinacao,localizacao,latitude,longitude,observacoes,imagem_directus_id," +
+          "valor_origem,valor_geral_venda_vgv,valor_realizado_venda,custo_final_previsto,resultado_liquido,moeda," +
+          "cpp_autor_opa,cpp_aliado_built,cpp_built,cpp_dir_alianca,cpp_dir_tecnico,cpp_dir_obras,cpp_dir_comercial,cpp_dir_capital," +
           "bia_publica,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital," +
           "socios_guardioes,socios_multiplicadores,terceiros"
         ),
@@ -4991,7 +5506,11 @@ export async function registerRoutes(
         directusFetch("fluxo_caixa", "fields=id,bia,tipo,valor,favorecido_id").catch(() => []),
       ]);
 
-      const userBias = (allBias as any[]).filter(b => isUserLinkedToBia(b, membroId));
+      const userBias = await Promise.all(
+        (allBias as any[])
+          .filter(b => isUserLinkedToBia(b, membroId))
+          .map((b: any) => ensureBiaPublicCode(b))
+      );
 
       const userBiaIds = new Set(userBias.map((b: any) => b.id));
       const CLOSED_STATUSES = new Set(["concluida", "desistencia"]);
@@ -5177,27 +5696,27 @@ export async function registerRoutes(
       const biaRoleMap: Record<string, string> = {
         aliado_built: "Aliado BUILT",
         autor_bia: "Autor da BIA",
-        diretor_alianca: "Dir. de Aliança",
-        diretor_nucleo_tecnico: "Dir. Núcleo Técnico",
-        diretor_execucao: "Dir. de Execução",
+        diretor_alianca: "Dir. de AlianÃ§a",
+        diretor_nucleo_tecnico: "Dir. NÃºcleo TÃ©cnico",
+        diretor_execucao: "Dir. de ExecuÃ§Ã£o",
         diretor_comercial: "Dir. Comercial",
         diretor_capital: "Dir. de Capital",
       };
 
       const biasWithRole = userBias.map((b: any) => {
-        const papel = BIA_ROLE_FIELDS.find(role => b[role] === membroId);
+        const papel = BIA_ROLE_FIELDS.find(role => directusRelationId(b[role]) === membroId);
         return { ...b, papel_usuario: papel ? biaRoleMap[papel] : "Membro" };
       });
 
       res.json({
         bias: userBias.map((b: any) => {
-          const papel = BIA_ROLE_FIELDS.find((role) => b[role] === membroId);
+          const papel = BIA_ROLE_FIELDS.find((role) => directusRelationId(b[role]) === membroId);
           const papeis: Record<string, string> = {
             aliado_built: "Aliado BUILT",
             autor_bia: "Autor da BIA",
-            diretor_alianca: "Dir. de Aliança",
-            diretor_nucleo_tecnico: "Dir. Núcleo Técnico",
-            diretor_execucao: "Dir. de Execução",
+            diretor_alianca: "Dir. de AlianÃ§a",
+            diretor_nucleo_tecnico: "Dir. NÃºcleo TÃ©cnico",
+            diretor_execucao: "Dir. de ExecuÃ§Ã£o",
             diretor_comercial: "Dir. Comercial",
             diretor_capital: "Dir. de Capital",
           };
@@ -5228,7 +5747,9 @@ export async function registerRoutes(
   app.get("/api/bias", async (req, res) => {
     try {
       const items = await directusFetch("bias_projetos", "fields=*,Anexos.directus_files_id.*");
-      res.json(resolveAnexosBia(items.filter((item: any) => canViewBia(item, req))));
+      const visible = items.filter((item: any) => canViewBia(item, req));
+      const withCodes = await Promise.all(visible.map((item: any) => ensureBiaPublicCode(item)));
+      res.json(resolveAnexosBia(withCodes));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -5236,9 +5757,9 @@ export async function registerRoutes(
 
   app.get("/api/bias/:id", async (req, res) => {
     try {
-      const item = await directusFetchOne("bias_projetos", req.params.id, "fields=*,Anexos.directus_files_id.*");
-      if (!item) return res.status(404).json({ error: "BIA não encontrada" });
-      if (!canViewBia(item, req)) return res.status(403).json({ error: "Você não tem acesso a esta BIA privada" });
+      const item = await resolveBiaByIdOrPublicCode(req.params.id, "*,Anexos.directus_files_id.*");
+      if (!item) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
+      if (!canViewBia(item, req)) return res.status(403).json({ error: "VocÃª nÃ£o tem acesso a esta BIA privada" });
       res.json(resolveAnexosBia([item])[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -5248,6 +5769,7 @@ export async function registerRoutes(
   function prepareBiaPayload(body: Record<string, any>): Record<string, any> {
     // Strip private side-channel fields (prefixed with _) before sending to Directus
     const data = Object.fromEntries(Object.entries(body).filter(([k]) => !k.startsWith("_")));
+    delete (data as any).codigo_publico;
     for (const field of [
       "diretor_alianca", "diretor_nucleo_tecnico", "diretor_execucao", "diretor_comercial", "diretor_capital",
       "perc_dir_alianca", "perc_dir_tecnico", "perc_dir_obras", "perc_dir_comercial", "perc_dir_capital",
@@ -5337,7 +5859,7 @@ export async function registerRoutes(
       }
 
       if (!canCreate) {
-        return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Área de Contribuição de Liderança ou administradores podem criar BIAs." });
+        return res.status(403).json({ error: "Apenas membros com Selo Aliado BUILT, Ãrea de ContribuiÃ§Ã£o de LideranÃ§a ou administradores podem criar BIAs." });
       }
 
       // Create the BIA in Directus
@@ -5365,11 +5887,12 @@ export async function registerRoutes(
           if (aliadoId) aliadoDaComunidade = String(aliadoId);
         } catch (_) {}
         if (!isSuperAdminRole && !aliadoDaComunidade) {
-          return res.status(400).json({ error: "Não foi possível identificar o Aliado BUILT da sua comunidade." });
+          return res.status(400).json({ error: "NÃ£o foi possÃ­vel identificar o Aliado BUILT da sua comunidade." });
         }
         if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
       }
       const createPayload = prepareBiaPayload(createBody);
+      createPayload.codigo_publico = await createUniqueBiaPublicCode();
       let item = await directusCreate("bias_projetos", createPayload);
       let diretorFlowError: string | null = null;
       const diretorSolicitacoes = await processDiretorSolicitacoes({
@@ -5409,7 +5932,7 @@ export async function registerRoutes(
         syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
       }
 
-      // If Diretor de Aliança (not Aliado BUILT), create pending approval record
+      // If Diretor de AlianÃ§a (not Aliado BUILT), create pending approval record
       if (isDiretorAlianca && !isAliadoBuilt && sessionMembroId) {
         try {
           const col = await getComunidadeCol();
@@ -5467,7 +5990,7 @@ export async function registerRoutes(
           return res.json({ ...item, _aprovacao_pendente: true, _aprovacao_id: aprovacao.id, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
         } catch (aprovErr: any) {
           console.error("[bia-aprovacao] Failed to create approval record:", aprovErr.message);
-          // BIA was created — return it even if approval record failed
+          // BIA was created â€” return it even if approval record failed
         }
       }
 
@@ -5494,7 +6017,7 @@ export async function registerRoutes(
         isSuperAdminRole ||
         (!!sessionMembroId && (sessionMembroId === aliadoAtual || sessionMembroId === diretorAliancaAtual));
       if (!canEditBia) {
-        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editá-la." });
+        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de AlianÃ§a desta BIA podem editÃ¡-la." });
       }
       if (!isSuperAdminRole && Object.prototype.hasOwnProperty.call(payload, "aliado_built")) {
         if (aliadoAtual) {
@@ -5579,11 +6102,11 @@ export async function registerRoutes(
             const contributors: CppContributor[] = [
               { label: "Aliado BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
               { label: "BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
-              { label: "Dir. de Aliança", memberId: item.diretor_alianca || null, percentual: parseFloat(item.perc_dir_alianca) || 0, isAporte: true },
-              { label: "Dir. Núcleo Técnico", memberId: item.diretor_nucleo_tecnico || null, percentual: parseFloat(item.perc_dir_tecnico) || 0, isAporte: true },
-              { label: "Dir. Núcleo de Obra", memberId: item.diretor_execucao || null, percentual: parseFloat(item.perc_dir_obras) || 0, isAporte: true },
-              { label: "Dir. Núcleo Comercial", memberId: item.diretor_comercial || null, percentual: parseFloat(item.perc_dir_comercial) || 0, isAporte: true },
-              { label: "Dir. Núcleo de Capital", memberId: item.diretor_capital || null, percentual: parseFloat(item.perc_dir_capital) || 0, isAporte: true },
+              { label: "Dir. de AlianÃ§a", memberId: item.diretor_alianca || null, percentual: parseFloat(item.perc_dir_alianca) || 0, isAporte: true },
+              { label: "Dir. NÃºcleo TÃ©cnico", memberId: item.diretor_nucleo_tecnico || null, percentual: parseFloat(item.perc_dir_tecnico) || 0, isAporte: true },
+              { label: "Dir. NÃºcleo de Obra", memberId: item.diretor_execucao || null, percentual: parseFloat(item.perc_dir_obras) || 0, isAporte: true },
+              { label: "Dir. NÃºcleo Comercial", memberId: item.diretor_comercial || null, percentual: parseFloat(item.perc_dir_comercial) || 0, isAporte: true },
+              { label: "Dir. NÃºcleo de Capital", memberId: item.diretor_capital || null, percentual: parseFloat(item.perc_dir_capital) || 0, isAporte: true },
             ];
             try {
               const cppSummary = await syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
@@ -5651,7 +6174,7 @@ export async function registerRoutes(
 
   // GET /api/bias/:id/info-comercial
   app.get("/api/bias/:id/info-comercial", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const localInfo = await storage.getBiaInfoComercial(req.params.id).catch((error: any) => {
         console.warn(`[bia-info] leitura local indisponivel: ${error?.message || error}`);
@@ -5672,7 +6195,7 @@ export async function registerRoutes(
 
   // PUT /api/bias/:id/info-comercial
   app.put("/api/bias/:id/info-comercial", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
@@ -5684,7 +6207,7 @@ export async function registerRoutes(
         isSuperAdminRole ||
         (!!sessionMembroId && (sessionMembroId === aliadoAtual || sessionMembroId === diretorAliancaAtual));
       if (!canEditBia) {
-        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editar estas informações." });
+        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de AlianÃ§a desta BIA podem editar estas informaÃ§Ãµes." });
       }
       const infoPayload = pickBiaInfoComercialFields(req.body);
       let directusInfo = infoPayload;
@@ -5709,7 +6232,7 @@ export async function registerRoutes(
     }
   });
 
-  // GET /api/bias/:id/aportes — returns "Aporte do Fator de Multiplicação" fluxo_caixa entries for a BIA
+  // GET /api/bias/:id/aportes â€” returns "Aporte do Fator de MultiplicaÃ§Ã£o" fluxo_caixa entries for a BIA
   app.get("/api/bias/:id/aportes", async (req, res) => {
     try {
       const biaId = req.params.id;
@@ -5720,7 +6243,7 @@ export async function registerRoutes(
         `filter[bia][_eq]=${encodeURIComponent(biaId)}&fields=id,bia,descricao,valor,data_vencimento,status,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario`
       );
       const aportes = entries.filter(
-        (e: any) => (e.descricao || "").startsWith("Aporte do Fator de Multiplicação")
+        (e: any) => (e.descricao || "").startsWith("Aporte do Fator de MultiplicaÃ§Ã£o")
       );
       res.json(aportes);
     } catch (error: any) {
@@ -5728,11 +6251,11 @@ export async function registerRoutes(
     }
   });
 
-  // ========== BIA APROVAÇÕES ==========
+  // ========== BIA APROVAÃ‡Ã•ES ==========
 
-  // GET /api/bia-aprovacoes — list pending approvals visible to the current user
+  // GET /api/bia-aprovacoes â€” list pending approvals visible to the current user
   app.get("/api/bia-aprovacoes", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
@@ -5768,9 +6291,9 @@ export async function registerRoutes(
     }
   });
 
-  // GET /api/bia-aprovacoes/minha — approvals created BY the current user (Diretor)
+  // GET /api/bia-aprovacoes/minha â€” approvals created BY the current user (Diretor)
   app.get("/api/bia-aprovacoes/minha", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const sessionMembroId = (req.session as any).membroId as string | null;
       if (!sessionMembroId) return res.json([]);
@@ -5782,15 +6305,15 @@ export async function registerRoutes(
     }
   });
 
-  // PATCH /api/bia-aprovacoes/:id/aprovar — Aliado BUILT approves the BIA
+  // PATCH /api/bia-aprovacoes/:id/aprovar â€” Aliado BUILT approves the BIA
   app.patch("/api/bia-aprovacoes/:id/aprovar", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
       const aprovacao = await storage.getBiaAprovacaoById(req.params.id);
-      if (!aprovacao) return res.status(404).json({ error: "Aprovação não encontrada" });
-      if (aprovacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitação já foi processada" });
+      if (!aprovacao) return res.status(404).json({ error: "AprovaÃ§Ã£o nÃ£o encontrada" });
+      if (aprovacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitaÃ§Ã£o jÃ¡ foi processada" });
 
       // Only admin, manager, or the designated Aliado BUILT can approve
       const isAdmin = sessionRole === "admin" || sessionRole === "manager";
@@ -5816,15 +6339,15 @@ export async function registerRoutes(
     }
   });
 
-  // PATCH /api/bia-aprovacoes/:id/rejeitar — Aliado BUILT rejects the BIA
+  // PATCH /api/bia-aprovacoes/:id/rejeitar â€” Aliado BUILT rejects the BIA
   app.patch("/api/bia-aprovacoes/:id/rejeitar", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
       const aprovacao = await storage.getBiaAprovacaoById(req.params.id);
-      if (!aprovacao) return res.status(404).json({ error: "Aprovação não encontrada" });
-      if (aprovacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitação já foi processada" });
+      if (!aprovacao) return res.status(404).json({ error: "AprovaÃ§Ã£o nÃ£o encontrada" });
+      if (aprovacao.status !== "pendente") return res.status(400).json({ error: "Esta solicitaÃ§Ã£o jÃ¡ foi processada" });
 
       const isAdmin = sessionRole === "admin" || sessionRole === "manager";
       const isAliado = sessionMembroId && aprovacao.aliado_built_membro_id === sessionMembroId;
@@ -6408,7 +6931,7 @@ export async function registerRoutes(
     });
     if (!paymentRes.ok) {
       const text = await paymentRes.text().catch(() => "");
-      throw new Error(readProviderError(text, `Erro ao criar cobrança no Asaas (${paymentRes.status})`));
+      throw new Error(readProviderError(text, `Erro ao criar cobranÃ§a no Asaas (${paymentRes.status})`));
     }
     const payment = await paymentRes.json();
     return {
@@ -6545,7 +7068,7 @@ export async function registerRoutes(
         antes,
         payload: { id: req.params.id },
       });
-      // Limpa relações M2M primeiro para evitar violação de foreign key
+      // Limpa relaÃ§Ãµes M2M primeiro para evitar violaÃ§Ã£o de foreign key
       await directusUpdate("fluxo_caixa", req.params.id, {
         Categoria: [],
         tipo_de_cpp: [],
@@ -6581,82 +7104,82 @@ export async function registerRoutes(
 
   // ========== CATEGORIAS (from Directus) ==========
   const PLANO_CONTAS_CATEGORIAS = [
-    { nome: "1.1 Venda do ativo / unidades", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
-    { nome: "1.2 Receita de locação", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
-    { nome: "1.3 Receita de operação", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
-    { nome: "1.4 Receita extra", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÓPRIO NEGÓCIO" },
+    { nome: "1.1 Venda do ativo / unidades", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÃ“PRIO NEGÃ“CIO" },
+    { nome: "1.2 Receita de locaÃ§Ã£o", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÃ“PRIO NEGÃ“CIO" },
+    { nome: "1.3 Receita de operaÃ§Ã£o", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÃ“PRIO NEGÃ“CIO" },
+    { nome: "1.4 Receita extra", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA DO PRÃ“PRIO NEGÃ“CIO" },
     { nome: "2.1 Aporte inicial", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
     { nome: "2.2 Aportes por chamadas de capital", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
     { nome: "2.3 Aporte emergencial", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
     { nome: "2.4 Aporte complementar", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
     { nome: "2.5 Provisionamento de recursos", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA POR APORTE DOS PARTICIPANTES" },
-    { nome: "3.1 Empréstimos e financiamento bancário", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
-    { nome: "3.2 Dívida com investidores", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
-    { nome: "3.3 Antecipação de recebíveis", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
-    { nome: "3.4 Tranches condicionadas", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
-    { nome: "3.5 Liberações por marcos e garantias", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÍVIDA" },
+    { nome: "3.1 EmprÃ©stimos e financiamento bancÃ¡rio", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÃVIDA" },
+    { nome: "3.2 DÃ­vida com investidores", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÃVIDA" },
+    { nome: "3.3 AntecipaÃ§Ã£o de recebÃ­veis", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÃVIDA" },
+    { nome: "3.4 Tranches condicionadas", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÃVIDA" },
+    { nome: "3.5 LiberaÃ§Ãµes por marcos e garantias", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA VIA FUNDING / DÃVIDA" },
     { nome: "4.1 Reembolsos", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
-    { nome: "4.2 Estornos e devoluções", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
-    { nome: "4.3 Créditos e bônus de fornecedores", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
-    { nome: "4.4 Recuperação e ressarcimento", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.2 Estornos e devoluÃ§Ãµes", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.3 CrÃ©ditos e bÃ´nus de fornecedores", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "4.4 RecuperaÃ§Ã£o e ressarcimento", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
     { nome: "4.5 Receitas financeiras", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
-    { nome: "4.6 Ajustes e regularizações financeiras", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
-    { nome: "5.1 Taxas internas do veículo", tipo: "Entrada", grupo: "ENTRADAS LIGADAS À GOVERNANÇA / MÉTODO BUILT" },
-    { nome: "5.2 Multas contratuais recebidas", tipo: "Entrada", grupo: "ENTRADAS LIGADAS À GOVERNANÇA / MÉTODO BUILT" },
-    { nome: "5.3 Penalidades e recomposições financeiras", tipo: "Entrada", grupo: "ENTRADAS LIGADAS À GOVERNANÇA / MÉTODO BUILT" },
-    { nome: "6.1 Integralização de ativo", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
-    { nome: "6.2 Aportes em bens", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
-    { nome: "6.3 Aportes em direitos e cessões", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
-    { nome: "6.4 Esforço multiplicador convertido em CPP", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃO-CAIXA" },
-    { nome: "1.1 Valor de Origem", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "1.2 Due diligence e validação do ativo", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "1.3 Estruturação jurídica da origem", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "1.4 Formalização da BIA", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "1.5 Direito Econômico Institucional BUILT", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "1.6 Direito Econômico Institucional do Aliado", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "1.7 Direito Econômico por Liderança de Aliança", tipo: "Saída", grupo: "ORIGINAÇÃO E ESTRUTURAÇÃO DO ATIVO" },
-    { nome: "2.1 Estudos e viabilidade", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.2 Projetos e Compatibilização", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.3 Aprovações e legalização", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.4 Consultorias técnicas", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.5 Jurídico e Auditoria", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.6 Treinamentos técnicos", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.7 Documentação técnica e regularização final", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "2.8 Direito Econômico por Liderança Técnica", tipo: "Saída", grupo: "NÚCLEO TÉCNICO" },
-    { nome: "3.1 Gestão e acompanhamento da obra", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.2 Despesas Preliminares", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.3 Fundações e Estrutura", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.4 Vedações e coberturas", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.5 Instalações e automação", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.6 Acabamentos", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.7 Urbanização e áreas externas", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.8 Entrega técnica, testes e ajustes finais", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.9 Serviços recorrentes de operações e facilities", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.10 Reposição por garantia", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.11 Medicina e segurança do trabalho", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.12 Treinamentos operacionais", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.13 Logística, suprimentos e equipamentos", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.14 Qualidade e controle tecnológico", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "3.15 Direito Econômico por Liderança de Obra", tipo: "Saída", grupo: "NÚCLEO DE OBRA" },
-    { nome: "4.1 Branding e posicionamento", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.2 Marketing direto", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.3 Vendas", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.4 Locação", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.5 Networking e relacionamento com o mercado", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.6 SAC e pós-venda", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.7 Custos de plataformas e canais", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.8 Treinamentos comerciais", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.9 Inteligência comercial e precificação", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "4.10 Direito Econômico por Liderança Comercial", tipo: "Saída", grupo: "NÚCLEO COMERCIAL" },
-    { nome: "5.1 Captação de recursos", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.2 Gestão financeira", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.3 Gestão contábil", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.4 Condomínio e despesas recorrentes do ativo", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.5 Tributos patrimoniais e fiscais", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.6 Seguros e garantias", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.7 Contingência e passivos", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.8 Distribuição e encerramento patrimonial", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
-    { nome: "5.9 Direito Econômico por Liderança de Capital", tipo: "Saída", grupo: "NÚCLEO DE CAPITAL" },
+    { nome: "4.6 Ajustes e regularizaÃ§Ãµes financeiras", tipo: "Entrada", grupo: "ENTRADAS DE CAIXA OPERACIONAIS E AJUSTES" },
+    { nome: "5.1 Taxas internas do veÃ­culo", tipo: "Entrada", grupo: "ENTRADAS LIGADAS Ã€ GOVERNANÃ‡A / MÃ‰TODO BUILT" },
+    { nome: "5.2 Multas contratuais recebidas", tipo: "Entrada", grupo: "ENTRADAS LIGADAS Ã€ GOVERNANÃ‡A / MÃ‰TODO BUILT" },
+    { nome: "5.3 Penalidades e recomposiÃ§Ãµes financeiras", tipo: "Entrada", grupo: "ENTRADAS LIGADAS Ã€ GOVERNANÃ‡A / MÃ‰TODO BUILT" },
+    { nome: "6.1 IntegralizaÃ§Ã£o de ativo", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃƒO-CAIXA" },
+    { nome: "6.2 Aportes em bens", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃƒO-CAIXA" },
+    { nome: "6.3 Aportes em direitos e cessÃµes", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃƒO-CAIXA" },
+    { nome: "6.4 EsforÃ§o multiplicador convertido em CPP", tipo: "Entrada", grupo: "ENTRADAS PATRIMONIAIS NÃƒO-CAIXA" },
+    { nome: "1.1 Valor de Origem", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "1.2 Due diligence e validaÃ§Ã£o do ativo", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "1.3 EstruturaÃ§Ã£o jurÃ­dica da origem", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "1.4 FormalizaÃ§Ã£o da BIA", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "1.5 Direito EconÃ´mico Institucional BUILT", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "1.6 Direito EconÃ´mico Institucional do Aliado", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "1.7 Direito EconÃ´mico por LideranÃ§a de AlianÃ§a", tipo: "SaÃ­da", grupo: "ORIGINAÃ‡ÃƒO E ESTRUTURAÃ‡ÃƒO DO ATIVO" },
+    { nome: "2.1 Estudos e viabilidade", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.2 Projetos e CompatibilizaÃ§Ã£o", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.3 AprovaÃ§Ãµes e legalizaÃ§Ã£o", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.4 Consultorias tÃ©cnicas", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.5 JurÃ­dico e Auditoria", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.6 Treinamentos tÃ©cnicos", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.7 DocumentaÃ§Ã£o tÃ©cnica e regularizaÃ§Ã£o final", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "2.8 Direito EconÃ´mico por LideranÃ§a TÃ©cnica", tipo: "SaÃ­da", grupo: "NÃšCLEO TÃ‰CNICO" },
+    { nome: "3.1 GestÃ£o e acompanhamento da obra", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.2 Despesas Preliminares", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.3 FundaÃ§Ãµes e Estrutura", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.4 VedaÃ§Ãµes e coberturas", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.5 InstalaÃ§Ãµes e automaÃ§Ã£o", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.6 Acabamentos", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.7 UrbanizaÃ§Ã£o e Ã¡reas externas", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.8 Entrega tÃ©cnica, testes e ajustes finais", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.9 ServiÃ§os recorrentes de operaÃ§Ãµes e facilities", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.10 ReposiÃ§Ã£o por garantia", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.11 Medicina e seguranÃ§a do trabalho", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.12 Treinamentos operacionais", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.13 LogÃ­stica, suprimentos e equipamentos", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.14 Qualidade e controle tecnolÃ³gico", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "3.15 Direito EconÃ´mico por LideranÃ§a de Obra", tipo: "SaÃ­da", grupo: "NÃšCLEO DE OBRA" },
+    { nome: "4.1 Branding e posicionamento", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.2 Marketing direto", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.3 Vendas", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.4 LocaÃ§Ã£o", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.5 Networking e relacionamento com o mercado", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.6 SAC e pÃ³s-venda", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.7 Custos de plataformas e canais", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.8 Treinamentos comerciais", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.9 InteligÃªncia comercial e precificaÃ§Ã£o", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "4.10 Direito EconÃ´mico por LideranÃ§a Comercial", tipo: "SaÃ­da", grupo: "NÃšCLEO COMERCIAL" },
+    { nome: "5.1 CaptaÃ§Ã£o de recursos", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.2 GestÃ£o financeira", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.3 GestÃ£o contÃ¡bil", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.4 CondomÃ­nio e despesas recorrentes do ativo", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.5 Tributos patrimoniais e fiscais", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.6 Seguros e garantias", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.7 ContingÃªncia e passivos", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.8 DistribuiÃ§Ã£o e encerramento patrimonial", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
+    { nome: "5.9 Direito EconÃ´mico por LideranÃ§a de Capital", tipo: "SaÃ­da", grupo: "NÃšCLEO DE CAPITAL" },
   ];
 
   const PLANO_CONTAS_NOMES = new Set(PLANO_CONTAS_CATEGORIAS.map((c) => c.nome));
@@ -6710,7 +7233,7 @@ export async function registerRoutes(
   }
 
   await ensurePlanoContasCategorias().catch((err: any) => {
-    console.warn(`[categorias] Plano de contas não sincronizado: ${err.message}`);
+    console.warn(`[categorias] Plano de contas nÃ£o sincronizado: ${err.message}`);
   });
 
   await ensureCategoriaBiaField();
@@ -6749,13 +7272,13 @@ export async function registerRoutes(
   function fixMojibakeText(value: unknown): string | undefined {
     if (typeof value !== "string" || !value) return undefined;
     const cleanReplacementChars = (text: string) => text
-      .replace(/Ve�neto/gi, "Veneto")
-      .replace(/Ele�trico/gi, "Elétrico")
-      .replace(/Climatiza��o/gi, "Climatização")
+      .replace(/Veï¿½neto/gi, "Veneto")
+      .replace(/Eleï¿½trico/gi, "ElÃ©trico")
+      .replace(/Climatizaï¿½ï¿½o/gi, "ClimatizaÃ§Ã£o")
       .replace(/\uFFFD+/g, "")
       .replace(/\s+/g, " ")
       .trim();
-    if (!/[ÃÂÌÍÎÏ]|[\u0080-\u009F]/.test(value)) return cleanReplacementChars(value.normalize("NFC"));
+    if (!/[ÃƒÃ‚ÃŒÃÃŽÃ]|[\u0080-\u009F]/.test(value)) return cleanReplacementChars(value.normalize("NFC"));
     try {
       return cleanReplacementChars(Buffer.from(value, "latin1").toString("utf8").normalize("NFC"));
     } catch {
@@ -6893,7 +7416,7 @@ export async function registerRoutes(
 
     const sessionMembroId = (req.session as any).membroId as string | undefined;
     if (!sessionMembroId) {
-      const error: any = new Error("Seu perfil não está vinculado a um membro para criar OPA nesta BIA.");
+      const error: any = new Error("Seu perfil nÃ£o estÃ¡ vinculado a um membro para criar OPA nesta BIA.");
       error.statusCode = 403;
       throw error;
     }
@@ -6904,12 +7427,12 @@ export async function registerRoutes(
       "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
     );
     if (!bia) {
-      const error: any = new Error("BIA vinculada não encontrada.");
+      const error: any = new Error("BIA vinculada nÃ£o encontrada.");
       error.statusCode = 404;
       throw error;
     }
     if (!isUserLinkedToBia(bia, sessionMembroId)) {
-      const error: any = new Error("Você só pode vincular OPAs a BIAs em que está associado.");
+      const error: any = new Error("VocÃª sÃ³ pode vincular OPAs a BIAs em que estÃ¡ associado.");
       error.statusCode = 403;
       throw error;
     }
@@ -6917,7 +7440,7 @@ export async function registerRoutes(
 
   app.post("/api/oportunidades", async (req, res) => {
     try {
-      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
       await ensureCanLinkOpaToBia(req, payload);
@@ -6953,9 +7476,9 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id", async (req, res) => {
     try {
-      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       if (!(await canManageOpa(req, req.params.id))) {
-        return res.status(403).json({ error: "Sem permissão para editar esta OPA" });
+        return res.status(403).json({ error: "Sem permissÃ£o para editar esta OPA" });
       }
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
@@ -6969,9 +7492,9 @@ export async function registerRoutes(
 
   app.delete("/api/oportunidades/:id", async (req, res) => {
     try {
-      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       if (!(await canManageOpa(req, req.params.id))) {
-        return res.status(403).json({ error: "Sem permissão para excluir esta OPA" });
+        return res.status(403).json({ error: "Sem permissÃ£o para excluir esta OPA" });
       }
       await directusDelete("tipos_oportunidades", req.params.id);
       res.json({ success: true });
@@ -6995,7 +7518,7 @@ export async function registerRoutes(
 
   app.patch("/api/oportunidades/:id/interesse/:interesseId", async (req, res) => {
     try {
-      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const allowedStatuses = new Set([
         "interesse_recebido",
         "em_analise",
@@ -7006,13 +7529,13 @@ export async function registerRoutes(
       ]);
       const statusCrm = String(req.body.status_crm || "");
       if (!allowedStatuses.has(statusCrm)) {
-        return res.status(400).json({ error: "Status inválido" });
+        return res.status(400).json({ error: "Status invÃ¡lido" });
       }
       const item = await storage.updateOpaInteresse(req.params.interesseId, {
         status_crm: statusCrm,
         observacao_crm: req.body.observacao_crm ? String(req.body.observacao_crm) : null,
       } as any);
-      if (!item || item.opa_id !== req.params.id) return res.status(404).json({ error: "Manifestação não encontrada" });
+      if (!item || item.opa_id !== req.params.id) return res.status(404).json({ error: "ManifestaÃ§Ã£o nÃ£o encontrada" });
       res.json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -7022,7 +7545,7 @@ export async function registerRoutes(
   app.post("/api/oportunidades/:id/interesse", async (req, res) => {
     try {
       const directusUserId = (req.session as any).directusUserId as string | undefined;
-      if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const canManifestar = await canAccessProtectedOpaActions(req);
       if (!canManifestar) {
         return res.status(403).json({
@@ -7033,14 +7556,14 @@ export async function registerRoutes(
       const nome = (req.session as any).nome as string | undefined;
       const { id } = req.params;
       const existing = await storage.getUserInteresseByOpa(id, directusUserId);
-      if (existing) return res.status(409).json({ error: "Interesse já registrado" });
+      if (existing) return res.status(409).json({ error: "Interesse jÃ¡ registrado" });
       const multiplicador = req.body.multiplicador != null ? String(req.body.multiplicador) : null;
       // Validate submitted multiplicador against OPA minimum
       if (multiplicador != null) {
         const opaFields = await directusFetchOne("tipos_oportunidades", id, "fields=Minimo_esforco_multiplicador");
         const minMult = parseFloat(String(opaFields?.Minimo_esforco_multiplicador || "0")) || 0;
         if (minMult > 0 && parseFloat(multiplicador) < minMult) {
-          return res.status(400).json({ error: `O multiplicador deve ser de no mínimo ${minMult}%.` });
+          return res.status(400).json({ error: `O multiplicador deve ser de no mÃ­nimo ${minMult}%.` });
         }
       }
       const item = await storage.createOpaInteresse({
@@ -7053,7 +7576,7 @@ export async function registerRoutes(
       });
       res.json(item);
 
-      // Fire-and-forget: notify Diretor de Aliança and Aliado BUILT of linked BIA
+      // Fire-and-forget: notify Diretor de AlianÃ§a and Aliado BUILT of linked BIA
       (async () => {
         try {
           const { notificarInteresseOpa } = await import("./mailer");
@@ -7103,7 +7626,7 @@ export async function registerRoutes(
               await notificarInteresseOpa({
                 destinatarioEmail: m.email,
                 destinatarioNome: m.nome,
-                papel: "Diretor de Aliança",
+                papel: "Diretor de AlianÃ§a",
                 membroNome,
                 membroId: membroId || null,
                 opaNome,
@@ -7148,7 +7671,7 @@ export async function registerRoutes(
   app.delete("/api/oportunidades/:id/interesse", async (req, res) => {
     try {
       const directusUserId = (req.session as any).directusUserId as string | undefined;
-      if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const { id } = req.params;
       await storage.deleteOpaInteresse(id, directusUserId);
       res.json({ success: true });
@@ -7159,7 +7682,7 @@ export async function registerRoutes(
 
   // ========== AI PARSE PAYMENT SCHEDULE ==========
   app.post("/api/parse-pagamento-file", upload.single("file"), async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const file = (req as any).file;
       if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
@@ -7188,27 +7711,27 @@ export async function registerRoutes(
           textContent = result.text;
         } catch (pdfErr: any) {
           console.error("[parse-pagamento-file] pdf error:", pdfErr?.message || pdfErr);
-          return res.status(422).json({ error: "Não foi possível ler o PDF. Tente um Excel ou CSV." });
+          return res.status(422).json({ error: "NÃ£o foi possÃ­vel ler o PDF. Tente um Excel ou CSV." });
         }
       } else {
         textContent = file.buffer.toString("utf-8");
       }
 
       if (!textContent.trim()) {
-        return res.status(422).json({ error: "Não foi possível extrair texto do arquivo." });
+        return res.status(422).json({ error: "NÃ£o foi possÃ­vel extrair texto do arquivo." });
       }
 
       // Truncate to avoid token limits
       if (textContent.length > 15000) textContent = textContent.slice(0, 15000) + "\n[... truncado ...]";
 
       const prompt = `Analise o documento abaixo e extraia o cronograma de pagamentos/parcelas.
-Retorne SOMENTE um JSON minificado (sem espaços extras, sem quebras de linha) com este formato:
+Retorne SOMENTE um JSON minificado (sem espaÃ§os extras, sem quebras de linha) com este formato:
 {"numeroParcelas":<int>,"vencimentos":["YYYY-MM-DD",...],"valores":[<float>,...],"observacao":"<texto breve>"}
 Regras:
-- Valores: máximo 2 casas decimais (ex: 1500.50). Use 0 se não houver valor para a parcela.
-- Datas: formato YYYY-MM-DD. Array vazio se não houver datas.
-- Limite de parcelas: máximo 360. Se houver mais, inclua apenas as primeiras 360.
-- observacao: máximo 80 caracteres resumindo o tipo de cronograma.
+- Valores: mÃ¡ximo 2 casas decimais (ex: 1500.50). Use 0 se nÃ£o houver valor para a parcela.
+- Datas: formato YYYY-MM-DD. Array vazio se nÃ£o houver datas.
+- Limite de parcelas: mÃ¡ximo 360. Se houver mais, inclua apenas as primeiras 360.
+- observacao: mÃ¡ximo 80 caracteres resumindo o tipo de cronograma.
 - Sem markdown, sem texto fora do JSON.
 
 DOCUMENTO:
@@ -7241,7 +7764,7 @@ ${textContent}`;
           parsed = JSON.parse(fixed);
           console.log("[parse-pagamento-file] recovered truncated JSON");
         } catch {
-          throw new Error("Não foi possível interpretar a resposta da IA. Tente com um arquivo menor ou em formato Excel.");
+          throw new Error("NÃ£o foi possÃ­vel interpretar a resposta da IA. Tente com um arquivo menor ou em formato Excel.");
         }
       }
       res.json({ success: true, ...parsed });
@@ -7258,25 +7781,25 @@ ${textContent}`;
       if (!bia) return res.status(404).json({ success: false, error: "BIA not found" });
       const { question } = req.body;
 
-      const systemPrompt = `Você é um analista especializado em projetos BIA da Built Alliances.
-PROJETO BIA EM ANÁLISE:
+      const systemPrompt = `VocÃª Ã© um analista especializado em projetos BIA da Built Alliances.
+PROJETO BIA EM ANÃLISE:
 - Nome: ${bia.nome_bia}
 - Objetivo: ${bia.objetivo_alianca || 'N/A'}
-- Localização: ${bia.localizacao || 'N/A'}
+- LocalizaÃ§Ã£o: ${bia.localizacao || 'N/A'}
 - Dados: ${JSON.stringify(bia)}
-Responda em português brasileiro, de forma clara e objetiva.`;
+Responda em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: question || "Faça uma análise completa deste projeto BIA." }
+          { role: "user", content: question || "FaÃ§a uma anÃ¡lise completa deste projeto BIA." }
         ],
         max_tokens: 1500,
         temperature: 0.7
       });
 
-      res.json({ success: true, message: response.choices[0]?.message?.content || "Não foi possível analisar.", bia });
+      res.json({ success: true, message: response.choices[0]?.message?.content || "NÃ£o foi possÃ­vel analisar.", bia });
     } catch (error: any) {
       console.error("BIA Analysis error:", error);
       res.status(500).json({ success: false, error: error.message });
@@ -7286,17 +7809,17 @@ Responda em português brasileiro, de forma clara e objetiva.`;
   app.post("/api/analyze/oportunidade/:id", async (req, res) => {
     try {
       const { question } = req.body;
-      const systemPrompt = `Você é um analista especializado em oportunidades de negócio da Built Alliances. Responda em português brasileiro.`;
+      const systemPrompt = `VocÃª Ã© um analista especializado em oportunidades de negÃ³cio da Built Alliances. Responda em portuguÃªs brasileiro.`;
       const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: question || "Faça uma análise desta oportunidade." }
+          { role: "user", content: question || "FaÃ§a uma anÃ¡lise desta oportunidade." }
         ],
         max_tokens: 1500,
         temperature: 0.7
       });
-      res.json({ success: true, message: response.choices[0]?.message?.content || "Não foi possível analisar." });
+      res.json({ success: true, message: response.choices[0]?.message?.content || "NÃ£o foi possÃ­vel analisar." });
     } catch (error: any) {
       console.error("Oportunidade Analysis error:", error);
       res.status(500).json({ success: false, error: error.message });
@@ -7315,7 +7838,7 @@ Responda em português brasileiro, de forma clara e objetiva.`;
         directusFetch("tipos_oportunidades"),
       ]);
 
-      const systemPrompt = `Você é o assistente inteligente da Built Alliances, uma plataforma de gestão de membros, projetos BIA e oportunidades de negócio.
+      const systemPrompt = `VocÃª Ã© o assistente inteligente da Built Alliances, uma plataforma de gestÃ£o de membros, projetos BIA e oportunidades de negÃ³cio.
 
 DADOS ATUAIS DO SISTEMA:
 - Total de Membros: ${allMembros.length}
@@ -7328,7 +7851,7 @@ ${allMembros.slice(0, 20).map((m) => `- ${m.nome} | Empresa: ${m.empresa || 'N/A
 PROJETOS BIA ATIVOS:
 ${allBias.slice(0, 15).map((b) => `- ${b.nome_bia} | Local: ${b.localizacao || 'N/A'}`).join('\n')}
 
-Responda sempre em português brasileiro, de forma clara e objetiva.`;
+Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
@@ -7342,7 +7865,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       res.json({
         success: true,
-        message: response.choices[0]?.message?.content || "Desculpe, não consegui processar sua solicitação.",
+        message: response.choices[0]?.message?.content || "Desculpe, nÃ£o consegui processar sua solicitaÃ§Ã£o.",
         stats: { membros: allMembros.length, bias: allBias.length, oportunidades: allOportunidades.length }
       });
     } catch (error: any) {
@@ -7356,8 +7879,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const { prompt, type } = req.body;
 
       const systemPrompt = type === "oportunidades"
-        ? `Você é um consultor especialista em construção civil e investimentos imobiliários da Built Alliances. Analise as oportunidades de aliança (OPAs) e forneça insights estratégicos em português brasileiro. Seja conciso. Máximo 3 parágrafos.`
-        : `Você é um consultor especialista da Built Alliances em BIAs. Analise os projetos de aliança e forneça insights. Seja conciso. Máximo 3 parágrafos.`;
+        ? `VocÃª Ã© um consultor especialista em construÃ§Ã£o civil e investimentos imobiliÃ¡rios da Built Alliances. Analise as oportunidades de alianÃ§a (OPAs) e forneÃ§a insights estratÃ©gicos em portuguÃªs brasileiro. Seja conciso. MÃ¡ximo 3 parÃ¡grafos.`
+        : `VocÃª Ã© um consultor especialista da Built Alliances em BIAs. Analise os projetos de alianÃ§a e forneÃ§a insights. Seja conciso. MÃ¡ximo 3 parÃ¡grafos.`;
 
       const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
@@ -7369,7 +7892,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         temperature: 0.7,
       });
 
-      res.json({ success: true, analysis: response.choices[0]?.message?.content || "Análise não disponível." });
+      res.json({ success: true, analysis: response.choices[0]?.message?.content || "AnÃ¡lise nÃ£o disponÃ­vel." });
     } catch (error: any) {
       console.error("AI Analysis error:", error);
       res.status(500).json({ success: false, error: error.message });
@@ -7378,7 +7901,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // ========== AUTH (Directus-based) ==========
 
-  // ── Self-registration ──────────────────────────────────────────────
+  // â”€â”€ Self-registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.post("/api/register", async (req, res) => {
     try {
       const {
@@ -7410,31 +7933,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         nucleos_alianca,
       } = req.body;
       if (!nome || !email || !password)
-        return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
+        return res.status(400).json({ error: "Nome, e-mail e senha sÃ£o obrigatÃ³rios" });
       if (password.length < 4)
         return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
       if (!String(cpf || "").trim()) {
-        return res.status(400).json({ error: "CPF é obrigatório para concluir o cadastro." });
+        return res.status(400).json({ error: "CPF Ã© obrigatÃ³rio para concluir o cadastro." });
       }
 
       // Require a convite_token to register
       if (!convite_token) {
-        return res.status(403).json({ error: "É necessário um código de convite para se cadastrar. Solicite um convite a um membro da rede BUILT." });
+        return res.status(403).json({ error: "Ã‰ necessÃ¡rio um cÃ³digo de convite para se cadastrar. Solicite um convite a um membro da rede BUILT." });
       }
       const conviteLink = await storage.getConviteLinkByToken(convite_token);
       if (!conviteLink || conviteLink.status !== "ativo") {
-        return res.status(403).json({ error: "Código de convite inválido ou já utilizado." });
+        return res.status(403).json({ error: "CÃ³digo de convite invÃ¡lido ou jÃ¡ utilizado." });
       }
       if (conviteLink.expires_at && new Date() > new Date(conviteLink.expires_at)) {
-        return res.status(403).json({ error: "Este código de convite expirou. Solicite um novo convite ao membro da rede." });
+        return res.status(403).json({ error: "Este cÃ³digo de convite expirou. Solicite um novo convite ao membro da rede." });
       }
 
       const finalUsername = username || email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
 
       const existingByUsername = await storage.getUserByUsername(finalUsername);
-      if (existingByUsername) return res.status(409).json({ error: "Nome de usuário já em uso" });
+      if (existingByUsername) return res.status(409).json({ error: "Nome de usuÃ¡rio jÃ¡ em uso" });
       const existingByEmail = await storage.getUserByEmail(email);
-      if (existingByEmail) return res.status(409).json({ error: "E-mail já cadastrado" });
+      if (existingByEmail) return res.status(409).json({ error: "E-mail jÃ¡ cadastrado" });
 
       // The inviter chooses the destination when generating the invite link.
       const INTERESSES_VALIDOS = ["vitrine", "capital", "membros"];
@@ -7461,7 +7984,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       };
       const selosIniciais = selosPorRole[roleInicial] || [];
 
-      // 1. Create entry in Directus cadastro_geral (mandatory — registration fails if this fails)
+      // 1. Create entry in Directus cadastro_geral (mandatory â€” registration fails if this fails)
       const directusPayload: Record<string, any> = {
         Nome_de_usuario: finalUsername,
         nome,
@@ -7474,10 +7997,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         directusPayload.Outras_redes_as_quais_pertenco = selosIniciais;
       }
       if (emBuiltCapital) {
-        directusPayload.nucleo_alianca = "Núcleo de Capital";
-        directusPayload.tipo_alianca = "Alianças de Investimento";
-        directusPayload.nucleos_alianca = ["Núcleo de Capital"];
-        directusPayload.tipos_alianca = ["Alianças de Investimento"];
+        directusPayload.nucleo_alianca = "NÃºcleo de Capital";
+        directusPayload.tipo_alianca = "AlianÃ§as de Investimento";
+        directusPayload.nucleos_alianca = ["NÃºcleo de Capital"];
+        directusPayload.tipos_alianca = ["AlianÃ§as de Investimento"];
       } else {
         const tiposAlianca = Array.isArray(tipos_alianca)
           ? tipos_alianca.filter((item: any) => typeof item === "string" && item.trim())
@@ -7628,7 +8151,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
 
       // 4. Mark convite_link as used and create the destination-specific onboarding invite.
-      // These steps are mandatory — if they fail we roll back both the user creation
+      // These steps are mandatory â€” if they fail we roll back both the user creation
       // AND the token consumption so the invite can still be used on retry.
       let tokenConsumed = false;
       let onboardingToken: string | null = null;
@@ -7703,13 +8226,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/forgot-password — send a password reset email
+  // POST /api/forgot-password â€” send a password reset email
   app.post("/api/forgot-password", async (req, res) => {
     try {
       const { email } = req.body;
-      if (!email) return res.status(400).json({ error: "E-mail obrigatório" });
+      if (!email) return res.status(400).json({ error: "E-mail obrigatÃ³rio" });
       const trimmed = email.trim();
-      // Always return 200 to avoid user enumeration — but log internally
+      // Always return 200 to avoid user enumeration â€” but log internally
       const user = await storage.getUserByEmail(trimmed);
       if (user) {
         const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -7718,12 +8241,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         try {
           const mailResult = await enviarResetSenha({ email: user.email || trimmed, nome: user.nome || user.username || "", token: resetToken.token });
           if (!mailResult.ok) {
-            return res.status(502).json({ error: "Não foi possível enviar o e-mail de redefinição agora. Tente novamente em instantes." });
+            return res.status(502).json({ error: "NÃ£o foi possÃ­vel enviar o e-mail de redefiniÃ§Ã£o agora. Tente novamente em instantes." });
           }
           console.log("[forgot-password] Reset email sent to:", user.email || trimmed);
         } catch (mailErr: any) {
           console.error("[forgot-password] Failed to send email:", mailErr.message);
-          return res.status(502).json({ error: "Não foi possível enviar o e-mail de redefinição agora. Tente novamente em instantes." });
+          return res.status(502).json({ error: "NÃ£o foi possÃ­vel enviar o e-mail de redefiniÃ§Ã£o agora. Tente novamente em instantes." });
         }
       } else {
         console.log("[forgot-password] No local account found for email:", trimmed);
@@ -7735,17 +8258,17 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/reset-password — verify token and set new password
+  // POST /api/reset-password â€” verify token and set new password
   app.post("/api/reset-password", async (req, res) => {
     try {
       const { token, password } = req.body;
-      if (!token || !password) return res.status(400).json({ error: "Token e senha são obrigatórios" });
+      if (!token || !password) return res.status(400).json({ error: "Token e senha sÃ£o obrigatÃ³rios" });
       if (password.length < 4) return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
       const resetToken = await storage.getPasswordResetToken(token);
-      if (!resetToken) return res.status(400).json({ error: "Token inválido ou expirado" });
-      if (resetToken.used) return res.status(400).json({ error: "Este link já foi utilizado" });
+      if (!resetToken) return res.status(400).json({ error: "Token invÃ¡lido ou expirado" });
+      if (resetToken.used) return res.status(400).json({ error: "Este link jÃ¡ foi utilizado" });
       if (new Date() > new Date(resetToken.expires_at)) return res.status(400).json({ error: "Link expirado. Solicite um novo." });
-      // Pass plain password — updateUser handles hashing internally
+      // Pass plain password â€” updateUser handles hashing internally
       await storage.updateUser(resetToken.user_id, { password });
       await storage.markPasswordResetTokenUsed(resetToken.id);
       res.json({ success: true });
@@ -7757,7 +8280,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.post("/api/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      if (!email || !password) return res.status(400).json({ error: "Email e senha são obrigatórios" });
+      if (!email || !password) return res.status(400).json({ error: "Email e senha sÃ£o obrigatÃ³rios" });
 
       // Authenticate against Directus
       const authRes = await fetch(`${DIRECTUS_URL}/auth/login`, {
@@ -7778,10 +8301,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       if (!authRes.ok || !authData) {
-        // Directus auth failed — try local-only user auth (for admin-created users)
+        // Directus auth failed â€” try local-only user auth (for admin-created users)
         try {
           const { comparePasswords } = await import("./storage");
-          // Try all users with this email (newest first) — handles edge case of duplicate emails
+          // Try all users with this email (newest first) â€” handles edge case of duplicate emails
           const localUsers = await storage.getUsersByEmail(email);
           for (const localUser of localUsers) {
             if (!localUser.ativo) continue;
@@ -7812,7 +8335,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         } catch (e: any) {
           console.error("[login] local auth error:", e.message);
         }
-        return res.status(401).json({ error: "Credenciais inválidas" });
+        return res.status(401).json({ error: "Credenciais invÃ¡lidas" });
       }
 
       const accessToken = authData.data?.access_token;
@@ -7824,7 +8347,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
       const meData = await meRes.json();
       const directusUser = meData.data;
-      if (!directusUser) return res.status(401).json({ error: "Usuário não encontrado" });
+      if (!directusUser) return res.status(401).json({ error: "UsuÃ¡rio nÃ£o encontrado" });
 
       // Find the matching member in cadastro_geral by email
       let membroId: string | null = null;
@@ -7929,7 +8452,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   app.get("/api/me", async (req, res) => {
     const directusUserId = (req.session as any).directusUserId;
-    if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     let role = (req.session as any).role || "user";
     let permissions = (req.session as any).permissions || {};
     const email = (req.session as any).email || "";
@@ -8066,7 +8589,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     try {
       const directusUserId = (req.session as any).directusUserId;
       const email = (req.session as any).email || "";
-      if (!directusUserId && !email) return res.status(401).json({ error: "Não autenticado" });
+      if (!directusUserId && !email) return res.status(401).json({ error: "NÃ£o autenticado" });
 
       const { currentPassword, newPassword } = req.body || {};
       if (!currentPassword || !newPassword) {
@@ -8079,7 +8602,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const localUser = (directusUserId ? await storage.getUser(directusUserId).catch(() => undefined) : undefined)
         || (email ? await storage.getUserByEmail(email) : undefined);
       if (!localUser || !localUser.ativo) {
-        return res.status(404).json({ error: "Usuário local não encontrado" });
+        return res.status(404).json({ error: "UsuÃ¡rio local nÃ£o encontrado" });
       }
 
       const { comparePasswords } = await import("./storage");
@@ -8122,7 +8645,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   }
 
   app.get("/api/agenda/membros-disponiveis", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const role = await getEffectiveRole(req);
       const isSuperAdmin = role === "admin";
@@ -8179,14 +8702,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       res.json(filtered);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Erro ao carregar membros disponíveis" });
+      res.status(500).json({ error: error.message || "Erro ao carregar membros disponÃ­veis" });
     }
   });
 
   app.get("/api/agenda", async (req, res) => {
     try {
       const userId = (req.session as any).directusUserId || (req.session as any).userId;
-      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      if (!userId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const tarefas = await storage.getAgendaTarefasByUser(String(userId));
       const origemIds = Array.from(new Set(tarefas.map((t: any) => t.origem_tarefa_id).filter(Boolean)));
       const compartilhamentos = new Map<string, number>();
@@ -8211,7 +8734,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.post("/api/agenda", async (req, res) => {
     try {
       const userId = (req.session as any).directusUserId || (req.session as any).userId;
-      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      if (!userId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const creatorMembroId = (req.session as any).membroId || null;
       const creatorName = (req.session as any).nome || (req.session as any).email || "Membro BUILT";
       const selectedMembroIds = Array.isArray(req.body?.membros_ids)
@@ -8222,7 +8745,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const allowedMembroIds = await getMembroComunidadeIds(creatorMembroId);
         const hasForbiddenMember = selectedMembroIds.some((id: string) => !allowedMembroIds.has(id));
         if (hasForbiddenMember) {
-          return res.status(403).json({ error: "Só é possível adicionar membros da sua comunidade." });
+          return res.status(403).json({ error: "SÃ³ Ã© possÃ­vel adicionar membros da sua comunidade." });
         }
       }
       const { randomUUID } = await import("crypto");
@@ -8258,7 +8781,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const ownTask = created.find(task => task.user_id === String(userId)) || created[0];
       res.status(201).json({ ...ownTask, compartilhada_com: created.length - 1 });
     } catch (error: any) {
-      const message = error?.errors?.[0]?.message || error.message || "Erro ao criar ação";
+      const message = error?.errors?.[0]?.message || error.message || "Erro ao criar aÃ§Ã£o";
       res.status(400).json({ error: message });
     }
   });
@@ -8266,7 +8789,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.patch("/api/agenda/:id", async (req, res) => {
     try {
       const userId = (req.session as any).directusUserId || (req.session as any).userId;
-      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      if (!userId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const allowedStatuses = new Set(["pendente", "em_andamento", "concluida", "cancelada"]);
       const allowedPrioridades = new Set(["baixa", "media", "alta"]);
       const data: Record<string, any> = {};
@@ -8274,28 +8797,28 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         if (key in (req.body || {})) data[key] = req.body[key] === "" ? null : req.body[key];
       }
       if (typeof data.titulo === "string" && !data.titulo.trim()) {
-        return res.status(400).json({ error: "Título é obrigatório" });
+        return res.status(400).json({ error: "TÃ­tulo Ã© obrigatÃ³rio" });
       }
       if (data.status && !allowedStatuses.has(String(data.status))) {
-        return res.status(400).json({ error: "Status inválido" });
+        return res.status(400).json({ error: "Status invÃ¡lido" });
       }
       if (data.prioridade && !allowedPrioridades.has(String(data.prioridade))) {
-        return res.status(400).json({ error: "Prioridade inválida" });
+        return res.status(400).json({ error: "Prioridade invÃ¡lida" });
       }
       const tarefa = await storage.updateAgendaTarefa(req.params.id, String(userId), data as any);
-      if (!tarefa) return res.status(404).json({ error: "Ação não encontrada" });
+      if (!tarefa) return res.status(404).json({ error: "AÃ§Ã£o nÃ£o encontrada" });
       res.json(tarefa);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Erro ao atualizar ação" });
+      res.status(500).json({ error: error.message || "Erro ao atualizar aÃ§Ã£o" });
     }
   });
 
   app.delete("/api/agenda/:id", async (req, res) => {
     try {
       const userId = (req.session as any).directusUserId || (req.session as any).userId;
-      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      if (!userId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const tarefa = await storage.getAgendaTarefa(req.params.id, String(userId));
-      if (!tarefa) return res.status(404).json({ error: "Ação não encontrada" });
+      if (!tarefa) return res.status(404).json({ error: "AÃ§Ã£o nÃ£o encontrada" });
       const isCreator = tarefa.atribuido_por_user_id && String(tarefa.atribuido_por_user_id) === String(userId);
       if (isCreator && tarefa.origem_tarefa_id) {
         await db.execute(sql`
@@ -8305,10 +8828,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.json({ success: true, deleted_for_all: true });
       }
       const ok = await storage.deleteAgendaTarefa(req.params.id, String(userId));
-      if (!ok) return res.status(404).json({ error: "Ação não encontrada" });
+      if (!ok) return res.status(404).json({ error: "AÃ§Ã£o nÃ£o encontrada" });
       res.json({ success: true, deleted_for_all: false });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Erro ao excluir ação" });
+      res.status(500).json({ error: error.message || "Erro ao excluir aÃ§Ã£o" });
     }
   });
 
@@ -8335,7 +8858,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/users/by-email?email=xxx — find unlinked user by email (admin only, for linking)
+  // GET /api/users/by-email?email=xxx â€” find unlinked user by email (admin only, for linking)
   app.get("/api/users/by-email", async (req, res) => {
     try {
       const email = req.query.email as string;
@@ -8352,7 +8875,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
-      if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+      if (!user) return res.status(404).json({ error: "UsuÃ¡rio nÃ£o encontrado" });
       const { password, ...safe } = user;
       res.json(safe);
     } catch (error: any) {
@@ -8364,11 +8887,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     try {
       const parsed = createUserSchema.parse(req.body);
       const existing = await storage.getUserByUsername(parsed.username);
-      if (existing) return res.status(409).json({ error: "Username já existe" });
+      if (existing) return res.status(409).json({ error: "Username jÃ¡ existe" });
 
       if (parsed.email) {
         const existingEmail = await storage.getUserByEmail(parsed.email);
-        if (existingEmail) return res.status(409).json({ error: "E-mail já cadastrado em outra conta. Use um e-mail diferente ou edite a conta existente." });
+        if (existingEmail) return res.status(409).json({ error: "E-mail jÃ¡ cadastrado em outra conta. Use um e-mail diferente ou edite a conta existente." });
       }
 
       const user = await storage.createUser({
@@ -8385,7 +8908,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // ── Núcleo Técnico Documentos (PostgreSQL local) ─────────────────
+  // â”€â”€ NÃºcleo TÃ©cnico Documentos (PostgreSQL local) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get("/api/nucleo-tecnico-docs", async (req, res) => {
     try {
       let rows: any[] = [];
@@ -8444,12 +8967,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // ── Directus Asset Proxy ────────────────────────────────────────
+  // â”€â”€ Directus Asset Proxy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get("/api/assets/:id", async (req, res) => {
     return proxyDirectusAsset(req, res);
   });
 
-  // ── Aliança Docs (Obra / Comercial / Capital) ────────────────────
+  // â”€â”€ AlianÃ§a Docs (Obra / Comercial / Capital) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get("/api/alianca-docs", async (req, res) => {
     try {
       const rows = await db.select().from(aliancaDocs).orderBy(desc(aliancaDocs.created_at));
@@ -8491,7 +9014,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     } catch (error: any) { res.status(500).json({ error: error.message }); }
   });
 
-  // ── Estudos de Viabilidade ──────────────────────────────────────
+  // â”€â”€ Estudos de Viabilidade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get("/api/estudos-viabilidade", async (req, res) => {
     try {
       const biaFilter = req.query.bia_id ? `&filter[bia_id][_eq]=${req.query.bia_id}` : "";
@@ -8539,10 +9062,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.patch("/api/users/:id", async (req, res) => {
     try {
       if (!req.params.id || req.params.id === "undefined" || req.params.id === "null") {
-        return res.status(400).json({ error: "Conta de acesso não encontrada para este membro." });
+        return res.status(400).json({ error: "Conta de acesso nÃ£o encontrada para este membro." });
       }
       const parsed = updateUserSchema.parse(req.body);
-      // Strip undefined values — only include explicitly provided fields
+      // Strip undefined values â€” only include explicitly provided fields
       const updateData: any = Object.fromEntries(
         Object.entries(parsed).filter(([, v]) => v !== undefined)
       );
@@ -8551,7 +9074,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (parsed.password === "") delete updateData.password;
 
       const user = await storage.updateUser(req.params.id, updateData);
-      if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+      if (!user) return res.status(404).json({ error: "UsuÃ¡rio nÃ£o encontrado" });
       const { password, ...safe } = user;
       res.json(safe);
     } catch (error: any) {
@@ -8563,14 +9086,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.delete("/api/users/:id", async (req, res) => {
     try {
       const ok = await storage.deleteUser(req.params.id);
-      if (!ok) return res.status(404).json({ error: "Usuário não encontrado" });
+      if (!ok) return res.status(404).json({ error: "UsuÃ¡rio nÃ£o encontrado" });
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // ========== TRANSFERÊNCIA DE COTAS ==========
+  // ========== TRANSFERÃŠNCIA DE COTAS ==========
   await db.execute(sql`ALTER TABLE transferencias_cotas ADD COLUMN IF NOT EXISTS anexos text[] DEFAULT '{}'::text[]`)
     .catch((err: any) => {
       console.warn(`[transferencias_cotas] Campo anexos nao sincronizado: ${err.message}`);
@@ -8579,9 +9102,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   app.get("/api/transferencia-cotas", async (req, res) => {
     try {
       const directusUserId = (req.session as any).directusUserId;
-      if (!directusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const biaId = req.query.bia_id as string;
-      if (!biaId) return res.status(400).json({ error: "bia_id é obrigatório" });
+      if (!biaId) return res.status(400).json({ error: "bia_id Ã© obrigatÃ³rio" });
       const items = await storage.getTransferenciasCotasByBia(biaId);
       res.json(items);
     } catch (error: any) {
@@ -8594,14 +9117,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const sessionMembroId = (req.session as any).membroId as string | null;
       const sessionDirectusUserId = (req.session as any).directusUserId;
       const sessionRole = (req.session as any).role || "user";
-      if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!sessionDirectusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const { bia_id, membro_origem_id, membro_destino_id, valor_total, percentual_transferencia, observacoes, anexos } = req.body;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
-        return res.status(400).json({ error: "Campos obrigatórios: bia_id, membro_origem_id, membro_destino_id" });
+        return res.status(400).json({ error: "Campos obrigatÃ³rios: bia_id, membro_origem_id, membro_destino_id" });
       }
       const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
       if (!observacao) {
-        return res.status(400).json({ error: "Observação é obrigatória" });
+        return res.status(400).json({ error: "ObservaÃ§Ã£o Ã© obrigatÃ³ria" });
       }
       const safeAnexos = Array.isArray(anexos)
         ? anexos.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
@@ -8613,12 +9136,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const isOrigem = sessionMembroId && sessionMembroId === membro_origem_id;
       const isDiretorAlianca = sessionMembroId && biaDiretorAlianca && sessionMembroId === biaDiretorAlianca;
       const isAliadoBuilt = sessionMembroId && biaAliadoBuilt && sessionMembroId === biaAliadoBuilt;
-      // Origem, diretor_alianca, aliado_built e admin podem solicitar transferência de qualquer cota
+      // Origem, diretor_alianca, aliado_built e admin podem solicitar transferÃªncia de qualquer cota
       if (sessionRole !== "admin" && !isOrigem && !isDiretorAlianca && !isAliadoBuilt) {
-        return res.status(403).json({ error: "Você não tem permissão para solicitar esta transferência" });
+        return res.status(403).json({ error: "VocÃª nÃ£o tem permissÃ£o para solicitar esta transferÃªncia" });
       }
       if (membro_origem_id === membro_destino_id) {
-        return res.status(400).json({ error: "Origem e destino não podem ser o mesmo membro" });
+        return res.status(400).json({ error: "Origem e destino nÃ£o podem ser o mesmo membro" });
       }
       const item = await storage.createTransferenciaCotas({
         bia_id,
@@ -8643,7 +9166,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const sessionMembroId = (req.session as any).membroId as string | null;
       const sessionDirectusUserId = (req.session as any).directusUserId;
       const sessionRole = (req.session as any).role || "user";
-      if (!sessionDirectusUserId) return res.status(401).json({ error: "Não autenticado" });
+      if (!sessionDirectusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
 
       const { action, motivo_rejeicao, membro_destino_id, valor_total, percentual_transferencia, observacoes, anexos } = req.body;
       if (!action || !["aceitar", "rejeitar", "editar"].includes(action)) {
@@ -8651,9 +9174,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       const transfer = await storage.getTransferenciaCotas(req.params.id);
-      if (!transfer) return res.status(404).json({ error: "Solicitação não encontrada" });
+      if (!transfer) return res.status(404).json({ error: "SolicitaÃ§Ã£o nÃ£o encontrada" });
       if (transfer.status !== "pendente") {
-        return res.status(400).json({ error: "Solicitação já foi processada" });
+        return res.status(400).json({ error: "SolicitaÃ§Ã£o jÃ¡ foi processada" });
       }
 
       // Fetch the BIA to get diretor_alianca and aliado_built
@@ -8667,18 +9190,18 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           (sessionMembroId && sessionMembroId === transfer.membro_origem_id) ||
           sessionDirectusUserId === transfer.solicitado_por;
         if (!canEdit) {
-          return res.status(403).json({ error: "Sem permissão para editar esta solicitação" });
+          return res.status(403).json({ error: "Sem permissÃ£o para editar esta solicitaÃ§Ã£o" });
         }
         const destino = membro_destino_id || transfer.membro_destino_id;
         if (!destino) {
-          return res.status(400).json({ error: "Membro destinatário é obrigatório" });
+          return res.status(400).json({ error: "Membro destinatÃ¡rio Ã© obrigatÃ³rio" });
         }
         if (transfer.membro_origem_id === destino) {
-          return res.status(400).json({ error: "Origem e destino não podem ser o mesmo membro" });
+          return res.status(400).json({ error: "Origem e destino nÃ£o podem ser o mesmo membro" });
         }
         const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
         if (!observacao) {
-          return res.status(400).json({ error: "Observação é obrigatória" });
+          return res.status(400).json({ error: "ObservaÃ§Ã£o Ã© obrigatÃ³ria" });
         }
         const safeAnexos = Array.isArray(anexos)
           ? anexos.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
@@ -8695,7 +9218,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       // Membro de origem cannot accept/reject their own transfer request
       if (sessionMembroId && sessionMembroId === transfer.membro_origem_id) {
-        return res.status(403).json({ error: "O membro de origem não pode aceitar ou rejeitar a própria solicitação" });
+        return res.status(403).json({ error: "O membro de origem nÃ£o pode aceitar ou rejeitar a prÃ³pria solicitaÃ§Ã£o" });
       }
       // Only diretor_alianca, aliado_built, or admin can approve/reject
       const canProcess =
@@ -8703,7 +9226,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         (sessionMembroId && biaDiretorAlianca && sessionMembroId === biaDiretorAlianca) ||
         (sessionMembroId && biaAliadoBuilt && sessionMembroId === biaAliadoBuilt);
       if (!canProcess) {
-        return res.status(403).json({ error: "Sem permissão para processar esta solicitação" });
+        return res.status(403).json({ error: "Sem permissÃ£o para processar esta solicitaÃ§Ã£o" });
       }
 
       if (action === "rejeitar") {
@@ -8714,8 +9237,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.json(updated);
       }
 
-      // action === "aceitar": a transferência é parcial e deve ser aplicada no MAP,
-      // sem alterar os lançamentos financeiros originais do Directus.
+      // action === "aceitar": a transferÃªncia Ã© parcial e deve ser aplicada no MAP,
+      // sem alterar os lanÃ§amentos financeiros originais do Directus.
       const updated = await storage.updateTransferenciaCotas(req.params.id, {
         status: "aceita",
       });
@@ -8726,7 +9249,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== COMUNIDADES ==========
-  // Explicit fields list — excludes legacy aliado_id/membros_ids/bias_ids; expands M2O (aliado) and M2M (membros, bias)
+  // Explicit fields list â€” excludes legacy aliado_id/membros_ids/bias_ids; expands M2O (aliado) and M2M (membros, bias)
   const COMUNIDADE_FIELDS =
     "fields=id,nome,sigla,pais,sigla_pais,territorio,sigla_territorio,codigo_sequencial,status,date_created," +
     "aliado.id,aliado.nome,aliado.email,aliado.foto_perfil,aliado.cargo,aliado.empresa,aliado.tipo_de_cadastro,aliado.tipo_alianca,aliado.tipos_alianca,aliado.nucleo_alianca,aliado.nucleos_alianca,aliado.Outras_redes_as_quais_pertenco,aliado.em_built_capital,aliado.na_vitrine," +
@@ -8749,7 +9272,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   }
 
   app.get("/api/comunidades", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
       const all: any[] = await directusFetch(col, COMUNIDADE_FIELDS);
@@ -8777,7 +9300,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   app.get("/api/comunidades/proximo-codigo", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     const { pais, territorio } = req.query as { pais?: string; territorio?: string };
     try {
       const col = await getComunidadeCol();
@@ -8797,12 +9320,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   app.get("/api/comunidades/:id", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
       const url = `${DIRECTUS_URL}/items/${col}/${req.params.id}?${COMUNIDADE_FIELDS}`;
       const r = await fetch(url, { headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!r.ok) return res.status(404).json({ error: "Não encontrado" });
+      if (!r.ok) return res.status(404).json({ error: "NÃ£o encontrado" });
       const d = await r.json();
       const comunidade = d.data;
       const relationId = (value: any): string | null => {
@@ -8866,7 +9389,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   app.post("/api/comunidades", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
       const payload = toComunidadePayload(req.body);
@@ -8897,7 +9420,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   app.patch("/api/comunidades/:id", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
       const updated = await directusUpdate(col, req.params.id, toComunidadePayload(req.body));
@@ -8908,7 +9431,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   });
 
   app.delete("/api/comunidades/:id", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const col = await getComunidadeCol();
       await directusUpdate(col, req.params.id, {
@@ -8996,12 +9519,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     return null;
   }
 
-  // POST /api/opa/solicitar-adesao — non-members request the Proud Member flow from an OPA
+  // POST /api/opa/solicitar-adesao â€” non-members request the Proud Member flow from an OPA
   app.post("/api/opa/solicitar-adesao", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const membroId = (req.session as any).membroId as string | undefined;
-      if (!membroId) return res.status(400).json({ error: "Seu perfil ainda não está vinculado ao cadastro de membro." });
+      if (!membroId) return res.status(400).json({ error: "Seu perfil ainda nÃ£o estÃ¡ vinculado ao cadastro de membro." });
 
       if (await canAccessProtectedOpaActions(req)) {
         return res.json({ alreadyMember: true });
@@ -9011,7 +9534,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const candidatoEmail = candidato?.email || (req.session as any).email;
       const candidatoNome = candidato?.nome || (req.session as any).nome || "Membro BUILT";
       if (!candidatoEmail) {
-        return res.status(400).json({ error: "Seu cadastro não possui e-mail para receber o convite de adesão." });
+        return res.status(400).json({ error: "Seu cadastro nÃ£o possui e-mail para receber o convite de adesÃ£o." });
       }
 
       const allConvites = await storage.getConvitesByCandidatoMembro(membroId);
@@ -9032,7 +9555,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       if (!comunidade?.id) {
         return res.status(400).json({
-          error: "Você precisa estar associado a uma comunidade para iniciar a adesão. Use o convite recebido originalmente ou fale com quem te convidou.",
+          error: "VocÃª precisa estar associado a uma comunidade para iniciar a adesÃ£o. Use o convite recebido originalmente ou fale com quem te convidou.",
         });
       }
 
@@ -9071,7 +9594,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
       if (!emailResult?.ok) {
         return res.status(502).json({
-          error: `Pagamento gerado, mas o e-mail não foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
+          error: `Pagamento gerado, mas o e-mail nÃ£o foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
           token: convite.token,
           link: `/pagamento/${convite.token}`,
         });
@@ -9091,27 +9614,27 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites — create invite (authenticated, community aliado or admin)
+  // POST /api/convites â€” create invite (authenticated, community aliado or admin)
   app.post("/api/convites", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const { comunidade_id, candidato_membro_id } = req.body;
-      if (!comunidade_id || !candidato_membro_id) return res.status(400).json({ error: "Campos obrigatórios: comunidade_id, candidato_membro_id" });
+      if (!comunidade_id || !candidato_membro_id) return res.status(400).json({ error: "Campos obrigatÃ³rios: comunidade_id, candidato_membro_id" });
 
       const invitadorId = (req.session as any).membroId;
 
       // Get candidato info from Directus
       const candidato = await getDirectusMembro(candidato_membro_id);
-      if (!candidato) return res.status(404).json({ error: "Membro candidato não encontrado" });
+      if (!candidato) return res.status(404).json({ error: "Membro candidato nÃ£o encontrado" });
       if (!candidato.email) {
-        return res.status(400).json({ error: "Este membro não possui e-mail cadastrado. Atualize o cadastro antes de enviar o convite." });
+        return res.status(400).json({ error: "Este membro nÃ£o possui e-mail cadastrado. Atualize o cadastro antes de enviar o convite." });
       }
 
       // Get comunidade info (including membros so isCommunityMember can check membership)
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!cr.ok) return res.status(404).json({ error: "Comunidade não encontrada" });
+      if (!cr.ok) return res.status(404).json({ error: "Comunidade nÃ£o encontrada" });
       const comunidade = (await cr.json()).data;
 
       // Authorization: aliado, current community members, or admin can create invites
@@ -9145,7 +9668,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
       if (!emailResult?.ok) {
         return res.status(502).json({
-          error: `Convite criado, mas o e-mail não foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
+          error: `Convite criado, mas o e-mail nÃ£o foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
           convite,
         });
       }
@@ -9156,9 +9679,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/convites — list (by comunidade_id or candidato) (authenticated)
+  // GET /api/convites â€” list (by comunidade_id or candidato) (authenticated)
   app.get("/api/convites", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const { comunidade_id, candidato_membro_id, tipo } = req.query as any;
       let items;
@@ -9213,7 +9736,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const sessionRole = (req.session as any).role || "user";
         const sessionMembroId = (req.session as any).membroId as string | null;
         if (sessionRole !== "admin" && sessionRole !== "manager" && sessionMembroId !== candidato_membro_id) {
-          return res.status(403).json({ error: "Não autorizado a ver convites de outro membro" });
+          return res.status(403).json({ error: "NÃ£o autorizado a ver convites de outro membro" });
         }
         // Return invites without dados_contratuais (PII) when querying own invites
         const raw = await storage.getConvitesByCandidato(candidato_membro_id);
@@ -9227,11 +9750,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/convites/:token — get convite (public)
+  // GET /api/convites/:token â€” get convite (public)
   app.get("/api/convites/:token", async (req, res) => {
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
 
       // Get comunidade info
       const col = await getComunidadeCol();
@@ -9245,12 +9768,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites/:token/candidatura — submit form (public)
+  // POST /api/convites/:token/candidatura â€” submit form (public)
   app.post("/api/convites/:token/candidatura", async (req, res) => {
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (!["convidado"].includes(convite.status)) return res.status(400).json({ error: "Este convite não está mais disponível para candidatura" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (!["convidado"].includes(convite.status)) return res.status(400).json({ error: "Este convite nÃ£o estÃ¡ mais disponÃ­vel para candidatura" });
       // Check expiration
       if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
         return res.status(410).json({ error: "Este convite expirou. Solicite um novo convite ao Aliado da comunidade." });
@@ -9284,13 +9807,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // PATCH /api/convites/:token/decisao — approve/reject (authenticated, aliado/admin)
+  // PATCH /api/convites/:token/decisao â€” approve/reject (authenticated, aliado/admin)
   app.patch("/api/convites/:token/decisao", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura nÃ£o estÃ¡ em anÃ¡lise" });
 
       const { decisao } = req.body; // "aprovado" | "rejeitado"
       if (!["aprovado", "rejeitado"].includes(decisao)) return res.status(400).json({ error: "decisao deve ser 'aprovado' ou 'rejeitado'" });
@@ -9314,7 +9837,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
       if (decisao === "aprovado") {
         if (isVitrine) {
-          // Vitrine/Capital: direct approval → platform access
+          // Vitrine/Capital: direct approval â†’ platform access
           newStatus = "vitrine_ativo";
           updated = await storage.updateConvite(convite.id, { status: newStatus });
           if (convite.candidato_membro_id) {
@@ -9368,7 +9891,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
             }
           }
         } else {
-          // Associação Completa: terms + payment flow
+          // AssociaÃ§Ã£o Completa: terms + payment flow
           newStatus = "aprovado";
           const newExpiresAt = (() => { const d = new Date(); d.setHours(d.getHours() + 12); return d; })();
           updated = await storage.updateConvite(convite.id, { status: newStatus, expires_at: newExpiresAt });
@@ -9403,12 +9926,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // PATCH /api/convites/:token/adesao — accept terms (public)
+  // PATCH /api/convites/:token/adesao â€” accept terms (public)
   app.patch("/api/convites/:token/adesao", async (req, res) => {
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (!["aprovado", "termos_enviados"].includes(convite.status)) return res.status(400).json({ error: "Termos não disponíveis para aceite neste momento" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (!["aprovado", "termos_enviados"].includes(convite.status)) return res.status(400).json({ error: "Termos nÃ£o disponÃ­veis para aceite neste momento" });
       // Check expiration
       if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
         return res.status(410).json({ error: "O prazo para aceitar os termos expirou. Entre em contato com o Aliado da comunidade." });
@@ -9466,12 +9989,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // PATCH /api/convites/:token/aceitar-termos — candidate accepts terms (public, new flow)
+  // PATCH /api/convites/:token/aceitar-termos â€” candidate accepts terms (public, new flow)
   app.patch("/api/convites/:token/aceitar-termos", async (req, res) => {
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.status !== "termos_pendentes") return res.status(400).json({ error: "Termos não disponíveis para aceite neste momento" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (convite.status !== "termos_pendentes") return res.status(400).json({ error: "Termos nÃ£o disponÃ­veis para aceite neste momento" });
 
       const now = new Date();
       const body = req.body || {};
@@ -9505,12 +10028,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites/:token/solicitar-acesso — candidate requests access after accepting terms (public, new flow)
+  // POST /api/convites/:token/solicitar-acesso â€” candidate requests access after accepting terms (public, new flow)
   app.post("/api/convites/:token/solicitar-acesso", async (req, res) => {
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.status !== "termos_aceitos") return res.status(400).json({ error: "Aceite os termos antes de enviar a solicitação" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (convite.status !== "termos_aceitos") return res.status(400).json({ error: "Aceite os termos antes de enviar a solicitaÃ§Ã£o" });
 
       // Generate a dedicated avaliacao_token so the invitador evaluation page is
       // NOT accessible via the candidate's convite token (security: separate auth)
@@ -9548,11 +10071,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/avaliacao-aura/:avaliacaoToken — fetch convite by its dedicated avaliacao_token (public)
+  // GET /api/avaliacao-aura/:avaliacaoToken â€” fetch convite by its dedicated avaliacao_token (public)
   app.get("/api/avaliacao-aura/:avaliacaoToken", async (req, res) => {
     try {
       const convite = await storage.getConviteByAvaliacaoToken(req.params.avaliacaoToken);
-      if (!convite) return res.status(404).json({ error: "Link de avaliação inválido" });
+      if (!convite) return res.status(404).json({ error: "Link de avaliaÃ§Ã£o invÃ¡lido" });
       if (convite.status !== "aguardando_avaliacao_aura") {
         // Already evaluated or not ready: return status for UI to handle
         return res.json({ status: convite.status, candidato_nome: convite.candidato_nome, comunidade: null });
@@ -9570,9 +10093,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   const validarAvaliacaoAuraPublica = async (avaliacaoToken: string) => {
     const convite = await storage.getConviteByAvaliacaoToken(avaliacaoToken);
-    if (!convite) return { error: "Link de avaliação inválido", status: 404 as const };
+    if (!convite) return { error: "Link de avaliaÃ§Ã£o invÃ¡lido", status: 404 as const };
     if (convite.status !== "aguardando_avaliacao_aura") {
-      return { error: "Avaliação de Aura não está disponível neste momento", status: 400 as const };
+      return { error: "AvaliaÃ§Ã£o de Aura nÃ£o estÃ¡ disponÃ­vel neste momento", status: 400 as const };
     }
     return { convite };
   };
@@ -9608,10 +10131,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           { palavra: "COMPROMETIMENTO", pistas: ["comprometida", "comprometido", "trabalhadora", "trabalhador", "dedicada", "dedicado", "entrega", "veste a camisa", "vestir a camisa"] },
           { palavra: "ATENCIOSO", pistas: ["atenciosa", "atencioso", "atencao", "cuidadosa", "cuidadoso", "cuida das pessoas"] },
           { palavra: "EMPATIA", pistas: ["empatica", "empatico", "acolhedora", "acolhedor", "pessoas", "relaciona bem"] },
-          { palavra: "LIDERANÇA", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
-          { palavra: "ALIANÇA", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+          { palavra: "LIDERANÃ‡A", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
+          { palavra: "ALIANÃ‡A", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
           { palavra: "RESPONSABILIDADE", pistas: ["responsavel", "responsabilidade", "cumpre", "presta contas"] },
-          { palavra: "EFICIÊNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
+          { palavra: "EFICIÃŠNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
         ];
         for (const regra of regras) {
           if (regra.pistas.some((pista) => textoNormalizado.includes(normalizeAuraText(pista)))) pushPalavra(palavras, regra.palavra);
@@ -9631,11 +10154,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           messages: [
             {
               role: "system",
-              content: `Você é um assistente de avaliação de perfil profissional. Dado um texto descritivo sobre uma pessoa, selecione 1 a 3 palavras mais relevantes de um léxico fixo. Responda APENAS com um array JSON de strings. Léxico disponível: ${lexico.join(", ")}.`,
+              content: `VocÃª Ã© um assistente de avaliaÃ§Ã£o de perfil profissional. Dado um texto descritivo sobre uma pessoa, selecione 1 a 3 palavras mais relevantes de um lÃ©xico fixo. Responda APENAS com um array JSON de strings. LÃ©xico disponÃ­vel: ${lexico.join(", ")}.`,
             },
             {
               role: "user",
-              content: `Pessoa avaliada: ${membro_nome || validacao.convite.candidato_nome || "membro"}\n\nDescrição: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do léxico.`,
+              content: `Pessoa avaliada: ${membro_nome || validacao.convite.candidato_nome || "membro"}\n\nDescriÃ§Ã£o: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do lÃ©xico.`,
             },
           ],
           temperature: 0.2,
@@ -9682,11 +10205,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       } else if (mime.startsWith("text/") || name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".csv")) {
         texto = file.buffer.toString("utf-8");
       } else {
-        return res.status(400).json({ error: "Tipo de arquivo não suportado. Use PDF ou TXT." });
+        return res.status(400).json({ error: "Tipo de arquivo nÃ£o suportado. Use PDF ou TXT." });
       }
       texto = texto.replace(/\s+/g, " ").trim();
       if (texto.length > 4000) texto = texto.slice(0, 4000) + "...";
-      if (texto.length < 5) return res.status(400).json({ error: "Não foi possível extrair texto do arquivo." });
+      if (texto.length < 5) return res.status(400).json({ error: "NÃ£o foi possÃ­vel extrair texto do arquivo." });
       res.json({ texto });
     } catch (error: any) {
       console.error("[aura-arquivo-publico]", error?.message);
@@ -9699,7 +10222,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const validacao = await validarAvaliacaoAuraPublica(req.params.avaliacaoToken);
       if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
       const file = req.file;
-      if (!file) return res.status(400).json({ error: "Nenhum áudio enviado." });
+      if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
       const { toFile } = await import("openai");
       const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
       const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
@@ -9708,31 +10231,31 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         model: "gpt-4o-mini-transcribe",
       });
       const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
-      if (texto.length < 3) return res.status(400).json({ error: "Não foi possível transcrever o áudio." });
+      if (texto.length < 3) return res.status(400).json({ error: "NÃ£o foi possÃ­vel transcrever o Ã¡udio." });
       res.json({ texto: texto.length > 4000 ?texto.slice(0, 4000) + "..." : texto });
     } catch (error: any) {
       console.error("[aura-audio-publico]", error?.message);
-      res.status(500).json({ error: "Erro ao transcrever áudio. Tente novamente." });
+      res.status(500).json({ error: "Erro ao transcrever Ã¡udio. Tente novamente." });
     }
   });
 
-  // POST /api/avaliacao-aura/:avaliacaoToken — inviting member submits Aura evaluation (public via dedicated one-time token)
+  // POST /api/avaliacao-aura/:avaliacaoToken â€” inviting member submits Aura evaluation (public via dedicated one-time token)
   app.post("/api/avaliacao-aura/:avaliacaoToken", async (req, res) => {
     try {
       const convite = await storage.getConviteByAvaliacaoToken(req.params.avaliacaoToken);
-      if (!convite) return res.status(404).json({ error: "Link de avaliação inválido" });
-      if (convite.status !== "aguardando_avaliacao_aura") return res.status(400).json({ error: "Avaliação de Aura não está disponível neste momento" });
-      if (!convite.invitador_membro_id) return res.status(400).json({ error: "Este convite não possui um convidador identificado" });
+      if (!convite) return res.status(404).json({ error: "Link de avaliaÃ§Ã£o invÃ¡lido" });
+      if (convite.status !== "aguardando_avaliacao_aura") return res.status(400).json({ error: "AvaliaÃ§Ã£o de Aura nÃ£o estÃ¡ disponÃ­vel neste momento" });
+      if (!convite.invitador_membro_id) return res.status(400).json({ error: "Este convite nÃ£o possui um convidador identificado" });
       const { palavras } = req.body;
       if (!Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
         return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
       }
       if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
-        return res.status(400).json({ error: "Todas as palavras devem ser texto não vazio" });
+        return res.status(400).json({ error: "Todas as palavras devem ser texto nÃ£o vazio" });
       }
       const { classificarPalavra } = await import("./aura-lexico");
       for (const p of palavras) {
-        if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra não reconhecida no léxico: ${p}` });
+        if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra nÃ£o reconhecida no lÃ©xico: ${p}` });
       }
       await storage.upsertAuraAvaliacao(convite.invitador_membro_id, convite.candidato_membro_id, palavras);
       await storage.updateConvite(convite.id, { status: "candidato", aura_invitador_avaliada_em: new Date() });
@@ -9763,23 +10286,23 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites/:token/aura-invitador — BLOCKED: use /api/avaliacao-aura/:avaliacaoToken instead
+  // POST /api/convites/:token/aura-invitador â€” BLOCKED: use /api/avaliacao-aura/:avaliacaoToken instead
   // Kept to prevent accidental self-evaluation by candidates using their own convite token
   app.post("/api/convites/:token/aura-invitador", (_req, res) => {
-    res.status(403).json({ error: "Este endpoint foi desativado. Use o link enviado por e-mail para registrar a avaliação de Aura." });
+    res.status(403).json({ error: "Este endpoint foi desativado. Use o link enviado por e-mail para registrar a avaliaÃ§Ã£o de Aura." });
   });
 
-  // PATCH /api/convites/:token/pagamento — confirm payment & activate member (authenticated, aliado/admin)
+  // PATCH /api/convites/:token/pagamento â€” confirm payment & activate member (authenticated, aliado/admin)
   app.patch("/api/convites/:token/pagamento", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (!["termos_aceitos", "pagamento_pendente"].includes(convite.status)) return res.status(400).json({ error: "Termos ainda não foram aceitos" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (!["termos_aceitos", "pagamento_pendente"].includes(convite.status)) return res.status(400).json({ error: "Termos ainda nÃ£o foram aceitos" });
 
       // Enforce payment window expiry
       if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
-        return res.status(410).json({ error: "O prazo de 24h para confirmação de pagamento expirou. Reenvie o lembrete para reabrir o prazo." });
+        return res.status(410).json({ error: "O prazo de 24h para confirmaÃ§Ã£o de pagamento expirou. Reenvie o lembrete para reabrir o prazo." });
       }
 
       const col = await getComunidadeCol();
@@ -9797,9 +10320,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // 1. Add BUILT_PROUD_MEMBER to Directus member field (must succeed before marking membro)
       const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
       if (!candidatoData) {
-        // Cannot activate without verifying/updating badge — fail atomically
+        // Cannot activate without verifying/updating badge â€” fail atomically
         console.error("[pagamento] candidato not found in Directus:", convite.candidato_membro_id);
-        return res.status(502).json({ error: "Dados do candidato não encontrados no Directus. Verifique o cadastro e tente novamente." });
+        return res.status(502).json({ error: "Dados do candidato nÃ£o encontrados no Directus. Verifique o cadastro e tente novamente." });
       }
       const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
         ? candidatoData.Outras_redes_as_quais_pertenco
@@ -9836,7 +10359,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!m2mPatch.ok) {
         const err = await m2mPatch.text().catch(() => "");
         console.error("[pagamento] M2M membership update failed:", m2mPatch.status, err);
-        return res.status(502).json({ error: "Falha ao adicionar membro à comunidade no Directus. Tente novamente." });
+        return res.status(502).json({ error: "Falha ao adicionar membro Ã  comunidade no Directus. Tente novamente." });
       }
 
       // Only mark membro after both Directus updates succeed
@@ -9879,12 +10402,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/convites/:token/lembrete — send reminder email (authenticated, aliado/admin)
+  // POST /api/convites/:token/lembrete â€” send reminder email (authenticated, aliado/admin)
   app.post("/api/convites/:token/lembrete", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
 
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
@@ -9929,10 +10452,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // ========== CONVITES LINK (vitrine invite links) ==========
 
-  // POST /api/meu-convite — generate a vitrine invite link for the current authenticated member
+  // POST /api/meu-convite â€” generate a vitrine invite link for the current authenticated member
   app.post("/api/meu-convite", async (req, res) => {
     const sessionUserId = (req.session as any).directusUserId;
-    if (!sessionUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!sessionUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const email = (req.session as any).email;
       const localUser = email ? await storage.getUserByEmail(email) : null;
@@ -9989,11 +10512,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      // Block invite generation if the member has no community — the registration
+      // Block invite generation if the member has no community â€” the registration
       // flow requires a valid comunidade_id to create the vitrine candidatura record.
       if (!comunidadeId) {
         return res.status(400).json({
-          error: "Você precisa estar associado a uma comunidade para gerar um convite. Entre em contato com seu Aliado BUILT."
+          error: "VocÃª precisa estar associado a uma comunidade para gerar um convite. Entre em contato com seu Aliado BUILT."
         });
       }
 
@@ -10019,17 +10542,17 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/meu-convite — get the active, non-expired convite link for the current user
+  // GET /api/meu-convite â€” get the active, non-expired convite link for the current user
   app.get("/api/meu-convite", async (req, res) => {
     const sessionUserId = (req.session as any).directusUserId;
-    if (!sessionUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!sessionUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const email = (req.session as any).email;
       const localUser = email ? await storage.getUserByEmail(email) : null;
       const userId = localUser?.id || sessionUserId;
       const convite = await storage.getActiveConviteLinkByUserId(userId);
       if (!convite) return res.json(null);
-      // Validate expiry — mark as expirado if past expires_at
+      // Validate expiry â€” mark as expirado if past expires_at
       if (convite.expires_at && new Date() > new Date(convite.expires_at)) {
         await storage.updateConviteLink(convite.id, { status: "expirado" }).catch(() => {});
         return res.json(null);
@@ -10041,12 +10564,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/convite-publico/:token — public: validate token and return minimal info
+  // GET /api/convite-publico/:token â€” public: validate token and return minimal info
   app.get("/api/convite-publico/:token", async (req, res) => {
     try {
       const convite = await storage.getConviteLinkByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (convite.status !== "ativo") return res.status(400).json({ error: "Este convite já foi utilizado ou expirou." });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (convite.status !== "ativo") return res.status(400).json({ error: "Este convite jÃ¡ foi utilizado ou expirou." });
       if (new Date() > new Date(convite.expires_at)) return res.status(400).json({ error: "Este convite expirou." });
       res.json({
         gerador_nome: convite.gerador_nome,
@@ -10059,14 +10582,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // PATCH /api/convites/:token/aprovar-vitrine — approve vitrine access (aliado or admin only)
+  // PATCH /api/convites/:token/aprovar-vitrine â€” approve vitrine access (aliado or admin only)
   app.patch("/api/convites/:token/aprovar-vitrine", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (!["vitrine", "capital"].includes(convite.tipo)) return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine ou capital" });
-      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (!["vitrine", "capital"].includes(convite.tipo)) return res.status(400).json({ error: "Este endpoint Ã© apenas para convites de vitrine ou capital" });
+      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura nÃ£o estÃ¡ em anÃ¡lise" });
 
       // Get comunidade for authorization
       const col = await getComunidadeCol();
@@ -10108,7 +10631,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           await directusUpdate("cadastro_geral", convite.candidato_membro_id, accessPatch);
         } catch (err: any) {
           console.error("[aprovar-vitrine] access patch failed:", err?.message || err);
-          return res.status(502).json({ error: "Falha ao atualizar permissões no Directus. Tente novamente." });
+          return res.status(502).json({ error: "Falha ao atualizar permissÃµes no Directus. Tente novamente." });
         }
       }
 
@@ -10151,14 +10674,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // PATCH /api/convites/:token/rejeitar-vitrine — reject vitrine access (aliado or admin only)
+  // PATCH /api/convites/:token/rejeitar-vitrine â€” reject vitrine access (aliado or admin only)
   app.patch("/api/convites/:token/rejeitar-vitrine", async (req, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
-      if (!["vitrine", "capital"].includes(convite.tipo)) return res.status(400).json({ error: "Este endpoint é apenas para convites de vitrine ou capital" });
-      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura não está em análise" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
+      if (!["vitrine", "capital"].includes(convite.tipo)) return res.status(400).json({ error: "Este endpoint Ã© apenas para convites de vitrine ou capital" });
+      if (convite.status !== "candidato") return res.status(400).json({ error: "Candidatura nÃ£o estÃ¡ em anÃ¡lise" });
 
       const col = await getComunidadeCol();
       const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
@@ -10200,13 +10723,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   // ========== STRIPE PAGAMENTO ==========
 
-  // POST /api/convites/:token/checkout — create Stripe Checkout Session (public, token is the auth)
+  // POST /api/convites/:token/checkout â€” create Stripe Checkout Session (public, token is the auth)
   app.post("/api/convites/:token/checkout", async (req, res) => {
     try {
       const convite = await storage.getConviteByToken(req.params.token);
-      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+      if (!convite) return res.status(404).json({ error: "Convite nÃ£o encontrado" });
       if (!["termos_aceitos", "pagamento_pendente"].includes(convite.status)) {
-        return res.status(400).json({ error: "Aceite os termos de adesão antes de pagar" });
+        return res.status(400).json({ error: "Aceite os termos de adesÃ£o antes de pagar" });
       }
 
       // Enforce payment window expiry (same rule as the manual confirmation endpoint)
@@ -10217,8 +10740,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const stripe = getStripeClient();
       const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : null);
       if (!rawDomain) {
-        console.error("[stripe/checkout] APP_URL and REPLIT_DOMAINS are both unset — cannot build redirect URLs");
-        return res.status(500).json({ error: "Configuração de URL ausente. Contate o suporte técnico." });
+        console.error("[stripe/checkout] APP_URL and REPLIT_DOMAINS are both unset â€” cannot build redirect URLs");
+        return res.status(500).json({ error: "ConfiguraÃ§Ã£o de URL ausente. Contate o suporte tÃ©cnico." });
       }
       const baseUrl = rawDomain.replace(/\/$/, "");
       const successUrl = `${baseUrl}/pagamento/${convite.token}?payment_success=true`;
@@ -10233,8 +10756,8 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
               currency: "brl",
               unit_amount: 319700,
               product_data: {
-                name: "Taxa de Adesão BUILT Alliances",
-                description: `Adesão à comunidade ${convite.candidato_nome ? "- " + convite.candidato_nome : ""}`.trim(),
+                name: "Taxa de AdesÃ£o BUILT Alliances",
+                description: `AdesÃ£o Ã  comunidade ${convite.candidato_nome ? "- " + convite.candidato_nome : ""}`.trim(),
               },
             },
             quantity: 1,
@@ -10268,7 +10791,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/stripe/webhook — handle Stripe webhook events
+  // POST /api/stripe/webhook â€” handle Stripe webhook events
   app.post("/api/stripe/webhook", async (req, res) => {
     const sig = req.headers["stripe-signature"];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -10348,7 +10871,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         return res.status(200).json({ received: true });
       }
 
-      // Validate payment is actually settled — guard against async payment methods
+      // Validate payment is actually settled â€” guard against async payment methods
       if (session.payment_status !== "paid") {
         console.log("[stripe/webhook] session not yet paid (payment_status=%s), skipping activation for token: %s", session.payment_status, token);
         return res.status(200).json({ received: true });
@@ -10373,7 +10896,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
         if (!candidatoData) {
           console.error("[stripe/webhook] candidato not found in Directus:", convite.candidato_membro_id);
-          return res.status(500).json({ error: "Candidato não encontrado no Directus — webhook será re-tentado" });
+          return res.status(500).json({ error: "Candidato nÃ£o encontrado no Directus â€” webhook serÃ¡ re-tentado" });
         }
         const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
           ? candidatoData.Outras_redes_as_quais_pertenco
@@ -10388,7 +10911,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           if (!badgePatch.ok) {
             const err = await badgePatch.text().catch(() => "");
             console.error("[stripe/webhook] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
-            return res.status(502).json({ error: "Falha ao atualizar badge no Directus — webhook será re-tentado" });
+            return res.status(502).json({ error: "Falha ao atualizar badge no Directus â€” webhook serÃ¡ re-tentado" });
           }
         }
 
@@ -10397,7 +10920,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
         if (!cr.ok) {
           console.error("[stripe/webhook] failed to fetch comunidade:", cr.status);
-          return res.status(502).json({ error: "Falha ao buscar comunidade no Directus — webhook será re-tentado" });
+          return res.status(502).json({ error: "Falha ao buscar comunidade no Directus â€” webhook serÃ¡ re-tentado" });
         }
         const comunidade = (await cr.json()).data;
         const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
@@ -10418,7 +10941,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         if (!m2mPatch.ok) {
           const err = await m2mPatch.text().catch(() => "");
           console.error("[stripe/webhook] M2M membership update failed:", m2mPatch.status, err);
-          return res.status(502).json({ error: "Falha ao adicionar membro à comunidade no Directus — webhook será re-tentado" });
+          return res.status(502).json({ error: "Falha ao adicionar membro Ã  comunidade no Directus â€” webhook serÃ¡ re-tentado" });
         }
 
         // 3. Only mark as membro after both Directus updates succeed
@@ -10460,19 +10983,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         }
       } catch (err: any) {
         console.error("[stripe/webhook] processing error:", err.message);
-        return res.status(500).json({ error: "Erro interno ao processar webhook — será re-tentado" });
+        return res.status(500).json({ error: "Erro interno ao processar webhook â€” serÃ¡ re-tentado" });
       }
     }
 
     res.status(200).json({ received: true });
   });
 
-  // POST /api/webhooks/asaas — handle Asaas payment webhook events
+  // POST /api/webhooks/asaas â€” handle Asaas payment webhook events
   app.post("/api/webhooks/asaas", async (req, res) => {
-    // Mandatory token verification — ASAAS_WEBHOOK_TOKEN must be set in env
+    // Mandatory token verification â€” ASAAS_WEBHOOK_TOKEN must be set in env
     const webhookTokens = [process.env.ASAAS_WEBHOOK_TOKEN, process.env.ASAAS_WEBHOOK_SECRET].filter((token): token is string => Boolean(token));
     if (webhookTokens.length === 0) {
-      console.error("[asaas/webhook] ASAAS_WEBHOOK_TOKEN not configured — rejecting request");
+      console.error("[asaas/webhook] ASAAS_WEBHOOK_TOKEN not configured â€” rejecting request");
       return res.status(503).json({ error: "Webhook not configured" });
     }
     const getHeader = (name: string) => {
@@ -10540,7 +11063,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         if (convite) console.log(`[asaas/webhook] matched convite via externalReference token: ${extRef}`);
       }
 
-      // Strategy 2: match by customer email — only match convites in pagamento_pendente status
+      // Strategy 2: match by customer email â€” only match convites in pagamento_pendente status
       // to avoid ambiguity when a customer has multiple convites
       if (!convite) {
         const email: string | null =
@@ -10564,7 +11087,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
 
       if (!convite) {
-        console.warn(`[asaas/webhook] could not match convite — paymentId=${payment.id} externalReference=${extRef}`);
+        console.warn(`[asaas/webhook] could not match convite â€” paymentId=${payment.id} externalReference=${extRef}`);
         return res.status(200).json({ received: true });
       }
 
@@ -10580,7 +11103,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
       if (!candidatoData) {
         console.error("[asaas/webhook] candidato not found in Directus:", convite.candidato_membro_id);
-        return res.status(500).json({ error: "Candidato não encontrado — webhook será re-tentado" });
+        return res.status(500).json({ error: "Candidato nÃ£o encontrado â€” webhook serÃ¡ re-tentado" });
       }
       const redesAtuais: string[] = Array.isArray(candidatoData.Outras_redes_as_quais_pertenco)
         ? candidatoData.Outras_redes_as_quais_pertenco
@@ -10594,7 +11117,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         if (!badgePatch.ok) {
           const err = await badgePatch.text().catch(() => "");
           console.error("[asaas/webhook] BUILT_PROUD_MEMBER badge update failed:", badgePatch.status, err);
-          return res.status(502).json({ error: "Falha ao atualizar badge no Directus — webhook será re-tentado" });
+          return res.status(502).json({ error: "Falha ao atualizar badge no Directus â€” webhook serÃ¡ re-tentado" });
         }
       }
 
@@ -10603,7 +11126,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!cr.ok) {
         console.error("[asaas/webhook] failed to fetch comunidade:", cr.status);
-        return res.status(502).json({ error: "Falha ao buscar comunidade — webhook será re-tentado" });
+        return res.status(502).json({ error: "Falha ao buscar comunidade â€” webhook serÃ¡ re-tentado" });
       }
       const comunidade = (await cr.json()).data;
       const comunidadeNome = comunidade?.nome || "Comunidade BUILT";
@@ -10623,7 +11146,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (!m2mPatch.ok) {
         const err = await m2mPatch.text().catch(() => "");
         console.error("[asaas/webhook] M2M membership update failed:", m2mPatch.status, err);
-        return res.status(502).json({ error: "Falha ao adicionar membro à comunidade — webhook será re-tentado" });
+        return res.status(502).json({ error: "Falha ao adicionar membro Ã  comunidade â€” webhook serÃ¡ re-tentado" });
       }
 
       // 3. Mark convite as membro
@@ -10665,13 +11188,13 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       }
     } catch (err: any) {
       console.error("[asaas/webhook] processing error:", err.message);
-      return res.status(500).json({ error: "Erro interno — webhook será re-tentado" });
+      return res.status(500).json({ error: "Erro interno â€” webhook serÃ¡ re-tentado" });
     }
 
     return res.status(200).json({ received: true });
   });
 
-  // ── Aura Percebida ───────────────────────────────────────────────────────────
+  // â”€â”€ Aura Percebida â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { calcularAura, classificarPalavra, PALAVRAS_SUGERIDAS } = await import("./aura-lexico.js");
   async function getAuraAccessContext(req: any) {
     const role = (req.session as any).role || "user";
@@ -10719,15 +11242,15 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
   async function blockVitrineOnlyAura(req: any, res: any) {
     const access = await getAuraAccessContext(req);
     if (access.isVitrineOnly) {
-      res.status(403).json({ error: "Usuários somente da Vitrine podem consultar apenas a própria Aura." });
+      res.status(403).json({ error: "UsuÃ¡rios somente da Vitrine podem consultar apenas a prÃ³pria Aura." });
       return true;
     }
     return false;
   }
 
-  // GET /api/aura/membros/busca — member search for evaluation form
+  // GET /api/aura/membros/busca â€” member search for evaluation form
   app.get("/api/aura/membros/busca", async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const q = String(req.query.q || "").trim();
     try {
@@ -10744,19 +11267,19 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/aura/lexico — keyword list for autocomplete
+  // GET /api/aura/lexico â€” keyword list for autocomplete
   app.get("/api/aura/lexico", (_req, res) => {
     res.json(PALAVRAS_SUGERIDAS);
   });
 
-  // GET /api/aura/score/:membroId — public score (always calculated if >=1 evaluation)
+  // GET /api/aura/score/:membroId â€” public score (always calculated if >=1 evaluation)
   app.get("/api/aura/score/:membroId", async (req, res) => {
     try {
       const { membroId } = req.params;
       if ((req.session as any).directusUserId) {
         const access = await getAuraAccessContext(req);
         if (access.isVitrineOnly && membroId !== access.membroId) {
-          return res.status(403).json({ error: "Usuários somente da Vitrine podem consultar apenas a própria Aura." });
+          return res.status(403).json({ error: "UsuÃ¡rios somente da Vitrine podem consultar apenas a prÃ³pria Aura." });
         }
       }
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
@@ -10772,7 +11295,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           FR_R: 1,
           FR_C: 1,
           confianca: "Sem base reputacional",
-          confianca_descricao: "Aguardando primeira avaliação",
+          confianca_descricao: "Aguardando primeira avaliaÃ§Ã£o",
           total_palavras: 0,
           dimensoes_sem_evidencia: ["T", "R", "C"],
           correspondencia_valores: { T: 0, R: 0, C: 0 },
@@ -10788,14 +11311,14 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/aura/leitura-contextual — AI contextual interpretation by alliance nucleus
+  // POST /api/aura/leitura-contextual â€” AI contextual interpretation by alliance nucleus
   app.post("/api/aura/leitura-contextual", async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const { membro_nome, nucleo, score, faixa, T, R, C, n, palavras_recebidas } = req.body || {};
-    const nucleosPermitidos = new Set(["Técnico", "Obra", "Comercial", "Capital", "Liderança"]);
+    const nucleosPermitidos = new Set(["TÃ©cnico", "Obra", "Comercial", "Capital", "LideranÃ§a"]);
     if (!nucleo || typeof nucleo !== "string" || !nucleosPermitidos.has(nucleo)) {
-      return res.status(400).json({ error: "Núcleo inválido." });
+      return res.status(400).json({ error: "NÃºcleo invÃ¡lido." });
     }
 
     const palavras = Array.isArray(palavras_recebidas)
@@ -10816,7 +11339,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           {
             role: "system",
             content:
-              "Você é um analista reputacional da BUILT. Gere uma leitura contextual curta, específica e acionável para o núcleo informado, usando apenas os dados recebidos. Não invente fatos. Se houver pouca base amostral, mencione que a leitura é inicial. Responda em português do Brasil, em uma frase ou parágrafo curto, sem markdown.",
+              "VocÃª Ã© um analista reputacional da BUILT. Gere uma leitura contextual curta, especÃ­fica e acionÃ¡vel para o nÃºcleo informado, usando apenas os dados recebidos. NÃ£o invente fatos. Se houver pouca base amostral, mencione que a leitura Ã© inicial. Responda em portuguÃªs do Brasil, em uma frase ou parÃ¡grafo curto, sem markdown.",
           },
           {
             role: "user",
@@ -10833,7 +11356,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
               avaliadores: n ?? 0,
               percepcoes_recebidas: palavras,
               objetivo:
-                "Explique como essa Aura se aplica ao núcleo selecionado, destacando forças e pontos de atenção conforme as dimensões e palavras recebidas.",
+                "Explique como essa Aura se aplica ao nÃºcleo selecionado, destacando forÃ§as e pontos de atenÃ§Ã£o conforme as dimensÃµes e palavras recebidas.",
             }),
           },
         ],
@@ -10842,7 +11365,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       });
 
       const leitura = (completion.choices[0]?.message?.content || "").replace(/\s+/g, " ").trim();
-      if (!leitura) return res.status(500).json({ error: "A IA não retornou uma leitura." });
+      if (!leitura) return res.status(500).json({ error: "A IA nÃ£o retornou uma leitura." });
       return res.json({ leitura, fonte: "ia" });
     } catch (err: any) {
       console.error("[aura-leitura-contextual]", err?.message);
@@ -10850,9 +11373,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // GET /api/aura/minhas-avaliacoes — evaluations received and given by the logged-in member
+  // GET /api/aura/minhas-avaliacoes â€” evaluations received and given by the logged-in member
   app.get("/api/aura/minhas-avaliacoes", async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     const membroId = (req.session as any).membroId as string | null;
     if (!membroId) return res.json({ recebidas: [], dadas: [] });
     const [recebidas, dadas] = await Promise.all([
@@ -10893,9 +11416,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     return res.json({ recebidas: recebidasEnriquecidas, dadas: dadasEnriquecidas });
   });
 
-  // GET /api/aura/avaliacao/:avaliadoId — get my evaluation of a specific member
+  // GET /api/aura/avaliacao/:avaliadoId â€” get my evaluation of a specific member
   app.get("/api/aura/avaliacao/:avaliadoId", async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const membroId = (req.session as any).membroId as string | null;
     if (!membroId) return res.json(null);
@@ -10903,9 +11426,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     return res.json(av ?? null);
   });
 
-  // POST /api/aura/analisar-texto — AI analysis: pick up to 3 lexicon words from free text
+  // POST /api/aura/analisar-texto â€” AI analysis: pick up to 3 lexicon words from free text
   app.post("/api/aura/analisar-texto", async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const { texto, membro_nome } = req.body;
     if (!texto || typeof texto !== "string" || texto.trim().length < 10) {
@@ -10936,10 +11459,10 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         { palavra: "COMPROMETIMENTO", pistas: ["comprometida", "comprometido", "trabalhadora", "trabalhador", "dedicada", "dedicado", "entrega", "veste a camisa", "vestir a camisa"] },
         { palavra: "ATENCIOSO", pistas: ["atenciosa", "atencioso", "atencao", "cuidadosa", "cuidadoso"] },
         { palavra: "EMPATIA", pistas: ["empatica", "empatico", "acolhedora", "acolhedor", "pessoas", "relaciona bem"] },
-        { palavra: "LIDERANÇA", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
-        { palavra: "ALIANÇA", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+        { palavra: "LIDERANÃ‡A", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
+        { palavra: "ALIANÃ‡A", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
         { palavra: "RESPONSABILIDADE", pistas: ["responsavel", "responsabilidade", "cumpre", "presta contas"] },
-        { palavra: "EFICIÊNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
+        { palavra: "EFICIÃŠNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
       ];
       for (const regra of regras) {
         if (regra.pistas.some((pista) => textoNormalizado.includes(normalizeAuraText(pista)))) {
@@ -10963,11 +11486,11 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         messages: [
           {
             role: "system",
-            content: `Você é um assistente de avaliação de perfil profissional. Dado um texto descritivo sobre uma pessoa, seu trabalho é selecionar as 1 a 3 palavras mais relevantes de um léxico fixo que melhor representem as características descritas no texto. Responda APENAS com um array JSON de strings, sem nenhum texto adicional. Exemplo de resposta válida: ["Liderança","Inovação","Colaboração"]. O léxico disponível é: ${lexico.join(", ")}.`,
+            content: `VocÃª Ã© um assistente de avaliaÃ§Ã£o de perfil profissional. Dado um texto descritivo sobre uma pessoa, seu trabalho Ã© selecionar as 1 a 3 palavras mais relevantes de um lÃ©xico fixo que melhor representem as caracterÃ­sticas descritas no texto. Responda APENAS com um array JSON de strings, sem nenhum texto adicional. Exemplo de resposta vÃ¡lida: ["LideranÃ§a","InovaÃ§Ã£o","ColaboraÃ§Ã£o"]. O lÃ©xico disponÃ­vel Ã©: ${lexico.join(", ")}.`,
           },
           {
             role: "user",
-            content: `Pessoa avaliada: ${membro_nome || "membro"}\n\nDescrição: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do léxico que melhor descrevem esta pessoa com base no texto acima.`,
+            content: `Pessoa avaliada: ${membro_nome || "membro"}\n\nDescriÃ§Ã£o: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do lÃ©xico que melhor descrevem esta pessoa com base no texto acima.`,
           },
         ],
         temperature: 0.2,
@@ -11000,9 +11523,9 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/aura/extrair-arquivo — extract text from uploaded file (TXT or PDF) for AI analysis
+  // POST /api/aura/extrair-arquivo â€” extract text from uploaded file (TXT or PDF) for AI analysis
   app.post("/api/aura/extrair-arquivo", upload.single("arquivo"), async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -11024,12 +11547,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       ) {
         texto = file.buffer.toString("utf-8");
       } else {
-        return res.status(400).json({ error: "Tipo de arquivo não suportado. Use PDF ou TXT." });
+        return res.status(400).json({ error: "Tipo de arquivo nÃ£o suportado. Use PDF ou TXT." });
       }
 
       texto = texto.replace(/\s+/g, " ").trim();
       if (texto.length > 4000) texto = texto.slice(0, 4000) + "...";
-      if (texto.length < 5) return res.status(400).json({ error: "Não foi possível extrair texto do arquivo." });
+      if (texto.length < 5) return res.status(400).json({ error: "NÃ£o foi possÃ­vel extrair texto do arquivo." });
 
       return res.json({ texto });
     } catch (err: any) {
@@ -11038,12 +11561,12 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
     }
   });
 
-  // POST /api/aura/avaliar — submit an evaluation (one per pair, no updates)
+  // POST /api/aura/avaliar â€” submit an evaluation (one per pair, no updates)
   app.post("/api/aura/transcrever-audio", auraAudioUpload.single("audio"), async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const file = req.file;
-    if (!file) return res.status(400).json({ error: "Nenhum áudio enviado." });
+    if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
 
     try {
       const { toFile } = await import("openai");
@@ -11054,38 +11577,38 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         model: "gpt-4o-mini-transcribe",
       });
       const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
-      if (texto.length < 3) return res.status(400).json({ error: "Não foi possível transcrever o áudio." });
+      if (texto.length < 3) return res.status(400).json({ error: "NÃ£o foi possÃ­vel transcrever o Ã¡udio." });
       return res.json({ texto: texto.length > 4000 ?texto.slice(0, 4000) + "..." : texto });
     } catch (err: any) {
       console.error("[aura-audio]", err?.message);
-      return res.status(500).json({ error: "Erro ao transcrever áudio. Tente novamente." });
+      return res.status(500).json({ error: "Erro ao transcrever Ã¡udio. Tente novamente." });
     }
   });
 
   app.post("/api/aura/avaliar", async (req: any, res) => {
-    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const membroId = (req.session as any).membroId as string | null;
-    if (!membroId) return res.status(400).json({ error: "Membro não encontrado" });
+    if (!membroId) return res.status(400).json({ error: "Membro nÃ£o encontrado" });
 
     const { avaliado_membro_id, palavras } = req.body;
     if (!avaliado_membro_id || !Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
       return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
     }
     if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
-      return res.status(400).json({ error: "Todas as palavras devem ser texto não vazio" });
+      return res.status(400).json({ error: "Todas as palavras devem ser texto nÃ£o vazio" });
     }
     if (avaliado_membro_id === membroId) {
-      return res.status(400).json({ error: "Você não pode avaliar a si mesmo" });
+      return res.status(400).json({ error: "VocÃª nÃ£o pode avaliar a si mesmo" });
     }
     // Block duplicate evaluations
     const existing = await storage.getAuraAvaliacaoByPair(membroId, avaliado_membro_id);
     if (existing) {
-      return res.status(409).json({ error: "Você já avaliou este membro e não pode repetir a avaliação." });
+      return res.status(409).json({ error: "VocÃª jÃ¡ avaliou este membro e nÃ£o pode repetir a avaliaÃ§Ã£o." });
     }
     // Validate all words are in the lexicon
     for (const p of palavras) {
-      if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra não reconhecida: ${p}` });
+      if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra nÃ£o reconhecida: ${p}` });
     }
     const result = await storage.upsertAuraAvaliacao(membroId, avaliado_membro_id, palavras);
     return res.json(result);
@@ -11093,3 +11616,4 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
 
   return httpServer;
 }
+

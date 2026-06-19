@@ -1273,13 +1273,14 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
           <Button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || uploading}
-            className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90 font-semibold"
+            className="bg-brand-gold !text-white hover:bg-brand-gold/90 hover:!text-white font-semibold [&_*]:!text-white"
+            style={{ color: "#FFFFFF" }}
             data-testid="btn-salvar-membro"
           >
             {(saveMutation.isPending || uploading) ?(
-              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />{uploading ?"Enviando foto..." : "Salvando..."}</>
+              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /><span className="!text-white" style={{ color: "#FFFFFF" }}>{uploading ?"Enviando foto..." : "Salvando..."}</span></>
             ) : (
-              <><Save className="w-3.5 h-3.5 mr-2" />Salvar alterações</>
+              <><Save className="w-3.5 h-3.5 mr-2" /><span className="!text-white" style={{ color: "#FFFFFF" }}>Salvar alterações</span></>
             )}
           </Button>
         </div>
@@ -1874,12 +1875,12 @@ export default function MembrosPage() {
           </span>
           <button
             onClick={() => setEditingMembro({} as Membro)}
-            className="h-8 px-3 text-xs rounded-md flex items-center gap-1.5 font-mono transition-colors"
-            style={{ background: "rgba(215,187,125,0.12)", border: "1px solid rgba(215,187,125,0.3)", color: "#D7BB7D" }}
+            className="h-8 px-3 text-xs rounded-md flex items-center gap-1.5 font-mono transition-colors border border-blue-700 bg-blue-600 !text-white hover:bg-blue-700 [&_*]:!text-white"
+            style={{ color: "#FFFFFF" }}
             data-testid="btn-novo-membro"
           >
             <Plus className="w-3.5 h-3.5" />
-            Novo Membro
+            <span className="!text-white" style={{ color: "#FFFFFF" }}>Novo Membro</span>
           </button>
         </div>
       </div>

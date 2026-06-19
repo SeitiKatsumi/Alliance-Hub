@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
-import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
+import builtLogo from "@assets/Logo_Built_3_Horizontal_Negativo.png";
 
 export function AppSidebar() {
   const { user } = useAuth();

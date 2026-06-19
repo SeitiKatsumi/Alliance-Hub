@@ -389,6 +389,10 @@ export default function BiaDetalhePage() {
   const lucro = n(bia.lucro_previsto);
   const custoFinal = n(bia.custo_final_previsto);
   const totalAportes = n(bia.total_aportes);
+  const canEditBia =
+    user?.role === "admin" ||
+    user?.role === "manager" ||
+    (!!membroId && (membroId === bia.aliado_built || membroId === bia.diretor_alianca));
 
   const aporteFMEntries = aportesRaw as AporteEntry[];
   const totalAporteFM = aporteFMEntries.reduce((sum, e) => sum + n(e.valor), 0);
@@ -440,15 +444,17 @@ export default function BiaDetalhePage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para BIAs
         </Button>
-        <Button
-          size="sm"
-          className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-          onClick={() => setEditOpen(true)}
-          data-testid="btn-edit-bia-detail"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Editar
-        </Button>
+        {canEditBia && (
+          <Button
+            size="sm"
+            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+            onClick={() => setEditOpen(true)}
+            data-testid="btn-edit-bia-detail"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Editar
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="space-y-5">

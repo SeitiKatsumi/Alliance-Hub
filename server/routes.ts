@@ -5480,6 +5480,7 @@ export async function registerRoutes(
   app.patch("/api/bias/:id", async (req, res) => {
     try {
       const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
       const isSuperAdminRole = sessionRole === "admin" || sessionRole === "manager";
       let payload = prepareBiaPayload(req.body);
       const currentBia = await directusFetchOne(
@@ -5487,8 +5488,15 @@ export async function registerRoutes(
         req.params.id,
         "fields=id,nome_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores"
       ).catch(() => null);
+      const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
+      const diretorAliancaAtual = directusRelationId(currentBia?.diretor_alianca) || currentBia?.diretor_alianca || null;
+      const canEditBia =
+        isSuperAdminRole ||
+        (!!sessionMembroId && (sessionMembroId === aliadoAtual || sessionMembroId === diretorAliancaAtual));
+      if (!canEditBia) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editá-la." });
+      }
       if (!isSuperAdminRole && Object.prototype.hasOwnProperty.call(payload, "aliado_built")) {
-        const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
         if (aliadoAtual) {
           (payload as any).aliado_built = aliadoAtual;
         } else {
@@ -5666,6 +5674,18 @@ export async function registerRoutes(
   app.put("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
+      const sessionRole = (req.session as any).role || "user";
+      const sessionMembroId = (req.session as any).membroId as string | null;
+      const isSuperAdminRole = sessionRole === "admin" || sessionRole === "manager";
+      const biaPermissao = await directusFetchOne("bias_projetos", req.params.id, "fields=id,aliado_built,diretor_alianca").catch(() => null);
+      const aliadoAtual = directusRelationId(biaPermissao?.aliado_built) || biaPermissao?.aliado_built || null;
+      const diretorAliancaAtual = directusRelationId(biaPermissao?.diretor_alianca) || biaPermissao?.diretor_alianca || null;
+      const canEditBia =
+        isSuperAdminRole ||
+        (!!sessionMembroId && (sessionMembroId === aliadoAtual || sessionMembroId === diretorAliancaAtual));
+      if (!canEditBia) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editar estas informações." });
+      }
       const infoPayload = pickBiaInfoComercialFields(req.body);
       let directusInfo = infoPayload;
       try {
@@ -7375,6 +7395,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
         cidade,
         estado,
         pais,
+        area_atuacao,
         idiomas,
         link_site,
         foto_perfil,
@@ -7482,6 +7503,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       if (cidade) directusPayload.cidade = cidade;
       if (estado) directusPayload.estado = estado;
       if (pais) directusPayload.pais = pais;
+      if (area_atuacao) directusPayload.area_atuacao = area_atuacao;
       if (Array.isArray(idiomas) && idiomas.length > 0) directusPayload.idiomas = idiomas;
       if (link_site) directusPayload.link_site = link_site;
       if (foto_perfil) {
@@ -9295,11 +9317,35 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
           // Vitrine/Capital: direct approval → platform access
           newStatus = "vitrine_ativo";
           updated = await storage.updateConvite(convite.id, { status: newStatus });
-          // Promote candidate user to "membro" so they can access the platform
+          if (convite.candidato_membro_id) {
+            const accessPatch: Record<string, any> = convite.tipo === "capital"
+              ? {
+                  na_vitrine: false,
+                  em_built_capital: true,
+                  em_membros_built: false,
+                }
+              : {
+                  na_vitrine: true,
+                  em_built_capital: false,
+                  em_membros_built: false,
+                };
+            if (convite.tipo === "capital") {
+              const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
+              const redesAtuais = Array.isArray(candidatoData?.Outras_redes_as_quais_pertenco)
+                ? candidatoData.Outras_redes_as_quais_pertenco
+                : [];
+              accessPatch.Outras_redes_as_quais_pertenco = redesAtuais.includes("BUILT_CAPITAL_PARTNER")
+                ? redesAtuais
+                : [...redesAtuais, "BUILT_CAPITAL_PARTNER"];
+            }
+            await directusUpdate("cadastro_geral", convite.candidato_membro_id, accessPatch);
+          }
+
+          // Keep the local role aligned with the invite type without unlocking Alliances.
           const allUsers = await storage.getAllUsers();
           const candidatoUser = allUsers.find(u => u.membro_directus_id === convite.candidato_membro_id);
           if (candidatoUser) {
-            await storage.updateUser(candidatoUser.id, { role: "membro" });
+            await storage.updateUser(candidatoUser.id, { role: convite.tipo === "capital" ? "investidor" : "user" });
           }
           if (convite.candidato_email) {
             await enviarAprovacaoVitrine({
@@ -9897,7 +9943,7 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Any authenticated member may generate a personal invite link (requires community membership)
 
       const forceNew = req.body?.force === true;
-      const tiposConviteValidos = ["vitrine", "capital", "membros"];
+      const tiposConviteValidos = ["vitrine", "capital"];
       const tipoConvite = tiposConviteValidos.includes(String(req.body?.tipo || ""))
         ? String(req.body.tipo)
         : "vitrine";
@@ -10037,11 +10083,40 @@ Responda sempre em português brasileiro, de forma clara e objetiva.`;
       // Update convite status
       await storage.updateConvite(convite.id, { status: "vitrine_ativo" });
 
-      // Upgrade the user's role to "membro" so they can access the platform
+      if (convite.candidato_membro_id) {
+        const accessPatch: Record<string, any> = convite.tipo === "capital"
+          ? {
+              na_vitrine: false,
+              em_built_capital: true,
+              em_membros_built: false,
+            }
+          : {
+              na_vitrine: true,
+              em_built_capital: false,
+              em_membros_built: false,
+            };
+        if (convite.tipo === "capital") {
+          const candidatoData = await getDirectusMembro(convite.candidato_membro_id);
+          const redesAtuais = Array.isArray(candidatoData?.Outras_redes_as_quais_pertenco)
+            ? candidatoData.Outras_redes_as_quais_pertenco
+            : [];
+          accessPatch.Outras_redes_as_quais_pertenco = redesAtuais.includes("BUILT_CAPITAL_PARTNER")
+            ? redesAtuais
+            : [...redesAtuais, "BUILT_CAPITAL_PARTNER"];
+        }
+        try {
+          await directusUpdate("cadastro_geral", convite.candidato_membro_id, accessPatch);
+        } catch (err: any) {
+          console.error("[aprovar-vitrine] access patch failed:", err?.message || err);
+          return res.status(502).json({ error: "Falha ao atualizar permissões no Directus. Tente novamente." });
+        }
+      }
+
+      // Keep the local role aligned with the invite type without unlocking Alliances.
       const allUsers = await storage.getAllUsers();
       const candidatoUser = allUsers.find(u => u.membro_directus_id === convite.candidato_membro_id);
       if (candidatoUser) {
-        await storage.updateUser(candidatoUser.id, { role: "membro" });
+        await storage.updateUser(candidatoUser.id, { role: convite.tipo === "capital" ? "investidor" : "user" });
       }
 
       // Send approval email to candidate and notify invitador

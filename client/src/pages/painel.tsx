@@ -202,11 +202,14 @@ const CHART_COLORS = ["#0B4EA2", "#0B63F6", "#12B981", "#38BDF8", "#22C55E", "#1
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const INVITE_TYPE_OPTIONS = [
-  { value: "vitrine", label: "BUILT Vitrine" },
-  { value: "capital", label: "BUILT Capital (Investidor)" },
-  { value: "membros", label: "BUILT Alliances" },
+  { value: "vitrine", label: "Parceiro de Mercado" },
+  { value: "capital", label: "Parceiro de Capital" },
 ];
-const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+const INVITE_TYPE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label])),
+  membros: "BUILT Alliances",
+  associacao_completa: "BUILT Alliances",
+};
 const DASHBOARD_ENV_IMAGES = Array.from({ length: 10 }, (_, index) => `/dashboard-env/built-env-${String(index + 1).padStart(2, "0")}.png`);
 
 function normalizeInviteLink(link?: string | null) {
@@ -1725,7 +1728,7 @@ export default function PainelPage() {
             </Select>
             {meuConvite?.tipo && (
               <p className="text-[11px] text-muted-foreground">
-                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "BUILT Vitrine"}
+                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "Parceiro de Mercado"}
               </p>
             )}
           </div>

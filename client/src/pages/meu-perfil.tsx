@@ -54,12 +54,15 @@ const INVITE_APP_URL = "https://app.builtalliances.com";
 const FOTO_CROP_BOX = 320;
 const FOTO_CROP_OUTPUT = 640;
 const INVITE_TYPE_OPTIONS = [
-  { value: "vitrine", label: "BUILT Vitrine" },
-  { value: "capital", label: "BUILT Capital (Investidor)" },
-  { value: "membros", label: "BUILT Alliances" },
+  { value: "vitrine", label: "Parceiro de Mercado" },
+  { value: "capital", label: "Parceiro de Capital" },
 ];
 const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
-const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+const INVITE_TYPE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label])),
+  membros: "BUILT Alliances",
+  associacao_completa: "BUILT Alliances",
+};
 const ESTADO_CIVIL_OPTIONS = [
   { value: "solteiro", label: "Solteiro(a)" },
   { value: "casado", label: "Casado(a)" },
@@ -2039,7 +2042,7 @@ export default function MeuPerfilPage() {
                   </Select>
                   {meuConvite?.tipo && (
                     <p className="text-[10px] font-mono text-white/25">
-                      Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "BUILT Vitrine"}
+                      Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "Parceiro de Mercado"}
                     </p>
                   )}
                 </div>
@@ -2069,7 +2072,6 @@ export default function MeuPerfilPage() {
                         {meuConvite.status === "usado" && <span className="ml-2 text-amber-400/60">· utilizado</span>}
                       </p>
                     )}
-                    <InviteQrCode link={meuConviteLink} />
                     <button
                       onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
                       disabled={gerarConviteMutation.isPending}
@@ -2079,6 +2081,7 @@ export default function MeuPerfilPage() {
                       <RefreshCw className={`w-3 h-3 ${gerarConviteMutation.isPending ?"animate-spin" : ""}`} />
                       Gerar novo link
                     </button>
+                    <InviteQrCode link={meuConviteLink} />
                   </div>
                 ) : (
                   <Button

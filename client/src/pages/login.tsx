@@ -14,20 +14,20 @@ import {
   Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, ArrowRight, Mail,
   Store, TrendingUp, Handshake, Shield, Send, Crown, FolderKanban, Scale, Lightbulb,
   ShieldCheck, CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Building2, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info,
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info, Search, ChevronDown, X,
 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
-import { formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
+import { formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamos, getTipoDisplayName, parseRamosValue, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ConviteInfo {
   gerador_nome: string | null;
   comunidade_nome: string | null;
-  tipo?: "vitrine" | "capital" | "membros" | null;
+  tipo?: "vitrine" | "capital" | "membros" | "associacao_completa" | null;
   expires_at: string | null;
 }
 
@@ -35,17 +35,20 @@ const CONVITE_INTERESSES: Record<string, string[]> = {
   vitrine: ["vitrine"],
   capital: ["capital"],
   membros: ["membros"],
+  associacao_completa: ["membros"],
 };
 
 const CONVITE_TIPO_LABEL: Record<string, string> = {
-  vitrine: "Vitrine BUILT",
-  capital: "BUILT Capital",
-  membros: "Área de Alianças",
+  vitrine: "Parceiro de Mercado",
+  capital: "Parceiro de Capital",
+  membros: "BUILT Alliances",
+  associacao_completa: "BUILT Alliances",
 };
 
 const BUILT_CAPITAL_TIPO = "Alianças de Investimento";
 const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário & Negócios Aplicados";
 const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
+const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
 const DEFAULT_AREAS: string[] = [];
 const CONTRIBUTION_AREA_ORDER = [
@@ -309,6 +312,7 @@ export default function LoginPage() {
   const [regCidade, setRegCidade] = useState("");
   const [regEstado, setRegEstado] = useState("");
   const [regPais, setRegPais] = useState("Brasil");
+  const [regAreaAtuacao, setRegAreaAtuacao] = useState("");
   const [regIdiomas, setRegIdiomas] = useState("");
   const [regIdiomaInput, setRegIdiomaInput] = useState("");
   const [regLinkSite, setRegLinkSite] = useState("");
@@ -320,6 +324,10 @@ export default function LoginPage() {
   const [regLogoUploading, setRegLogoUploading] = useState(false);
   const [regRamoAtuacao, setRegRamoAtuacao] = useState("");
   const [regSegmento, setRegSegmento] = useState("");
+  const [regRamoSearch, setRegRamoSearch] = useState("");
+  const [regRamoOpen, setRegRamoOpen] = useState(false);
+  const [regSegmentoSearch, setRegSegmentoSearch] = useState("");
+  const [regSegmentoOpen, setRegSegmentoOpen] = useState(false);
   const [regPerfilAliado, setRegPerfilAliado] = useState("");
   const [regTiposAlianca, setRegTiposAlianca] = useState<string[]>(DEFAULT_AREAS);
   const [adesaoToken, setAdesaoToken] = useState("");
@@ -364,14 +372,42 @@ export default function LoginPage() {
     setRegTiposAlianca([BUILT_CAPITAL_TIPO]);
   }, [interessesSelecionados]);
 
+  const selectedRegRamos = parseRamosValue(regRamoAtuacao);
   const selectedRegSegmentos = parseSegmentosValue(regSegmento);
-  const availableRegSegmentos = getSegmentosForRamo(regRamoAtuacao);
+  const availableRegSegmentos = getSegmentosForRamos(selectedRegRamos);
+  const normalizeSearch = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const normalizedRegRamoSearch = normalizeSearch(regRamoSearch);
+  const filteredRegRamos = RAMOS_SEGMENTOS.filter(ramo => normalizeSearch(ramo.nome).includes(normalizedRegRamoSearch));
+  const normalizedRegSegmentoSearch = normalizeSearch(regSegmentoSearch);
+  const filteredRegSegmentos = availableRegSegmentos.filter(segmento => normalizeSearch(segmento.nome).includes(normalizedRegSegmentoSearch));
+
+  function toggleRegRamo(ramo: string) {
+    const nextRamos = selectedRegRamos.includes(ramo)
+      ? selectedRegRamos.filter(item => item !== ramo)
+      : [...selectedRegRamos, ramo];
+    const availableNames = new Set(getSegmentosForRamos(nextRamos).map(segmento => segmento.nome));
+    const nextSegmentos = selectedRegSegmentos.filter(segmento => availableNames.has(segmento));
+    setRegRamoAtuacao(formatRamosValue(nextRamos) || "");
+    setRegSegmento(formatSegmentosValue(nextSegmentos) || "");
+  }
+
+  function clearRegRamos() {
+    setRegRamoAtuacao("");
+    setRegSegmento("");
+    setRegRamoSearch("");
+    setRegSegmentoSearch("");
+  }
 
   function toggleRegSegmento(segmento: string) {
     const nextSegmentos = selectedRegSegmentos.includes(segmento)
       ? selectedRegSegmentos.filter(item => item !== segmento)
       : [...selectedRegSegmentos, segmento];
     setRegSegmento(formatSegmentosValue(nextSegmentos) || "");
+  }
+
+  function clearRegSegmentos() {
+    setRegSegmento("");
+    setRegSegmentoSearch("");
   }
 
   useEffect(() => {
@@ -561,6 +597,7 @@ export default function LoginPage() {
           cidade: regCidade,
           estado: regEstado,
           pais: regPais,
+          area_atuacao: regAreaAtuacao,
           idiomas: regIdiomas.split(",").map(idioma => idioma.trim()).filter(Boolean),
           link_site: regLinkSite,
           foto_perfil: regFotoPerfil,
@@ -1065,24 +1102,162 @@ export default function LoginPage() {
                     <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
                       <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                         <h3 className="text-sm font-bold text-[#001D34]">3. Ramo de atuação</h3>
-                        <Select value={regRamoAtuacao} onValueChange={(value) => { setRegRamoAtuacao(value); setRegSegmento(""); }}>
-                          <SelectTrigger className="mt-2"><SelectValue placeholder="Selecione o ramo" /></SelectTrigger>
-                          <SelectContent className="max-h-72">{RAMOS_SEGMENTOS.map(ramo => <SelectItem key={ramo.codigo} value={ramo.nome}>{ramo.nome}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <h3 className="mt-4 text-sm font-bold text-[#001D34]">4. Segmento</h3>
-                        <div className={`mt-2 max-h-56 overflow-y-auto rounded-md border border-slate-200 p-2 ${regRamoAtuacao ? "bg-white" : "bg-slate-50 opacity-60"}`}>
-                          {!regRamoAtuacao ? (
-                            <p className="px-2 py-3 text-sm text-slate-500">Selecione o ramo primeiro</p>
-                          ) : (
-                            <div className="space-y-2">
-                              {availableRegSegmentos.map(segmento => (
-                                <label key={segmento.codigo} className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-                                  <Checkbox
-                                    checked={selectedRegSegmentos.includes(segmento.nome)}
-                                    onCheckedChange={() => toggleRegSegmento(segmento.nome)}
+                        <div className="mt-2 space-y-2">
+                          <Popover open={regRamoOpen} onOpenChange={(open) => {
+                            setRegRamoOpen(open);
+                            if (!open) setRegRamoSearch("");
+                          }}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-auto min-h-10 w-full justify-between rounded-md border-slate-200 bg-white px-3 py-2 text-left font-normal text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                              >
+                                <span className="min-w-0 flex-1 truncate">
+                                  {selectedRegRamos.length
+                                    ? `${selectedRegRamos.length} ramo${selectedRegRamos.length > 1 ? "s" : ""} selecionado${selectedRegRamos.length > 1 ? "s" : ""}`
+                                    : "Buscar e selecionar ramos"}
+                                </span>
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-slate-400" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] border-slate-200 bg-white p-0 text-slate-900">
+                              <div className="border-b border-slate-100 p-3">
+                                <div className="relative">
+                                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                  <Input
+                                    autoFocus
+                                    value={regRamoSearch}
+                                    onChange={(event) => setRegRamoSearch(event.target.value)}
+                                    placeholder="Pesquisar ramo..."
+                                    className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
                                   />
-                                  <span>{segmento.nome}</span>
-                                </label>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+                                  <span>{selectedRegRamos.length} de {RAMOS_SEGMENTOS.length} selecionado{selectedRegRamos.length !== 1 ? "s" : ""}</span>
+                                  {selectedRegRamos.length > 0 && (
+                                    <button type="button" onClick={clearRegRamos} className="font-medium text-blue-600 hover:text-blue-700">
+                                      Limpar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="max-h-72 overflow-y-auto p-2">
+                                {filteredRegRamos.length > 0 ? (
+                                  filteredRegRamos.map(ramo => {
+                                    const checked = selectedRegRamos.includes(ramo.nome);
+                                    return (
+                                      <label
+                                        key={ramo.codigo}
+                                        className={`flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 text-sm transition-colors ${checked ? "bg-blue-50 text-slate-950" : "text-slate-700 hover:bg-slate-50"}`}
+                                      >
+                                        <Checkbox
+                                          checked={checked}
+                                          onCheckedChange={() => toggleRegRamo(ramo.nome)}
+                                          className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
+                                        />
+                                        <span className="leading-5">{ramo.nome}</span>
+                                      </label>
+                                    );
+                                  })
+                                ) : (
+                                  <p className="px-3 py-6 text-center text-sm text-slate-500">Nenhum ramo encontrado.</p>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
+                          {selectedRegRamos.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {selectedRegRamos.map(ramo => (
+                                <span key={ramo} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                                  <span className="truncate">{ramo}</span>
+                                  <button type="button" onClick={() => toggleRegRamo(ramo)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700" aria-label={`Remover ${ramo}`}>
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <h3 className="mt-4 text-sm font-bold text-[#001D34]">4. Segmento</h3>
+                        <div className="mt-2 space-y-2">
+                          <Popover open={regSegmentoOpen} onOpenChange={(open) => {
+                            setRegSegmentoOpen(open);
+                            if (!open) setRegSegmentoSearch("");
+                          }}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={selectedRegRamos.length === 0}
+                                className="h-auto min-h-10 w-full justify-between rounded-md border-slate-200 bg-white px-3 py-2 text-left font-normal text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <span className="min-w-0 flex-1 truncate">
+                                  {selectedRegRamos.length === 0
+                                    ? "Selecione ao menos um ramo primeiro"
+                                    : selectedRegSegmentos.length
+                                      ? `${selectedRegSegmentos.length} segmento${selectedRegSegmentos.length > 1 ? "s" : ""} selecionado${selectedRegSegmentos.length > 1 ? "s" : ""}`
+                                      : "Buscar e selecionar segmentos"}
+                                </span>
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-slate-400" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] border-slate-200 bg-white p-0 text-slate-900">
+                              <div className="border-b border-slate-100 p-3">
+                                <div className="relative">
+                                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                  <Input
+                                    autoFocus
+                                    value={regSegmentoSearch}
+                                    onChange={(event) => setRegSegmentoSearch(event.target.value)}
+                                    placeholder="Pesquisar segmento..."
+                                    className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
+                                  />
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+                                  <span>{selectedRegSegmentos.length} de {availableRegSegmentos.length} selecionado{selectedRegSegmentos.length !== 1 ? "s" : ""}</span>
+                                  {selectedRegSegmentos.length > 0 && (
+                                    <button type="button" onClick={clearRegSegmentos} className="font-medium text-blue-600 hover:text-blue-700">
+                                      Limpar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="max-h-72 overflow-y-auto p-2">
+                                {filteredRegSegmentos.length > 0 ? (
+                                  filteredRegSegmentos.map(segmento => {
+                                    const checked = selectedRegSegmentos.includes(segmento.nome);
+                                    return (
+                                      <label
+                                        key={segmento.codigo}
+                                        className={`flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 text-sm transition-colors ${checked ? "bg-blue-50 text-slate-950" : "text-slate-700 hover:bg-slate-50"}`}
+                                      >
+                                        <Checkbox
+                                          checked={checked}
+                                          onCheckedChange={() => toggleRegSegmento(segmento.nome)}
+                                          className="mt-0.5 border-slate-300 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white"
+                                        />
+                                        <span className="leading-5">{segmento.nome}</span>
+                                      </label>
+                                    );
+                                  })
+                                ) : (
+                                  <p className="px-3 py-6 text-center text-sm text-slate-500">Nenhum segmento encontrado.</p>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
+                          {selectedRegSegmentos.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {selectedRegSegmentos.map(segmento => (
+                                <span key={segmento} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                                  <span className="truncate">{segmento}</span>
+                                  <button type="button" onClick={() => toggleRegSegmento(segmento)} className="rounded-full p-0.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700" aria-label={`Remover ${segmento}`}>
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
                               ))}
                             </div>
                           )}
@@ -1150,6 +1325,16 @@ export default function LoginPage() {
                         <Input value={regCidade} onChange={e => setRegCidade(e.target.value)} placeholder="Cidade *" list="cadastro-cidades" />
                         <Input value={regEstado} onChange={e => setRegEstado(e.target.value)} placeholder="Estado *" list="cadastro-estados" />
                         <Input value={regPais} onChange={e => setRegPais(e.target.value)} placeholder="País *" list="cadastro-paises" />
+                        <Select value={regAreaAtuacao} onValueChange={setRegAreaAtuacao}>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Área de atuação" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AREA_ATUACAO_OPTIONS.map(option => (
+                              <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Input value={regLinkSite} onChange={e => setRegLinkSite(e.target.value)} placeholder="Site / Portfolio" />
                         <div className="space-y-2 sm:col-span-2 lg:col-span-3">
                           {getRegIdiomasList().length > 0 && (
@@ -1214,7 +1399,7 @@ export default function LoginPage() {
                         </div>
                         <div><p className="font-bold text-slate-700">Papel na BUILT</p><p className="mt-1 text-slate-600">{interessesSelecionados.includes("capital") ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p></div>
                         <div><p className="font-bold text-slate-700">Áreas de contribuição ({interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : regTiposAlianca).map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>
-                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{regRamoAtuacao || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>
+                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{formatRamosDisplay(regRamoAtuacao) || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
@@ -1357,7 +1542,7 @@ export default function LoginPage() {
                 <p className="text-xs text-slate-500">Inicio / Primeiro acesso / Aceites</p>
                 <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Termos de Acesso BUILT</h2>
                 <p className="max-w-2xl text-sm text-slate-600">
-                  Seu convite foi definido para {CONVITE_TIPO_LABEL[conviteInfo?.tipo || interessesSelecionados[0] || "vitrine"] || "Vitrine BUILT"}. Leia e confirme os termos aplicaveis para continuar.
+                  Seu convite foi definido para {CONVITE_TIPO_LABEL[conviteInfo?.tipo || interessesSelecionados[0] || "vitrine"] || "Parceiro de Mercado"}. Leia e confirme os termos aplicaveis para continuar.
                 </p>
               </div>
 
@@ -1375,15 +1560,15 @@ export default function LoginPage() {
                     const ActiveIcon = activeTermConfig.icon;
                     return <ActiveIcon className="w-4 h-4 text-[#D7BB7D]" />;
                   })()}
-                  <span className="text-xs font-mono text-slate-600 uppercase tracking-wider">{activeTermConfig.title}</span>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{activeTermConfig.title}</span>
                 </div>
                 <div className="max-h-56 overflow-y-auto p-4 md:max-h-72 md:p-5">
-                  <pre className="text-sm md:text-base font-mono text-slate-700 leading-7 whitespace-pre-wrap">{activeTermConfig.body}</pre>
+                  <div className="text-sm md:text-base text-slate-700 leading-7 whitespace-pre-wrap">{activeTermConfig.body}</div>
                 </div>
               </div>
 
               <div className="mt-4 rounded-2xl border border-[#D7BB7D]/30 bg-white p-4 space-y-3 shadow-sm">
-                <p className="text-[10px] font-mono text-[#A8843A] uppercase tracking-[0.2em]">Termos aplicaveis</p>
+                <p className="text-[10px] font-semibold text-[#A8843A] uppercase tracking-[0.2em]">Termos aplicaveis</p>
                 <div className="flex flex-wrap gap-2">
                   {requiredTermKeys.map((key) => {
                     const config = TERM_CONFIG[key];
@@ -1392,7 +1577,7 @@ export default function LoginPage() {
                         key={key}
                         type="button"
                         onClick={() => setActiveTerm(key)}
-                        className={`rounded-full border px-4 py-2 text-sm font-mono transition-colors ${activeTermKey === key ? "border-[#D7BB7D] bg-[#D7BB7D]/20 text-[#001D34]" : "border-slate-200 text-slate-600 hover:border-[#D7BB7D]/50 hover:text-[#001D34]"}`}
+                        className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${activeTermKey === key ? "border-[#D7BB7D] bg-[#D7BB7D]/20 text-[#001D34]" : "border-slate-200 text-slate-600 hover:border-[#D7BB7D]/50 hover:text-[#001D34]"}`}
                       >
                         {config.label}
                       </button>

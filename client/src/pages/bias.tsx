@@ -51,11 +51,14 @@ const BRAZIL_GEO = "/brazil-states.json";
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
 const INVITE_TYPE_OPTIONS = [
-  { value: "vitrine", label: "BUILT Vitrine" },
-  { value: "capital", label: "BUILT Capital (Investidor)" },
-  { value: "membros", label: "BUILT Alliances" },
+  { value: "vitrine", label: "Parceiro de Mercado" },
+  { value: "capital", label: "Parceiro de Capital" },
 ];
-const INVITE_TYPE_LABELS: Record<string, string> = Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label]));
+const INVITE_TYPE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label])),
+  membros: "BUILT Alliances",
+  associacao_completa: "BUILT Alliances",
+};
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -3372,7 +3375,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
             </Select>
             {meuConvite?.tipo && (
               <p className="text-[11px] text-muted-foreground">
-                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "BUILT Vitrine"}
+                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "Parceiro de Mercado"}
               </p>
             )}
           </div>
@@ -3539,6 +3542,14 @@ export default function BiasPage() {
     redes.includes("BUILT_ALLIANCE_PARTNER");
   const isDiretorAlianca = !isAliadoBuilt &&
     Array.isArray(user?.tipos_alianca) && user.tipos_alianca.includes("Liderança");
+  const canEditBia = (bia?: BiasProjeto | null) => !!user && !!bia && (
+    user.role === "admin" ||
+    user.role === "manager" ||
+    (!!user.membro_directus_id && (
+      user.membro_directus_id === bia.aliado_built ||
+      user.membro_directus_id === bia.diretor_alianca
+    ))
+  );
 
   const [search, setSearch] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -3654,15 +3665,26 @@ export default function BiasPage() {
     } else if (editId && (biasRaw as BiasProjeto[]).length > 0) {
       const target = (biasRaw as BiasProjeto[]).find(b => b.id === editId);
       if (target) {
-        setEditingBia(target);
-        setSheetOpen(true);
+        if (canEditBia(target)) {
+          setEditingBia(target);
+          setSheetOpen(true);
+        } else {
+          toast({ title: "Sem permissão para editar", description: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editar.", variant: "destructive" });
+        }
         navigate(returnPath, { replace: true });
       }
     }
-  }, [biasRaw]);
+  }, [biasRaw, user?.membro_directus_id, user?.role]);
 
   const openCreate = () => { setEditingBia(null); setSheetOpen(true); };
-  const openEdit = (b: BiasProjeto) => { setEditingBia(b); setSheetOpen(true); };
+  const openEdit = (b: BiasProjeto) => {
+    if (!canEditBia(b)) {
+      toast({ title: "Sem permissão para editar", description: "Apenas o Aliado BUILT ou o Diretor de Aliança desta BIA podem editar.", variant: "destructive" });
+      return;
+    }
+    setEditingBia(b);
+    setSheetOpen(true);
+  };
 
   const loading = loadingBias || loadingMembros;
 

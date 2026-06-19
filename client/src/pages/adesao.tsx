@@ -495,7 +495,7 @@ function TermosAceiteView({
         <main className="px-6 py-10">
           <div className="max-w-5xl mx-auto space-y-6">
         <div>
-          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+          <p className="text-[10px] font-semibold text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
           <h1 className="text-3xl font-bold text-[#001D34] mt-1">Termos de Acesso BUILT</h1>
           <p className="text-slate-600 text-sm mt-1">
             Bem-vindo(a), <strong className="text-brand-gold">{convite.candidato_nome}</strong>! Leia e aceite os termos para continuar.
@@ -505,7 +505,7 @@ function TermosAceiteView({
         <div className="rounded-xl p-4 border border-[#D7BB7D]/40 bg-white flex items-center gap-3 shadow-sm">
           <Shield className="w-5 h-5 text-brand-gold shrink-0" />
           <div>
-            <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
+            <p className="text-[10px] font-semibold text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
             <p className="text-sm font-bold text-[#001D34]">{convite.comunidade?.nome || "Rede BUILT"}</p>
           </div>
         </div>
@@ -513,15 +513,15 @@ function TermosAceiteView({
         <div className="rounded-2xl border border-[#D7BB7D]/30 bg-white overflow-hidden shadow-sm">
           <div className="flex items-center gap-2 px-5 py-3 border-b border-[#D7BB7D]/30 bg-[#FCFAF5]">
             <ActiveIcon className="w-4 h-4 text-brand-gold" />
-            <span className="text-xs font-mono text-slate-600 uppercase tracking-wider">{activeConfig.title}</span>
+            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{activeConfig.title}</span>
           </div>
           <div className="p-5 max-h-[32rem] overflow-y-auto">
-            <pre className="text-base md:text-lg font-mono text-slate-700 leading-8 md:leading-9 whitespace-pre-wrap">{activeConfig.body}</pre>
+            <div className="text-base md:text-lg text-slate-700 leading-8 md:leading-9 whitespace-pre-wrap">{activeConfig.body}</div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-[#D7BB7D]/30 bg-white p-4 space-y-3 shadow-sm">
-          <p className="text-[10px] font-mono text-brand-gold/60 uppercase tracking-[0.2em]">Termos aplicáveis</p>
+          <p className="text-[10px] font-semibold text-brand-gold/60 uppercase tracking-[0.2em]">Termos aplicáveis</p>
           <div className="flex flex-wrap gap-2">
             {requiredTerms.map((key) => {
               const config = TERM_CONFIG[key];
@@ -530,7 +530,7 @@ function TermosAceiteView({
                   key={key}
                   type="button"
                   onClick={() => setActiveTerm(key)}
-                  className={`rounded-full border px-4 py-2 text-sm font-mono transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-[#001D34]" : "border-slate-200 text-slate-600 hover:border-brand-gold/50 hover:text-[#001D34]"}`}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${activeKey === key ? "border-brand-gold bg-brand-gold/20 text-[#001D34]" : "border-slate-200 text-slate-600 hover:border-brand-gold/50 hover:text-[#001D34]"}`}
                 >
                   {config.label}
                 </button>
@@ -551,7 +551,7 @@ function TermosAceiteView({
                 >
                   {accepted && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </div>
-                <span className="text-sm font-mono text-slate-700 leading-relaxed select-none" onClick={() => toggleTerm(key)}>
+                <span className="text-sm text-slate-700 leading-relaxed select-none" onClick={() => toggleTerm(key)}>
                   Li e concordo com o{" "}
                   <button
                     type="button"
@@ -573,7 +573,7 @@ function TermosAceiteView({
         <Button
           onClick={onAccept}
           disabled={!allAccepted || isPending}
-          className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
+          className="w-full h-12 font-bold text-sm disabled:opacity-40"
           style={{ background: allAccepted ? "linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
           data-testid="btn-aceitar-termos"
         >
@@ -581,7 +581,7 @@ function TermosAceiteView({
           {buttonText}
         </Button>
         {errorMessage && (
-          <p className="text-red-600 text-xs font-mono text-center">{errorMessage}</p>
+          <p className="text-red-600 text-xs text-center">{errorMessage}</p>
         )}
           </div>
         </main>
@@ -691,8 +691,8 @@ export default function AdesaoPage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
         <div className="text-center space-y-4 p-8">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <h2 className="text-xl font-bold font-mono text-white">Link inválido</h2>
-          <p className="text-white/50 text-sm font-mono">Este link pode ter expirado ou sido removido.</p>
+          <h2 className="text-xl font-bold text-white">Link inválido</h2>
+          <p className="text-white/50 text-sm">Este link pode ter expirado ou sido removido.</p>
         </div>
       </div>
     );
@@ -750,23 +750,23 @@ export default function AdesaoPage() {
       <div className="min-h-screen" style={{ background: "#001D34" }}>
         <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">
           <div className="text-center">
-            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
-            <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
+            <p className="text-[10px] font-semibold text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+            <h1 className="text-2xl font-bold text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
           </div>
           <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
             <Shield className="w-5 h-5 text-brand-gold shrink-0" />
             <div>
-              <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
-              <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome}</p>
+              <p className="text-[10px] font-semibold text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
+              <p className="text-sm font-bold text-white">{convite.comunidade?.nome}</p>
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 overflow-hidden">
             <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
               <FileText className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
+              <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
             </div>
             <div className="p-5 max-h-[28rem] overflow-y-auto">
-              <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">{TERMO_AREA_ALIANCAS_BUILT_JUR_4}</pre>
+              <div className="text-xs text-white/70 leading-relaxed whitespace-pre-wrap">{TERMO_AREA_ALIANCAS_BUILT_JUR_4}</div>
             </div>
           </div>
           <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-aceite-termos">
@@ -776,14 +776,14 @@ export default function AdesaoPage() {
             >
               {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </div>
-            <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
+            <span className="text-sm text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
               Li e concordo com o <strong className="text-brand-gold">Termo de Acesso à Área de Membros BUILT</strong>
             </span>
           </label>
           <Button
             onClick={() => adesaoMutation.mutate()}
             disabled={!checked || adesaoMutation.isPending}
-            className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
+            className="w-full h-12 font-bold text-sm disabled:opacity-40"
             style={{ background: checked ?"linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
             data-testid="btn-aceitar-termos"
           >
@@ -791,7 +791,7 @@ export default function AdesaoPage() {
             Aceitar Termos e Continuar
           </Button>
           {adesaoMutation.isError && (
-            <p className="text-red-400 text-xs font-mono text-center">{(adesaoMutation.error as Error).message}</p>
+            <p className="text-red-400 text-xs text-center">{(adesaoMutation.error as Error).message}</p>
           )}
         </div>
       </div>
@@ -804,9 +804,9 @@ export default function AdesaoPage() {
       <div className="min-h-screen" style={{ background: "#001D34" }}>
         <div className="max-w-2xl mx-auto px-6 py-10 space-y-6">
           <div className="text-center">
-            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
-            <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
-            <p className="text-white/50 text-sm font-mono mt-1">
+            <p className="text-[10px] font-semibold text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+            <h1 className="text-2xl font-bold text-brand-gold mt-1">Termo de Acesso à Área de Membros</h1>
+            <p className="text-white/50 text-sm mt-1">
               Bem-vindo(a), <strong className="text-brand-gold">{convite.candidato_nome}</strong>! Leia e aceite os termos para continuar.
             </p>
           </div>
@@ -814,18 +814,18 @@ export default function AdesaoPage() {
           <div className="rounded-xl p-4 border border-brand-gold/20 flex items-center gap-3" style={{ background: "rgba(215,187,125,0.05)" }}>
             <Shield className="w-5 h-5 text-brand-gold shrink-0" />
             <div>
-              <p className="text-[10px] font-mono text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
-              <p className="text-sm font-bold font-mono text-white">{convite.comunidade?.nome}</p>
+              <p className="text-[10px] font-semibold text-brand-gold/50 uppercase tracking-widest">Aderindo à</p>
+              <p className="text-sm font-bold text-white">{convite.comunidade?.nome}</p>
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 overflow-hidden">
             <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10" style={{ background: "rgba(255,255,255,0.04)" }}>
               <FileText className="w-4 h-4 text-brand-gold" />
-              <span className="text-xs font-mono text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
+              <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Termo de Acesso — BUILT</span>
             </div>
             <div className="p-5 max-h-[28rem] overflow-y-auto">
-              <pre className="text-xs font-mono text-white/70 leading-relaxed whitespace-pre-wrap">{TERMO_AREA_ALIANCAS_BUILT_JUR_4}</pre>
+              <div className="text-xs text-white/70 leading-relaxed whitespace-pre-wrap">{TERMO_AREA_ALIANCAS_BUILT_JUR_4}</div>
             </div>
           </div>
 
@@ -836,7 +836,7 @@ export default function AdesaoPage() {
             >
               {checked && <svg viewBox="0 0 10 10" className="w-3 h-3 text-brand-navy"><path d="M1 5l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </div>
-            <span className="text-sm font-mono text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
+            <span className="text-sm text-white/70 leading-relaxed select-none" onClick={() => setChecked(c => !c)}>
               Li e concordo com o <strong className="text-brand-gold">Termo de Acesso à Área de Membros BUILT</strong>
             </span>
           </label>
@@ -844,7 +844,7 @@ export default function AdesaoPage() {
           <Button
             onClick={() => aceitarTermosMutation.mutate()}
             disabled={!checked || aceitarTermosMutation.isPending}
-            className="w-full h-12 font-mono font-bold text-sm disabled:opacity-40"
+            className="w-full h-12 font-bold text-sm disabled:opacity-40"
             style={{ background: checked ?"linear-gradient(135deg,#D7BB7D,#b89a50)" : "rgba(215,187,125,0.2)", color: "#001D34" }}
             data-testid="btn-aceitar-termos"
           >
@@ -852,7 +852,7 @@ export default function AdesaoPage() {
             Aceitar Termos e Avançar
           </Button>
           {aceitarTermosMutation.isError && (
-            <p className="text-red-400 text-xs font-mono text-center">{(aceitarTermosMutation.error as Error).message}</p>
+            <p className="text-red-400 text-xs text-center">{(aceitarTermosMutation.error as Error).message}</p>
           )}
         </div>
       </div>
@@ -865,16 +865,16 @@ export default function AdesaoPage() {
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#001D34" }}>
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
-            <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
-            <h1 className="text-2xl font-bold font-mono text-brand-gold mt-1">Termos Aceitos</h1>
+            <p className="text-[10px] font-semibold text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+            <h1 className="text-2xl font-bold text-brand-gold mt-1">Termos Aceitos</h1>
           </div>
 
           <div className="rounded-2xl border border-emerald-500/20 p-6 flex flex-col items-center gap-3" style={{ background: "rgba(16,185,129,0.05)" }}>
             <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-            <p className="text-white/80 text-sm font-mono text-center">
+            <p className="text-white/80 text-sm text-center">
               Você aceitou os Termos de Acesso da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong>.
             </p>
-            <p className="text-white/50 text-xs font-mono text-center leading-relaxed">
+            <p className="text-white/50 text-xs text-center leading-relaxed">
               O próximo passo é enviar sua solicitação de acesso. O membro que te convidou será notificado para registrar a percepção de Aura — depois, o Aliado BUILT analisará sua candidatura.
             </p>
           </div>
@@ -882,7 +882,7 @@ export default function AdesaoPage() {
           <Button
             onClick={() => solicitarAcessoMutation.mutate()}
             disabled={solicitarAcessoMutation.isPending}
-            className="w-full h-12 font-mono font-bold text-sm"
+            className="w-full h-12 font-bold text-sm"
             style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
             data-testid="btn-solicitar-acesso"
           >
@@ -893,14 +893,14 @@ export default function AdesaoPage() {
             type="button"
             variant="outline"
             onClick={voltarParaCadastroInicial}
-            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white font-mono text-sm"
+            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white text-sm"
             data-testid="btn-voltar-cadastro-termos"
           >
             Voltar para cadastro
           </Button>
 
           {solicitarAcessoMutation.isError && (
-            <p className="text-red-400 text-xs font-mono text-center">{(solicitarAcessoMutation.error as Error).message}</p>
+            <p className="text-red-400 text-xs text-center">{(solicitarAcessoMutation.error as Error).message}</p>
           )}
         </div>
       </div>
@@ -912,28 +912,28 @@ export default function AdesaoPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#001D34" }}>
         <div className="max-w-md w-full space-y-6 text-center">
-          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+          <p className="text-[10px] font-semibold text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
           <div className="w-16 h-16 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto">
             <Sparkles className="w-8 h-8 text-brand-gold" />
           </div>
           <div>
-            <h1 className="text-xl font-bold font-mono text-white">Aguardando Avaliação de Aura</h1>
-            <p className="text-white/50 text-sm font-mono mt-2 leading-relaxed">
+            <h1 className="text-xl font-bold text-white">Aguardando Avaliação de Aura</h1>
+            <p className="text-white/50 text-sm mt-2 leading-relaxed">
               Sua solicitação foi enviada! O membro que te convidou receberá um e-mail para registrar sua percepção de Aura.
             </p>
-            <p className="text-white/40 text-xs font-mono mt-3 leading-relaxed">
+            <p className="text-white/40 text-xs mt-3 leading-relaxed">
               Após a avaliação, o Aliado BUILT da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong> será notificado para analisar sua candidatura.
             </p>
           </div>
           <div className="rounded-xl border border-white/10 p-4 flex items-center gap-3 text-left" style={{ background: "rgba(255,255,255,0.03)" }}>
             <Clock className="w-5 h-5 text-brand-gold shrink-0" />
-            <p className="text-xs font-mono text-white/50">Você receberá um e-mail assim que a análise for concluída. Fique atento à sua caixa de entrada.</p>
+            <p className="text-xs text-white/50">Você receberá um e-mail assim que a análise for concluída. Fique atento à sua caixa de entrada.</p>
           </div>
           <Button
             type="button"
             variant="outline"
             onClick={voltarParaCadastroInicial}
-            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white font-mono text-sm"
+            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white text-sm"
             data-testid="btn-voltar-cadastro-aura"
           >
             Voltar para cadastro
@@ -948,22 +948,22 @@ export default function AdesaoPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#001D34" }}>
         <div className="max-w-md w-full space-y-6 text-center">
-          <p className="text-[10px] font-mono text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
+          <p className="text-[10px] font-semibold text-brand-gold/40 tracking-[0.3em] uppercase">BUILT ALLIANCES</p>
           <div className="w-16 h-16 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto">
             <Clock className="w-8 h-8 text-brand-gold animate-pulse" />
           </div>
           <div>
-            <h1 className="text-xl font-bold font-mono text-white">Candidatura em Análise</h1>
-            <p className="text-white/50 text-sm font-mono mt-2 leading-relaxed">
+            <h1 className="text-xl font-bold text-white">Candidatura em Análise</h1>
+            <p className="text-white/50 text-sm mt-2 leading-relaxed">
               O Aliado BUILT da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong> está analisando seu perfil e a avaliação de Aura recebida.
             </p>
-            <p className="text-white/40 text-xs font-mono mt-3">Você receberá um e-mail com a decisão em breve.</p>
+            <p className="text-white/40 text-xs mt-3">Você receberá um e-mail com a decisão em breve.</p>
           </div>
           <Button
             type="button"
             variant="outline"
             onClick={voltarParaCadastroInicial}
-            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white font-mono text-sm"
+            className="w-full h-11 border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white text-sm"
             data-testid="btn-voltar-cadastro-candidato"
           >
             Voltar para cadastro
@@ -978,8 +978,8 @@ export default function AdesaoPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
       <div className="text-center space-y-4 p-8 max-w-md">
         <AlertCircle className="w-12 h-12 text-amber-400 mx-auto" />
-        <h2 className="text-xl font-bold font-mono text-white">Página não disponível</h2>
-        <p className="text-white/50 text-sm font-mono">Este link não está disponível no momento.</p>
+        <h2 className="text-xl font-bold text-white">Página não disponível</h2>
+        <p className="text-white/50 text-sm">Este link não está disponível no momento.</p>
       </div>
     </div>
   );

@@ -505,6 +505,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const palavrasCanonicasPositivasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasCanonicasValidasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const ocorrenciasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const ocorrenciasPositivasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const ocorrenciasAlinhadasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasRecebidas: AuraResult["palavras_recebidas"] = [];
   const pontosAtencao: AuraResult["pontos_atencao_reputacional"] = [];
@@ -515,6 +516,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
     ocorrenciasPorDimensao[entry.dimensao] += count;
     if (entry.polaridade === "positiva") {
       palavrasCanonicasValidasPorDimensao[entry.dimensao] += 1;
+      ocorrenciasPositivasPorDimensao[entry.dimensao] += count;
       pontos[entry.dimensao] += pesoFrequencia;
       palavrasCanonicasPositivasPorDimensao[entry.dimensao] += 1;
       if (entry.valorBuilt) ocorrenciasAlinhadasPorDimensao[entry.dimensao] += count;
@@ -545,7 +547,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   }
 
   const getFR = (dimensao: Dimensao) => {
-    const total = ocorrenciasPorDimensao[dimensao];
+    const total = ocorrenciasPositivasPorDimensao[dimensao];
     if (!total) return 1;
     return Math.min(1 + (ocorrenciasAlinhadasPorDimensao[dimensao] / total) * 0.2, 1.2);
   };
@@ -554,31 +556,31 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const FR_R = getFR("R");
   const FR_C = getFR("C");
 
-  const getScoreDimensao = (dimensao: Dimensao, fr: number) => {
+  const getScoreDimensao = (dimensao: Dimensao) => {
     const totalCanonicos = palavrasCanonicasValidasPorDimensao[dimensao];
     if (!totalCanonicos) return 0;
     const saldo = Math.max(0, pontos[dimensao] - penalidades[dimensao]);
     const scoreBase = (saldo / (totalCanonicos * 2)) * 100;
-    return Math.min(scoreBase * fr, 100);
+    return Math.min(scoreBase, 100);
   };
 
-  const Tscore = getScoreDimensao("T", FR_T);
-  const Rscore = getScoreDimensao("R", FR_R);
-  const Cscore = getScoreDimensao("C", FR_C);
+  const Tscore = getScoreDimensao("T");
+  const Rscore = getScoreDimensao("R");
+  const Cscore = getScoreDimensao("C");
   const scores: Record<Dimensao, number> = { T: Tscore, R: Rscore, C: Cscore };
   const pesosOficiais: Record<Dimensao, number> = { T: 0.4, R: 0.25, C: 0.35 };
+  const frPorDimensao: Record<Dimensao, number> = { T: FR_T, R: FR_R, C: FR_C };
   const dimensoes: Dimensao[] = ["T", "R", "C"];
   const dimensoesComEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasValidasPorDimensao[dimensao] > 0);
   const dimensoesSemEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasValidasPorDimensao[dimensao] === 0);
   const coberturaDecimal = dimensoesComEvidencia.reduce((total, dimensao) => total + pesosOficiais[dimensao], 0);
   const coberturaDimensional = Math.round(coberturaDecimal * 100);
+  const scorePonderado = (dimensao: Dimensao) => scores[dimensao] * pesosOficiais[dimensao] * frPorDimensao[dimensao];
   const auraPlena = roundAura(
-    scores.T * pesosOficiais.T +
-    scores.R * pesosOficiais.R +
-    scores.C * pesosOficiais.C
+    Math.min(100, scorePonderado("T") + scorePonderado("R") + scorePonderado("C"))
   ) || 0;
   const auraObservada = coberturaDecimal > 0
-    ? roundAura(dimensoesComEvidencia.reduce((total, dimensao) => total + scores[dimensao] * pesosOficiais[dimensao], 0) / coberturaDecimal)
+    ? roundAura(Math.min(100, dimensoesComEvidencia.reduce((total, dimensao) => total + scorePonderado(dimensao), 0) / coberturaDecimal))
     : null;
   const tetoCobertura = getTetoCobertura(coberturaDimensional);
   const tetoConfianca = getTetoConfianca(n);
@@ -590,13 +592,13 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   if (tetoCobertura === null) {
     motivosTrava.push("Cobertura dimensional abaixo de 40%; sem Aura oficial, apenas leitura inicial.");
   } else if (auraObservada !== null && tetoCobertura < auraObservada) {
-    motivosTrava.push(`Cobertura dimensional de ${coberturaDimensional}% limita a Aura Publicavel a ${tetoCobertura}.`);
+    motivosTrava.push(`Cobertura dimensional de ${coberturaDimensional}% limita a Aura Percebida a ${tetoCobertura}.`);
   }
   if (auraObservada !== null && tetoConfianca < auraObservada) {
-    motivosTrava.push(`Grau de confianca ${confianca.nome} limita a Aura Publicavel a ${tetoConfianca}.`);
+    motivosTrava.push(`Grau de confiança ${confianca.nome} limita a Aura Percebida a ${tetoConfianca}.`);
   }
   if (temCuradoriaCritica) {
-    motivosTrava.push("Existe alerta critico pendente de curadoria reputacional.");
+    motivosTrava.push("Existe alerta crítico pendente de curadoria reputacional.");
   }
 
   let auraPublicavel: number | null = null;
@@ -613,7 +615,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
       !temCuradoriaCritica;
     if (auraPublicavel >= 90 && !podeSerSuprema) {
       auraPublicavel = 89;
-      motivosTrava.push("Aura Suprema exige cobertura completa, minimo de 5 avaliadores, dimensoes acima de 70 e ausencia de curadoria critica.");
+      motivosTrava.push("Aura Suprema exige cobertura completa, mínimo de 5 avaliadores, dimensões acima de 70 e ausência de curadoria crítica.");
     }
   }
 
@@ -645,9 +647,9 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
     total_palavras: ocorrenciasPorDimensao.T + ocorrenciasPorDimensao.R + ocorrenciasPorDimensao.C,
     dimensoes_sem_evidencia: dimensoesSemEvidencia,
     correspondencia_valores: {
-      T: ocorrenciasPorDimensao.T ? Number((ocorrenciasAlinhadasPorDimensao.T / ocorrenciasPorDimensao.T).toFixed(2)) : 0,
-      R: ocorrenciasPorDimensao.R ? Number((ocorrenciasAlinhadasPorDimensao.R / ocorrenciasPorDimensao.R).toFixed(2)) : 0,
-      C: ocorrenciasPorDimensao.C ? Number((ocorrenciasAlinhadasPorDimensao.C / ocorrenciasPorDimensao.C).toFixed(2)) : 0,
+      T: ocorrenciasPositivasPorDimensao.T ? Number((ocorrenciasAlinhadasPorDimensao.T / ocorrenciasPositivasPorDimensao.T).toFixed(2)) : 0,
+      R: ocorrenciasPositivasPorDimensao.R ? Number((ocorrenciasAlinhadasPorDimensao.R / ocorrenciasPositivasPorDimensao.R).toFixed(2)) : 0,
+      C: ocorrenciasPositivasPorDimensao.C ? Number((ocorrenciasAlinhadasPorDimensao.C / ocorrenciasPositivasPorDimensao.C).toFixed(2)) : 0,
     },
     redutor_reputacional: Number((penalidades.T + penalidades.R + penalidades.C).toFixed(2)),
     pontos_atencao_reputacional: pontosAtencao,

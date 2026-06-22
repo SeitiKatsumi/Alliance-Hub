@@ -47,6 +47,7 @@ app.use(
     store: sessionStore,
     secret: process.env.SESSION_SECRET || "built-alliances-secret-2024",
     resave: false,
+    rolling: true,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",

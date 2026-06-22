@@ -375,10 +375,18 @@ export function getSugestoes(prefix: string): string[] {
 }
 
 export interface AuraResult {
-  score: number;
+  score: number | null;
   T: number;
   R: number;
   C: number;
+  aura_plena: number;
+  aura_observada: number | null;
+  aura_publicavel: number | null;
+  cobertura_dimensional: number;
+  teto_cobertura: number | null;
+  teto_confianca: number;
+  teto_curadoria: number | null;
+  motivos_trava: string[];
   n: number;
   faixa: string;
   FR_T: number;
@@ -422,6 +430,25 @@ function getFaixa(score: number): string {
   if (score >= 70) return "Aura Forte";
   if (score >= 50) return "Aura Confiável";
   return "Em Evolução";
+}
+
+function getTetoConfianca(n: number): number {
+  if (n >= 5) return 100;
+  if (n >= 2) return 89;
+  return 69;
+}
+
+function getTetoCobertura(cobertura: number): number | null {
+  if (cobertura >= 100) return 100;
+  if (cobertura >= 75) return 89;
+  if (cobertura >= 60) return 79;
+  if (cobertura >= 40) return 69;
+  return null;
+}
+
+function roundAura(value: number | null): number | null {
+  if (value === null || Number.isNaN(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function getConfianca(n: number): { nome: string; descricao: string } {
@@ -476,7 +503,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const pontos: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const penalidades: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasCanonicasPositivasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
-  const palavrasCanonicasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
+  const palavrasCanonicasValidasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const ocorrenciasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const ocorrenciasAlinhadasPorDimensao: Record<Dimensao, number> = { T: 0, R: 0, C: 0 };
   const palavrasRecebidas: AuraResult["palavras_recebidas"] = [];
@@ -485,14 +512,15 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   for (const entry of Array.from(canonCounter.values())) {
     const count = entry.avaliadores.size;
     const pesoFrequencia = getPesoFrequencia(count);
-    palavrasCanonicasPorDimensao[entry.dimensao] += 1;
     ocorrenciasPorDimensao[entry.dimensao] += count;
     if (entry.polaridade === "positiva") {
+      palavrasCanonicasValidasPorDimensao[entry.dimensao] += 1;
       pontos[entry.dimensao] += pesoFrequencia;
       palavrasCanonicasPositivasPorDimensao[entry.dimensao] += 1;
       if (entry.valorBuilt) ocorrenciasAlinhadasPorDimensao[entry.dimensao] += count;
     } else {
       const impacto = Number((pesoFrequencia * (entry.fatorGravidade || 1)).toFixed(2));
+      if (entry.impactaScore) palavrasCanonicasValidasPorDimensao[entry.dimensao] += 1;
       if (entry.impactaScore) penalidades[entry.dimensao] += impacto;
       pontosAtencao.push({
         palavra: entry.canonico,
@@ -527,7 +555,7 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const FR_C = getFR("C");
 
   const getScoreDimensao = (dimensao: Dimensao, fr: number) => {
-    const totalCanonicos = palavrasCanonicasPositivasPorDimensao[dimensao];
+    const totalCanonicos = palavrasCanonicasValidasPorDimensao[dimensao];
     if (!totalCanonicos) return 0;
     const saldo = Math.max(0, pontos[dimensao] - penalidades[dimensao]);
     const scoreBase = (saldo / (totalCanonicos * 2)) * 100;
@@ -540,22 +568,56 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
   const scores: Record<Dimensao, number> = { T: Tscore, R: Rscore, C: Cscore };
   const pesosOficiais: Record<Dimensao, number> = { T: 0.4, R: 0.25, C: 0.35 };
   const dimensoes: Dimensao[] = ["T", "R", "C"];
-  const dimensoesComEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasPorDimensao[dimensao] > 0);
-  const dimensoesSemEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasPorDimensao[dimensao] === 0);
-  const redistribuirPesos = n < 5 && dimensoesComEvidencia.length > 0;
-  const somaPesosComEvidencia = dimensoesComEvidencia.reduce((total, dimensao) => total + pesosOficiais[dimensao], 0);
-  const pesoEfetivo = (dimensao: Dimensao) => {
-    if (!redistribuirPesos) return pesosOficiais[dimensao];
-    if (!palavrasCanonicasPorDimensao[dimensao]) return 0;
-    return pesosOficiais[dimensao] / somaPesosComEvidencia;
-  };
-
-  const score = Math.min(100, Math.round(
-    scores.T * pesoEfetivo("T") +
-    scores.R * pesoEfetivo("R") +
-    scores.C * pesoEfetivo("C")
-  ));
+  const dimensoesComEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasValidasPorDimensao[dimensao] > 0);
+  const dimensoesSemEvidencia = dimensoes.filter((dimensao) => palavrasCanonicasValidasPorDimensao[dimensao] === 0);
+  const coberturaDecimal = dimensoesComEvidencia.reduce((total, dimensao) => total + pesosOficiais[dimensao], 0);
+  const coberturaDimensional = Math.round(coberturaDecimal * 100);
+  const auraPlena = roundAura(
+    scores.T * pesosOficiais.T +
+    scores.R * pesosOficiais.R +
+    scores.C * pesosOficiais.C
+  ) || 0;
+  const auraObservada = coberturaDecimal > 0
+    ? roundAura(dimensoesComEvidencia.reduce((total, dimensao) => total + scores[dimensao] * pesosOficiais[dimensao], 0) / coberturaDecimal)
+    : null;
+  const tetoCobertura = getTetoCobertura(coberturaDimensional);
+  const tetoConfianca = getTetoConfianca(n);
+  const temCuradoriaCritica = pontosAtencao.some((ponto) => ponto.status === "em_curadoria_reputacional" && ponto.gravidade === "critica");
+  const tetoCuradoria = temCuradoriaCritica ? 89 : null;
+  const motivosTrava: string[] = [];
   const confianca = getConfianca(n);
+
+  if (tetoCobertura === null) {
+    motivosTrava.push("Cobertura dimensional abaixo de 40%; sem Aura oficial, apenas leitura inicial.");
+  } else if (auraObservada !== null && tetoCobertura < auraObservada) {
+    motivosTrava.push(`Cobertura dimensional de ${coberturaDimensional}% limita a Aura Publicavel a ${tetoCobertura}.`);
+  }
+  if (auraObservada !== null && tetoConfianca < auraObservada) {
+    motivosTrava.push(`Grau de confianca ${confianca.nome} limita a Aura Publicavel a ${tetoConfianca}.`);
+  }
+  if (temCuradoriaCritica) {
+    motivosTrava.push("Existe alerta critico pendente de curadoria reputacional.");
+  }
+
+  let auraPublicavel: number | null = null;
+  if (auraObservada !== null && tetoCobertura !== null) {
+    auraPublicavel = Math.min(auraObservada, tetoCobertura, tetoConfianca, tetoCuradoria ?? 100);
+    const podeSerSuprema =
+      auraPublicavel >= 90 &&
+      coberturaDimensional === 100 &&
+      dimensoesSemEvidencia.length === 0 &&
+      n >= 5 &&
+      Tscore >= 70 &&
+      Rscore >= 70 &&
+      Cscore >= 70 &&
+      !temCuradoriaCritica;
+    if (auraPublicavel >= 90 && !podeSerSuprema) {
+      auraPublicavel = 89;
+      motivosTrava.push("Aura Suprema exige cobertura completa, minimo de 5 avaliadores, dimensoes acima de 70 e ausencia de curadoria critica.");
+    }
+  }
+
+  const score = roundAura(auraPublicavel);
 
   palavrasRecebidas.sort((a, b) => b.count - a.count || a.canonico.localeCompare(b.canonico, "pt-BR"));
   pontosAtencao.sort((a, b) => b.impacto - a.impacto || b.count - a.count || a.canonico.localeCompare(b.canonico, "pt-BR"));
@@ -565,8 +627,16 @@ export function calcularAura(avaliacoes: Array<{ avaliador_membro_id: string; pa
     T: Math.round(Tscore),
     R: Math.round(Rscore),
     C: Math.round(Cscore),
+    aura_plena: auraPlena,
+    aura_observada: auraObservada,
+    aura_publicavel: score,
+    cobertura_dimensional: coberturaDimensional,
+    teto_cobertura: tetoCobertura,
+    teto_confianca: tetoConfianca,
+    teto_curadoria: tetoCuradoria,
+    motivos_trava: motivosTrava,
     n,
-    faixa: getFaixa(score),
+    faixa: score === null ? "Sem Aura oficial" : getFaixa(score),
     FR_T: Number(FR_T.toFixed(4)),
     FR_R: Number(FR_R.toFixed(4)),
     FR_C: Number(FR_C.toFixed(4)),

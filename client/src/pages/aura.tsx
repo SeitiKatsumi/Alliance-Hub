@@ -30,6 +30,14 @@ interface AuraResult {
   T: number | null;
   R: number | null;
   C: number | null;
+  aura_plena?: number;
+  aura_observada?: number | null;
+  aura_publicavel?: number | null;
+  cobertura_dimensional?: number;
+  teto_cobertura?: number | null;
+  teto_confianca?: number;
+  teto_curadoria?: number | null;
+  motivos_trava?: string[];
   n: number;
   faixa: string | null;
   FR_T?: number;
@@ -261,6 +269,20 @@ const DIM_NORMALIZED_MAP = new Map<string, "T" | "R" | "C">(
 
 interface EvolucaoPonto { label: string; score: number; n: number; }
 
+function tetoConfiancaAura(n: number): number {
+  if (n >= 5) return 100;
+  if (n >= 2) return 89;
+  return 69;
+}
+
+function tetoCoberturaAura(cobertura: number): number | null {
+  if (cobertura >= 100) return 100;
+  if (cobertura >= 75) return 89;
+  if (cobertura >= 60) return 79;
+  if (cobertura >= 40) return 69;
+  return null;
+}
+
 function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
   const sorted = [...avaliacoes].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -293,10 +315,15 @@ function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
     const pesos = { T: 0.4, R: 0.25, C: 0.35 };
     const dims: Array<"T" | "R" | "C"> = ["T", "R", "C"];
     const dimsComEvidencia = dims.filter(dim => canonicos[dim] > 0);
-    const redistribuirPesos = n < 5 && dimsComEvidencia.length > 0;
-    const somaPesos = dimsComEvidencia.reduce((sum, dim) => sum + pesos[dim], 0);
-    const pesoEfetivo = (dim: "T" | "R" | "C") => redistribuirPesos ? (canonicos[dim] ? pesos[dim] / somaPesos : 0) : pesos[dim];
-    const score = Math.round(dimScore("T") * pesoEfetivo("T") + dimScore("R") * pesoEfetivo("R") + dimScore("C") * pesoEfetivo("C"));
+    const cobertura = Math.round(dimsComEvidencia.reduce((sum, dim) => sum + pesos[dim], 0) * 100);
+    const coberturaDecimal = cobertura / 100;
+    const auraObservada = coberturaDecimal > 0
+      ? Math.round(dimsComEvidencia.reduce((sum, dim) => sum + dimScore(dim) * pesos[dim], 0) / coberturaDecimal)
+      : 0;
+    const tetoCobertura = tetoCoberturaAura(cobertura);
+    const tetoConfianca = tetoConfiancaAura(n);
+    let score = tetoCobertura === null ? 0 : Math.min(auraObservada, tetoCobertura, tetoConfianca);
+    if (score >= 90 && (cobertura < 100 || n < 5 || dims.some(dim => dimScore(dim) < 70))) score = 89;
     const date = new Date(av.created_at);
     const label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
     result.push({ label, score, n });
@@ -628,6 +655,15 @@ export default function AuraPage() {
   const viewedFoto = isOwnAura ? user?.foto_perfil : viewedMembro?.foto;
   const confiancaAura = viewedAura?.confianca || (n === 0 ? "Sem base reputacional" : n >= 10 ? "Aura Consolidada" : n >= 5 ? "Aura Validada" : n >= 2 ? "Aura em Validação" : "Aura Inicial");
   const confiancaDescricao = viewedAura?.confianca_descricao || (n === 0 ? "Aguardando primeira avaliação" : n >= 10 ? "Alta maturidade estatística" : n >= 5 ? "Base mínima adequada para decisões operacionais" : n >= 2 ? "Percepção em formação" : "Primeira leitura reputacional");
+  const auraObservada = viewedAura?.aura_observada ?? null;
+  const auraPlena = viewedAura?.aura_plena ?? null;
+  const auraPublicavel = viewedAura?.aura_publicavel ?? score;
+  const coberturaDimensional = viewedAura?.cobertura_dimensional ?? 0;
+  const tetoCobertura = viewedAura?.teto_cobertura ?? null;
+  const tetoConfianca = viewedAura?.teto_confianca ?? null;
+  const motivosTrava = viewedAura?.motivos_trava ?? [];
+  const dimensoesSemEvidencia = viewedAura?.dimensoes_sem_evidencia ?? [];
+  const dimensoesComEvidencia = (["T", "R", "C"] as const).filter((dim) => !dimensoesSemEvidencia.includes(dim));
   const dimensoesAura = [
     {
       dim: "T" as const,
@@ -863,6 +899,22 @@ export default function AuraPage() {
                     <p className="text-sm font-semibold text-foreground">{confiancaAura}</p>
                     <p className="text-[11px] text-muted-foreground">{confiancaDescricao}</p>
                   </div>
+                  {n > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Aura Observada</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">{auraObservada ?? "—"}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Cobertura</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">{coberturaDimensional}%</p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Aura Publicável</p>
+                        <p className="mt-1 text-lg font-semibold" style={{ color: getFaixaColor(auraPublicavel ?? score) }}>{auraPublicavel ?? "—"}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-xl border border-border/50 p-4 bg-background/40">
                   <p className="text-sm font-semibold text-foreground mb-3">Faixas de Aura</p>
@@ -921,6 +973,58 @@ export default function AuraPage() {
               })}
             </CardContent>
           </Card>
+
+          {n > 0 && (
+            <Card className="border border-border/60 xl:col-span-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#3B82F6]" />
+                  Cobertura e Travas da Aura
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Aura Plena</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">{auraPlena ?? "—"}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Teto Cobertura</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">{tetoCobertura ?? "Sem Aura"}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Teto Confiança</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">{tetoConfianca ?? "—"}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Evidência</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">{dimensoesComEvidencia.length}/3</p>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border/50 p-3 bg-background/40">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Dimensões sem evidência</p>
+                  <p className="mt-1 text-sm text-foreground">
+                    {dimensoesSemEvidencia.length ? dimensoesSemEvidencia.map(dimLabel).join(", ") : "Nenhuma lacuna dimensional"}
+                  </p>
+                </div>
+                {motivosTrava.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-amber-700">Motivos de trava</p>
+                    <div className="mt-2 space-y-1">
+                      {motivosTrava.map((motivo, index) => (
+                        <p key={`${motivo}-${index}`} className="text-xs leading-relaxed text-amber-900">{motivo}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {dimensoesSemEvidencia.length > 0 && (
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Dimensão sem evidência não representa fraqueza automática, mas lacuna reputacional. A nota observada considera apenas as dimensões avaliadas, enquanto a Aura Publicável respeita a cobertura dimensional, o grau de confiança e as travas de proteção da rede BUILT.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border border-border/60 xl:col-span-4">
             <CardHeader className="pb-2">
@@ -1534,9 +1638,11 @@ export default function AuraPage() {
           </div>
           <div className="space-y-1.5 text-[11px] text-muted-foreground">
             <p>• Palavras citadas por 2-3 avaliadores distintos têm peso 1.5×; por 4 ou mais, peso 2.0×.</p>
-            <p>• Cada dimensão é normalizada por <strong className="text-foreground">palavras-cânone distintas × 2</strong>, evitando penalizar dimensões ainda pouco verbalizadas.</p>
+            <p>• Cada dimensão é normalizada por <strong className="text-foreground">palavras-cânone válidas × 2</strong>, incluindo antônimos reputacionais quando houver impacto confirmado.</p>
+            <p>• O sistema calcula Aura Observada, Cobertura Dimensional e Aura Publicável; a nota oficial exibida é a Aura Publicável.</p>
+            <p>• Ausência de evidência não vira fraqueza automática, mas também não pode inflar a nota nem gerar Aura Suprema sem cobertura completa.</p>
             <p>• O cálculo aplica o <strong className="text-foreground">Fator de Relevância</strong>, que valoriza em até 20% as dimensões alinhadas ao DNA BUILT.</p>
-            <p>• O Score da Aura é lido junto com a <strong className="text-foreground">Confiança da Aura</strong>: Inicial, em Validação, Validada ou Consolidada.</p>
+            <p>• O Score da Aura é limitado pela <strong className="text-foreground">Confiança da Aura</strong>: Inicial, em Validação, Validada ou Consolidada.</p>
             <p>• Cada par avaliador/avaliado registra uma avaliação única, sem alteração posterior.</p>
           </div>
         </CardContent>

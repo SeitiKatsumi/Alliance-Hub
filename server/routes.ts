@@ -4421,6 +4421,16 @@ export async function registerRoutes(
       text = text.split(broken).join(replacement);
     }
     return text
+      .replace(/BIAm\?-f\?BUILT/g, "BIA - BUILT")
+      .replace(/\bBIA\s*-BUILT\b/g, "BIA - BUILT")
+      .replace(/\ba tua ndo\b/g, "atuando")
+      .replace(/\bsocietári a\b/g, "societária")
+      .replace(/\bpoder á\b/g, "poderá")
+      .replace(/\bassegura ndo\b/g, "assegurando")
+      .replace(/\bmai s\b/g, "mais")
+      .replace(/\bParce iros\b/g, "Parceiros")
+      .replace(/\bobrigam -se\b/g, "obrigam-se")
+      .replace(/BUILT,sendo/g, "BUILT, sendo")
       .replace(/[“”]/g, '"')
       .replace(/[‘’]/g, "'")
       .replace(/[–—]/g, "-")
@@ -4449,6 +4459,53 @@ export async function registerRoutes(
     }
     if (current) lines.push(current);
     return lines;
+  }
+
+  function splitPdfParagraphs(body: string): string[] {
+    const normalized = normalizePdfText(body).replace(/\r\n?/g, "\n");
+    const paragraphs: string[] = [];
+    const flush = (buffer: string[]) => {
+      const value = buffer.join(" ").replace(/\s+/g, " ").trim();
+      if (value) {
+        for (const part of value.split(/\s+(?=\d+(?:\.\d+)+\.\s+)/).map((item) => item.trim()).filter(Boolean)) {
+          paragraphs.push(part);
+        }
+      }
+      buffer.length = 0;
+    };
+
+    for (const block of normalized.split(/\n{2,}/)) {
+      const buffer: string[] = [];
+      for (const line of block.split("\n").map((item) => item.trim()).filter(Boolean)) {
+        const isHeading = line.length < 90
+          && (
+            /^[0-9]+(?:\.[0-9]+)*\.\s+/.test(line)
+            || /^[A-Z0-9 .IVX-]+$/.test(line.toUpperCase())
+          )
+          && !/[,:;]/.test(line);
+        const isNumberedClauseStart = /^\d+(?:\.\d+)+\.\s+/.test(line);
+
+        if (isHeading) {
+          flush(buffer);
+          paragraphs.push(line);
+        } else if (isNumberedClauseStart) {
+          flush(buffer);
+          buffer.push(line);
+        } else {
+          buffer.push(line);
+        }
+      }
+      flush(buffer);
+    }
+
+    return paragraphs;
+  }
+
+  function buildBiaFooterLabel(bia: any, biaId: string): string {
+    const rawName = String(bia?.nome_bia || "BIA").trim();
+    const displayName = /^BIA\b/i.test(rawName) ? rawName : `BIA: ${rawName}`;
+    const codigoRastreavel = String(bia?.codigo_publico || biaId);
+    return `${displayName} | Código rastreável: ${codigoRastreavel}`;
   }
 
   function buildSimpleTextPdf(
@@ -4495,8 +4552,44 @@ export async function registerRoutes(
     const textRight = (value: string, rightX: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
       text(value, rightX - estimateTextWidth(value, size, font), yy, size, font, color);
     };
+    const textCenter = (value: string, centerX: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
+      text(value, centerX - estimateTextWidth(value, size, font) / 2, yy, size, font, color);
+    };
     const rect = (x: number, yy: number, w: number, h: number, color: string) => {
       ops.push(`q ${color} rg ${x} ${yy} ${w} ${h} re f Q`);
+    };
+    const roundedRect = (
+      x: number,
+      yy: number,
+      w: number,
+      h: number,
+      radius: number,
+      fillColor: string,
+      strokeColor?: string,
+      strokeWidth = 0.7
+    ) => {
+      const r = Math.min(radius, w / 2, h / 2);
+      const c = r * 0.5522847498;
+      const x0 = x;
+      const x1 = x + w;
+      const y0 = yy;
+      const y1 = yy + h;
+      const path = [
+        `${x0 + r} ${y0} m`,
+        `${x1 - r} ${y0} l`,
+        `${x1 - r + c} ${y0} ${x1} ${y0 + r - c} ${x1} ${y0 + r} c`,
+        `${x1} ${y1 - r} l`,
+        `${x1} ${y1 - r + c} ${x1 - r + c} ${y1} ${x1 - r} ${y1} c`,
+        `${x0 + r} ${y1} l`,
+        `${x0 + r - c} ${y1} ${x0} ${y1 - r + c} ${x0} ${y1 - r} c`,
+        `${x0} ${y0 + r} l`,
+        `${x0} ${y0 + r - c} ${x0 + r - c} ${y0} ${x0 + r} ${y0} c`,
+      ].join(" ");
+      if (strokeColor) {
+        ops.push(`q ${fillColor} rg ${strokeColor} RG ${strokeWidth} w ${path} B Q`);
+      } else {
+        ops.push(`q ${fillColor} rg ${path} f Q`);
+      }
     };
     const line = (x1: number, y1: number, x2: number, y2: number, color = "0.85 0.85 0.85", width = 0.7) => {
       ops.push(`q ${color} RG ${width} w ${x1} ${y1} m ${x2} ${y2} l S Q`);
@@ -4591,40 +4684,40 @@ export async function registerRoutes(
         acc.get(row.group)!.push(row);
         return acc;
       }, new Map<string, typeof rows>()).entries());
-      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 34 + groupRows.length * 36, 30);
+      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 44 + groupRows.length * 42, 34);
       ensure(totalHeight + 22);
       const cardX = 42;
       const cardW = 511;
-      rect(cardX, y - totalHeight + 14, cardW, totalHeight, "1 1 1");
-      rect(cardX, y - totalHeight + 14, 4, totalHeight, "0.945 0.970 1.000");
-      line(cardX, y + 14, cardX + cardW, y + 14, "0.86 0.78 0.62", 0.8);
-      line(cardX, y - totalHeight + 14, cardX + cardW, y - totalHeight + 14, "0.86 0.78 0.62", 0.8);
-      let rowY = y - 12;
+      roundedRect(cardX, y - totalHeight + 14, cardW, totalHeight, 8, "1 1 1", "0.86 0.78 0.62", 0.6);
+      let rowY = y - 20;
       for (const [group, groupRows] of groups) {
-        text(group, 58, rowY, 8.5, "F2", slate);
-        const countX = Math.min(218, 58 + estimateTextWidth(group, 8.5, "F2") + 10);
-        rect(countX, rowY - 7, 14, 12, "0.90 0.95 1.00");
-        text(String(groupRows.length), countX + 5, rowY - 3, 7, "F2", blue);
-        rowY -= 26;
+        text(group, 58, rowY, 8.2, "F2", slate);
+        const countX = Math.min(220, 58 + estimateTextWidth(group, 8.2, "F2") + 10);
+        roundedRect(countX, rowY - 7, 15, 12, 6, "0.90 0.95 1.00");
+        textCenter(String(groupRows.length), countX + 7.5, rowY - 3, 7, "F2", blue);
+        rowY -= 30;
         for (const row of groupRows) {
           const percentNumber = Number.isFinite(row.percentNumber) ? Math.max(0, Math.min(100, row.percentNumber)) : 0;
-          const barX = 238;
+          const barX = 248;
           const barY = rowY - 3;
-          const barW = 142;
+          const barW = 180;
+          const barH = 5.5;
           const fillW = barW * (percentNumber / 100);
-          const goldW = Math.min(fillW, barW * 0.42);
+          const goldW = Math.min(fillW, barW * 0.34);
           const blueW = Math.max(0, fillW - goldW);
-          rect(52, rowY - 14, 486, 24, "0.988 0.992 0.996");
           text(row.name, 58, rowY, 8.6, "F2", navy);
-          rect(barX, barY, barW, 4.5, "0.92 0.94 0.96");
-          if (goldW > 0) rect(barX, barY, goldW, 4.5, gold);
-          if (blueW > 0) rect(barX + goldW, barY, blueW, 4.5, blue);
-          textRight(row.value, 474, rowY, 8.2, "F1", slate);
-          rect(494, rowY - 8, 42, 15, "0.90 0.95 1.00");
-          textRight(row.percent, 528, rowY - 4, 8, "F2", blue);
-          rowY -= 36;
+          roundedRect(barX, barY, barW, barH, 3, "0.92 0.94 0.96");
+          if (goldW > 0) roundedRect(barX, barY, Math.max(goldW, 3), barH, 3, gold);
+          if (blueW > 0) roundedRect(barX + goldW, barY, Math.max(blueW, 3), barH, 3, blue);
+          textRight(row.value, 486, rowY, 8.2, "F1", slate);
+          const pillX = 502;
+          const pillW = 44;
+          roundedRect(pillX, rowY - 8, pillW, 15, 6, "0.90 0.95 1.00");
+          textCenter(row.percent, pillX + pillW / 2, rowY - 4, 8, "F2", blue);
+          rowY -= 34;
         }
-        rowY -= 4;
+        line(58, rowY + 12, 538, rowY + 12, "0.90 0.92 0.94", 0.5);
+        rowY -= 14;
       }
       y = rowY - 8;
     };
@@ -4638,14 +4731,15 @@ export async function registerRoutes(
     for (const [sectionIndex, section] of sections.entries()) {
       if (sectionIndex > 0) newPage();
       sectionTitle(section.title);
-      const paragraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
+      const rawParagraphs = normalizePdfText(section.body).split(/\n+/).map((item) => item.trim()).filter(Boolean);
+      const paragraphs = splitPdfParagraphs(section.body);
       const normalizedSectionTitle = normalizePdfText(section.title);
       if (normalizedSectionTitle.includes("Mapa de Aloca\u00E7\u00E3o") || normalizedSectionTitle.includes("Mapa de Alocacao")) {
-        const tableStart = paragraphs.findIndex((item) => item.includes("Aloca\u00E7\u00E3o") || item.includes("Alocacao"));
-        const intro = tableStart >= 0 ? paragraphs.slice(0, tableStart) : paragraphs.slice(0, 5);
+        const tableStart = rawParagraphs.findIndex((item) => item.includes("Aloca\u00E7\u00E3o") || item.includes("Alocacao"));
+        const intro = tableStart >= 0 ? rawParagraphs.slice(0, tableStart) : rawParagraphs.slice(0, 5);
         infoBox(intro);
-        allocationTable(paragraphs);
-        const last = paragraphs[paragraphs.length - 1];
+        allocationTable(rawParagraphs);
+        const last = rawParagraphs[rawParagraphs.length - 1];
         if (last && last.includes("Este mapa")) paragraph(last, { color: slate, width: 96 });
         y -= 18;
         continue;
@@ -4744,7 +4838,7 @@ export async function registerRoutes(
       path.resolve(ROUTES_DIR, "assets", "mou-padrao", name),
     ];
     const found = candidates.find((candidate) => fs.existsSync(candidate));
-    return found ? fs.readFileSync(found, "utf8") : "";
+    return found ? normalizePdfText(fs.readFileSync(found, "utf8")) : "";
   }
 
   function readTermAsset(name: string): string {
@@ -4900,7 +4994,8 @@ export async function registerRoutes(
       console.warn("[bia-mou-padrao] Campos completos do cadastro indisponiveis; usando identificacao basica:", error?.message || error);
       rows = await query("id,nome,Nome_de_usuario,email").catch(() => []);
     }
-    return rows[0] || null;
+    const exact = rows.find((row: any) => String(row?.id || "") === String(memberId));
+    return exact || (rows.length === 1 ? rows[0] : null);
   }
 
   async function getMouParticipantsForBia(bia: any, biaId: string) {
@@ -5009,11 +5104,16 @@ export async function registerRoutes(
       if (Array.isArray(value)) return value[0] || null;
       return value || null;
     };
+    const relationMember = (value: any) => {
+      const first = relationArrayFirst(value);
+      if (!first || typeof first !== "object") return first;
+      return first.cadastro_geral_id || first.cadastro_geral || first.membro_id || first.member_id || first;
+    };
     let allEntries: any[] = [];
     try {
       allEntries = await directusFetchScoped(
         "fluxo_caixa",
-        `fields=id,bia,tipo,valor,descricao,status,favorecido_id,Favorecido&filter[bia][_eq]=${encodeURIComponent(biaId)}`
+        `fields=id,bia,tipo,valor,descricao,status,favorecido_id,Favorecido,Favorecido.*,Favorecido.cadastro_geral_id.*&filter[bia][_eq]=${encodeURIComponent(biaId)}`
       );
     } catch (error: any) {
       console.warn("[bia-mou-padrao] Consulta MAP com Favorecido indisponivel, tentando favorecido_id:", error?.message || error);
@@ -5031,8 +5131,7 @@ export async function registerRoutes(
     for (const entry of entries) {
       if (entry?.tipo !== "entrada") continue;
       if (entry?.descricao === "Valor de Origem da BIA") continue;
-      const favorecidoRel = entry?.favorecido_id || relationArrayFirst(entry?.Favorecido);
-      const favorecido = favorecidoRel?.cadastro_geral_id || favorecidoRel;
+      const favorecido = relationMember(entry?.Favorecido) || relationMember(entry?.favorecido_id);
       const id = memberId(favorecido);
       if (!id) continue;
       const current = values.get(id) || { memberId: id, name: memberName(favorecido), value: 0 };
@@ -5174,8 +5273,7 @@ export async function registerRoutes(
       ];
       const now = new Date();
       const title = `MOU PadrÃ£o BUILT - ${biaComInfo.nome_bia || req.params.id}`;
-      const codigoRastreavel = String(biaComInfo.codigo_publico || req.params.id);
-      const footerLabel = `BIA: ${biaComInfo.nome_bia || "BIA"} | C\u00F3digo rastre\u00E1vel: ${codigoRastreavel}`;
+      const footerLabel = buildBiaFooterLabel(biaComInfo, req.params.id);
       const pdf = buildSimpleTextPdf(title, sections, { footerLabel });
       const safeName = String(biaComInfo.nome_bia || req.params.id).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || req.params.id;
       const fileId = await uploadPdfToDirectus(pdf, `mou-padrao-built-${safeName}-${now.toISOString().slice(0, 10)}.pdf`);
@@ -5489,8 +5587,7 @@ export async function registerRoutes(
           { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III nÃ£o localizado nos assets do servidor." },
           { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV nÃ£o localizado nos assets do servidor." },
         ];
-        const codigoRastreavel = String(biaComInfo.codigo_publico || biaId);
-        footerLabel = `BIA: ${biaComInfo.nome_bia || "BIA"} | C\u00F3digo rastre\u00E1vel: ${codigoRastreavel}`;
+        footerLabel = buildBiaFooterLabel(biaComInfo, biaId);
       } else {
         const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
         const body = term?.body || [
@@ -8367,6 +8464,17 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email e senha sÃ£o obrigatÃ³rios" });
 
+      const finishLogin = (payload: Record<string, any>) => {
+        req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
+        req.session.save((error) => {
+          if (error) {
+            console.error("[login] session save error:", error);
+            return res.status(500).json({ error: "Erro ao salvar sessao" });
+          }
+          return res.json(payload);
+        });
+      };
+
       // Authenticate against Directus
       const authRes = await fetch(`${DIRECTUS_URL}/auth/login`, {
         method: "POST",
@@ -8407,7 +8515,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
               (req.session as any).email = localUser.email;
               (req.session as any).role = role;
               (req.session as any).permissions = permissions;
-              return res.json({
+              return finishLogin({
                 id: localUser.id,
                 nome: localUser.nome,
                 email: localUser.email,
@@ -8516,7 +8624,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       (req.session as any).role = role;
       (req.session as any).permissions = permissions;
 
-      res.json({
+      return finishLogin({
         id: directusUser.id,
         nome,
         email,
@@ -11374,6 +11482,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           T: null,
           R: null,
           C: null,
+          aura_plena: 0,
+          aura_observada: null,
+          aura_publicavel: null,
+          cobertura_dimensional: 0,
+          teto_cobertura: null,
+          teto_confianca: 69,
+          teto_curadoria: null,
+          motivos_trava: [],
           n: 0,
           faixa: null,
           FR_T: 1,

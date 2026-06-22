@@ -971,11 +971,11 @@ export default function MeuPerfilPage() {
       return;
     }
     if (!String(form.cpf || "").trim()) {
-      toast({ title: "CPF obrigatÃ³rio", description: "Informe o CPF para salvar o perfil.", variant: "destructive" });
+      toast({ title: "CPF obrigatório", description: "Informe o CPF para salvar o perfil.", variant: "destructive" });
       return;
     }
     if (String(form.empresa || "").trim() && !String(form.cnpj || "").trim()) {
-      toast({ title: "CNPJ obrigatÃ³rio", description: "Informe o CNPJ quando houver nome de empresa.", variant: "destructive" });
+      toast({ title: "CNPJ obrigatório", description: "Informe o CNPJ quando houver nome de empresa.", variant: "destructive" });
       return;
     }
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);

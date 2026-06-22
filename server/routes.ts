@@ -3283,11 +3283,11 @@ export async function registerRoutes(
   }
 
   const DIRETOR_SOLICITACAO_CONFIG = [
-    { campoDiretor: "diretor_alianca", campoPercentual: "perc_dir_alianca", papel: "Diretor de AlianÃ§a" },
-    { campoDiretor: "diretor_nucleo_tecnico", campoPercentual: "perc_dir_tecnico", papel: "Dir. NÃºcleo TÃ©cnico" },
-    { campoDiretor: "diretor_execucao", campoPercentual: "perc_dir_obras", papel: "Dir. NÃºcleo de Obra" },
-    { campoDiretor: "diretor_comercial", campoPercentual: "perc_dir_comercial", papel: "Dir. NÃºcleo Comercial" },
-    { campoDiretor: "diretor_capital", campoPercentual: "perc_dir_capital", papel: "Dir. NÃºcleo de Capital" },
+    { campoDiretor: "diretor_alianca", campoPercentual: "perc_dir_alianca", papel: "Diretor de Aliança" },
+    { campoDiretor: "diretor_nucleo_tecnico", campoPercentual: "perc_dir_tecnico", papel: "Dir. Núcleo Técnico" },
+    { campoDiretor: "diretor_execucao", campoPercentual: "perc_dir_obras", papel: "Dir. Núcleo de Obra" },
+    { campoDiretor: "diretor_comercial", campoPercentual: "perc_dir_comercial", papel: "Dir. Núcleo Comercial" },
+    { campoDiretor: "diretor_capital", campoPercentual: "perc_dir_capital", papel: "Dir. Núcleo de Capital" },
   ];
 
   const SOCIO_SOLICITACAO_CONFIG = [
@@ -11584,11 +11584,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       storage.getAuraAvaliacoesByAvaliador(membroId),
     ]);
 
-    // Collect all member IDs to resolve names in one request
+    // Resolve only evaluated member names for evaluations the current user gave.
+    // Received evaluations intentionally stay anonymous; the words are visible,
+    // but the evaluator identity must not be exposed.
     const allIds = [
       ...new Set([
         ...dadas.map(a => a.avaliado_membro_id),
-        ...recebidas.map(a => a.avaliador_membro_id),
       ]),
     ];
     let nomesMap: Record<string, string> = {};
@@ -11611,7 +11612,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }));
     const recebidasEnriquecidas = recebidas.map(a => ({
       ...a,
-      avaliador_nome: nomesMap[a.avaliador_membro_id] ?? null,
+      avaliador_membro_id: null,
+      avaliador_nome: null,
     }));
 
     return res.json({ recebidas: recebidasEnriquecidas, dadas: dadasEnriquecidas });

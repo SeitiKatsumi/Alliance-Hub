@@ -68,6 +68,52 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+const mojibakeReplacements: Array<[RegExp, string]> = [
+  [/Ãƒ/g, "Ã"], [/Ã‚/g, "Â"],
+  [/Ã¡/g, "á"], [/Ã /g, "à"], [/Ã¢/g, "â"], [/Ã£/g, "ã"],
+  [/Ã©/g, "é"], [/Ãª/g, "ê"], [/Ã­/g, "í"],
+  [/Ã³/g, "ó"], [/Ã´/g, "ô"], [/Ãµ/g, "õ"], [/Ãº/g, "ú"],
+  [/Ã§/g, "ç"], [/Ã‡/g, "Ç"],
+  [/Ã�/g, "Á"], [/Ã‰/g, "É"], [/ÃŠ/g, "Ê"], [/Ã“/g, "Ó"], [/Ãš/g, "Ú"],
+  [/Âº/g, "º"], [/Âª/g, "ª"], [/Â°/g, "°"],
+  [/â€”/g, "—"], [/â€“/g, "–"], [/â€˜/g, "‘"], [/â€™/g, "’"],
+  [/â€œ/g, "“"], [/â€/g, "”"], [/â€¦/g, "…"],
+];
+
+function fixMojibakeText(value: string) {
+  if (!/[ÃÂâ]/.test(value)) return value;
+
+  let next = value;
+  for (let attempt = 0; attempt < 3 && /[ÃÂâ]/.test(next); attempt++) {
+    const before = next;
+    for (const [pattern, replacement] of mojibakeReplacements) {
+      next = next.replace(pattern, replacement);
+    }
+    if (next === before) break;
+  }
+
+  return next.normalize("NFC");
+}
+
+function normalizeJsonText(value: any, seen = new WeakSet<object>()): any {
+  if (typeof value === "string") return fixMojibakeText(value);
+  if (!value || typeof value !== "object") return value;
+  if (value instanceof Date || Buffer.isBuffer(value)) return value;
+  if (seen.has(value)) return value;
+
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeJsonText(item, seen));
+  }
+
+  const normalized: Record<string, any> = {};
+  for (const [key, item] of Object.entries(value)) {
+    normalized[key] = normalizeJsonText(item, seen);
+  }
+  return normalized;
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -75,8 +121,9 @@ app.use((req, res, next) => {
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+    const normalizedBody = normalizeJsonText(bodyJson);
+    capturedJsonResponse = normalizedBody;
+    return originalResJson.apply(res, [normalizedBody, ...args]);
   };
 
   res.on("finish", () => {

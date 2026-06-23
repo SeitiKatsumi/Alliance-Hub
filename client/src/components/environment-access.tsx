@@ -106,7 +106,9 @@ export function EnvironmentAccessDialog({
         title: "Pagamento de adesão gerado",
         description: "Vamos direcionar você para concluir a adesão.",
       });
-      if (data.token) {
+      if (data.checkout_url) {
+        window.location.assign(data.checkout_url);
+      } else if (data.token) {
         navigate(`/pagamento/${data.token}`);
       } else if (data.link) {
         navigate(String(data.link).replace(/^https?:\/\/[^/]+/i, ""));

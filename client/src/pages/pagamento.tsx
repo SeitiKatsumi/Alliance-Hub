@@ -2,8 +2,8 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, CreditCard, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/cNi3cudLvbdL1Wl6E304804";
 const ASAAS_CARTAO_LINK = "https://www.asaas.com/c/og75ioogsdf4khkj";
 const ASAAS_PARCELADO_LINK = "https://www.asaas.com/c/xmchi205bgdtdxjd";
 
@@ -29,6 +29,8 @@ function isBrazil(pais?: string | null): boolean {
 
 export default function PagamentoPage() {
   const { token } = useParams<{ token: string }>();
+  const [isOpeningStripe, setIsOpeningStripe] = useState(false);
+  const paymentSuccess = new URLSearchParams(window.location.search).get("payment_success") === "true";
 
   const { data: convite, isLoading, error } = useQuery<ConviteData>({
     queryKey: ["/api/convites", token],
@@ -70,6 +72,12 @@ export default function PagamentoPage() {
           <p className="text-white/60 text-sm font-mono leading-relaxed">
             Você já é membro oficial da <strong className="text-brand-gold">{convite.comunidade?.nome}</strong>. Bem-vindo à rede BUILT Alliances!
           </p>
+          <Button
+            className="font-mono bg-brand-gold hover:bg-brand-gold/90 text-[#001D34] font-bold"
+            onClick={() => { window.location.href = "/area-aliancas?tab=opas"; }}
+          >
+            Entrar no BUILT Alliances
+          </Button>
         </div>
       </div>
     );
@@ -90,9 +98,38 @@ export default function PagamentoPage() {
   }
 
   const brasil = isBrazil(convite.comunidade?.pais);
-  const stripeUrl = `${STRIPE_PAYMENT_LINK}?client_reference_id=${token}${convite.candidato_email ?`&prefilled_email=${encodeURIComponent(convite.candidato_email)}` : ""}`;
   const asaasCartaoUrl = `${ASAAS_CARTAO_LINK}?externalReference=${encodeURIComponent(token)}`;
   const asaasParceladoUrl = `${ASAAS_PARCELADO_LINK}?externalReference=${encodeURIComponent(token)}`;
+
+  async function openStripeCheckout() {
+    setIsOpeningStripe(true);
+    try {
+      const res = await fetch(`/api/convites/${token}/checkout`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || "Nao foi possivel abrir o checkout.");
+      window.location.href = data.url;
+    } catch (err: any) {
+      alert(err?.message || "Nao foi possivel abrir o checkout.");
+      setIsOpeningStripe(false);
+    }
+  }
+
+  if (paymentSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#001D34" }}>
+        <div className="text-center space-y-4 p-8 max-w-md">
+          <Loader2 className="w-12 h-12 animate-spin text-brand-gold mx-auto" />
+          <h2 className="text-xl font-bold font-mono text-white">Pagamento recebido</h2>
+          <p className="text-white/60 text-sm font-mono leading-relaxed">
+            Estamos aguardando a confirmacao automatica do provedor para ativar seu acesso como membro. Esta tela atualiza sozinha em alguns segundos.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: "#001D34" }}>
@@ -131,7 +168,7 @@ export default function PagamentoPage() {
                 </p>
                 <Button
                   className="w-full font-mono bg-brand-gold hover:bg-brand-gold/90 text-[#001D34] font-bold"
-                  onClick={() => { window.open(asaasCartaoUrl, "_blank"); }}
+                  onClick={() => { window.location.href = asaasCartaoUrl; }}
                   data-testid="btn-asaas-cartao"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
@@ -153,7 +190,7 @@ export default function PagamentoPage() {
                 <Button
                   variant="outline"
                   className="w-full font-mono border-white/20 text-white/80 hover:text-white hover:border-white/40 bg-transparent font-semibold"
-                  onClick={() => { window.open(asaasParceladoUrl, "_blank"); }}
+                  onClick={() => { window.location.href = asaasParceladoUrl; }}
                   data-testid="btn-asaas-parcelado"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
@@ -180,10 +217,11 @@ export default function PagamentoPage() {
               </p>
               <Button
                 className="w-full font-mono bg-brand-gold hover:bg-brand-gold/90 text-[#001D34] font-bold"
-                onClick={() => { window.location.href = stripeUrl; }}
+                onClick={openStripeCheckout}
+                disabled={isOpeningStripe}
                 data-testid="btn-stripe-checkout"
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
+                {isOpeningStripe ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
                 Assinar por R$ 3.197,00/ano
               </Button>
               <p className="text-[10px] font-mono text-white/30 text-center">

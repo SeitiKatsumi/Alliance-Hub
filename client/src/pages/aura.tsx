@@ -786,20 +786,6 @@ export default function AuraPage() {
             </Button>
           )}
         </div>
-        {false && myId && canConsultAndRegisterAura && !isOwnAura && (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setLocation("/aura")}
-              className="w-full sm:w-auto"
-              data-testid="btn-voltar-minha-aura"
-            >
-              <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
-              Minha Aura
-            </Button>
-          </div>
-        )}
       </div>
 
       <EnvironmentAccessDialog

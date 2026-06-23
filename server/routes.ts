@@ -3349,11 +3349,11 @@ export async function registerRoutes(
     const destinacao = mouValue(bia?.destinacao, "nÃ£o informada");
 
     return [
-      `O Ativo em questÃ£o Ã© ${qualificacao}, situado no ${endereco}, vinculado Ã  MatrÃ­cula nÂº ${matricula} do ${cartorio}, Comarca de ${comarca}, com todas as suas acessÃµes, fraÃ§Ãµes ideais, caracterÃ­sticas e Ã´nus.`,
+      `1.2. O Ativo em questão é ${qualificacao}, situado no ${endereco}, vinculado à Matrícula nº ${matricula} do ${cartorio}, Comarca de ${comarca}, com todas as suas acessões, frações ideais, características e ônus.`,
       "",
-      "A descriÃ§Ã£o registral constante da matrÃ­cula integra este MOU por referÃªncia, sendo vedada qualquer interpretaÃ§Ã£o extensiva a outros ativos.",
+      "1.2.1. A descrição registral constante da matrícula integra este MOU por referência, sendo vedada qualquer interpretação extensiva a outros ativos.",
       "",
-      `A exploraÃ§Ã£o econÃ´mica serÃ¡ destinada Ã  finalidade ${destinacao}.`,
+      `1.3. A exploração econômica será destinada à finalidade ${destinacao}.`,
     ].join("\n\n");
   }
 
@@ -3364,6 +3364,7 @@ export async function registerRoutes(
       .filter(Boolean);
     return {
       descricao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃƒÂ£o informado"),
+      endereco: mouValue(bia?.ativo_endereco || bia?.endereco || bia?.localizacao, "endereÃƒÂ§o nÃƒÂ£o informado"),
       municipio: mouValue(bia?.ativo_municipio || bia?.cidade || localizacaoPartes[0]),
       estado: mouValue(bia?.ativo_estado || bia?.estado || localizacaoPartes[1]),
       matricula: mouValue(bia?.ativo_numero_matricula),
@@ -3387,6 +3388,7 @@ export async function registerRoutes(
     };
     const valuesByKey: Record<string, string> = {
       "descricao do ativo": campos.descricao,
+      endereco: campos.endereco,
       municipio: campos.municipio,
       estado: campos.estado,
       "no da matricula": campos.matricula,
@@ -3394,6 +3396,8 @@ export async function registerRoutes(
       cartorio: campos.cartorio,
       comarca: campos.comarca,
       destinacao: campos.destinacao,
+      "objetivo da alianca": campos.destinacao,
+      "objetico da alianca": campos.destinacao,
     };
     return texto.replace(/\[([^\]]+)\]/g, (match, key) => valuesByKey[normalizePlaceholder(String(key))] ?? match);
     const replacements: Array<[RegExp, string]> = [
@@ -3409,11 +3413,7 @@ export async function registerRoutes(
   }
 
   function personalizarBiaMouTexto(texto: string, biaId: string, bia: any) {
-    const blocoAtivo = buildBiaMouAtivoTexto(bia);
-    const textoComAtivo = substituirBiaMouPlaceholders(texto, bia).replace(
-      /O Ativo em quest[\s\S]*?A explora[\s\S]*?destinada[\s\S]*?\./i,
-      blocoAtivo
-    );
+    const textoComAtivo = substituirBiaMouPlaceholders(texto, bia);
     return appendBiaMouRodape(substituirLocalAssinaturaPorData(textoComAtivo), biaId, bia);
   }
 
@@ -4537,6 +4537,11 @@ export async function registerRoutes(
       H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722,
       O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722,
       V: 667, W: 944, X: 667, Y: 667, Z: 611,
+      a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556,
+      h: 556, i: 222, j: 222, k: 500, l: 222, m: 833, n: 556,
+      o: 556, p: 556, q: 556, r: 333, s: 500, t: 278, u: 556,
+      v: 500, w: 722, x: 500, y: 500, z: 500,
+      ",": 278, ".": 278, ":": 278, ";": 278, "-": 333, "(": 333, ")": 333,
     };
     const helveticaBoldWidths: Record<string, number> = {
       ...helveticaWidths,
@@ -4544,10 +4549,84 @@ export async function registerRoutes(
       H: 722, I: 278, J: 556, K: 722, L: 611, M: 833, N: 722,
       O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722,
       V: 667, W: 944, X: 667, Y: 667, Z: 611,
+      a: 556, b: 611, c: 556, d: 611, e: 556, f: 333, g: 611,
+      h: 611, i: 278, j: 278, k: 556, l: 278, m: 889, n: 611,
+      o: 611, p: 611, q: 611, r: 389, s: 556, t: 333, u: 611,
+      v: 556, w: 778, x: 556, y: 556, z: 500,
+      ",": 278, ".": 278, ":": 333, ";": 333, "-": 333, "(": 333, ")": 333,
     };
     const estimateTextWidth = (value: string, size = 10, font = "F1") => {
       const widths = font === "F2" ? helveticaBoldWidths : helveticaWidths;
       return Array.from(value).reduce((total, char) => total + (widths[char] ?? 556), 0) * size / 1000;
+    };
+    type PdfInlineRun = { text: string; bold: boolean };
+    const parsePdfInlineRuns = (value: string): PdfInlineRun[] => {
+      const normalized = normalizePdfText(value).replace(/\s+/g, " ").trim();
+      if (!normalized) return [];
+      const runs: PdfInlineRun[] = [];
+      const pattern = /\*\*([\s\S]*?)\*\*/g;
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(normalized))) {
+        if (match.index > lastIndex) {
+          runs.push({ text: normalized.slice(lastIndex, match.index), bold: false });
+        }
+        if (match[1]) {
+          runs.push({ text: match[1], bold: true });
+        }
+        lastIndex = pattern.lastIndex;
+      }
+      if (lastIndex < normalized.length) {
+        runs.push({ text: normalized.slice(lastIndex), bold: false });
+      }
+      return runs.filter((run) => run.text.length > 0);
+    };
+    const wrapPdfInlineRuns = (
+      runs: PdfInlineRun[],
+      size: number,
+      baseFont: string,
+      maxWidth: number
+    ): PdfInlineRun[][] => {
+      const lines: PdfInlineRun[][] = [];
+      let current: PdfInlineRun[] = [];
+      let currentWidth = 0;
+      const compactRuns = (items: PdfInlineRun[]): PdfInlineRun[] => {
+        const compacted: PdfInlineRun[] = [];
+        for (const item of items) {
+          if (!item.text) continue;
+          const previous = compacted[compacted.length - 1];
+          if (previous && previous.bold === item.bold) {
+            previous.text += item.text;
+          } else {
+            compacted.push({ ...item });
+          }
+        }
+        return compacted;
+      };
+      const pushCurrent = () => {
+        while (current[0]?.text.trim() === "") current.shift();
+        while (current[current.length - 1]?.text.trim() === "") current.pop();
+        if (current.length) lines.push(compactRuns(current));
+        current = [];
+        currentWidth = 0;
+      };
+      for (const run of runs) {
+        const tokens = run.text.split(/(\s+)/).filter(Boolean);
+        for (const token of tokens) {
+          const leadingWhitespace = /^\s+$/.test(token);
+          if (leadingWhitespace && current.length === 0) continue;
+          const tokenText = leadingWhitespace ? " " : token;
+          const font = run.bold ? "F2" : baseFont;
+          const tokenWidth = estimateTextWidth(tokenText, size, font);
+          if (!leadingWhitespace && current.length && currentWidth + tokenWidth > maxWidth) {
+            pushCurrent();
+          }
+          current.push({ text: tokenText, bold: run.bold });
+          currentWidth += tokenWidth;
+        }
+      }
+      pushCurrent();
+      return lines.length ? lines : [[{ text: "", bold: false }]];
     };
     const textRight = (value: string, rightX: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
       text(value, rightX - estimateTextWidth(value, size, font), yy, size, font, color);
@@ -4597,19 +4676,19 @@ export async function registerRoutes(
     const newPage = () => {
       if (ops.length) pages.push(ops);
       ops = [];
-      rect(0, 768, 595, 74, navy);
+      rect(0, 768, 595, 74, "1 1 1");
       if (logoImage) {
-        const logoWidth = 240;
+        const logoWidth = 252;
         const logoHeight = logoWidth * (logoImage.height / logoImage.width);
-        ops.push(`q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} 48 783 cm /Logo Do Q`);
+        ops.push(`q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} 64 780 cm /Logo Do Q`);
       } else {
-        text("BUILT", 46, 796, 32, "F2", "1 1 1");
-        text("Builders United for Investment, Logistics and Trade", 48, 780, 8, "F1", "1 1 1");
+        text("BUILT", 46, 796, 32, "F2", navy);
+        text("Builders United for Investment, Logistics and Trade", 48, 780, 8, "F1", slate);
       }
       const headerRight = 505;
-      textRight(options.headerLabel || "MOU PADR\u00C3O BUILT", headerRight, 804, 11, "F2", gold);
-      textRight(new Date().toLocaleDateString("pt-BR"), headerRight, 788, 8, "F1", "0.85 0.90 0.95");
-      rect(0, 764, 595, 4, gold);
+      textRight(options.headerLabel || "MOU PADRÃO BUILT", headerRight, 804, 11, "F2", navy);
+      textRight(new Date().toLocaleDateString("pt-BR"), headerRight, 788, 8, "F1", "0 0 0");
+      rect(0, 764, 595, 3, gold);
       if (options.footerLabel) {
         line(42, 94, 553, 94, "0.86 0.78 0.62", 0.7);
         const footerSealSize = 50;
@@ -4631,10 +4710,21 @@ export async function registerRoutes(
       const size = options.size || 9.5;
       const gap = options.gap ?? 13;
       const indent = options.indent || 0;
-      const lines = wrapPdfLine(value, options.width || 102);
+      const baseFont = options.font || "F1";
+      const runs = parsePdfInlineRuns(value);
+      const maxWidth = (options.width || 102) * size * 0.53;
+      const lines = wrapPdfInlineRuns(runs, size, baseFont, maxWidth);
       ensure(lines.length * gap + 8);
-      for (const wrapped of lines) {
-        text(wrapped, 48 + indent, y, size, options.font || "F1", options.color || "0.05 0.10 0.16");
+      for (const wrappedRuns of lines) {
+        let x = 48 + indent;
+        for (let index = 0; index < wrappedRuns.length; index++) {
+          const run = wrappedRuns[index];
+          const font = run.bold ? "F2" : baseFont;
+          text(run.text, x, y, size, font, options.color || "0.05 0.10 0.16");
+          const nextRun = wrappedRuns[index + 1];
+          const transitionGap = nextRun && nextRun.bold !== run.bold ? size * 0.12 : 0;
+          x += estimateTextWidth(run.text, size, font) + transitionGap;
+        }
         y -= gap;
       }
       y -= 4;
@@ -4703,12 +4793,9 @@ export async function registerRoutes(
           const barW = 180;
           const barH = 5.5;
           const fillW = barW * (percentNumber / 100);
-          const goldW = Math.min(fillW, barW * 0.34);
-          const blueW = Math.max(0, fillW - goldW);
           text(row.name, 58, rowY, 8.6, "F2", navy);
           roundedRect(barX, barY, barW, barH, 3, "0.92 0.94 0.96");
-          if (goldW > 0) roundedRect(barX, barY, Math.max(goldW, 3), barH, 3, gold);
-          if (blueW > 0) roundedRect(barX + goldW, barY, Math.max(blueW, 3), barH, 3, blue);
+          if (fillW > 0) roundedRect(barX, barY, Math.max(fillW, 3), barH, 3, gold);
           textRight(row.value, 486, rowY, 8.2, "F1", slate);
           const pillX = 502;
           const pillW = 44;
@@ -4757,7 +4844,7 @@ export async function registerRoutes(
           y -= 8;
         }
         paragraph(item, {
-          font: isSubheading ? "F2" : "F1",
+          font: "F1",
           color: isSubheading ? navy : "0.05 0.10 0.16",
           size: isSubheading ? 10.5 : 9.2,
           gap: isSubheading ? 16 : undefined,
@@ -4768,6 +4855,13 @@ export async function registerRoutes(
       y -= 14;
     }
     if (ops.length) pages.push(ops);
+    const totalPages = pages.length;
+    pages.forEach((pageOps, index) => {
+      const pageLabel = `Página ${index + 1} de ${totalPages}`;
+      const pageLabelSize = 7.2;
+      const pageLabelX = 553 - estimateTextWidth(pageLabel, pageLabelSize, "F1");
+      pageOps.push(`BT /F1 ${pageLabelSize} Tf ${slate} rg ${pageLabelX.toFixed(2)} 22 Td ${pdfHex(pageLabel)} Tj ET`);
+    });
 
     const objects: string[] = [];
     const addObject = (content: string) => {
@@ -4876,7 +4970,8 @@ export async function registerRoutes(
   }
 
   function loadMouLogoForPdf() {
-    return loadMouAssetPngForPdf("logo-built-horizontal-negativo.png");
+    return loadMouAssetPngForPdf("logo-built-horizontal-colorida.png")
+      || loadMouAssetPngForPdf("logo-built-horizontal-negativo.png");
   }
 
   async function uploadPdfToDirectus(buffer: Buffer, filename: string): Promise<string> {
@@ -9691,7 +9786,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   async function findMemberCommunityForAdesao(membroId: string) {
     const col = await getComunidadeCol();
-    const fields = "id,nome,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id";
+    const fields = "id,nome,pais,territorio,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id";
     const byMemberUrl = `${DIRECTUS_URL}/items/${col}?fields=${fields}&filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(membroId)}&limit=1`;
     const memberRes = await fetch(byMemberUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
     if (memberRes.ok) {
@@ -9707,6 +9802,116 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
 
     return null;
+  }
+
+  function getPublicAppBaseUrl(): string {
+    const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
+    return rawDomain.replace(/\/$/, "");
+  }
+
+  function isBrazilPaymentContext(value?: string | null): boolean {
+    const normalized = String(value || "")
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return normalized === "br" || normalized === "brasil" || normalized === "brazil";
+  }
+
+  function buildAsaasAdesaoCheckoutUrl(token: string): string {
+    const url = new URL("https://www.asaas.com/c/og75ioogsdf4khkj");
+    url.searchParams.set("externalReference", token);
+    return url.toString();
+  }
+
+  async function createAsaasAdesaoPaymentLinkUrl(convite: any, comunidade: any): Promise<string> {
+    const apiKey = process.env.ASAAS_API_KEY;
+    if (!apiKey) return buildAsaasAdesaoCheckoutUrl(convite.token);
+
+    const baseUrl = (process.env.ASAAS_API_URL || "https://api.asaas.com/v3").replace(/\/$/, "");
+    const appUrl = getPublicAppBaseUrl();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 1);
+
+    const response = await fetch(`${baseUrl}/paymentLinks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        access_token: apiKey,
+      },
+      body: JSON.stringify({
+        name: "Adesao BUILT Alliances",
+        description: `Adesao a ${comunidade?.nome || "BUILT Alliances"}`,
+        endDate: endDate.toISOString().slice(0, 10),
+        value: 3197,
+        billingType: "UNDEFINED",
+        chargeType: "DETACHED",
+        externalReference: convite.token,
+        notificationEnabled: true,
+        callback: {
+          successUrl: `${appUrl}/pagamento/${convite.token}?payment_success=true`,
+          autoRedirect: true,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      console.error("[asaas/adesao] payment link creation failed:", response.status, text);
+      return buildAsaasAdesaoCheckoutUrl(convite.token);
+    }
+
+    const paymentLink = await response.json();
+    return paymentLink.url || paymentLink.invoiceUrl || buildAsaasAdesaoCheckoutUrl(convite.token);
+  }
+
+  async function createStripeAdesaoCheckoutUrl(convite: any): Promise<string> {
+    const stripe = getStripeClient();
+    const baseUrl = getPublicAppBaseUrl();
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "brl",
+            unit_amount: 319700,
+            product_data: {
+              name: "Taxa de AdesÃ£o BUILT Alliances",
+              description: `AdesÃ£o Ã  comunidade ${convite.candidato_nome ? "- " + convite.candidato_nome : ""}`.trim(),
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      customer_email: convite.candidato_email || undefined,
+      metadata: {
+        convite_token: convite.token,
+        convite_id: String(convite.id),
+        candidato_nome: convite.candidato_nome || "",
+        comunidade_id: convite.comunidade_id || "",
+      },
+      success_url: `${baseUrl}/pagamento/${convite.token}?payment_success=true`,
+      cancel_url: `${baseUrl}/pagamento/${convite.token}`,
+    });
+
+    if (!session.url) throw new Error("Erro ao obter link de pagamento. Tente novamente.");
+    return session.url;
+  }
+
+  async function buildAdesaoCheckout(convite: any, comunidade: any) {
+    const pais = comunidade?.pais || comunidade?.territorio || "";
+    if (isBrazilPaymentContext(pais) || !pais) {
+      return {
+        provider: "asaas",
+        checkout_url: await createAsaasAdesaoPaymentLinkUrl(convite, comunidade),
+      };
+    }
+
+    return {
+      provider: "stripe",
+      checkout_url: await createStripeAdesaoCheckoutUrl(convite),
+    };
   }
 
   // POST /api/opa/solicitar-adesao â€” non-members request the Proud Member flow from an OPA
@@ -9736,7 +9941,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       let comunidade: any = null;
       if (existingAdesao?.comunidade_id) {
         const col = await getComunidadeCol();
-        const cr = await fetch(`${DIRECTUS_URL}/items/${col}/${existingAdesao.comunidade_id}?fields=id,nome,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id`, {
+        const cr = await fetch(`${DIRECTUS_URL}/items/${col}/${existingAdesao.comunidade_id}?fields=id,nome,pais,territorio,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id`, {
           headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
         });
         comunidade = cr.ok ? (await cr.json()).data : null;
@@ -9775,28 +9980,31 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         });
       }
 
+      const checkout = await buildAdesaoCheckout(convite, comunidade);
       const emailResult = await enviarPagamento({
         candidatoEmail,
         candidatoNome,
         comunidadeNome: comunidade.nome || "Comunidade BUILT",
         token: convite.token,
-        valor: "R$ 500,00",
+        valor: "R$ 3.197,00",
+      }).catch((emailErr: any) => {
+        console.error("[adesao/pagamento] email send failed (non-fatal):", emailErr?.message || emailErr);
+        return { ok: false, error: emailErr?.message || "erro desconhecido" };
       });
       if (!emailResult?.ok) {
-        return res.status(502).json({
-          error: `Pagamento gerado, mas o e-mail nÃ£o foi aceito pelo SMTP/Brevo: ${emailResult?.error || "erro desconhecido"}`,
-          token: convite.token,
-          link: `/pagamento/${convite.token}`,
-        });
+        console.error("[adesao/pagamento] payment email not sent (non-fatal):", emailResult?.error || "erro desconhecido");
       }
 
-      const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");
+      const rawDomain = getPublicAppBaseUrl();
       res.json({
         token: convite.token,
         status: convite.status,
         comunidade_id: convite.comunidade_id,
         comunidade_nome: comunidade.nome || null,
-        emailed: true,
+        emailed: Boolean(emailResult?.ok),
+        provider: checkout.provider,
+        checkout_url: checkout.checkout_url,
+        return_url: `${rawDomain}/pagamento/${convite.token}`,
         link: `${rawDomain}/pagamento/${convite.token}`,
       });
     } catch (error: any) {

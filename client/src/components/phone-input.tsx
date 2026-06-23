@@ -125,6 +125,7 @@ export function PhoneInput({
 }: PhoneInputProps) {
   const parsed = parsePhoneValue(value);
   const selected = COUNTRY_CODES.find((item) => item.dialCode === parsed.dialCode) || COUNTRY_CODES[0];
+  const usesDarkSelect = Boolean(selectClassName?.includes("brand-navy") || selectClassName?.includes("bg-[#001"));
 
   return (
     <div className={cn("flex w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
@@ -135,6 +136,7 @@ export function PhoneInput({
           "w-[104px] shrink-0 border-0 border-r border-input bg-white px-2 text-sm font-medium text-foreground outline-none [&>option]:bg-white [&>option]:text-foreground",
           selectClassName,
         )}
+        style={usesDarkSelect ? { backgroundColor: "#001d34", color: "#fff" } : undefined}
         aria-label="Código internacional"
       >
         {COUNTRY_CODES.map((item) => (

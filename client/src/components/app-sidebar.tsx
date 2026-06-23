@@ -27,10 +27,6 @@ export function AppSidebar() {
   const [location, navigate] = useLocation();
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
 
-  // Seal-based permissions (stored in Outras_redes_as_quais_pertenco)
-  const redes = user?.Outras_redes_as_quais_pertenco ?? [];
-  const hasSeal = isAdmin || redes.some(r => r.startsWith("BUILT_"));
-
   const isAmbientesSection = location.startsWith("/vitrine") || location.startsWith("/opas") || location === "/area-aliancas" || location === "/built-capital";
   const [ambientesOpen, setAmbientesOpen] = useState(isAmbientesSection);
 
@@ -128,17 +124,15 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Aura — requer qualquer selo */}
-              {hasSeal && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/aura"} data-testid="nav-aura" className="text-sm">
-                    <Link href="/aura">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Aura</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+              {/* Aura — visível para todos; consultar/registrar é restrito a membros */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.startsWith("/aura")} data-testid="nav-aura" className="text-sm">
+                  <Link href="/aura">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Aura</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* Meu Perfil — sempre visível */}
               <SidebarMenuItem>

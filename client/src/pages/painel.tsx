@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { InviteQrCode } from "@/components/invite-qr-code";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
+import { isBuiltMemberForAura } from "@/lib/aura-access";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -823,6 +824,7 @@ export default function PainelPage() {
 
   const nomeExibido = user?.nome || user?.username || "membro";
   const roleLabel = deriveRole(user);
+  const isBuiltAlliancesMember = environmentAccessFor(user, "alliances").canAccess;
 
   function goToEnvironment(target: EnvironmentTarget, path: string) {
     const access = environmentAccessFor(user, target);
@@ -831,6 +833,14 @@ export default function PainelPage() {
       return;
     }
     navigate(path);
+  }
+
+  function goToAuraRegister() {
+    if (!isBuiltMemberForAura(user)) {
+      setBlockedAccess(environmentAccessFor(user, "alliances"));
+      return;
+    }
+    navigate("/aura?registrar=1");
   }
   const comunidadeLabel = comunidades.length > 0 ?comunidades[0].nome : null;
 
@@ -1099,9 +1109,15 @@ export default function PainelPage() {
               <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-center text-xs font-semibold text-emerald-700">
                 Perfil validado
               </div>
-              <div className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-1.5 text-center text-xs font-semibold text-blue-700">
-                Membro ativo
-              </div>
+              {isBuiltAlliancesMember ? (
+                <div className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-1.5 text-center text-xs font-semibold text-blue-700">
+                  Membro ativo
+                </div>
+              ) : (
+                <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-center text-xs font-semibold text-amber-700">
+                  Parceiro de mercado
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1112,8 +1128,8 @@ export default function PainelPage() {
             <div className="mt-3 grid grid-cols-2 gap-3">
               {[
                 { label: "Nova BIA", icon: Plus, path: "/area-aliancas?tab=bias&criar=true" },
-                { label: "Registrar Percepção de AURA", icon: Sparkles, path: "/aura?registrar=1" },
-                { label: "Criar anúncio", icon: Megaphone, path: "/vitrine?criarAnuncio=true", target: "vitrine" as const },
+                { label: "Registrar Percepção de AURA", icon: Sparkles, path: "/aura?registrar=1", auraRegister: true },
+                { label: "Criar destaque", icon: Megaphone, path: "/vitrine?criarAnuncio=true", target: "vitrine" as const },
                 { label: "Registrar aporte", icon: Wallet, path: "/built-capital", target: "capital" as const },
               ].map((acao) => {
                 const Icon = acao.icon;
@@ -1121,7 +1137,7 @@ export default function PainelPage() {
                   <button
                     key={acao.label}
                     type="button"
-                    onClick={() => acao.target ? goToEnvironment(acao.target, acao.path) : navigate(acao.path)}
+                    onClick={() => acao.auraRegister ? goToAuraRegister() : acao.target ? goToEnvironment(acao.target, acao.path) : navigate(acao.path)}
                     className="group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border/70 bg-background text-center text-xs font-semibold text-[#001D34] transition-colors hover:border-blue-500/40 hover:bg-blue-50 hover:text-blue-700"
                     data-testid={`acao-rapida-${acao.label.toLowerCase().replace(/\s+/g, "-")}`}
                   >

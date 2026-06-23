@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { capitalizeWords } from "@/lib/utils";
-import { RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
+import { getAllTipos, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
 
@@ -833,8 +833,6 @@ const EMPTY_OPA = {
   localizacao: "",
 };
 
-interface TipoOpa { text: string; value: string; }
-
 export function OpaFormDialog({
   open, onClose, opa, bias
 }: {
@@ -859,10 +857,10 @@ export function OpaFormDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: tiposOpa = [] } = useQuery<TipoOpa[]>({
-    queryKey: ["/api/oportunidades/tipos"],
-    staleTime: 1000 * 60 * 10,
-  });
+  const areasContribuicao = useMemo(
+    () => Array.from(new Set(getAllTipos().map((tipo) => getTipoDisplayName(tipo.nome)).filter(Boolean))),
+    [],
+  );
 
   const membroId = (user as any)?.membro_directus_id || null;
   const associatedBias = useMemo(
@@ -991,7 +989,7 @@ export function OpaFormDialog({
       return;
     }
     if (!form.tipo) {
-      toast({ title: "Tipo é obrigatório", variant: "destructive" });
+      toast({ title: "Área de contribuição é obrigatória", variant: "destructive" });
       return;
     }
     if (!form.bia_id) {
@@ -1188,9 +1186,9 @@ export function OpaFormDialog({
             </Select>
           </div>
 
-          {/* 4. Tipo */}
+          {/* 4. Área de contribuição */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Tipo *</Label>
+            <Label className="text-xs text-muted-foreground">Área de contribuição *</Label>
             <Select
               value={form.tipo || undefined}
               onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
@@ -1199,11 +1197,11 @@ export function OpaFormDialog({
                 className={`h-8 text-sm ${!form.tipo ?"text-muted-foreground border-destructive/40" : ""}`}
                 data-testid="select-opa-tipo"
               >
-                <SelectValue placeholder="Selecionar tipo..." />
+                <SelectValue placeholder="Selecionar área de contribuição..." />
               </SelectTrigger>
               <SelectContent>
-                {tiposOpa.map(t => (
-                  <SelectItem key={t.value} value={t.value}>{t.text}</SelectItem>
+                {areasContribuicao.map(area => (
+                  <SelectItem key={area} value={area}>{area}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1522,7 +1520,7 @@ export default function OportunidadesPage() {
   [opas]);
 
   const tipoOptions = useMemo(() =>
-    Array.from(new Set(opas.map(o => o.tipo).filter(Boolean))) as string[],
+    Array.from(new Set(opas.map(o => o.tipo).filter(Boolean).map((tipo) => getTipoDisplayName(String(tipo))))) as string[],
   [opas]);
 
   const filtered = useMemo(() => {
@@ -1533,7 +1531,7 @@ export default function OportunidadesPage() {
       const matchSearch = !q || haystack.includes(q);
       const matchBia = filterBia === "__all__" || o.bia_id === filterBia;
       const matchNucleo = filterNucleo === "__all__" || o.nucleo_alianca === filterNucleo;
-      const matchTipo = filterTipo === "__all__" || o.tipo === filterTipo;
+      const matchTipo = filterTipo === "__all__" || getTipoDisplayName(String(o.tipo || "")) === filterTipo;
       return matchSearch && matchBia && matchNucleo && matchTipo;
     });
   }, [opas, search, filterBia, filterNucleo, filterTipo]);
@@ -1615,10 +1613,10 @@ export default function OportunidadesPage() {
           </Select>
           <Select value={filterTipo} onValueChange={setFilterTipo}>
             <SelectTrigger className="w-[160px]" data-testid="select-filter-tipo">
-              <SelectValue placeholder="Todos os Tipos" />
+              <SelectValue placeholder="Todas as áreas" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todos os Tipos</SelectItem>
+              <SelectItem value="__all__">Todas as áreas</SelectItem>
               {tipoOptions.map(t => (
                 <SelectItem key={t} value={t}>{t}</SelectItem>
               ))}

@@ -13,6 +13,7 @@ import { Switch as UiSwitch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AppSidebar } from "@/components/app-sidebar";
+import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { PhoneInput } from "@/components/phone-input";
 import NotFound from "@/pages/not-found";
 import BiasPage from "@/pages/bias";
@@ -484,8 +485,9 @@ function PerfilOnboardingModal({
   const isVitrineRoute = location.startsWith("/vitrine");
   const isAreaAliancasRoute = location.startsWith("/area-aliancas");
   const isBuiltCapitalRoute = location.startsWith("/built-capital");
+  const canAccessAreaAliancas = environmentAccessFor(fallbackUser, "alliances").canAccess;
   const termoVitrinePendente = !!membro && isVitrineRoute && !membro.vitrine_termo_aceito_em;
-  const termoAreaAliancasPendente = !!membro && isAreaAliancasRoute && !membro.area_aliancas_termo_aceito_em;
+  const termoAreaAliancasPendente = !!membro && canAccessAreaAliancas && isAreaAliancasRoute && !membro.area_aliancas_termo_aceito_em;
   const termoBuiltCapitalPendente = !!membro && isBuiltCapitalRoute && !membro.built_capital_termo_aceito_em;
   const termoModuloPendente = termoVitrinePendente || termoAreaAliancasPendente || termoBuiltCapitalPendente;
   const shouldOpen = !!membroId && !completed && !isLoading && !!membro && (requiredMissing || termoModuloPendente);
@@ -955,6 +957,35 @@ function TermsRedirect({ token }: { token: string }) {
   );
 }
 
+function AlliancesRouteGuard() {
+  const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+  const access = environmentAccessFor(user, "alliances");
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (access.canAccess) return <AreaAliancasPage />;
+
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center px-4 text-center text-sm text-muted-foreground">
+      <EnvironmentAccessDialog
+        access={access}
+        open
+        onOpenChange={(open) => {
+          if (!open) navigate("/");
+        }}
+      />
+      <span>Conclua sua adesão para acessar o BUILT Alliances.</span>
+    </div>
+  );
+}
+
 function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [location, navigate] = useLocation();
@@ -1128,7 +1159,7 @@ function ProtectedApp() {
               <Route path="/vitrine/parceiros" component={VitrinePage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
-              <Route path="/area-aliancas" component={AreaAliancasPage} />
+              <Route path="/area-aliancas" component={AlliancesRouteGuard} />
               <Route path="/area-membros" component={AreMembroPage} />
               <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />

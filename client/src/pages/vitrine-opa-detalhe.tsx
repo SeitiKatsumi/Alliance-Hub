@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
+import { useAuth } from "@/hooks/use-auth";
 
 interface OportunidadePublica {
   id: string;
@@ -113,7 +115,9 @@ export default function VitrineOpaDetalhePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [interesseOpen, setInteresseOpen] = useState(false);
+  const [membershipDialogOpen, setMembershipDialogOpen] = useState(false);
   const [mensagem, setMensagem] = useState("");
 
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadePublica[]>({
@@ -195,6 +199,7 @@ export default function VitrineOpaDetalhePage() {
   const mem = num(opa.Minimo_esforco_multiplicador);
   const jaInteressado = !!interesseData?.meuInteresse;
   const totalInteresses = interesseData?.total || 0;
+  const alliancesAccess = environmentAccessFor(user, "alliances");
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
@@ -255,7 +260,7 @@ export default function VitrineOpaDetalhePage() {
         {mem > 0 && (
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">MEM</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mínimo Esforço Multiplicador</p>
               <p className="mt-1 text-xl font-bold">{mem.toLocaleString("pt-BR")}%</p>
             </CardContent>
           </Card>
@@ -334,9 +339,18 @@ export default function VitrineOpaDetalhePage() {
               ) : (
                 <>
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    Manifeste interesse sem acessar o módulo BUILT Alliances.
+                    Para manifestar interesse, conclua sua adesão ao BUILT Alliances.
                   </p>
-                  <Button className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setInteresseOpen(true)}>
+                  <Button
+                    className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => {
+                      if (!alliancesAccess.canAccess) {
+                        setMembershipDialogOpen(true);
+                        return;
+                      }
+                      setInteresseOpen(true);
+                    }}
+                  >
                     <HandHeart className="h-4 w-4" />
                     Manifestar interesse
                   </Button>
@@ -385,6 +399,11 @@ export default function VitrineOpaDetalhePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <EnvironmentAccessDialog
+        access={alliancesAccess}
+        open={membershipDialogOpen}
+        onOpenChange={setMembershipDialogOpen}
+      />
     </div>
   );
 }

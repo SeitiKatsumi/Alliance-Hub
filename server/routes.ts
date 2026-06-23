@@ -2421,7 +2421,7 @@ export async function registerRoutes(
 
   async function markAnuncioPago(anuncioId: string, provider: "asaas" | "stripe", paymentId?: string | null) {
     const anuncio = await storage.getAnuncioById(anuncioId);
-    if (!anuncio) throw new Error("Anuncio nao encontrado");
+    if (!anuncio) throw new Error("Destaque não encontrado");
     if (anuncio.ativo && anuncio.pagamento_status === "pago") return anuncio;
     const slotTipo = anuncio.slot_tipo === "hero" ? "hero" : "padrao";
     const janela = await getProximaJanelaAnuncio(slotTipo, toDateOnly(), anuncio.id);
@@ -2525,7 +2525,7 @@ export async function registerRoutes(
       const membroId = (req.session as any).membroId;
       const role = (req.session as any).role;
       const anuncio = await storage.getAnuncioById(req.params.id);
-      if (!anuncio) return res.status(404).json({ error: "AnÃºncio nÃ£o encontrado" });
+      if (!anuncio) return res.status(404).json({ error: "Destaque não encontrado" });
       if (anuncio.membro_id !== membroId && role !== "admin") {
         return res.status(403).json({ error: "Sem permissÃ£o" });
       }
@@ -2548,7 +2548,7 @@ export async function registerRoutes(
       const membroId = (req.session as any).membroId;
       const role = (req.session as any).role;
       const anuncio = await storage.getAnuncioById(req.params.id);
-      if (!anuncio) return res.status(404).json({ error: "AnÃºncio nÃ£o encontrado" });
+      if (!anuncio) return res.status(404).json({ error: "Destaque não encontrado" });
       if (anuncio.membro_id !== membroId && role !== "admin") {
         return res.status(403).json({ error: "Sem permissÃ£o" });
       }
@@ -7484,7 +7484,7 @@ export async function registerRoutes(
 
   async function canAccessProtectedOpaActions(req: Request): Promise<boolean> {
     const role = (req.session as any)?.role;
-    if (role === "admin" || role === "manager") return true;
+    if (role === "admin" || role === "manager" || role === "superadmin" || role === "aliado" || role === "membro") return true;
 
     const membroId = (req.session as any)?.membroId as string | undefined;
     if (!membroId) return false;
@@ -7492,13 +7492,10 @@ export async function registerRoutes(
     const membro = await directusFetchOne(
       "cadastro_geral",
       membroId,
-      "fields=Outras_redes_as_quais_pertenco",
+      "fields=em_membros_built",
     ).catch(() => null);
-    const redes = Array.isArray(membro?.Outras_redes_as_quais_pertenco)
-      ? membro.Outras_redes_as_quais_pertenco
-      : [];
 
-    return redes.includes("BUILT_PROUD_MEMBER");
+    return membro?.em_membros_built === true;
   }
 
   function resolveAnexosOpa(items: any[], includeAnexos = true): any[] {
@@ -7731,7 +7728,7 @@ export async function registerRoutes(
       const canManifestar = await canAccessProtectedOpaActions(req);
       if (!canManifestar) {
         return res.status(403).json({
-          error: "Apenas membros com selo BUILT Proud Member podem manifestar interesse em OPAs.",
+          error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances.",
         });
       }
       const membroId = (req.session as any).membroId as string | undefined;
@@ -11051,7 +11048,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           console.log("[stripe/webhook] anuncio payment confirmed:", anuncioId);
         } catch (err: any) {
           console.error("[stripe/webhook] anuncio update error:", err.message);
-          return res.status(500).json({ error: "Erro interno ao processar pagamento do anuncio" });
+          return res.status(500).json({ error: "Erro interno ao processar pagamento do destaque" });
         }
         return res.status(200).json({ received: true });
       }
@@ -11246,7 +11243,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           console.log("[asaas/webhook] anuncio payment confirmed:", anuncioId);
         } catch (err: any) {
           console.error("[asaas/webhook] anuncio update error:", err.message);
-          return res.status(500).json({ error: "Erro interno ao processar pagamento do anuncio" });
+          return res.status(500).json({ error: "Erro interno ao processar pagamento do destaque" });
         }
         return res.status(200).json({ received: true });
       }
@@ -11441,15 +11438,97 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     return false;
   }
 
+  async function getAuraLinkedMemberIdsServer(currentMemberId?: string | null): Promise<Set<string>> {
+    const ids = new Set<string>();
+    if (!currentMemberId) return ids;
+    const current = String(currentMemberId);
+
+    try {
+      const col = await getComunidadeCol();
+      const comunidades = await directusFetch(
+        col,
+        "fields=id,aliado.id,membros.cadastro_geral_id.id&limit=-1"
+      );
+      for (const comunidade of comunidades || []) {
+        const aliadoId = directusRelationId(comunidade?.aliado);
+        const membros = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
+        const membroIds = membros
+          .map((m: any) => directusRelationId(m?.cadastro_geral_id))
+          .filter(Boolean) as string[];
+        if (aliadoId === current || membroIds.includes(current)) {
+          if (aliadoId) ids.add(aliadoId);
+          for (const id of membroIds) ids.add(id);
+        }
+      }
+    } catch (error: any) {
+      console.warn("[aura-vinculos] falha ao carregar comunidades:", error?.message);
+    }
+
+    try {
+      const bias = await directusFetch(
+        "bias_projetos",
+        "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros&limit=-1"
+      );
+      const singleMemberFields = [
+        "autor_bia",
+        "aliado_built",
+        "diretor_alianca",
+        "diretor_nucleo_tecnico",
+        "diretor_execucao",
+        "diretor_comercial",
+        "diretor_capital",
+      ];
+      for (const bia of bias || []) {
+        if (!isUserLinkedToBia(bia, current)) continue;
+        for (const field of singleMemberFields) {
+          const id = directusRelationId(bia?.[field]);
+          if (id) ids.add(id);
+        }
+        for (const id of parseBiaMemberList(bia?.socios_guardioes)) ids.add(id);
+        for (const id of parseBiaMemberList(bia?.socios_multiplicadores)) ids.add(id);
+        for (const id of parseBiaMemberList(bia?.terceiros)) ids.add(id);
+      }
+    } catch (error: any) {
+      console.warn("[aura-vinculos] falha ao carregar BIAs:", error?.message);
+    }
+
+    ids.delete(current);
+    return ids;
+  }
+
+  async function requireAuraLinkedTarget(req: any, res: any, targetMemberId: string) {
+    const access = await getAuraAccessContext(req);
+    if (access.isVitrineOnly && targetMemberId !== access.membroId) {
+      res.status(403).json({ error: "UsuÃ¡rios somente da Vitrine podem consultar apenas a prÃ³pria Aura." });
+      return false;
+    }
+    if (targetMemberId === access.membroId) return true;
+    if (!access.canConsultAndRegisterAura) {
+      res.status(403).json({ error: "Apenas membros BUILT podem consultar ou registrar Aura de terceiros." });
+      return false;
+    }
+    const linkedIds = await getAuraLinkedMemberIdsServer(access.membroId);
+    if (!linkedIds.has(String(targetMemberId))) {
+      res.status(403).json({ error: "VocÃª sÃ³ pode consultar ou registrar Aura de pessoas vinculadas Ã sua comunidade ou BIA." });
+      return false;
+    }
+    return true;
+  }
+
   // GET /api/aura/membros/busca â€” member search for evaluation form
   app.get("/api/aura/membros/busca", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const q = String(req.query.q || "").trim();
     try {
-      const url = q.length >= 2
-        ? `${DIRECTUS_URL}/items/cadastro_geral?limit=20&fields=id,nome,cargo,empresa,foto_perfil&filter%5Bnome%5D%5B_icontains%5D=${encodeURIComponent(q)}`
-        : `${DIRECTUS_URL}/items/cadastro_geral?limit=50&fields=id,nome,cargo,empresa,foto_perfil&sort=nome`;
+      const access = await getAuraAccessContext(req);
+      const linkedIds = await getAuraLinkedMemberIdsServer(access.membroId);
+      if (linkedIds.size === 0) return res.json([]);
+      const idsFilter = [...linkedIds]
+        .map((id) => `filter%5Bid%5D%5B_in%5D%5B%5D=${encodeURIComponent(id)}`)
+        .join("&");
+      const qFilter = q.length >= 2 ? `&filter%5Bnome%5D%5B_icontains%5D=${encodeURIComponent(q)}` : "";
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=50&fields=id,nome,cargo,empresa,foto_perfil&sort=nome&${idsFilter}${qFilter}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.json([]);
       const json = await r.json();
@@ -11470,10 +11549,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     try {
       const { membroId } = req.params;
       if ((req.session as any).directusUserId) {
-        const access = await getAuraAccessContext(req);
-        if (access.isVitrineOnly && membroId !== access.membroId) {
-          return res.status(403).json({ error: "UsuÃ¡rios somente da Vitrine podem consultar apenas a prÃ³pria Aura." });
-        }
+        if (!(await requireAuraLinkedTarget(req, res, membroId))) return;
       }
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
       if (avaliacoes.length === 0) {
@@ -11625,6 +11701,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (await blockVitrineOnlyAura(req, res)) return;
     const membroId = (req.session as any).membroId as string | null;
     if (!membroId) return res.json(null);
+    if (!(await requireAuraLinkedTarget(req, res, req.params.avaliadoId))) return;
     const av = await storage.getAuraAvaliacaoByPair(membroId, req.params.avaliadoId);
     return res.json(av ?? null);
   });
@@ -11804,6 +11881,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (avaliado_membro_id === membroId) {
       return res.status(400).json({ error: "VocÃª nÃ£o pode avaliar a si mesmo" });
     }
+    if (!(await requireAuraLinkedTarget(req, res, avaliado_membro_id))) return;
     // Block duplicate evaluations
     const existing = await storage.getAuraAvaliacaoByPair(membroId, avaliado_membro_id);
     if (existing) {

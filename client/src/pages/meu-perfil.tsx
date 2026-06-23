@@ -744,6 +744,7 @@ export default function MeuPerfilPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       queryClient.invalidateQueries({ queryKey: ["/api/membros", membroId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       toast({ title: "Perfil atualizado com sucesso!" });
@@ -966,8 +967,8 @@ export default function MeuPerfilPage() {
       toast({ title: "E-mail obrigatório", description: "Informe um e-mail para salvar o perfil.", variant: "destructive" });
       return;
     }
-    if (!hasInternationalDialCode(normalizedTelefone)) {
-      toast({ title: "Telefone obrigatório", description: "Informe um telefone com código internacional.", variant: "destructive" });
+    if (!hasInternationalDialCode(normalizedTelefone) && !hasInternationalDialCode(normalizedWhatsapp)) {
+      toast({ title: "Contato obrigatório", description: "Informe telefone ou WhatsApp com código internacional.", variant: "destructive" });
       return;
     }
     if (!String(form.cpf || "").trim()) {
@@ -981,14 +982,14 @@ export default function MeuPerfilPage() {
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
     const payload: Record<string, any> = {
       ...buildProfilePayload(form),
-      telefone: normalizedTelefone,
+      telefone: normalizedTelefone || null,
       whatsapp: normalizedWhatsapp || null,
       tipos_alianca: tiposAlianca,
       nucleos_alianca: getNucleosForTipos(tiposAlianca),
     };
     // Send Especialidades as Directus M2M array
-    payload.Especialidades = especialidade_id
-      ?[{ especialidades_id: especialidade_id }]
+    payload.Especialidades = form.especialidade_id
+      ?[{ especialidades_id: form.especialidade_id }]
       : [];
     updateMutation.mutate(payload as any);
   }

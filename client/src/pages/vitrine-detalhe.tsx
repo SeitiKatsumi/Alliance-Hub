@@ -1,7 +1,7 @@
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft, MapPin, Phone, Mail, Building2, Briefcase,
   User, Globe, MessageSquare, Store, ExternalLink, Languages,
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
-import { isBuiltMemberForAura } from "@/lib/aura-access";
+import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura } from "@/lib/aura-access";
 
 interface MembroDetalhe {
   id: string;
@@ -134,6 +134,27 @@ export default function VitrineDetalhePage() {
     enabled: !!membroDirectusId,
   });
 
+  const canUseAuraRegistration = isBuiltMemberForAura(user);
+  const { data: minhasBias = [] } = useQuery<any[]>({
+    queryKey: ["/api/bias", "aura-vinculos"],
+    queryFn: async () => {
+      const r = await fetch("/api/bias");
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!membroDirectusId && canUseAuraRegistration,
+  });
+
+  const auraLinkedMemberIds = useMemo(
+    () => getAuraLinkedMemberIds({
+      comunidades: minhasComunidades,
+      bias: minhasBias,
+      currentMemberId: membroDirectusId,
+    }),
+    [minhasComunidades, minhasBias, membroDirectusId]
+  );
+
   const { data: convidador } = useQuery<{ id: string; nome: string } | null>({
     queryKey: ["/api/membros", membro?.id, "convidador"],
     queryFn: () => fetch(`/api/membros/${membro!.id}/convidador`).then(r => r.ok ?r.json() : null),
@@ -167,7 +188,11 @@ export default function VitrineDetalhePage() {
     .filter(Boolean).join(", ");
 
   const isMyCard = !!user?.membro_directus_id && user.membro_directus_id === membro?.id;
-  const canViewAndRegisterAura = !isMyCard && !!membro?.id && isBuiltMemberForAura(user);
+  const canViewAndRegisterAura = canRegisterAuraForMember({
+    user,
+    targetMemberId: membro?.id,
+    linkedMemberIds: auraLinkedMemberIds,
+  });
   const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   // Communities where the current user is the aliado OR an active member (both can create invites)
   const minhasComunidadesComoAliado = minhasComunidades.filter(c => {

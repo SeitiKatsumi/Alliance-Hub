@@ -25,7 +25,7 @@ import {
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
-import { isBuiltMemberForAura } from "@/lib/aura-access";
+import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura } from "@/lib/aura-access";
 import { PhoneInput } from "@/components/phone-input";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -628,7 +628,7 @@ function safeAdHref(link: unknown) {
 
 function visibleAdTitle(value: unknown) {
   const title = safeAdText(value);
-  return title === "Anúncio em destaque" ? "" : title;
+  return title === "Destaque da Vitrine" ? "" : title;
 }
 
 function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
@@ -660,7 +660,7 @@ function normalizeAnuncios(data: unknown): AnuncioVitrine[] {
     .filter(item => item.id);
 }
 
-// ===== ANUNCIO CARD =====
+// ===== DESTAQUE CARD =====
 function AnuncioCard({
   anuncio,
   isOwn,
@@ -673,7 +673,7 @@ function AnuncioCard({
   onCancel: () => void;
 }) {
   const href = safeAdHref(anuncio.link);
-  const titulo = safeAdText(anuncio.titulo, "Anúncio em destaque");
+  const titulo = safeAdText(anuncio.titulo, "Destaque da Vitrine");
 
   const handleClick = () => {
     if (href) window.open(href, "_blank", "noopener,noreferrer");
@@ -710,7 +710,7 @@ function AnuncioCard({
         </div>
       )}
 
-      {/* ANÚNCIO badge overlay — only on hover */}
+      {/* Destaque badge overlay — only on hover */}
       <div
         className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity duration-200"
         style={{
@@ -721,7 +721,7 @@ function AnuncioCard({
         }}
       >
         <Megaphone className="w-2.5 h-2.5 text-brand-gold/80" />
-        <span className="text-[9px] font-mono text-brand-gold/80 uppercase tracking-wider">Anúncio</span>
+        <span className="text-[9px] font-mono text-brand-gold/80 uppercase tracking-wider">Destaque</span>
       </div>
 
       {/* Owner action buttons overlay — only on hover */}
@@ -752,7 +752,7 @@ function AnuncioCard({
   );
 }
 
-// ===== ANUNCIO HERO =====
+// ===== DESTAQUE HERO =====
 function AnuncioHeroCard({
   anuncio,
   isOwn,
@@ -769,7 +769,7 @@ function AnuncioHeroCard({
   const [hovered, setHovered] = useState(false);
   const href = safeAdHref(anuncio?.link);
   const titulo = visibleAdTitle(anuncio?.titulo);
-  const altTitulo = titulo || "Anúncio BUILT Vitrine";
+  const altTitulo = titulo || "Destaque BUILT Vitrine";
 
   const handleClick = () => {
     if (href) window.open(href, "_blank", "noopener,noreferrer");
@@ -809,7 +809,7 @@ function AnuncioHeroCard({
             <p className="text-xs font-semibold uppercase tracking-widest text-brand-navy">
               Espaço premium disponível
             </p>
-            <span className="text-xs font-mono text-muted-foreground">Clique para anunciar</span>
+            <span className="text-xs font-mono text-muted-foreground">Clique para destacar</span>
           </div>
         </div>
       )}
@@ -818,7 +818,7 @@ function AnuncioHeroCard({
         className="absolute left-5 top-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white transition-opacity duration-200"
         style={{ opacity: hovered ? 1 : 0 }}
       >
-        Anúncio em destaque
+        Destaque da Vitrine
       </div>
 
       {anuncio && (
@@ -902,6 +902,7 @@ export default function VitrinePage() {
 
   const membroId = user?.membro_directus_id;
   const isSuperAdmin = user?.role === "admin";
+  const canUseAuraRegistration = isBuiltMemberForAura(user);
 
   // Fetch all vitrine members
   const { data: membros = [], isLoading, isError: vitrineLoadError, error: vitrineLoadErrorInfo } = useQuery<MembroVitrine[]>({
@@ -923,6 +924,37 @@ export default function VitrinePage() {
     queryFn: async () => fixMojibakeDeep(await fetch(`/api/membros/${membroId}`).then(r => r.json())),
     enabled: !!membroId,
   });
+
+  const { data: minhasComunidades = [] } = useQuery<any[]>({
+    queryKey: ["/api/comunidades", { membro_id: membroId, scope: "aura-vinculos" }],
+    queryFn: async () => {
+      const r = await fetch(`/api/comunidades?membro_id=${membroId}`);
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!membroId && canUseAuraRegistration,
+  });
+
+  const { data: minhasBias = [] } = useQuery<any[]>({
+    queryKey: ["/api/bias", "aura-vinculos"],
+    queryFn: async () => {
+      const r = await fetch("/api/bias");
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!membroId && canUseAuraRegistration,
+  });
+
+  const auraLinkedMemberIds = useMemo(
+    () => getAuraLinkedMemberIds({
+      comunidades: minhasComunidades,
+      bias: minhasBias,
+      currentMemberId: membroId,
+    }),
+    [minhasComunidades, minhasBias, membroId]
+  );
 
   const myCardExists = !!myMembro?.na_vitrine;
 
@@ -980,9 +1012,9 @@ export default function VitrinePage() {
         });
         return;
       }
-      toast({ title: "Anúncio criado com sucesso!" });
+      toast({ title: "Destaque criado com sucesso!" });
     },
-    onError: (err: any) => toast({ title: err.message || "Erro ao criar anúncio", variant: "destructive" }),
+    onError: (err: any) => toast({ title: err.message || "Erro ao criar destaque", variant: "destructive" }),
   });
 
   const editarAnuncioMutation = useMutation({
@@ -991,9 +1023,9 @@ export default function VitrinePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
       setAnuncioDialogOpen(false);
-      toast({ title: "Anúncio atualizado!" });
+      toast({ title: "Destaque atualizado!" });
     },
-    onError: (err: any) => toast({ title: err.message || "Erro ao atualizar anúncio", variant: "destructive" }),
+    onError: (err: any) => toast({ title: err.message || "Erro ao atualizar destaque", variant: "destructive" }),
   });
 
   const cancelarAnuncioMutation = useMutation({
@@ -1001,9 +1033,9 @@ export default function VitrinePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
-      toast({ title: "Anúncio cancelado." });
+      toast({ title: "Destaque cancelado." });
     },
-    onError: () => toast({ title: "Erro ao cancelar anúncio", variant: "destructive" }),
+    onError: () => toast({ title: "Erro ao cancelar destaque", variant: "destructive" }),
   });
 
   function openAnuncioCreate() {
@@ -1263,7 +1295,7 @@ export default function VitrinePage() {
 
         {!isParceirosPage && membroId && (
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Anunciar button */}
+            {/* Destaque button */}
             <Button
               size="sm"
               onClick={openAnuncioCreate}
@@ -1271,7 +1303,7 @@ export default function VitrinePage() {
               data-testid="btn-anunciar"
             >
               <Megaphone className="w-3.5 h-3.5" />
-              {meusAnuncios.length > 0 ? `+ Novo anúncio` : "Anunciar"}
+              {meusAnuncios.length > 0 ? `+ Novo destaque` : "Criar destaque"}
             </Button>
           </div>
         )}
@@ -1301,12 +1333,12 @@ export default function VitrinePage() {
         />
       </div>
 
-      {/* ===== ANÚNCIOS EM DESTAQUE ===== */}
+      {/* ===== DESTAQUES DA VITRINE ===== */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Megaphone className="w-4 h-4 text-blue-600" />
-            <h2 className="text-sm font-semibold text-foreground">Anúncios em destaque</h2>
+            <h2 className="text-sm font-semibold text-foreground">Destaques da Vitrine</h2>
           </div>
           <div className="flex-1 h-px bg-blue-200" />
           <span className="text-[10px] font-mono text-muted-foreground">{Math.min(anunciosMenores.length, 5)}/5 em exibição</span>
@@ -1351,7 +1383,7 @@ export default function VitrinePage() {
                 {membroId && (
                   <span className="text-[10px] font-mono text-center transition-colors duration-200"
                     style={{ color: "rgba(0,29,52,0.5)" }}>
-                    Clique para anunciar
+                    Clique para destacar
                   </span>
                 )}
               </div>
@@ -1420,7 +1452,7 @@ export default function VitrinePage() {
               style={{ background: "rgba(215,187,125,0.07)", border: "1px solid rgba(215,187,125,0.22)" }}
             >
               <div className="min-w-0">
-                <p className="text-xs font-mono text-brand-gold/80">Pagamento do anúncio gerado</p>
+                <p className="text-xs font-mono text-brand-gold/80">Pagamento do destaque gerado</p>
                 <p className="text-[10px] font-mono text-white/35">
                   Após o pagamento, o sistema agenda 15 dias completos na próxima vaga disponível.
                 </p>
@@ -1616,13 +1648,31 @@ export default function VitrinePage() {
         viewMode === "list" ? (
           <div className="space-y-3">
             {filtered.map(m => (
-              <MembroListItem key={m.id} membro={m} isOwn={m.id === membroId} />
+              <MembroListItem
+                key={m.id}
+                membro={m}
+                isOwn={m.id === membroId}
+                canRegisterAura={canRegisterAuraForMember({
+                  user,
+                  targetMemberId: m.id,
+                  linkedMemberIds: auraLinkedMemberIds,
+                })}
+              />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map(m => (
-              <MembroCard key={m.id} membro={m} isOwn={m.id === membroId} />
+              <MembroCard
+                key={m.id}
+                membro={m}
+                isOwn={m.id === membroId}
+                canRegisterAura={canRegisterAuraForMember({
+                  user,
+                  targetMemberId: m.id,
+                  linkedMemberIds: auraLinkedMemberIds,
+                })}
+              />
             ))}
           </div>
         )
@@ -1852,7 +1902,7 @@ export default function VitrinePage() {
         onSelect={handleLocationSelect}
       />
 
-      {/* ===== ANÚNCIO DIALOG ===== */}
+      {/* ===== DESTAQUE DIALOG ===== */}
       <Dialog open={anuncioDialogOpen} onOpenChange={setAnuncioDialogOpen}>
         <DialogContent
           className="max-w-xl border-brand-gold/20 text-white"
@@ -1861,20 +1911,20 @@ export default function VitrinePage() {
           <DialogHeader>
             <DialogTitle className="font-mono text-brand-gold text-base flex items-center gap-2">
               <Megaphone className="w-4 h-4" />
-              {anuncioEditMode ? "Editar anúncio" : "Criar anúncio"}
+              {anuncioEditMode ? "Editar destaque" : "Criar destaque"}
             </DialogTitle>
             <p className="text-xs text-white/40 font-mono mt-1">
               {anuncioEditMode
                 ?
-                "Atualize as informações do seu anúncio. O período não pode ser alterado."
-                : "Preencha os dados. O anúncio terá 15 dias completos após o pagamento."}
+                "Atualize as informações do seu destaque. O período não pode ser alterado."
+                : "Preencha os dados. O destaque terá 15 dias completos após o pagamento."}
             </p>
           </DialogHeader>
 
             <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
             {/* Tipo de slot */}
             <div className="space-y-1.5">
-              <label className="text-xs text-white/40 font-mono">Tipo de anúncio</label>
+              <label className="text-xs text-white/40 font-mono">Tipo de destaque</label>
               <Select
                 value={anuncioSlotTipo}
                 onValueChange={(value) => {
@@ -1886,7 +1936,7 @@ export default function VitrinePage() {
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#001428] border-white/10 text-white">
-                  <SelectItem value="padrao">Anúncio padrão (5 vagas)</SelectItem>
+                  <SelectItem value="padrao">Destaque padrão (5 vagas)</SelectItem>
                   <SelectItem value="hero">Destaque maior (1 vaga)</SelectItem>
                 </SelectContent>
               </Select>
@@ -1894,7 +1944,7 @@ export default function VitrinePage() {
 
             {/* Título */}
             <div className="space-y-1.5">
-              <label className="text-xs text-white/40 font-mono">Título do anúncio (opcional)</label>
+              <label className="text-xs text-white/40 font-mono">Título do destaque (opcional)</label>
               <Input
                 value={anuncioForm.titulo}
                 onChange={e => setAnuncioForm(f => ({ ...f, titulo: e.target.value }))}
@@ -1972,12 +2022,12 @@ export default function VitrinePage() {
                 style={{ background: "rgba(215,187,125,0.04)", border: "1px solid rgba(215,187,125,0.1)" }}>
                 <div className="flex items-center gap-2">
                   <CalendarDays className="w-3.5 h-3.5 text-brand-gold/50" />
-                  <span className="text-xs font-mono text-brand-gold/60">Período do anúncio</span>
+                  <span className="text-xs font-mono text-brand-gold/60">Período do destaque</span>
                 </div>
                 <p className="text-[11px] text-white/40 font-mono leading-relaxed">
                   {isSuperAdmin
-                    ? "O anúncio será publicado por 15 dias completos. Se o espaço imediato estiver cheio, ele será agendado para a próxima vaga disponível."
-                    : "O anúncio ficará ativo por 15 dias após a confirmação do pagamento. Se a Vitrine estiver cheia, ele será agendado para a próxima vaga disponível."}
+                    ? "O destaque será publicado por 15 dias completos. Se o espaço imediato estiver cheio, ele será agendado para a próxima vaga disponível."
+                    : "O destaque ficará ativo por 15 dias após a confirmação do pagamento. Se a Vitrine estiver cheia, ele será agendado para a próxima vaga disponível."}
                 </p>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
                   style={{ background: "rgba(215,187,125,0.08)", border: "1px solid rgba(215,187,125,0.2)" }}>
@@ -1994,7 +2044,7 @@ export default function VitrinePage() {
                 style={{ background: "rgba(215,187,125,0.04)", border: "1px solid rgba(215,187,125,0.16)" }}>
                 <div className="flex items-center gap-2">
                   <ExternalLink className="w-3.5 h-3.5 text-brand-gold/50" />
-                  <span className="text-xs font-mono text-brand-gold/60">Pagamento do anúncio</span>
+                  <span className="text-xs font-mono text-brand-gold/60">Pagamento do destaque</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
@@ -2036,7 +2086,7 @@ export default function VitrinePage() {
                     style={{ color: anuncioPagamentoConfirmado ? "rgba(215,187,125,0.8)" : "rgba(255,255,255,0.35)" }}
                     onClick={() => setAnuncioPagamentoConfirmado(v => !v)}
                   >
-                    Já realizei o pagamento do anúncio e quero publicar.
+                    Já realizei o pagamento do destaque e quero publicar.
                   </span>
                 </label>
               </div>
@@ -2059,15 +2109,15 @@ export default function VitrinePage() {
                 <div className="flex items-start gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-brand-gold/50 mt-0.5 shrink-0" />
                   <p className="text-[11px] text-white/40 font-mono leading-relaxed">
-                    Declaro, sob minha exclusiva responsabilidade, que o anúncio publicado no BUILT Vitrine Ads está associado ao meu negócio, é lícito, verdadeiro, verificável e não viola direitos de terceiros, assumindo integral responsabilidade civil, comercial, regulatória e autoral pelo seu conteúdo, bem como por quaisquer reclamações, danos ou sanções dele decorrentes. Reconheço que a BUILT atua apenas como plataforma de veiculação e conexão, não sendo responsável pela oferta anunciada nem pelas relações comerciais dela resultantes.
+                    Declaro, sob minha exclusiva responsabilidade, que o destaque publicado no BUILT Vitrine está associado ao meu negócio, é lícito, verdadeiro, verificável e não viola direitos de terceiros, assumindo integral responsabilidade civil, comercial, regulatória e autoral pelo seu conteúdo, bem como por quaisquer reclamações, danos ou sanções dele decorrentes. Reconheço que a BUILT atua apenas como plataforma de veiculação e conexão, não sendo responsável pela oferta destacada nem pelas relações comerciais dela resultantes.
                   </p>
                 </div>
 
                 <div className="space-y-3 pt-1">
                   {[
-                    { key: "t1" as const, label: "Tenho autorização para usar todas as imagens, marcas e conteúdos do anúncio." },
-                    { key: "t2" as const, label: "As informações do anúncio são verdadeiras e podem ser comprovadas." },
-                    { key: "t3" as const, label: "Reconheço que a BUILT não garante nem responde pela oferta anunciada." },
+                    { key: "t1" as const, label: "Tenho autorização para usar todas as imagens, marcas e conteúdos do destaque." },
+                    { key: "t2" as const, label: "As informações do destaque são verdadeiras e podem ser comprovadas." },
+                    { key: "t3" as const, label: "Reconheço que a BUILT não garante nem responde pela oferta destacada." },
                   ].map(({ key, label }) => (
                     <label key={key} className="flex items-start gap-3 cursor-pointer group" data-testid={`checkbox-termo-${key}`}>
                       <div
@@ -2099,7 +2149,7 @@ export default function VitrinePage() {
               <Button
                 variant="ghost"
                 onClick={() => {
-                  if (confirm("Cancelar este anúncio")) {
+                  if (confirm("Cancelar este destaque")) {
                     cancelarAnuncioMutation.mutate(anuncioEditTarget.id);
                     setAnuncioDialogOpen(false);
                   }
@@ -2108,7 +2158,7 @@ export default function VitrinePage() {
                 data-testid="btn-cancelar-anuncio"
               >
                 <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                Cancelar anúncio
+                Cancelar destaque
               </Button>
             )}
             <Button
@@ -2135,7 +2185,7 @@ export default function VitrinePage() {
               ) : (
                 <Megaphone className="w-4 h-4" />
               )}
-              {anuncioEditMode ? "Salvar alterações" : isSuperAdmin ? "Publicar anúncio" : "Gerar pagamento"}
+              {anuncioEditMode ? "Salvar alterações" : isSuperAdmin ? "Publicar destaque" : "Gerar pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2318,14 +2368,21 @@ function ParceiroDestaqueCard({ membro: m, onOpen }: { membro: MembroVitrine; on
   );
 }
 
-function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
-  const { user } = useAuth();
+function MembroListItem({
+  membro: m,
+  isOwn,
+  canRegisterAura,
+}: {
+  membro: MembroVitrine;
+  isOwn: boolean;
+  canRegisterAura: boolean;
+}) {
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   const nome = m.nome || "—";
   const [, navigate] = useLocation();
-  const canViewAndRegisterAura = !isOwn && isBuiltMemberForAura(user);
+  const canViewAndRegisterAura = !isOwn && canRegisterAura;
 
   function handleOrcamento(e: React.MouseEvent) {
     e.stopPropagation();
@@ -2416,8 +2473,15 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: bo
   );
 }
 
-function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolean }) {
-  const { user } = useAuth();
+function MembroCard({
+  membro: m,
+  isOwn,
+  canRegisterAura,
+}: {
+  membro: MembroVitrine;
+  isOwn: boolean;
+  canRegisterAura: boolean;
+}) {
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
@@ -2425,7 +2489,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroVitrine; isOwn: boolea
   const [, navigate] = useLocation();
   const [orcamentoOpen, setOrcamentoOpen] = useState(false);
   const [mensagem, setMensagem] = useState("");
-  const canViewAndRegisterAura = !isOwn && isBuiltMemberForAura(user);
+  const canViewAndRegisterAura = !isOwn && canRegisterAura;
 
   function waLink() {
     if (!m.whatsapp) return null;

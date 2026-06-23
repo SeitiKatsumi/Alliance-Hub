@@ -30,16 +30,13 @@ function userRedes(user?: AppUser | null): string[] {
 export function environmentAccessFor(user: AppUser | null | undefined, target: EnvironmentTarget): AccessState {
   const role = user?.role || "";
   const redes = userRedes(user);
-  const isAdmin = role === "admin" || role === "manager";
+  const isAdmin = role === "admin" || role === "manager" || role === "superadmin";
+  const isLicensedAlly = role === "aliado";
   const hasCapitalSeal = redes.includes("BUILT_CAPITAL_PARTNER");
-  const hasMemberSeal =
-    redes.includes("BUILT_PROUD_MEMBER") ||
-    redes.includes("BUILT_FOUNDING_MEMBER") ||
-    redes.includes("BUILT_ALLIANCE_PARTNER");
 
   const hasVitrineAccess = isAdmin || user?.na_vitrine === true;
   const hasCapitalAccess = isAdmin || user?.em_built_capital === true || role === "investidor" || hasCapitalSeal;
-  const hasAlliancesAccess = isAdmin || user?.em_membros_built === true || hasMemberSeal;
+  const hasAlliancesAccess = isAdmin || isLicensedAlly || role === "membro" || user?.em_membros_built === true;
 
   if (target === "vitrine") {
     return {

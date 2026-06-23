@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import { useLocation, useParams } from "wouter";
 import { isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
+import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 
 interface AuraResult {
   score: number | null;
@@ -429,6 +430,7 @@ export default function AuraPage() {
   const [showAvaliacoesDadas, setShowAvaliacoesDadas] = useState(false);
   const [textoIA, setTextoIA] = useState("");
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
+  const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const myId = user?.membro_directus_id;
@@ -440,11 +442,27 @@ export default function AuraPage() {
   const canViewRequestedAura = !!viewedMembroId && authResolved && (!isVitrineOnly || isOwnAura);
 
   useEffect(() => {
-    const shouldOpenLookup = new URLSearchParams(location.split("?")[1] || "").get("registrar") === "1";
-    if (shouldOpenLookup && canConsultAndRegisterAura) {
-      setLookupOpen(true);
+    const locationQuery = location.includes("?") ? location.split("?")[1] : "";
+    const browserQuery = typeof window !== "undefined" ? window.location.search.replace(/^\?/, "") : "";
+    const shouldOpenLookup =
+      new URLSearchParams(locationQuery).get("registrar") === "1" ||
+      new URLSearchParams(browserQuery).get("registrar") === "1";
+    if (shouldOpenLookup) {
+      if (canConsultAndRegisterAura) {
+        setLookupOpen(true);
+      } else if (authResolved && user) {
+        setBlockedAccess(environmentAccessFor(user, "alliances"));
+      }
     }
-  }, [location, canConsultAndRegisterAura]);
+  }, [location, canConsultAndRegisterAura, authResolved, user]);
+
+  function handleConsultAndRegisterAura() {
+    if (canConsultAndRegisterAura) {
+      setLookupOpen(true);
+      return;
+    }
+    setBlockedAccess(environmentAccessFor(user, "alliances"));
+  }
 
   useEffect(() => {
     if (isVitrineOnly && routeMembroId && routeMembroId !== myId) {
@@ -743,32 +761,52 @@ export default function AuraPage() {
           Reputação construída pela percepção da comunidade sobre você.
         </p>
         </div>
-        {myId && canConsultAndRegisterAura && (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            {!isOwnAura && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setLocation("/aura")}
-                className="w-full sm:w-auto"
-                data-testid="btn-voltar-minha-aura"
-              >
-                <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
-                Minha Aura
-              </Button>
-            )}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {myId && (
             <Button
               type="button"
-              onClick={() => setLookupOpen(true)}
-              className="w-full sm:w-auto bg-[#0f62fe] text-white hover:bg-[#004fd6]"
+              onClick={handleConsultAndRegisterAura}
+              className="w-full gap-2 border border-[#005BFF] bg-[#005BFF] text-white shadow-sm hover:bg-[#004FE0] hover:text-white sm:w-auto"
               data-testid="btn-consultar-registrar-aura"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
+              <Sparkles className="w-4 h-4" />
               Consultar e registrar Aura
+            </Button>
+          )}
+          {myId && canConsultAndRegisterAura && !isOwnAura && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLocation("/aura")}
+              className="w-full sm:w-auto"
+              data-testid="btn-voltar-minha-aura"
+            >
+              <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
+              Minha Aura
+            </Button>
+          )}
+        </div>
+        {false && myId && canConsultAndRegisterAura && !isOwnAura && (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLocation("/aura")}
+              className="w-full sm:w-auto"
+              data-testid="btn-voltar-minha-aura"
+            >
+              <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
+              Minha Aura
             </Button>
           </div>
         )}
       </div>
+
+      <EnvironmentAccessDialog
+        access={blockedAccess}
+        open={!!blockedAccess}
+        onOpenChange={(open) => !open && setBlockedAccess(null)}
+      />
 
       {canConsultAndRegisterAura && (
       <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>

@@ -3335,7 +3335,7 @@ export async function registerRoutes(
     { campoSocios: "socios_multiplicadores", papel: "Socio Multiplicador" },
   ];
 
-  const BIA_MOU_VERSAO = "BUILT-JUR-6-BIA-PATRIMONIAL-RENDA-2026-REVISAO";
+  const BIA_MOU_VERSAO = "BUILT-JUR-6-BIA-PATRIMONIAL-2026-23.06.26";
   const BIA_MOU_TITULO = "MOU Padrao BUILT - BIA Patrimonial";
   const BIA_MOU_FALLBACK_TEXTO = [
     "MEMORANDO DE ENTENDIMENTOS (MOU)",
@@ -4587,12 +4587,16 @@ export async function registerRoutes(
     for (const block of normalized.split(/\n{2,}/)) {
       const buffer: string[] = [];
       for (const line of block.split("\n").map((item) => item.trim()).filter(Boolean)) {
+        const isEmentaHeading = /^EMENTA:?$/i.test(line);
+        const isStandaloneMouHeading = /^(MEMORANDO DE ENTENDIMENTOS|ALIANÇA PATRIMONIAL PADRÃO BUILT)$/i.test(line);
         const isHeading = line.length < 90
           && (
-            /^[0-9]+(?:\.[0-9]+)*\.\s+/.test(line)
+            isEmentaHeading
+            || isStandaloneMouHeading
+            || /^[0-9]+(?:\.[0-9]+)*\.\s+/.test(line)
             || /^[A-Z0-9 .IVX-]+$/.test(line.toUpperCase())
           )
-          && !/[,:;]/.test(line);
+          && (isEmentaHeading || !/[,:;]/.test(line));
         const isNumberedClauseStart = /^\d+(?:\.\d+)+\.\s+/.test(line);
 
         if (isHeading) {
@@ -4609,6 +4613,29 @@ export async function registerRoutes(
     }
 
     return paragraphs;
+  }
+
+  function emphasizeMouPdfText(value: string): string {
+    let output = value;
+    const protect = (text: string) => text.includes("**") ? text : `**${text}**`;
+    const replacements: Array<[RegExp, (...args: string[]) => string]> = [
+      [/^MEMORANDO DE ENTENDIMENTOS \(MOU\)$/i, (match) => protect(match)],
+      [/^ALIANÇA PATRIMONIAL PADRÃO BUILT$/i, (match) => protect(match)],
+      [/^EMENTA:$/i, (match) => protect(match)],
+      [/^(\d+(?:\.\d+)*\.\s+)([A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9][A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9 .IVX-]+)$/i, (_match, number, heading) => `${number}${protect(heading)}`],
+      [/O presente MEMORANDO DE ENTENDIMENTOS \("MOU"\)/g, (match) => protect(match)],
+      [/\bnatureza pré-contratual\b/g, (match) => protect(match)],
+      [/\bdiretrizes, compromissos mínimos vinculantes, deveres de conduta, regras de governança, matriz de participação econômica e parâmetros de responsabilidade\b/g, (match) => protect(match)],
+      [/\borganização, estruturação e exploração econômica de ativo imobiliário\b/g, (match) => protect(match)],
+      [/\bA exploração econômica será destinada ao objetivo da aliança:/g, (match) => protect(match)],
+      [/\bAs partes reconhecem\b/g, (match) => protect(match)],
+      [/\bPlataforma BUILT - Builders United for Investment Logistics and Trade\b/g, (match) => protect(match)],
+      [/\bBIA - BUILT Integrated Alliance - BIA\b/g, (match) => protect(match)],
+    ];
+    for (const [pattern, replacement] of replacements) {
+      output = output.replace(pattern, replacement);
+    }
+    return output;
   }
 
   function buildBiaFooterLabel(bia: any, biaId: string): string {
@@ -4821,7 +4848,7 @@ export async function registerRoutes(
       const gap = options.gap ?? 13;
       const indent = options.indent || 0;
       const baseFont = options.font || "F1";
-      const runs = parsePdfInlineRuns(value);
+      const runs = parsePdfInlineRuns(emphasizeMouPdfText(value));
       const maxWidth = (options.width || 102) * size * 0.53;
       const lines = wrapPdfInlineRuns(runs, size, baseFont, maxWidth);
       ensure(lines.length * gap + 8);
@@ -4957,7 +4984,7 @@ export async function registerRoutes(
           y -= 8;
         }
         paragraph(item, {
-          font: "F1",
+          font: isSubheading ? "F2" : "F1",
           color: isSubheading ? navy : "0.05 0.10 0.16",
           size: isSubheading ? 10.5 : 9.2,
           gap: isSubheading ? 16 : undefined,
@@ -5178,7 +5205,15 @@ export async function registerRoutes(
       conjuge_estado: member?.conjuge_estado,
       conjuge_pais: member?.conjuge_pais,
     };
-    return { ...fallback, ...Object.fromEntries(Object.entries(dados).filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "")) };
+    const compact = (source: Record<string, any>) =>
+      Object.fromEntries(
+        Object.entries(source).filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "")
+      );
+    const merged = { ...compact(dados) };
+    for (const [key, value] of Object.entries(fallback)) {
+      if (value !== null && value !== undefined) merged[key] = value;
+    }
+    return merged;
   }
 
   function qualificacaoParte(participant: { roles: string[]; member: any; data: Record<string, any> }): string {
@@ -5187,7 +5222,7 @@ export async function registerRoutes(
       const key = (field: string) => prefix ? `${prefix}_${field}` : field;
       const linha = [
         source[key("endereco")],
-        source[key("numero")] ? `nÂº ${source[key("numero")]}` : "",
+        source[key("numero")] ? `nº ${source[key("numero")]}` : "",
         source[key("complemento")],
       ].filter(Boolean).join(", ");
       return [
@@ -5200,16 +5235,16 @@ export async function registerRoutes(
       ].filter(Boolean).join(", ");
     };
     const usaEnderecoSeparado = String(d.mesmo_endereco) === "false" || String(d.mesmo_endereco_conjuge) === "false";
-    const endereco = (usaEnderecoSeparado ? formatEndereco(d, "titular") : formatEndereco(d)) || "endereÃ§o nÃ£o informado";
+    const endereco = (usaEnderecoSeparado ? formatEndereco(d, "titular") : formatEndereco(d)) || "endereço não informado";
     const estadoCivil = mouValue(d.estado_civil);
     const regime = d.regime_comunhao ? ` sob o regime de ${d.regime_comunhao}` : "";
     const conjuge = d.conjuge_nome_completo
       ? ` Casado(a) com ${d.conjuge_nome_completo}, ${mouValue(d.conjuge_nacionalidade)}, filho(a) de ${mouValue(d.conjuge_nome_mae)} e ${mouValue(d.conjuge_nome_pai)}, nascido(a) em ${mouValue(d.conjuge_data_nascimento)}, ${mouValue(d.conjuge_profissao)}, e-mail ${mouValue(d.conjuge_email)}, telefone ${mouValue(d.conjuge_telefone)}, CPF ${mouValue(d.conjuge_cpf)} e RG ${mouValue(d.conjuge_rg)}.`
       : "";
     const enderecoConjuge = d.conjuge_nome_completo && usaEnderecoSeparado
-      ? ` O cÃ´njuge reside em ${formatEndereco(d, "conjuge") || "endereÃ§o nÃ£o informado"}.`
+      ? ` O cônjuge reside em ${formatEndereco(d, "conjuge") || "endereço não informado"}.`
       : "";
-    return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nÂº ${mouValue(d.cpf)} e no RG sob o nÂº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
+    return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nº ${mouValue(d.cpf)} e no RG sob o nº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
   }
 
   function mouMemberName(value: any): string | null {
@@ -5221,20 +5256,37 @@ export async function registerRoutes(
   }
 
   async function fetchCadastroGeralForMou(memberId: string, fields: string) {
+    const id = String(memberId);
     const query = (selectedFields: string) =>
       directusFetchScoped(
         "cadastro_geral",
-        `fields=${encodeURIComponent(selectedFields)}&filter[id][_eq]=${encodeURIComponent(String(memberId))}&limit=1`
+        `fields=${encodeURIComponent(selectedFields)}&filter[id][_eq]=${encodeURIComponent(id)}&limit=1`
       );
-    let rows: any[] = [];
     try {
-      rows = await query(fields);
+      const item = await directusFetchOne("cadastro_geral", id);
+      if (item) return item;
     } catch (error: any) {
-      console.warn("[bia-mou-padrao] Campos completos do cadastro indisponiveis; usando identificacao basica:", error?.message || error);
-      rows = await query("id,nome,Nome_de_usuario,email").catch(() => []);
+      console.warn("[bia-mou-padrao] Cadastro completo indisponivel; tentando campos segmentados:", error?.message || error);
     }
-    const exact = rows.find((row: any) => String(row?.id || "") === String(memberId));
-    return exact || (rows.length === 1 ? rows[0] : null);
+
+    const merged: Record<string, any> = {};
+    const fieldGroups = [
+      fields,
+      "id,nome,Nome_de_usuario,email,telefone,whatsapp,cpf,CPF,cargo,cidade,estado,pais",
+      "nacionalidade,nome_mae,nome_pai,data_nascimento,profissao,rg,estado_civil,regime_comunhao",
+      "cep,endereco,numero,complemento,bairro,cidade,estado,pais,titular_cep,titular_endereco,titular_numero,titular_complemento,titular_bairro,titular_cidade,titular_estado,titular_pais",
+      "conjuge_nome_completo,conjuge_nacionalidade,conjuge_nome_mae,conjuge_nome_pai,conjuge_data_nascimento,conjuge_profissao,conjuge_email,conjuge_telefone,conjuge_cpf,conjuge_rg,mesmo_endereco,mesmo_endereco_conjuge,conjuge_cep,conjuge_endereco,conjuge_numero,conjuge_complemento,conjuge_bairro,conjuge_cidade,conjuge_estado,conjuge_pais",
+    ];
+    for (const selectedFields of fieldGroups) {
+      try {
+        const rows = await query(selectedFields);
+        const exact = rows.find((row: any) => String(row?.id || "") === id);
+        Object.assign(merged, exact || (rows.length === 1 ? rows[0] : null) || {});
+      } catch (error: any) {
+        console.warn("[bia-mou-padrao] Grupo de campos do cadastro indisponivel:", error?.message || error);
+      }
+    }
+    return Object.keys(merged).length > 0 ? merged : null;
   }
 
   async function getMouParticipantsForBia(bia: any, biaId: string) {

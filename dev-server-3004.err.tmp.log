@@ -2,7 +2,7 @@
 Error: connect ECONNREFUSED 127.0.0.1:5433
     at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:1606:3) {
+    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:1626:3) {
   errno: -4078,
   code: 'ECONNREFUSED',
   syscall: 'connect',
@@ -18,19 +18,19 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [bia_info_comercial] Campos do ativo nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
 [anuncios_pagamento] Campos de pagamento nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] Tabela de historico nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
-[opa-media] Field imagem_directus_id response: 400
-[geo-opa] Field latitude response: 400
-[geo-bias] Field latitude response: 400
-[opa-media] Field ramo_atuacao response: 400
-[geo-opa] Field longitude response: 400
-[geo-bias] Field longitude response: 400
 [vitrine-fields] Field na_vitrine response: 400
+[opa-media] Field imagem_directus_id response: 400
+[geo-bias] Field latitude response: 400
+[geo-opa] Field latitude response: 400
+[geo-opa] Field longitude response: 400
+[opa-media] Field ramo_atuacao response: 400
+[geo-bias] Field longitude response: 400
 [vitrine-fields] Field em_membros_built response: 400
+[opa-media] Field criado_por_user_id response: 400
 [geo-opa] Field localizacao response: 400
 [geo-bias] Field localizacao response: 400
-[opa-media] Field criado_por_user_id response: 400
-[opa-media] Field criado_por_membro_id response: 400
 [vitrine-fields] Field em_built_capital response: 400
+[opa-media] Field criado_por_membro_id response: 400
 [vitrine-fields] Field link_site response: 400
 [vitrine-fields] Field latitude response: 400
 [vitrine-fields] Field longitude response: 400
@@ -41,12 +41,17 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field ramo_atuacao response: 400
 [vitrine-fields] Field segmento response: 400
 [vitrine-fields] Field area_atuacao response: 400
-[vitrine-fields] Field idiomas response: 400
 [categorias] Field bia_id response: 400
 [transferencias_cotas] Campo anexos nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+[vitrine-fields] Field idiomas response: 400
 [vitrine-fields] Field nucleos_alianca response: 400
 [vitrine-fields] Field tipos_alianca response: 400
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
 [vitrine-fields] Field codigo_etica_aceito_em response: 400
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
 [vitrine-fields] Field codigo_etica_versao response: 400
 [vitrine-fields] Field politicas_participacao_aceito_em response: 400
 [vitrine-fields] Field politicas_participacao_versao response: 400
@@ -77,165 +82,34 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field conjuge_cpf response: 400
 [vitrine-fields] Field conjuge_rg response: 400
 [vitrine-fields] Field mesmo_endereco response: 400
+[vitrine-fields] Field cep response: 400
 [vitrine-fields] Field endereco response: 400
+[vitrine-fields] Field numero response: 400
+[vitrine-fields] Field complemento response: 400
 [vitrine-fields] Field bairro response: 400
+[vitrine-fields] Field titular_cep response: 400
 [vitrine-fields] Field titular_endereco response: 400
+[vitrine-fields] Field titular_numero response: 400
+[vitrine-fields] Field titular_complemento response: 400
 [vitrine-fields] Field titular_bairro response: 400
 [vitrine-fields] Field titular_cidade response: 400
+[login] local user lookup error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field titular_estado response: 400
 [vitrine-fields] Field titular_pais response: 400
+[vitrine-fields] Field conjuge_cep response: 400
 [vitrine-fields] Field conjuge_endereco response: 400
+[vitrine-fields] Field conjuge_numero response: 400
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[vitrine-fields] Field conjuge_complemento response: 400
 [vitrine-fields] Field conjuge_bairro response: 400
 [vitrine-fields] Field conjuge_cidade response: 400
 [vitrine-fields] Field conjuge_estado response: 400
 [vitrine-fields] Field conjuge_pais response: 400
-Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
-  npx update-browserslist-db@latest
-  Why you should do it regularly: https://github.com/browserslist/update-db#readme
-
-A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
-[login] local user lookup error: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
-[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
-[bia-mou-padrao] Banco local indisponivel para aceites do MOU: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[bia-mou-padrao] Transferencias de cotas indisponiveis para o MAP: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[bia-mou-padrao] PDF registrado em fallback temporario: connect ECONNREFUSED 127.0.0.1:5433
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
-[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
-[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
 [bia-mou-padrao] Banco local indisponivel para aceites do MOU: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[bia-mou-padrao] Transferencias de cotas indisponiveis para o MAP: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
-[bia-mou-padrao] PDF registrado em fallback temporario: connect ECONNREFUSED 127.0.0.1:5433
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[2026-06-23T10:30:01.603Z] [PID: 28492] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 19:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
-[2026-06-23T12:14:38.229Z] [PID: 28492] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 20:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
-[2026-06-23T12:14:38.231Z] [PID: 28492] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 20:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
-[2026-06-23T12:14:38.232Z] [PID: 28492] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Jun 23 2026 21:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
-[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
-[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
-[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
-[bia-mou-padrao] Banco local indisponivel para aceites do MOU: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
 [directus-fallback] cadastro_geral carregado do ultimo snapshot local dos logs
 [bia-mou-padrao] Transferencias de cotas indisponiveis para o MAP: connect ECONNREFUSED 127.0.0.1:5433
@@ -245,5 +119,6 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [bia-mou-padrao] PDF registrado em fallback temporario: connect ECONNREFUSED 127.0.0.1:5433
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs

@@ -772,15 +772,15 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>WhatsApp</label>
-                  <PhoneInput value={form.whatsapp || ""} onChange={value => setField("whatsapp", value)} className="border-brand-gold/20 bg-white/5" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-brand-navy !text-white border-brand-gold/20" data-testid="input-edit-whatsapp" />
+                  <PhoneInput value={form.whatsapp || ""} onChange={value => setField("whatsapp", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-whatsapp" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefone</label>
-                  <PhoneInput value={form.telefone || ""} onChange={value => setField("telefone", value)} className="border-brand-gold/20 bg-white/5" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-brand-navy !text-white border-brand-gold/20" data-testid="input-edit-telefone" />
+                  <PhoneInput value={form.telefone || ""} onChange={value => setField("telefone", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-telefone" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefone Secundário</label>
-                  <PhoneInput value={form.telefone_secundario || ""} onChange={value => setField("telefone_secundario", value)} className="border-brand-gold/20 bg-white/5" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-brand-navy !text-white border-brand-gold/20" data-testid="input-edit-telefone2" />
+                  <PhoneInput value={form.telefone_secundario || ""} onChange={value => setField("telefone_secundario", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-telefone2" />
                 </div>
                 <div>
                   <label className={labelCls}>Site</label>

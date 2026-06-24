@@ -78,8 +78,19 @@ const BIA_INFO_COMERCIAL_FIELDS = [
   "titular_conta",
   "chave_pix",
   "ativo_endereco",
+  "ativo_bairro",
+  "ativo_cidade",
+  "ativo_estado",
+  "ativo_pais",
   "ativo_qualificacao",
+  "ativo_descricao_adicional",
+  "ativo_area_m2",
+  "ativo_numero",
+  "ativo_complemento",
+  "ativo_cep",
   "ativo_numero_matricula",
+  "ativo_livro",
+  "ativo_folha",
   "ativo_cartorio",
   "ativo_comarca",
 ] as const;
@@ -522,14 +533,23 @@ async function ensureVitrineFields() {
     { field: "conjuge_cpf", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "conjuge_rg", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "mesmo_endereco", type: "boolean", meta: { interface: "boolean", display: "boolean", hidden: false }, schema: { is_nullable: true, default_value: true } },
+    { field: "cep", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "endereco", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "numero", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "complemento", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "bairro", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_cep", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "titular_endereco", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_numero", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "titular_complemento", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "titular_bairro", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "titular_cidade", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "titular_estado", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "titular_pais", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_cep", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "conjuge_endereco", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_numero", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
+    { field: "conjuge_complemento", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "conjuge_bairro", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "conjuge_cidade", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
     { field: "conjuge_estado", type: "string", meta: { interface: "input", display: "raw", hidden: false }, schema: { is_nullable: true } },
@@ -1747,8 +1767,19 @@ async function ensureChamadasAliancaTable() {
 
 async function ensureBiaInfoComercialAtivoFields() {
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_endereco text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_bairro text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_cidade text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_estado text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_pais text`);
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_qualificacao text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_descricao_adicional text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_area_m2 text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_numero text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_complemento text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_cep text`);
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_numero_matricula text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_livro text`);
+  await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_folha text`);
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_cartorio text`);
   await db.execute(sql`ALTER TABLE bia_info_comercial ADD COLUMN IF NOT EXISTS ativo_comarca text`);
 }
@@ -2886,14 +2917,23 @@ export async function registerRoutes(
         "conjuge_cpf",
         "conjuge_rg",
         "mesmo_endereco",
+        "cep",
         "endereco",
+        "numero",
+        "complemento",
         "bairro",
+        "titular_cep",
         "titular_endereco",
+        "titular_numero",
+        "titular_complemento",
         "titular_bairro",
         "titular_cidade",
         "titular_estado",
         "titular_pais",
+        "conjuge_cep",
         "conjuge_endereco",
+        "conjuge_numero",
+        "conjuge_complemento",
         "conjuge_bairro",
         "conjuge_cidade",
         "conjuge_estado",
@@ -3341,20 +3381,42 @@ export async function registerRoutes(
   }
 
   function buildBiaMouAtivoTexto(bia: any) {
-    const qualificacao = mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃ£o informado");
-    const endereco = mouValue(bia?.ativo_endereco || bia?.localizacao);
-    const matricula = mouValue(bia?.ativo_numero_matricula);
-    const cartorio = mouValue(bia?.ativo_cartorio, "CartÃ³rio nÃ£o informado");
-    const comarca = mouValue(bia?.ativo_comarca, "Comarca nÃ£o informada");
-    const destinacao = mouValue(bia?.destinacao, "nÃ£o informada");
+    const campos = biaMouAtivoCampos(bia);
+    const ativoPartes = [
+      campos.qualificacao,
+      campos.descricaoAdicional,
+      campos.areaM2 ? `de área ${campos.areaM2}m²` : "",
+    ].filter(Boolean).join(", ");
+    const enderecoPartes = [campos.endereco, campos.numero ? `nº ${campos.numero}` : "", campos.complemento, campos.cep ? `CEP ${campos.cep}` : ""]
+      .filter(Boolean)
+      .join(", ");
+    const registroPartes = [
+      `Matrícula nº ${campos.matricula}`,
+      campos.livro ? `Livro ${campos.livro}` : "",
+      campos.folha ? `Folha ${campos.folha}` : "",
+    ].filter(Boolean).join(", ");
+    const cartorioPartes = [campos.cartorio, campos.comarca].filter(Boolean).join(", ");
 
     return [
-      `1.2. O Ativo em questão é ${qualificacao}, situado no ${endereco}, vinculado à Matrícula nº ${matricula} do ${cartorio}, Comarca de ${comarca}, com todas as suas acessões, frações ideais, características e ônus.`,
+      `1.2. O Ativo em questão é ${ativoPartes}, situado em ${campos.municipio}, ${campos.estado}, à ${enderecoPartes}, vinculado à ${registroPartes} do ${cartorioPartes}, com todas as suas acessões, frações ideais, características e ônus.`,
       "",
       "1.2.1. A descrição registral constante da matrícula integra este MOU por referência, sendo vedada qualquer interpretação extensiva a outros ativos.",
       "",
-      `1.3. A exploração econômica será destinada à finalidade ${destinacao}.`,
+      `1.3. A exploração econômica será destinada ao objetivo da aliança: ${campos.objetivoAlianca}.`,
     ].join("\n\n");
+  }
+
+  function buildBiaMouEnderecoCompleto(bia: any) {
+    return [
+      bia?.ativo_endereco,
+      bia?.ativo_numero ? `nº ${bia.ativo_numero}` : "",
+      bia?.ativo_complemento,
+      bia?.ativo_bairro,
+      bia?.ativo_cidade,
+      bia?.ativo_estado,
+      bia?.ativo_pais,
+      bia?.ativo_cep ? `CEP ${bia.ativo_cep}` : "",
+    ].filter((item) => String(item || "").trim()).join(", ");
   }
 
   function biaMouAtivoCampos(bia: any) {
@@ -3362,15 +3424,28 @@ export async function registerRoutes(
       .split(",")
       .map((parte) => parte.trim())
       .filter(Boolean);
+    const enderecoCompleto = buildBiaMouEnderecoCompleto(bia);
     return {
-      descricao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo nÃƒÂ£o informado"),
-      endereco: mouValue(bia?.ativo_endereco || bia?.endereco || bia?.localizacao, "endereÃƒÂ§o nÃƒÂ£o informado"),
-      municipio: mouValue(bia?.ativo_municipio || bia?.cidade || localizacaoPartes[0]),
+      qualificacao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo não informado"),
+      descricao: mouValue(bia?.ativo_qualificacao || bia?.objetivo_alianca || bia?.nome_bia, "ativo não informado"),
+      descricaoAdicional: String(bia?.ativo_descricao_adicional || "").trim(),
+      areaM2: String(bia?.ativo_area_m2 || "").trim(),
+      endereco: mouValue(bia?.ativo_endereco || bia?.endereco || bia?.localizacao, "endereço não informado"),
+      enderecoCompleto: mouValue(enderecoCompleto || bia?.ativo_endereco || bia?.endereco || bia?.localizacao, "endereço não informado"),
+      numero: String(bia?.ativo_numero || "").trim(),
+      complemento: String(bia?.ativo_complemento || "").trim(),
+      cep: String(bia?.ativo_cep || "").trim(),
+      bairro: String(bia?.ativo_bairro || "").trim(),
+      municipio: mouValue(bia?.ativo_cidade || bia?.ativo_municipio || bia?.cidade || localizacaoPartes[0]),
       estado: mouValue(bia?.ativo_estado || bia?.estado || localizacaoPartes[1]),
+      pais: String(bia?.ativo_pais || "").trim(),
       matricula: mouValue(bia?.ativo_numero_matricula),
-      cartorio: mouValue(bia?.ativo_cartorio, "CartÃƒÂ³rio nÃƒÂ£o informado"),
-      comarca: mouValue(bia?.ativo_comarca, "Comarca nÃƒÂ£o informada"),
-      destinacao: mouValue(bia?.destinacao, "nÃƒÂ£o informada"),
+      livro: String(bia?.ativo_livro || "").trim(),
+      folha: String(bia?.ativo_folha || "").trim(),
+      cartorio: mouValue(bia?.ativo_cartorio, "Cartório não informado"),
+      comarca: mouValue(bia?.ativo_comarca, "Comarca não informada"),
+      destinacao: mouValue(bia?.destinacao, "não informada"),
+      objetivoAlianca: mouValue(bia?.objetivo_alianca || bia?.destinacao, "não informado"),
     };
   }
 
@@ -3387,39 +3462,65 @@ export async function registerRoutes(
         .toLowerCase();
     };
     const valuesByKey: Record<string, string> = {
+      qualificacao: campos.qualificacao,
+      "qualificacao casa galpao apartamento": campos.qualificacao,
       "descricao do ativo": campos.descricao,
-      endereco: campos.endereco,
+      "descricao adicional": campos.descricaoAdicional,
+      "area em m2": campos.areaM2,
+      "area em m": campos.areaM2,
+      area: campos.areaM2,
+      endereco: campos.enderecoCompleto,
+      "endereco completo": campos.enderecoCompleto,
+      numero: campos.numero,
+      "n": campos.numero,
+      "no": campos.numero,
+      complemento: campos.complemento,
+      cep: campos.cep,
+      bairro: campos.bairro,
+      cidade: campos.municipio,
       municipio: campos.municipio,
       estado: campos.estado,
+      pais: campos.pais,
       "no da matricula": campos.matricula,
       "n da matricula": campos.matricula,
+      "numero da matricula": campos.matricula,
+      livro: campos.livro,
+      folha: campos.folha,
       cartorio: campos.cartorio,
       comarca: campos.comarca,
-      destinacao: campos.destinacao,
-      "objetivo da alianca": campos.destinacao,
-      "objetico da alianca": campos.destinacao,
+      objetivo: campos.objetivoAlianca,
+      destinacao: campos.objetivoAlianca,
+      "objetivo da alianca": campos.objetivoAlianca,
+      "objetico da alianca": campos.objetivoAlianca,
     };
     return texto.replace(/\[([^\]]+)\]/g, (match, key) => valuesByKey[normalizePlaceholder(String(key))] ?? match);
-    const replacements: Array<[RegExp, string]> = [
-      [/\[Descri[Ã§c][Ã£a]o do ativo\]/gi, campos.descricao],
-      [/\[Munic[Ã­i]pio\]/gi, campos.municipio],
-      [/\[Estado\]/gi, campos.estado],
-      [/\[n[Âºo]\s*da matr[Ã­i]cula\]/gi, campos.matricula],
-      [/\[Cart[Ã³o]rio\]/gi, campos.cartorio],
-      [/\[Comarca\]/gi, campos.comarca],
-      [/\[Destina[Ã§c][Ã£a]o\]/gi, campos.destinacao],
-    ];
-    return replacements.reduce((acc, [pattern, value]) => acc.replace(pattern, value), texto);
+  }
+
+  function substituirBiaMouBlocoAtivo(texto: string, bia: any) {
+    const blocoAtivo = buildBiaMouAtivoTexto(bia);
+    const numberedBlockPattern = /1\.2\.[\s\S]*?(?=\n\s*1\.4\.)/i;
+    if (numberedBlockPattern.test(texto)) {
+      return texto.replace(numberedBlockPattern, `${blocoAtivo}\n\n`);
+    }
+    const inlineBlockPattern = /(?:1\.2\.\s*)?O Ativo em quest[\s\S]*?(?:1\.3\.\s*)?A explora[\s\S]*?mica ser[\s\S]*?destinada[\s\S]*?\./i;
+    if (inlineBlockPattern.test(texto)) return texto.replace(inlineBlockPattern, blocoAtivo);
+    return texto;
   }
 
   function personalizarBiaMouTexto(texto: string, biaId: string, bia: any) {
-    const textoComAtivo = substituirBiaMouPlaceholders(texto, bia);
+    const textoComAtivo = substituirBiaMouBlocoAtivo(substituirBiaMouPlaceholders(texto, bia), bia);
     return appendBiaMouRodape(substituirLocalAssinaturaPorData(textoComAtivo), biaId, bia);
   }
 
+  function buildBiaMouRodapeTexto(bia: any, biaId: string) {
+    const biaNome = String(bia?.nome_bia || "selecionada").trim();
+    const codigoCurto = String(bia?.codigo_publico || biaId).trim();
+    const biaLabel = [biaNome, codigoCurto].filter(Boolean).join(" / ");
+    return `Esta página integra o MoU Padrão BUILT vinculado à BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberações internas e instrumentos jurídicos específicos da respectiva Aliança.`;
+  }
+
   function appendBiaMouRodape(texto: string, biaId: string, bia: any) {
-    const biaLabel = [bia?.nome_bia, biaId].filter(Boolean).join(" / ");
-    const rodape = `Esta pÃ¡gina integra o MoU PadrÃ£o BUILT vinculado Ã  BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberaÃ§Ãµes internas e instrumentos jurÃ­dicos especÃ­ficos da respectiva AlianÃ§a.`;
+    const rodape = buildBiaMouRodapeTexto(bia, biaId);
     return `${texto.trim()}\n\n${rodape}`;
   }
 
@@ -3429,14 +3530,14 @@ export async function registerRoutes(
     const bia = await directusFetchOne(
       "bias_projetos",
       String(biaId),
-      "fields=nome_bia,objetivo_alianca,destinacao,localizacao,ativo_endereco,ativo_qualificacao,ativo_numero_matricula,ativo_cartorio,ativo_comarca"
+      "fields=id,codigo_publico,nome_bia,objetivo_alianca,destinacao,localizacao,ativo_endereco,ativo_bairro,ativo_cidade,ativo_estado,ativo_pais,ativo_qualificacao,ativo_descricao_adicional,ativo_area_m2,ativo_numero,ativo_complemento,ativo_cep,ativo_numero_matricula,ativo_livro,ativo_folha,ativo_cartorio,ativo_comarca"
     ).catch(() => null);
     if (!bia) return texto;
     const infoLocal = await storage.getBiaInfoComercial(String(biaId)).catch(() => null);
     const biaComInfo = {
       ...bia,
-      ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
       ...pickFilledBiaInfoComercialFields(bia ?? {}),
+      ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
     };
     return personalizarBiaMouTexto(texto, String(biaId), biaComInfo);
   }
@@ -3527,17 +3628,26 @@ export async function registerRoutes(
     "conjuge_cpf",
     "conjuge_rg",
     "mesmo_endereco",
+    "cep",
     "endereco",
+    "numero",
+    "complemento",
     "bairro",
     "cidade",
     "estado",
     "pais",
+    "titular_cep",
     "titular_endereco",
+    "titular_numero",
+    "titular_complemento",
     "titular_bairro",
     "titular_cidade",
     "titular_estado",
     "titular_pais",
+    "conjuge_cep",
     "conjuge_endereco",
+    "conjuge_numero",
+    "conjuge_complemento",
     "conjuge_bairro",
     "conjuge_cidade",
     "conjuge_estado",
@@ -4502,10 +4612,7 @@ export async function registerRoutes(
   }
 
   function buildBiaFooterLabel(bia: any, biaId: string): string {
-    const rawName = String(bia?.nome_bia || "BIA").trim();
-    const displayName = /^BIA\b/i.test(rawName) ? rawName : `BIA: ${rawName}`;
-    const codigoRastreavel = String(bia?.codigo_publico || biaId);
-    return `${displayName} | Código rastreável: ${codigoRastreavel}`;
+    return buildBiaMouRodapeTexto(bia, biaId);
   }
 
   function buildSimpleTextPdf(
@@ -4523,7 +4630,7 @@ export async function registerRoutes(
     const logoImage = loadMouLogoForPdf();
     const footerOfficialImage = loadMouAssetPngForPdf("built-official-document.png");
     const footerCertifiedImage = loadMouAssetPngForPdf("built-certified-alliance.png");
-    const footerLimit = options.footerLabel ? 142 : 54;
+    const footerLimit = options.footerLabel ? 104 : 54;
 
     const text = (value: string, x: number, yy: number, size = 10, font = "F1", color = "0 0 0") => {
       ops.push(`BT /${font} ${size} Tf ${color} rg ${x} ${yy} Td ${pdfHex(value)} Tj ET`);
@@ -4692,14 +4799,17 @@ export async function registerRoutes(
       if (options.footerLabel) {
         line(42, 94, 553, 94, "0.86 0.78 0.62", 0.7);
         const footerSealSize = 50;
+        const footerSealY = 31;
         if (footerOfficialImage) {
-          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 78 20 cm /OfficialSeal Do Q`);
+          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 78 ${footerSealY} cm /OfficialSeal Do Q`);
         }
         if (footerCertifiedImage) {
-          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 144 20 cm /CertifiedSeal Do Q`);
+          ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 144 ${footerSealY} cm /CertifiedSeal Do Q`);
         }
-        text(options.footerLabel, 210, 58, 7.3, "F2", navy);
-        text("Documento oficial BUILT - uso vinculado aos registros formais da respectiva Alian\u00E7a.", 210, 43, 6.8, "F1", slate);
+        const footerLines = wrapPdfLine(options.footerLabel, 88).slice(0, 3);
+        footerLines.forEach((lineText, index) => {
+          text(lineText, 210, 68 - index * 11, 7.1, "F1", navy);
+        });
       }
       y = 730;
     };
@@ -4769,12 +4879,15 @@ export async function registerRoutes(
           };
         });
       if (!rows.length) return;
+      const note = lines.find((item) => item.includes("Este mapa"));
+      const noteLines = note ? wrapPdfLine(note, 112) : [];
+      const noteSpace = noteLines.length ? noteLines.length * 13 + 28 : 0;
       const groups = Array.from(rows.reduce((acc, row) => {
         if (!acc.has(row.group)) acc.set(row.group, []);
         acc.get(row.group)!.push(row);
         return acc;
       }, new Map<string, typeof rows>()).entries());
-      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 44 + groupRows.length * 42, 34);
+      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 44 + groupRows.length * 42, 34 + noteSpace);
       ensure(totalHeight + 22);
       const cardX = 42;
       const cardW = 511;
@@ -5029,11 +5142,22 @@ export async function registerRoutes(
       rg: member?.rg,
       estado_civil: member?.estado_civil,
       regime_comunhao: member?.regime_comunhao,
+      cep: member?.cep,
       endereco: member?.endereco || [member?.cidade, member?.estado, member?.pais].filter(Boolean).join(", "),
+      numero: member?.numero,
+      complemento: member?.complemento,
       bairro: member?.bairro,
       cidade: member?.cidade,
       estado: member?.estado,
       pais: member?.pais,
+      titular_cep: member?.titular_cep,
+      titular_endereco: member?.titular_endereco,
+      titular_numero: member?.titular_numero,
+      titular_complemento: member?.titular_complemento,
+      titular_bairro: member?.titular_bairro,
+      titular_cidade: member?.titular_cidade,
+      titular_estado: member?.titular_estado,
+      titular_pais: member?.titular_pais,
       conjuge_nome_completo: member?.conjuge_nome_completo,
       conjuge_nacionalidade: member?.conjuge_nacionalidade,
       conjuge_nome_mae: member?.conjuge_nome_mae,
@@ -5045,7 +5169,10 @@ export async function registerRoutes(
       conjuge_cpf: member?.conjuge_cpf,
       conjuge_rg: member?.conjuge_rg,
       mesmo_endereco_conjuge: member?.mesmo_endereco_conjuge,
+      conjuge_cep: member?.conjuge_cep,
       conjuge_endereco: member?.conjuge_endereco,
+      conjuge_numero: member?.conjuge_numero,
+      conjuge_complemento: member?.conjuge_complemento,
       conjuge_bairro: member?.conjuge_bairro,
       conjuge_cidade: member?.conjuge_cidade,
       conjuge_estado: member?.conjuge_estado,
@@ -5056,14 +5183,31 @@ export async function registerRoutes(
 
   function qualificacaoParte(participant: { roles: string[]; member: any; data: Record<string, any> }): string {
     const d = participant.data;
-    const endereco = [d.endereco, d.bairro, d.cidade, d.estado, d.pais].filter(Boolean).join(", ") || "endereÃ§o nÃ£o informado";
+    const formatEndereco = (source: Record<string, any>, prefix = "") => {
+      const key = (field: string) => prefix ? `${prefix}_${field}` : field;
+      const linha = [
+        source[key("endereco")],
+        source[key("numero")] ? `nÂº ${source[key("numero")]}` : "",
+        source[key("complemento")],
+      ].filter(Boolean).join(", ");
+      return [
+        linha,
+        source[key("bairro")],
+        source[key("cidade")],
+        source[key("estado")],
+        source[key("pais")],
+        source[key("cep")] ? `CEP ${source[key("cep")]}` : "",
+      ].filter(Boolean).join(", ");
+    };
+    const usaEnderecoSeparado = String(d.mesmo_endereco) === "false" || String(d.mesmo_endereco_conjuge) === "false";
+    const endereco = (usaEnderecoSeparado ? formatEndereco(d, "titular") : formatEndereco(d)) || "endereÃ§o nÃ£o informado";
     const estadoCivil = mouValue(d.estado_civil);
     const regime = d.regime_comunhao ? ` sob o regime de ${d.regime_comunhao}` : "";
     const conjuge = d.conjuge_nome_completo
       ? ` Casado(a) com ${d.conjuge_nome_completo}, ${mouValue(d.conjuge_nacionalidade)}, filho(a) de ${mouValue(d.conjuge_nome_mae)} e ${mouValue(d.conjuge_nome_pai)}, nascido(a) em ${mouValue(d.conjuge_data_nascimento)}, ${mouValue(d.conjuge_profissao)}, e-mail ${mouValue(d.conjuge_email)}, telefone ${mouValue(d.conjuge_telefone)}, CPF ${mouValue(d.conjuge_cpf)} e RG ${mouValue(d.conjuge_rg)}.`
       : "";
-    const enderecoConjuge = d.conjuge_nome_completo && String(d.mesmo_endereco_conjuge) === "false"
-      ? ` O cÃ´njuge reside em ${[d.conjuge_endereco, d.conjuge_bairro, d.conjuge_cidade, d.conjuge_estado, d.conjuge_pais].filter(Boolean).join(", ") || "endereÃ§o nÃ£o informado"}.`
+    const enderecoConjuge = d.conjuge_nome_completo && usaEnderecoSeparado
+      ? ` O cÃ´njuge reside em ${formatEndereco(d, "conjuge") || "endereÃ§o nÃ£o informado"}.`
       : "";
     return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nÂº ${mouValue(d.cpf)} e no RG sob o nÂº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
   }
@@ -5120,11 +5264,12 @@ export async function registerRoutes(
     }
     const aceiteByMember = new Map(aceites.map((aceite: any) => [String(aceite.membro_id), aceite]));
     const fields = [
-      "id", "nome", "Nome_de_usuario", "email", "telefone", "whatsapp", "cpf", "CPF", "cargo", "cidade", "estado", "pais",
+      "id", "nome", "Nome_de_usuario", "email", "telefone", "whatsapp", "cpf", "CPF", "cargo", "cep", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais",
       "nacionalidade", "nome_mae", "nome_pai", "data_nascimento", "profissao", "rg", "estado_civil", "regime_comunhao",
-      "endereco", "bairro", "conjuge_nome_completo", "conjuge_nacionalidade", "conjuge_nome_mae", "conjuge_nome_pai",
+      "titular_cep", "titular_endereco", "titular_numero", "titular_complemento", "titular_bairro", "titular_cidade", "titular_estado", "titular_pais",
+      "conjuge_nome_completo", "conjuge_nacionalidade", "conjuge_nome_mae", "conjuge_nome_pai",
       "conjuge_data_nascimento", "conjuge_profissao", "conjuge_email", "conjuge_telefone", "conjuge_cpf", "conjuge_rg",
-      "mesmo_endereco_conjuge", "conjuge_endereco", "conjuge_bairro", "conjuge_cidade", "conjuge_estado", "conjuge_pais",
+      "mesmo_endereco", "mesmo_endereco_conjuge", "conjuge_cep", "conjuge_endereco", "conjuge_numero", "conjuge_complemento", "conjuge_bairro", "conjuge_cidade", "conjuge_estado", "conjuge_pais",
     ].join(",");
     const participants = [];
     for (const [memberId, roles] of Array.from(grouped.entries())) {
@@ -5151,12 +5296,25 @@ export async function registerRoutes(
       "Diretor(a) de NÃºcleo de Capital": fieldOrParticipant("diretor_capital", "Diretor(a) de NÃºcleo de Capital"),
       "Aliado Licenciado BUILT": fieldOrParticipant("aliado_built", "Aliado Licenciado BUILT"),
     };
+    const camposAtivo = biaMouAtivoCampos(bia);
+    const qualificacaoAtivo = [
+      camposAtivo.qualificacao,
+      camposAtivo.descricaoAdicional,
+      camposAtivo.areaM2 ? `Área: ${camposAtivo.areaM2}m²` : "",
+    ].filter(Boolean).join(" | ");
+    const registroAtivo = [
+      `Matrícula: ${camposAtivo.matricula}`,
+      camposAtivo.livro ? `Livro: ${camposAtivo.livro}` : "",
+      camposAtivo.folha ? `Folha: ${camposAtivo.folha}` : "",
+      `Cartório: ${camposAtivo.cartorio}`,
+      `Comarca: ${camposAtivo.comarca}`,
+    ].filter(Boolean).join(" | ");
     const ativo = [
       `BIA: ${mouValue(bia.nome_bia)}`,
       `ID da BIA: ${biaId}`,
-      `Ativo: ${mouValue(bia.ativo_qualificacao || bia.objetivo_alianca || bia.destinacao)}`,
-      `EndereÃ§o do ativo: ${mouValue(bia.ativo_endereco || bia.localizacao)}`,
-      `MatrÃ­cula: ${mouValue(bia.ativo_numero_matricula)} | CartÃ³rio: ${mouValue(bia.ativo_cartorio)} | Comarca: ${mouValue(bia.ativo_comarca)}`,
+      `Ativo: ${qualificacaoAtivo}`,
+      `Endereço do ativo: ${camposAtivo.enderecoCompleto}`,
+      registroAtivo,
     ].join("\n");
     const partes = participants.length
       ? participants.map(qualificacaoParte).join("\n\n")
@@ -5350,8 +5508,8 @@ export async function registerRoutes(
       const infoLocal = await storage.getBiaInfoComercial(req.params.id).catch(() => null);
       const biaComInfo = {
         ...bia,
-        ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
         ...pickFilledBiaInfoComercialFields(bia ?? {}),
+        ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
       };
       const participants = await getMouParticipantsForBia(biaComInfo, req.params.id);
       const allocationRows = await getBiaAllocationMap(biaComInfo, req.params.id);
@@ -5669,8 +5827,8 @@ export async function registerRoutes(
         const infoLocal = await storage.getBiaInfoComercial(biaId).catch(() => null);
         const biaComInfo = {
           ...bia,
-          ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
           ...pickFilledBiaInfoComercialFields(bia ?? {}),
+          ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
         };
         const participants = await getMouParticipantsForBia(biaComInfo, biaId);
         const allocationRows = await getBiaAllocationMap(biaComInfo, biaId);

@@ -649,9 +649,21 @@ export const biaInfoComercial = pgTable("bia_info_comercial", {
   chave_pix: text("chave_pix"),
   // Informacoes do Ativo
   ativo_endereco: text("ativo_endereco"),
+  ativo_bairro: text("ativo_bairro"),
+  ativo_cidade: text("ativo_cidade"),
+  ativo_estado: text("ativo_estado"),
+  ativo_pais: text("ativo_pais"),
   ativo_qualificacao: text("ativo_qualificacao"),
+  ativo_descricao_adicional: text("ativo_descricao_adicional"),
+  ativo_area_m2: text("ativo_area_m2"),
+  ativo_numero: text("ativo_numero"),
+  ativo_complemento: text("ativo_complemento"),
+  ativo_cep: text("ativo_cep"),
   ativo_numero_matricula: text("ativo_numero_matricula"),
+  ativo_livro: text("ativo_livro"),
+  ativo_folha: text("ativo_folha"),
   ativo_cartorio: text("ativo_cartorio"),
+  ativo_comarca: text("ativo_comarca"),
   updated_at: timestamp("updated_at").defaultNow(),
 });
 

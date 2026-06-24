@@ -470,14 +470,23 @@ interface Membro {
   conjuge_cpf?: string | null;
   conjuge_rg?: string | null;
   mesmo_endereco?: boolean | null;
+  cep?: string | null;
   endereco?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
   bairro?: string | null;
+  titular_cep?: string | null;
   titular_endereco?: string | null;
+  titular_numero?: string | null;
+  titular_complemento?: string | null;
   titular_bairro?: string | null;
   titular_cidade?: string | null;
   titular_estado?: string | null;
   titular_pais?: string | null;
+  conjuge_cep?: string | null;
   conjuge_endereco?: string | null;
+  conjuge_numero?: string | null;
+  conjuge_complemento?: string | null;
   conjuge_bairro?: string | null;
   conjuge_cidade?: string | null;
   conjuge_estado?: string | null;
@@ -540,14 +549,23 @@ const PROFILE_EDITABLE_FIELDS: Array<keyof Membro> = [
   "conjuge_cpf",
   "conjuge_rg",
   "mesmo_endereco",
+  "cep",
   "endereco",
+  "numero",
+  "complemento",
   "bairro",
+  "titular_cep",
   "titular_endereco",
+  "titular_numero",
+  "titular_complemento",
   "titular_bairro",
   "titular_cidade",
   "titular_estado",
   "titular_pais",
+  "conjuge_cep",
   "conjuge_endereco",
+  "conjuge_numero",
+  "conjuge_complemento",
   "conjuge_bairro",
   "conjuge_cidade",
   "conjuge_estado",
@@ -2346,6 +2364,44 @@ function DadosFormalizacaoSection({
   const isCasado = estadoCivil === "casado" || estadoCivil === "casada";
   const mesmoEndereco = form.mesmo_endereco !== false;
   const [open, setOpen] = useState(false);
+  const [cepLoading, setCepLoading] = useState<string | null>(null);
+
+  const applyCep = async (
+    rawCep: string,
+    fields: {
+      cep: keyof Membro;
+      endereco: keyof Membro;
+      bairro: keyof Membro;
+      cidade: keyof Membro;
+      estado: keyof Membro;
+      pais: keyof Membro;
+    },
+  ) => {
+    const digits = rawCep.replace(/\D/g, "").slice(0, 8);
+    setField(fields.cep, digits);
+    if (digits.length !== 8) return;
+
+    const loadingKey = String(fields.cep);
+    setCepLoading(loadingKey);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data || data.erro) return;
+      setForm(current => {
+        const next = { ...current, [fields.cep]: digits } as Partial<Membro>;
+        if (data.logradouro) next[fields.endereco] = data.logradouro;
+        if (data.bairro) next[fields.bairro] = data.bairro;
+        if (data.localidade) next[fields.cidade] = data.localidade;
+        if (data.uf) next[fields.estado] = data.uf;
+        next[fields.pais] = current[fields.pais] || "Brasil";
+        return next;
+      });
+    } catch (error) {
+      console.warn("[perfil] Nao foi possivel buscar o CEP", error);
+    } finally {
+      setCepLoading(current => (current === loadingKey ? null : current));
+    }
+  };
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-slate-200 bg-white">
@@ -2463,7 +2519,13 @@ function DadosFormalizacaoSection({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-3 rounded-lg border border-slate-200 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Endereço do titular</p>
+            <Field label="CEP"><Input value={form.titular_cep || ""} onChange={e => applyCep(e.target.value, { cep: "titular_cep", endereco: "titular_endereco", bairro: "titular_bairro", cidade: "titular_cidade", estado: "titular_estado", pais: "titular_pais" })} inputMode="numeric" /></Field>
+            {cepLoading === "titular_cep" && <p className="text-xs text-slate-500">Buscando CEP...</p>}
             <Field label="Endereço"><Input value={form.titular_endereco || ""} onChange={e => setField("titular_endereco", e.target.value)} /></Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Nº"><Input value={form.titular_numero || ""} onChange={e => setField("titular_numero", e.target.value)} /></Field>
+              <Field label="Complemento"><Input value={form.titular_complemento || ""} onChange={e => setField("titular_complemento", e.target.value)} /></Field>
+            </div>
             <Field label="Bairro"><Input value={form.titular_bairro || ""} onChange={e => setField("titular_bairro", e.target.value)} /></Field>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Cidade"><Input value={form.titular_cidade || ""} onChange={e => setField("titular_cidade", e.target.value)} /></Field>
@@ -2473,7 +2535,13 @@ function DadosFormalizacaoSection({
           </div>
           <div className="space-y-3 rounded-lg border border-slate-200 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Endereço do cônjuge</p>
+            <Field label="CEP"><Input value={form.conjuge_cep || ""} onChange={e => applyCep(e.target.value, { cep: "conjuge_cep", endereco: "conjuge_endereco", bairro: "conjuge_bairro", cidade: "conjuge_cidade", estado: "conjuge_estado", pais: "conjuge_pais" })} inputMode="numeric" /></Field>
+            {cepLoading === "conjuge_cep" && <p className="text-xs text-slate-500">Buscando CEP...</p>}
             <Field label="Endereço"><Input value={form.conjuge_endereco || ""} onChange={e => setField("conjuge_endereco", e.target.value)} /></Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Nº"><Input value={form.conjuge_numero || ""} onChange={e => setField("conjuge_numero", e.target.value)} /></Field>
+              <Field label="Complemento"><Input value={form.conjuge_complemento || ""} onChange={e => setField("conjuge_complemento", e.target.value)} /></Field>
+            </div>
             <Field label="Bairro"><Input value={form.conjuge_bairro || ""} onChange={e => setField("conjuge_bairro", e.target.value)} /></Field>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Cidade"><Input value={form.conjuge_cidade || ""} onChange={e => setField("conjuge_cidade", e.target.value)} /></Field>
@@ -2484,8 +2552,18 @@ function DadosFormalizacaoSection({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="CEP">
+            <Input value={form.cep || ""} onChange={e => applyCep(e.target.value, { cep: "cep", endereco: "endereco", bairro: "bairro", cidade: "cidade", estado: "estado", pais: "pais" })} inputMode="numeric" data-testid="input-perfil-cep" />
+            {cepLoading === "cep" && <p className="mt-1 text-xs text-slate-500">Buscando CEP...</p>}
+          </Field>
           <Field label="Endereço">
             <Input value={form.endereco || ""} onChange={e => setField("endereco", e.target.value)} data-testid="input-perfil-endereco" />
+          </Field>
+          <Field label="Nº">
+            <Input value={form.numero || ""} onChange={e => setField("numero", e.target.value)} data-testid="input-perfil-numero" />
+          </Field>
+          <Field label="Complemento">
+            <Input value={form.complemento || ""} onChange={e => setField("complemento", e.target.value)} data-testid="input-perfil-complemento" />
           </Field>
           <Field label="Bairro">
             <Input value={form.bairro || ""} onChange={e => setField("bairro", e.target.value)} data-testid="input-perfil-bairro" />

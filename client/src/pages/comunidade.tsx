@@ -1226,6 +1226,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const comunidadesParaConvites = (isAdmin || isManager) ?comunidades : minhasComunidadesComoAliado;
   const canViewCandidateRestrictedData = (convite: any) => {
     if (isAdmin || isManager) return true;
+    if (convite?.invitador_membro_id && user?.membro_directus_id && String(convite.invitador_membro_id) === String(user.membro_directus_id)) return true;
     if (!convite?.comunidade_id || !user?.membro_directus_id) return false;
     return minhasComunidadesComoAliado.some(c => String(c.id) === String(convite.comunidade_id));
   };
@@ -1242,6 +1243,19 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       return result;
     },
     enabled: comunidadesParaConvites.length > 0,
+    refetchInterval: 30000,
+  });
+
+  const { data: convitesComoConector = [] } = useQuery<any[]>({
+    queryKey: ["/api/convites/conector", user?.membro_directus_id],
+    queryFn: async () => {
+      if (!user?.membro_directus_id) return [];
+      const r = await fetch(`/api/convites?invitador_membro_id=${encodeURIComponent(user.membro_directus_id)}`, { credentials: "include" });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: Boolean(user?.membro_directus_id),
     refetchInterval: 30000,
   });
 
@@ -1452,6 +1466,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     mutationFn: ({ avaliacaoToken, palavras }: { avaliacaoToken: string; palavras: string[] }) =>
       apiRequest("POST", `/api/avaliacao-aura/${avaliacaoToken}`, { palavras }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/conector"] });
       toast({ title: "Percepção de Aura registrada!" });
       resetAuraDialog();
     },
@@ -1687,7 +1704,13 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   };
 
   const todosCandidatos = Object.values(convitesPorComunidade || {}).flat();
-  const vitrineCandidatosFiltrados = vitrineCandidatos;
+  const mergeConvitesById = (...groups: any[][]) => Array.from(
+    new Map(groups.flat().map((convite: any) => [String(convite.id), convite])).values()
+  );
+  const vitrineCandidatosFiltrados = mergeConvitesById(
+    vitrineCandidatos,
+    convitesComoConector.filter((convite: any) => ["vitrine", "capital"].includes(String(convite.tipo || "")))
+  );
   const todosCandidatosFiltrados = todosCandidatos;
   const candidatosPendentes = todosCandidatosFiltrados.filter(c => c.status === "candidato");
   const vitrinePendentes = vitrineCandidatosFiltrados.filter(c => ["candidato", "aguardando_avaliacao_aura"].includes(c.status));
@@ -1765,7 +1788,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       .replace(/[\u0300-\u036f]/g, "");
   const convitesUnificados = Array.from(
     new Map(
-      [...vitrineCandidatosFiltrados, ...todosCandidatosCompleto].map((convite: any) => [
+      [...vitrineCandidatosFiltrados, ...todosCandidatosCompleto, ...convitesComoConector].map((convite: any) => [
         String(convite.id),
         convite,
       ])
@@ -1851,11 +1874,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     .slice(0, 12);
   // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
-    vitrineCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length +
-    todosCandidatos.filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length;
+    mergeConvitesById(vitrineCandidatos, todosCandidatos, convitesComoConector)
+      .filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className={`p-6 space-y-6 max-w-7xl mx-auto ${convitesOnly ?"notifications-page" : ""}`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1867,7 +1890,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
           </div>
           <div>
             <h1 className="text-2xl font-bold" data-testid="text-comunidade-title">{convitesOnly ?"Notificações" : "Comunidades"}</h1>
-            <p className="text-sm text-white/40 font-mono mt-0.5">
+            <p className={`text-sm mt-0.5 ${convitesOnly ?"text-slate-500" : "text-white/40 font-mono"}`}>
               {convitesOnly
                 ?"Acompanhe aprovações, chamadas para aliança e novas ofertas públicas"
                 : `${comunidades.length} comunidade${comunidades.length !== 1 ?"s" : ""} ativa${comunidades.length !== 1 ?"s" : ""}`}
@@ -2212,6 +2235,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   const nomeConector = invitador?.nome || null;
                   const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/40" };
                   const dados = convite.dados_contratuais as any;
+                  const showAuraAction = Boolean(convite.avaliacao_token) && (isAguardandoAura || (isVitrine && isPendente));
                   return (
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0 space-y-1">
@@ -2264,6 +2288,20 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                             {isAguardandoAura ? "Ver perfil" : "Ver detalhes"}
                           </button>
                         )}
+                        {showAuraAction && (
+                          <button
+                            onClick={() => {
+                              setAuraDialogConvite({ avaliacaoToken: convite.avaliacao_token, candidatoNome: convite.candidato_nome || "Candidato" });
+                              setAuraSelectedWords([]);
+                              setAuraSearch("");
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-[#9B7A32] border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
+                            data-testid={"btn-avaliar-aura-" + convite.id}
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Registrar Aura
+                          </button>
+                        )}
                         {isVitrine ?(
                           <>
                             {isPendente && (
@@ -2287,20 +2325,6 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                                   Rejeitar
                                 </button>
                               </>
-                            )}
-                            {(isPendente || isAguardandoAura) && convite.avaliacao_token && (
-                              <button
-                                onClick={() => {
-                                  setAuraDialogConvite({ avaliacaoToken: convite.avaliacao_token, candidatoNome: convite.candidato_nome || "Candidato" });
-                                  setAuraSelectedWords([]);
-                                  setAuraSearch("");
-                                }}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-[#9B7A32] border border-brand-gold/30 hover:bg-brand-gold/10 transition-colors"
-                                data-testid={"btn-avaliar-aura-" + convite.id}
-                              >
-                                <Sparkles className="w-3.5 h-3.5" />
-                                Registrar Aura
-                              </button>
                             )}
                           </>
                         ) : (

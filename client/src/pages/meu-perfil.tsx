@@ -94,6 +94,7 @@ const CONTRIBUTION_AREA_ORDER = [
   "gestao de relacionamento com cliente",
   "relacionamento",
   "lideranca de capital",
+  "aporte financeiro",
   "investimento",
   "credito e captacao",
   "contabeis e tributarias",
@@ -118,7 +119,7 @@ const AREA_ICON_CONFIG: Record<string, { icon: typeof Flag; color: string; bg: s
   "Operações e Facilities": { icon: Building2, color: "text-purple-600", bg: "bg-purple-50" },
   "Gestão de Relacionamento com Cliente": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   "Relacionamento": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
-  "Investimento": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
+  "Aporte Financeiro": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
   "Crédito e Captação": { icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50" },
   "Contábeis e Tributárias": { icon: ReceiptText, color: "text-orange-600", bg: "bg-orange-50" },
   "Gestão Financeira": { icon: CircleDollarSign, color: "text-orange-600", bg: "bg-orange-50" },
@@ -210,7 +211,7 @@ const AREA_INFO_CONFIG: Record<string, { nucleo: string; cpp: string; descriptio
     description: "Profissionais e empresas responsáveis por atendimento, pós-venda, SAC, garantias, jornada do cliente, retenção, reputação e continuidade da relação comercial.",
     footer: "Transforma o ativo físico em ativo econômico por meio de venda, locação, operação, relacionamento e geração de receita.",
   },
-  "Investimento": {
+  "Aporte Financeiro": {
     nucleo: "Núcleo de Alianças de Capital",
     cpp: "CPP de Capital",
     description: "Investidores, cotistas, financiadores e parceiros de capital responsáveis por aportar recursos financeiros.",
@@ -665,6 +666,11 @@ function uniqueContributionAreas(tipos?: string[] | null): string[] {
   });
 }
 
+function hasAporteFinanceiro(tipos?: string[] | null): boolean {
+  const aporteKey = contributionKey("Aporte Financeiro");
+  return uniqueContributionAreas(tipos).some((tipo) => contributionKey(tipo) === aporteKey);
+}
+
 export default function MeuPerfilPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -720,12 +726,25 @@ export default function MeuPerfilPage() {
     setForm(f => ({ ...f, cidade, estado, pais, latitude: String(lat), longitude: String(lng) }));
   }
 
+  function applyContributionAreas(current: Partial<Membro>, tipos: string[]): Partial<Membro> {
+    const tiposAlianca = uniqueContributionAreas(tipos);
+    const shouldSelectCapital = hasAporteFinanceiro(tiposAlianca);
+    return {
+      ...current,
+      tipos_alianca: tiposAlianca,
+      nucleos_alianca: getNucleosForTipos(tiposAlianca),
+      em_built_capital: shouldSelectCapital ? true : current.em_built_capital,
+    };
+  }
+
   useEffect(() => {
     if (membro) {
+      const tiposAlianca = uniqueContributionAreas(membro.tipos_alianca);
       setForm({
         ...membro,
         link_site: sanitizeLinkSite(membro.link_site),
-        tipos_alianca: uniqueContributionAreas(membro.tipos_alianca),
+        tipos_alianca: tiposAlianca,
+        em_built_capital: hasAporteFinanceiro(tiposAlianca) ? true : membro.em_built_capital,
       });
     }
   }, [membro]);
@@ -1018,6 +1037,7 @@ export default function MeuPerfilPage() {
       return;
     }
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
+    const shouldSelectCapital = hasAporteFinanceiro(tiposAlianca);
     const linkSite = sanitizeLinkSite(form.link_site);
     const payload: Record<string, any> = {
       ...buildProfilePayload(form),
@@ -1026,6 +1046,7 @@ export default function MeuPerfilPage() {
       link_site: linkSite || null,
       tipos_alianca: tiposAlianca,
       nucleos_alianca: getNucleosForTipos(tiposAlianca),
+      em_built_capital: shouldSelectCapital ? true : form.em_built_capital,
     };
     // Send Especialidades as Directus M2M array
     payload.Especialidades = form.especialidade_id
@@ -1346,7 +1367,7 @@ export default function MeuPerfilPage() {
                             const current = uniqueContributionAreas(form.tipos_alianca);
                             const tipoKey = contributionKey(tipo.nome);
                             const novos = selected ? current.filter(x => contributionKey(x) !== tipoKey) : [...current, tipo.nome];
-                            setForm(f => ({ ...f, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                            setForm(f => applyContributionAreas(f, novos));
                           }}
                           onKeyDown={(event) => {
                             if (event.key !== "Enter" && event.key !== " ") return;
@@ -1354,7 +1375,7 @@ export default function MeuPerfilPage() {
                             const current = uniqueContributionAreas(form.tipos_alianca);
                             const tipoKey = contributionKey(tipo.nome);
                             const novos = selected ? current.filter(x => contributionKey(x) !== tipoKey) : [...current, tipo.nome];
-                            setForm(f => ({ ...f, tipos_alianca: novos, nucleos_alianca: getNucleosForTipos(novos) }));
+                            setForm(f => applyContributionAreas(f, novos));
                           }}
                           className={`flex min-h-11 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${
                             selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-700 hover:border-blue-300"

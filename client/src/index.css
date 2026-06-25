@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+.notifications-page,
+.notifications-page .font-mono {
+  font-family: var(--font-sans) !important;
+}
+
+.notifications-page .tracking-widest,
+.notifications-page .tracking-\[0\.3em\] {
+  letter-spacing: 0 !important;
+}
+
 /* LIGHT MODE - Built Alliances Brand */
 :root {
   --button-outline: rgba(0,0,0, .10);

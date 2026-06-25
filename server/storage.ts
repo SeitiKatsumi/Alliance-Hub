@@ -114,6 +114,7 @@ export interface IStorage {
   getAllConvites(): Promise<ConviteComunidade[]>;
   getConvitesByComunidade(comunidadeId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidato(candidatoMembroId: string): Promise<ConviteComunidade[]>;
+  getConvitesByInvitador(invitadorMembroId: string): Promise<ConviteComunidade[]>;
   getConvitesByCandidatoMembro(membroId: string, tipo?: string): Promise<ConviteComunidade[]>;
   getConvitesTermosPendentes(): Promise<ConviteComunidade[]>;
   updateConvite(id: string, data: Partial<ConviteComunidade>): Promise<ConviteComunidade | undefined>;
@@ -536,6 +537,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(convitesComunidade)
       .where(eq(convitesComunidade.candidato_membro_id, candidatoMembroId))
+      .orderBy(desc(convitesComunidade.criado_em));
+  }
+
+  async getConvitesByInvitador(invitadorMembroId: string): Promise<ConviteComunidade[]> {
+    return db
+      .select()
+      .from(convitesComunidade)
+      .where(eq(convitesComunidade.invitador_membro_id, invitadorMembroId))
       .orderBy(desc(convitesComunidade.criado_em));
   }
 

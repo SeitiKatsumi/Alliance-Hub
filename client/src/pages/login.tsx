@@ -45,7 +45,7 @@ const CONVITE_TIPO_LABEL: Record<string, string> = {
   associacao_completa: "BUILT Alliances",
 };
 
-const BUILT_CAPITAL_TIPO = "Alianças de Investimento";
+const BUILT_CAPITAL_TIPO = "Alianças de Aporte Financeiro";
 const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário & Negócios Aplicados";
 const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
 const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
@@ -69,6 +69,7 @@ const CONTRIBUTION_AREA_ORDER = [
   "gestao de relacionamento com cliente",
   "relacionamento",
   "lideranca de capital",
+  "aporte financeiro",
   "investimento",
   "credito e captacao",
   "contabeis e tributarias",
@@ -93,7 +94,7 @@ const AREA_ICON_CONFIG: Record<string, { icon: typeof Crown; color: string; bg: 
   "Operações e Facilities": { icon: Building2, color: "text-purple-600", bg: "bg-purple-50" },
   "Gestão de Relacionamento com Cliente": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   "Relacionamento": { icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
-  "Investimento": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
+  "Aporte Financeiro": { icon: ChartNoAxesCombined, color: "text-orange-600", bg: "bg-orange-50" },
   "Crédito e Captação": { icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50" },
   "Contábeis e Tributárias": { icon: ReceiptText, color: "text-orange-600", bg: "bg-orange-50" },
   "Gestão Financeira": { icon: CircleDollarSign, color: "text-orange-600", bg: "bg-orange-50" },
@@ -134,7 +135,7 @@ const AREA_INFO_CONFIG: Record<string, { nucleo: string; cpp: string; descriptio
   "Marketing": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Profissionais e empresas de marketing, branding, performance, conteúdo, mídia, eventos e relacionamento responsáveis por posicionar a BIA, gerar demanda qualificada e fortalecer a percepção de valor do ativo." },
   "Operações e Facilities": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Operadores, gestores de facilities, administradoras, manutenção, terceirização e prestadores responsáveis pela operação, conservação, eficiência, ocupação e experiência de uso do ativo." },
   "Gestão de Relacionamento com Cliente": { nucleo: "Núcleo de Alianças Comerciais", cpp: "CPP Comercial", description: "Profissionais e empresas responsáveis por atendimento, pós-venda, SAC, garantias, jornada do cliente, retenção, reputação e continuidade da relação comercial.", footer: "Transforma o ativo físico em ativo econômico por meio de venda, locação, operação, relacionamento e geração de receita." },
-  "Investimento": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Investidores, cotistas, financiadores e parceiros de capital responsáveis por aportar recursos financeiros." },
+  "Aporte Financeiro": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Investidores, cotistas, financiadores e parceiros de capital responsáveis por aportar recursos financeiros." },
   "Crédito e Captação": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Bancos, instituições financeiras, fundos, securitizadoras, family offices e parceiros de crédito responsáveis por viabilizar recursos, financiamentos, antecipações, operações de crédito e demais instrumentos de captação para a BIA." },
   "Contábeis e Tributárias": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Profissionais e empresas responsáveis pela contabilidade, planejamento tributário, obrigações fiscais e acessórias, apuração de tributos, relatórios contábeis, prestação de contas e conformidade fiscal da BIA." },
   "Gestão Financeira": { nucleo: "Núcleo de Alianças de Capital", cpp: "CPP de Capital", description: "Profissionais e empresas responsáveis pelo planejamento financeiro, fluxo de caixa, controladoria, projeções, acompanhamento orçamentário, gestão financeira da operação e suporte à tomada de decisão econômica da BIA.", footer: "Garante gestão econômica, financeira, contábil e tributária com controle de caixa, transparência, conformidade fiscal e apuração segura dos resultados." },
@@ -1062,7 +1063,7 @@ export default function LoginPage() {
 
                     <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                       <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">2. Áreas de Contribuição</h3>
-                      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Investimento é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
+                      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Aporte Financeiro é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
                       <div className="mt-3 grid max-h-[18rem] gap-2 overflow-y-auto pr-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
                         {sortContributionAreas(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {
                           const selected = interessesSelecionados.includes("capital") || regTiposAlianca.includes(tipo);

@@ -742,7 +742,7 @@ function OpaCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap gap-1.5">
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-              {opa.tipo || "OPA"}
+              {getTipoDisplayName(opa.tipo || "") || "OPA"}
             </span>
             {opa.ramo_atuacao && (
               <span className="max-w-[180px] truncate rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
@@ -1180,7 +1180,7 @@ export function OpaFormDialog({
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Área de contribuição *</Label>
             <Select
-              value={form.tipo || undefined}
+              value={getTipoDisplayName(form.tipo || "") || undefined}
               onValueChange={v => setForm(f => ({ ...f, tipo: v }))}
             >
               <SelectTrigger

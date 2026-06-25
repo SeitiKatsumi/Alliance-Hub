@@ -1100,7 +1100,7 @@ export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = {
     { nome: "Alianças de Gestão de Relacionamento com Cliente", descricao: "Pós-venda, SAC, garantias, suporte técnico" },
   ],
   "Núcleo de Capital": [
-    { nome: "Alianças de Investimento", descricao: "Captação de recursos, relacionamento com investidores, estruturação de investimentos" },
+    { nome: "Alianças de Aporte Financeiro", descricao: "Aporte de recursos financeiros, relacionamento com investidores, cotistas e parceiros de capital" },
     { nome: "Alianças de Crédito e Captação", descricao: "Crédito, financiamento, funding, captação de investidores, recursos e parceiros financeiros" },
     { nome: "Alianças Contábeis e Tributárias", descricao: "Contabilidade, tributos e conciliação" },
     { nome: "Alianças de Gestão Financeira", descricao: "Orçamento, caixa, controle" },
@@ -1140,8 +1140,18 @@ export function getAllTipos(): TipoAliancaItem[] {
 }
 
 export function getNucleoForTipo(tipoNome: string): string | null {
+  const normalizedTipo = getTipoDisplayName(tipoNome)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
   for (const [nucleo, tipos] of Object.entries(NUCLEOS_TIPOS)) {
-    if (tipos.some(t => t.nome === tipoNome)) return nucleo;
+    if (tipos.some(t => {
+      const normalizedCandidate = getTipoDisplayName(t.nome)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      return t.nome === tipoNome || normalizedCandidate === normalizedTipo;
+    })) return nucleo;
   }
   return null;
 }
@@ -1153,6 +1163,7 @@ export function getTipoDisplayName(nome: string): string {
     .replace(/^Alianças /i, "");
   if (display === "Governança") return "Integridade e sustentabilidade";
   if (display === "Crédito" || display === "Captação") return "Crédito e Captação";
+  if (display === "Investimento") return "Aporte Financeiro";
   return display;
 }
 

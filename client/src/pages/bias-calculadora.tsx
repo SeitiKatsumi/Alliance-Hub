@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Calculator,
   Save,
@@ -41,6 +42,7 @@ import {
   ChevronUp,
   CheckCircle2,
   AlertTriangle,
+  Pencil,
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
 
@@ -208,6 +210,34 @@ function formatPerc(value: number): string {
   return `${value.toFixed(2)}%`;
 }
 
+interface InstitutionalPercentageRange {
+  label: string;
+  maxValue: number;
+  percentual: number;
+}
+
+const DEFAULT_INSTITUTIONAL_PERCENTAGE_RANGES: InstitutionalPercentageRange[] = [
+  { label: "Até R$ 1,5 milhões", maxValue: 1_500_000, percentual: 1.25 },
+  { label: "Até R$ 3 milhões", maxValue: 3_000_000, percentual: 1 },
+  { label: "Até R$ 7 milhões", maxValue: 7_000_000, percentual: 0.85 },
+  { label: "Até R$ 15 milhões", maxValue: 15_000_000, percentual: 0.7 },
+  { label: "Até R$ 30 milhões", maxValue: 30_000_000, percentual: 0.6 },
+  { label: "Até R$ 75 milhões", maxValue: 75_000_000, percentual: 0.5 },
+];
+
+function getInstitutionalPercentageRange(valorOrigem: number, ranges: InstitutionalPercentageRange[]) {
+  if (!valorOrigem || valorOrigem <= 0) return null;
+  return ranges.find((range) => valorOrigem <= range.maxValue) || null;
+}
+
+function formatRangeLabel(maxValue: number): string {
+  if (maxValue >= 1_000_000) {
+    const millions = maxValue / 1_000_000;
+    return `Até R$ ${millions.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} milhões`;
+  }
+  return `Até ${formatBRL(maxValue)}`;
+}
+
 function formatInputBRL(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (!digits) return "";
@@ -299,11 +329,18 @@ export default function BiasCalculadoraPage({
   embedded?: boolean;
 } = {}) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "admin";
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const [cppSummary, setCppSummary] = useState<CppSummary | null>(null);
   const [cppError, setCppError] = useState<string | null>(null);
   const [showCppDetails, setShowCppDetails] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showRangeTable, setShowRangeTable] = useState(false);
+  const [editingRangeIndex, setEditingRangeIndex] = useState<number | null>(null);
+  const [institutionalRanges, setInstitutionalRanges] = useState<InstitutionalPercentageRange[]>(
+    DEFAULT_INSTITUTIONAL_PERCENTAGE_RANGES
+  );
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -352,6 +389,11 @@ export default function BiasCalculadoraPage({
     if (formaPagamento === "a_vista") return valorAVista;
     return biaValorOrigem;
   }, [formaPagamento, valoresParcelas, valorAVista, biaValorOrigem]);
+  const institutionalRange = useMemo(
+    () => getInstitutionalPercentageRange(valorOrigem, institutionalRanges),
+    [valorOrigem, institutionalRanges]
+  );
+  const institutionalPercent = institutionalRange?.percentual ?? null;
 
   const [percAutor, setPercAutor] = useState(0);
   const [percAliado, setPercAliado] = useState(0);
@@ -467,6 +509,13 @@ export default function BiasCalculadoraPage({
       setPercCapital(2);
     }
   }, [membroDirCapital]);
+
+  useEffect(() => {
+    if (institutionalPercent === null) return;
+    setPercAliado(institutionalPercent);
+    setPercBuilt(institutionalPercent);
+    setPercAlianca(institutionalPercent);
+  }, [institutionalPercent, valorOrigem, selectedBiaId]);
 
   // Calculations
   const divisorMultiplicador = percAliado + percBuilt + percTecnico + percAlianca + percObras + percComercial + percCapital;
@@ -586,6 +635,21 @@ export default function BiasCalculadoraPage({
     { label: "Dir. Núcleo Comercial", icon: Briefcase, value: percComercial, setter: setPercComercial, cpp: cppComercial, color: "text-green-500", memberId: membroDirComercial, memberSetter: setMembroDirComercial },
     { label: "Dir. Núcleo de Capital", icon: Wallet, value: percCapital, setter: setPercCapital, cpp: cppCapital, color: "text-red-500", memberId: membroDirCapital, memberSetter: setMembroDirCapital },
   ];
+
+  function updateInstitutionalRange(index: number, patch: Partial<InstitutionalPercentageRange>) {
+    setInstitutionalRanges((current) => current.map((range, rangeIndex) => {
+      if (rangeIndex !== index) return range;
+      const maxValue = Math.max(0, patch.maxValue ?? range.maxValue);
+      const percentual = Math.max(0, patch.percentual ?? range.percentual);
+      return {
+        ...range,
+        ...patch,
+        maxValue,
+        percentual,
+        label: patch.maxValue !== undefined ?formatRangeLabel(maxValue) : range.label,
+      };
+    }));
+  }
 
   if (loadingBias) {
     return (
@@ -814,8 +878,115 @@ export default function BiasCalculadoraPage({
                 <Percent className="w-5 h-5 text-brand-gold" />
                 Fatores de Multiplicação
               </CardTitle>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Range aplicado a Aliado BUILT, BUILT e Dir. de Aliança:{" "}
+                  <span className="font-semibold text-foreground">
+                    {institutionalPercent !== null ?formatPerc(institutionalPercent) : "sob proposta"}
+                  </span>
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRangeTable((current) => !current)}
+                  className="h-8 justify-center gap-2"
+                  data-testid="button-range-percentuais"
+                >
+                  <Percent className="h-3.5 w-3.5" />
+                  Ranges
+                  {showRangeTable ?<ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {showRangeTable && (
+                <div className="overflow-hidden rounded-lg border border-border" data-testid="table-range-percentuais">
+                  <table className="w-full text-xs">
+                    <thead className="bg-[#001D34] text-white">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold">Valor de Origem da BIA</th>
+                        <th className="px-3 py-2 text-left font-semibold">Direito Econômico Institucional</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {institutionalRanges.map((range, index) => {
+                        const active = institutionalRange?.maxValue === range.maxValue;
+                        const editing = isSuperAdmin && editingRangeIndex === index;
+                        return (
+                          <tr key={index} className={active ?"bg-brand-gold/10" : "bg-background"}>
+                            <td className="border-t border-border px-3 py-2">
+                              {editing ?(
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground">Até R$</span>
+                                  <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={numToBRLStr(range.maxValue)}
+                                    onChange={(event) => {
+                                      const formatted = formatInputBRL(event.target.value);
+                                      updateInstitutionalRange(index, { maxValue: parseBRLCalc(formatted) });
+                                    }}
+                                    className="h-7 max-w-36 text-xs tabular-nums"
+                                    data-testid={`input-range-valor-${index}`}
+                                  />
+                                </div>
+                              ) : (
+                                range.label
+                              )}
+                            </td>
+                            <td className="border-t border-border px-3 py-2 font-semibold">
+                              <div className="flex items-center justify-between gap-2">
+                                {editing ?(
+                                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={range.percentual}
+                                      onChange={(event) => updateInstitutionalRange(index, { percentual: parseFloat(event.target.value) || 0 })}
+                                      className="h-7 max-w-24 text-xs tabular-nums"
+                                      data-testid={`input-range-percentual-${index}`}
+                                    />
+                                    <span>sobre o Valor de Origem</span>
+                                  </div>
+                                ) : (
+                                  <span>{formatPerc(range.percentual)} sobre o Valor de Origem</span>
+                                )}
+                                {isSuperAdmin && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0"
+                                    onClick={() => setEditingRangeIndex(editing ?null : index)}
+                                    data-testid={`button-edit-range-${index}`}
+                                    aria-label={editing ? "Concluir edição do range" : "Editar range"}
+                                  >
+                                    {editing ?(
+                                      <Check className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className={!institutionalRange && valorOrigem > 75_000_000 ?"bg-brand-gold/10" : "bg-background"}>
+                        <td className="border-t border-border px-3 py-2">Acima de R$ 75 milhões</td>
+                        <td className="border-t border-border px-3 py-2 font-semibold">Sob proposta</td>
+                      </tr>
+                      <tr className="bg-background">
+                        <td className="border-t border-border px-3 py-2">Enterprise / institucional</td>
+                        <td className="border-t border-border px-3 py-2 font-semibold">Sob proposta</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {percFields.map((field, idx) => {
                   const Icon = field.icon;

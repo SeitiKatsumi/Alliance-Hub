@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { getBiaUrl } from "@/lib/bia-url";
+import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { OpaFormDialog } from "@/pages/oportunidades";
 
 interface AnexoFile {
@@ -353,7 +354,7 @@ export default function OpaDetalhePage() {
               style={{ borderColor: "rgba(215,187,125,0.3)", color: "#D7BB7D99", background: "rgba(215,187,125,0.06)" }}>
               <span style={{ color: "#D7BB7D60" }}>◆</span> OPA
             </span>
-            {opa.tipo && <Badge variant="secondary" className="text-[10px]">{opa.tipo}</Badge>}
+            {opa.tipo && <Badge variant="secondary" className="text-[10px]">{getTipoDisplayName(opa.tipo)}</Badge>}
             {isClosed && opa.status === "concluida" && (
               <Badge className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/15">
                 <CheckCircle2 className="w-3 h-3 mr-1" /> Concluída
@@ -516,7 +517,7 @@ export default function OpaDetalhePage() {
           <Card>
             <CardContent className="pt-5 pb-4 space-y-4">
               <SectionTitle icon={Target}>Informações</SectionTitle>
-              <InfoRow label="Tipo" value={opa.tipo} />
+              <InfoRow label="Tipo" value={getTipoDisplayName(opa.tipo || "")} />
               <InfoRow label="Núcleo de Aliança" value={opa.nucleo_alianca} />
               <InfoRow label="País" value={opa.pais} />
               {opa.date_created && (
@@ -646,7 +647,7 @@ export default function OpaDetalhePage() {
                   <SectionTitle icon={Target}>Status</SectionTitle>
                   <div className="space-y-3">
                     <InfoRow label="Status da OPA" value={opa.status || "ativa"} />
-                    <InfoRow label="Tipo" value={opa.tipo} />
+                    <InfoRow label="Tipo" value={getTipoDisplayName(opa.tipo || "")} />
                     <InfoRow label="Núcleo responsável" value={opa.nucleo_alianca} />
                   </div>
                 </CardContent>

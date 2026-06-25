@@ -102,7 +102,7 @@ function LegacyBiasRedirect() {
 }
 
 const BUILT_CAPITAL_NUCLEO = "Núcleo de Capital";
-const BUILT_CAPITAL_TIPO = "Alianças de Investimento";
+const BUILT_CAPITAL_TIPO = "Alianças de Aporte Financeiro";
 const CODIGO_ETICA_BUILT_VERSAO = "BUILT JUR - 1";
 const CODIGO_ETICA_BUILT = [
   "Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.",

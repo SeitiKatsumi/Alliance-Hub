@@ -17,8 +17,8 @@ const config: AliancaDocsPageConfig = {
   hideHeaderChrome: true,
   aliancas: [
     {
-      key: "investimento",
-      label: "Aliancas de Investimento",
+      key: "aporte-financeiro",
+      label: "Aliancas de Aporte Financeiro",
       tipos: [
         { label: "Memorando/teaser do investimento + pitch deck + data room" },
         { label: "Estrutura do investimento (instrumento, risco, retorno, etc.) (Padrao Politicas BUILT)" },

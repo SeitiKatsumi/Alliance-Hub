@@ -482,8 +482,8 @@ const DIRETOR_CHAMADA_TIPOS: Partial<Record<ChamadaAlvoCampo, string>> = {
   diretor_execucao: "Liderança",
   diretor_comercial: "Liderança",
   diretor_capital: "Liderança",
-  socios_guardioes: "Investimento",
-  socios_multiplicadores: "Investimento",
+  socios_guardioes: "Aporte Financeiro",
+  socios_multiplicadores: "Aporte Financeiro",
 };
 
 const DIRETOR_CHAMADA_PERCENT_FIELDS: Partial<Record<ChamadaAlvoCampo, keyof FormState>> = {

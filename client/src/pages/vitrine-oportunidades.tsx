@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 interface OportunidadeVitrine {
   id: string;
@@ -81,7 +82,7 @@ function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () =
       <CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-            {opa.tipo || "OPA"}
+            {getTipoDisplayName(opa.tipo || "") || "OPA"}
           </Badge>
           {opa.status && (
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
@@ -274,7 +275,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
                 <Input
                   value={chamadaForm.tipo}
                   onChange={(event) => setChamadaForm((current) => ({ ...current, tipo: event.target.value }))}
-                  placeholder="Investimento, Projeto, Lideranca..."
+                  placeholder="Aporte Financeiro, Projeto, Lideranca..."
                 />
               </div>
               <div className="space-y-1.5">

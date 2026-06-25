@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { useAuth } from "@/hooks/use-auth";
+import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 
 interface OportunidadePublica {
   id: string;
@@ -227,7 +228,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
               <span className="inline-flex items-center gap-1 rounded-sm border border-blue-300/30 bg-blue-300/10 px-2 py-0.5 font-mono text-[9px] text-blue-100">
                 {badgeLabel}
               </span>
-              {opa.tipo && <Badge variant="secondary">{opa.tipo}</Badge>}
+              {opa.tipo && <Badge variant="secondary">{getTipoDisplayName(opa.tipo)}</Badge>}
               {opa.status && (
                 <Badge className="bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/15">
                   {String(opa.status).replace(/_/g, " ")}
@@ -312,7 +313,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
           <Card>
             <CardContent className="space-y-4 pt-5">
               <SectionTitle icon={Target}>Informações</SectionTitle>
-              <InfoRow label="Tipo" value={opa.tipo} />
+              <InfoRow label="Tipo" value={getTipoDisplayName(opa.tipo || "")} />
               <InfoRow label="Núcleo de aliança" value={opa.nucleo_alianca} />
               <InfoRow label="Localização" value={opa.localizacao || opa.pais} />
               {opa.date_created && (

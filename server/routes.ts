@@ -3707,7 +3707,7 @@ export async function registerRoutes(
     diretor_nucleo_tecnico: { nucleo: "NÃºcleo tÃ©cnico", tipo: "Projeto" },
     diretor_execucao: { nucleo: "NÃºcleo de Obra", tipo: "ExecuÃ§Ã£o" },
     diretor_comercial: { nucleo: "NÃºcleo Comercial", tipo: "Comercial" },
-    diretor_capital: { nucleo: "NÃºcleo de Capital", tipo: "Investimento" },
+    diretor_capital: { nucleo: "NÃºcleo de Capital", tipo: "Aporte Financeiro" },
   };
 
   Object.keys(CHAMADA_DIRETOR_CONFIG).forEach((campo) => {
@@ -3723,8 +3723,8 @@ export async function registerRoutes(
   };
 
   const CHAMADA_PATRIMONIAL_CONFIG: Record<string, { nucleo: string; tipo: string; label: string }> = {
-    socios_guardioes: { nucleo: "Socios Guardioes", tipo: "Investimento", label: "Socios Guardioes" },
-    socios_multiplicadores: { nucleo: "Socios Multiplicadores", tipo: "Investimento", label: "Socios Multiplicadores" },
+    socios_guardioes: { nucleo: "Socios Guardioes", tipo: "Aporte Financeiro", label: "Socios Guardioes" },
+    socios_multiplicadores: { nucleo: "Socios Multiplicadores", tipo: "Aporte Financeiro", label: "Socios Multiplicadores" },
   };
 
   function normalizePercent(value: any): string | null {
@@ -4939,47 +4939,55 @@ export async function registerRoutes(
           };
         });
       if (!rows.length) return;
-      const note = lines.find((item) => item.includes("Este mapa"));
-      const noteLines = note ? wrapPdfLine(note, 112) : [];
-      const noteSpace = noteLines.length ? noteLines.length * 13 + 28 : 0;
+      const groupOrder = ["Sócios Guardiões", "SÃ³cios GuardiÃµes", "Sócios Multiplicadores", "SÃ³cios Multiplicadores", "Não classificados", "NÃ£o classificados"];
       const groups = Array.from(rows.reduce((acc, row) => {
         if (!acc.has(row.group)) acc.set(row.group, []);
         acc.get(row.group)!.push(row);
         return acc;
-      }, new Map<string, typeof rows>()).entries());
-      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 44 + groupRows.length * 42, 34 + noteSpace);
+      }, new Map<string, typeof rows>()).entries()).sort(([a], [b]) => {
+        const ai = groupOrder.indexOf(a);
+        const bi = groupOrder.indexOf(b);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+      const totalHeight = groups.reduce((sum, [, groupRows]) => sum + 34 + groupRows.length * 47, 28);
       ensure(totalHeight + 22);
       const cardX = 42;
       const cardW = 511;
-      roundedRect(cardX, y - totalHeight + 14, cardW, totalHeight, 8, "1 1 1", "0.86 0.78 0.62", 0.6);
-      let rowY = y - 20;
+      const cardBottomY = y - totalHeight + 14;
+      roundedRect(cardX, y - totalHeight + 14, cardW, totalHeight, 8, "1 1 1", "0.86 0.78 0.62", 0.55);
+      let rowY = y - 18;
       for (const [group, groupRows] of groups) {
-        text(group, 58, rowY, 8.2, "F2", slate);
-        const countX = Math.min(220, 58 + estimateTextWidth(group, 8.2, "F2") + 10);
-        roundedRect(countX, rowY - 7, 15, 12, 6, "0.90 0.95 1.00");
-        textCenter(String(groupRows.length), countX + 7.5, rowY - 3, 7, "F2", blue);
-        rowY -= 30;
+        const groupLabel = group.replace("SÃ³cios", "Sócios").replace("GuardiÃµes", "Guardiões").replace("NÃ£o", "Não").toUpperCase();
+        const countFill = groupLabel.includes("MULTIPLICADORES") ? "0.88 0.98 0.93" : "0.90 0.95 1.00";
+        const countColor = groupLabel.includes("MULTIPLICADORES") ? "0.08 0.58 0.30" : blue;
+        text(groupLabel, 58, rowY, 8.4, "F2", "0.38 0.46 0.54");
+        const countX = Math.min(250, 58 + estimateTextWidth(groupLabel, 8.4, "F2") + 10);
+        roundedRect(countX, rowY - 7, 17, 12, 6, countFill, "0.82 0.88 0.96", 0.35);
+        textCenter(String(groupRows.length), countX + 8.5, rowY - 3, 7, "F2", countColor);
+        rowY -= 25;
         for (const row of groupRows) {
           const percentNumber = Number.isFinite(row.percentNumber) ? Math.max(0, Math.min(100, row.percentNumber)) : 0;
-          const barX = 248;
-          const barY = rowY - 3;
-          const barW = 180;
-          const barH = 5.5;
+          const barX = 58;
+          const barY = rowY - 20;
+          const barW = 478;
+          const barH = 6;
           const fillW = barW * (percentNumber / 100);
-          text(row.name, 58, rowY, 8.6, "F2", navy);
-          roundedRect(barX, barY, barW, barH, 3, "0.92 0.94 0.96");
-          if (fillW > 0) roundedRect(barX, barY, Math.max(fillW, 3), barH, 3, gold);
-          textRight(row.value, 486, rowY, 8.2, "F1", slate);
-          const pillX = 502;
-          const pillW = 44;
-          roundedRect(pillX, rowY - 8, pillW, 15, 6, "0.90 0.95 1.00");
-          textCenter(row.percent, pillX + pillW / 2, rowY - 4, 8, "F2", blue);
-          rowY -= 34;
+          const valueRightX = 496;
+          const pillX = 505;
+          const pillW = 38;
+          const name = row.name.length > 42 ? `${row.name.slice(0, 39)}...` : row.name;
+          text(name, 74, rowY, 9.2, "F2", navy);
+          text("○", 58, rowY - 0.5, 8.5, "F1", "0.45 0.52 0.60");
+          textRight(row.value, valueRightX, rowY, 8.6, "F1", slate);
+          roundedRect(pillX, rowY - 8, pillW, 16, 5, "0.90 0.95 1.00", "0.82 0.88 0.96", 0.35);
+          textCenter(row.percent, pillX + pillW / 2, rowY - 3.6, 7.8, "F2", blue);
+          roundedRect(barX, barY, barW, barH, 3, "0.95 0.96 0.98");
+          if (fillW > 0) roundedRect(barX, barY, Math.max(fillW, 3), barH, 3, "0.23 0.51 0.93");
+          rowY -= 42;
         }
-        line(58, rowY + 12, 538, rowY + 12, "0.90 0.92 0.94", 0.5);
-        rowY -= 14;
+        rowY -= 5;
       }
-      y = rowY - 8;
+      y = Math.min(rowY - 8, cardBottomY - 18);
     };
 
     newPage();
@@ -5469,7 +5477,7 @@ export async function registerRoutes(
     for (const entry of entries) {
       if (entry?.tipo !== "entrada") continue;
       if (entry?.descricao === "Valor de Origem da BIA") continue;
-      const favorecido = relationMember(entry?.Favorecido) || relationMember(entry?.favorecido_id);
+      const favorecido = relationMember(entry?.favorecido_id) || relationMember(entry?.Favorecido);
       const id = memberId(favorecido);
       if (!id) continue;
       const current = values.get(id) || { memberId: id, name: memberName(favorecido), value: 0 };
@@ -6094,7 +6102,7 @@ export async function registerRoutes(
           [/(marketing)/, ["marketing"]],
           [/(operacoes|facilities)/, ["operacoes", "facilities"]],
           [/(relacionamento)/, ["relacionamento"]],
-          [/(investimento)/, ["investimento"]],
+          [/(aporte financeiro|investimento)/, ["aporte financeiro", "investimento", "capital"]],
           [/(credito|captacao)/, ["credito", "captacao", "funding", "financiamento"]],
           [/(contabe|contabil|tributari)/, ["contabeis", "contabil", "tributarias", "tributaria"]],
           [/(gestao financeira)/, ["gestao financeira", "financeira"]],
@@ -8001,6 +8009,9 @@ export async function registerRoutes(
     if (typeof data.ramo_atuacao === "string") {
       data.ramo_atuacao = data.ramo_atuacao.trim() || null;
     }
+    if (data.tipo === "Investimento") {
+      data.tipo = "Aporte Financeiro";
+    }
     return data;
   }
 
@@ -8082,7 +8093,12 @@ export async function registerRoutes(
       });
       const d = await r.json();
       const choices: { text: string; value: string }[] = d?.data?.meta?.options?.choices || [];
-      res.json(choices);
+      res.json(choices.map((choice) => {
+        if (choice.text === "Investimento" || choice.value === "Investimento") {
+          return { ...choice, text: "Aporte Financeiro", value: "Aporte Financeiro" };
+        }
+        return choice;
+      }));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -8612,9 +8628,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       }
       if (emBuiltCapital) {
         directusPayload.nucleo_alianca = "NÃºcleo de Capital";
-        directusPayload.tipo_alianca = "AlianÃ§as de Investimento";
+        directusPayload.tipo_alianca = "AlianÃ§as de Aporte Financeiro";
         directusPayload.nucleos_alianca = ["NÃºcleo de Capital"];
-        directusPayload.tipos_alianca = ["AlianÃ§as de Investimento"];
+        directusPayload.tipos_alianca = ["AlianÃ§as de Aporte Financeiro"];
       } else {
         const tiposAlianca = Array.isArray(tipos_alianca)
           ? tipos_alianca.filter((item: any) => typeof item === "string" && item.trim())
@@ -10421,8 +10437,38 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.get("/api/convites", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      const { comunidade_id, candidato_membro_id, tipo } = req.query as any;
+      const { comunidade_id, candidato_membro_id, invitador_membro_id, tipo } = req.query as any;
       let items;
+      const enrichConviteCandidato = async (convite: any) => {
+        if (!convite?.candidato_membro_id) return convite;
+        const membro = await directusFetchOne(
+          "cadastro_geral",
+          String(convite.candidato_membro_id),
+          "fields=id,nome,email,telefone,whatsapp,cpf,cnpj,empresa,cargo,cidade,estado,pais"
+        ).catch(() => null);
+        if (!membro) return convite;
+        const dados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
+          ? convite.dados_contratuais
+          : {};
+        return {
+          ...convite,
+          dados_contratuais: {
+            ...dados,
+            nome_completo: dados.nome_completo || membro.nome || convite.candidato_nome,
+            email: dados.email || membro.email || convite.candidato_email,
+            telefone: dados.telefone || membro.telefone || membro.whatsapp || null,
+            whatsapp: dados.whatsapp || membro.whatsapp || null,
+            cpf: dados.cpf || membro.cpf || null,
+            cnpj: dados.cnpj || membro.cnpj || null,
+            nome_empresa: dados.nome_empresa || membro.empresa || null,
+            empresa: dados.empresa || membro.empresa || null,
+            cargo: dados.cargo || membro.cargo || null,
+            cidade: dados.cidade || membro.cidade || null,
+            estado: dados.estado || membro.estado || null,
+            pais: dados.pais || membro.pais || null,
+          },
+        };
+      };
       if (comunidade_id) {
         // Authorization: only community aliado or admin can list candidates
         const sessionRole = (req.session as any).role || "user";
@@ -10435,37 +10481,19 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode ver candidatos" });
         }
         items = await storage.getConvitesByComunidade(comunidade_id);
-        items = await Promise.all(items.map(async (convite: any) => {
-          if (!convite?.candidato_membro_id) return convite;
-          const membro = await directusFetchOne(
-            "cadastro_geral",
-            String(convite.candidato_membro_id),
-            "fields=id,nome,email,telefone,whatsapp,cpf,cnpj,empresa,cargo,cidade,estado,pais"
-          ).catch(() => null);
-          if (!membro) return convite;
-          const dados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
-            ? convite.dados_contratuais
-            : {};
-          return {
-            ...convite,
-            dados_contratuais: {
-              ...dados,
-              nome_completo: dados.nome_completo || membro.nome || convite.candidato_nome,
-              email: dados.email || membro.email || convite.candidato_email,
-              telefone: dados.telefone || membro.telefone || membro.whatsapp || null,
-              whatsapp: dados.whatsapp || membro.whatsapp || null,
-              cpf: dados.cpf || membro.cpf || null,
-              cnpj: dados.cnpj || membro.cnpj || null,
-              nome_empresa: dados.nome_empresa || membro.empresa || null,
-              empresa: dados.empresa || membro.empresa || null,
-              cargo: dados.cargo || membro.cargo || null,
-              cidade: dados.cidade || membro.cidade || null,
-              estado: dados.estado || membro.estado || null,
-              pais: dados.pais || membro.pais || null,
-            },
-          };
-        }));
+        items = await Promise.all(items.map(enrichConviteCandidato));
         // Filter by tipo if specified
+        if (tipo) {
+          items = items.filter((c: any) => c.tipo === tipo);
+        }
+      } else if (invitador_membro_id) {
+        const sessionRole = (req.session as any).role || "user";
+        const sessionMembroId = (req.session as any).membroId as string | null;
+        if (sessionRole !== "admin" && sessionRole !== "manager" && String(sessionMembroId || "") !== String(invitador_membro_id)) {
+          return res.status(403).json({ error: "NÃ£o autorizado a ver convites de outro conector" });
+        }
+        items = await storage.getConvitesByInvitador(String(invitador_membro_id));
+        items = await Promise.all(items.map(enrichConviteCandidato));
         if (tipo) {
           items = items.filter((c: any) => c.tipo === tipo);
         }
@@ -10480,7 +10508,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         const raw = await storage.getConvitesByCandidato(candidato_membro_id);
         items = raw.map(({ dados_contratuais: _dc, ...rest }) => rest);
       } else {
-        return res.status(400).json({ error: "Informe comunidade_id ou candidato_membro_id" });
+        return res.status(400).json({ error: "Informe comunidade_id, candidato_membro_id ou invitador_membro_id" });
       }
       res.json(items);
     } catch (error: any) {

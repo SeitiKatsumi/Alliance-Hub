@@ -26,7 +26,7 @@ import {
   ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw, ChevronDown,
   Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info, Eye, EyeOff
 } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
@@ -609,6 +609,15 @@ function buildProfilePayload(form: Partial<Membro>): Record<string, any> {
   return payload;
 }
 
+function isEmailLikeValue(value?: string | null): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function sanitizeLinkSite(value?: string | null): string {
+  const text = String(value || "").trim();
+  return text && !isEmailLikeValue(text) ? text : "";
+}
+
 function fotoUrl(foto?: string | null): string | null {
   if (!foto) return null;
   return `/api/assets/${foto}?width=200&height=200&fit=cover`;
@@ -689,6 +698,11 @@ export default function MeuPerfilPage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [showPasswordFields, setShowPasswordFields] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fotoCropRef = useRef<HTMLDivElement>(null);
@@ -707,7 +721,13 @@ export default function MeuPerfilPage() {
   }
 
   useEffect(() => {
-    if (membro) setForm({ ...membro, tipos_alianca: uniqueContributionAreas(membro.tipos_alianca) });
+    if (membro) {
+      setForm({
+        ...membro,
+        link_site: sanitizeLinkSite(membro.link_site),
+        tipos_alianca: uniqueContributionAreas(membro.tipos_alianca),
+      });
+    }
   }, [membro]);
 
   useEffect(() => {
@@ -998,10 +1018,12 @@ export default function MeuPerfilPage() {
       return;
     }
     const tiposAlianca = uniqueContributionAreas(form.tipos_alianca);
+    const linkSite = sanitizeLinkSite(form.link_site);
     const payload: Record<string, any> = {
       ...buildProfilePayload(form),
       telefone: normalizedTelefone || null,
       whatsapp: normalizedWhatsapp || null,
+      link_site: linkSite || null,
       tipos_alianca: tiposAlianca,
       nucleos_alianca: getNucleosForTipos(tiposAlianca),
     };
@@ -2136,7 +2158,7 @@ export default function MeuPerfilPage() {
                       form.email && `E-mail: ${form.email}`,
                       form.whatsapp && `WhatsApp: ${form.whatsapp}`,
                       form.empresa && `Empresa: ${form.empresa}`,
-                      form.link_site && `Site: ${form.link_site}`,
+                      sanitizeLinkSite(form.link_site) && `Site: ${sanitizeLinkSite(form.link_site)}`,
                     ].filter(Boolean).map(item => (
                       <p key={String(item)} className="flex items-start gap-2">
                         <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
@@ -2153,34 +2175,67 @@ export default function MeuPerfilPage() {
                   </div>
                   <div className="mt-4 space-y-3">
                     <Field label="Senha atual">
-                      <Input
-                        type="password"
-                        autoComplete="current-password"
-                        value={passwordForm.currentPassword}
-                        onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
-                        className="bg-slate-50 border-slate-200 text-[#001D34]"
-                        data-testid="input-senha-atual"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPasswordFields.currentPassword ? "text" : "password"}
+                          autoComplete="current-password"
+                          value={passwordForm.currentPassword}
+                          onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                          className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
+                          data-testid="input-senha-atual"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          onClick={() => setShowPasswordFields(f => ({ ...f, currentPassword: !f.currentPassword }))}
+                          aria-label={showPasswordFields.currentPassword ? "Ocultar senha atual" : "Mostrar senha atual"}
+                          data-testid="btn-toggle-senha-atual"
+                        >
+                          {showPasswordFields.currentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </Field>
                     <Field label="Nova senha">
-                      <Input
-                        type="password"
-                        autoComplete="new-password"
-                        value={passwordForm.newPassword}
-                        onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
-                        className="bg-slate-50 border-slate-200 text-[#001D34]"
-                        data-testid="input-nova-senha"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPasswordFields.newPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          value={passwordForm.newPassword}
+                          onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                          className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
+                          data-testid="input-nova-senha"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          onClick={() => setShowPasswordFields(f => ({ ...f, newPassword: !f.newPassword }))}
+                          aria-label={showPasswordFields.newPassword ? "Ocultar nova senha" : "Mostrar nova senha"}
+                          data-testid="btn-toggle-nova-senha"
+                        >
+                          {showPasswordFields.newPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </Field>
                     <Field label="Confirmar nova senha">
-                      <Input
-                        type="password"
-                        autoComplete="new-password"
-                        value={passwordForm.confirmPassword}
-                        onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                        className="bg-slate-50 border-slate-200 text-[#001D34]"
-                        data-testid="input-confirmar-nova-senha"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPasswordFields.confirmPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          value={passwordForm.confirmPassword}
+                          onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                          className="bg-slate-50 border-slate-200 pr-10 text-[#001D34]"
+                          data-testid="input-confirmar-nova-senha"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          onClick={() => setShowPasswordFields(f => ({ ...f, confirmPassword: !f.confirmPassword }))}
+                          aria-label={showPasswordFields.confirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+                          data-testid="btn-toggle-confirmar-nova-senha"
+                        >
+                          {showPasswordFields.confirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </Field>
                     <Button
                       type="button"
@@ -2361,7 +2416,7 @@ function DadosFormalizacaoSection({
   setForm: React.Dispatch<React.SetStateAction<Partial<Membro>>>;
 }) {
   const estadoCivil = String(form.estado_civil || "").toLowerCase();
-  const isCasado = estadoCivil === "casado" || estadoCivil === "casada";
+  const temConjuge = ["casado", "casada", "uniao_estavel", "união_estável"].includes(estadoCivil);
   const mesmoEndereco = form.mesmo_endereco !== false;
   const [open, setOpen] = useState(false);
   const [cepLoading, setCepLoading] = useState<string | null>(null);
@@ -2458,7 +2513,7 @@ function DadosFormalizacaoSection({
         </Field>
       </div>
 
-      {isCasado && (
+      {temConjuge && (
         <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/70 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Regime de comunhão">
@@ -2515,7 +2570,7 @@ function DadosFormalizacaoSection({
         </div>
       )}
 
-      {isCasado && !mesmoEndereco ? (
+      {temConjuge && !mesmoEndereco ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-3 rounded-lg border border-slate-200 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Endereço do titular</p>

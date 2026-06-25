@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft, ChevronRight, MapPin, Navigation, Search, Target } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, MapPin, Navigation, Plus, Search, Target } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 interface OportunidadeVitrine {
   id: string;
@@ -108,11 +112,58 @@ function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () =
   );
 }
 
-export default function VitrineOportunidadesPage() {
+const emptyChamadaForm = {
+  nome_oportunidade: "",
+  tipo: "",
+  nucleo_alianca: "",
+  valor_origem_opa: "",
+  Minimo_esforco_multiplicador: "",
+  localizacao: "",
+  descricao: "",
+  perfil_aliado: "",
+};
+
+type OportunidadesMode = "vitrine" | "capital";
+
+export function VitrineOportunidadesPage(props: any = {}) {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [chamadaForm, setChamadaForm] = useState(emptyChamadaForm);
+  const mode = props.mode || "vitrine";
+  const isCapital = mode === "capital";
+  const backPath = isCapital ? "/built-capital" : "/vitrine";
+  const detailPath = (id: string) => isCapital ? `/built-capital/chamadas/${id}` : `/vitrine/opas/${id}`;
+  const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
+  const title = isCapital ? "Chamadas de Capital" : "Oportunidades da Vitrine";
+  const backLabel = isCapital ? "Voltar para BUILT Capital" : "Voltar para Vitrine";
+  const description = isCapital
+    ? "Explore chamadas de capital e oportunidades de investimento BUILT."
+    : "Explore OPAs publicas sem acessar o modulo BUILT Alliances.";
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadeVitrine[]>({
-    queryKey: ["/api/oportunidades"],
+    queryKey: [endpoint],
+  });
+
+  const criarChamadaMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/chamadas-capital", chamadaForm);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/chamadas-capital"] });
+      setCreateOpen(false);
+      setChamadaForm(emptyChamadaForm);
+      toast({ title: "Chamada de capital criada" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Nao foi possivel criar a chamada",
+        description: error?.message || "Revise os dados e tente novamente.",
+        variant: "destructive",
+      });
+    },
   });
 
   const opas = useMemo(() => {
@@ -135,18 +186,22 @@ export default function VitrineOportunidadesPage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Button variant="ghost" size="sm" className="-ml-2 mb-3 gap-2 text-muted-foreground" onClick={() => navigate("/vitrine")}>
+          <Button variant="ghost" size="sm" className="-ml-2 mb-3 gap-2 text-muted-foreground" onClick={() => navigate(backPath)}>
             <ArrowLeft className="h-4 w-4" />
-            Voltar para Vitrine
+            {backLabel}
           </Button>
           <h1 className="flex items-center gap-3 text-2xl font-bold">
-            <Navigation className="h-7 w-7 text-blue-600" />
-            Oportunidades da Vitrine
+            {isCapital ? <Target className="h-7 w-7 text-emerald-500" /> : <Navigation className="h-7 w-7 text-blue-600" />}
+            {title}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Explore OPAs públicas sem acessar o módulo BUILT Alliances.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
+        {isCapital && (
+          <Button className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setCreateOpen(true)} data-testid="btn-criar-chamada-capital">
+            <Plus className="h-4 w-4" />
+            Criar nova chamada
+          </Button>
+        )}
       </div>
 
       <div className="relative max-w-xl">
@@ -169,22 +224,133 @@ export default function VitrineOportunidadesPage() {
       ) : opas.length ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {opas.map((opa) => (
-            <OpaPublicCard key={opa.id} opa={opa} onOpen={() => navigate(`/vitrine/opas/${opa.id}`)} />
+            <OpaPublicCard key={opa.id} opa={opa} onOpen={() => navigate(detailPath(opa.id))} />
           ))}
         </div>
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Target className="mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="font-medium text-foreground">Nenhuma oportunidade encontrada</p>
-            <p className="mt-1 text-sm text-muted-foreground">Tente outra busca ou volte para a Vitrine.</p>
-            <Button variant="outline" className="mt-4 gap-2" onClick={() => navigate("/vitrine")}>
-              Voltar
-              <ChevronRight className="h-4 w-4 rotate-180" />
-            </Button>
+            <p className="font-medium text-foreground">{isCapital ? "Nenhuma chamada de capital cadastrada" : "Nenhuma oportunidade encontrada"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isCapital ? "Crie a primeira chamada de capital para exibir aqui." : "Tente outra busca ou volte para a Vitrine."}
+            </p>
+            {isCapital ? (
+              <Button className="mt-4 gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Criar nova chamada
+              </Button>
+            ) : (
+              <Button variant="outline" className="mt-4 gap-2" onClick={() => navigate(backPath)}>
+                Voltar
+                <ChevronRight className="h-4 w-4 rotate-180" />
+              </Button>
+            )}
           </CardContent>
         </Card>
+      )}
+
+      {isCapital && (
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-emerald-500" />
+                Criar nova chamada de capital
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid max-h-[68vh] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-sm font-medium">Nome da chamada *</label>
+                <Input
+                  value={chamadaForm.nome_oportunidade}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, nome_oportunidade: event.target.value }))}
+                  placeholder="Ex: Captacao para empreendimento..."
+                  data-testid="input-chamada-capital-nome"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tipo</label>
+                <Input
+                  value={chamadaForm.tipo}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, tipo: event.target.value }))}
+                  placeholder="Investimento, Projeto, Lideranca..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Nucleo</label>
+                <Input
+                  value={chamadaForm.nucleo_alianca}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, nucleo_alianca: event.target.value }))}
+                  placeholder="Nucleo de Capital"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Valor</label>
+                <Input
+                  value={chamadaForm.valor_origem_opa}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, valor_origem_opa: event.target.value }))}
+                  placeholder="24000"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">MEM (%)</label>
+                <Input
+                  value={chamadaForm.Minimo_esforco_multiplicador}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, Minimo_esforco_multiplicador: event.target.value }))}
+                  placeholder="50"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-sm font-medium">Localizacao</label>
+                <Input
+                  value={chamadaForm.localizacao}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, localizacao: event.target.value }))}
+                  placeholder="Cidade, Estado, Pais"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-sm font-medium">Descricao / escopo</label>
+                <Textarea
+                  value={chamadaForm.descricao}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, descricao: event.target.value }))}
+                  rows={4}
+                  placeholder="Descreva a chamada de capital..."
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-sm font-medium">Perfil esperado</label>
+                <Textarea
+                  value={chamadaForm.perfil_aliado}
+                  onChange={(event) => setChamadaForm((current) => ({ ...current, perfil_aliado: event.target.value }))}
+                  rows={3}
+                  placeholder="Perfil de investidor, parceiro ou participante esperado..."
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => criarChamadaMutation.mutate()}
+                disabled={!chamadaForm.nome_oportunidade.trim() || criarChamadaMutation.isPending}
+                data-testid="btn-salvar-chamada-capital"
+              >
+                {criarChamadaMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                Criar chamada
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
 }
+
+export function BuiltCapitalChamadasPage() {
+  return <VitrineOportunidadesPage mode="capital" />;
+}
+
+export default VitrineOportunidadesPage;

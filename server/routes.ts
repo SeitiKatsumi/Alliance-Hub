@@ -11,6 +11,7 @@ import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 import { PNG } from "pngjs";
+import { randomUUID } from "crypto";
 import { deflateSync } from "zlib";
 
 let openaiClient: OpenAI | null = null;
@@ -972,6 +973,10 @@ async function getDirectusFieldInfo(collection: string): Promise<DirectusFieldIn
   }
 }
 
+function isEmailLikeValue(value: any): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
 async function normalizeDirectusPatchPayload(collection: string, payload: Record<string, any>) {
   const fields = await getDirectusFieldInfo(collection);
   if (!fields.length) return payload;
@@ -981,6 +986,11 @@ async function normalizeDirectusPatchPayload(collection: string, payload: Record
   for (const [key, value] of Object.entries(payload)) {
     const field = fieldByName.get(key);
     if (!field) continue;
+
+    if (collection === "cadastro_geral" && key === "link_site" && isEmailLikeValue(value)) {
+      normalized[key] = null;
+      continue;
+    }
 
     if ((field.type === "string" || field.type === "text") && (Array.isArray(value) || (value && typeof value === "object"))) {
       normalized[key] = Array.isArray(value) ? value.join(", ") : JSON.stringify(value);
@@ -1007,6 +1017,7 @@ async function directusDelete(collection: string, id: string) {
 }
 
 async function ensureAnunciosPagamentoFields() {
+  await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS ambiente text NOT NULL DEFAULT 'vitrine'`);
   await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS slot_tipo text NOT NULL DEFAULT 'padrao'`);
   await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_provider text`);
   await db.execute(sql`ALTER TABLE anuncios ADD COLUMN IF NOT EXISTS pagamento_id text`);
@@ -2437,12 +2448,16 @@ export async function registerRoutes(
     return addDaysToDateOnly(inicio, ANUNCIO_DURACAO_DIAS - 1);
   }
 
-  async function getProximaJanelaAnuncio(slotTipo: string, inicioPreferido = toDateOnly(), excludeId?: string) {
+  function normalizeAnuncioAmbiente(value: any) {
+    return String(value || "").toLowerCase() === "capital" ? "capital" : "vitrine";
+  }
+
+  async function getProximaJanelaAnuncio(slotTipo: string, inicioPreferido = toDateOnly(), excludeId?: string, ambiente = "vitrine") {
     const maxSlots = slotTipo === "hero" ? 1 : 5;
     for (let offset = 0; offset < 370; offset++) {
       const inicio = addDaysToDateOnly(inicioPreferido, offset);
       const fim = getAnuncioFim(inicio);
-      const count = await storage.countAnunciosByPeriod(inicio, fim, excludeId, slotTipo);
+      const count = await storage.countAnunciosByPeriod(inicio, fim, excludeId, slotTipo, ambiente);
       if (count < maxSlots) {
         return { inicio, fim, count, vagas: maxSlots - count, max: maxSlots };
       }
@@ -2455,7 +2470,7 @@ export async function registerRoutes(
     if (!anuncio) throw new Error("Destaque não encontrado");
     if (anuncio.ativo && anuncio.pagamento_status === "pago") return anuncio;
     const slotTipo = anuncio.slot_tipo === "hero" ? "hero" : "padrao";
-    const janela = await getProximaJanelaAnuncio(slotTipo, toDateOnly(), anuncio.id);
+    const janela = await getProximaJanelaAnuncio(slotTipo, toDateOnly(), anuncio.id, (anuncio as any).ambiente || "vitrine");
     return storage.updateAnuncio(anuncioId, {
       ativo: true,
       pagamento_provider: provider,
@@ -2470,7 +2485,8 @@ export async function registerRoutes(
   app.get("/api/anuncios", async (req, res) => {
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const ativos = await storage.getAnunciosAtivos(today);
+      const ambiente = normalizeAnuncioAmbiente(req.query.ambiente);
+      const ativos = await storage.getAnunciosAtivos(today, ambiente);
       const enriched = await Promise.all(ativos.map(enrichAnuncio));
       res.json(enriched);
     } catch (error: any) {
@@ -2482,7 +2498,8 @@ export async function registerRoutes(
     try {
       const meses = Math.min(6, Math.max(1, parseInt(String(req.query.meses || "3"))));
       const slotTipo = String(req.query.slot_tipo || "padrao") === "hero" ? "hero" : "padrao";
-      const data = await storage.getAnunciosDisponibilidade(meses, slotTipo);
+      const ambiente = normalizeAnuncioAmbiente(req.query.ambiente);
+      const data = await storage.getAnunciosDisponibilidade(meses, slotTipo, ambiente);
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2494,7 +2511,8 @@ export async function registerRoutes(
     try {
       const membroId = (req.session as any).membroId;
       if (!membroId) return res.json([]);
-      const lista = await storage.getAnunciosByMembro(membroId);
+      const ambiente = normalizeAnuncioAmbiente(req.query.ambiente);
+      const lista = await storage.getAnunciosByMembro(membroId, ambiente);
       const enriched = await Promise.all(lista.map(enrichAnuncio));
       res.json(enriched);
     } catch (error: any) {
@@ -2510,10 +2528,11 @@ export async function registerRoutes(
 
       const { titulo, descricao, link, imagem_directus_id } = req.body;
       const slotTipo = req.body?.slot_tipo === "hero" ? "hero" : "padrao";
+      const ambiente = normalizeAnuncioAmbiente(req.body?.ambiente);
       const pagamentoPais = req.body?.pagamento_pais === "exterior" ? "exterior" : "brasil";
       const isSuperAdmin = (req.session as any).role === "admin";
-      const janela = await getProximaJanelaAnuncio(slotTipo);
-      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, janela.inicio, janela.fim, undefined, slotTipo);
+      const janela = await getProximaJanelaAnuncio(slotTipo, toDateOnly(), undefined, ambiente);
+      const hasConflito = !isSuperAdmin && await storage.hasAnuncioByMembroInPeriod(membroId, janela.inicio, janela.fim, undefined, slotTipo, ambiente);
       if (hasConflito) return res.status(409).json({ error: "VocÃª jÃ¡ tem um anÃºncio ativo, agendado ou pendente neste intervalo." });
 
       const anuncio = await storage.createAnuncio({
@@ -2522,6 +2541,7 @@ export async function registerRoutes(
         descricao: descricao || null,
         link: link || null,
         imagem_directus_id: imagem_directus_id || null,
+        ambiente,
         slot_tipo: slotTipo,
         data_inicio: janela.inicio,
         data_fim: janela.fim,
@@ -2997,28 +3017,70 @@ export async function registerRoutes(
     }
   });
 
-  // GET /api/membros/:id/comunidade â€” find which community this member belongs to
+  async function getMembroComunidadesLinks(memberId: string) {
+    const col = await getComunidadeCol();
+    const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id&limit=-1`;
+    const ar = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+    if (!ar.ok) return [];
+    const aData = await ar.json();
+    const comunidades: any[] = aData.data || [];
+    return comunidades
+      .map((c: any) => {
+        const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
+        const isAliado = String(aliadoId || "") === String(memberId);
+        const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
+        const isMembro = membros.some((m: any) => {
+          const cgId = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id;
+          return String(cgId || "") === String(memberId);
+        });
+        if (!isAliado && !isMembro) return null;
+        const papel = isAliado && isMembro ? "ambos" : isAliado ? "aliado" : "membro";
+        return { id: c.id, nome: c.nome, sigla: c.sigla, aliado: c.aliado || null, papel };
+      })
+      .filter(Boolean);
+  }
+
+  async function setMembroInComunidadeM2M(memberId: string, comunidadeId: string, shouldInclude: boolean) {
+    const col = await getComunidadeCol();
+    const url = `${DIRECTUS_URL}/items/${col}/${comunidadeId}?fields=id,aliado.id,membros.cadastro_geral_id`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+    if (!r.ok) throw new Error("Comunidade nÃ£o encontrada");
+    const data = await r.json();
+    const aliadoId = directusRelationId(data.data?.aliado);
+    const currentIds: string[] = (data.data?.membros || [])
+      .map((m: any) => directusRelationId(m?.cadastro_geral_id))
+      .filter((id: any): id is string => Boolean(id));
+    const nextIds = shouldInclude
+      ? Array.from(new Set([...currentIds, memberId]))
+      : currentIds.filter((id) => String(id) !== String(memberId));
+    const patch = await fetch(`${DIRECTUS_URL}/items/${col}/${comunidadeId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ membros: nextIds.map((id) => ({ cadastro_geral_id: id })) }),
+    });
+    if (!patch.ok) {
+      const err = await patch.text().catch(() => "");
+      throw new Error(err || "Falha ao atualizar vÃ­nculo de comunidade");
+    }
+    return { success: true, comunidade_id: comunidadeId, membro_id: memberId, aliado: aliadoId };
+  }
+
+  // GET /api/membros/:id/comunidades â€” all communities where this member is membro and/or aliado
+  app.get("/api/membros/:id/comunidades", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+    try {
+      res.json(await getMembroComunidadesLinks(req.params.id));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/membros/:id/comunidade â€” compatibility: first linked community
   app.get("/api/membros/:id/comunidade", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      const col = await getComunidadeCol();
-      const memberId = req.params.id;
-      // Fetch all communities with their members (uses the working M2M alias)
-      const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id&limit=200`;
-      const ar = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-      if (!ar.ok) return res.json(null);
-      const aData = await ar.json();
-      const comunidades: any[] = aData.data || [];
-      const found = comunidades.find((c: any) => {
-        const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
-        if (aliadoId === memberId) return true;
-        const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
-        return membros.some((m: any) => {
-          const cgId = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id;
-          return cgId === memberId;
-        });
-      });
-      res.json(found ? { id: found.id, nome: found.nome, sigla: found.sigla, aliado: found.aliado || null } : null);
+      const links = await getMembroComunidadesLinks(req.params.id);
+      res.json(links[0] || null);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3188,47 +3250,18 @@ export async function registerRoutes(
     if (!await requireCadastroAccess(req, res)) return;
     try {
       const membroId = req.params.id;
-      const { comunidade_id, old_comunidade_id } = req.body;
-      const col = await getComunidadeCol();
+      const comunidadeId = req.body?.comunidade_id ? String(req.body.comunidade_id) : "";
+      if (!comunidadeId) return res.status(400).json({ error: "Selecione uma comunidade." });
+      res.json(await setMembroInComunidadeM2M(membroId, comunidadeId, true));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
-      // Remove from old community if different
-      if (old_comunidade_id && old_comunidade_id !== comunidade_id) {
-        const oldUrl = `${DIRECTUS_URL}/items/${col}/${old_comunidade_id}?fields=id,membros.cadastro_geral_id`;
-        const oldR = await fetch(oldUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-        if (oldR.ok) {
-          const oldData = await oldR.json();
-          const filtered = (oldData.data?.membros || [])
-            .map((m: any) => typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id)
-            .filter((id: any) => id && id !== membroId)
-            .map((id: string) => ({ cadastro_geral_id: id }));
-          await fetch(`${DIRECTUS_URL}/items/${col}/${old_comunidade_id}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ membros: filtered }),
-          });
-        }
-      }
-
-      // Add to new community
-      if (comunidade_id) {
-        const newUrl = `${DIRECTUS_URL}/items/${col}/${comunidade_id}?fields=id,membros.cadastro_geral_id`;
-        const newR = await fetch(newUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-        const newData = newR.ok ? await newR.json() : { data: { membros: [] } };
-        const currentIds: { cadastro_geral_id: string }[] = (newData.data?.membros || [])
-          .map((m: any) => typeof m.cadastro_geral_id === "string" ? m.cadastro_geral_id : m.cadastro_geral_id?.id)
-          .filter(Boolean)
-          .map((id: string) => ({ cadastro_geral_id: id }));
-        if (!currentIds.some((m) => m.cadastro_geral_id === membroId)) {
-          currentIds.push({ cadastro_geral_id: membroId });
-        }
-        await fetch(`${DIRECTUS_URL}/items/${col}/${comunidade_id}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ membros: currentIds }),
-        });
-      }
-
-      res.json({ success: true });
+  app.delete("/api/membros/:id/comunidade/:comunidadeId", async (req, res) => {
+    if (!await requireCadastroAccess(req, res)) return;
+    try {
+      res.json(await setMembroInComunidadeM2M(req.params.id, req.params.comunidadeId, false));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -7855,6 +7888,103 @@ export async function registerRoutes(
     }
   });
 
+  function normalizeChamadaCapitalPayload(body: Record<string, any>): Record<string, any> {
+    const numberText = (value: any) => {
+      if (value === null || value === undefined || value === "") return null;
+      const normalized = String(value).trim().replace(/\./g, "").replace(",", ".");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? String(parsed) : null;
+    };
+
+    const textOrNull = (value: any) => {
+      if (value === null || value === undefined) return null;
+      const text = String(value).trim();
+      return text || null;
+    };
+
+    return {
+      nome_oportunidade: textOrNull(body.nome_oportunidade || body.titulo),
+      tipo: textOrNull(body.tipo),
+      ramo_atuacao: textOrNull(body.ramo_atuacao),
+      bia_id: textOrNull(body.bia_id || body.bia),
+      valor_origem_opa: numberText(body.valor_origem_opa),
+      Minimo_esforco_multiplicador: numberText(body.Minimo_esforco_multiplicador),
+      objetivo_alianca: textOrNull(body.objetivo_alianca),
+      nucleo_alianca: textOrNull(body.nucleo_alianca),
+      pais: textOrNull(body.pais) || "Brasil",
+      localizacao: textOrNull(body.localizacao),
+      descricao: textOrNull(body.descricao),
+      perfil_aliado: textOrNull(body.perfil_aliado),
+      status: textOrNull(body.status) || "ativa",
+      imagem_directus_id: textOrNull(body.imagem_directus_id),
+      imagem_url: textOrNull(body.imagem_url),
+    };
+  }
+
+  const chamadasCapitalFile = path.join(process.cwd(), "data", "chamadas-capital.json");
+
+  function readChamadasCapitalFile(): any[] {
+    try {
+      if (!fs.existsSync(chamadasCapitalFile)) return [];
+      const raw = fs.readFileSync(chamadasCapitalFile, "utf8");
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeChamadasCapitalFile(items: any[]) {
+    fs.mkdirSync(path.dirname(chamadasCapitalFile), { recursive: true });
+    fs.writeFileSync(chamadasCapitalFile, JSON.stringify(items, null, 2), "utf8");
+  }
+
+  app.get("/api/chamadas-capital", async (_req, res) => {
+    try {
+      const items = readChamadasCapitalFile()
+        .sort((a, b) => String(b.date_created || b.created_at || "").localeCompare(String(a.date_created || a.created_at || "")));
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/chamadas-capital/:id", async (req, res) => {
+    try {
+      const item = readChamadasCapitalFile().find((chamada) => String(chamada.id) === String(req.params.id));
+      if (!item) return res.status(404).json({ error: "Chamada de capital nao encontrada" });
+      res.json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/chamadas-capital", async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+      const payload = normalizeChamadaCapitalPayload(req.body);
+      if (!payload.nome_oportunidade) {
+        return res.status(400).json({ error: "Informe o nome da chamada de capital" });
+      }
+      const now = new Date().toISOString();
+      const item = {
+        id: randomUUID(),
+        ...payload,
+        criado_por_user_id: (req.session as any).directusUserId || null,
+        criado_por_membro_id: (req.session as any).membroId || null,
+        date_created: now,
+        created_at: now,
+        updated_at: now,
+      };
+      const items = readChamadasCapitalFile();
+      items.unshift(item);
+      writeChamadasCapitalFile(items);
+      res.status(201).json(item);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   function prepareOpaPayload(body: Record<string, any>): Record<string, any> {
     const data = { ...body };
     if (Array.isArray(data.Anexos)) {
@@ -10534,6 +10664,28 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
   });
 
+  app.delete("/api/convites/:token", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const convite = await storage.getConviteByToken(req.params.token);
+      if (!convite) return res.status(404).json({ error: "Convite não encontrado" });
+
+      const col = await getComunidadeCol();
+      const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${convite.comunidade_id}?fields=id,nome,aliado.id`;
+      const cr = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
+      const comunidade = cr.ok ? (await cr.json()).data : null;
+
+      if (!isCommunityManager(req, comunidade)) {
+        return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade ou admin pode remover este alerta" });
+      }
+
+      const updated = await storage.updateConvite(convite.id, { status: "cancelado" });
+      res.json({ success: true, convite: updated });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // PATCH /api/convites/:token/adesao â€” accept terms (public)
   app.patch("/api/convites/:token/adesao", async (req, res) => {
     try {
@@ -11834,17 +11986,18 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       redes.includes("BUILT_PROUD_MEMBER") ||
       redes.includes("BUILT_FOUNDING_MEMBER") ||
       redes.includes("BUILT_ALLIANCE_PARTNER");
-    const canConsultAndRegisterAura =
+    const canConsultAura =
       emMembrosBuilt ||
       ["membro", "aliado", "manager", "admin"].includes(role) ||
       hasMemberSeal;
+    const canRegisterAura = canConsultAura;
     const isVitrineOnly =
       role === "user" &&
       naVitrine &&
       !emMembrosBuilt &&
       !emBuiltCapital;
 
-    return { membroId, canConsultAndRegisterAura, isVitrineOnly };
+    return { membroId, canConsultAura, canRegisterAura, isVitrineOnly };
   }
 
   async function blockVitrineOnlyAura(req: any, res: any) {
@@ -11914,20 +12067,37 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     return ids;
   }
 
-  async function requireAuraLinkedTarget(req: any, res: any, targetMemberId: string) {
+  async function requireAuraConsultTarget(req: any, res: any, targetMemberId: string) {
     const access = await getAuraAccessContext(req);
     if (access.isVitrineOnly && targetMemberId !== access.membroId) {
       res.status(403).json({ error: "UsuÃ¡rios somente da Vitrine podem consultar apenas a prÃ³pria Aura." });
       return false;
     }
     if (targetMemberId === access.membroId) return true;
-    if (!access.canConsultAndRegisterAura) {
-      res.status(403).json({ error: "Apenas membros BUILT podem consultar ou registrar Aura de terceiros." });
+    if (!access.canConsultAura) {
+      res.status(403).json({ error: "Apenas membros BUILT podem consultar Aura de terceiros." });
+      return false;
+    }
+    return true;
+  }
+
+  async function requireAuraRegisterTarget(req: any, res: any, targetMemberId: string) {
+    const access = await getAuraAccessContext(req);
+    if (access.isVitrineOnly && targetMemberId !== access.membroId) {
+      res.status(403).json({ error: "UsuÃ¡rios somente da Vitrine podem consultar apenas a prÃ³pria Aura." });
+      return false;
+    }
+    if (targetMemberId === access.membroId) {
+      res.status(400).json({ error: "VocÃª nÃ£o pode avaliar a si mesmo" });
+      return false;
+    }
+    if (!access.canRegisterAura) {
+      res.status(403).json({ error: "Apenas membros BUILT podem registrar Aura de terceiros." });
       return false;
     }
     const linkedIds = await getAuraLinkedMemberIdsServer(access.membroId);
     if (!linkedIds.has(String(targetMemberId))) {
-      res.status(403).json({ error: "VocÃª sÃ³ pode consultar ou registrar Aura de pessoas vinculadas Ã sua comunidade ou BIA." });
+      res.status(403).json({ error: "VocÃª sÃ³ pode registrar Aura de pessoas vinculadas Ã sua comunidade ou BIA." });
       return false;
     }
     return true;
@@ -11940,17 +12110,31 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const q = String(req.query.q || "").trim();
     try {
       const access = await getAuraAccessContext(req);
-      const linkedIds = await getAuraLinkedMemberIdsServer(access.membroId);
-      if (linkedIds.size === 0) return res.json([]);
-      const idsFilter = [...linkedIds]
-        .map((id) => `filter%5Bid%5D%5B_in%5D%5B%5D=${encodeURIComponent(id)}`)
-        .join("&");
-      const qFilter = q.length >= 2 ? `&filter%5Bnome%5D%5B_icontains%5D=${encodeURIComponent(q)}` : "";
-      const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=50&fields=id,nome,cargo,empresa,foto_perfil&sort=nome&${idsFilter}${qFilter}`;
+      if (!access.canConsultAura) return res.status(403).json({ error: "Apenas membros BUILT podem consultar Aura de terceiros." });
+      const params = new URLSearchParams({
+        limit: "100",
+        fields: "id,nome,Nome_de_usuario,email,cargo,empresa,foto_perfil",
+        sort: "nome",
+      });
+      if (access.membroId) params.set("filter[id][_neq]", access.membroId);
+      if (q.length >= 2) {
+        params.set("filter[_or][0][nome][_icontains]", q);
+        params.set("filter[_or][1][empresa][_icontains]", q);
+        params.set("filter[_or][2][cargo][_icontains]", q);
+        params.set("filter[_or][3][Nome_de_usuario][_icontains]", q);
+        params.set("filter[_or][4][email][_icontains]", q);
+      }
+      const url = `${DIRECTUS_URL}/items/cadastro_geral?${params.toString()}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
       if (!r.ok) return res.json([]);
       const json = await r.json();
-      const items = (json.data || []).map((m: any) => ({ id: m.id, nome: m.nome, cargo: m.cargo, empresa: m.empresa, foto: m.foto_perfil || null }));
+      const items = (json.data || []).map((m: any) => ({
+        id: m.id,
+        nome: m.nome || m.Nome_de_usuario || m.email || "Membro BUILT",
+        cargo: m.cargo,
+        empresa: m.empresa,
+        foto: m.foto_perfil || null,
+      }));
       return res.json(items);
     } catch {
       return res.json([]);
@@ -11967,7 +12151,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     try {
       const { membroId } = req.params;
       if ((req.session as any).directusUserId) {
-        if (!(await requireAuraLinkedTarget(req, res, membroId))) return;
+        if (!(await requireAuraConsultTarget(req, res, membroId))) return;
       }
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
       if (avaliacoes.length === 0) {
@@ -12081,11 +12265,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     // Resolve only evaluated member names for evaluations the current user gave.
     // Received evaluations intentionally stay anonymous; the words are visible,
     // but the evaluator identity must not be exposed.
-    const allIds = [
-      ...new Set([
-        ...dadas.map(a => a.avaliado_membro_id),
-      ]),
-    ];
+    const allIds = Array.from(new Set(dadas.map(a => a.avaliado_membro_id)));
     let nomesMap: Record<string, string> = {};
     if (allIds.length > 0) {
       try {
@@ -12119,7 +12299,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (await blockVitrineOnlyAura(req, res)) return;
     const membroId = (req.session as any).membroId as string | null;
     if (!membroId) return res.json(null);
-    if (!(await requireAuraLinkedTarget(req, res, req.params.avaliadoId))) return;
+    if (!(await requireAuraRegisterTarget(req, res, req.params.avaliadoId))) return;
     const av = await storage.getAuraAvaliacaoByPair(membroId, req.params.avaliadoId);
     return res.json(av ?? null);
   });
@@ -12128,7 +12308,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.post("/api/aura/analisar-texto", async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
-    const { texto, membro_nome } = req.body;
+    const { texto, membro_nome, avaliado_membro_id } = req.body;
+    if (!avaliado_membro_id || !(await requireAuraRegisterTarget(req, res, String(avaliado_membro_id)))) return;
     if (!texto || typeof texto !== "string" || texto.trim().length < 10) {
       return res.status(400).json({ error: "Texto muito curto. Descreva o membro com pelo menos 10 caracteres." });
     }
@@ -12225,6 +12406,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.post("/api/aura/extrair-arquivo", upload.single("arquivo"), async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
+    const avaliadoMembroId = String(req.body?.avaliado_membro_id || "");
+    if (!avaliadoMembroId || !(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
 
@@ -12263,6 +12446,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.post("/api/aura/transcrever-audio", auraAudioUpload.single("audio"), async (req: any, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
+    const avaliadoMembroId = String(req.body?.avaliado_membro_id || "");
+    if (!avaliadoMembroId || !(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
 
@@ -12299,7 +12484,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (avaliado_membro_id === membroId) {
       return res.status(400).json({ error: "VocÃª nÃ£o pode avaliar a si mesmo" });
     }
-    if (!(await requireAuraLinkedTarget(req, res, avaliado_membro_id))) return;
+    if (!(await requireAuraRegisterTarget(req, res, avaliado_membro_id))) return;
     // Block duplicate evaluations
     const existing = await storage.getAuraAvaliacaoByPair(membroId, avaliado_membro_id);
     if (existing) {

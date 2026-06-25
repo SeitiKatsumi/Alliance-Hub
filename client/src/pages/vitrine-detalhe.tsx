@@ -22,6 +22,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura } from "@/lib/aura-access";
+import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 
 interface MembroDetalhe {
   id: string;
@@ -120,6 +121,7 @@ export default function VitrineDetalhePage() {
   const [convidarOpen, setConvidarOpen] = useState(false);
   const [comunidadeSelectedId, setComunidadeSelectedId] = useState("");
   const [conviteEnviado, setConviteEnviado] = useState(false);
+  const [blockedAuraAccess, setBlockedAuraAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
 
   const { data: membro, isLoading } = useQuery<MembroDetalhe>({
     queryKey: ["/api/vitrine", id],
@@ -193,6 +195,8 @@ export default function VitrineDetalhePage() {
     targetMemberId: membro?.id,
     linkedMemberIds: auraLinkedMemberIds,
   });
+  const canOpenAura = canUseAuraRegistration;
+  const canShowAuraCta = !!user?.membro_directus_id && !isMyCard && !!membro?.id;
   const isProudMember = (membro?.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   // Communities where the current user is the aliado OR an active member (both can create invites)
   const minhasComunidadesComoAliado = minhasComunidades.filter(c => {
@@ -240,6 +244,12 @@ export default function VitrineDetalhePage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <EnvironmentAccessDialog
+        access={blockedAuraAccess}
+        open={!!blockedAuraAccess}
+        onOpenChange={(open) => !open && setBlockedAuraAccess(null)}
+      />
+
       {/* Back nav */}
       <div className="px-6 pt-5 pb-2 flex items-center justify-between">
         <Link href="/vitrine">
@@ -358,7 +368,7 @@ export default function VitrineDetalhePage() {
           </div>
         </div>
 
-        {canViewAndRegisterAura && (
+        {canShowAuraCta && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-4">
@@ -367,16 +377,24 @@ export default function VitrineDetalhePage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Aura Percebida</p>
-                  <h2 className="mt-1 text-lg font-semibold text-gray-900">Ver e registrar Aura</h2>
-                  <p className="mt-1 text-sm text-gray-500">Consulte a leitura reputacional e registre sua percepção como membro BUILT.</p>
+                  <h2 className="mt-1 text-lg font-semibold text-gray-900">{canViewAndRegisterAura ? "Ver e registrar Aura" : "Ver Aura"}</h2>
+                  <p className="mt-1 text-sm text-gray-500">Consulte a leitura reputacional. O registro de percepcao depende de vinculo em BIA ou Comunidade.</p>
                 </div>
               </div>
-              <Link href={`/aura/${membro.id}`}>
-                <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto" data-testid="btn-vitrine-detalhe-aura">
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Ver e registrar Aura
-                </Button>
-              </Link>
+              <Button
+                className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+                onClick={() => {
+                  if (!canOpenAura) {
+                    setBlockedAuraAccess(environmentAccessFor(user, "alliances"));
+                    return;
+                  }
+                  window.location.href = `/aura/${membro.id}`;
+                }}
+                data-testid="btn-vitrine-detalhe-aura"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {canViewAndRegisterAura ? "Ver e registrar Aura" : "Ver Aura"}
+              </Button>
             </div>
           </div>
         )}

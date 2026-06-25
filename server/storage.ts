@@ -128,16 +128,16 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(id: string): Promise<void>;
 
-  getAnunciosAtivos(today: string): Promise<Anuncio[]>;
+  getAnunciosAtivos(today: string, ambiente?: string): Promise<Anuncio[]>;
   getAnuncioByMembro(membroId: string): Promise<Anuncio | undefined>;
-  getAnunciosByMembro(membroId: string): Promise<Anuncio[]>;
-  hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string, slotTipo?: string): Promise<boolean>;
+  getAnunciosByMembro(membroId: string, ambiente?: string): Promise<Anuncio[]>;
+  hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string, slotTipo?: string, ambiente?: string): Promise<boolean>;
   getAnuncioById(id: string): Promise<Anuncio | undefined>;
-  countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string, slotTipo?: string): Promise<number>;
+  countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string, slotTipo?: string, ambiente?: string): Promise<number>;
   createAnuncio(data: InsertAnuncio): Promise<Anuncio>;
   updateAnuncio(id: string, data: Partial<InsertAnuncio>): Promise<Anuncio | undefined>;
   deleteAnuncio(id: string): Promise<boolean>;
-  getAnunciosDisponibilidade(meses: number, slotTipo?: string): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>>;
+  getAnunciosDisponibilidade(meses: number, slotTipo?: string, ambiente?: string): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>>;
 
   createBiaAprovacao(data: InsertBiaAprovacao): Promise<BiaAprovacao>;
   getBiaAprovacoesPendentes(): Promise<BiaAprovacao[]>;
@@ -610,13 +610,14 @@ export class DatabaseStorage implements IStorage {
     await db.update(passwordResetTokens).set({ used: true }).where(eq(passwordResetTokens.id, id));
   }
 
-  async getAnunciosAtivos(today: string): Promise<Anuncio[]> {
+  async getAnunciosAtivos(today: string, ambiente = "vitrine"): Promise<Anuncio[]> {
     return db
       .select()
       .from(anuncios)
       .where(
         and(
           eq(anuncios.ativo, true),
+          eq(anuncios.ambiente, ambiente),
           lte(anuncios.data_inicio, today),
           gte(anuncios.data_fim, today),
         )
@@ -643,7 +644,7 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async getAnunciosByMembro(membroId: string): Promise<Anuncio[]> {
+  async getAnunciosByMembro(membroId: string, ambiente = "vitrine"): Promise<Anuncio[]> {
     const today = new Date().toISOString().slice(0, 10);
     return db
       .select()
@@ -651,6 +652,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(anuncios.membro_id, membroId),
+          eq(anuncios.ambiente, ambiente),
           or(
             eq(anuncios.pagamento_status, "pendente"),
             and(eq(anuncios.ativo, true), gte(anuncios.data_fim, today)),
@@ -660,7 +662,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(anuncios.data_inicio);
   }
 
-  async hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string, slotTipo = "padrao"): Promise<boolean> {
+  async hasAnuncioByMembroInPeriod(membroId: string, dataInicio: string, dataFim: string, excludeId?: string, slotTipo = "padrao", ambiente = "vitrine"): Promise<boolean> {
     const items = await db
       .select()
       .from(anuncios)
@@ -668,6 +670,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(anuncios.membro_id, membroId),
           or(eq(anuncios.ativo, true), eq(anuncios.pagamento_status, "pendente")),
+          eq(anuncios.ambiente, ambiente),
           eq(anuncios.slot_tipo, slotTipo),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
@@ -682,13 +685,14 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string, slotTipo = "padrao"): Promise<number> {
+  async countAnunciosByPeriod(dataInicio: string, dataFim: string, excludeId?: string, slotTipo = "padrao", ambiente = "vitrine"): Promise<number> {
     const items = await db
       .select()
       .from(anuncios)
       .where(
         and(
           eq(anuncios.ativo, true),
+          eq(anuncios.ambiente, ambiente),
           eq(anuncios.slot_tipo, slotTipo),
           lte(anuncios.data_inicio, dataFim),
           gte(anuncios.data_fim, dataInicio),
@@ -717,7 +721,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  async getAnunciosDisponibilidade(meses: number, slotTipo = "padrao"): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>> {
+  async getAnunciosDisponibilidade(meses: number, slotTipo = "padrao", ambiente = "vitrine"): Promise<Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }>> {
     const MAX_SIMULTANEOUS = slotTipo === "hero" ? 1 : 5;
     const periodos: Array<{ inicio: string; fim: string; count: number; vagas: number; max: number }> = [];
     const hoje = new Date();
@@ -729,7 +733,7 @@ export class DatabaseStorage implements IStorage {
       fimDate.setDate(inicioDate.getDate() + 14);
       const inicio = inicioDate.toISOString().slice(0, 10);
       const fim = fimDate.toISOString().slice(0, 10);
-      const count = await this.countAnunciosByPeriod(inicio, fim, undefined, slotTipo);
+      const count = await this.countAnunciosByPeriod(inicio, fim, undefined, slotTipo, ambiente);
       periodos.push({ inicio, fim, count, vagas: Math.max(0, MAX_SIMULTANEOUS - count), max: MAX_SIMULTANEOUS });
     }
     return periodos;

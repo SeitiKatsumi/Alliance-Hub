@@ -101,6 +101,13 @@ interface Membro {
   built_capital_termo_versao?: string | null;
 }
 
+interface ComunidadeVinculo {
+  id: string;
+  nome?: string | null;
+  sigla?: string | null;
+  papel?: "membro" | "aliado" | "ambos";
+}
+
 function fotoUrl(foto?: string | null, size = 160): string | null {
   if (!foto) return null;
   return `/api/assets/${foto}?width=${size}&height=${size}&fit=cover`;
@@ -271,7 +278,6 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
   const [selectedComunidadeId, setSelectedComunidadeId] = useState<string>("");
-  const [originalComunidadeId, setOriginalComunidadeId] = useState<string>("");
   const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
 
   const { data: comunidades = [] } = useQuery<{ id: string; nome?: string; sigla?: string }[]>({
@@ -286,19 +292,20 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     staleTime: 60000,
   });
 
-  const { data: membroComunidade } = useQuery<{ id: string; nome?: string; sigla?: string } | null>({
-    queryKey: ["/api/membros", membro.id, "comunidade"],
-    queryFn: () => membro.id ?fetch(`/api/membros/${membro.id}/comunidade`).then(r => r.json()) : Promise.resolve(null),
+  const { data: membroComunidades = [] } = useQuery<ComunidadeVinculo[]>({
+    queryKey: ["/api/membros", membro.id, "comunidades"],
+    queryFn: () => membro.id ?fetch(`/api/membros/${membro.id}/comunidades`).then(r => r.json()) : Promise.resolve([]),
     enabled: !!membro.id,
     staleTime: 30000,
   });
 
-  useEffect(() => {
-    if (membroComunidade?.id) {
-      setSelectedComunidadeId(String(membroComunidade.id));
-      setOriginalComunidadeId(String(membroComunidade.id));
-    }
-  }, [membroComunidade?.id]);
+  const linkedComunidadeIds = useMemo(
+    () => new Set(membroComunidades.map((c) => String(c.id))),
+    [membroComunidades]
+  );
+  const comunidadeConvidadorId = selectedComunidadeId || membroComunidades[0]?.id || "";
+  const hasAnyComunidade = membroComunidades.length > 0;
+  const comunidadesDisponiveis = comunidades.filter(c => !linkedComunidadeIds.has(String(c.id)));
 
   useEffect(() => {
     setSelectedConvidadorId(membro.convidado_por_id || "");
@@ -347,6 +354,29 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       toast({ title: "Conta vinculada com sucesso!" });
     },
     onError: () => toast({ title: "Erro ao vincular conta", variant: "destructive" }),
+  });
+
+  const addComunidadeMutation = useMutation({
+    mutationFn: (comunidadeId: string) => apiRequest("POST", `/api/membros/${membro.id}/comunidade`, { comunidade_id: comunidadeId }),
+    onSuccess: () => {
+      setSelectedComunidadeId("");
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidade"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      toast({ title: "Comunidade vinculada ao membro." });
+    },
+    onError: (error: any) => toast({ title: "Erro ao vincular comunidade", description: error?.message, variant: "destructive" }),
+  });
+
+  const removeComunidadeMutation = useMutation({
+    mutationFn: (comunidadeId: string) => apiRequest("DELETE", `/api/membros/${membro.id}/comunidade/${comunidadeId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidade"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      toast({ title: "Vínculo de comunidade removido." });
+    },
+    onError: (error: any) => toast({ title: "Erro ao remover vínculo", description: error?.message, variant: "destructive" }),
   });
 
   // Set initial role and email when linkedUser first loads (must be useEffect, not render body)
@@ -430,8 +460,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const saveMutation = useMutation({
     mutationFn: async () => {
       const selosForm: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
-      if (selosForm.includes("BUILT_PROUD_MEMBER") && (!selectedComunidadeId || selectedComunidadeId === "none")) {
-        throw new Error("Todo membro com o selo BUILT Proud Member deve estar vinculado a uma comunidade. Selecione uma comunidade antes de salvar.");
+      if (selosForm.includes("BUILT_PROUD_MEMBER") && !hasAnyComunidade) {
+        throw new Error("Todo membro com o selo BUILT Proud Member deve estar vinculado a pelo menos uma comunidade.");
       }
 
       let fotoId: string | undefined;
@@ -530,25 +560,12 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       if (membro.id && selectedConvidadorId !== (membro.convidado_por_id || "")) {
         await apiRequest("PATCH", `/api/membros/${membro.id}/convidador`, {
           convidador_membro_id: selectedConvidadorId || null,
-          comunidade_id: selectedComunidadeId || null,
+          comunidade_id: comunidadeConvidadorId || null,
         });
       }
     },
     onSuccess: async () => {
-      // Save community link if changed
-      if (membro.id && selectedComunidadeId !== originalComunidadeId) {
-        try {
-          await apiRequest("POST", `/api/membros/${membro.id}/comunidade`, {
-            comunidade_id: selectedComunidadeId || null,
-            old_comunidade_id: originalComunidadeId || null,
-          });
-          queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidade"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
-        } catch {
-          // Non-fatal: warn but don't block
-          toast({ title: "Dados salvos, mas erro ao vincular comunidade", variant: "destructive" });
-        }
-      }
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidades"] });
       queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/area-membros"] });
@@ -676,8 +693,44 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <Users className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Vínculo à Comunidade</span>
               </div>
+              <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-200 overflow-hidden" data-testid="lista-comunidades-vinculadas">
+                {membroComunidades.length === 0 ? (
+                  <p className="px-3 py-3 text-xs text-slate-500">Nenhuma comunidade vinculada.</p>
+                ) : (
+                  membroComunidades.map((c) => {
+                    const papelLabel = c.papel === "ambos" ? "Membro e Aliado" : c.papel === "aliado" ? "Aliado da comunidade" : "Membro associado";
+                    const canRemove = c.papel === "membro";
+                    return (
+                      <div key={c.id} className="flex items-center justify-between gap-3 px-3 py-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-brand-navy truncate">{c.nome || c.sigla || `Comunidade #${c.id}`}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">{papelLabel}</p>
+                        </div>
+                        {canRemove ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            disabled={removeComunidadeMutation.isPending}
+                            onClick={() => removeComunidadeMutation.mutate(String(c.id))}
+                            data-testid={`btn-remover-comunidade-${c.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-brand-gold/25 bg-brand-gold/10 px-2 py-1 text-[10px] font-mono uppercase tracking-wide text-brand-gold">
+                            <Lock className="w-3 h-3" />
+                            Gestor
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
               <div>
-                <label className={labelCls}>Comunidade</label>
+                <label className={labelCls}>Adicionar comunidade como membro associado</label>
                 <Select
                   value={selectedComunidadeId}
                   onValueChange={v => setSelectedComunidadeId(v === "none" ?"" : v)}
@@ -687,19 +740,30 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— Sem comunidade</SelectItem>
-                    {comunidades.map(c => (
+                    {comunidadesDisponiveis.map(c => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.nome || c.sigla || `Comunidade #${c.id}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedComunidadeId && selectedComunidadeId !== originalComunidadeId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-2 h-9 w-full gap-2 border-brand-gold/35 text-brand-navy"
+                  disabled={!selectedComunidadeId || addComunidadeMutation.isPending || !membro.id}
+                  onClick={() => selectedComunidadeId && addComunidadeMutation.mutate(selectedComunidadeId)}
+                  data-testid="btn-adicionar-comunidade"
+                >
+                  {addComunidadeMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Adicionar comunidade
+                </Button>
+                {false && (
                   <p className="text-[10px] font-mono text-amber-400/70 mt-1.5">
                     ⚠ Ao salvar, o membro será transferido para esta comunidade.
                   </p>
                 )}
-                {((form as any).Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER") && (!selectedComunidadeId || selectedComunidadeId === "none") && (
+                {((form as any).Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER") && !hasAnyComunidade && (
                   <p className="text-[10px] font-mono text-red-400/80 mt-1.5">
                     ✕ Obrigatório: membros com o selo BUILT Proud Member devem pertencer a uma comunidade.
                   </p>

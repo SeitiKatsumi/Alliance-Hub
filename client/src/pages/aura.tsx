@@ -23,7 +23,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useLocation, useParams } from "wouter";
-import { isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
+import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 
 interface AuraResult {
@@ -436,10 +436,10 @@ export default function AuraPage() {
   const myId = user?.membro_directus_id;
   const viewedMembroId = routeMembroId || myId;
   const isOwnAura = !routeMembroId || routeMembroId === myId;
-  const canConsultAndRegisterAura = isBuiltMemberForAura(user);
+  const canConsultAura = isBuiltMemberForAura(user);
   const isVitrineOnly = isVitrineOnlyUser(user);
   const authResolved = !authLoading;
-  const canViewRequestedAura = !!viewedMembroId && authResolved && (!isVitrineOnly || isOwnAura);
+  const canViewRequestedAura = !!viewedMembroId && authResolved && (isOwnAura || (!isVitrineOnly && canConsultAura));
 
   useEffect(() => {
     const locationQuery = location.includes("?") ? location.split("?")[1] : "";
@@ -448,16 +448,16 @@ export default function AuraPage() {
       new URLSearchParams(locationQuery).get("registrar") === "1" ||
       new URLSearchParams(browserQuery).get("registrar") === "1";
     if (shouldOpenLookup) {
-      if (canConsultAndRegisterAura) {
+      if (canConsultAura) {
         setLookupOpen(true);
       } else if (authResolved && user) {
         setBlockedAccess(environmentAccessFor(user, "alliances"));
       }
     }
-  }, [location, canConsultAndRegisterAura, authResolved, user]);
+  }, [location, canConsultAura, authResolved, user]);
 
   function handleConsultAndRegisterAura() {
-    if (canConsultAndRegisterAura) {
+    if (canConsultAura) {
       setLookupOpen(true);
       return;
     }
@@ -507,15 +507,54 @@ export default function AuraPage() {
   const minhasAvaliacoesRecebidas: MinhaAvaliacao[] = minhasAvaliacoesData?.recebidas ?? [];
   const evolucaoDados = useMemo(() => isOwnAura ? calcularEvolucao(minhasAvaliacoesRecebidas) : [], [isOwnAura, minhasAvaliacoesRecebidas]);
 
-  const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
-    queryKey: ["/api/aura/membros/busca"],
+  const { data: minhasComunidadesAura = [] } = useQuery<any[]>({
+    queryKey: ["/api/comunidades", { membro_id: myId, scope: "aura-registro" }],
     queryFn: async () => {
-      const res = await fetch("/api/aura/membros/busca", { credentials: "include" });
+      const res = await fetch(`/api/comunidades?membro_id=${myId}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!myId && canConsultAura,
+  });
+
+  const { data: minhasBiasAura = [] } = useQuery<any[]>({
+    queryKey: ["/api/bias", "aura-registro"],
+    queryFn: async () => {
+      const res = await fetch("/api/bias", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!myId && canConsultAura,
+  });
+
+  const auraLinkedMemberIds = useMemo(
+    () => getAuraLinkedMemberIds({
+      comunidades: minhasComunidadesAura,
+      bias: minhasBiasAura,
+      currentMemberId: myId,
+    }),
+    [minhasComunidadesAura, minhasBiasAura, myId]
+  );
+
+  const memberSearchTerm = searchQuery.trim();
+  const memberSearchActive = memberSearchTerm.length >= 2;
+  const lookupSearchTerm = lookupQuery.trim();
+  const auraSearchTerm = lookupOpen ? lookupSearchTerm : memberSearchActive ? memberSearchTerm : "";
+
+  const { data: allMembros = [], isLoading: loadingSearch } = useQuery<MembroBusca[]>({
+    queryKey: ["/api/aura/membros/busca", auraSearchTerm],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (auraSearchTerm.length >= 2) params.set("q", auraSearchTerm);
+      const url = `/api/aura/membros/busca${params.toString() ? `?${params.toString()}` : ""}`;
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) return [];
       const data: MembroBusca[] = await res.json();
       return fixMojibakeDeep(data);
     },
-    enabled: !!myId && canConsultAndRegisterAura,
+    enabled: !!myId && canConsultAura,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -529,8 +568,6 @@ export default function AuraPage() {
     setEvalMode("palavras");
   }, [routeMembroId, myId, viewedMembro]);
 
-  const memberSearchTerm = searchQuery.trim();
-  const memberSearchActive = memberSearchTerm.length >= 2;
   const searchResults = memberSearchActive ? allMembros
     .filter(m => m.id !== myId)
     .filter(m => {
@@ -540,7 +577,6 @@ export default function AuraPage() {
       return nome.includes(q) || empresa.includes(q);
     })
     .slice(0, 12) : [];
-  const lookupSearchTerm = lookupQuery.trim();
   const lookupResults = useMemo(() => {
     const q = lookupSearchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return allMembros
@@ -564,9 +600,21 @@ export default function AuraPage() {
     setLocation(`/aura/${membro.id}`);
   }
 
+  const targetRegisterMemberId = selectedMembro?.id || (!isOwnAura ? viewedMembroId : null);
+  const canRegisterSelectedAura = canRegisterAuraForMember({
+    user,
+    targetMemberId: targetRegisterMemberId,
+    linkedMemberIds: auraLinkedMemberIds,
+  });
+
   const { data: minhaAvaliacaoDoSelecionado } = useQuery<AvaliacaoExistente | null>({
-    queryKey: ["/api/aura/avaliacao", selectedMembro?.id],
-    enabled: !!selectedMembro?.id && canConsultAndRegisterAura,
+    queryKey: ["/api/aura/avaliacao", targetRegisterMemberId],
+    queryFn: async () => {
+      const res = await fetch(`/api/aura/avaliacao/${targetRegisterMemberId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      return fixMojibakeDeep(await res.json());
+    },
+    enabled: !!targetRegisterMemberId && canRegisterSelectedAura,
   });
 
   const avaliarMutation = useMutation({
@@ -594,6 +642,7 @@ export default function AuraPage() {
     mutationFn: async (file: File) => {
       const form = new FormData();
       form.append("arquivo", file);
+      if (selectedMembro?.id) form.append("avaliado_membro_id", selectedMembro.id);
       const res = await fetch("/api/aura/extrair-arquivo", {
         method: "POST",
         body: form,
@@ -616,7 +665,11 @@ export default function AuraPage() {
 
   const analisarMutation = useMutation({
     mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
-      const res = await apiRequest("POST", "/api/aura/analisar-texto", { texto, membro_nome });
+      const res = await apiRequest("POST", "/api/aura/analisar-texto", {
+        texto,
+        membro_nome,
+        avaliado_membro_id: selectedMembro?.id,
+      });
       return res.json() as Promise<{ palavras: string[] }>;
     },
     onSuccess: (data) => {
@@ -773,7 +826,7 @@ export default function AuraPage() {
               Consultar e registrar Aura
             </Button>
           )}
-          {myId && canConsultAndRegisterAura && !isOwnAura && (
+          {myId && canConsultAura && !isOwnAura && (
             <Button
               type="button"
               variant="outline"
@@ -794,7 +847,7 @@ export default function AuraPage() {
         onOpenChange={(open) => !open && setBlockedAccess(null)}
       />
 
-      {canConsultAndRegisterAura && (
+      {canConsultAura && (
       <Dialog open={lookupOpen} onOpenChange={setLookupOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -1212,7 +1265,7 @@ export default function AuraPage() {
       )}
 
       {/* Evaluate a member */}
-      {myId && routeMembroId && routeMembroId !== myId && (
+      {myId && routeMembroId && routeMembroId !== myId && canViewRequestedAura && (
         <Card className="border border-border/60" data-testid="card-avaliar">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1221,7 +1274,17 @@ export default function AuraPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!selectedMembro ? (
+            {!canRegisterSelectedAura ? (
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Registro restrito a vínculos BUILT</p>
+                  <p className="text-amber-800/80">
+                    Você pode consultar esta Aura, mas só pode registrar percepção para pessoas vinculadas à sua BIA ou Comunidade.
+                  </p>
+                </div>
+              </div>
+            ) : !selectedMembro ? (
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />

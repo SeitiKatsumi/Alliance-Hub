@@ -110,7 +110,9 @@ function getOpaImage(opa?: OportunidadePublica | null) {
   return versionAssetUrl(opa.imagem_url) || versionAssetUrl(opa.imagem_directus_id);
 }
 
-export default function VitrineOpaDetalhePage() {
+type OpaDetalheMode = "vitrine" | "capital";
+
+export function VitrineOpaDetalhePage(props: any = {}) {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -119,9 +121,15 @@ export default function VitrineOpaDetalhePage() {
   const [interesseOpen, setInteresseOpen] = useState(false);
   const [membershipDialogOpen, setMembershipDialogOpen] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const mode = props.mode || "vitrine";
+  const isCapital = mode === "capital";
+  const listPath = isCapital ? "/built-capital/chamadas" : "/vitrine/oportunidades";
+  const listLabel = isCapital ? "chamadas de capital" : "oportunidades";
+  const badgeLabel = isCapital ? "Chamada de capital" : "OPA publica";
+  const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
 
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadePublica[]>({
-    queryKey: ["/api/oportunidades"],
+    queryKey: [endpoint],
   });
   const { data: biasRaw = [] } = useQuery<BiasPublica[]>({
     queryKey: ["/api/bias"],
@@ -133,7 +141,7 @@ export default function VitrineOpaDetalhePage() {
       if (!response.ok) throw new Error("Erro ao buscar interesses");
       return response.json();
     },
-    enabled: !!id,
+    enabled: !!id && !isCapital,
   });
 
   const opa = useMemo(
@@ -186,9 +194,9 @@ export default function VitrineOpaDetalhePage() {
   if (!opa) {
     return (
       <div className="mx-auto max-w-4xl p-6 text-center">
-        <p className="text-muted-foreground">Oportunidade não encontrada.</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate("/vitrine/oportunidades")}>
-          Voltar para oportunidades
+        <p className="text-muted-foreground">{isCapital ? "Chamada de capital nao encontrada." : "Oportunidade nao encontrada."}</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate(listPath)}>
+          Voltar para {listLabel}
         </Button>
       </div>
     );
@@ -203,9 +211,9 @@ export default function VitrineOpaDetalhePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <Button variant="ghost" size="sm" className="-ml-2 gap-2 text-muted-foreground" onClick={() => navigate("/vitrine/oportunidades")}>
+      <Button variant="ghost" size="sm" className="-ml-2 gap-2 text-muted-foreground" onClick={() => navigate(listPath)}>
         <ArrowLeft className="h-4 w-4" />
-        Voltar para oportunidades
+        Voltar para {listLabel}
       </Button>
 
       <div className="overflow-hidden rounded-2xl border border-blue-200 bg-card shadow-sm">
@@ -217,7 +225,7 @@ export default function VitrineOpaDetalhePage() {
           <div className="relative z-10">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-sm border border-blue-300/30 bg-blue-300/10 px-2 py-0.5 font-mono text-[9px] text-blue-100">
-                OPA pública
+                {badgeLabel}
               </span>
               {opa.tipo && <Badge variant="secondary">{opa.tipo}</Badge>}
               {opa.status && (
@@ -226,7 +234,7 @@ export default function VitrineOpaDetalhePage() {
                 </Badge>
               )}
             </div>
-            <h1 className="text-2xl font-bold text-blue-300">{opa.nome_oportunidade || "OPA sem nome"}</h1>
+            <h1 className="text-2xl font-bold text-blue-300">{opa.nome_oportunidade || (isCapital ? "Chamada sem nome" : "OPA sem nome")}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-blue-100/65">
               {opa.nucleo_alianca && (
                 <span className="inline-flex items-center gap-1">
@@ -252,7 +260,7 @@ export default function VitrineOpaDetalhePage() {
         {valor > 0 && (
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor da OPA</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{isCapital ? "Valor da chamada" : "Valor da OPA"}</p>
               <p className="mt-1 text-xl font-bold text-blue-600">{brl(valor, bia?.moeda || "BRL")}</p>
             </CardContent>
           </Card>
@@ -316,7 +324,7 @@ export default function VitrineOpaDetalhePage() {
             </CardContent>
           </Card>
 
-          <Card className={jaInteressado ? "border-blue-300" : ""}>
+          {!isCapital && <Card className={jaInteressado ? "border-blue-300" : ""}>
             <CardContent className="space-y-3 pt-5">
               <SectionTitle icon={HandHeart}>Interesse</SectionTitle>
               {jaInteressado ? (
@@ -366,7 +374,7 @@ export default function VitrineOpaDetalhePage() {
                 </>
               )}
             </CardContent>
-          </Card>
+          </Card>}
         </div>
       </div>
 
@@ -407,3 +415,9 @@ export default function VitrineOpaDetalhePage() {
     </div>
   );
 }
+
+export function BuiltCapitalChamadaDetalhePage() {
+  return <VitrineOpaDetalhePage mode="capital" />;
+}
+
+export default VitrineOpaDetalhePage;

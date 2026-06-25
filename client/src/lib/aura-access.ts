@@ -135,3 +135,20 @@ export function canRegisterAuraForMember({
   if (!isBuiltMemberForAura(user)) return false;
   return Boolean(linkedMemberIds?.has(String(targetMemberId)));
 }
+
+export function canConsultAuraForMember({
+  user,
+  targetMemberId,
+}: {
+  user?: AppUser | null;
+  targetMemberId?: string | null;
+}): boolean {
+  if (!targetMemberId) return false;
+  if (user?.membro_directus_id === targetMemberId) return true;
+  if (isVitrineOnlyUser(user)) return false;
+  return isBuiltMemberForAura(user);
+}
+
+export function shouldShowAuraMembershipModal(user?: AppUser | null): boolean {
+  return isVitrineOnlyUser(user) || !isBuiltMemberForAura(user);
+}

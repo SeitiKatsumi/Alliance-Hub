@@ -28,8 +28,8 @@ import MeuPerfilPage from "@/pages/meu-perfil";
 import DocumentacaoPage from "@/pages/documentacao";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
-import VitrineOportunidadesPage from "@/pages/vitrine-oportunidades";
-import VitrineOpaDetalhePage from "@/pages/vitrine-opa-detalhe";
+import VitrineOportunidadesPage, { BuiltCapitalChamadasPage } from "@/pages/vitrine-oportunidades";
+import VitrineOpaDetalhePage, { BuiltCapitalChamadaDetalhePage } from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
 import AreMembroPage from "@/pages/area-membros";
 import MembroDetalhePage from "@/pages/membro-detalhe";
@@ -1166,6 +1166,8 @@ function ProtectedApp() {
               <Route path="/comunidade" component={ComunidadePage} />
               <Route path="/notificacoes" component={ConvitesPage} />
               <Route path="/convites" component={ConvitesPage} />
+              <Route path="/built-capital/chamadas/:id" component={BuiltCapitalChamadaDetalhePage} />
+              <Route path="/built-capital/chamadas" component={BuiltCapitalChamadasPage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />
               <Route path="/membros" component={MembrosPage} />
               <Route path="/aura/:membroId" component={AuraPage} />

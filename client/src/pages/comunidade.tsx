@@ -232,8 +232,47 @@ function ComunidadeLocationPickerModal({ open, onClose, onSelect }: {
 interface Membro {
   id: string;
   nome?: string;
+  email?: string | null;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  celular?: string | null;
   cargo?: string;
   empresa?: string;
+  nacionalidade?: string | null;
+  nome_mae?: string | null;
+  nome_pai?: string | null;
+  data_nascimento?: string | null;
+  profissao?: string | null;
+  cpf?: string | null;
+  rg?: string | null;
+  estado_civil?: string | null;
+  regime_comunhao?: string | null;
+  conjuge_nome_completo?: string | null;
+  conjuge_nacionalidade?: string | null;
+  conjuge_nome_mae?: string | null;
+  conjuge_nome_pai?: string | null;
+  conjuge_data_nascimento?: string | null;
+  conjuge_profissao?: string | null;
+  conjuge_email?: string | null;
+  conjuge_telefone?: string | null;
+  conjuge_cpf?: string | null;
+  conjuge_rg?: string | null;
+  mesmo_endereco?: boolean | number | null;
+  endereco?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  pais?: string | null;
+  titular_endereco?: string | null;
+  titular_bairro?: string | null;
+  titular_cidade?: string | null;
+  titular_estado?: string | null;
+  titular_pais?: string | null;
+  conjuge_endereco?: string | null;
+  conjuge_bairro?: string | null;
+  conjuge_cidade?: string | null;
+  conjuge_estado?: string | null;
+  conjuge_pais?: string | null;
   foto_perfil?: string | null;
   na_vitrine?: boolean | number | null;
   em_membros_built?: boolean | number | null;
@@ -333,6 +372,126 @@ const EMPTY_MOU_DADOS: MouDadosContratuais = {
   conjuge_estado: "",
   conjuge_pais: "",
 };
+
+function firstFilled(...values: Array<unknown>): string {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function dateInputValue(value?: string | null): string {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  return text;
+}
+
+function booleanFromProfile(value: unknown, fallback = true): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "sim", "yes"].includes(normalized)) return true;
+    if (["false", "0", "nao", "não", "no"].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function buildMouDadosFromProfile(membro?: Membro | null, user?: { nome?: string | null; email?: string | null } | null): MouDadosContratuais {
+  const sameAddress = booleanFromProfile(membro?.mesmo_endereco, true);
+  return {
+    ...EMPTY_MOU_DADOS,
+    nome_completo: firstFilled(membro?.nome, user?.nome),
+    nacionalidade: firstFilled(membro?.nacionalidade),
+    nome_mae: firstFilled(membro?.nome_mae),
+    nome_pai: firstFilled(membro?.nome_pai),
+    data_nascimento: dateInputValue(membro?.data_nascimento),
+    profissao: firstFilled(membro?.profissao, membro?.cargo),
+    email: firstFilled(membro?.email, user?.email),
+    telefone: firstFilled(membro?.telefone, membro?.whatsapp, membro?.celular),
+    cpf: firstFilled(membro?.cpf),
+    rg: firstFilled(membro?.rg),
+    estado_civil: firstFilled(membro?.estado_civil),
+    regime_comunhao: firstFilled(membro?.regime_comunhao),
+    conjuge_nome_completo: firstFilled(membro?.conjuge_nome_completo),
+    conjuge_nacionalidade: firstFilled(membro?.conjuge_nacionalidade),
+    conjuge_nome_mae: firstFilled(membro?.conjuge_nome_mae),
+    conjuge_nome_pai: firstFilled(membro?.conjuge_nome_pai),
+    conjuge_data_nascimento: dateInputValue(membro?.conjuge_data_nascimento),
+    conjuge_profissao: firstFilled(membro?.conjuge_profissao),
+    conjuge_email: firstFilled(membro?.conjuge_email),
+    conjuge_telefone: firstFilled(membro?.conjuge_telefone),
+    conjuge_cpf: firstFilled(membro?.conjuge_cpf),
+    conjuge_rg: firstFilled(membro?.conjuge_rg),
+    mesmo_endereco: sameAddress,
+    endereco: firstFilled(membro?.endereco),
+    bairro: firstFilled(membro?.bairro),
+    cidade: firstFilled(membro?.cidade),
+    estado: firstFilled(membro?.estado),
+    pais: firstFilled(membro?.pais),
+    titular_endereco: firstFilled(membro?.titular_endereco, membro?.endereco),
+    titular_bairro: firstFilled(membro?.titular_bairro, membro?.bairro),
+    titular_cidade: firstFilled(membro?.titular_cidade, membro?.cidade),
+    titular_estado: firstFilled(membro?.titular_estado, membro?.estado),
+    titular_pais: firstFilled(membro?.titular_pais, membro?.pais),
+    conjuge_endereco: firstFilled(membro?.conjuge_endereco),
+    conjuge_bairro: firstFilled(membro?.conjuge_bairro),
+    conjuge_cidade: firstFilled(membro?.conjuge_cidade),
+    conjuge_estado: firstFilled(membro?.conjuge_estado),
+    conjuge_pais: firstFilled(membro?.conjuge_pais),
+  };
+}
+
+function pickMouDadosProfilePayload(data: MouDadosContratuais): Record<string, string | boolean | null> {
+  const payload: Record<string, string | boolean | null> = {};
+  const fieldMap: Record<string, string> = {
+    nome_completo: "nome",
+    nacionalidade: "nacionalidade",
+    nome_mae: "nome_mae",
+    nome_pai: "nome_pai",
+    data_nascimento: "data_nascimento",
+    profissao: "profissao",
+    email: "email",
+    telefone: "telefone",
+    cpf: "cpf",
+    rg: "rg",
+    estado_civil: "estado_civil",
+    regime_comunhao: "regime_comunhao",
+    conjuge_nome_completo: "conjuge_nome_completo",
+    conjuge_nacionalidade: "conjuge_nacionalidade",
+    conjuge_nome_mae: "conjuge_nome_mae",
+    conjuge_nome_pai: "conjuge_nome_pai",
+    conjuge_data_nascimento: "conjuge_data_nascimento",
+    conjuge_profissao: "conjuge_profissao",
+    conjuge_email: "conjuge_email",
+    conjuge_telefone: "conjuge_telefone",
+    conjuge_cpf: "conjuge_cpf",
+    conjuge_rg: "conjuge_rg",
+    endereco: "endereco",
+    bairro: "bairro",
+    cidade: "cidade",
+    estado: "estado",
+    pais: "pais",
+    titular_endereco: "titular_endereco",
+    titular_bairro: "titular_bairro",
+    titular_cidade: "titular_cidade",
+    titular_estado: "titular_estado",
+    titular_pais: "titular_pais",
+    conjuge_endereco: "conjuge_endereco",
+    conjuge_bairro: "conjuge_bairro",
+    conjuge_cidade: "conjuge_cidade",
+    conjuge_estado: "conjuge_estado",
+    conjuge_pais: "conjuge_pais",
+  };
+  Object.entries(fieldMap).forEach(([source, target]) => {
+    payload[target] = firstFilled(data[source]) || null;
+  });
+  payload.mesmo_endereco = data.mesmo_endereco === true;
+  return payload;
+}
 
 // M2M junction shapes returned by Directus
 interface MembroJunction { cadastro_geral_id: Membro | string | null; }
@@ -857,6 +1016,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     queryFn: () => fetch("/api/membros").then(r => { if (!r.ok) throw new Error("Erro ao buscar membros"); return r.json(); }),
   });
 
+  const currentMembro = useMemo(
+    () => membros.find(membro => String(membro.id || "") === String(user?.membro_directus_id || "")) || null,
+    [membros, user?.membro_directus_id]
+  );
+
   const { data: bias = [] } = useQuery<Bia[]>({
     queryKey: ["/api/bias"],
     queryFn: () => fetch("/api/bias").then(r => { if (!r.ok) throw new Error("Erro ao buscar BIAs"); return r.json(); }),
@@ -1167,6 +1331,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     mutationFn: async () => {
       if (!mouPendente) throw new Error("Nenhum MOU pendente");
       const base = mouPendente.tipo === "diretor" ? "bia-diretor-solicitacoes" : "bia-socio-solicitacoes";
+      if (currentMembro?.id) {
+        await apiRequest("PATCH", `/api/membros/${currentMembro.id}`, pickMouDadosProfilePayload(mouDadosForm));
+      }
       return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, {
         aceitar_mou: true,
         dados_contratuais_mou: mouDadosForm,
@@ -1178,6 +1345,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me/documentos-aceitos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      if (currentMembro?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/membros", currentMembro.id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       toast({ title: "MOU aceito", description: "Sua participação na BIA foi confirmada." });
       setMouPendente(null);
       setMouAceito(false);
@@ -1236,6 +1408,21 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
   });
 
+  const removerConviteMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest("DELETE", `/api/convites/${token}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      toast({ title: "Alerta removido" });
+    },
+    onError: (error: any) => toast({
+      title: "Erro ao remover alerta",
+      description: error?.message || "Tente novamente.",
+      variant: "destructive",
+    }),
+  });
+
   // Aura evaluation state for Aliado evaluating a candidate directly from the panel
   const [auraDialogConvite, setAuraDialogConvite] = useState<{ avaliacaoToken: string; candidatoNome: string } | null>(null);
   const [auraSelectedWords, setAuraSelectedWords] = useState<string[]>([]);
@@ -1273,6 +1460,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
 
   function setMouDadosField(field: string, value: string | boolean) {
     setMouDadosForm(current => ({ ...current, [field]: value }));
+  }
+
+  function openMouDadosForm() {
+    setMouDadosForm(buildMouDadosFromProfile(currentMembro, user));
+    setMouDadosOpen(true);
   }
 
   function getMouDadosMissingFields() {
@@ -1565,6 +1757,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     "termos_aceitos",
     "pagamento_pendente",
   ];
+  const HIDDEN_APPROVAL_STATUSES = ["cancelado", "cancelada", "arquivado", "arquivada"];
   const normalize = (value: string) =>
     value
       .toLowerCase()
@@ -1577,7 +1770,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         convite,
       ])
     ).values()
-  ).sort((a: any, b: any) => {
+  )
+    .filter((convite: any) => !HIDDEN_APPROVAL_STATUSES.includes(String(convite.status || "").toLowerCase()))
+    .sort((a: any, b: any) => {
     const priorityA = PENDING_DECISION_STATUSES.includes(a.status) ?0 : 1;
     const priorityB = PENDING_DECISION_STATUSES.includes(b.status) ?0 : 1;
     if (priorityA !== priorityB) return priorityA - priorityB;
@@ -1917,6 +2112,19 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                               <XCircle className="w-3.5 h-3.5" />
                               Recusar
                             </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Remover esta pendência? Isso recusará o convite de diretoria.")) {
+                                  responderDiretoriaMutation.mutate({ id: solicitacao.id, decisao: "recusar" });
+                                }
+                              }}
+                              disabled={responderDiretoriaMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                              data-testid={"btn-remover-diretoria-" + solicitacao.id}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Remover
+                            </button>
                           </>
                         ) : (
                           <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-500">
@@ -1969,6 +2177,19 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                             >
                               <XCircle className="w-3.5 h-3.5" />
                               Recusar
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Remover esta pendência? Isso recusará o convite de sócio.")) {
+                                  responderSocioMutation.mutate({ id: solicitacao.id, decisao: "recusar" });
+                                }
+                              }}
+                              disabled={responderSocioMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                              data-testid={"btn-remover-socio-" + solicitacao.id}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Remover
                             </button>
                           </>
                         ) : (
@@ -2118,6 +2339,21 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                               </button>
                             )}
                           </>
+                        )}
+                        {convite.token && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm("Remover este alerta/pendência da lista?")) {
+                                removerConviteMutation.mutate(convite.token);
+                              }
+                            }}
+                            disabled={removerConviteMutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                            data-testid={"btn-remover-convite-" + convite.id}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remover
+                          </button>
                         )}
                       </div>
                     </div>
@@ -2698,7 +2934,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               Cancelar
             </Button>
             <Button
-              onClick={() => setMouDadosOpen(true)}
+              onClick={openMouDadosForm}
               disabled={!mouAceito || concluirMouMutation.isPending}
               className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-aceitar-mou-bia"
@@ -2724,7 +2960,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               Dados para formalização da BIA
             </DialogTitle>
             <DialogDescription>
-              Preencha os dados contratuais para concluir o aceite do MOU e efetivar sua participação.
+              Revise os dados contratuais para concluir o aceite do MOU e efetivar sua participação.
             </DialogDescription>
           </DialogHeader>
 

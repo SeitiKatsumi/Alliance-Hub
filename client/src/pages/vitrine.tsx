@@ -26,6 +26,7 @@ import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer"
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura } from "@/lib/aura-access";
+import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { PhoneInput } from "@/components/phone-input";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
@@ -899,10 +900,12 @@ export default function VitrinePage() {
   } | null>(null);
   const anuncioTermsAllAccepted = anuncioTerms.t1 && anuncioTerms.t2 && anuncioTerms.t3;
   const [anuncioEditTarget, setAnuncioEditTarget] = useState<AnuncioVitrine | null>(null);
+  const [blockedAuraAccess, setBlockedAuraAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
 
   const membroId = user?.membro_directus_id;
   const isSuperAdmin = user?.role === "admin";
   const canUseAuraRegistration = isBuiltMemberForAura(user);
+  const showAuraCta = !!membroId;
 
   // Fetch all vitrine members
   const { data: membros = [], isLoading, isError: vitrineLoadError, error: vitrineLoadErrorInfo } = useQuery<MembroVitrine[]>({
@@ -960,19 +963,19 @@ export default function VitrinePage() {
 
   // Anúncios queries
   const { data: anunciosAtivos = [], refetch: refetchAnuncios } = useQuery<AnuncioVitrine[]>({
-    queryKey: ["/api/anuncios"],
+    queryKey: ["/api/anuncios", "vitrine"],
     queryFn: async () => {
-      const r = await fetch("/api/anuncios");
+      const r = await fetch("/api/anuncios?ambiente=vitrine");
       if (!r.ok) return [];
       return normalizeAnuncios(fixMojibakeDeep(await r.json()));
     },
   });
 
   const { data: meusAnuncios = [], refetch: refetchMeuAnuncio } = useQuery<AnuncioVitrine[]>({
-    queryKey: ["/api/anuncios/mine"],
+    queryKey: ["/api/anuncios/mine", "vitrine"],
     queryFn: async () => {
       if (!user) return [];
-      const r = await fetch("/api/anuncios/mine");
+      const r = await fetch("/api/anuncios/mine?ambiente=vitrine");
       if (!r.ok) return [];
       return normalizeAnuncios(fixMojibakeDeep(await r.json()));
     },
@@ -996,7 +999,9 @@ export default function VitrinePage() {
     },
     onSuccess: (anuncio: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios", "vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine", "vitrine"] });
       setAnuncioDialogOpen(false);
       if (anuncio.pagamento_url && !isSuperAdmin) {
         setUltimoPagamentoAnuncio({
@@ -1021,7 +1026,9 @@ export default function VitrinePage() {
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/anuncios/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios", "vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine", "vitrine"] });
       setAnuncioDialogOpen(false);
       toast({ title: "Destaque atualizado!" });
     },
@@ -1032,7 +1039,9 @@ export default function VitrinePage() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/anuncios/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios", "vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine", "vitrine"] });
       toast({ title: "Destaque cancelado." });
     },
     onError: () => toast({ title: "Erro ao cancelar destaque", variant: "destructive" }),
@@ -1110,6 +1119,7 @@ export default function VitrinePage() {
         descricao: anuncioForm.descricao || null,
         link: anuncioForm.link || null,
         imagem_directus_id: anuncioImagemId || null,
+        ambiente: "vitrine",
         slot_tipo: anuncioSlotTipo,
         pagamento_pais: anuncioPagamentoPais,
       });
@@ -1273,6 +1283,12 @@ export default function VitrinePage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <EnvironmentAccessDialog
+        access={blockedAuraAccess}
+        open={!!blockedAuraAccess}
+        onOpenChange={(open) => !open && setBlockedAuraAccess(null)}
+      />
+
       {/* Header — BIA style */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -1652,11 +1668,14 @@ export default function VitrinePage() {
                 key={m.id}
                 membro={m}
                 isOwn={m.id === membroId}
+                showAuraCta={showAuraCta}
+                canOpenAura={canUseAuraRegistration}
                 canRegisterAura={canRegisterAuraForMember({
                   user,
                   targetMemberId: m.id,
                   linkedMemberIds: auraLinkedMemberIds,
                 })}
+                onAuraBlocked={() => setBlockedAuraAccess(environmentAccessFor(user, "alliances"))}
               />
             ))}
           </div>
@@ -1667,11 +1686,14 @@ export default function VitrinePage() {
                 key={m.id}
                 membro={m}
                 isOwn={m.id === membroId}
+                showAuraCta={showAuraCta}
+                canOpenAura={canUseAuraRegistration}
                 canRegisterAura={canRegisterAuraForMember({
                   user,
                   targetMemberId: m.id,
                   linkedMemberIds: auraLinkedMemberIds,
                 })}
+                onAuraBlocked={() => setBlockedAuraAccess(environmentAccessFor(user, "alliances"))}
               />
             ))}
           </div>
@@ -2371,18 +2393,24 @@ function ParceiroDestaqueCard({ membro: m, onOpen }: { membro: MembroVitrine; on
 function MembroListItem({
   membro: m,
   isOwn,
+  showAuraCta,
+  canOpenAura,
   canRegisterAura,
+  onAuraBlocked,
 }: {
   membro: MembroVitrine;
   isOwn: boolean;
+  showAuraCta: boolean;
+  canOpenAura: boolean;
   canRegisterAura: boolean;
+  onAuraBlocked: () => void;
 }) {
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
   const hasProudMember = (m.Outras_redes_as_quais_pertenco || []).includes("BUILT_PROUD_MEMBER");
   const nome = m.nome || "—";
   const [, navigate] = useLocation();
-  const canViewAndRegisterAura = !isOwn && canRegisterAura;
+  const canShowAura = !isOwn && showAuraCta;
 
   function handleOrcamento(e: React.MouseEvent) {
     e.stopPropagation();
@@ -2401,6 +2429,10 @@ function MembroListItem({
 
   function handleAura(e: React.MouseEvent) {
     e.stopPropagation();
+    if (!canOpenAura) {
+      onAuraBlocked();
+      return;
+    }
     navigate(`/aura/${m.id}`);
   }
 
@@ -2442,7 +2474,7 @@ function MembroListItem({
       </div>
 
       <div className="hidden sm:flex items-center gap-3 shrink-0">
-        {canViewAndRegisterAura && (
+        {canShowAura && (
           <Button
             type="button"
             variant="ghost"
@@ -2452,7 +2484,7 @@ function MembroListItem({
             data-testid={`btn-list-aura-${m.id}`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Ver e registrar Aura
+            {canRegisterAura ? "Ver e registrar Aura" : "Ver Aura"}
           </Button>
         )}
         {!isOwn && (
@@ -2476,11 +2508,17 @@ function MembroListItem({
 function MembroCard({
   membro: m,
   isOwn,
+  showAuraCta,
+  canOpenAura,
   canRegisterAura,
+  onAuraBlocked,
 }: {
   membro: MembroVitrine;
   isOwn: boolean;
+  showAuraCta: boolean;
+  canOpenAura: boolean;
   canRegisterAura: boolean;
+  onAuraBlocked: () => void;
 }) {
   const foto = fotoUrl(m);
   const logo = logoEmpresaUrl(m);
@@ -2489,7 +2527,7 @@ function MembroCard({
   const [, navigate] = useLocation();
   const [orcamentoOpen, setOrcamentoOpen] = useState(false);
   const [mensagem, setMensagem] = useState("");
-  const canViewAndRegisterAura = !isOwn && canRegisterAura;
+  const canShowAura = !isOwn && showAuraCta;
 
   function waLink() {
     if (!m.whatsapp) return null;
@@ -2518,6 +2556,10 @@ function MembroCard({
 
   function handleAura(e: React.MouseEvent) {
     e.stopPropagation();
+    if (!canOpenAura) {
+      onAuraBlocked();
+      return;
+    }
     navigate(`/aura/${m.id}`);
   }
 
@@ -2622,7 +2664,7 @@ function MembroCard({
           {!isOwn && (
             <>
               <div className="h-px bg-border" />
-              {canViewAndRegisterAura && (
+              {canShowAura && (
                 <button
                   type="button"
                   onClick={handleAura}
@@ -2630,7 +2672,7 @@ function MembroCard({
                   data-testid={`btn-card-aura-${m.id}`}
                 >
                   <Sparkles className="w-3 h-3" />
-                  Ver e registrar Aura
+                  {canRegisterAura ? "Ver e registrar Aura" : "Ver Aura"}
                 </button>
               )}
               <button

@@ -795,22 +795,12 @@ function OpaCard({
           </div>
         </div>
 
-        {(opa.date_created || (opa.Anexos && opa.Anexos.length > 0)) && (
-          <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-muted-foreground/55">
-            {opa.date_created ? (
-              <span>
-                {(() => {
-                  const dias = Math.floor((Date.now() - new Date(opa.date_created).getTime()) / 86400000);
-                  return dias === 0 ? "Publicada hoje" : dias === 1 ? "Publicada há 1 dia" : `Publicada há ${dias} dias`;
-                })()}
-              </span>
-            ) : <span />}
-            {opa.Anexos && opa.Anexos.length > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Paperclip className="h-3 w-3" />
-                {opa.Anexos.length}
-              </span>
-            )}
+        {opa.Anexos && opa.Anexos.length > 0 && (
+          <div className="mt-3 flex items-center justify-end gap-2 text-[10px] text-muted-foreground/55">
+            <span className="inline-flex items-center gap-1">
+              <Paperclip className="h-3 w-3" />
+              {opa.Anexos.length}
+            </span>
           </div>
         )}
       </CardContent>

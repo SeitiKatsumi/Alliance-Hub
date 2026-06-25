@@ -1,20 +1,22 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import {
-  Search, MapPin, Phone, Mail, Building2, TrendingUp, Globe, LayoutGrid, List
+  MapPin, Phone, Mail, Building2, TrendingUp, Globe, Megaphone, Target, ChevronRight,
+  ImageIcon, Loader2, Upload, CheckCircle2
 } from "lucide-react";
 import { formatSegmentosDisplay } from "@/lib/ramos-segmentos";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -38,6 +40,82 @@ interface Parceiro {
   longitude?: number | null;
   link_site?: string | null;
   Outras_redes_as_quais_pertenco?: string[] | null;
+}
+
+interface AnuncioCapital {
+  id: string;
+  titulo?: string | null;
+  descricao?: string | null;
+  link?: string | null;
+  imagem_url?: string | null;
+  imagem_directus_id?: string | null;
+  slot_tipo?: string | null;
+  ativo?: boolean | null;
+  pagamento_status?: string | null;
+  pagamento_url?: string | null;
+  pagamento_pais?: string | null;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+}
+
+interface ChamadaCapital {
+  id: string;
+  nome_oportunidade?: string | null;
+  tipo?: string | null;
+  valor_origem_opa?: string | number | null;
+  Minimo_esforco_multiplicador?: string | number | null;
+  nucleo_alianca?: string | null;
+  localizacao?: string | null;
+  status?: string | null;
+  imagem_url?: string | null;
+  imagem_directus_id?: string | null;
+}
+
+const ASSET_CACHE_VERSION = "directus-db-20260616";
+
+function directusAssetId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.id || value.uuid || value.directus_files_id || value.file || null;
+  return String(value);
+}
+
+function assetUrl(value: any, params = ""): string | null {
+  if (!value) return null;
+  if (typeof value === "string" && value.startsWith("/api/assets/")) {
+    return `${value}${value.includes("?") ? "&" : "?"}v=${ASSET_CACHE_VERSION}`;
+  }
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+  const id = directusAssetId(value);
+  if (!id) return null;
+  const query = params ? `${params}&v=${ASSET_CACHE_VERSION}` : `v=${ASSET_CACHE_VERSION}`;
+  return `/api/assets/${id}?${query}`;
+}
+
+function num(value: string | number | null | undefined): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (!value) return 0;
+  const raw = String(value).trim();
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function brl(value: string | number | null | undefined): string {
+  const parsed = num(value);
+  if (!parsed) return "-";
+  return parsed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function safeHref(link?: string | null) {
+  const value = typeof link === "string" ? link.trim() : "";
+  if (!value) return undefined;
+  return value.startsWith("http") ? value : `https://${value}`;
+}
+
+function visibleTitle(title?: string | null) {
+  const value = typeof title === "string" ? title.trim() : "";
+  return value === "Destaque da Vitrine" || value === "Destaque BUILT Capital" ? "" : value;
 }
 
 function fotoUrl(p: Parceiro, size = 200): string | null {
@@ -87,7 +165,9 @@ function formatFilterLabel(value: string): string {
   if (!cleaned) return "";
   return cleaned
     .toLocaleLowerCase("pt-BR")
-    .replace(/(^|\s|[-'/])\p{L}/gu, (letter) => letter.toLocaleUpperCase("pt-BR"));
+    .split(" ")
+    .map((part) => part ? part.charAt(0).toLocaleUpperCase("pt-BR") + part.slice(1) : part)
+    .join(" ");
 }
 
 // ===== MAPA =====
@@ -121,8 +201,8 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-brand-gold/20"
-      style={{ height: 420, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+      className="relative aspect-[16/9] max-h-[360px] overflow-hidden rounded-2xl border border-brand-gold/20"
+      style={{ background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
     >
       <div className="absolute inset-0 pointer-events-none" style={{
         backgroundImage: "linear-gradient(rgba(37,99,235,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.08) 1px, transparent 1px)",
@@ -132,17 +212,17 @@ function MapaParceiros({ parceiros }: { parceiros: Parceiro[] }) {
         <div key={pos} className={`absolute ${pos} w-12 h-12 border-brand-gold/40 pointer-events-none ${cls}`} />
       ))}
 
-      <div className="absolute top-5 left-6 z-20">
+      <div className="absolute top-4 left-4 z-20 sm:top-5 sm:left-6">
         <p className="text-[10px] text-white/60 tracking-[0.35em] uppercase font-mono">// BUILT Capital</p>
-        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-white">
+        <h2 className="mt-0.5 max-w-[260px] font-mono text-base font-bold leading-tight tracking-[0.08em] text-white sm:max-w-[360px] sm:text-lg sm:tracking-[0.1em] xl:max-w-none xl:text-xl xl:tracking-[0.12em]">
           MAPA DE PARCEIROS DE CAPITAL
         </h2>
       </div>
 
-      <div className="absolute top-5 right-6 z-20 text-right font-mono">
+      <div className="absolute top-4 right-4 z-20 text-right font-mono sm:top-5 sm:right-6">
         <div className="mb-2">
           <p className="text-[9px] text-white/55 tracking-widest uppercase">Parceiros</p>
-          <p className="text-4xl font-bold leading-none text-white">{parceiros.length}</p>
+          <p className="text-2xl font-bold leading-none text-white sm:text-3xl xl:text-4xl">{parceiros.length}</p>
         </div>
         <p className="text-[9px] text-white/45">{withCoords.length} geolocalizados</p>
       </div>
@@ -597,14 +677,147 @@ function CapitalListItem({ parceiro }: { parceiro: Parceiro }) {
   );
 }
 
+function DestaqueHeroCapital({ anuncio, onCreate }: { anuncio?: AnuncioCapital; onCreate: () => void }) {
+  const href = safeHref(anuncio?.link);
+  const image = assetUrl(anuncio?.imagem_url || anuncio?.imagem_directus_id, "width=1000&height=520&fit=cover");
+  const title = visibleTitle(anuncio?.titulo);
+
+  const content = (
+    <div className="group relative aspect-[16/9] max-h-[360px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      {image ? (
+        <img src={image} alt={title || "Destaque BUILT Capital"} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(37,99,235,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(37,99,235,0.05)_1px,transparent_1px)] bg-[size:38px_38px]" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/82 to-white/35 opacity-0 transition group-hover:opacity-100" />
+      <div className="relative flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        {!image && (
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600">
+            <Megaphone className="h-7 w-7" />
+          </div>
+        )}
+        <div className={image ? "opacity-0 transition group-hover:opacity-100" : ""}>
+          <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-brand-navy">
+            {title || "Espaço Premium Disponível"}
+          </p>
+          <p className="mt-3 font-mono text-xs text-slate-500">{anuncio ? "Clique para abrir" : "Clique para destacar"}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return <a href={href} target="_blank" rel="noopener noreferrer">{content}</a>;
+  }
+
+  return (
+    <button type="button" onClick={onCreate} className="block w-full text-left" data-testid="btn-capital-destaque-hero">
+      {content}
+    </button>
+  );
+}
+
+function DestaqueSlotCapital({ anuncio, onCreate }: { anuncio?: AnuncioCapital; onCreate: () => void }) {
+  const href = safeHref(anuncio?.link);
+  const image = assetUrl(anuncio?.imagem_url || anuncio?.imagem_directus_id, "width=360&height=360&fit=cover");
+  const title = visibleTitle(anuncio?.titulo);
+  const content = (
+    <div
+      className="group relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl bg-white px-4 text-center transition hover:border-blue-300 hover:shadow-md"
+      style={{
+        aspectRatio: "1/1",
+        border: "1.5px solid rgba(37,99,235,0.35)",
+        boxShadow: "0 2px 12px rgba(37,99,235,0.1)",
+      }}
+    >
+      {image && <img src={image} alt={title || "Destaque"} className="absolute inset-0 h-full w-full object-cover" />}
+      <div className="absolute inset-0 bg-white/0 transition group-hover:bg-white/82" />
+      <div className={`relative ${image ? "opacity-0 transition group-hover:opacity-100" : ""}`}>
+        <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600">
+          <Megaphone className="h-4 w-4" />
+        </div>
+        <p className="mt-4 font-mono text-xs font-bold uppercase tracking-[0.16em] text-brand-navy">
+          {title || "Espaço disponível"}
+        </p>
+        <p className="mt-2 font-mono text-[10px] text-slate-500">{anuncio ? "Abrir destaque" : "Clique para destacar"}</p>
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return <a href={href} target="_blank" rel="noopener noreferrer">{content}</a>;
+  }
+
+  return (
+    <button type="button" onClick={onCreate} className="block w-full text-left" data-testid="btn-capital-destaque-slot">
+      {content}
+    </button>
+  );
+}
+
+function ChamadaCapitalCard({ chamada, onOpen }: { chamada: ChamadaCapital; onOpen: () => void }) {
+  const image = assetUrl(chamada.imagem_url || chamada.imagem_directus_id, "width=520&height=220&fit=cover");
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="min-w-[268px] snap-start overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-md"
+      data-testid={`card-capital-chamada-${chamada.id}`}
+    >
+      <div className="relative h-[92px] w-full bg-gradient-to-br from-emerald-50 to-slate-100">
+        {image ? (
+          <img src={image} alt={chamada.nome_oportunidade || "Chamada de Capital"} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-emerald-500/25">
+            <Target className="h-9 w-9" />
+          </div>
+        )}
+        <span className="absolute left-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">
+          Pública
+        </span>
+      </div>
+      <div className="flex items-start justify-between gap-3 px-3.5 pt-3.5">
+        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+          {chamada.tipo || "Chamada"}
+        </span>
+        {chamada.status && (
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            {String(chamada.status).replace(/_/g, " ")}
+          </span>
+        )}
+      </div>
+      <h3 className="mx-3.5 mt-2.5 line-clamp-2 min-h-[40px] text-sm font-semibold text-foreground">
+        {chamada.nome_oportunidade || "Chamada de Capital sem nome"}
+      </h3>
+      <p className="mx-3.5 mt-1.5 line-clamp-1 text-sm text-muted-foreground">
+        {chamada.nucleo_alianca || chamada.localizacao || "Chamada BUILT Capital"}
+      </p>
+      <div className="mx-3.5 mb-3.5 mt-3 grid grid-cols-2 gap-3 border-t border-border pt-2.5">
+        <div className="min-w-0">
+          <p className="text-[10px] text-muted-foreground">Valor</p>
+          <p className="whitespace-nowrap text-sm font-semibold leading-tight text-foreground">{brl(chamada.valor_origem_opa)}</p>
+        </div>
+        <div className="min-w-0 text-right" title="Mínimo Esforço Multiplicador">
+          <p className="text-[10px] text-muted-foreground">MEM</p>
+          <p className="text-sm font-semibold leading-tight text-foreground">{num(chamada.Minimo_esforco_multiplicador).toLocaleString("pt-BR")}%</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 // ===== MAIN PAGE =====
 export default function BuiltCapitalPage() {
-  const { user } = useAuth();
-  const [search, setSearch] = useState("");
-  const [filterTerritorio, setFilterTerritorio] = useState("all");
-  const [filterRamo, setFilterRamo] = useState("all");
-  const [sortOrder, setSortOrder] = useState<"default" | "az" | "za">("default");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [destaqueDialogOpen, setDestaqueDialogOpen] = useState(false);
+  const [destaqueSlotTipo, setDestaqueSlotTipo] = useState<"padrao" | "hero">("padrao");
+  const [destaquePagamentoPais, setDestaquePagamentoPais] = useState<"brasil" | "exterior">("brasil");
+  const [destaqueForm, setDestaqueForm] = useState({ titulo: "", descricao: "", link: "" });
+  const [destaqueImagemId, setDestaqueImagemId] = useState<string | null>(null);
+  const [destaqueImagemPreview, setDestaqueImagemPreview] = useState<string | null>(null);
+  const [destaqueUploadLoading, setDestaqueUploadLoading] = useState(false);
+  const [destaqueTermsAccepted, setDestaqueTermsAccepted] = useState(false);
 
   const { data: parceiros = [], isLoading } = useQuery<Parceiro[]>({
     queryKey: ["/api/parceiros-capital"],
@@ -612,184 +825,359 @@ export default function BuiltCapitalPage() {
       const r = await fetch("/api/parceiros-capital");
       if (!r.ok) return [];
       const data = await r.json();
-      return Array.isArray(data) ?data : [];
+      return Array.isArray(data) ? data : [];
     },
   });
 
-  const ramos = useMemo(() => {
-    const map = new Map<string, string>();
-    parceiros.forEach(p => {
-      const key = normalizeFilterText(p.ramo_atuacao);
-      if (!key) return;
-      const label = formatFilterLabel(p.ramo_atuacao || "");
-      const current = map.get(key);
-      if (!current || label.length < current.length || current === current.toLocaleUpperCase("pt-BR")) {
-        map.set(key, label);
+  const { data: anuncios = [] } = useQuery<AnuncioCapital[]>({
+    queryKey: ["/api/anuncios", "capital"],
+    queryFn: async () => {
+      const r = await fetch("/api/anuncios?ambiente=capital");
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const { data: chamadas = [] } = useQuery<ChamadaCapital[]>({
+    queryKey: ["/api/chamadas-capital"],
+    queryFn: async () => {
+      const r = await fetch("/api/chamadas-capital");
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const anunciosAtivos = useMemo(() => {
+    return anuncios.filter(anuncio =>
+      anuncio.ativo !== false && normalizeFilterText(anuncio.pagamento_status) !== "cancelado"
+    );
+  }, [anuncios]);
+
+  const destaqueHero = anunciosAtivos.find(anuncio => normalizeFilterText(anuncio.slot_tipo) === "hero");
+  const destaquesMenores = anunciosAtivos
+    .filter(anuncio => normalizeFilterText(anuncio.slot_tipo) !== "hero")
+    .slice(0, 5);
+
+  const chamadasCapital = useMemo(() => {
+    return chamadas
+      .filter(chamada => {
+        const status = normalizeFilterText(chamada.status);
+        return !status || ["ativa", "ativo", "publicada", "em formacao", "em formação"].includes(status);
+      })
+      .slice(0, 8);
+  }, [chamadas]);
+
+  const criarDestaqueMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/anuncios", {
+        titulo: destaqueForm.titulo.trim(),
+        descricao: destaqueForm.descricao.trim() || null,
+        link: destaqueForm.link.trim() || null,
+        imagem_directus_id: destaqueImagemId || null,
+        slot_tipo: destaqueSlotTipo,
+        pagamento_pais: destaquePagamentoPais,
+        ambiente: "capital",
+      });
+      return response.json();
+    },
+    onSuccess: (anuncio: AnuncioCapital) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios", "capital"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/anuncios/mine", "capital"] });
+      setDestaqueDialogOpen(false);
+      if (anuncio.pagamento_url) {
+        window.open(anuncio.pagamento_url, "_blank", "noopener,noreferrer");
+        toast({
+          title: "Pagamento gerado",
+          description: "O destaque do BUILT Capital foi criado e o link de pagamento abriu em nova aba.",
+        });
+        return;
       }
-    });
-    return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [parceiros]);
+      toast({ title: "Destaque do BUILT Capital criado" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar destaque",
+        description: error?.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const territorios = useMemo(() => {
-    const map = new Map<string, string>();
-    parceiros.forEach(p => {
-      const key = normalizeTerritorioKey(p.cidade || p.estado || p.pais);
-      if (!key) return;
-      const label = formatFilterLabel(key);
-      const current = map.get(key);
-      if (!current || label.length < current.length) {
-        map.set(key, label);
+  function abrirCriacaoDestaque(slotTipo: "padrao" | "hero" = "padrao") {
+    setDestaqueSlotTipo(slotTipo);
+    setDestaquePagamentoPais("brasil");
+    setDestaqueForm({ titulo: "", descricao: "", link: "" });
+    setDestaqueImagemId(null);
+    setDestaqueImagemPreview(null);
+    setDestaqueTermsAccepted(false);
+    setDestaqueDialogOpen(true);
+  }
+
+  async function handleDestaqueImageUpload(file: File) {
+    setDestaqueUploadLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const response = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok || !data.fileIds?.[0]) {
+        throw new Error(data?.error || "Falha no upload");
       }
-    });
-    return Array.from(map.entries())
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [parceiros]);
+      setDestaqueImagemId(data.fileIds[0]);
+      setDestaqueImagemPreview(URL.createObjectURL(file));
+    } catch (error: any) {
+      toast({
+        title: "Erro ao enviar imagem",
+        description: error?.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setDestaqueUploadLoading(false);
+    }
+  }
 
-  const filtered = useMemo(() => {
-    const list = parceiros.filter(p => {
-      const nome = normalizeFilterText(p.nome);
-      const empresa = normalizeFilterText(p.empresa);
-      const segmento = normalizeFilterText(p.segmento);
-      const ramo = normalizeFilterText(p.ramo_atuacao);
-      const q = normalizeFilterText(search);
-      const matchSearch = !q || nome.includes(q) || empresa.includes(q) || segmento.includes(q);
-      const matchTerritorio = filterTerritorio === "all" || normalizeTerritorioKey(p.cidade || p.estado || p.pais) === filterTerritorio;
-      const matchRamo = filterRamo === "all" || ramo === filterRamo;
-      return matchSearch && matchTerritorio && matchRamo;
-    });
-    if (sortOrder === "default") return list;
-    return [...list].sort((a, b) => {
-      const compare = (a.nome || a.empresa || "").localeCompare(b.nome || b.empresa || "", "pt-BR", { sensitivity: "base" });
-      return sortOrder === "az" ? compare : -compare;
-    });
-  }, [parceiros, search, filterTerritorio, filterRamo, sortOrder]);
-
-  const hasFilters = search || filterTerritorio !== "all" || filterRamo !== "all" || sortOrder !== "default";
-
-  function clearFilters() {
-    setSearch("");
-    setFilterTerritorio("all");
-    setFilterRamo("all");
-    setSortOrder("default");
+  function handleDestaqueSubmit() {
+    if (!destaqueTermsAccepted) {
+      toast({ title: "Aceite os termos para publicar o destaque", variant: "destructive" });
+      return;
+    }
+    criarDestaqueMutation.mutate();
   }
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-capital-title">
             <TrendingUp className="w-7 h-7 text-emerald-400" />
             BUILT Capital
           </h1>
-        </div>
-      </div>
-
-      {/* Map */}
-      {!isLoading && <MapaParceiros parceiros={parceiros} />}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar parceiro..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 bg-background border-border text-foreground placeholder:text-muted-foreground"
-            data-testid="input-busca-capital"
-          />
-        </div>
-        <Select value={filterTerritorio} onValueChange={setFilterTerritorio}>
-          <SelectTrigger className="w-44 bg-background border-border text-foreground" data-testid="select-territorio-capital">
-            <SelectValue placeholder="Território" />
-          </SelectTrigger>
-          <SelectContent className="max-h-64">
-            <SelectItem value="all">Todos os territórios</SelectItem>
-            {territorios.map(t => (
-              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {ramos.length > 0 && (
-          <Select value={filterRamo} onValueChange={setFilterRamo}>
-            <SelectTrigger className="w-44 bg-background border-border text-foreground" data-testid="select-ramo-capital">
-              <SelectValue placeholder="Ramo" />
-            </SelectTrigger>
-            <SelectContent className="max-h-64">
-              <SelectItem value="all">Todos os ramos</SelectItem>
-              {ramos.map(r => (
-                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "default" | "az" | "za")}>
-          <SelectTrigger className="w-36 bg-background border-border text-foreground" data-testid="select-ordem-capital">
-            <SelectValue placeholder="Ordenar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="default">Ordenar</SelectItem>
-            <SelectItem value="az">A-Z</SelectItem>
-            <SelectItem value="za">Z-A</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="flex h-9 overflow-hidden rounded-lg border border-border">
-          <button
-            type="button"
-            title="Ver em grade"
-            onClick={() => setViewMode("grid")}
-            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "grid" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-            data-testid="btn-capital-view-grid"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            title="Ver em lista"
-            onClick={() => setViewMode("list")}
-            className={`w-9 flex items-center justify-center transition-colors ${viewMode === "list" ?"bg-brand-gold text-brand-navy" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-            data-testid="btn-capital-view-list"
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-        {hasFilters && (
-          <Button variant="ghost" size="sm"
-            onClick={clearFilters}
-            className="text-muted-foreground hover:text-foreground font-mono text-xs"
-            data-testid="btn-limpar-filtros-capital">
-            Limpar filtros
-          </Button>
-        )}
-      </div>
-
-      {/* Grid */}
-      {isLoading ?(
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-white/5 h-64 animate-pulse" style={{ background: "rgba(255,255,255,0.025)" }} />
-          ))}
-        </div>
-      ) : filtered.length === 0 ?(
-        <div className="text-center py-20">
-          <TrendingUp className="w-12 h-12 text-white/10 mx-auto mb-3" />
-          <p className="text-white/30 font-mono text-sm">
-            {parceiros.length === 0 ?"Nenhum parceiro de capital cadastrado ainda" : "Nenhum parceiro encontrado com os filtros aplicados"}
+          <p className="mt-1 text-muted-foreground">
+            Invista, acompanhe chamadas e destaque oportunidades de capital.
           </p>
         </div>
-      ) : (
-        <div className={viewMode === "list" ?"space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"}>
-          {filtered.map(p => (
-            viewMode === "list"
-              ? <CapitalListItem key={p.id} parceiro={p} />
-              : <CapitalCard key={p.id} parceiro={p} />
+        <Button
+          onClick={() => abrirCriacaoDestaque("hero")}
+          className="bg-blue-600 text-white hover:bg-blue-700"
+          data-testid="btn-capital-criar-destaque"
+        >
+          <Megaphone className="mr-2 h-4 w-4" />
+          Criar destaque
+        </Button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {!isLoading ? (
+          <MapaParceiros parceiros={parceiros} />
+        ) : (
+          <div className="aspect-[16/9] max-h-[360px] rounded-2xl border border-border bg-muted/40" />
+        )}
+        <DestaqueHeroCapital anuncio={destaqueHero} onCreate={() => abrirCriacaoDestaque("hero")} />
+      </div>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Megaphone className="h-4 w-4 text-blue-600" />
+            Destaques BUILT Capital
+          </h2>
+          <div className="h-px flex-1 bg-border" />
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {destaquesMenores.length}/5 em exibição
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={destaquesMenores[index]?.id || index} className="min-w-0">
+              <DestaqueSlotCapital
+                anuncio={destaquesMenores[index]}
+                onCreate={() => abrirCriacaoDestaque("padrao")}
+              />
+            </div>
           ))}
         </div>
-      )}
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            Chamadas de Capital
+          </h2>
+          <div className="h-px flex-1 bg-border" />
+          <Button variant="ghost" className="gap-2" onClick={() => navigate("/built-capital/chamadas")}>
+            Ver todas as chamadas
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {chamadasCapital.length > 0 ? (
+          <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {chamadasCapital.map(chamada => (
+              <ChamadaCapitalCard
+                key={chamada.id}
+                chamada={chamada}
+                onOpen={() => navigate(`/built-capital/chamadas/${chamada.id}`)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center text-muted-foreground">
+            Nenhuma chamada de capital em destaque no momento.
+          </div>
+        )}
+      </section>
+
+      <Dialog open={destaqueDialogOpen} onOpenChange={setDestaqueDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Megaphone className="h-4 w-4 text-blue-600" />
+              Criar destaque BUILT Capital
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Este destaque aparece somente no BUILT Capital e usa vagas independentes da Vitrine.
+            </p>
+          </DialogHeader>
+
+          <div className="max-h-[68vh] space-y-4 overflow-y-auto pr-1">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Tipo de destaque</label>
+              <Select value={destaqueSlotTipo} onValueChange={value => setDestaqueSlotTipo(value === "hero" ? "hero" : "padrao")}>
+                <SelectTrigger data-testid="select-capital-destaque-tipo">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hero">Espaço premium maior (1 vaga)</SelectItem>
+                  <SelectItem value="padrao">Destaque padrão (5 vagas)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Título do destaque</label>
+              <Input
+                value={destaqueForm.titulo}
+                onChange={event => setDestaqueForm(current => ({ ...current, titulo: event.target.value }))}
+                placeholder="Ex: Captação para oportunidade de investimento"
+                data-testid="input-capital-destaque-titulo"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Descrição</label>
+              <Textarea
+                value={destaqueForm.descricao}
+                onChange={event => setDestaqueForm(current => ({ ...current, descricao: event.target.value }))}
+                placeholder="Resumo curto para o destaque no BUILT Capital"
+                rows={3}
+                data-testid="textarea-capital-destaque-descricao"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Imagem</label>
+              <div className="flex items-center gap-3">
+                <div className="flex h-16 w-24 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-blue-50">
+                  {destaqueImagemPreview ? (
+                    <img src={destaqueImagemPreview} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-5 w-5 text-blue-300" />
+                  )}
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-medium text-blue-700 transition hover:bg-blue-50">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpg,image/jpeg,image/webp"
+                    className="sr-only"
+                    onChange={event => {
+                      const file = event.target.files?.[0];
+                      if (file) handleDestaqueImageUpload(file);
+                    }}
+                    data-testid="input-capital-destaque-imagem"
+                  />
+                  {destaqueUploadLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {destaqueUploadLoading ? "Enviando..." : "Escolher imagem"}
+                </label>
+                {destaqueImagemId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDestaqueImagemId(null);
+                      setDestaqueImagemPreview(null);
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-800"
+                  >
+                    remover
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Recomendado: {destaqueSlotTipo === "hero" ? "1600 x 900 px" : "1200 x 1200 px"}.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Link</label>
+              <Input
+                value={destaqueForm.link}
+                onChange={event => setDestaqueForm(current => ({ ...current, link: event.target.value }))}
+                placeholder="https://..."
+                type="url"
+                data-testid="input-capital-destaque-link"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-600">Pagamento</label>
+              <Select value={destaquePagamentoPais} onValueChange={value => setDestaquePagamentoPais(value === "exterior" ? "exterior" : "brasil")}>
+                <SelectTrigger data-testid="select-capital-destaque-pagamento">
+                  <SelectValue placeholder="Local do pagamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="brasil">Brasil</SelectItem>
+                  <SelectItem value="exterior">Fora do Brasil</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={destaqueTermsAccepted}
+                onChange={event => setDestaqueTermsAccepted(event.target.checked)}
+                className="mt-1"
+                data-testid="checkbox-capital-destaque-termos"
+              />
+              <span>
+                Confirmo que tenho autorização para publicar este destaque no BUILT Capital e que as informações são verdadeiras.
+              </span>
+            </label>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDestaqueDialogOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={handleDestaqueSubmit}
+              disabled={!destaqueTermsAccepted || destaqueUploadLoading || criarDestaqueMutation.isPending}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              data-testid="btn-capital-destaque-salvar"
+            >
+              {criarDestaqueMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
+              Gerar destaque
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

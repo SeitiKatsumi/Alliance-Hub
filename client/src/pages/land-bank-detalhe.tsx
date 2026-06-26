@@ -6,13 +6,16 @@ import {
   CheckCircle2,
   HandHeart,
   MapPin,
+  Pencil,
   Ruler,
-  Target,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -22,24 +25,17 @@ const landBankInterestStorageKey = "built-land-bank-interesses-v1";
 const categoryMeta = {
   "land-bank": {
     title: "Land Bank",
-    description: "Terrenos, lotes, glebas e áreas com potencial de desenvolvimento.",
+    description: "Inclui terrenos, lotes, glebas e áreas urbanas ou rurais que podem ser desenvolvidas, loteadas, incorporadas, vendidas de forma estruturada ou transformadas em novos empreendimentos.",
     icon: MapPin,
     accent: "text-emerald-500",
     bg: "bg-emerald-50",
   },
   "built-asset-bank": {
-    title: "Built Asset Bank",
-    description: "Apartamentos, casas, salas, lojas, galpões, prédios e unidades já construídas.",
+    title: "Banco de Ativos Edificados",
+    description: "Inclui galpões, prédios, casas, salas, lojas, apartamentos, estruturas inacabadas e imóveis construídos que podem ser reformados, convertidos, regularizados, vendidos, alugados ou transformados em novos produtos imobiliários.",
     icon: Briefcase,
     accent: "text-blue-500",
     bg: "bg-blue-50",
-  },
-  "transformation-bank": {
-    title: "Transformation Bank",
-    description: "Ativos que precisam de reforma, retrofit, conversão de uso, regularização ou reposicionamento.",
-    icon: Target,
-    accent: "text-violet-500",
-    bg: "bg-violet-50",
   },
 } as const;
 
@@ -47,9 +43,11 @@ type LandBankCategoryValue = keyof typeof categoryMeta;
 
 interface LandBankAsset {
   id: string;
-  category: LandBankCategoryValue;
+  category: LandBankCategoryValue | "transformation-bank";
   qualificacao: string;
   area: string;
+  valor?: string;
+  moeda?: string;
   descricao?: string;
   cep: string;
   endereco: string;
@@ -78,6 +76,10 @@ function readAssets(): LandBankAsset[] {
   }
 }
 
+function writeAssets(assets: LandBankAsset[]) {
+  window.localStorage.setItem(landBankStorageKey, JSON.stringify(assets));
+}
+
 function readInterests(): LandBankInterest[] {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(landBankInterestStorageKey) || "[]");
@@ -101,16 +103,32 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function formatCurrency(value?: string | null, currency = "BRL"): string | null {
+  if (!value) return null;
+  const normalized = String(value).replace(/\./g, "").replace(",", ".");
+  const numericValue = Number(normalized);
+  if (!Number.isFinite(numericValue)) return `${currency} ${value}`;
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(numericValue);
+  } catch {
+    return `${currency} ${value}`;
+  }
+}
+
 export default function LandBankDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const [assets, setAssets] = useState<LandBankAsset[]>(readAssets);
   const [interestDialogOpen, setInterestDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState<LandBankAsset | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [interests, setInterests] = useState<LandBankInterest[]>(readInterests);
 
-  const asset = useMemo(() => readAssets().find((item) => item.id === id) || null, [id]);
+  const asset = useMemo(() => assets.find((item) => item.id === id) || null, [assets, id]);
   const myInterest = interests.find((interest) => interest.assetId === id) || null;
-  const meta = asset ? categoryMeta[asset.category] || categoryMeta["land-bank"] : categoryMeta["land-bank"];
+  const categoryKey = asset?.category === "transformation-bank" ? "built-asset-bank" : asset?.category;
+  const meta = categoryKey ? categoryMeta[categoryKey as LandBankCategoryValue] || categoryMeta["land-bank"] : categoryMeta["land-bank"];
   const Icon = meta.icon;
 
   const registerInterest = () => {
@@ -132,6 +150,33 @@ export default function LandBankDetalhePage() {
     setInterests(next);
   };
 
+  const openEditDialog = () => {
+    if (!asset) return;
+    setEditForm({ ...asset, category: asset.category === "transformation-bank" ? "built-asset-bank" : asset.category });
+    setEditDialogOpen(true);
+  };
+
+  const setEditField = (field: keyof LandBankAsset, value: string) => {
+    setEditForm((current) => current ? { ...current, [field]: value } : current);
+  };
+
+  const handleEditPhoto = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditField("foto", typeof reader.result === "string" ? reader.result : "");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveEdit = () => {
+    if (!editForm) return;
+    const next = assets.map((item) => item.id === editForm.id ? editForm : item);
+    writeAssets(next);
+    setAssets(next);
+    setEditDialogOpen(false);
+  };
+
   if (!asset) {
     return (
       <div className="mx-auto max-w-4xl space-y-4 p-6">
@@ -151,10 +196,16 @@ export default function LandBankDetalhePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
-      <Button variant="ghost" onClick={() => navigate(`/area-aliancas?tab=${asset.category}`)} className="gap-2">
-        <ArrowLeft className="h-4 w-4" />
-        Voltar para {meta.title}
-      </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button variant="ghost" onClick={() => navigate(`/area-aliancas?tab=${asset.category}`)} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para {meta.title}
+        </Button>
+        <Button variant="outline" onClick={openEditDialog} className="gap-2" data-testid="btn-editar-landbank">
+          <Pencil className="h-4 w-4" />
+          Editar ativo
+        </Button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
@@ -220,6 +271,8 @@ export default function LandBankDetalhePage() {
                 <h2 className="font-semibold text-foreground">Informações do ativo</h2>
               </div>
               <InfoRow label="Área" value={`${asset.area} m²`} />
+              <InfoRow label="Valor" value={formatCurrency(asset.valor, asset.moeda || "BRL")} />
+              <InfoRow label="Moeda" value={asset.moeda || "BRL"} />
               <InfoRow label="Categoria" value={meta.title} />
             </CardContent>
           </Card>
@@ -269,6 +322,144 @@ export default function LandBankDetalhePage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setInterestDialogOpen(false)}>Cancelar</Button>
             <Button onClick={registerInterest}>Enviar interesse</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className={`h-5 w-5 ${meta.accent}`} />
+              Editar ativo
+            </DialogTitle>
+          </DialogHeader>
+          {editForm && (
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={editForm.category} onValueChange={(value) => setEditField("category", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="land-bank">Land Bank</SelectItem>
+                    <SelectItem value="built-asset-bank">Banco de Ativos Edificados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Foto do ativo</Label>
+                <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
+                  <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted sm:w-32">
+                    {editForm.foto ? (
+                      <img src={editForm.foto} alt="Prévia do ativo" className="h-full w-full object-cover" />
+                    ) : (
+                      <Icon className={`h-8 w-8 ${meta.accent}`} />
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" asChild>
+                      <label className="cursor-pointer">
+                        Trocar foto
+                        <input type="file" accept="image/*" className="hidden" onChange={(event) => handleEditPhoto(event.target.files?.[0])} />
+                      </label>
+                    </Button>
+                    {editForm.foto && (
+                      <Button type="button" variant="ghost" onClick={() => setEditField("foto", "")}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Qualificação</Label>
+                  <Input value={editForm.qualificacao} onChange={(event) => setEditField("qualificacao", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Área (m²)</Label>
+                  <Input value={editForm.area} onChange={(event) => setEditField("area", event.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
+                <div className="space-y-2">
+                  <Label>Valor</Label>
+                  <Input value={editForm.valor || ""} onChange={(event) => setEditField("valor", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Moeda</Label>
+                  <Select value={editForm.moeda || "BRL"} onValueChange={(value) => setEditField("moeda", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Moeda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BRL">BRL - R$</SelectItem>
+                      <SelectItem value="USD">USD - US$</SelectItem>
+                      <SelectItem value="EUR">EUR - €</SelectItem>
+                      <SelectItem value="GBP">GBP - £</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Textarea value={editForm.descricao || ""} onChange={(event) => setEditField("descricao", event.target.value)} className="min-h-24" />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>CEP</Label>
+                  <Input value={editForm.cep} onChange={(event) => setEditField("cep", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Endereço</Label>
+                  <Input value={editForm.endereco} onChange={(event) => setEditField("endereco", event.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Nº</Label>
+                  <Input value={editForm.numero} onChange={(event) => setEditField("numero", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Complemento</Label>
+                  <Input value={editForm.complemento} onChange={(event) => setEditField("complemento", event.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Bairro</Label>
+                  <Input value={editForm.bairro} onChange={(event) => setEditField("bairro", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Cidade</Label>
+                  <Input value={editForm.cidade} onChange={(event) => setEditField("cidade", event.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <Input value={editForm.estado} onChange={(event) => setEditField("estado", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>País</Label>
+                  <Input value={editForm.pais} onChange={(event) => setEditField("pais", event.target.value)} />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={saveEdit}>Salvar alterações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

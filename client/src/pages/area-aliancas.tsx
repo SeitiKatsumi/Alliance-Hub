@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton } from "@/components/rede-badge-viewer";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
@@ -35,6 +36,7 @@ import {
   ShieldCheck,
   Target,
   Users,
+  Info,
 } from "lucide-react";
 
 const WORLD_GEO = "/world-countries-50m.json";
@@ -191,26 +193,32 @@ const landBankCategories = [
   {
     value: "land-bank",
     title: "Land Bank",
-    description: "Terrenos, lotes, glebas e áreas com potencial de desenvolvimento.",
+    shortDescription: "Para ativos cuja oportunidade está essencialmente no solo, na área disponível ou no potencial construtivo.",
+    description: "Inclui terrenos, lotes, glebas e áreas urbanas ou rurais que podem ser desenvolvidas, loteadas, incorporadas, vendidas de forma estruturada ou transformadas em novos empreendimentos.",
+    examples: [
+      "Tenho um lote onde podemos construir.",
+      "Tenho uma área que podemos lotear.",
+      "Tenho uma gleba com potencial para desenvolvimento.",
+      "Tenho um terreno parado e quero descobrir a melhor vocação.",
+    ],
     accent: "text-emerald-500",
     bg: "bg-emerald-50",
     icon: MapPin,
   },
   {
     value: "built-asset-bank",
-    title: "Built Asset Bank",
-    description: "Apartamentos, casas, salas, lojas, galpões, prédios e unidades já construídas.",
+    title: "Banco de Ativos Edificados",
+    shortDescription: "Para ativos que já possuem construção existente, mas estão sem uso, subutilizados, inacabados, abandonados ou aguardando reposicionamento.",
+    description: "Inclui galpões, prédios, casas, salas, lojas, apartamentos, estruturas inacabadas e imóveis construídos que podem ser reformados, convertidos, regularizados, vendidos, alugados ou transformados em novos produtos imobiliários.",
+    examples: [
+      "Tenho um galpão abandonado.",
+      "Tenho um prédio inacabado.",
+      "Tenho uma casa antiga que pode ser reformada.",
+      "Tenho um imóvel construído, mas sem uso ou sem estratégia.",
+    ],
     accent: "text-blue-500",
     bg: "bg-blue-50",
     icon: Briefcase,
-  },
-  {
-    value: "transformation-bank",
-    title: "Transformation Bank",
-    description: "Ativos que precisam de reforma, retrofit, conversão de uso, regularização ou reposicionamento.",
-    accent: "text-violet-500",
-    bg: "bg-violet-50",
-    icon: Target,
   },
 ] as const;
 
@@ -221,6 +229,8 @@ interface LandBankAsset {
   category: LandBankCategory["value"];
   qualificacao: string;
   area: string;
+  valor: string;
+  moeda: string;
   descricao: string;
   cep: string;
   endereco: string;
@@ -273,6 +283,8 @@ const ufApproxCoords: Record<string, [number, number]> = {
 const emptyLandBankForm: LandBankForm = {
   qualificacao: "",
   area: "",
+  valor: "",
+  moeda: "BRL",
   descricao: "",
   cep: "",
   endereco: "",
@@ -290,6 +302,18 @@ function estimateLandBankCoords(form: LandBankForm): { latitude: number | null; 
   const coords = ufApproxCoords[uf];
   if (!coords) return { latitude: null, longitude: null };
   return { longitude: coords[0], latitude: coords[1] };
+}
+
+function formatLandBankCurrency(value?: string | null, currency = "BRL"): string | null {
+  if (!value) return null;
+  const normalized = String(value).replace(/\./g, "").replace(",", ".");
+  const numericValue = Number(normalized);
+  if (!Number.isFinite(numericValue)) return `${currency} ${value}`;
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(numericValue);
+  } catch {
+    return `${currency} ${value}`;
+  }
 }
 
 function LandBankMapHeader({ category, assets }: { category: LandBankCategory; assets: LandBankAsset[] }) {
@@ -318,7 +342,7 @@ function LandBankMapHeader({ category, assets }: { category: LandBankCategory; a
       <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-cyan-400/40 rounded-br-2xl pointer-events-none" />
 
       <div className="absolute top-5 left-6 z-20">
-        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Land bank</p>
+        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Banco de Ativos</p>
         <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-cyan-300">
           MAPA DE {category.title.toUpperCase()}
         </h2>
@@ -417,7 +441,7 @@ function LandBankMapHeader({ category, assets }: { category: LandBankCategory; a
 
       <div className="absolute bottom-5 left-6 z-20 flex items-center gap-2 text-[10px] font-mono text-cyan-300/45">
         <Icon className="h-3.5 w-3.5" />
-        {category.description}
+        {category.shortDescription}
       </div>
     </div>
   );
@@ -435,6 +459,7 @@ function LandBankPanel({
   const [, navigate] = useLocation();
   const Icon = category.icon;
   const [search, setSearch] = useState("");
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const q = search.trim().toLowerCase();
   const filteredAssets = assets.filter((asset) => {
     if (!q) return true;
@@ -457,6 +482,35 @@ function LandBankPanel({
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
           <h2 className="text-2xl font-bold leading-tight text-foreground">{category.title}</h2>
+          <div className="mt-1 flex max-w-3xl items-start gap-2">
+            <p className="text-sm leading-relaxed text-muted-foreground">{category.description}</p>
+            <div
+              className="relative shrink-0"
+              onMouseEnter={() => setExamplesOpen(true)}
+              onMouseLeave={() => setExamplesOpen(false)}
+              onFocus={() => setExamplesOpen(true)}
+            >
+              <button
+                type="button"
+                className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-blue-500 transition-colors hover:bg-blue-50 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-label={`Ver exemplos de ${category.title}`}
+                onClick={() => setExamplesOpen((open) => !open)}
+                data-testid={`btn-info-${category.value}`}
+              >
+                <Info className="h-4 w-4" />
+              </button>
+              {examplesOpen && (
+                <div className="absolute left-0 top-7 z-50 w-80 rounded-md border bg-popover p-4 text-popover-foreground shadow-md" data-testid={`examples-${category.value}`}>
+                  <p className="text-sm font-semibold text-foreground">Exemplos</p>
+                  <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    {category.examples.map((example) => (
+                      <p key={example}>{example}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           <Button onClick={() => onCreate(category.value)} className="gap-2 whitespace-nowrap" data-testid={`btn-criar-${category.value}`}>
@@ -468,7 +522,7 @@ function LandBankPanel({
 
       <LandBankMapHeader category={category} assets={assets} />
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-3">
         <div className="relative flex min-h-10 items-center">
           <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -478,9 +532,6 @@ function LandBankPanel({
             className="h-10 pl-9"
             data-testid={`input-buscar-${category.value}`}
           />
-        </div>
-        <div className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-          {category.description}
         </div>
       </div>
 
@@ -542,8 +593,8 @@ function LandBankPanel({
                       </p>
                     </div>
                     <div className="max-w-[48%] text-right">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">CEP</p>
-                      <p className="truncate text-sm font-medium text-foreground">{asset.cep}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Valor</p>
+                      <p className="truncate text-sm font-bold text-foreground">{formatLandBankCurrency(asset.valor, asset.moeda) || "-"}</p>
                     </div>
                   </div>
                 </div>
@@ -570,7 +621,7 @@ export default function AreaAliancasPage() {
       return {
         main: "landbank",
         rede: "membros",
-        landBank: tab === "landbank" ? "land-bank" : tab!,
+        landBank: tab === "landbank" ? "land-bank" : tab === "transformation-bank" ? "built-asset-bank" : tab!,
       };
     }
     if (["opas", "bias"].includes(tab || "")) {
@@ -628,6 +679,8 @@ export default function AreaAliancasPage() {
     const requiredFields: Array<keyof LandBankForm> = [
       "qualificacao",
       "area",
+      "valor",
+      "moeda",
       "cep",
       "endereco",
       "bairro",
@@ -698,7 +751,7 @@ export default function AreaAliancasPage() {
             data-testid="tab-area-landbank"
           >
             <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
-            Land bank
+            Banco de Ativos
           </TabsTrigger>
         </TabsList>
 
@@ -717,7 +770,7 @@ export default function AreaAliancasPage() {
         <TabsContent value="rede" className="space-y-5">
           {activeTab === "rede" && (
             <Tabs value={activeRedeTab} onValueChange={setActiveRedeTab} className="space-y-5">
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-3">
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-2">
                 <TabsTrigger
                   value="membros"
                   className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
@@ -765,7 +818,7 @@ export default function AreaAliancasPage() {
         <TabsContent value="landbank" className="space-y-5">
           {activeTab === "landbank" && (
             <Tabs value={activeLandBankTab} onValueChange={setActiveLandBankTab} className="space-y-5">
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-3">
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-2">
                 {landBankCategories.map((category) => {
                   const Icon = category.icon;
                   return (
@@ -810,7 +863,7 @@ export default function AreaAliancasPage() {
           <div className="space-y-5">
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Informações do ativo</p>
-              <p className="mt-1 text-sm text-muted-foreground">{selectedLandBankCategory.description}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{selectedLandBankCategory.shortDescription}</p>
             </div>
 
             <div className="space-y-2">
@@ -826,7 +879,7 @@ export default function AreaAliancasPage() {
                 <div className="flex-1 space-y-2">
                   <p className="text-sm font-medium text-foreground">Imagem de capa do card</p>
                   <p className="text-xs text-muted-foreground">
-                    Adicione uma foto do terreno, imóvel ou ativo para aparecer no card do Land bank.
+                    Adicione uma foto do terreno, imóvel ou ativo para aparecer no card do Banco de Ativos.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="outline" asChild>
@@ -869,6 +922,32 @@ export default function AreaAliancasPage() {
                   placeholder="Ex: 120,50"
                   data-testid="input-landbank-area"
                 />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
+              <div className="space-y-2">
+                <Label>Valor <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.valor}
+                  onChange={(e) => setLandBankField("valor", e.target.value)}
+                  placeholder="Ex: 1.250.000,00"
+                  data-testid="input-landbank-valor"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Moeda <span className="text-destructive">*</span></Label>
+                <Select value={landBankForm.moeda} onValueChange={(value) => setLandBankField("moeda", value)}>
+                  <SelectTrigger data-testid="select-landbank-moeda">
+                    <SelectValue placeholder="Moeda" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BRL">BRL - R$</SelectItem>
+                    <SelectItem value="USD">USD - US$</SelectItem>
+                    <SelectItem value="EUR">EUR - €</SelectItem>
+                    <SelectItem value="GBP">GBP - £</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -829,11 +829,6 @@ export default function AreMembroPage() {
           </h1>
           <p className="text-sm text-white/40 font-mono mt-1">Área exclusiva BUILT Proud Members</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-gold/20"
-          style={{ background: "rgba(215,187,125,0.06)" }}>
-          <Users className="w-4 h-4 text-brand-gold/60" />
-          <span className="text-sm font-mono text-brand-gold/80">{membrosComSelo.length} membros</span>
-        </div>
       </div>
 
       {/* Map */}

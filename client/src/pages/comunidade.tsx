@@ -2235,7 +2235,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   const nomeConector = invitador?.nome || null;
                   const statusInfo = STATUS_LABELS[convite.status] || { label: convite.status, color: "text-white/40" };
                   const dados = convite.dados_contratuais as any;
-                  const showAuraAction = Boolean(convite.avaliacao_token) && (isAguardandoAura || (isVitrine && isPendente));
+                  const showAuraAction = Boolean(convite.avaliacao_token) && isAguardandoAura;
                   return (
                     <div key={convite.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0 space-y-1">

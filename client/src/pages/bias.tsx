@@ -241,6 +241,57 @@ function getMembroNome(m: Membro): string {
     m.nome || "";
 }
 
+type AuraBlockedMember = { nome: string; count: number };
+
+async function getAuraEvaluationCount(membroId: string): Promise<number> {
+  try {
+    const response = await fetch(`/api/aura/score/${encodeURIComponent(membroId)}`, {
+      credentials: "include",
+    });
+    if (!response.ok) return 0;
+    const data = await response.json().catch(() => null);
+    return Number(data?.n || 0);
+  } catch {
+    return 0;
+  }
+}
+
+async function ensureMinimumAuraEvaluations(
+  membro: Membro,
+  setBlockedAuraMember: (member: AuraBlockedMember | null) => void,
+): Promise<boolean> {
+  const count = await getAuraEvaluationCount(membro.id);
+  if (count >= 2) return true;
+  setBlockedAuraMember({ nome: getMembroNome(membro) || "Este membro", count });
+  return false;
+}
+
+function AuraRequirementDialog({ blockedMember, onClose }: {
+  blockedMember: AuraBlockedMember | null;
+  onClose: () => void;
+}) {
+  const count = blockedMember?.count ?? 0;
+  const evaluationLabel = count === 1 ? "avaliação" : "avaliações";
+  return (
+    <AlertDialog open={!!blockedMember} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            Aura insuficiente
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {blockedMember?.nome} possui {count} {evaluationLabel} de Aura. Para adicionar uma pessoa em uma BIA, ela precisa ter no mínimo 2 avaliações de Aura.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={onClose}>Entendi</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function n(v?: string | number | null): number {
   if (v === null || v === undefined || v === "") return 0;
   return parseFloat(String(v)) || 0;
@@ -661,6 +712,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
   disabledNote?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [blockedAuraMember, setBlockedAuraMember] = useState<AuraBlockedMember | null>(null);
   const isEmpty = required && !form[field];
   const options = filterFn ?membros.filter(filterFn) : membros;
   const selectedId = String(form[field] || "");
@@ -731,7 +783,12 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
                     <CommandItem
                       key={m.id}
                       value={`${memberLabel} ${m.id}`}
-                      onSelect={() => {
+                      onSelect={async () => {
+                        const allowed = await ensureMinimumAuraEvaluations(m, setBlockedAuraMember);
+                        if (!allowed) {
+                          setOpen(false);
+                          return;
+                        }
                         const nextForm = { ...form, [field]: m.id };
                         if (field === "diretor_alianca" && !form.aliado_built) {
                           nextForm.aliado_built = m.id;
@@ -757,6 +814,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
       {disabled && disabledNote && (
         <p className="text-[10px] text-muted-foreground">{disabledNote}</p>
       )}
+      <AuraRequirementDialog blockedMember={blockedAuraMember} onClose={() => setBlockedAuraMember(null)} />
     </div>
   );
 }
@@ -771,6 +829,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
   note?: string;
   pendingIds?: Set<string>;
 }) {
+  const [blockedAuraMember, setBlockedAuraMember] = useState<AuraBlockedMember | null>(null);
   const selectedIds = parseMemberList(form[field] as string[] | string);
   const selectedSet = new Set(selectedIds);
   const oppositeField = field === "socios_multiplicadores"
@@ -784,9 +843,14 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
     .map((id) => membros.find((m) => m.id === id))
     .filter(Boolean) as Membro[];
 
-  function toggleMembro(id: string) {
-    if (!selectedSet.has(id) && blockedIds.has(id)) return;
-    const next = selectedSet.has(id)
+  async function toggleMembro(id: string) {
+    const alreadySelected = selectedSet.has(id);
+    if (!alreadySelected && blockedIds.has(id)) return;
+    if (!alreadySelected) {
+      const membro = membros.find((item) => item.id === id);
+      if (membro && !(await ensureMinimumAuraEvaluations(membro, setBlockedAuraMember))) return;
+    }
+    const next = alreadySelected
       ?selectedIds.filter((current) => current !== id)
       : [...selectedIds, id];
     const nextForm = { ...form, [field]: next };
@@ -846,7 +910,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
                       key={m.id}
                       value={`${getMembroNome(m)} ${m.empresa || ""}`}
                       disabled={blocked}
-                      onSelect={() => toggleMembro(m.id)}
+                      onSelect={() => { void toggleMembro(m.id); }}
                     >
                       <Check className={`mr-2 h-4 w-4 ${checked ?"opacity-100" : "opacity-0"}`} />
                       <span className="truncate">{getMembroNome(m)}{m.empresa ?` · ${m.empresa}` : ""}</span>
@@ -871,7 +935,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
                   Pendente
                 </span>
               )}
-              <button type="button" onClick={() => toggleMembro(m.id)} className="rounded-full hover:bg-background/80">
+              <button type="button" onClick={() => { void toggleMembro(m.id); }} className="rounded-full hover:bg-background/80">
                 <X className="w-3 h-3" />
               </button>
             </Badge>
@@ -880,6 +944,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
         </div>
       )}
       {note && <p className="text-[11px] text-muted-foreground leading-relaxed">{note}</p>}
+      <AuraRequirementDialog blockedMember={blockedAuraMember} onClose={() => setBlockedAuraMember(null)} />
     </div>
   );
 }
@@ -3902,7 +3967,6 @@ export default function BiasPage() {
   const total = (biasRaw as BiasProjeto[]).length;
   const totalVgv = (biasRaw as BiasProjeto[]).reduce((s, b) => s + n(b.valor_geral_venda_vgv), 0);
   const totalRealizado = (biasRaw as BiasProjeto[]).reduce((s, b) => s + n(b.valor_realizado_venda), 0);
-  const totalResultado = (biasRaw as BiasProjeto[]).reduce((s, b) => s + n(b.resultado_liquido), 0);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -3936,7 +4000,7 @@ export default function BiasPage() {
 
       {/* Summary Cards */}
       {!loading && total > 0 && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="min-w-0">
             <CardContent className="min-w-0 p-4">
               <p className="text-xs text-muted-foreground">Total de BIAs</p>
@@ -3956,14 +4020,6 @@ export default function BiasPage() {
               <p className="text-xs text-muted-foreground">Realizado Total</p>
               <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-base font-bold tabular-nums tracking-tight lg:text-lg" title={brl(totalRealizado)}>
                 {brl(totalRealizado)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="min-w-0">
-            <CardContent className="min-w-0 p-4">
-              <p className="text-xs text-muted-foreground">Resultado Líquido</p>
-              <p className={`max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-base font-bold tabular-nums tracking-tight lg:text-lg ${totalResultado >= 0 ?"text-green-600" : "text-red-600"}`} title={brl(totalResultado)}>
-                {brl(totalResultado)}
               </p>
             </CardContent>
           </Card>

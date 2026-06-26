@@ -6320,6 +6320,62 @@ export async function registerRoutes(
     return data;
   }
 
+  const BIA_MEMBER_AURA_FIELDS: Array<{ field: string; label: string; multiple?: boolean }> = [
+    { field: "aliado_built", label: "Aliado BUILT" },
+    { field: "diretor_alianca", label: "Diretor de Aliança" },
+    { field: "diretor_nucleo_tecnico", label: "Diretor Núcleo Técnico" },
+    { field: "diretor_execucao", label: "Diretor Núcleo de Obra" },
+    { field: "diretor_comercial", label: "Diretor Núcleo Comercial" },
+    { field: "diretor_capital", label: "Diretor Núcleo de Capital" },
+    { field: "socios_multiplicadores", label: "Sócios Multiplicadores", multiple: true },
+    { field: "socios_guardioes", label: "Sócios Guardiões", multiple: true },
+    { field: "terceiros", label: "Terceiros", multiple: true },
+  ];
+
+  async function getAuraEvaluationCountForBia(membroId: string): Promise<number> {
+    const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
+    const avaliadores = new Set(avaliacoes.map((av: any) => av.avaliador_membro_id).filter(Boolean));
+    return avaliadores.size || avaliacoes.length;
+  }
+
+  async function validateBiaMinimumAura(body: Record<string, any>, currentBia?: any | null, ignoredFields = new Set<string>()) {
+    const candidates: Array<{ id: string; label: string }> = [];
+    for (const config of BIA_MEMBER_AURA_FIELDS) {
+      if (ignoredFields.has(config.field) || !Object.prototype.hasOwnProperty.call(body, config.field)) continue;
+      if (config.multiple) {
+        const requestedIds = parseBiaMemberList(body[config.field]);
+        const currentIds = currentBia ? new Set(parseBiaMemberList(currentBia[config.field])) : new Set<string>();
+        for (const id of requestedIds) {
+          if (!currentIds.has(id)) candidates.push({ id, label: config.label });
+        }
+        continue;
+      }
+      const requestedId = body[config.field] ? String(body[config.field]) : "";
+      if (!requestedId) continue;
+      const currentId = currentBia ? directusRelationId(currentBia[config.field]) : null;
+      if (requestedId !== currentId) candidates.push({ id: requestedId, label: config.label });
+    }
+
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+      if (seen.has(candidate.id)) continue;
+      seen.add(candidate.id);
+      const count = await getAuraEvaluationCountForBia(candidate.id);
+      if (count < 2) {
+        const membro = await getMembroResumo(candidate.id).catch(() => null);
+        return {
+          ok: false,
+          membroId: candidate.id,
+          membroNome: membro?.nome || "Este membro",
+          count,
+          fieldLabel: candidate.label,
+        };
+      }
+    }
+
+    return { ok: true };
+  }
+
   const BIA_DIRETOR_DIRECT_FIELDS = [
     "diretor_alianca",
     "diretor_nucleo_tecnico",
@@ -6418,6 +6474,14 @@ export async function registerRoutes(
           return res.status(400).json({ error: "NÃ£o foi possÃ­vel identificar o Aliado BUILT da sua comunidade." });
         }
         if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
+      }
+      const auraValidation = await validateBiaMinimumAura(createBody, null);
+      if (!auraValidation.ok) {
+        return res.status(400).json({
+          error: `${auraValidation.membroNome} possui ${auraValidation.count} avaliação(ões) de Aura. Para adicionar uma pessoa em uma BIA, ela precisa ter no mínimo 2 avaliações de Aura.`,
+          code: "BIA_MIN_AURA_REQUIRED",
+          ...auraValidation,
+        });
       }
       const createPayload = prepareBiaPayload(createBody);
       createPayload.codigo_publico = await createUniqueBiaPublicCode();
@@ -6553,6 +6617,16 @@ export async function registerRoutes(
         } else {
           delete (payload as any).aliado_built;
         }
+      }
+      const ignoredAuraFields = new Set<string>();
+      if (!isSuperAdminRole) ignoredAuraFields.add("aliado_built");
+      const auraValidation = await validateBiaMinimumAura(req.body, currentBia, ignoredAuraFields);
+      if (!auraValidation.ok) {
+        return res.status(400).json({
+          error: `${auraValidation.membroNome} possui ${auraValidation.count} avaliação(ões) de Aura. Para adicionar uma pessoa em uma BIA, ela precisa ter no mínimo 2 avaliações de Aura.`,
+          code: "BIA_MIN_AURA_REQUIRED",
+          ...auraValidation,
+        });
       }
       let diretorSolicitacoes: any[] = [];
       let socioSolicitacoes: any[] = [];

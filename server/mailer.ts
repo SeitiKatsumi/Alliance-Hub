@@ -665,7 +665,7 @@ export async function notificarAliadoAposAuraInvitador(opts: {
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.aliadoNome}</strong>!</p>
       <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os termos de adesão da <strong>${opts.comunidadeNome}</strong> e teve sua Aura avaliada por <strong>${opts.invitadorNome}</strong>.</p>
       ${auraBlock}
-      <p style="color:rgba(255,255,255,0.7)">Acesse o painel de candidatos para analisar o perfil, registrar sua própria Percepção de Aura e tomar a decisão:</p>
+      <p style="color:rgba(255,255,255,0.7)">Acesse o painel de candidatos para analisar o perfil e tomar a decisão:</p>
       <div style="text-align:center;margin:28px 0 12px">
         <a href="${painelLink}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver Candidatos</a>
       </div>

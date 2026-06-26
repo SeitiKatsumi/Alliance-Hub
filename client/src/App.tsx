@@ -31,6 +31,7 @@ import VitrineDetalhePage from "@/pages/vitrine-detalhe";
 import VitrineOportunidadesPage, { BuiltCapitalChamadasPage } from "@/pages/vitrine-oportunidades";
 import VitrineOpaDetalhePage, { BuiltCapitalChamadaDetalhePage } from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
+import LandBankDetalhePage from "@/pages/land-bank-detalhe";
 import AreMembroPage from "@/pages/area-membros";
 import MembroDetalhePage from "@/pages/membro-detalhe";
 import ComunidadePage from "@/pages/comunidade";
@@ -1160,6 +1161,7 @@ function ProtectedApp() {
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
               <Route path="/area-aliancas" component={AlliancesRouteGuard} />
+              <Route path="/land-bank/:id" component={LandBankDetalhePage} />
               <Route path="/area-membros" component={AreMembroPage} />
               <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />

@@ -88,19 +88,19 @@ function InfoRow({ icon: Icon, label, value, href }: {
         <Icon className="w-3.5 h-3.5 text-brand-gold" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">{label}</p>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{label}</p>
         {href ?(
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-brand-gold hover:text-amber-600 transition-colors flex items-center gap-1 mt-0.5 font-mono break-all"
+            className="text-sm text-brand-gold hover:text-amber-600 transition-colors flex items-center gap-1 mt-0.5 break-all"
           >
             {value}
             <ExternalLink className="w-3 h-3 shrink-0" />
           </a>
         ) : (
-          <p className="text-sm text-gray-800 mt-0.5 font-mono break-all">{value}</p>
+          <p className="text-sm text-gray-800 mt-0.5 break-all">{value}</p>
         )}
       </div>
     </div>
@@ -403,7 +403,7 @@ export default function VitrineDetalhePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Contact / info panel */}
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
               <User className="w-3 h-3 text-brand-gold" />
               Contato & Localização
             </p>
@@ -428,7 +428,7 @@ export default function VitrineDetalhePage() {
           {/* Perfil Profissional (empresa, cargo, ramo, etc.) */}
           {(membro.logo_empresa || empresa || cargo || membro.especialidade_livre || especialidades.length > 0 || membro.ramo_atuacao || membro.segmento || membro.area_atuacao || membro.nucleo_alianca || membro.tipo_alianca || (membro.nucleos_alianca || []).length > 0 || (membro.tipos_alianca || []).length > 0 || (membro.idiomas || []).length > 0) && (
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-              <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Briefcase className="w-3 h-3 text-brand-gold" />
                 Perfil Profissional
               </p>
@@ -442,16 +442,16 @@ export default function VitrineDetalhePage() {
                   <div className="grid grid-cols-1 gap-3">
                     {empresa && (
                       <div>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Empresa</p>
-                        <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Empresa</p>
+                        <p className="text-sm text-gray-800 flex items-center gap-1.5">
                           <Building2 className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />{empresa}
                         </p>
                       </div>
                     )}
                     {cargo && (
                       <div>
-                        <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Cargo</p>
-                        <p className="text-sm text-gray-800 font-mono flex items-center gap-1.5">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Cargo</p>
+                        <p className="text-sm text-gray-800 flex items-center gap-1.5">
                           <Briefcase className="w-3.5 h-3.5 text-brand-gold/60 shrink-0" />{cargo}
                         </p>
                       </div>
@@ -461,26 +461,26 @@ export default function VitrineDetalhePage() {
                     <div className="grid grid-cols-1 gap-3">
                       {(membro.ramo_atuacao || especialidades.length > 0) && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
-                          <p className="text-sm text-gray-800 font-mono">{membro.ramo_atuacao || especialidades[0]}</p>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Ramo de Atuação</p>
+                          <p className="text-sm text-gray-800 leading-relaxed">{membro.ramo_atuacao || especialidades[0]}</p>
                         </div>
                       )}
                       {membro.segmento && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
-                          <p className="text-sm text-gray-800 font-mono">{formatSegmentosDisplay(membro.segmento)}</p>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Segmento</p>
+                          <p className="text-sm text-gray-800 leading-relaxed">{formatSegmentosDisplay(membro.segmento)}</p>
                         </div>
                       )}
                       {membro.area_atuacao && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Área de atuação</p>
-                          <p className="text-sm text-gray-800 font-mono">{membro.area_atuacao}</p>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Área de atuação</p>
+                          <p className="text-sm text-gray-800 leading-relaxed">{membro.area_atuacao}</p>
                         </div>
                       )}
                       {membro.especialidade_livre && (
                         <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
-                          <p className="text-sm text-gray-800 font-mono">{membro.especialidade_livre}</p>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Especialidade</p>
+                          <p className="text-sm text-gray-800 leading-relaxed">{membro.especialidade_livre}</p>
                         </div>
                       )}
                     </div>
@@ -494,14 +494,14 @@ export default function VitrineDetalhePage() {
                       <div className="grid grid-cols-1 gap-3">
                         {nucleos.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ?"Núcleos" : "Núcleo"}</p>
-                            <p className="text-sm text-gray-800 font-mono">{nucleos.join(", ")}</p>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">{nucleos.length > 1 ?"Núcleos" : "Núcleo"}</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{nucleos.join(", ")}</p>
                           </div>
                         )}
                         {tipos.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-0.5">Área de Contribuição</p>
-                            <p className="text-sm text-gray-800 font-mono">{tipos.map(getTipoDisplayName).join(", ")}</p>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Área de Contribuição</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{tipos.map(getTipoDisplayName).join(", ")}</p>
                           </div>
                         )}
                       </div>
@@ -509,13 +509,13 @@ export default function VitrineDetalhePage() {
                   })()}
                   {(membro.idiomas || []).length > 0 && (
                     <div>
-                      <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                         <Languages className="w-3 h-3 text-brand-gold" />
                         Idiomas Falados
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {(membro.idiomas || []).map(idioma => (
-                          <span key={idioma} className="px-2.5 py-1 rounded-full text-xs font-mono border border-gray-200 text-gray-600 bg-gray-50" data-testid={`card-idioma-${idioma}`}>
+                          <span key={idioma} className="px-2.5 py-1 rounded-full text-xs border border-gray-200 text-gray-600 bg-gray-50" data-testid={`card-idioma-${idioma}`}>
                             {idioma}
                           </span>
                         ))}
@@ -531,11 +531,11 @@ export default function VitrineDetalhePage() {
         {/* Biografia */}
         {membro.perfil_aliado && (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
               <MessageSquare className="w-3 h-3 text-brand-gold" />
               Biografia
             </p>
-            <p className="text-sm text-gray-700 leading-relaxed font-mono whitespace-pre-wrap break-words">
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
               {membro.perfil_aliado}
             </p>
           </div>

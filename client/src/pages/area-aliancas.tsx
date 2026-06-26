@@ -1,27 +1,43 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton } from "@/components/rede-badge-viewer";
+import { MapWheelGuard } from "@/components/map-wheel-guard";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
 import OportunidadesPage from "@/pages/oportunidades";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  ZoomableGroup,
+} from "react-simple-maps";
 import {
   Briefcase,
   Globe2,
   Handshake,
   MapPin,
   Network,
+  Plus,
+  Ruler,
   Search,
   ShieldCheck,
   Target,
   Users,
 } from "lucide-react";
+
+const WORLD_GEO = "/world-countries-50m.json";
 
 interface AliadoRede {
   id: string;
@@ -171,17 +187,475 @@ function AliadosTab() {
   );
 }
 
+const landBankCategories = [
+  {
+    value: "land-bank",
+    title: "Land Bank",
+    description: "Terrenos, lotes, glebas e áreas com potencial de desenvolvimento.",
+    accent: "text-emerald-500",
+    bg: "bg-emerald-50",
+    icon: MapPin,
+  },
+  {
+    value: "built-asset-bank",
+    title: "Built Asset Bank",
+    description: "Apartamentos, casas, salas, lojas, galpões, prédios e unidades já construídas.",
+    accent: "text-blue-500",
+    bg: "bg-blue-50",
+    icon: Briefcase,
+  },
+  {
+    value: "transformation-bank",
+    title: "Transformation Bank",
+    description: "Ativos que precisam de reforma, retrofit, conversão de uso, regularização ou reposicionamento.",
+    accent: "text-violet-500",
+    bg: "bg-violet-50",
+    icon: Target,
+  },
+] as const;
+
+type LandBankCategory = (typeof landBankCategories)[number];
+
+interface LandBankAsset {
+  id: string;
+  category: LandBankCategory["value"];
+  qualificacao: string;
+  area: string;
+  descricao: string;
+  cep: string;
+  endereco: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  pais: string;
+  numero: string;
+  complemento: string;
+  foto?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  createdAt: string;
+}
+
+type LandBankForm = Omit<LandBankAsset, "id" | "category" | "createdAt">;
+
+const landBankStorageKey = "built-land-bank-assets-v2";
+
+const ufApproxCoords: Record<string, [number, number]> = {
+  AC: [-70.55, -9.98],
+  AL: [-35.74, -9.66],
+  AP: [-51.05, 0.03],
+  AM: [-60.02, -3.1],
+  BA: [-38.5, -12.97],
+  CE: [-38.54, -3.73],
+  DF: [-47.88, -15.79],
+  ES: [-40.34, -20.32],
+  GO: [-49.25, -16.68],
+  MA: [-44.3, -2.53],
+  MT: [-56.1, -15.6],
+  MS: [-54.62, -20.45],
+  MG: [-43.94, -19.92],
+  PA: [-48.5, -1.45],
+  PB: [-34.86, -7.12],
+  PR: [-49.27, -25.43],
+  PE: [-34.88, -8.05],
+  PI: [-42.8, -5.09],
+  RJ: [-43.17, -22.91],
+  RN: [-35.21, -5.79],
+  RS: [-51.23, -30.03],
+  RO: [-63.9, -8.76],
+  RR: [-60.67, 2.82],
+  SC: [-48.55, -27.59],
+  SP: [-46.63, -23.55],
+  SE: [-37.07, -10.91],
+  TO: [-48.33, -10.18],
+};
+
+const emptyLandBankForm: LandBankForm = {
+  qualificacao: "",
+  area: "",
+  descricao: "",
+  cep: "",
+  endereco: "",
+  bairro: "",
+  cidade: "",
+  estado: "",
+  pais: "Brasil",
+  numero: "",
+  complemento: "",
+  foto: "",
+};
+
+function estimateLandBankCoords(form: LandBankForm): { latitude: number | null; longitude: number | null } {
+  const uf = form.estado.trim().toUpperCase();
+  const coords = ufApproxCoords[uf];
+  if (!coords) return { latitude: null, longitude: null };
+  return { longitude: coords[0], latitude: coords[1] };
+}
+
+function LandBankMapHeader({ category, assets }: { category: LandBankCategory; assets: LandBankAsset[] }) {
+  const Icon = category.icon;
+  const [zoom, setZoom] = useState(1.25);
+  const [center, setCenter] = useState<[number, number]>([-20, 10]);
+
+  const withCoords = useMemo(
+    () => assets.filter((asset) => asset.latitude != null && asset.longitude != null),
+    [assets]
+  );
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-cyan-400/20"
+      style={{ height: 320, background: "radial-gradient(ellipse at 50% 110%, #001428 0%, #000c1f 55%, #000408 100%)" }}
+      data-testid={`mapa-${category.value}`}
+    >
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: "linear-gradient(rgba(34,211,238,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.05) 1px, transparent 1px)",
+        backgroundSize: "50px 50px",
+      }} />
+      <div className="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-cyan-400/40 rounded-tl-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-12 h-12 border-t-2 border-r-2 border-cyan-400/40 rounded-tr-2xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-2 border-l-2 border-cyan-400/40 rounded-bl-2xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-cyan-400/40 rounded-br-2xl pointer-events-none" />
+
+      <div className="absolute top-5 left-6 z-20">
+        <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono">// BUILT Land bank</p>
+        <h2 className="text-xl font-bold tracking-[0.12em] font-mono mt-0.5 text-cyan-300">
+          MAPA DE {category.title.toUpperCase()}
+        </h2>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
+          </span>
+          <span className="text-[10px] text-cyan-300/65 font-mono tracking-[0.2em] uppercase">
+            {withCoords.length} geolocalizados
+          </span>
+        </div>
+      </div>
+
+      <div className="absolute top-5 right-6 z-20 text-right font-mono">
+        <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">Ativos</p>
+        <p className="text-4xl font-bold leading-none text-cyan-300">{assets.length}</p>
+      </div>
+
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-1">
+        {[
+          { label: "+", action: () => setZoom((z) => Math.min(z * 1.5, 16)), title: "Ampliar" },
+          { label: "⊙", action: () => { setZoom(1.25); setCenter([-20, 10]); }, title: "Resetar" },
+          { label: "−", action: () => setZoom((z) => Math.max(z / 1.5, 0.8)), title: "Reduzir" },
+        ].map(({ label, action, title }) => (
+          <button
+            key={label}
+            onClick={action}
+            title={title}
+            className="w-7 h-7 flex items-center justify-center rounded border font-mono text-sm font-bold transition-colors"
+            style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(34,211,238,0.35)", color: "#67E8F9" }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {withCoords.length === 0 && (
+        <div className="absolute inset-0 z-10 flex items-end justify-center pb-14 pointer-events-none">
+          <div className="text-center">
+            <p className="text-[10px] text-cyan-300/35 font-mono tracking-widest uppercase">Nenhum ativo geolocalizado</p>
+            <p className="mt-0.5 text-[9px] text-cyan-300/25 font-mono">Cadastre um ativo com UF para aparecer no mapa</p>
+          </div>
+        </div>
+      )}
+
+      <MapWheelGuard>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [0, 10], scale: 160 }}
+          style={{ width: "100%", height: "100%" }}
+        >
+          <ZoomableGroup
+            zoom={zoom}
+            center={center}
+            minZoom={0.8}
+            maxZoom={16}
+            onMoveEnd={({ coordinates, zoom: nextZoom }) => {
+              setCenter(coordinates);
+              setZoom(nextZoom);
+            }}
+          >
+            <Geographies geography={WORLD_GEO}>
+              {({ geographies }) => geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  style={{
+                    default: { fill: "#011630", stroke: "#22D3EE28", strokeWidth: 0.3, outline: "none" },
+                    hover: { fill: "#011a3c", stroke: "#22D3EE40", strokeWidth: 0.3, outline: "none" },
+                    pressed: { fill: "#011630", outline: "none" },
+                  }}
+                />
+              ))}
+            </Geographies>
+
+            {withCoords.map((asset) => {
+              const r = Math.max(2, 5 / zoom);
+              return (
+                <Marker key={asset.id} coordinates={[asset.longitude!, asset.latitude!]}>
+                  <g style={{ cursor: "pointer" }}>
+                    <circle r={r * 4} fill="#22D3EE" fillOpacity={0.08}>
+                      <animate attributeName="r" from={r * 2.5} to={r * 5} dur="1.8s" repeatCount="indefinite" />
+                      <animate attributeName="fill-opacity" from="0.35" to="0" dur="1.8s" repeatCount="indefinite" />
+                    </circle>
+                    <circle r={r * 2} fill="#22D3EE" fillOpacity={0.22} />
+                    <circle r={r} fill="#67E8F9" fillOpacity={0.95} />
+                  </g>
+                  <title>{asset.qualificacao}</title>
+                </Marker>
+              );
+            })}
+          </ZoomableGroup>
+        </ComposableMap>
+      </MapWheelGuard>
+
+      <div className="absolute bottom-5 left-6 z-20 flex items-center gap-2 text-[10px] font-mono text-cyan-300/45">
+        <Icon className="h-3.5 w-3.5" />
+        {category.description}
+      </div>
+    </div>
+  );
+}
+
+function LandBankPanel({
+  category,
+  assets,
+  onCreate,
+}: {
+  category: LandBankCategory;
+  assets: LandBankAsset[];
+  onCreate: (category: LandBankCategory["value"]) => void;
+}) {
+  const [, navigate] = useLocation();
+  const Icon = category.icon;
+  const [search, setSearch] = useState("");
+  const q = search.trim().toLowerCase();
+  const filteredAssets = assets.filter((asset) => {
+    if (!q) return true;
+    return [
+      asset.qualificacao,
+      asset.descricao,
+      asset.endereco,
+      asset.bairro,
+      asset.cidade,
+      asset.estado,
+      asset.pais,
+      asset.cep,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(q));
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold leading-tight text-foreground">{category.title}</h2>
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+          <Button onClick={() => onCreate(category.value)} className="gap-2 whitespace-nowrap" data-testid={`btn-criar-${category.value}`}>
+            <Plus className="h-4 w-4" />
+            Criar novo
+          </Button>
+        </div>
+      </div>
+
+      <LandBankMapHeader category={category} assets={assets} />
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="relative flex min-h-10 items-center">
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Buscar em ${category.title}...`}
+            className="h-10 pl-9"
+            data-testid={`input-buscar-${category.value}`}
+          />
+        </div>
+        <div className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+          {category.description}
+        </div>
+      </div>
+
+      {filteredAssets.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex min-h-[260px] flex-col items-center justify-center gap-4 py-14 text-center">
+            <div className={`flex h-14 w-14 items-center justify-center rounded-full ${category.bg}`}>
+              <Icon className={`h-7 w-7 ${category.accent}`} />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-foreground">Nenhum ativo cadastrado em {category.title}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredAssets.map((asset) => (
+            <Card
+              key={asset.id}
+              className="cursor-pointer overflow-hidden border-border/80 transition-colors hover:border-brand-gold/50"
+              onClick={() => navigate(`/land-bank/${asset.id}`)}
+              data-testid={`card-landbank-${asset.id}`}
+            >
+              <div className={`flex h-32 items-center justify-center overflow-hidden ${category.bg}`}>
+                {asset.foto ? (
+                  <img src={asset.foto} alt={asset.qualificacao} className="h-full w-full object-cover" />
+                ) : (
+                  <Icon className={`h-10 w-10 ${category.accent}`} />
+                )}
+              </div>
+              <CardContent className="space-y-4 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="text-blue-700">
+                    {category.title}
+                  </Badge>
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    ativo
+                  </Badge>
+                </div>
+                <div>
+                  <h3 className="line-clamp-2 text-lg font-semibold leading-snug text-foreground">
+                    {asset.qualificacao}
+                  </h3>
+                  {asset.descricao && (
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{asset.descricao}</p>
+                  )}
+                </div>
+                <div className="border-t border-border pt-3">
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 shrink-0" />
+                    {[asset.cidade, asset.estado, asset.pais].filter(Boolean).join(", ")}
+                  </p>
+                  <div className="mt-3 flex items-end justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Área</p>
+                      <p className="flex items-center gap-1 text-base font-bold text-foreground">
+                        <Ruler className="h-4 w-4 text-muted-foreground" />
+                        {asset.area} m²
+                      </p>
+                    </div>
+                    <div className="max-w-[48%] text-right">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">CEP</p>
+                      <p className="truncate text-sm font-medium text-foreground">{asset.cep}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AreaAliancasPage() {
   const searchParams = useSearch();
-  const getTabFromSearch = () => {
+  const getTabsFromSearch = () => {
     const tab = new URLSearchParams(searchParams).get("tab");
-    return ["opas", "bias", "membros", "comunidades", "aliados"].includes(tab || "") ? tab! : "opas";
+    if (["membros", "comunidades", "aliados"].includes(tab || "")) {
+      return { main: "rede", rede: tab!, landBank: "land-bank" };
+    }
+    if (tab === "rede") {
+      return { main: "rede", rede: "membros", landBank: "land-bank" };
+    }
+    if (["landbank", "land-bank", "built-asset-bank", "transformation-bank"].includes(tab || "")) {
+      return {
+        main: "landbank",
+        rede: "membros",
+        landBank: tab === "landbank" ? "land-bank" : tab!,
+      };
+    }
+    if (["opas", "bias"].includes(tab || "")) {
+      return { main: tab!, rede: "membros", landBank: "land-bank" };
+    }
+    return { main: "opas", rede: "membros", landBank: "land-bank" };
   };
-  const [activeTab, setActiveTab] = useState(getTabFromSearch);
+  const initialTabs = getTabsFromSearch();
+  const [activeTab, setActiveTab] = useState(initialTabs.main);
+  const [activeRedeTab, setActiveRedeTab] = useState(initialTabs.rede);
+  const [activeLandBankTab, setActiveLandBankTab] = useState(initialTabs.landBank);
+  const [landBankAssets, setLandBankAssets] = useState<LandBankAsset[]>(() => {
+    try {
+      const stored = window.localStorage.getItem(landBankStorageKey);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [landBankDialogOpen, setLandBankDialogOpen] = useState(false);
+  const [landBankDialogCategory, setLandBankDialogCategory] = useState<LandBankCategory["value"]>(initialTabs.landBank as LandBankCategory["value"]);
+  const [landBankForm, setLandBankForm] = useState<LandBankForm>(emptyLandBankForm);
 
   useEffect(() => {
-    setActiveTab(getTabFromSearch());
+    const tabs = getTabsFromSearch();
+    setActiveTab(tabs.main);
+    setActiveRedeTab(tabs.rede);
+    setActiveLandBankTab(tabs.landBank);
   }, [searchParams]);
+
+  useEffect(() => {
+    window.localStorage.setItem(landBankStorageKey, JSON.stringify(landBankAssets));
+  }, [landBankAssets]);
+
+  const selectedLandBankCategory = landBankCategories.find((category) => category.value === landBankDialogCategory) || landBankCategories[0];
+  const SelectedLandBankIcon = selectedLandBankCategory.icon;
+  const setLandBankField = (field: keyof LandBankForm, value: string) => {
+    setLandBankForm((current) => ({ ...current, [field]: value }));
+  };
+  const handleLandBankPhoto = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLandBankField("foto", typeof reader.result === "string" ? reader.result : "");
+    };
+    reader.readAsDataURL(file);
+  };
+  const openLandBankDialog = (category: LandBankCategory["value"]) => {
+    setLandBankDialogCategory(category);
+    setLandBankForm(emptyLandBankForm);
+    setLandBankDialogOpen(true);
+  };
+  const createLandBankAsset = () => {
+    const requiredFields: Array<keyof LandBankForm> = [
+      "qualificacao",
+      "area",
+      "cep",
+      "endereco",
+      "bairro",
+      "cidade",
+      "estado",
+      "pais",
+      "numero",
+      "complemento",
+    ];
+    const missing = requiredFields.some((field) => !String(landBankForm[field] || "").trim());
+    if (missing) return;
+
+    const estimatedCoords = estimateLandBankCoords(landBankForm);
+    setLandBankAssets((current) => [
+      {
+        ...landBankForm,
+        ...estimatedCoords,
+        id: `land-${Date.now()}`,
+        category: landBankDialogCategory,
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+    setActiveTab("landbank");
+    setActiveLandBankTab(landBankDialogCategory);
+    setLandBankDialogOpen(false);
+    setLandBankForm(emptyLandBankForm);
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -193,7 +667,7 @@ export default function AreaAliancasPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-4">
           <TabsTrigger
             value="opas"
             className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
@@ -211,28 +685,20 @@ export default function AreaAliancasPage() {
             BIAs
           </TabsTrigger>
           <TabsTrigger
-            value="membros"
+            value="rede"
             className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
-            data-testid="tab-area-membros"
+            data-testid="tab-area-rede"
           >
-            <Handshake className="h-4 w-4 shrink-0 text-blue-500" />
-            Membros Aliados
+            <Network className="h-4 w-4 shrink-0 text-blue-500" />
+            Rede
           </TabsTrigger>
           <TabsTrigger
-            value="comunidades"
+            value="landbank"
             className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
-            data-testid="tab-area-comunidades"
+            data-testid="tab-area-landbank"
           >
-            <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
-            Comunidades
-          </TabsTrigger>
-          <TabsTrigger
-            value="aliados"
-            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
-            data-testid="tab-area-aliados"
-          >
-            <ShieldCheck className="h-4 w-4 shrink-0 text-indigo-500" />
-            Aliados Licenciados
+            <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
+            Land bank
           </TabsTrigger>
         </TabsList>
 
@@ -248,22 +714,269 @@ export default function AreaAliancasPage() {
         >
           {activeTab === "bias" && <BiasPage />}
         </TabsContent>
-        <TabsContent
-          value="membros"
-          className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-membros-title']>div]:hidden"
-        >
-          {activeTab === "membros" && <AreMembroPage />}
+        <TabsContent value="rede" className="space-y-5">
+          {activeTab === "rede" && (
+            <Tabs value={activeRedeTab} onValueChange={setActiveRedeTab} className="space-y-5">
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-3">
+                <TabsTrigger
+                  value="membros"
+                  className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                  data-testid="tab-area-membros"
+                >
+                  <Handshake className="h-4 w-4 shrink-0 text-blue-500" />
+                  Membros Aliados
+                </TabsTrigger>
+                <TabsTrigger
+                  value="comunidades"
+                  className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                  data-testid="tab-area-comunidades"
+                >
+                  <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                  Comunidades
+                </TabsTrigger>
+                <TabsTrigger
+                  value="aliados"
+                  className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                  data-testid="tab-area-aliados"
+                >
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-indigo-500" />
+                  Aliados Licenciados
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent
+                value="membros"
+                className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-membros-title']>div]:hidden"
+              >
+                {activeRedeTab === "membros" && <AreMembroPage />}
+              </TabsContent>
+              <TabsContent
+                value="comunidades"
+                className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='icon-comunidade-title']]:hidden"
+              >
+                {activeRedeTab === "comunidades" && <ComunidadePage />}
+              </TabsContent>
+              <TabsContent value="aliados">
+                {activeRedeTab === "aliados" && <AliadosTab />}
+              </TabsContent>
+            </Tabs>
+          )}
         </TabsContent>
-        <TabsContent
-          value="comunidades"
-          className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='icon-comunidade-title']]:hidden"
-        >
-          {activeTab === "comunidades" && <ComunidadePage />}
-        </TabsContent>
-        <TabsContent value="aliados">
-          {activeTab === "aliados" && <AliadosTab />}
+        <TabsContent value="landbank" className="space-y-5">
+          {activeTab === "landbank" && (
+            <Tabs value={activeLandBankTab} onValueChange={setActiveLandBankTab} className="space-y-5">
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-3">
+                {landBankCategories.map((category) => {
+                  const Icon = category.icon;
+                  return (
+                    <TabsTrigger
+                      key={category.value}
+                      value={category.value}
+                      className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                      data-testid={`tab-area-${category.value}`}
+                    >
+                      <Icon className={`h-4 w-4 shrink-0 ${category.accent}`} />
+                      {category.title}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+
+              {landBankCategories.map((category) => (
+                <TabsContent key={category.value} value={category.value}>
+                  {activeLandBankTab === category.value && (
+                    <LandBankPanel
+                      category={category}
+                      assets={landBankAssets.filter((asset) => asset.category === category.value)}
+                      onCreate={openLandBankDialog}
+                    />
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={landBankDialogOpen} onOpenChange={setLandBankDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SelectedLandBankIcon className={`h-5 w-5 ${selectedLandBankCategory.accent}`} />
+              Novo ativo em {selectedLandBankCategory.title}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Informações do ativo</p>
+              <p className="mt-1 text-sm text-muted-foreground">{selectedLandBankCategory.description}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Foto do ativo</Label>
+              <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
+                <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted sm:w-32">
+                  {landBankForm.foto ? (
+                    <img src={landBankForm.foto} alt="Prévia do ativo" className="h-full w-full object-cover" />
+                  ) : (
+                    <SelectedLandBankIcon className={`h-8 w-8 ${selectedLandBankCategory.accent}`} />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Imagem de capa do card</p>
+                  <p className="text-xs text-muted-foreground">
+                    Adicione uma foto do terreno, imóvel ou ativo para aparecer no card do Land bank.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" asChild>
+                      <label className="cursor-pointer">
+                        Escolher foto
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleLandBankPhoto(e.target.files?.[0])}
+                          data-testid="input-landbank-foto"
+                        />
+                      </label>
+                    </Button>
+                    {landBankForm.foto && (
+                      <Button type="button" variant="ghost" onClick={() => setLandBankField("foto", "")}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Qualificação <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.qualificacao}
+                  onChange={(e) => setLandBankField("qualificacao", e.target.value)}
+                  placeholder="Casa, galpão, apartamento..."
+                  data-testid="input-landbank-qualificacao"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Área (m²) <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.area}
+                  onChange={(e) => setLandBankField("area", e.target.value)}
+                  placeholder="Ex: 120,50"
+                  data-testid="input-landbank-area"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Descrição adicional</Label>
+              <Textarea
+                value={landBankForm.descricao}
+                onChange={(e) => setLandBankField("descricao", e.target.value)}
+                placeholder="Informação complementar do ativo, se houver"
+                className="min-h-20"
+                data-testid="textarea-landbank-descricao"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>CEP <span className="text-destructive">*</span></Label>
+              <Input
+                value={landBankForm.cep}
+                onChange={(e) => setLandBankField("cep", e.target.value)}
+                placeholder="00000-000"
+                data-testid="input-landbank-cep"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Endereço <span className="text-destructive">*</span></Label>
+              <Input
+                value={landBankForm.endereco}
+                onChange={(e) => setLandBankField("endereco", e.target.value)}
+                placeholder="Rua, avenida, estrada..."
+                data-testid="input-landbank-endereco"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Bairro <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.bairro}
+                  onChange={(e) => setLandBankField("bairro", e.target.value)}
+                  placeholder="Bairro"
+                  data-testid="input-landbank-bairro"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cidade <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.cidade}
+                  onChange={(e) => setLandBankField("cidade", e.target.value)}
+                  placeholder="Cidade"
+                  data-testid="input-landbank-cidade"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Estado <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.estado}
+                  onChange={(e) => setLandBankField("estado", e.target.value)}
+                  placeholder="UF"
+                  data-testid="input-landbank-estado"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>País <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.pais}
+                  onChange={(e) => setLandBankField("pais", e.target.value)}
+                  placeholder="País"
+                  data-testid="input-landbank-pais"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Nº <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.numero}
+                  onChange={(e) => setLandBankField("numero", e.target.value)}
+                  placeholder="Número"
+                  data-testid="input-landbank-numero"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Complemento <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.complemento}
+                  onChange={(e) => setLandBankField("complemento", e.target.value)}
+                  placeholder="Bloco, unidade, sala..."
+                  data-testid="input-landbank-complemento"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLandBankDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={createLandBankAsset} data-testid="btn-salvar-landbank">
+              Criar ativo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1849,7 +1849,7 @@ export default function MeuPerfilPage() {
                 </div>
 
                 {/* Especialidade livre */}
-                <Field label="Especialidade (texto livre)">
+                <Field label="Especialidade (Descreva seus produtos e serviços)">
                   <Input
                     value={form.especialidade_livre || ""}
                     onChange={e => set("especialidade_livre", e.target.value)}

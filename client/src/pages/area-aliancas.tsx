@@ -207,7 +207,7 @@ const landBankCategories = [
   },
   {
     value: "built-asset-bank",
-    title: "Banco de Ativos Edificados",
+    title: "Ativos Edificados",
     shortDescription: "Para ativos que já possuem construção existente, mas estão sem uso, subutilizados, inacabados, abandonados ou aguardando reposicionamento.",
     description: "Inclui galpões, prédios, casas, salas, lojas, apartamentos, estruturas inacabadas e imóveis construídos que podem ser reformados, convertidos, regularizados, vendidos, alugados ou transformados em novos produtos imobiliários.",
     examples: [

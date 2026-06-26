@@ -31,7 +31,7 @@ const categoryMeta = {
     bg: "bg-emerald-50",
   },
   "built-asset-bank": {
-    title: "Banco de Ativos Edificados",
+    title: "Ativos Edificados",
     description: "Inclui galpões, prédios, casas, salas, lojas, apartamentos, estruturas inacabadas e imóveis construídos que podem ser reformados, convertidos, regularizados, vendidos, alugados ou transformados em novos produtos imobiliários.",
     icon: Briefcase,
     accent: "text-blue-500",
@@ -344,7 +344,7 @@ export default function LandBankDetalhePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="land-bank">Land Bank</SelectItem>
-                    <SelectItem value="built-asset-bank">Banco de Ativos Edificados</SelectItem>
+                    <SelectItem value="built-asset-bank">Ativos Edificados</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

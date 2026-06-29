@@ -720,10 +720,10 @@ export default function AreaAliancasPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/60 p-1 sm:grid-cols-4">
+        <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
           <TabsTrigger
             value="opas"
-            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-opas"
           >
             <Target className="h-4 w-4 shrink-0 text-cyan-500" />
@@ -731,7 +731,7 @@ export default function AreaAliancasPage() {
           </TabsTrigger>
           <TabsTrigger
             value="bias"
-            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-bias"
           >
             <Briefcase className="h-4 w-4 shrink-0 text-orange-500" />
@@ -739,7 +739,7 @@ export default function AreaAliancasPage() {
           </TabsTrigger>
           <TabsTrigger
             value="rede"
-            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-rede"
           >
             <Network className="h-4 w-4 shrink-0 text-blue-500" />
@@ -747,7 +747,7 @@ export default function AreaAliancasPage() {
           </TabsTrigger>
           <TabsTrigger
             value="landbank"
-            className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+            className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-landbank"
           >
             <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
@@ -770,10 +770,10 @@ export default function AreaAliancasPage() {
         <TabsContent value="rede" className="space-y-5">
           {activeTab === "rede" && (
             <Tabs value={activeRedeTab} onValueChange={setActiveRedeTab} className="space-y-5">
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-2">
+              <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
                 <TabsTrigger
                   value="membros"
-                  className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                  className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
                   data-testid="tab-area-membros"
                 >
                   <Handshake className="h-4 w-4 shrink-0 text-blue-500" />
@@ -781,7 +781,7 @@ export default function AreaAliancasPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="comunidades"
-                  className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                  className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
                   data-testid="tab-area-comunidades"
                 >
                   <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
@@ -789,7 +789,7 @@ export default function AreaAliancasPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="aliados"
-                  className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                  className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
                   data-testid="tab-area-aliados"
                 >
                   <ShieldCheck className="h-4 w-4 shrink-0 text-indigo-500" />
@@ -818,14 +818,14 @@ export default function AreaAliancasPage() {
         <TabsContent value="landbank" className="space-y-5">
           {activeTab === "landbank" && (
             <Tabs value={activeLandBankTab} onValueChange={setActiveLandBankTab} className="space-y-5">
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/50 p-1 sm:grid-cols-2">
+              <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
                 {landBankCategories.map((category) => {
                   const Icon = category.icon;
                   return (
                     <TabsTrigger
                       key={category.value}
                       value={category.value}
-                      className="gap-2 text-muted-foreground data-[state=active]:text-foreground"
+                      className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
                       data-testid={`tab-area-${category.value}`}
                     >
                       <Icon className={`h-4 w-4 shrink-0 ${category.accent}`} />

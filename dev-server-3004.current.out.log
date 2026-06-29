@@ -737,3 +737,7 @@
 8:04:02 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
 8:04:28 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
 8:04:33 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:04:58 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:05:04 AM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:05:28 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:05:35 AM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}

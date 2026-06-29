@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -19,12 +20,22 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { RAMOS_SEGMENTOS, getSegmentosForRamo, getAllTipos, getTipoDisplayName, getNucleoForTipo } from "@/lib/ramos-segmentos";
+import {
+  RAMOS_SEGMENTOS,
+  formatRamosValue,
+  formatSegmentosValue,
+  getSegmentosForRamos,
+  getAllTipos,
+  getTipoDisplayName,
+  getNucleosForTipos,
+  parseRamosValue,
+  parseSegmentosValue,
+} from "@/lib/ramos-segmentos";
 import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
   Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle,
-  CheckCircle2, FileText, Trash2, Settings
+  CheckCircle2, FileText, Trash2, Settings, BarChart3, Flame, Clock3
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
@@ -42,6 +53,7 @@ interface Membro {
   tipo_pessoa?: string;
   tipo_de_cadastro?: string;
   cpf_cnpj?: string;
+  cpf?: string | null;
   cnpj?: string;
   razao_social?: string;
   nome_fantasia?: string;
@@ -64,6 +76,8 @@ interface Membro {
   cidade?: string;
   estado?: string;
   pais?: string;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   empresa?: string;
   cargo?: string;
   categoria?: string;
@@ -71,9 +85,15 @@ interface Membro {
   especialidades?: string[];
   ramo_atuacao?: string | null;
   segmento?: string | null;
+  area_atuacao?: string | null;
   nucleo_alianca?: string;
   tipo_alianca?: string;
+  nucleos_alianca?: string[] | null;
+  tipos_alianca?: string[] | null;
   perfil_aliado?: string;
+  especialidade_livre?: string | null;
+  idiomas?: string[] | null;
+  link_site?: string | null;
   observacoes?: string;
   foto?: string | null;
   foto_perfil?: string | null;
@@ -111,6 +131,30 @@ interface ComunidadeVinculo {
   origem_mae?: "convite" | "legacy_first_link" | "manual_seed" | string | null;
 }
 
+interface UsageHeatmapMember {
+  id: string;
+  nome: string;
+  email?: string | null;
+  role?: string | null;
+  total: number;
+  status: "alta" | "media" | "baixa" | "sem_uso";
+  last_activity_at?: string | null;
+  modules: Record<string, number>;
+}
+
+interface UsageHeatmapData {
+  period_days: number;
+  summary: {
+    total_members: number;
+    active_members: number;
+    inactive_members: number;
+    total_events: number;
+    high_usage_members: number;
+  };
+  modules: Array<{ key: string; label: string; total: number; active_members: number }>;
+  members: UsageHeatmapMember[];
+}
+
 function fotoUrl(foto?: string | null, size = 160): string | null {
   if (!foto) return null;
   return `/api/assets/${foto}?width=${size}&height=${size}&fit=cover`;
@@ -132,6 +176,43 @@ function getDisplayNome(m: Membro): string {
 
 function getInitials(nome: string): string {
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function formatUsageDate(value?: string | null): string {
+  if (!value) return "Sem atividade";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem atividade";
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function usageTone(value: number, max: number): string {
+  if (!value) return "bg-slate-100 text-slate-400 border-slate-200";
+  const ratio = max > 0 ? value / max : 0;
+  if (ratio >= 0.7) return "bg-emerald-500 text-white border-emerald-500";
+  if (ratio >= 0.35) return "bg-blue-500 text-white border-blue-500";
+  return "bg-amber-100 text-amber-800 border-amber-200";
+}
+
+function usageStatusTone(status: UsageHeatmapMember["status"]): string {
+  if (status === "alta") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (status === "media") return "bg-blue-50 text-blue-700 border-blue-200";
+  if (status === "baixa") return "bg-amber-50 text-amber-700 border-amber-200";
+  return "bg-slate-50 text-slate-500 border-slate-200";
+}
+
+function usageModuleShortLabel(label: string): string {
+  const shortLabels: Record<string, string> = {
+    Vitrine: "VIT",
+    Alliances: "ALI",
+    Capital: "CAP",
+    Aura: "AUR",
+    OPAs: "OPA",
+    BIAs: "BIA",
+    Agenda: "AGE",
+    "Documentos/MOU": "DOC",
+    Administração: "ADM",
+  };
+  return shortLabels[label] || label.slice(0, 3).toUpperCase();
 }
 
 function hashColor(str: string): string {
@@ -174,6 +255,15 @@ const ROLE_MANAGED_SELOS = new Set(
 );
 
 const ROLE_PRIORITY = ["admin", "aliado", "membro", "investidor", "user"];
+const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
+const IDIOMAS_DISPONIVEIS = [
+  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
+  "Mandarim", "Japonês", "Árabe", "Russo", "Hindi", "Coreano",
+  "Holandês", "Sueco", "Norueguês", "Dinamarquês", "Finlandês",
+  "Polonês", "Turco", "Hebraico", "Grego", "Tailandês", "Vietnamita",
+  "Indonésio", "Malaio", "Húngaro", "Tcheco", "Romeno", "Búlgaro",
+  "Ucraniano", "Croata", "Sérvio", "Eslovaco", "Catalão", "Persa",
+];
 
 const TERM_ACCEPTANCE_FIELDS = [
   {
@@ -212,6 +302,51 @@ const TERM_ACCEPTANCE_FIELD_NAMES = new Set<string>(
   TERM_ACCEPTANCE_FIELDS.flatMap(term => [term.acceptedAt, term.version])
 );
 
+const MEMBRO_EDITABLE_FIELDS = [
+  "nome",
+  "Nome_de_usuario",
+  "email",
+  "telefone",
+  "whatsapp",
+  "telefone_secundario",
+  "cpf",
+  "cpf_cnpj",
+  "data_nascimento",
+  "empresa",
+  "cnpj",
+  "cargo",
+  "cidade",
+  "estado",
+  "pais",
+  "latitude",
+  "longitude",
+  "cep",
+  "logradouro",
+  "endereco",
+  "numero",
+  "complemento",
+  "bairro",
+  "site",
+  "link_site",
+  "instagram",
+  "logo_empresa",
+  "especialidade_livre",
+  "perfil_aliado",
+  "ramo_atuacao",
+  "segmento",
+  "area_atuacao",
+  "tipo_alianca",
+  "nucleo_alianca",
+  "tipos_alianca",
+  "nucleos_alianca",
+  "idiomas",
+  "Outras_redes_as_quais_pertenco",
+  "na_vitrine",
+  "em_membros_built",
+  "em_built_capital",
+  "observacoes",
+] as const;
+
 function formatAcceptanceDate(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
@@ -223,6 +358,48 @@ function formatAcceptanceDate(value?: string | null): string | null {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function isEmailLikeValue(value?: string | null): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function sanitizeLinkSite(value?: string | null): string {
+  const text = String(value || "").trim();
+  return text && !isEmailLikeValue(text) ? text : "";
+}
+
+function contributionKey(tipo: string): string {
+  return getTipoDisplayName(tipo)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function canonicalContributionArea(tipo: string): string {
+  const key = contributionKey(tipo);
+  if (key === "lideranca") return "Alianças de Liderança Comercial";
+  if (key === "governanca") return "Alianças de Integridade e sustentabilidade";
+  if (key === "credito" || key === "captacao") return "Alianças de Crédito e Captação";
+  return tipo;
+}
+
+function uniqueContributionAreas(tipos?: string[] | null): string[] {
+  const seen = new Set<string>();
+  return (tipos || []).map((tipo) => canonicalContributionArea(String(tipo || "").trim())).filter((tipo) => {
+    const label = String(tipo || "").trim();
+    if (!label) return false;
+    const key = contributionKey(label);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function hasAporteFinanceiro(tipos?: string[] | null): boolean {
+  const aporteKey = contributionKey("Aporte Financeiro");
+  return uniqueContributionAreas(tipos).some((tipo) => contributionKey(tipo) === aporteKey);
 }
 
 function TermAcceptanceReadOnly({ membro }: { membro: Membro }) {
@@ -262,15 +439,24 @@ function TermAcceptanceReadOnly({ membro }: { membro: Membro }) {
 function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => void }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const nome = getDisplayNome(membro);
   const accentColor = hashColor(membro.id || "");
-  const currentFoto = fotoUrl(membro.foto, 200);
+  const currentFoto = fotoUrl(membro.foto_perfil || membro.foto, 200);
 
-  const [form, setForm] = useState<Partial<Membro>>({ ...membro });
+  const [form, setForm] = useState<Partial<Membro>>({
+    ...membro,
+    cpf: membro.cpf || membro.cpf_cnpj || "",
+    link_site: sanitizeLinkSite(membro.link_site || membro.site),
+    tipos_alianca: uniqueContributionAreas(membro.tipos_alianca || (membro.tipo_alianca ? [membro.tipo_alianca] : [])),
+    nucleos_alianca: membro.nucleos_alianca || getNucleosForTipos(uniqueContributionAreas(membro.tipos_alianca || (membro.tipo_alianca ? [membro.tipo_alianca] : []))),
+  });
   const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(currentFoto);
   const [uploading, setUploading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [idiomaInput, setIdiomaInput] = useState("");
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [newAccEmail, setNewAccEmail] = useState(membro.email || "");
@@ -456,7 +642,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedUser?.id]);
 
-  function setField(field: keyof Membro, value: string) {
+  function setField(field: keyof Membro, value: any) {
     setForm(f => ({ ...f, [field]: value }));
   }
 
@@ -470,6 +656,57 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       const next = current.includes(selo) ?current.filter(s => s !== selo) : [...current, selo];
       return { ...f, Outras_redes_as_quais_pertenco: next };
     });
+  }
+
+  const selectedRamos = parseRamosValue(form.ramo_atuacao);
+  const selectedSegmentos = parseSegmentosValue(form.segmento);
+  const availableSegmentos = getSegmentosForRamos(selectedRamos);
+
+  function toggleTipoAlianca(tipo: string) {
+    setForm(f => {
+      const current = uniqueContributionAreas(f.tipos_alianca || (f.tipo_alianca ? [f.tipo_alianca] : []));
+      const tipoKey = contributionKey(tipo);
+      const next = current.some(item => contributionKey(item) === tipoKey)
+        ? current.filter(item => contributionKey(item) !== tipoKey)
+        : [...current, tipo];
+      return {
+        ...f,
+        tipos_alianca: next,
+        tipo_alianca: next[0] || "",
+        nucleos_alianca: getNucleosForTipos(next),
+        nucleo_alianca: getNucleosForTipos(next)[0] || f.nucleo_alianca,
+        em_built_capital: hasAporteFinanceiro(next) ? true : f.em_built_capital,
+      };
+    });
+  }
+
+  function toggleRamo(ramo: string) {
+    setForm(f => {
+      const current = parseRamosValue(f.ramo_atuacao);
+      const next = current.includes(ramo) ? current.filter(item => item !== ramo) : [...current, ramo];
+      const available = new Set(getSegmentosForRamos(next).map(segmento => segmento.nome));
+      const nextSegmentos = parseSegmentosValue(f.segmento).filter(segmento => available.has(segmento));
+      return { ...f, ramo_atuacao: formatRamosValue(next), segmento: formatSegmentosValue(nextSegmentos) };
+    });
+  }
+
+  function toggleSegmentoMulti(segmento: string) {
+    setForm(f => {
+      const current = parseSegmentosValue(f.segmento);
+      const next = current.includes(segmento) ? current.filter(item => item !== segmento) : [...current, segmento];
+      return { ...f, segmento: formatSegmentosValue(next) };
+    });
+  }
+
+  function addIdioma(idioma: string) {
+    const value = idioma.trim();
+    if (!value) return;
+    setForm(f => {
+      const current = f.idiomas || [];
+      if (current.some(item => item.toLowerCase() === value.toLowerCase())) return f;
+      return { ...f, idiomas: [...current, value] };
+    });
+    setIdiomaInput("");
   }
 
   function getPrimaryRole(roles: string[]) {
@@ -518,6 +755,28 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
     e.target.value = "";
   }
 
+  async function handleLogoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("files", file, file.name);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Falha no upload da marca");
+      const data = await res.json();
+      const logoId = data.fileIds?.[0];
+      if (!logoId) throw new Error("Upload sem arquivo retornado");
+      setForm(f => ({ ...f, logo_empresa: logoId }));
+      toast({ title: "Marca enviada. Salve as alterações para confirmar." });
+    } catch (error: any) {
+      toast({ title: "Erro ao enviar marca", description: error?.message, variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const selosForm: string[] = (form as any).Outras_redes_as_quais_pertenco || [];
@@ -541,19 +800,35 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
         }
       }
 
-      const { id, especialidades, foto, ...rest } = form as Membro & { _nome?: string };
-      const { _nome, ...cleanRest } = rest as any;
       const payload: Record<string, unknown> = {};
-      const computedFields = new Set(["convidado_por_id", "convidado_por_nome", "convite_origem_status", "convite_origem_tipo"]);
-      for (const [key, value] of Object.entries(cleanRest)) {
+      const tiposAlianca = uniqueContributionAreas(form.tipos_alianca || (form.tipo_alianca ? [form.tipo_alianca] : []));
+      const nucleosAlianca = getNucleosForTipos(tiposAlianca);
+      const normalizedLinkSite = sanitizeLinkSite(form.link_site || form.site);
+      const normalizedForm: Record<string, any> = {
+        ...form,
+        cpf: form.cpf || form.cpf_cnpj || null,
+        cpf_cnpj: form.cpf_cnpj || form.cpf || null,
+        link_site: normalizedLinkSite || null,
+        site: normalizedLinkSite || form.site || null,
+        tipos_alianca: tiposAlianca,
+        tipo_alianca: tiposAlianca[0] || null,
+        nucleos_alianca: nucleosAlianca,
+        nucleo_alianca: nucleosAlianca[0] || form.nucleo_alianca || null,
+        em_built_capital: hasAporteFinanceiro(tiposAlianca) ? true : !!form.em_built_capital,
+        idiomas: form.idiomas || [],
+      };
+
+      for (const key of MEMBRO_EDITABLE_FIELDS) {
         if (TERM_ACCEPTANCE_FIELD_NAMES.has(key)) continue;
-        if (computedFields.has(key)) continue;
+        const value = normalizedForm[key];
         if (typeof value === "boolean") {
           payload[key] = value;
         } else if (Array.isArray(value)) {
           payload[key] = value;
-        } else if (value !== "" && value !== null && value !== undefined) {
-          payload[key] = value;
+        } else if (value === "" || value === undefined) {
+          payload[key] = null;
+        } else {
+          payload[key] = value ?? null;
         }
       }
       if (fotoId) payload.foto_perfil = fotoId;
@@ -737,7 +1012,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 </div>
                 <div>
                   <label className={labelCls}>CPF</label>
-                  <Input value={form.cpf_cnpj || ""} onChange={e => setField("cpf_cnpj", e.target.value)} className={inputCls} placeholder="000.000.000-00" data-testid="input-edit-cpf" />
+                  <Input value={form.cpf || form.cpf_cnpj || ""} onChange={e => setField("cpf", e.target.value)} className={inputCls} placeholder="000.000.000-00" data-testid="input-edit-cpf" />
                 </div>
                 <div>
                   <label className={labelCls}>Data de Nascimento</label>
@@ -940,6 +1215,43 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <Building2 className="w-3.5 h-3.5 text-brand-gold/50" />
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Dados da Empresa</span>
               </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={handleLogoSelect}
+                data-testid="input-edit-logo-empresa"
+              />
+              <div className="mb-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                  className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-500"
+                  data-testid="btn-edit-logo-empresa"
+                >
+                  {uploadingLogo ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  ) : form.logo_empresa ? (
+                    <img src={logoEmpresaUrl(form.logo_empresa) || ""} alt="Marca da empresa" className="h-full w-full object-contain p-1" />
+                  ) : (
+                    <Building2 className="h-5 w-5" />
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-brand-navy">Marca da empresa</p>
+                  <p className="text-[11px] text-slate-500">A mesma marca exibida em Meu Perfil e nos cards públicos.</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} className="shrink-0">
+                  {uploadingLogo ? "Enviando..." : form.logo_empresa ? "Trocar" : "Adicionar"}
+                </Button>
+                {form.logo_empresa && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setField("logo_empresa", null)} className="shrink-0 text-red-600">
+                    Remover
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Nome da Empresa</label>
@@ -948,6 +1260,10 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <div>
                   <label className={labelCls}>CNPJ</label>
                   <Input value={form.cnpj || ""} onChange={e => setField("cnpj", e.target.value)} className={inputCls} placeholder="00.000.000/0000-00" data-testid="input-edit-cnpj-empresa" />
+                </div>
+                <div>
+                  <label className={labelCls}>Cargo</label>
+                  <Input value={form.cargo || ""} onChange={e => setField("cargo", e.target.value)} className={inputCls} data-testid="input-edit-cargo" />
                 </div>
               </div>
             </div>
@@ -978,8 +1294,8 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                   <PhoneInput value={form.telefone_secundario || ""} onChange={value => setField("telefone_secundario", value)} className="border-input bg-white" inputClassName={`${inputCls} !text-brand-navy`} selectClassName="!bg-white !text-brand-navy border-input" data-testid="input-edit-telefone2" />
                 </div>
                 <div>
-                  <label className={labelCls}>Site</label>
-                  <Input value={form.site || ""} onChange={e => setField("site", e.target.value)} className={inputCls} placeholder="https://" data-testid="input-edit-site" />
+                  <label className={labelCls}>Site / Portfólio</label>
+                  <Input value={form.link_site || form.site || ""} onChange={e => setField("link_site", e.target.value)} className={inputCls} placeholder="https://www.seusite.com.br" data-testid="input-edit-link-site" />
                 </div>
                 <div>
                   <label className={labelCls}>Instagram</label>
@@ -1032,77 +1348,151 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
               </div>
             </div>
 
-            <Separator className="bg-brand-gold/20" />
-
-            {/* Aliança */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Globe className="w-3.5 h-3.5 text-brand-gold/50" />
-                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Aliança</span>
+                <Settings className="w-3.5 h-3.5 text-brand-gold/50" />
+                <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Campos do Meu Perfil</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div>
-                  <label className={labelCls}>Área de Contribuição</label>
-                  <Select
-                    value={(form as any).tipo_alianca || undefined}
-                    onValueChange={v => setForm((f: any) => ({
-                      ...f,
-                      tipo_alianca: v,
-                      nucleo_alianca: getNucleoForTipo(v) || f.nucleo_alianca,
-                    }))}
-                  >
-                    <SelectTrigger className={inputCls} data-testid="select-edit-tipo-alianca">
-                      <SelectValue placeholder="Selecionar tipo..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                      {getAllTipos().map(t => (
-                        <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                          {getTipoDisplayName(t.nome)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <label className={labelCls}>Áreas de contribuição</label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="edit-tipos-alianca">
+                    {getAllTipos().map(tipo => {
+                      const selected = uniqueContributionAreas(form.tipos_alianca || (form.tipo_alianca ? [form.tipo_alianca] : []))
+                        .some(item => contributionKey(item) === contributionKey(tipo.nome));
+                      return (
+                        <button
+                          key={tipo.nome}
+                          type="button"
+                          onClick={() => toggleTipoAlianca(tipo.nome)}
+                          className={`min-h-10 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                            selected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-blue-300"
+                          }`}
+                          data-testid={`toggle-edit-tipo-${tipo.nome}`}
+                        >
+                          {getTipoDisplayName(tipo.nome)}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
                 <div>
-                  <label className={labelCls}>Perfil de Aliado</label>
-                  <Input value={form.perfil_aliado || ""} onChange={e => setField("perfil_aliado", e.target.value)} className={inputCls} data-testid="input-edit-perfil" />
+                  <label className={labelCls}>Ramos de atuação</label>
+                  <div className="max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white p-2" data-testid="edit-ramos-atuacao">
+                    {RAMOS_SEGMENTOS.map(ramo => {
+                      const checked = selectedRamos.includes(ramo.nome);
+                      return (
+                        <label key={ramo.codigo} className={`flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm ${checked ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>
+                          <Checkbox checked={checked} onCheckedChange={() => toggleRamo(ramo.nome)} />
+                          <span>{ramo.nome}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
+
                 <div>
-                  <label className={labelCls}>Ramo de Atuação</label>
-                  <Select
-                    value={form.ramo_atuacao || ""}
-                    onValueChange={v => setForm((f: any) => ({ ...f, ramo_atuacao: v, segmento: null }))}
-                  >
-                    <SelectTrigger className={inputCls} data-testid="select-edit-ramo">
-                      <SelectValue placeholder="Selecione o ramo" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
-                      {RAMOS_SEGMENTOS.map(r => (
-                        <SelectItem key={r.codigo} value={r.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                          {r.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <label className={labelCls}>Segmentos</label>
+                  <div className={`max-h-48 overflow-y-auto rounded-md border border-slate-200 p-2 ${selectedRamos.length ? "bg-white" : "bg-white opacity-70"}`} data-testid="edit-segmentos">
+                    {selectedRamos.length === 0 ? (
+                      <p className="px-2 py-3 text-sm text-slate-500">Selecione ao menos um ramo primeiro.</p>
+                    ) : (
+                      availableSegmentos.map(segmento => {
+                        const checked = selectedSegmentos.includes(segmento.nome);
+                        return (
+                          <label key={segmento.codigo} className={`flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm ${checked ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}>
+                            <Checkbox checked={checked} onCheckedChange={() => toggleSegmentoMulti(segmento.nome)} />
+                            <span>{segmento.nome}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={labelCls}>Área de atuação</label>
+                    <Select value={form.area_atuacao || ""} onValueChange={value => setField("area_atuacao", value)}>
+                      <SelectTrigger className={inputCls} data-testid="select-edit-area-atuacao">
+                        <SelectValue placeholder="Selecione a área" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AREA_ATUACAO_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Especialidade livre</label>
+                    <Input value={form.especialidade_livre || ""} onChange={e => setField("especialidade_livre", e.target.value)} className={inputCls} data-testid="input-edit-especialidade-livre" />
+                  </div>
+                </div>
+
                 <div>
-                  <label className={labelCls}>Segmento</label>
-                  <Select
-                    value={form.segmento || ""}
-                    onValueChange={v => setForm((f: any) => ({ ...f, segmento: v }))}
-                    disabled={!form.ramo_atuacao}
-                  >
-                    <SelectTrigger className={`${inputCls} disabled:opacity-40`} data-testid="select-edit-segmento">
-                      <SelectValue placeholder={form.ramo_atuacao ?"Selecione o segmento" : "Selecione o ramo primeiro"} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#001428] border-white/10 text-white max-h-72">
-                      {getSegmentosForRamo(form.ramo_atuacao || "").map(s => (
-                        <SelectItem key={s.codigo} value={s.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
-                          {s.nome}
-                        </SelectItem>
+                  <label className={labelCls}>Biografia / perfil de aliado</label>
+                  <textarea
+                    value={form.perfil_aliado || ""}
+                    onChange={e => setField("perfil_aliado", e.target.value)}
+                    rows={4}
+                    className="w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy outline-none placeholder:text-slate-400 focus:border-brand-gold/60"
+                    data-testid="textarea-edit-perfil-aliado"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Idiomas falados</label>
+                  {(form.idiomas || []).length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {(form.idiomas || []).map(idioma => (
+                        <span key={idioma} className="inline-flex items-center gap-1 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
+                          {idioma}
+                          <button type="button" onClick={() => setForm(f => ({ ...f, idiomas: (f.idiomas || []).filter(item => item !== idioma) }))}>
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
+                  <Input
+                    value={idiomaInput}
+                    onChange={e => setIdiomaInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      addIdioma(idiomaInput);
+                    }}
+                    className={inputCls}
+                    placeholder="Buscar ou digitar idioma..."
+                    data-testid="input-edit-idioma"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {IDIOMAS_DISPONIVEIS
+                      .filter(idioma => !(form.idiomas || []).includes(idioma))
+                      .filter(idioma => !idiomaInput || idioma.toLowerCase().includes(idiomaInput.toLowerCase()))
+                      .slice(0, 8)
+                      .map(idioma => (
+                        <button
+                          key={idioma}
+                          type="button"
+                          onClick={() => addIdioma(idioma)}
+                          className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 hover:border-brand-gold/40 hover:text-brand-navy"
+                        >
+                          {idioma}
+                        </button>
+                      ))}
+                    {idiomaInput.trim() && !IDIOMAS_DISPONIVEIS.some(idioma => idioma.toLowerCase() === idiomaInput.trim().toLowerCase()) && (
+                      <button
+                        type="button"
+                        onClick={() => addIdioma(idiomaInput)}
+                        className="rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700"
+                      >
+                        Adicionar "{idiomaInput.trim()}"
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1695,11 +2085,16 @@ export default function MembrosPage() {
   const [filterTipoCadastro, setFilterTipoCadastro] = useState("");
   const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Membro | null>(null);
-  const [adminTab, setAdminTab] = useState<"cadastro" | "configuracoes">("cadastro");
+  const [adminTab, setAdminTab] = useState<"dashboard" | "cadastro" | "configuracoes">("cadastro");
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
     enabled: !!user,
+  });
+
+  const { data: usageData, isLoading: loadingUsage } = useQuery<UsageHeatmapData>({
+    queryKey: ["/api/admin/usage-heatmap"],
+    enabled: !!user && user.role === "admin" && adminTab === "dashboard",
   });
 
   const membros = useMemo(
@@ -1961,7 +2356,18 @@ export default function MembrosPage() {
 
       {/* ── Search & Filter Bar ── */}
       <div className="px-6 pt-5">
-        <div className="grid grid-cols-2 rounded-lg bg-slate-100 p-1 shadow-sm">
+        <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setAdminTab("dashboard")}
+            className={`flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              adminTab === "dashboard" ? "bg-white text-brand-navy shadow-sm" : "text-slate-500 hover:text-brand-navy"
+            }`}
+            data-testid="tab-admin-dashboard"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Dashboard
+          </button>
           <button
             type="button"
             onClick={() => setAdminTab("cadastro")}
@@ -1987,7 +2393,142 @@ export default function MembrosPage() {
         </div>
       </div>
 
-      {adminTab === "configuracoes" ? (
+      {adminTab === "dashboard" ? (
+        <div className="space-y-5 p-6">
+          {loadingUsage ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+              Carregando mapa de uso...
+            </div>
+          ) : !usageData ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+              Nao foi possivel carregar o dashboard.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500">Membros ativos</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.summary.active_members}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500">Sem uso</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.summary.inactive_members}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500">Alta utilizacao</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.summary.high_usage_members}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500">Pontos de uso</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.summary.total_events}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500">Janela</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.period_days}d</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="flex items-center gap-2 text-base font-bold text-brand-navy">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                  Utilizacao por modulo
+                </h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {usageData.modules.map((mod) => {
+                    const max = Math.max(...usageData.modules.map((item) => item.total), 1);
+                    const width = Math.max(4, Math.round((mod.total / max) * 100));
+                    return (
+                      <div key={mod.key} className="rounded-xl border border-slate-200 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-semibold text-brand-navy">{mod.label}</span>
+                          <span className="text-xs tabular-nums text-slate-500">{mod.active_members} membros</span>
+                        </div>
+                        <div className="mt-3 h-2 rounded-full bg-slate-100">
+                          <div className="h-2 rounded-full bg-blue-500" style={{ width: `${width}%` }} />
+                        </div>
+                        <p className="mt-2 text-xs tabular-nums text-slate-500">{mod.total} pontos</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="flex items-center gap-2 text-base font-bold text-brand-navy">
+                  <Flame className="h-4 w-4 text-blue-600" />
+                  Mapa de calor dos membros
+                </h2>
+                <div className="mt-4">
+                  {usageData.members.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                      Nenhum uso registrado no periodo.
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                      <div
+                        className="grid items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                        style={{ gridTemplateColumns: `minmax(220px, 1.8fr) 64px repeat(${usageData.modules.length}, minmax(42px, 0.5fr))` }}
+                      >
+                        <span>Membro</span>
+                        <span className="text-center">Total</span>
+                        {usageData.modules.map((mod) => (
+                          <span key={mod.key} className="text-center" title={mod.label}>
+                            {usageModuleShortLabel(mod.label)}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="max-h-[520px] overflow-y-auto">
+                        {usageData.members.map((member) => {
+                          const values = usageData.members.reduce<number[]>((acc, row) => {
+                            usageData.modules.forEach((mod) => acc.push(Number(row.modules[mod.key] || 0)));
+                            return acc;
+                          }, []);
+                          const max = Math.max(...values, 1);
+                          return (
+                            <div
+                              key={member.id}
+                              className="grid items-center gap-2 border-b border-slate-100 px-3 py-2 last:border-b-0"
+                              style={{ gridTemplateColumns: `minmax(220px, 1.8fr) 64px repeat(${usageData.modules.length}, minmax(42px, 0.5fr))` }}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span className="truncate text-sm font-semibold text-brand-navy">{member.nome}</span>
+                                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${usageStatusTone(member.status)}`}>
+                                    {member.status === "sem_uso" ? "sem uso" : member.status}
+                                  </span>
+                                </div>
+                                <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
+                                  <Clock3 className="h-3 w-3" />
+                                  {formatUsageDate(member.last_activity_at)}
+                                </div>
+                              </div>
+                              <span className="rounded-md bg-slate-50 px-2 py-2 text-center text-sm font-bold tabular-nums text-brand-navy">
+                                {member.total}
+                              </span>
+                              {usageData.modules.map((mod) => {
+                                const value = Number(member.modules[mod.key] || 0);
+                                return (
+                                  <div
+                                    key={mod.key}
+                                    className={`rounded-md border px-1.5 py-2 text-center text-xs font-bold tabular-nums ${usageTone(value, max)}`}
+                                    title={`${mod.label}: ${value} pontos`}
+                                  >
+                                    {value || "-"}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : adminTab === "configuracoes" ? (
         <div className="p-6">
           <div className="flex min-h-[340px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center shadow-sm">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600">

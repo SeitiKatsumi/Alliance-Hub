@@ -46,7 +46,7 @@ import AdesaoPage from "@/pages/adesao";
 import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
 import PagamentoSucessoPage from "@/pages/pagamento-sucesso";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, type AppUser } from "@/hooks/use-auth";
 import { Briefcase, CheckCircle2, Globe, Languages, Loader2, LogOut, MapPin, Navigation, Plus, Save, Search, ScrollText, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast";
@@ -78,6 +78,8 @@ interface OnboardingMembro {
   em_built_capital?: boolean | null;
   codigo_etica_aceito_em?: string | null;
   codigo_etica_versao?: string | null;
+  politicas_participacao_aceito_em?: string | null;
+  politicas_participacao_versao?: string | null;
   vitrine_termo_aceito_em?: string | null;
   vitrine_termo_versao?: string | null;
   area_aliancas_termo_aceito_em?: string | null;
@@ -113,6 +115,20 @@ const CODIGO_ETICA_BUILT = [
   "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.",
   "Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.",
 ];
+const POLITICAS_PARTICIPACAO_BUILT_VERSAO = "BUILT JUR - 1";
+const POLITICAS_PARTICIPACAO_BUILT = `
+POLÍTICAS DE PARTICIPAÇÃO E PROTEÇÃO - BUILT
+
+Estas Políticas definem as regras gerais de acesso, participação, permanência, conduta, proteção institucional e uso do ecossistema BUILT.
+
+A BUILT opera com base em boa-fé objetiva, lealdade, comprometimento, transparência, rastreabilidade, responsabilidade individual, validação reputacional, cooperação estratégica, proteção institucional, integridade patrimonial e disciplina relacional.
+
+Todo participante deverá atuar com ética, boa-fé, lealdade, comprometimento, transparência, diligência, cooperação, respeito à legislação e aderência ao Código de Ética, a estas Políticas e aos instrumentos aplicáveis.
+
+São confidenciais as informações estratégicas, comerciais, técnicas, financeiras, jurídicas, societárias, patrimoniais, reputacionais, operacionais, metodológicas, documentais ou negociais acessadas no ecossistema BUILT, salvo quando expressamente classificadas como públicas.
+
+A participação em oportunidades, comunidades ou BIAs dependerá de aprovação, aceite específico, registro na Plataforma BUILT e instrumentos aplicáveis.
+`.trim();
 const TERMO_VITRINE_BUILT_VERSAO = "BUILT JUR - 2";
 const TERMO_VITRINE_BUILT = `
 TERMO DE ACESSO E USO DA VITRINE PÚBLICA BUILT
@@ -429,7 +445,7 @@ function PerfilOnboardingModal({
   fallbackUser,
 }: {
   membroId?: string | null;
-  fallbackUser?: { nome?: string | null; email?: string | null } | null;
+  fallbackUser?: AppUser | null;
 }) {
   const { toast } = useToast();
   const [location, navigate] = useLocation();
@@ -439,6 +455,7 @@ function PerfilOnboardingModal({
   const [completed, setCompleted] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [codigoEticaAceito, setCodigoEticaAceito] = useState(false);
+  const [politicasParticipacaoAceitas, setPoliticasParticipacaoAceitas] = useState(false);
   const [termoVitrineAceito, setTermoVitrineAceito] = useState(false);
   const [termoAreaAliancasAceito, setTermoAreaAliancasAceito] = useState(false);
   const [termoBuiltCapitalAceito, setTermoBuiltCapitalAceito] = useState(false);
@@ -476,6 +493,7 @@ function PerfilOnboardingModal({
         nucleos_alianca: nucleosComCapital,
       });
       setCodigoEticaAceito(!!membro.codigo_etica_aceito_em);
+      setPoliticasParticipacaoAceitas(!!membro.politicas_participacao_aceito_em);
       setTermoVitrineAceito(!!membro.vitrine_termo_aceito_em);
       setTermoAreaAliancasAceito(!!membro.area_aliancas_termo_aceito_em);
       setTermoBuiltCapitalAceito(!!membro.built_capital_termo_aceito_em);
@@ -487,38 +505,74 @@ function PerfilOnboardingModal({
   const isAreaAliancasRoute = location.startsWith("/area-aliancas");
   const isBuiltCapitalRoute = location.startsWith("/built-capital");
   const canAccessAreaAliancas = environmentAccessFor(fallbackUser, "alliances").canAccess;
+  const codigoEticaPendente = !!membro && !membro.codigo_etica_aceito_em;
+  const politicasParticipacaoPendente = !!membro && !membro.politicas_participacao_aceito_em;
   const termoVitrinePendente = !!membro && isVitrineRoute && !membro.vitrine_termo_aceito_em;
   const termoAreaAliancasPendente = !!membro && canAccessAreaAliancas && isAreaAliancasRoute && !membro.area_aliancas_termo_aceito_em;
   const termoBuiltCapitalPendente = !!membro && isBuiltCapitalRoute && !membro.built_capital_termo_aceito_em;
-  const termoModuloPendente = termoVitrinePendente || termoAreaAliancasPendente || termoBuiltCapitalPendente;
-  const shouldOpen = !!membroId && !completed && !isLoading && !!membro && (requiredMissing || termoModuloPendente);
+  const termoPendente = codigoEticaPendente || politicasParticipacaoPendente || termoVitrinePendente || termoAreaAliancasPendente || termoBuiltCapitalPendente;
+  const shouldOpen = !!membroId && !completed && !isLoading && !!membro && (requiredMissing || termoPendente);
   const mostrarPerfilCompleto = requiredMissing;
-  const termoModuloKey = termoVitrinePendente
-    ? "vitrine"
-    : termoAreaAliancasPendente
-      ? "area_aliancas"
-      : termoBuiltCapitalPendente
-        ? "built_capital"
-        : null;
-  const { data: termoModuloRemoto } = useQuery<{
+  const termoPendenteKey = codigoEticaPendente
+    ? "codigo_etica"
+    : politicasParticipacaoPendente
+      ? "politicas_participacao_protecao"
+      : termoVitrinePendente
+        ? "vitrine"
+        : termoAreaAliancasPendente
+          ? "area_aliancas"
+          : termoBuiltCapitalPendente
+            ? "built_capital"
+            : null;
+  const { data: termoRemoto } = useQuery<{
     titulo: string;
     versao: string;
     origem: string;
     body: string;
   }>({
-    queryKey: ["/api/termos-aceite", termoModuloKey],
-    queryFn: () => fetch(`/api/termos-aceite/${termoModuloKey}`).then(r => {
+    queryKey: ["/api/termos-aceite", termoPendenteKey],
+    queryFn: () => fetch(`/api/termos-aceite/${termoPendenteKey}`).then(r => {
       if (!r.ok) throw new Error("Falha ao carregar termo");
       return r.json();
     }),
-    enabled: !!termoModuloKey,
+    enabled: !!termoPendenteKey,
     staleTime: 1000 * 60 * 10,
   });
-  const termoModulo = termoVitrinePendente
+  const termoAtual = codigoEticaPendente
     ? {
-      titulo: termoModuloRemoto?.titulo || "Termo de Acesso e Uso da Vitrine Pública BUILT",
+      titulo: termoRemoto?.titulo || "Código de Ética BUILT",
+      descricao: "Antes de entrar na plataforma, confirme o aceite do Código de Ética BUILT.",
+      texto: termoRemoto?.body || CODIGO_ETICA_BUILT.join("\n\n"),
+      checked: codigoEticaAceito,
+      setChecked: setCodigoEticaAceito,
+      checkboxTestId: "checkbox-onboarding-codigo-etica",
+      wrapperTestId: "onboarding-codigo-etica",
+      accepted: !!membro?.codigo_etica_aceito_em,
+      payload: {
+        codigo_etica_aceito_em: new Date().toISOString(),
+        codigo_etica_versao: termoRemoto?.versao || CODIGO_ETICA_BUILT_VERSAO,
+      },
+    }
+    : politicasParticipacaoPendente
+      ? {
+        titulo: termoRemoto?.titulo || "Políticas de Participação e Proteção BUILT",
+        descricao: "Antes de entrar na plataforma, confirme o aceite das Políticas de Participação e Proteção.",
+        texto: termoRemoto?.body || POLITICAS_PARTICIPACAO_BUILT,
+        checked: politicasParticipacaoAceitas,
+        setChecked: setPoliticasParticipacaoAceitas,
+        checkboxTestId: "checkbox-onboarding-politicas-participacao",
+        wrapperTestId: "onboarding-politicas-participacao",
+        accepted: !!membro?.politicas_participacao_aceito_em,
+        payload: {
+          politicas_participacao_aceito_em: new Date().toISOString(),
+          politicas_participacao_versao: termoRemoto?.versao || POLITICAS_PARTICIPACAO_BUILT_VERSAO,
+        },
+      }
+      : termoVitrinePendente
+    ? {
+      titulo: termoRemoto?.titulo || "Termo de Acesso e Uso da Vitrine Pública BUILT",
       descricao: "Para acessar a Vitrine pela primeira vez, confirme que leu e concorda com o termo de acesso.",
-      texto: termoModuloRemoto?.body || TERMO_VITRINE_BUILT,
+      texto: termoRemoto?.body || TERMO_VITRINE_BUILT,
       checked: termoVitrineAceito,
       setChecked: setTermoVitrineAceito,
       checkboxTestId: "checkbox-onboarding-termo-vitrine",
@@ -526,14 +580,14 @@ function PerfilOnboardingModal({
       accepted: !!membro?.vitrine_termo_aceito_em,
       payload: {
         vitrine_termo_aceito_em: new Date().toISOString(),
-        vitrine_termo_versao: termoModuloRemoto?.versao || TERMO_VITRINE_BUILT_VERSAO,
+        vitrine_termo_versao: termoRemoto?.versao || TERMO_VITRINE_BUILT_VERSAO,
       },
     }
     : termoAreaAliancasPendente
       ? {
-        titulo: termoModuloRemoto?.titulo || "Termo de Acesso à Área de Alianças BUILT",
+        titulo: termoRemoto?.titulo || "Termo de Acesso à Área de Alianças BUILT",
         descricao: "Para acessar o BUILT Alliances pela primeira vez, confirme que leu e concorda com o termo de acesso.",
-        texto: termoModuloRemoto?.body || TERMO_AREA_ALIANCAS,
+        texto: termoRemoto?.body || TERMO_AREA_ALIANCAS,
         checked: termoAreaAliancasAceito,
         setChecked: setTermoAreaAliancasAceito,
         checkboxTestId: "checkbox-onboarding-termo-area-aliancas",
@@ -541,14 +595,14 @@ function PerfilOnboardingModal({
         accepted: !!membro?.area_aliancas_termo_aceito_em,
         payload: {
           area_aliancas_termo_aceito_em: new Date().toISOString(),
-          area_aliancas_termo_versao: termoModuloRemoto?.versao || TERMO_AREA_ALIANCAS_VERSAO,
+          area_aliancas_termo_versao: termoRemoto?.versao || TERMO_AREA_ALIANCAS_VERSAO,
         },
       }
       : termoBuiltCapitalPendente
         ? {
-          titulo: termoModuloRemoto?.titulo || "Termo de Acesso à Área de Parceiros de Capital BUILT",
+          titulo: termoRemoto?.titulo || "Termo de Acesso à Área de Parceiros de Capital BUILT",
           descricao: "Para acessar o BUILT Capital pela primeira vez, confirme que leu e concorda com o termo de acesso.",
-          texto: termoModuloRemoto?.body || TERMO_BUILT_CAPITAL,
+          texto: termoRemoto?.body || TERMO_BUILT_CAPITAL,
           checked: termoBuiltCapitalAceito,
           setChecked: setTermoBuiltCapitalAceito,
           checkboxTestId: "checkbox-onboarding-termo-built-capital",
@@ -556,7 +610,7 @@ function PerfilOnboardingModal({
           accepted: !!membro?.built_capital_termo_aceito_em,
           payload: {
             built_capital_termo_aceito_em: new Date().toISOString(),
-            built_capital_termo_versao: termoModuloRemoto?.versao || TERMO_BUILT_CAPITAL_VERSAO,
+            built_capital_termo_versao: termoRemoto?.versao || TERMO_BUILT_CAPITAL_VERSAO,
           },
         }
         : null;
@@ -572,6 +626,8 @@ function PerfilOnboardingModal({
         setProfileCompletedLocally(true);
       }
       setCompleted(!(
+        (!membro?.codigo_etica_aceito_em && !variables.codigo_etica_aceito_em) ||
+        (!membro?.politicas_participacao_aceito_em && !variables.politicas_participacao_aceito_em) ||
         (isVitrineRoute && !membro?.vitrine_termo_aceito_em && !variables.vitrine_termo_aceito_em) ||
         (isAreaAliancasRoute && !membro?.area_aliancas_termo_aceito_em && !variables.area_aliancas_termo_aceito_em) ||
         (isBuiltCapitalRoute && !membro?.built_capital_termo_aceito_em && !variables.built_capital_termo_aceito_em)
@@ -603,13 +659,13 @@ function PerfilOnboardingModal({
 
   function handleSave() {
     if (!mostrarPerfilCompleto) {
-      if (!termoModulo) return;
-      if (!termoModulo.checked) {
-        toast({ title: `Aceite o ${termoModulo.titulo} para continuar`, variant: "destructive" });
+      if (!termoAtual) return;
+      if (!termoAtual.checked) {
+        toast({ title: `Aceite o ${termoAtual.titulo} para continuar`, variant: "destructive" });
         return;
       }
 
-      salvarMutation.mutate(termoModulo.payload);
+      salvarMutation.mutate(termoAtual.payload);
       return;
     }
 
@@ -653,14 +709,14 @@ function PerfilOnboardingModal({
       tipos_alianca: tiposAlianca,
       nucleos_alianca: nucleosAlianca,
       na_vitrine: !!form.na_vitrine,
-      ...(termoModulo?.checked ? termoModulo.payload : {}),
+      ...(termoAtual?.checked ? termoAtual.payload : {}),
     });
   }
 
   function handleDialogOpenChange(open: boolean) {
     if (open) return;
-    if (termoModuloPendente) {
-      termoModulo?.setChecked(false);
+    if (termoPendente) {
+      termoAtual?.setChecked(false);
       navigate("/");
     }
   }
@@ -675,12 +731,12 @@ function PerfilOnboardingModal({
             ) : (
               <ScrollText className="h-5 w-5 text-brand-gold" />
             )}
-            {mostrarPerfilCompleto ?"Complete seu perfil" : termoModulo?.titulo}
+            {mostrarPerfilCompleto ?"Complete seu perfil" : termoAtual?.titulo}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
             {mostrarPerfilCompleto
               ?"Antes de continuar, preencha as informacoes principais. Esses dados tambem alimentam seu card, caso voce escolha aparecer na Vitrine."
-              : termoModulo?.descricao}
+              : termoAtual?.descricao}
           </p>
         </DialogHeader>
 
@@ -879,32 +935,32 @@ function PerfilOnboardingModal({
           </div>
         </div>
         )}
-        {!mostrarPerfilCompleto && termoModulo && (
-        <div className="rounded-xl border border-brand-gold/25 bg-brand-gold/5 p-4 space-y-3" data-testid={termoModulo.wrapperTestId}>
+        {!mostrarPerfilCompleto && termoAtual && (
+        <div className="rounded-xl border border-brand-gold/25 bg-brand-gold/5 p-4 space-y-3" data-testid={termoAtual.wrapperTestId}>
           <div className="flex items-start gap-3">
             <div className="mt-0.5 rounded-lg bg-brand-gold/15 p-2 text-brand-gold">
               <ScrollText className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">{termoModulo.titulo}</p>
+              <p className="text-sm font-semibold text-foreground">{termoAtual.titulo}</p>
               <p className="text-xs text-muted-foreground">Leia e confirme para liberar o acesso.</p>
             </div>
           </div>
           <div className="max-h-44 overflow-y-auto rounded-lg border border-border bg-background p-3">
-            <pre className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">{termoModulo.texto}</pre>
+            <pre className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">{termoAtual.texto}</pre>
           </div>
           <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3 text-sm">
             <input
               type="checkbox"
-              checked={termoModulo.checked}
-              onChange={event => termoModulo.setChecked(event.target.checked)}
-              disabled={termoModulo.accepted}
+              checked={termoAtual.checked}
+              onChange={event => termoAtual.setChecked(event.target.checked)}
+              disabled={termoAtual.accepted}
               className="mt-1 h-4 w-4 accent-brand-gold"
-              data-testid={termoModulo.checkboxTestId}
+              data-testid={termoAtual.checkboxTestId}
             />
             <span className="text-muted-foreground">
-              Li e concordo com o {termoModulo.titulo}.
-              {termoModulo.accepted && (
+              Li e concordo com o {termoAtual.titulo}.
+              {termoAtual.accepted && (
                 <span className="block text-xs text-emerald-600 mt-1">Aceite já registrado.</span>
               )}
             </span>

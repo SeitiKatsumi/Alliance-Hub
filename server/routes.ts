@@ -1535,6 +1535,21 @@ const auraAudioUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+function auraAudioMime(originalName?: string, mimeType?: string) {
+  const ext = path.extname(originalName || "").toLowerCase();
+  const mime = String(mimeType || "").toLowerCase();
+  if (mime.startsWith("audio/")) return mimeType || "audio/webm";
+  if (ext === ".ogg" || ext === ".oga" || ext === ".opus") return "audio/ogg";
+  if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".m4a") return "audio/mp4";
+  if (ext === ".aac") return "audio/aac";
+  if (ext === ".wav") return "audio/wav";
+  if (ext === ".webm") return "audio/webm";
+  if (ext === ".3gp") return "audio/3gpp";
+  if (ext === ".amr") return "audio/amr";
+  return "audio/webm";
+}
+
 async function grantCollectionPermissions(collection: string) {
   try {
     const refRes = await fetch(`${DIRECTUS_URL}/permissions?filter[collection][_eq]=bias_projetos&limit=10`, {
@@ -2205,10 +2220,20 @@ export async function registerRoutes(
     return role === "admin" || role === "manager" || isBootstrapSuperAdmin(req.session?.email);
   }
 
+  const memoryUsageEvents: any[] = [];
+  const MAX_MEMORY_USAGE_EVENTS = 5000;
+
+  function rememberUsageEvent(event: Record<string, any>) {
+    memoryUsageEvents.push(event);
+    if (memoryUsageEvents.length > MAX_MEMORY_USAGE_EVENTS) {
+      memoryUsageEvents.splice(0, memoryUsageEvents.length - MAX_MEMORY_USAGE_EVENTS);
+    }
+  }
+
   async function recordUsageEvent(req: any, eventType: string, data: { path?: string | null; label?: string | null; metadata?: Record<string, unknown> } = {}) {
     const userId = req.session?.directusUserId || req.session?.userId || null;
     if (!userId) return;
-    await db.insert(userUsageEvents).values({
+    const event = {
       user_id: String(userId),
       membro_id: req.session?.membroId ? String(req.session.membroId) : null,
       nome: req.session?.nome || null,
@@ -2217,7 +2242,12 @@ export async function registerRoutes(
       path: data.path || null,
       label: data.label || null,
       metadata: data.metadata || {},
-    }).catch((err: any) => console.warn("[usage] evento nao registrado:", err?.message || err));
+      created_at: new Date(),
+    };
+    await db.insert(userUsageEvents).values(event).catch((err: any) => {
+      rememberUsageEvent(event);
+      console.warn("[usage] evento registrado apenas em memoria:", err?.message || err);
+    });
   }
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
@@ -10980,7 +11010,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const safeUsers = allUsers.map(({ password, ...u }) => u);
 
       const [
-        pageEvents,
+        dbPageEvents,
         interesses,
         tarefas,
         convites,
@@ -11000,6 +11030,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         db.select().from(chamadasAlianca).where(sql`${chamadasAlianca.criado_em} >= ${since}`).catch(() => []),
         db.select().from(auraAvaliacoes).where(sql`${auraAvaliacoes.created_at} >= ${since}`).catch(() => []),
       ]);
+      const memoryPageEvents = memoryUsageEvents.filter((event) => {
+        const createdAt = event.created_at ? new Date(event.created_at) : null;
+        return createdAt && createdAt >= since;
+      });
+      const pageEvents = [...(dbPageEvents as any[]), ...memoryPageEvents];
 
       const moduleInfo: Record<string, { label: string; weight: number }> = {
         vitrine: { label: "Vitrine", weight: 1 },
@@ -12674,7 +12709,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
       const { toFile } = await import("openai");
       const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
-      const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
+      const audioFile = await toFile(file.buffer, `percepcao-aura${ext === ".oga" ? ".ogg" : ext}`, { type: auraAudioMime(file.originalname, file.mimetype) });
       const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "gpt-4o-mini-transcribe",
@@ -14101,7 +14136,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const avaliadoMembroId = String(req.body?.avaliado_membro_id || "");
-    if (!avaliadoMembroId || !(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
+    if (!avaliadoMembroId) return res.status(400).json({ error: "Informe o membro avaliado para processar o arquivo." });
+    if (!(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
 
@@ -14141,14 +14177,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const avaliadoMembroId = String(req.body?.avaliado_membro_id || "");
-    if (!avaliadoMembroId || !(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
+    if (!avaliadoMembroId) return res.status(400).json({ error: "Informe o membro avaliado para transcrever o áudio." });
+    if (!(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
 
     try {
       const { toFile } = await import("openai");
       const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
-      const audioFile = await toFile(file.buffer, `percepcao-aura${ext}`, { type: file.mimetype || "audio/webm" });
+      const audioFile = await toFile(file.buffer, `percepcao-aura${ext === ".oga" ? ".ogg" : ext}`, { type: auraAudioMime(file.originalname, file.mimetype) });
       const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "gpt-4o-mini-transcribe",

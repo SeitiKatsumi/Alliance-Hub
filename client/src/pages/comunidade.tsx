@@ -1556,9 +1556,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
 
   const extrairAuraArquivoMutation = useMutation({
     mutationFn: async (file: File) => {
+      const token = auraDialogConvite?.avaliacaoToken;
+      if (!token) throw new Error("Convite de Aura não encontrado.");
       const form = new FormData();
       form.append("arquivo", file);
-      const res = await fetch("/api/aura/extrair-arquivo", {
+      const res = await fetch(`/api/avaliacao-aura/${encodeURIComponent(token)}/extrair-arquivo`, {
         method: "POST",
         body: form,
         credentials: "include",
@@ -1578,9 +1580,12 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
 
   const transcreverAuraAudioMutation = useMutation({
     mutationFn: async ({ blob, filename = "percepcao-aura.webm" }: { blob: Blob; filename?: string }) => {
+      const token = auraDialogConvite?.avaliacaoToken;
+      if (!token) throw new Error("Convite de Aura não encontrado.");
       const form = new FormData();
-      form.append("audio", blob, filename);
-      const res = await fetch("/api/aura/transcrever-audio", {
+      const uploadFilename = filename.toLowerCase().endsWith(".oga") ? filename.replace(/\.oga$/i, ".ogg") : filename;
+      form.append("audio", blob, uploadFilename);
+      const res = await fetch(`/api/avaliacao-aura/${encodeURIComponent(token)}/transcrever-audio`, {
         method: "POST",
         body: form,
         credentials: "include",
@@ -1601,7 +1606,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
 
   const analisarAuraTextoMutation = useMutation({
     mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
-      const res = await apiRequest("POST", "/api/aura/analisar-texto", { texto, membro_nome });
+      const token = auraDialogConvite?.avaliacaoToken;
+      if (!token) throw new Error("Convite de Aura não encontrado.");
+      const res = await apiRequest("POST", `/api/avaliacao-aura/${encodeURIComponent(token)}/analisar-texto`, { texto, membro_nome });
       return res.json() as Promise<{ palavras: string[] }>;
     },
     onSuccess: data => {

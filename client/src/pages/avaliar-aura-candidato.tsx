@@ -410,7 +410,7 @@ export default function AvaliarAuraCandidatoPage() {
         {evalMode === "ia" && (
           <div className="space-y-4 rounded-xl border border-white/10 p-4" style={{ background: "rgba(255,255,255,0.03)" }}>
             <p className="text-xs font-mono text-white/55">
-              Descreva a pessoa, anexe um arquivo, grave ou envie um áudio. A IA sugerirá até 3 palavras do léxico.
+              Descreva a sua percepção sobre essa pessoa, anexe um arquivo, grave ou envie um áudio.
             </p>
             <div className="grid grid-cols-3 gap-2">
               <button

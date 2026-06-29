@@ -993,6 +993,25 @@ function ProtectedApp() {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id || !location) return;
+    const payload = JSON.stringify({
+      event_type: "page_view",
+      path: location,
+      label: document.title || "BUILT",
+    });
+    const sent = navigator.sendBeacon?.("/api/usage-events", new Blob([payload], { type: "application/json" }));
+    if (!sent) {
+      fetch("/api/usage-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  }, [isAuthenticated, location, user?.id]);
+
+  useEffect(() => {
     if (!user?.id) return;
     const convite = user.convite_pendente || user.adesao_pendente;
     if (!convite?.token || !convite.status) return;

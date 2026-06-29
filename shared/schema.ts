@@ -111,6 +111,35 @@ export const users = pgTable("users", {
   created_at: timestamp("created_at").defaultNow(),
 });
 
+export const userUsageEvents = pgTable("user_usage_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: varchar("user_id"),
+  membro_id: text("membro_id"),
+  nome: text("nome"),
+  email: text("email"),
+  event_type: text("event_type").notNull(),
+  path: text("path"),
+  label: text("label"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export type UserUsageEvent = typeof userUsageEvents.$inferSelect;
+
+export const membroComunidadeMae = pgTable("membro_comunidade_mae", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  membro_id: text("membro_id").notNull().unique(),
+  comunidade_id: text("comunidade_id").notNull(),
+  source: text("source").notNull().default("manual_seed"),
+  locked_at: timestamp("locked_at").defaultNow().notNull(),
+  created_by_user_id: varchar("created_by_user_id"),
+  created_by_membro_id: text("created_by_membro_id"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export type MembroComunidadeMae = typeof membroComunidadeMae.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   created_at: true,

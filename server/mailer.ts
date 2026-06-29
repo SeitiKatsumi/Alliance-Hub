@@ -73,10 +73,63 @@ function decodeMojibakeUtf8(value: string): string {
     .replace(/\u00A0/g, " ");
 }
 
+function decodeMixedMojibakeUtf8(value: string): string {
+  const toByte = (char: string) => {
+    const code = char.charCodeAt(0);
+    return code <= 0xff ? code : WINDOWS_1252_BYTE_BY_CHAR[code];
+  };
+
+  const isLead = (code: number) =>
+    code === 0xc2 || code === 0xc3 || code === 0xc5 || code === 0xe2 || code === 0xef || code === 0xf0;
+
+  let source = decodeMojibakeUtf8(value);
+  let output = "";
+
+  for (let i = 0; i < source.length; i++) {
+    const code = source.charCodeAt(i);
+    if (!isLead(code)) {
+      output += source[i];
+      continue;
+    }
+
+    const bytes: number[] = [];
+    let j = i;
+    while (j < source.length) {
+      const byte = toByte(source[j]);
+      if (byte === undefined) break;
+
+      const currentCode = source.charCodeAt(j);
+      if (bytes.length > 0 && currentCode < 0x80) break;
+
+      bytes.push(byte);
+      j++;
+
+      const candidate = Buffer.from(bytes).toString("utf8");
+      if (candidate && !candidate.includes("\uFFFD")) {
+        const nextCode = j < source.length ? source.charCodeAt(j) : 0;
+        if (!isLead(nextCode)) break;
+      }
+    }
+
+    const decoded = Buffer.from(bytes).toString("utf8");
+    if (bytes.length > 1 && decoded && !decoded.includes("\uFFFD")) {
+      output += decoded;
+      i = j - 1;
+    } else {
+      output += source[i];
+    }
+  }
+
+  return output
+    .replace(/Ã¯Â¿Â½/g, "")
+    .replace(/\uFFFD/g, "")
+    .replace(/\u00A0/g, " ");
+}
+
 async function send(to: string, subject: string, html: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const safeTo = to.replace(/^(.{2}).*(@.*)$/, "$1***$2");
-  const cleanSubject = decodeMojibakeUtf8(subject);
-  const cleanHtml = decodeMojibakeUtf8(html);
+  const cleanSubject = decodeMixedMojibakeUtf8(subject);
+  const cleanHtml = decodeMixedMojibakeUtf8(html);
   try {
     const info = await transporter.sendMail({
       from: FROM,
@@ -84,6 +137,10 @@ async function send(to: string, subject: string, html: string): Promise<{ ok: bo
       subject: cleanSubject,
       html: cleanHtml,
       encoding: "utf-8",
+      textEncoding: "base64",
+      headers: {
+        "Content-Type": "text/html; charset=UTF-8",
+      },
     });
     console.log(`[mailer] Email accepted by SMTP: to=${safeTo} subject="${cleanSubject}" messageId=${info.messageId || "n/a"}`);
     return { ok: true, messageId: info.messageId };
@@ -507,6 +564,23 @@ export async function enviarNovoIntegranteBia(opts: {
     </div>
   `);
   await send(opts.destinatarioEmail, `Novo integrante na BIA ${opts.biaNome}`, html);
+}
+
+export async function enviarContaBiaAberta(opts: {
+  destinatarioEmail: string;
+  destinatarioNome?: string | null;
+  biaNome: string;
+}) {
+  const html = baseTemplate(`
+    <h2 style="color:#D7BB7D;margin-top:0">Conta da BIA criada com sucesso</h2>
+    <p style="color:rgba(255,255,255,0.8)">Ola, <strong style="color:#D7BB7D">${opts.destinatarioNome || "membro"}</strong>!</p>
+    <p style="color:rgba(255,255,255,0.7)">A conta digital da BIA <strong>${opts.biaNome}</strong> foi criada com sucesso.</p>
+    <p style="color:rgba(255,255,255,0.7)">Voce ja pode movimentar, gerar cobrancas, consultar saldo e acompanhar o extrato pela aba Banco do Nucleo de Capital.</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${BASE_URL}/area-aliancas?tab=bias" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Acessar BIAs</a>
+    </div>
+  `);
+  await send(opts.destinatarioEmail, `Conta da BIA criada com sucesso - ${opts.biaNome}`, html);
 }
 
 export async function enviarChamadaAlianca(opts: {

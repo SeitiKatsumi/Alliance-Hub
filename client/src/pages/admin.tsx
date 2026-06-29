@@ -38,6 +38,10 @@ import {
   XCircle,
   KeyRound,
   Link2,
+  Activity,
+  BarChart3,
+  Flame,
+  Clock3,
 } from "lucide-react";
 
 interface Membro {
@@ -64,6 +68,30 @@ interface AppUser {
   permissions: Record<string, string>;
   ativo: boolean;
   created_at: string;
+}
+
+interface UsageHeatmapMember {
+  id: string;
+  nome: string;
+  email?: string | null;
+  role?: string | null;
+  total: number;
+  status: "alta" | "media" | "baixa" | "sem_uso";
+  last_activity_at?: string | null;
+  modules: Record<string, number>;
+}
+
+interface UsageHeatmapData {
+  period_days: number;
+  summary: {
+    total_members: number;
+    active_members: number;
+    inactive_members: number;
+    total_events: number;
+    high_usage_members: number;
+  };
+  modules: Array<{ key: string; label: string; total: number; active_members: number }>;
+  members: UsageHeatmapMember[];
 }
 
 const MODULE_LABELS: Record<string, string> = {
@@ -114,7 +142,7 @@ const ROLE_DEFAULT_PERMISSIONS: Record<string, Record<string, string>> = {
 
 export default function AdminPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("usuarios");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Membro>>({});
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -136,6 +164,11 @@ export default function AdminPage() {
 
   const { data: appUsers = [], isLoading: loadingUsers } = useQuery<AppUser[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: usageData, isLoading: loadingUsage } = useQuery<UsageHeatmapData>({
+    queryKey: ["/api/admin/usage-heatmap"],
+    enabled: activeTab === "dashboard",
   });
 
   const createUserMutation = useMutation({
@@ -281,6 +314,26 @@ export default function AdminPage() {
     return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   };
 
+  const formatLastActivity = (value?: string | null) => {
+    if (!value) return "Sem atividade";
+    return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  };
+
+  const usageTone = (value: number, max: number) => {
+    if (!value) return "bg-slate-100 text-slate-400 border-slate-200";
+    const ratio = max > 0 ? value / max : 0;
+    if (ratio >= 0.7) return "bg-emerald-500 text-white border-emerald-500";
+    if (ratio >= 0.35) return "bg-blue-500 text-white border-blue-500";
+    return "bg-amber-100 text-amber-800 border-amber-200";
+  };
+
+  const statusBadge = (status: UsageHeatmapMember["status"]) => {
+    if (status === "alta") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    if (status === "media") return "bg-blue-50 text-blue-700 border-blue-200";
+    if (status === "baixa") return "bg-amber-50 text-amber-700 border-amber-200";
+    return "bg-slate-50 text-slate-500 border-slate-200";
+  };
+
   const startEdit = (membro: Membro) => {
     setEditingId(membro.id);
     setEditForm({
@@ -315,7 +368,11 @@ export default function AdminPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-1 max-w-2xl sm:grid-cols-3">
+          <TabsTrigger value="dashboard" className="flex items-center gap-2" data-testid="tab-dashboard-admin">
+            <BarChart3 className="w-4 h-4" />
+            Dashboard
+          </TabsTrigger>
           <TabsTrigger value="usuarios" className="flex items-center gap-2" data-testid="tab-usuarios">
             <Users className="w-4 h-4" />
             Usuários
@@ -325,6 +382,103 @@ export default function AdminPage() {
             Cadastro Geral
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-4 mt-4">
+          {loadingUsage ? (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">Carregando mapa de uso...</CardContent>
+            </Card>
+          ) : !usageData ? (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">Nao foi possivel carregar o dashboard.</CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+                <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground">Membros ativos</p><p className="mt-2 text-2xl font-bold tabular-nums">{usageData.summary.active_members}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground">Sem uso</p><p className="mt-2 text-2xl font-bold tabular-nums">{usageData.summary.inactive_members}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground">Alta utilizacao</p><p className="mt-2 text-2xl font-bold tabular-nums">{usageData.summary.high_usage_members}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground">Pontos de uso</p><p className="mt-2 text-2xl font-bold tabular-nums">{usageData.summary.total_events}</p></CardContent></Card>
+                <Card><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground">Janela</p><p className="mt-2 text-2xl font-bold tabular-nums">{usageData.period_days}d</p></CardContent></Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Activity className="h-5 w-5 text-brand-gold" />
+                    Utilizacao por modulo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {usageData.modules.map((mod) => {
+                      const max = Math.max(...usageData.modules.map((item) => item.total), 1);
+                      const width = Math.max(4, Math.round((mod.total / max) * 100));
+                      return (
+                        <div key={mod.key} className="rounded-lg border p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-semibold">{mod.label}</span>
+                            <span className="text-xs tabular-nums text-muted-foreground">{mod.active_members} membros</span>
+                          </div>
+                          <div className="mt-3 h-2 rounded-full bg-slate-100">
+                            <div className="h-2 rounded-full bg-blue-500" style={{ width: `${width}%` }} />
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground tabular-nums">{mod.total} pontos</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Flame className="h-5 w-5 text-brand-gold" />
+                    Mapa de calor dos membros
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <div className="min-w-[880px] space-y-2">
+                    <div className="grid grid-cols-[260px_110px_repeat(9,minmax(72px,1fr))] gap-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span>Membro</span>
+                      <span>Total</span>
+                      {usageData.modules.map((mod) => <span key={mod.key} className="text-center">{mod.label}</span>)}
+                    </div>
+                    {usageData.members.map((member) => {
+                      const max = Math.max(...usageData.members.flatMap((row) => usageData.modules.map((mod) => Number(row.modules[mod.key] || 0))), 1);
+                      return (
+                        <div key={member.id} className="grid grid-cols-[260px_110px_repeat(9,minmax(72px,1fr))] items-center gap-2 rounded-lg border bg-white p-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-semibold">{member.nome}</span>
+                              <Badge variant="outline" className={`text-[10px] ${statusBadge(member.status)}`}>
+                                {member.status === "sem_uso" ? "sem uso" : member.status}
+                              </Badge>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Clock3 className="h-3 w-3" />
+                              {formatLastActivity(member.last_activity_at)}
+                            </div>
+                          </div>
+                          <span className="text-sm font-bold tabular-nums">{member.total}</span>
+                          {usageData.modules.map((mod) => {
+                            const value = Number(member.modules[mod.key] || 0);
+                            return (
+                              <div key={mod.key} className={`rounded-md border px-2 py-2 text-center text-xs font-bold tabular-nums ${usageTone(value, max)}`}>
+                                {value || "-"}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
 
         <TabsContent value="usuarios" className="space-y-4 mt-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">

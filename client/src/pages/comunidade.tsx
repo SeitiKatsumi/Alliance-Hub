@@ -3240,7 +3240,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs text-white/50">
-                    Descreva a pessoa, anexe um arquivo, grave ou envie um áudio. A IA sugerirá até 3 palavras do léxico.
+                    Descreva a sua percepção sobre essa pessoa, anexe um arquivo, grave ou envie um áudio.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button

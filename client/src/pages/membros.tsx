@@ -106,6 +106,9 @@ interface ComunidadeVinculo {
   nome?: string | null;
   sigla?: string | null;
   papel?: "membro" | "aliado" | "ambos";
+  is_mae?: boolean;
+  locked?: boolean;
+  origem_mae?: "convite" | "legacy_first_link" | "manual_seed" | string | null;
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -278,9 +281,11 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
   const [selectedComunidadeId, setSelectedComunidadeId] = useState<string>("");
+  const [selectedComunidadeMaeId, setSelectedComunidadeMaeId] = useState<string>("");
+  const [showComunidadeMaeEditor, setShowComunidadeMaeEditor] = useState(false);
   const [selectedConvidadorId, setSelectedConvidadorId] = useState<string>(membro.convidado_por_id || "");
 
-  const { data: comunidades = [] } = useQuery<{ id: string; nome?: string; sigla?: string }[]>({
+  const { data: comunidades = [] } = useQuery<Array<{ id: string; nome?: string; sigla?: string; aliado?: string | { id?: string; nome?: string } | null }>>({
     queryKey: ["/api/comunidades"],
     queryFn: () => fetch("/api/comunidades").then(r => r.json()),
     staleTime: 60000,
@@ -294,22 +299,60 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
 
   const { data: membroComunidades = [] } = useQuery<ComunidadeVinculo[]>({
     queryKey: ["/api/membros", membro.id, "comunidades"],
-    queryFn: () => membro.id ?fetch(`/api/membros/${membro.id}/comunidades`).then(r => r.json()) : Promise.resolve([]),
+    queryFn: async () => {
+      if (!membro.id) return [];
+      const res = await fetch(`/api/membros/${membro.id}/comunidades`);
+      const json = await res.json().catch(() => []);
+      return Array.isArray(json) ? json : [];
+    },
     enabled: !!membro.id,
     staleTime: 30000,
   });
 
+  const membroComunidadesList = useMemo(() => {
+    const byId = new Map<string, ComunidadeVinculo>();
+    const items = Array.isArray(membroComunidades) ? membroComunidades : [];
+    for (const item of items) {
+      if (item?.id !== undefined && item?.id !== null) byId.set(String(item.id), item);
+    }
+    for (const comunidade of comunidades) {
+      const aliadoId = typeof comunidade.aliado === "string" ? comunidade.aliado : comunidade.aliado?.id;
+      if (String(aliadoId || "") !== String(membro.id || "")) continue;
+      const existing = byId.get(String(comunidade.id));
+      byId.set(String(comunidade.id), {
+        id: String(comunidade.id),
+        nome: comunidade.nome,
+        sigla: comunidade.sigla,
+        papel: existing?.papel === "membro" ? "ambos" : existing?.papel || "aliado",
+        is_mae: existing?.is_mae,
+        locked: existing?.locked,
+        origem_mae: existing?.origem_mae,
+      });
+    }
+    return Array.from(byId.values()).sort((a, b) => {
+      if (!!a.is_mae !== !!b.is_mae) return a.is_mae ? -1 : 1;
+      const aAliado = a.papel === "aliado" || a.papel === "ambos";
+      const bAliado = b.papel === "aliado" || b.papel === "ambos";
+      if (aAliado !== bAliado) return aAliado ? -1 : 1;
+      return String(a.nome || a.sigla || a.id).localeCompare(String(b.nome || b.sigla || b.id), "pt-BR");
+    });
+  }, [comunidades, membro.id, membroComunidades]);
   const linkedComunidadeIds = useMemo(
-    () => new Set(membroComunidades.map((c) => String(c.id))),
-    [membroComunidades]
+    () => new Set(membroComunidadesList.map((c) => String(c.id))),
+    [membroComunidadesList]
   );
-  const comunidadeConvidadorId = selectedComunidadeId || membroComunidades[0]?.id || "";
-  const hasAnyComunidade = membroComunidades.length > 0;
+  const comunidadeConvidadorId = selectedComunidadeId || membroComunidadesList[0]?.id || "";
+  const hasAnyComunidade = membroComunidadesList.length > 0;
   const comunidadesDisponiveis = comunidades.filter(c => !linkedComunidadeIds.has(String(c.id)));
+  const comunidadeMaeAtual = membroComunidadesList.find(c => c.is_mae);
 
   useEffect(() => {
     setSelectedConvidadorId(membro.convidado_por_id || "");
   }, [membro.convidado_por_id]);
+
+  useEffect(() => {
+    if (comunidadeMaeAtual?.id) setSelectedComunidadeMaeId(String(comunidadeMaeAtual.id));
+  }, [comunidadeMaeAtual?.id]);
 
   type LinkedUser = { id: string; role: string; username: string; email?: string; membro_directus_id?: string | null };
   const fetchLinkedUser = async (url: string): Promise<LinkedUser | null> => {
@@ -376,7 +419,25 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
       queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
       toast({ title: "Vínculo de comunidade removido." });
     },
-    onError: (error: any) => toast({ title: "Erro ao remover vínculo", description: error?.message, variant: "destructive" }),
+    onError: (error: any) => {
+      const message = error?.message || "Não foi possível remover o vínculo.";
+      toast({
+        title: message.includes("Comunidade Mãe") ? "A Comunidade Mãe não pode ser removida." : "Erro ao remover vínculo",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateComunidadeMaeMutation = useMutation({
+    mutationFn: (comunidadeId: string) => apiRequest("PATCH", `/api/membros/${membro.id}/comunidade-mae`, { comunidade_id: comunidadeId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/membros", membro.id, "comunidade"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/comunidades"] });
+      toast({ title: "Comunidade Mãe atualizada." });
+    },
+    onError: (error: any) => toast({ title: "Erro ao atualizar Comunidade Mãe", description: error?.message, variant: "destructive" }),
   });
 
   // Set initial role and email when linkedUser first loads (must be useEffect, not render body)
@@ -694,17 +755,27 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                 <span className="text-[11px] font-mono text-brand-gold/50 uppercase tracking-widest">Vínculo à Comunidade</span>
               </div>
               <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-200 overflow-hidden" data-testid="lista-comunidades-vinculadas">
-                {membroComunidades.length === 0 ? (
+                {membroComunidadesList.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-500">Nenhuma comunidade vinculada.</p>
                 ) : (
-                  membroComunidades.map((c) => {
+                  membroComunidadesList.map((c) => {
                     const papelLabel = c.papel === "ambos" ? "Membro e Aliado" : c.papel === "aliado" ? "Aliado da comunidade" : "Membro associado";
-                    const canRemove = c.papel === "membro";
+                    const canRemove = c.papel === "membro" && !c.locked && !c.is_mae;
                     return (
                       <div key={c.id} className="flex items-center justify-between gap-3 px-3 py-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-brand-navy truncate">{c.nome || c.sigla || `Comunidade #${c.id}`}</p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">{papelLabel}</p>
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-brand-navy truncate">{c.nome || c.sigla || `Comunidade #${c.id}`}</p>
+                            {c.is_mae && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide text-blue-700">
+                                <Lock className="w-3 h-3" />
+                                Comunidade Mãe
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {c.is_mae ? "Vínculo inicial do membro" : papelLabel}
+                          </p>
                         </div>
                         {canRemove ? (
                           <Button
@@ -718,15 +789,75 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
+                        ) : c.is_mae ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-mono uppercase tracking-wide text-slate-500">
+                            <Lock className="w-3 h-3" />
+                            Fixa
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-full border border-brand-gold/25 bg-brand-gold/10 px-2 py-1 text-[10px] font-mono uppercase tracking-wide text-brand-gold">
                             <Lock className="w-3 h-3" />
-                            Gestor
+                            {c.papel === "aliado" || c.papel === "ambos" ? "Aliado" : "Gestor"}
                           </span>
                         )}
                       </div>
                     );
                   })
+                )}
+              </div>
+              <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/60">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                  onClick={() => setShowComunidadeMaeEditor(prev => !prev)}
+                  data-testid="btn-toggle-comunidade-mae-editor"
+                >
+                  <span className="inline-flex items-center gap-2 text-xs font-medium text-blue-700">
+                    <Lock className="h-3.5 w-3.5" />
+                    Editar Comunidade Mãe
+                  </span>
+                  <span className="text-[11px] text-blue-600">{showComunidadeMaeEditor ? "Recolher" : "Editar"}</span>
+                </button>
+                {showComunidadeMaeEditor && (
+                  <div className="border-t border-blue-100 px-3 pb-3 pt-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Select
+                        value={selectedComunidadeMaeId || "none"}
+                        onValueChange={v => setSelectedComunidadeMaeId(v === "none" ? "" : v)}
+                      >
+                        <SelectTrigger className={inputCls} data-testid="select-edit-comunidade-mae">
+                          <SelectValue placeholder="Selecione a Comunidade Mãe..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— Sem Comunidade Mãe —</SelectItem>
+                          {comunidades.map(c => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.nome || c.sigla || `Comunidade #${c.id}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 shrink-0 gap-2 border-blue-200 text-blue-700 hover:bg-blue-100"
+                        disabled={
+                          !selectedComunidadeMaeId ||
+                          selectedComunidadeMaeId === String(comunidadeMaeAtual?.id || "") ||
+                          updateComunidadeMaeMutation.isPending ||
+                          !membro.id
+                        }
+                        onClick={() => selectedComunidadeMaeId && updateComunidadeMaeMutation.mutate(selectedComunidadeMaeId)}
+                        data-testid="btn-atualizar-comunidade-mae"
+                      >
+                        {updateComunidadeMaeMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                        Atualizar comunidade
+                      </Button>
+                    </div>
+                    <p className="mt-1.5 text-[10px] text-slate-500">
+                      Ao alterar, a nova comunidade fica como Comunidade Mãe. A comunidade anterior permanece como vínculo extra.
+                    </p>
+                  </div>
                 )}
               </div>
               <div>

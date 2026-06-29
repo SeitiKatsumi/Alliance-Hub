@@ -2777,29 +2777,16 @@ export default function FluxoCaixaPage({
                         </div>
                         {group.items.map((item) => (
                     <div key={item.membroId} className="space-y-1" data-testid={`aporte-membro-${item.membroId}`}>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2 font-medium">
+                      <div className="grid gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                        <span className="flex min-w-0 items-center gap-2 font-medium">
                           <User className="w-3.5 h-3.5 text-muted-foreground" />
-                          {membroMap[item.membroId] || item.inlineName || "Membro desconhecido"}
+                          <span className="truncate">{membroMap[item.membroId] || item.inlineName || "Membro desconhecido"}</span>
                         </span>
-                        <span className="flex items-center gap-3">
+                        <span className="flex flex-wrap items-center gap-2 sm:justify-end">
                           <span className="text-muted-foreground">{formatBRL(item.valor)}</span>
                           <Badge variant="outline" className="border-brand-gold/50 text-brand-gold bg-brand-gold/10 min-w-[60px] justify-center" data-testid={`text-perc-membro-${item.membroId}`}>
                             {item.percentual.toFixed(1)}%
                           </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs text-muted-foreground hover:text-brand-navy hover:bg-brand-gold/10"
-                            title="Solicitar movimentação de cotas"
-                            data-testid={`btn-transfer-membro-${item.membroId}`}
-                            onClick={() => {
-                              openTransferDialog(item.membroId, item.valor);
-                            }}
-                          >
-                            <ArrowLeftRight className="w-3.5 h-3.5 mr-1" />
-                            Transferir
-                          </Button>
                         </span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
@@ -2808,6 +2795,21 @@ export default function FluxoCaixaPage({
                           style={{ width: `${item.percentual}%` }}
                           data-testid={`bar-membro-${item.membroId}`}
                         />
+                      </div>
+                      <div className="flex justify-end pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 shrink-0 gap-1.5 border-blue-500/40 bg-white px-3 text-xs font-medium text-blue-700 shadow-sm hover:border-blue-500 hover:bg-blue-50 hover:text-blue-800"
+                          title="Solicitar movimentação de cotas"
+                          data-testid={`btn-transfer-membro-${item.membroId}`}
+                          onClick={() => {
+                            openTransferDialog(item.membroId, item.valor);
+                          }}
+                        >
+                          <ArrowLeftRight className="w-3.5 h-3.5" />
+                          Transferir
+                        </Button>
                       </div>
                     </div>
                         ))}

@@ -130,6 +130,15 @@ interface BiaSocioSolicitacao {
   status: string;
 }
 
+interface ComunidadeVinculo {
+  id: string | number;
+  nome?: string | null;
+  sigla?: string | null;
+  aliado?: string | { id?: string | null } | null;
+  papel?: "membro" | "aliado" | "ambos";
+  is_mae?: boolean;
+}
+
 interface ChamadaAlianca {
   id: string;
   bia_id: string;
@@ -239,6 +248,15 @@ function getMembroNome(m: Membro): string {
   return m.Nome_de_usuario || m.nome_completo ||
     [m.primeiro_nome, m.sobrenome].filter(Boolean).join(" ") ||
     m.nome || "";
+}
+
+function relationId(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "object") {
+    const id = (value as { id?: string | number | null }).id;
+    return id ? String(id) : "";
+  }
+  return String(value);
 }
 
 type AuraBlockedMember = { nome: string; count: number };
@@ -1902,16 +1920,22 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     },
   });
 
-  const { data: minhaComunidade } = useQuery<any>({
-    queryKey: ["/api/membros", membroLogadoId, "comunidade"],
+  const { data: minhasComunidades = [] } = useQuery<ComunidadeVinculo[]>({
+    queryKey: ["/api/membros", membroLogadoId, "comunidades"],
     queryFn: async () => {
-      const res = await fetch(`/api/membros/${membroLogadoId}/comunidade`, { credentials: "include" });
-      if (!res.ok) return null;
-      return res.json();
+      const res = await fetch(`/api/membros/${membroLogadoId}/comunidades`, { credentials: "include" });
+      if (!res.ok) return [];
+      const json = await res.json().catch(() => []);
+      return Array.isArray(json) ? json : [];
     },
     enabled: open && !isEdit && !!membroLogadoId,
     staleTime: 60_000,
   });
+
+  const comunidadeMaeDoMembro = useMemo(() => {
+    if (!Array.isArray(minhasComunidades) || minhasComunidades.length === 0) return null;
+    return minhasComunidades.find((comunidade) => comunidade.is_mae) || minhasComunidades[0] || null;
+  }, [minhasComunidades]);
 
   function handleConviteTipoChange(tipo: string) {
     setConviteTipo(tipo);
@@ -2068,9 +2092,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
   useEffect(() => {
     if (!open || isEdit) return;
-    const aliadoId = typeof minhaComunidade?.aliado === "object" && minhaComunidade.aliado !== null
-      ? minhaComunidade.aliado.id
-      : minhaComunidade?.aliado;
+    const aliadoId = relationId(comunidadeMaeDoMembro?.aliado);
     const diretorId = membroLogadoId;
     if (!aliadoId && !diretorId) return;
 
@@ -2079,7 +2101,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       aliado_built: current.aliado_built || aliadoId || "",
       diretor_alianca: current.diretor_alianca || diretorId || "",
     }));
-  }, [open, isEdit, minhaComunidade, membroLogadoId]);
+  }, [open, isEdit, comunidadeMaeDoMembro, membroLogadoId]);
 
   useEffect(() => {
     if (!open || !bia?.id || diretorSolicitacoesPendentes.length === 0) return;

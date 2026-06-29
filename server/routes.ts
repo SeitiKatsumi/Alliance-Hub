@@ -1,7 +1,7 @@
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -10,6 +10,7 @@ import express from "express";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
+import { PinbankClient, type PinbankChargePayload, type PinbankChargeQueryPayload, type PinbankCompanyOnboardingPayload, type PinbankDocumentPayload } from "./pinbank-client";
 import { PNG } from "pngjs";
 import { randomUUID } from "crypto";
 import { deflateSync } from "zlib";
@@ -1048,6 +1049,92 @@ async function ensureFluxoCaixaHistoricoTable() {
   `);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fluxo_caixa_historico_fluxo ON fluxo_caixa_historico (fluxo_caixa_id, criado_em DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fluxo_caixa_historico_bia ON fluxo_caixa_historico (bia_id, criado_em DESC)`);
+}
+
+async function ensureBiaBancoTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_bank_accounts (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL UNIQUE,
+      provider text NOT NULL DEFAULT 'pinbank',
+      external_account_id text,
+      status text NOT NULL DEFAULT 'not_started',
+      terms_version text,
+      terms_accepted_at timestamp,
+      terms_accepted_by_user_id text,
+      terms_accepted_by_membro_id text,
+      terms_accepted_by_nome text,
+      onboarding_requested_at timestamp,
+      onboarding_payload jsonb,
+      provider_payload jsonb,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_bank_documents (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      membro_id text,
+      tipo text NOT NULL,
+      file_id text NOT NULL,
+      status text NOT NULL DEFAULT 'sent',
+      provider_document_id text,
+      provider_payload jsonb,
+      permission_shared_at timestamp,
+      permission_shared_by_user_id text,
+      permission_shared_by_membro_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_bank_charges (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      fluxo_caixa_id text,
+      provider text NOT NULL DEFAULT 'pinbank',
+      type text NOT NULL DEFAULT 'boleto',
+      status text NOT NULL DEFAULT 'pending',
+      descricao text,
+      valor numeric,
+      data_vencimento date,
+      pagador_nome text,
+      pagador_email text,
+      pagador_documento text,
+      nosso_numero text,
+      payment_id text,
+      payment_url text,
+      linha_digitavel text,
+      payload jsonb,
+      provider_payload jsonb,
+      created_by_user_id text,
+      created_by_membro_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`ALTER TABLE bia_bank_documents ADD COLUMN IF NOT EXISTS provider_payload jsonb`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_bank_documents_bia ON bia_bank_documents (bia_id, tipo)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_bank_charges_bia ON bia_bank_charges (bia_id, created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_bank_charges_fluxo ON bia_bank_charges (fluxo_caixa_id)`);
+}
+
+async function ensureMembroComunidadeMaeTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS membro_comunidade_mae (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      membro_id text NOT NULL UNIQUE,
+      comunidade_id text NOT NULL,
+      source text NOT NULL DEFAULT 'manual_seed',
+      locked_at timestamp DEFAULT now() NOT NULL,
+      created_by_user_id varchar,
+      created_by_membro_id text,
+      metadata jsonb DEFAULT '{}'::jsonb,
+      created_at timestamp DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_membro_comunidade_mae_comunidade ON membro_comunidade_mae (comunidade_id)`);
 }
 
 function getAuditActor(req: any) {
@@ -2096,6 +2183,42 @@ export async function registerRoutes(
   ensureBiaMouAceitesTable().catch((err: any) => console.warn("[bia-mou] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
+  ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
+  ensureMembroComunidadeMaeTable().catch((err: any) => console.warn("[membro-comunidade-mae] Tabela nao sincronizada:", err?.message || err));
+  db.execute(sql`
+    CREATE TABLE IF NOT EXISTS user_usage_events (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id varchar,
+      membro_id text,
+      nome text,
+      email text,
+      event_type text NOT NULL,
+      path text,
+      label text,
+      metadata jsonb DEFAULT '{}'::jsonb,
+      created_at timestamp DEFAULT now()
+    )
+  `).catch((err: any) => console.warn("[usage] Tabela nao sincronizada:", err?.message || err));
+
+  function isAdminRequest(req: any) {
+    const role = req.session?.role || "user";
+    return role === "admin" || role === "manager" || isBootstrapSuperAdmin(req.session?.email);
+  }
+
+  async function recordUsageEvent(req: any, eventType: string, data: { path?: string | null; label?: string | null; metadata?: Record<string, unknown> } = {}) {
+    const userId = req.session?.directusUserId || req.session?.userId || null;
+    if (!userId) return;
+    await db.insert(userUsageEvents).values({
+      user_id: String(userId),
+      membro_id: req.session?.membroId ? String(req.session.membroId) : null,
+      nome: req.session?.nome || null,
+      email: req.session?.email || null,
+      event_type: eventType,
+      path: data.path || null,
+      label: data.label || null,
+      metadata: data.metadata || {},
+    }).catch((err: any) => console.warn("[usage] evento nao registrado:", err?.message || err));
+  }
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -3017,20 +3140,115 @@ export async function registerRoutes(
     }
   });
 
+  type ComunidadeMaeRecord = {
+    membro_id: string;
+    comunidade_id: string;
+    source: string;
+    locked_at?: Date | string | null;
+  };
+
+  async function persistMembroComunidadeMae(
+    memberId: string,
+    comunidadeId: string,
+    source: "convite" | "legacy_first_link" | "manual_seed",
+    metadata: Record<string, unknown> = {},
+  ): Promise<ComunidadeMaeRecord> {
+    try {
+      const result = await db
+        .insert(membroComunidadeMae)
+        .values({
+          membro_id: memberId,
+          comunidade_id: comunidadeId,
+          source,
+          metadata,
+        })
+        .onConflictDoNothing({ target: membroComunidadeMae.membro_id })
+        .returning();
+
+      if (result[0]) return result[0] as ComunidadeMaeRecord;
+
+      const existing = await db
+        .select()
+        .from(membroComunidadeMae)
+        .where(eq(membroComunidadeMae.membro_id, memberId))
+        .limit(1);
+      return existing[0] as ComunidadeMaeRecord;
+    } catch (error: any) {
+      console.warn("[membro-comunidade-mae] Nao foi possivel persistir, usando fallback em memoria:", error?.message || error);
+      return { membro_id: memberId, comunidade_id: comunidadeId, source };
+    }
+  }
+
+  async function getStoredMembroComunidadeMae(memberId: string): Promise<ComunidadeMaeRecord | null> {
+    try {
+      const existing = await db
+        .select()
+        .from(membroComunidadeMae)
+        .where(eq(membroComunidadeMae.membro_id, memberId))
+        .limit(1);
+      return (existing[0] as ComunidadeMaeRecord) || null;
+    } catch (error: any) {
+      console.warn("[membro-comunidade-mae] Nao foi possivel ler tabela local:", error?.message || error);
+      return null;
+    }
+  }
+
+  async function resolveMembroComunidadeMae(memberId: string, links: Array<{ id: string; papel?: string | null }> = []) {
+    const stored = await getStoredMembroComunidadeMae(memberId);
+    if (stored) return stored;
+
+    const convites = await storage.getConvitesByCandidato(memberId).catch((error: any) => {
+      console.warn("[membro-comunidade-mae] Nao foi possivel carregar convites:", error?.message || error);
+      return [];
+    });
+    const conviteOrigem = [...convites]
+      .filter((convite: any) => convite.comunidade_id)
+      .sort((a: any, b: any) => new Date(a.criado_em || 0).getTime() - new Date(b.criado_em || 0).getTime())[0];
+    if (conviteOrigem?.comunidade_id) {
+      return persistMembroComunidadeMae(memberId, String(conviteOrigem.comunidade_id), "convite", {
+        convite_id: conviteOrigem.id,
+        convite_status: conviteOrigem.status || null,
+        convite_tipo: conviteOrigem.tipo || null,
+      });
+    }
+
+    const firstMembroLink = links.find((link) => link.papel === "membro" || link.papel === "ambos") || links[0];
+    if (firstMembroLink?.id) {
+      return persistMembroComunidadeMae(memberId, String(firstMembroLink.id), "legacy_first_link", {
+        reason: "Primeira comunidade vinculada antes da regra de Comunidade Mae",
+      });
+    }
+
+    return null;
+  }
+
   async function getMembroComunidadesLinks(memberId: string) {
     const col = await getComunidadeCol();
-    const allUrl = `${DIRECTUS_URL}/items/${col}?fields=id,nome,sigla,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id&limit=-1`;
-    const ar = await fetch(allUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-    if (!ar.ok) return [];
-    const aData = await ar.json();
-    const comunidades: any[] = aData.data || [];
-    return comunidades
+    const fields = "fields=id,nome,sigla,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id.id";
+    const [allComunidades, aliadoComunidades] = await Promise.all([
+      directusFetchScoped(col, `${fields}&limit=-1`).catch((error: any) => {
+        console.warn("[membro-comunidades] Nao foi possivel listar comunidades:", error?.message || error);
+        return [];
+      }),
+      directusFetchScoped(col, `${fields}&filter[aliado][_eq]=${encodeURIComponent(memberId)}&limit=-1`).catch((error: any) => {
+        console.warn("[membro-comunidades] Nao foi possivel listar comunidades do aliado:", error?.message || error);
+        return [];
+      }),
+    ]);
+    const comunidadesById = new Map<string, any>();
+    for (const comunidade of [...allComunidades, ...aliadoComunidades]) {
+      if (comunidade?.id !== undefined && comunidade?.id !== null) {
+        comunidadesById.set(String(comunidade.id), comunidade);
+      }
+    }
+    const comunidades = Array.from(comunidadesById.values());
+    const links = comunidades
       .map((c: any) => {
-        const aliadoId = typeof c.aliado === "object" && c.aliado !== null ? c.aliado.id : c.aliado;
+        const aliadoId = directusRelationId(c.aliado);
         const isAliado = String(aliadoId || "") === String(memberId);
         const membros: any[] = Array.isArray(c.membros) ? c.membros : [];
         const isMembro = membros.some((m: any) => {
-          const cgId = typeof m.cadastro_geral_id === "object" ? m.cadastro_geral_id?.id : m.cadastro_geral_id;
+          const cgId = directusRelationId(m?.cadastro_geral_id);
           return String(cgId || "") === String(memberId);
         });
         if (!isAliado && !isMembro) return null;
@@ -3038,6 +3256,16 @@ export async function registerRoutes(
         return { id: c.id, nome: c.nome, sigla: c.sigla, aliado: c.aliado || null, papel };
       })
       .filter(Boolean);
+    const mae = await resolveMembroComunidadeMae(memberId, links as any[]);
+    return links.map((link: any) => {
+      const isMae = !!mae?.comunidade_id && String(link.id) === String(mae.comunidade_id);
+      return {
+        ...link,
+        is_mae: isMae,
+        locked: isMae,
+        origem_mae: isMae ? mae.source : null,
+      };
+    });
   }
 
   async function setMembroInComunidadeM2M(memberId: string, comunidadeId: string, shouldInclude: boolean) {
@@ -3081,6 +3309,51 @@ export async function registerRoutes(
     try {
       const links = await getMembroComunidadesLinks(req.params.id);
       res.json(links[0] || null);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/membros/:id/comunidade-mae", async (req, res) => {
+    if (!await requireCadastroAccess(req, res)) return;
+    try {
+      const membroId = req.params.id;
+      const comunidadeId = req.body?.comunidade_id ? String(req.body.comunidade_id) : "";
+      if (!comunidadeId) return res.status(400).json({ error: "Selecione a nova Comunidade Mãe." });
+
+      await setMembroInComunidadeM2M(membroId, comunidadeId, true);
+
+      const actor = getAuditActor(req);
+      const existing = await getStoredMembroComunidadeMae(membroId);
+      const metadata = {
+        updated_by_user_id: actor.userId,
+        updated_by_membro_id: actor.membroId,
+        updated_by_nome: actor.nome,
+        previous_comunidade_id: existing?.comunidade_id || null,
+      };
+
+      const result = await db
+        .insert(membroComunidadeMae)
+        .values({
+          membro_id: membroId,
+          comunidade_id: comunidadeId,
+          source: existing ? "manual_update" : "manual_seed",
+          created_by_user_id: actor.userId,
+          created_by_membro_id: actor.membroId,
+          metadata,
+        })
+        .onConflictDoUpdate({
+          target: membroComunidadeMae.membro_id,
+          set: {
+            comunidade_id: comunidadeId,
+            source: "manual_update",
+            locked_at: new Date(),
+            metadata,
+          },
+        })
+        .returning();
+
+      res.json({ success: true, comunidade_mae: result[0] || null });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3258,9 +3531,37 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/membros/:id/comunidade-aliado", async (req, res) => {
+    if (!await requireCadastroAccess(req, res)) return;
+    try {
+      const membroId = req.params.id;
+      const comunidadeId = req.body?.comunidade_id ? String(req.body.comunidade_id) : "";
+      if (!comunidadeId) return res.status(400).json({ error: "Selecione uma comunidade." });
+
+      const col = await getComunidadeCol();
+      const patch = await fetch(`${DIRECTUS_URL}/items/${col}/${comunidadeId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ aliado: membroId }),
+      });
+      if (!patch.ok) {
+        const err = await patch.text().catch(() => "");
+        throw new Error(err || "Falha ao vincular membro como aliado da comunidade");
+      }
+      res.json({ success: true, comunidade_id: comunidadeId, membro_id: membroId, papel: "aliado" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/membros/:id/comunidade/:comunidadeId", async (req, res) => {
     if (!await requireCadastroAccess(req, res)) return;
     try {
+      const links = await getMembroComunidadesLinks(req.params.id);
+      const comunidadeMae = await resolveMembroComunidadeMae(req.params.id, links as any[]);
+      if (comunidadeMae && String(comunidadeMae.comunidade_id) === String(req.params.comunidadeId)) {
+        return res.status(403).json({ error: "A Comunidade Mãe não pode ser removida." });
+      }
       res.json(await setMembroInComunidadeM2M(req.params.id, req.params.comunidadeId, false));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -3364,8 +3665,8 @@ export async function registerRoutes(
   ];
 
   const SOCIO_SOLICITACAO_CONFIG = [
-    { campoSocios: "socios_guardioes", papel: "Socio Guardiao" },
-    { campoSocios: "socios_multiplicadores", papel: "Socio Multiplicador" },
+    { campoSocios: "socios_guardioes", papel: "Sócio Guardião" },
+    { campoSocios: "socios_multiplicadores", papel: "Sócio Multiplicador" },
   ];
 
   const BIA_MOU_VERSAO = "BUILT-JUR-6-BIA-PATRIMONIAL-2026-23.06.26";
@@ -3862,6 +4163,10 @@ export async function registerRoutes(
     return { ok: true };
   }
 
+  async function hasBiaMouAceito(biaId: string, membroId: string) {
+    return !!(await storage.getBiaMouAceite(biaId, membroId, BIA_MOU_VERSAO));
+  }
+
   async function createDiretorSolicitacao(params: {
     biaId: string;
     biaNome: string | null;
@@ -3999,15 +4304,17 @@ export async function registerRoutes(
     biaNome: string | null;
     body: any;
     req: any;
+    payload?: any;
     currentBia?: any | null;
   }) {
     const criadas: any[] = [];
     for (const config of SOCIO_SOLICITACAO_CONFIG) {
+      if (!Object.prototype.hasOwnProperty.call(opts.body, config.campoSocios)) continue;
       const requestedIds = parseBiaMemberList(opts.body[config.campoSocios]);
       const currentIds = opts.currentBia ? parseBiaMemberList(opts.currentBia[config.campoSocios]) : [];
-      const currentSet = new Set(currentIds);
       const requestedSet = new Set(requestedIds);
       const pendentes = await storage.getBiaSocioSolicitacoesPendentesByBia(opts.biaId);
+      const efetivados: string[] = [];
 
       for (const currentId of currentIds) {
         if (!requestedSet.has(currentId)) {
@@ -4020,7 +4327,10 @@ export async function registerRoutes(
       }
 
       for (const socioId of requestedIds) {
-        if (currentSet.has(socioId)) continue;
+        if (await hasBiaMouAceito(opts.biaId, socioId)) {
+          efetivados.push(socioId);
+          continue;
+        }
         const jaExiste = pendentes.some((item) =>
           item.campo_socios === config.campoSocios && item.socio_membro_id === socioId
         );
@@ -4034,6 +4344,10 @@ export async function registerRoutes(
           req: opts.req,
         });
         criadas.push(solicitacao);
+      }
+
+      if (opts.payload) {
+        opts.payload[config.campoSocios] = JSON.stringify(efetivados);
       }
     }
     return criadas;
@@ -6453,21 +6767,10 @@ export async function registerRoutes(
       if (sessionMembroId && (!isSuperAdminRole || !createBody.aliado_built)) {
         let aliadoDaComunidade: string | null = null;
         try {
-          const col = await getComunidadeCol();
-          const comunidades = await directusFetch(
-            col,
-            `filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(sessionMembroId)}&fields=id,aliado.id,aliado&limit=1`
-          );
-          let comunidade = comunidades[0];
-          if (!comunidade) {
-            const comunidadesComoAliado = await directusFetch(
-              col,
-              `filter[aliado][_eq]=${encodeURIComponent(sessionMembroId)}&fields=id,aliado.id,aliado&limit=1`
-            );
-            comunidade = comunidadesComoAliado[0];
-          }
+          const comunidades = await getMembroComunidadesLinks(sessionMembroId);
+          const comunidade = comunidades.find((item: any) => item.is_mae) || comunidades[0] || null;
           const aliado = comunidade?.aliado;
-          const aliadoId = typeof aliado === "object" && aliado !== null ? aliado.id : aliado;
+          const aliadoId = directusRelationId(aliado);
           if (aliadoId) aliadoDaComunidade = String(aliadoId);
         } catch (_) {}
         if (!isSuperAdminRole && !aliadoDaComunidade) {
@@ -6653,6 +6956,7 @@ export async function registerRoutes(
           biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
           body: req.body,
           req,
+          payload,
           currentBia,
         });
       } catch (e: any) {
@@ -6769,6 +7073,1103 @@ export async function registerRoutes(
       }
       await directusDelete("bias_projetos", req.params.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== BIA BANCO / PINBANK ==========
+
+  const pinbank = new PinbankClient();
+  const REQUIRED_BIA_BANK_DOCS = ["cartao_cnpj", "contrato_social", "comprovante_endereco_comercial"];
+  const REQUIRED_SOCIO_BANK_DOCS = ["documento_identificacao", "selfie_documento", "comprovante_endereco_residencial"];
+  const memoryBiaBankAccounts = new Map<string, any>();
+  const memoryBiaBankDocuments = new Map<string, any[]>();
+  const memoryBiaBankCharges = new Map<string, any[]>();
+
+  const normalizeBankAccount = (row: any) => row ? {
+    id: row.id,
+    bia_id: row.bia_id,
+    provider: row.provider,
+    external_account_id: row.external_account_id,
+    status: row.status,
+    terms_version: row.terms_version,
+    terms_accepted_at: row.terms_accepted_at,
+    onboarding_requested_at: row.onboarding_requested_at,
+    provider_payload: row.provider_payload || null,
+  } : null;
+
+  const normalizeBankCharge = (row: any) => row ? {
+    id: row.id,
+    bia_id: row.bia_id,
+    fluxo_caixa_id: row.fluxo_caixa_id || null,
+    provider: row.provider || row.pagamento_provider || "pinbank",
+    type: row.type || row.pagamento_tipo || "boleto",
+    status: row.status || row.pagamento_status || "pending",
+    descricao: row.descricao || null,
+    valor: row.valor ?? null,
+    data_vencimento: row.data_vencimento || null,
+    pagador_nome: row.pagador_nome || row.pagamento_pagador_nome || null,
+    pagador_email: row.pagador_email || row.pagamento_pagador_email || null,
+    pagador_documento: row.pagador_documento || row.pagamento_pagador_documento || null,
+    nosso_numero: row.nosso_numero || null,
+    payment_id: row.payment_id || row.pagamento_id || null,
+    payment_url: row.payment_url || row.pagamento_url || null,
+    linha_digitavel: row.linha_digitavel || null,
+    provider_payload: row.provider_payload || null,
+    created_at: row.created_at || row.pagamento_gerado_em || null,
+  } : null;
+
+  async function requireBiaBancoAccess(req: any, res: any, biaId: string) {
+    if (!(req.session as any).directusUserId) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return null;
+    }
+    const bia = await directusFetchOne("bias_projetos", biaId, "fields=*");
+    if (!bia) {
+      res.status(404).json({ error: "BIA nao encontrada" });
+      return null;
+    }
+    if (!canViewBia(bia, req)) {
+      res.status(403).json({ error: "Voce nao tem acesso ao Nucleo de Capital desta BIA" });
+      return null;
+    }
+    return bia;
+  }
+
+  function memoryBankAccount(biaId: string, patch: Record<string, any> = {}) {
+    const current = memoryBiaBankAccounts.get(biaId) || {
+      id: `memory-${biaId}`,
+      bia_id: biaId,
+      provider: "pinbank",
+      external_account_id: null,
+      status: "not_started",
+      terms_version: null,
+      terms_accepted_at: null,
+      terms_accepted_by_user_id: null,
+      terms_accepted_by_membro_id: null,
+      terms_accepted_by_nome: null,
+      onboarding_requested_at: null,
+      onboarding_payload: null,
+      provider_payload: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const next = { ...current, ...patch, updated_at: new Date().toISOString() };
+    memoryBiaBankAccounts.set(biaId, next);
+    return next;
+  }
+
+  function memoryBankDocuments(biaId: string) {
+    return memoryBiaBankDocuments.get(biaId) || [];
+  }
+
+  function setMemoryBankDocument(biaId: string, document: any) {
+    const documents = memoryBankDocuments(biaId);
+    const index = documents.findIndex((item) => String(item.id) === String(document.id));
+    const next = index >= 0
+      ? documents.map((item) => String(item.id) === String(document.id) ? { ...item, ...document, updated_at: new Date().toISOString() } : item)
+      : [{ ...document, created_at: document.created_at || new Date().toISOString(), updated_at: new Date().toISOString() }, ...documents];
+    memoryBiaBankDocuments.set(biaId, next);
+    return next.find((item) => String(item.id) === String(document.id)) || document;
+  }
+
+  function memoryBankCharges(biaId: string) {
+    return memoryBiaBankCharges.get(biaId) || [];
+  }
+
+  function setMemoryBankCharge(biaId: string, charge: any) {
+    const charges = memoryBankCharges(biaId);
+    const id = String(charge.id || `memory-charge-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const normalized = { ...charge, id, bia_id: biaId, updated_at: new Date().toISOString() };
+    const index = charges.findIndex((item) => String(item.id) === id);
+    const next = index >= 0
+      ? charges.map((item) => String(item.id) === id ? { ...item, ...normalized } : item)
+      : [{ ...normalized, created_at: normalized.created_at || new Date().toISOString() }, ...charges];
+    memoryBiaBankCharges.set(biaId, next);
+    return next.find((item) => String(item.id) === id) || normalized;
+  }
+
+  async function getBiaBankAccount(biaId: string) {
+    try {
+      const result: any = await db.execute(sql`SELECT * FROM bia_bank_accounts WHERE bia_id = ${biaId} LIMIT 1`);
+      return result.rows?.[0] || memoryBiaBankAccounts.get(biaId) || null;
+    } catch (error: any) {
+      console.warn("[bia-banco] Banco local indisponivel; usando memoria:", error?.message || error);
+      return memoryBiaBankAccounts.get(biaId) || null;
+    }
+  }
+
+  async function ensureBiaBankAccount(biaId: string) {
+    const existing = await getBiaBankAccount(biaId);
+    if (existing) return existing;
+    try {
+      const result: any = await db.execute(sql`
+        INSERT INTO bia_bank_accounts (bia_id, status)
+        VALUES (${biaId}, 'not_started')
+        ON CONFLICT (bia_id) DO UPDATE SET updated_at = now()
+        RETURNING *
+      `);
+      return result.rows?.[0] || memoryBankAccount(biaId);
+    } catch (error: any) {
+      console.warn("[bia-banco] Nao foi possivel criar conta local; usando memoria:", error?.message || error);
+      return memoryBankAccount(biaId);
+    }
+  }
+
+  async function getBiaBankDocuments(biaId: string) {
+    try {
+      const result: any = await db.execute(sql`
+        SELECT * FROM bia_bank_documents
+        WHERE bia_id = ${biaId}
+        ORDER BY created_at DESC
+      `);
+      const rows = result.rows || [];
+      if (rows.length > 0) memoryBiaBankDocuments.set(biaId, rows);
+      return rows.length > 0 ? rows : memoryBankDocuments(biaId);
+    } catch (error: any) {
+      console.warn("[bia-banco] Documentos locais indisponiveis; usando memoria:", error?.message || error);
+      return memoryBankDocuments(biaId);
+    }
+  }
+
+  async function getBiaBankCharges(biaId: string) {
+    let localCharges: any[] = [];
+    try {
+      const result: any = await db.execute(sql`
+        SELECT * FROM bia_bank_charges
+        WHERE bia_id = ${biaId}
+        ORDER BY created_at DESC
+      `);
+      localCharges = (result.rows || []).map(normalizeBankCharge).filter(Boolean);
+      if (localCharges.length > 0) memoryBiaBankCharges.set(biaId, localCharges);
+    } catch (error: any) {
+      console.warn("[bia-banco] Cobrancas locais indisponiveis; usando memoria:", error?.message || error);
+      localCharges = memoryBankCharges(biaId).map(normalizeBankCharge).filter(Boolean);
+    }
+    const fluxoCharges = (await listBiaBankPayments(biaId)).map((item: any) => normalizeBankCharge({
+      ...item,
+      id: `fluxo-${item.id}`,
+      bia_id: biaId,
+      fluxo_caixa_id: item.id,
+      provider: item.pagamento_provider,
+      status: item.pagamento_status,
+      payment_id: item.pagamento_id,
+      payment_url: item.pagamento_url,
+      created_at: item.pagamento_gerado_em,
+    })).filter(Boolean);
+    const seen = new Set<string>();
+    return [...localCharges, ...fluxoCharges].filter((charge: any) => {
+      const key = String(charge.id || charge.payment_id || charge.payment_url || Math.random());
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function getBankDocumentMissing(documents: any[]) {
+    const tipos = new Set(documents.map((doc) => String(doc.tipo || "")));
+    return [
+      ...REQUIRED_BIA_BANK_DOCS.filter((tipo) => !tipos.has(tipo)),
+      ...REQUIRED_SOCIO_BANK_DOCS.filter((tipo) => !tipos.has(tipo)),
+    ];
+  }
+
+  async function listBiaBankPayments(biaId: string) {
+    try {
+      const items = await directusFetchScoped(
+        "fluxo_caixa",
+        `fields=id,descricao,valor,data_vencimento,status,pagamento_provider,pagamento_id,pagamento_url,pagamento_status,pagamento_gerado_em&filter[bia][_eq]=${encodeURIComponent(biaId)}`
+      );
+      return (items || []).filter((item: any) => item.pagamento_url || item.pagamento_id || item.pagamento_status);
+    } catch (error: any) {
+      console.warn("[bia-banco] Nao foi possivel listar cobrancas do fluxo:", error?.message || error);
+      return [];
+    }
+  }
+
+  function bankMoneyToNumber(value: any) {
+    if (typeof value === "number") return value;
+    const raw = String(value || "").replace(/[R$\s]/g, "").trim();
+    if (!raw) return 0;
+    if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
+    return Number(raw);
+  }
+
+  function normalizeBankDate(value: any) {
+    if (!value) return null;
+    const text = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+    const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+    const date = new Date(text);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+  }
+
+  function resolvePinbankCodigoCliente(account: any) {
+    return Number(account?.external_account_id || pinbank.defaultCodigoCliente || 0) || 0;
+  }
+
+  function buildPinbankChargePayload(req: any, account: any): PinbankChargePayload {
+    const valor = bankMoneyToNumber(req.body?.valor);
+    if (!Number.isFinite(valor) || valor <= 0) {
+      throw new Error("Informe um valor valido para a cobranca.");
+    }
+    return {
+      codigoCliente: resolvePinbankCodigoCliente(account),
+      codigoCanal: pinbank.defaultCodigoCanal,
+      valor,
+      vencimento: normalizeBankDate(req.body?.vencimento || req.body?.data_vencimento),
+      descricao: String(req.body?.descricao || "Aporte BIA BUILT").trim(),
+      pagadorNome: String(req.body?.pagadorNome || req.body?.pagador_nome || "").trim(),
+      pagadorDocumento: String(req.body?.pagadorDocumento || req.body?.pagador_documento || "").trim(),
+      pagadorEmail: String(req.body?.pagadorEmail || req.body?.pagador_email || "").trim(),
+      pagadorTelefone: String(req.body?.pagadorTelefone || req.body?.pagador_telefone || "").trim(),
+      split: Array.isArray(req.body?.split) ? req.body.split : undefined,
+      metadata: {
+        biaId: req.params.biaId,
+        fluxoCaixaId: req.body?.fluxoCaixaId || req.body?.fluxo_caixa_id || null,
+        origem: "built_bia_banco",
+      },
+    };
+  }
+
+  function buildPinbankChargeQuery(account: any, charge?: any, extra: Record<string, any> = {}): PinbankChargeQueryPayload {
+    return {
+      codigoCliente: resolvePinbankCodigoCliente(account),
+      codigoCanal: pinbank.defaultCodigoCanal,
+      nossoNumero: charge?.nosso_numero || charge?.nossoNumero || extra.nossoNumero || null,
+      paymentId: charge?.payment_id || charge?.paymentId || charge?.externalId || extra.paymentId || null,
+      chargeId: charge?.id || extra.chargeId || null,
+      dataInicio: extra.dataInicio || null,
+      dataFim: extra.dataFim || null,
+      transactionId: extra.transactionId || null,
+      metadata: extra.metadata,
+    };
+  }
+
+  async function saveBiaBankCharge(params: {
+    biaId: string;
+    fluxoCaixaId?: string | null;
+    type: string;
+    payload: PinbankChargePayload;
+    providerResult: any;
+    actor?: ReturnType<typeof getAuditActor>;
+  }) {
+    const result = params.providerResult || {};
+    const status = String(result.status || result.raw?.Data?.Status || "pending");
+    const chargeData = {
+      id: randomUUID(),
+      bia_id: params.biaId,
+      fluxo_caixa_id: params.fluxoCaixaId || null,
+      provider: "pinbank",
+      type: params.type,
+      status,
+      descricao: params.payload.descricao || null,
+      valor: params.payload.valor,
+      data_vencimento: normalizeBankDate(params.payload.vencimento),
+      pagador_nome: params.payload.pagadorNome || null,
+      pagador_email: params.payload.pagadorEmail || null,
+      pagador_documento: params.payload.pagadorDocumento || null,
+      nosso_numero: result.nossoNumero || null,
+      payment_id: result.externalId || null,
+      payment_url: result.url || null,
+      linha_digitavel: result.linhaDigitavel || null,
+      payload: params.payload,
+      provider_payload: result,
+      created_by_user_id: params.actor?.userId || null,
+      created_by_membro_id: params.actor?.membroId || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    let saved: any = null;
+    try {
+      const dbResult: any = await db.execute(sql`
+        INSERT INTO bia_bank_charges (
+          id, bia_id, fluxo_caixa_id, provider, type, status, descricao, valor, data_vencimento,
+          pagador_nome, pagador_email, pagador_documento, nosso_numero, payment_id, payment_url,
+          linha_digitavel, payload, provider_payload, created_by_user_id, created_by_membro_id, updated_at
+        )
+        VALUES (
+          ${chargeData.id}, ${chargeData.bia_id}, ${chargeData.fluxo_caixa_id}, ${chargeData.provider}, ${chargeData.type},
+          ${chargeData.status}, ${chargeData.descricao}, ${String(chargeData.valor)}, ${chargeData.data_vencimento},
+          ${chargeData.pagador_nome}, ${chargeData.pagador_email}, ${chargeData.pagador_documento},
+          ${chargeData.nosso_numero}, ${chargeData.payment_id}, ${chargeData.payment_url}, ${chargeData.linha_digitavel},
+          ${JSON.stringify(chargeData.payload)}::jsonb, ${JSON.stringify(chargeData.provider_payload)}::jsonb,
+          ${chargeData.created_by_user_id}, ${chargeData.created_by_membro_id}, now()
+        )
+        RETURNING *
+      `);
+      saved = dbResult.rows?.[0] || null;
+    } catch (error: any) {
+      console.warn("[bia-banco] Cobranca gravada em memoria:", error?.message || error);
+    }
+    if (!saved) saved = setMemoryBankCharge(params.biaId, chargeData);
+    if (params.fluxoCaixaId) {
+      await directusUpdate("fluxo_caixa", params.fluxoCaixaId, {
+        pagamento_provider: "pinbank",
+        pagamento_id: chargeData.payment_id,
+        pagamento_url: chargeData.payment_url,
+        pagamento_status: chargeData.status,
+        pagamento_pais: "brasil",
+        pagamento_pagador_nome: chargeData.pagador_nome,
+        pagamento_pagador_email: chargeData.pagador_email,
+        pagamento_pagador_documento: chargeData.pagador_documento,
+        pagamento_gerado_em: new Date().toISOString(),
+      }).catch((error: any) => console.warn("[bia-banco] Fluxo de caixa nao atualizado com cobranca PINBANK:", error?.message || error));
+    }
+    return normalizeBankCharge(saved);
+  }
+
+  async function updateBiaBankCharge(biaId: string, chargeId: string, patch: Record<string, any>) {
+    let updated: any = null;
+    try {
+      const result: any = await db.execute(sql`
+        UPDATE bia_bank_charges
+        SET status = COALESCE(${patch.status || null}, status),
+            payment_url = COALESCE(${patch.payment_url || null}, payment_url),
+            provider_payload = COALESCE(${patch.provider_payload ? JSON.stringify(patch.provider_payload) : null}::jsonb, provider_payload),
+            updated_at = now()
+        WHERE id = ${chargeId} AND bia_id = ${biaId}
+        RETURNING *
+      `);
+      updated = result.rows?.[0] || null;
+    } catch (error: any) {
+      console.warn("[bia-banco] Cobranca atualizada em memoria:", error?.message || error);
+    }
+    if (!updated) {
+      const current = memoryBankCharges(biaId).find((item) => String(item.id) === String(chargeId));
+      if (current) updated = setMemoryBankCharge(biaId, { ...current, ...patch });
+    }
+    if (updated?.fluxo_caixa_id && patch.status) {
+      await directusUpdate("fluxo_caixa", updated.fluxo_caixa_id, { pagamento_status: patch.status })
+        .catch((error: any) => console.warn("[bia-banco] Status do fluxo nao atualizado:", error?.message || error));
+    }
+    return normalizeBankCharge(updated);
+  }
+
+  async function findBiaBankCharge(biaId: string, chargeId: string) {
+    const charges = await getBiaBankCharges(biaId);
+    return charges.find((item: any) => String(item.id) === String(chargeId) || String(item.payment_id) === String(chargeId)) || null;
+  }
+
+  function providerData(value: any) {
+    return value?.Data || value?.data || value?.raw?.Data || value || {};
+  }
+
+  function providerStatus(value: any, fallback = "pending") {
+    const data = providerData(value);
+    return String(data.Status || data.status || data.Situacao || value?.status || fallback);
+  }
+
+  function summarizeBankCharges(charges: any[]) {
+    const total = charges.length;
+    const paid = charges.filter((charge) => ["paid", "pago", "liquidado", "recebido"].includes(String(charge.status || "").toLowerCase())).length;
+    const cancelled = charges.filter((charge) => ["cancelled", "canceled", "cancelado"].includes(String(charge.status || "").toLowerCase())).length;
+    const pending = Math.max(0, total - paid - cancelled);
+    const amount = charges.reduce((sum, charge) => sum + bankMoneyToNumber(charge.valor), 0);
+    return { total, paid, pending, cancelled, amount };
+  }
+
+  const PINBANK_DOCUMENT_TYPE_CODES: Record<string, number> = {
+    cartao_cnpj: Number(process.env.PINBANK_DOC_TIPO_CARTAO_CNPJ || "1"),
+    contrato_social: Number(process.env.PINBANK_DOC_TIPO_CONTRATO_SOCIAL || "2"),
+    comprovante_endereco_comercial: Number(process.env.PINBANK_DOC_TIPO_COMPROVANTE_ENDERECO_COMERCIAL || "3"),
+    documento_identificacao: Number(process.env.PINBANK_DOC_TIPO_DOCUMENTO_IDENTIFICACAO || "4"),
+    selfie_documento: Number(process.env.PINBANK_DOC_TIPO_SELFIE_DOCUMENTO || "5"),
+    comprovante_endereco_residencial: Number(process.env.PINBANK_DOC_TIPO_COMPROVANTE_ENDERECO_RESIDENCIAL || "6"),
+  };
+
+  function onlyDigitsForPinbank(value: any) {
+    return String(value ?? "").replace(/\D/g, "");
+  }
+
+  function firstFilled(...values: any[]) {
+    for (const value of values) {
+      const text = value === null || value === undefined ? "" : String(value).trim();
+      if (text) return text;
+    }
+    return "";
+  }
+
+  function pinbankDocTypeCode(tipo: string) {
+    const code = PINBANK_DOCUMENT_TYPE_CODES[tipo];
+    if (!Number.isFinite(code) || code <= 0) {
+      throw new Error(`Tipo de documento PINBANK nao configurado para ${tipo}.`);
+    }
+    return code;
+  }
+
+  async function fetchDirectusFileForPinbank(fileId: string) {
+    const metaRes = await fetch(`${DIRECTUS_URL}/files/${fileId}`, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    const metaJson = metaRes.ok ? await metaRes.json().catch(() => ({})) : {};
+    const meta = metaJson?.data || {};
+    const assetRes = await fetch(`${DIRECTUS_URL}/assets/${fileId}`, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!assetRes.ok) {
+      throw new Error(`Arquivo ${fileId} nao encontrado no Directus para envio ao PINBANK.`);
+    }
+    const contentType = assetRes.headers.get("content-type") || meta.type || "application/octet-stream";
+    const buffer = Buffer.from(await assetRes.arrayBuffer());
+    const extension = String(meta.filename_download || meta.filename_disk || "").split(".").pop() || contentType.split("/").pop() || "bin";
+    const filename = meta.filename_download || meta.filename_disk || `${fileId}.${extension}`;
+    return {
+      filename,
+      contentType,
+      format: String(extension || "").toLowerCase(),
+      base64: buffer.toString("base64"),
+    };
+  }
+
+  function buildPinbankCompanyPayload(opts: {
+    bia: any;
+    biaId: string;
+    info: Record<string, any>;
+    participants: Awaited<ReturnType<typeof getMouParticipantsForBia>>;
+    account: any;
+  }): { payload: PinbankCompanyOnboardingPayload; missingFields: string[] } {
+    const { bia, info, participants, account } = opts;
+    const responsavel = participants.find((p: any) => p.roles?.some((role: string) => normalizeText(role).includes("capital")))
+      || participants.find((p: any) => p.roles?.some((role: string) => normalizeText(role).includes("aliado")))
+      || participants[0];
+    const respData = responsavel?.data || responsavel?.member || {};
+    const commercialAddress = {
+      cep: firstFilled(info.ativo_cep, bia.ativo_cep, bia.cep),
+      endereco: firstFilled(info.ativo_endereco, bia.ativo_endereco, bia.localizacao, bia.endereco),
+      numero: firstFilled(info.ativo_numero, bia.ativo_numero, bia.numero, "S/N"),
+      complemento: firstFilled(info.ativo_complemento, bia.ativo_complemento, bia.complemento),
+      bairro: firstFilled(info.ativo_bairro, bia.ativo_bairro, bia.bairro),
+      cidade: firstFilled(info.ativo_cidade, bia.ativo_cidade, bia.cidade),
+      estado: firstFilled(info.ativo_estado, bia.ativo_estado, bia.estado),
+    };
+    const residentialAddress = {
+      cep: firstFilled(respData.cep, respData.titular_cep),
+      endereco: firstFilled(respData.endereco, respData.titular_endereco),
+      numero: firstFilled(respData.numero, respData.titular_numero, "S/N"),
+      complemento: firstFilled(respData.complemento, respData.titular_complemento),
+      bairro: firstFilled(respData.bairro, respData.titular_bairro),
+      cidade: firstFilled(respData.cidade, respData.titular_cidade),
+      estado: firstFilled(respData.estado, respData.titular_estado),
+    };
+    const companyName = firstFilled(info.razao_social, bia.razao_social, bia.nome_bia);
+    const companyCnpj = onlyDigitsForPinbank(firstFilled(info.cnpj, bia.cnpj));
+    const responsibleName = firstFilled(respData.nome_completo, respData.nome, respData.Nome_de_usuario);
+    const responsibleCpf = onlyDigitsForPinbank(firstFilled(respData.cpf, respData.CPF));
+    const responsibleEmail = firstFilled(respData.email);
+    const responsiblePhone = firstFilled(respData.telefone, respData.whatsapp);
+    const missingFields: string[] = [];
+    const required = [
+      [companyName, "Razao social da BIA"],
+      [companyCnpj, "CNPJ da BIA"],
+      [responsibleName, "Nome do responsavel pelo onboarding"],
+      [responsibleCpf, "CPF do responsavel pelo onboarding"],
+      [responsibleEmail, "E-mail do responsavel pelo onboarding"],
+      [responsiblePhone, "Telefone do responsavel pelo onboarding"],
+      [commercialAddress.cep, "CEP comercial da BIA"],
+      [commercialAddress.endereco, "Endereco comercial da BIA"],
+      [commercialAddress.cidade, "Cidade comercial da BIA"],
+      [commercialAddress.estado, "Estado comercial da BIA"],
+    ];
+    for (const [value, label] of required) {
+      if (!String(value || "").trim()) missingFields.push(String(label));
+    }
+    if (pinbank.configured && !pinbank.defaultCodigoCanal) {
+      missingFields.push("PINBANK_CODIGO_CANAL");
+    }
+    const socios = participants
+      .map((participant: any) => {
+        const data = participant.data || participant.member || {};
+        const nome = firstFilled(data.nome_completo, data.nome, data.Nome_de_usuario);
+        if (!nome) return null;
+        return {
+          NomeSocio: nome,
+          CpfSocio: onlyDigitsForPinbank(firstFilled(data.cpf, data.CPF)),
+          PepSocio: false,
+        };
+      })
+      .filter(Boolean) as Array<{ NomeSocio: string; CpfSocio?: string | number | null; PepSocio: boolean }>;
+    const termId = String(account?.terms_version || "").match(/^\d+$/)
+      ? account.terms_version
+      : (process.env.PINBANK_CODIGO_TERMO || null);
+    return {
+      missingFields,
+      payload: {
+        codigoCanal: pinbank.defaultCodigoCanal,
+        nome: responsibleName || "Responsavel BUILT",
+        dataNascimento: firstFilled(respData.data_nascimento),
+        cpf: responsibleCpf,
+        rg: firstFilled(respData.rg),
+        email: responsibleEmail,
+        estadoCivil: firstFilled(respData.estado_civil),
+        nomeMae: firstFilled(respData.nome_mae),
+        nomePai: firstFilled(respData.nome_pai),
+        paisOrigem: firstFilled(respData.nacionalidade, "Brasil"),
+        celular: responsiblePhone,
+        enderecoResidencial: residentialAddress,
+        telefoneResidencial: responsiblePhone,
+        enderecoComercial: commercialAddress,
+        telefoneComercial: responsiblePhone,
+        dadosBancarios: {
+          banco: firstFilled(info.banco),
+          agencia: firstFilled(info.agencia),
+          conta: firstFilled(info.conta),
+          tipo_conta: firstFilled(info.tipo_conta),
+          titular_conta: firstFilled(info.titular_conta, companyName),
+          cpfCnpj: companyCnpj,
+        },
+        razaoSocial: companyName || "BIA BUILT",
+        nomeFantasia: firstFilled(info.nome_fantasia, bia.nome_bia, companyName),
+        cnpj: companyCnpj || "00000000000000",
+        listaSocios: socios.length > 0 ? socios : [{ NomeSocio: responsibleName || "Responsavel BUILT", CpfSocio: responsibleCpf, PepSocio: false }],
+        idTermo: termId,
+        enviarEmailPrimAcesso: true,
+        pep: false,
+      },
+    };
+  }
+
+  async function uploadBiaDocumentsToPinbank(biaId: string, codigoCliente: number, documents: any[]) {
+    const uploaded = [];
+    for (const doc of documents) {
+      if (doc.provider_document_id || !doc.file_id) continue;
+      const file = await fetchDirectusFileForPinbank(String(doc.file_id));
+      const payload: PinbankDocumentPayload = {
+        codigoCliente,
+        codigoCanal: pinbank.defaultCodigoCanal,
+        tipoDocumento: pinbankDocTypeCode(String(doc.tipo)),
+        nomeArquivo: file.filename,
+        formatoArquivo: file.format,
+        base64Arquivo: file.base64,
+      };
+      const providerResult = await pinbank.uploadDocument(payload);
+      const externalDocId = providerResult?.externalId || null;
+      try {
+        await db.execute(sql`
+          UPDATE bia_bank_documents
+          SET status = 'sent',
+              provider_document_id = ${externalDocId},
+              provider_payload = ${JSON.stringify(providerResult)}::jsonb,
+              updated_at = now()
+          WHERE id = ${doc.id} AND bia_id = ${biaId}
+        `);
+      } catch (error: any) {
+        console.warn("[bia-banco] Resultado do documento PINBANK gravado em memoria:", error?.message || error);
+        setMemoryBankDocument(biaId, {
+          ...doc,
+          status: "sent",
+          provider_document_id: externalDocId,
+          provider_payload: providerResult,
+        });
+      }
+      uploaded.push({ id: doc.id, provider_document_id: externalDocId, provider: providerResult.provider });
+    }
+    return uploaded;
+  }
+
+  app.get("/api/bias/:biaId/banco", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await ensureBiaBankAccount(req.params.biaId);
+      const documents = await getBiaBankDocuments(req.params.biaId);
+      const configStatus = pinbank.getConfigStatus();
+      res.json({
+        bia: { id: bia.id, nome_bia: bia.nome_bia, diretor_capital: bia.diretor_capital },
+        account: normalizeBankAccount(account),
+        documents,
+        missingDocuments: getBankDocumentMissing(documents),
+        charges: await getBiaBankCharges(req.params.biaId),
+        providerConfigured: configStatus.configured,
+        configStatus,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/termos", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      res.json(await pinbank.getTerms());
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/aceite-termos", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const configStatus = pinbank.getConfigStatus();
+      if (!configStatus.configured) {
+        return res.status(400).json({
+          error: "Configure a integracao PINBANK no ambiente do servidor antes de aceitar termos oficiais.",
+          configStatus,
+        });
+      }
+      const actor = getAuditActor(req);
+      const version = String(req.body?.version || "pinbank_terms_pending");
+      let account: any = null;
+      try {
+        const result: any = await db.execute(sql`
+          INSERT INTO bia_bank_accounts (
+            bia_id, status, terms_version, terms_accepted_at,
+            terms_accepted_by_user_id, terms_accepted_by_membro_id, terms_accepted_by_nome, updated_at
+          )
+          VALUES (${req.params.biaId}, 'documents_pending', ${version}, now(), ${actor.userId}, ${actor.membroId}, ${actor.nome}, now())
+          ON CONFLICT (bia_id) DO UPDATE SET
+            status = CASE WHEN bia_bank_accounts.status = 'not_started' THEN 'documents_pending' ELSE bia_bank_accounts.status END,
+            terms_version = EXCLUDED.terms_version,
+            terms_accepted_at = EXCLUDED.terms_accepted_at,
+            terms_accepted_by_user_id = EXCLUDED.terms_accepted_by_user_id,
+            terms_accepted_by_membro_id = EXCLUDED.terms_accepted_by_membro_id,
+            terms_accepted_by_nome = EXCLUDED.terms_accepted_by_nome,
+            updated_at = now()
+          RETURNING *
+        `);
+        account = result.rows?.[0] || null;
+      } catch (error: any) {
+        console.warn("[bia-banco] Aceite gravado em memoria:", error?.message || error);
+      }
+      if (!account) {
+        const current = await ensureBiaBankAccount(req.params.biaId);
+        account = memoryBankAccount(req.params.biaId, {
+          ...current,
+          status: current?.status === "not_started" ? "documents_pending" : (current?.status || "documents_pending"),
+          terms_version: version,
+          terms_accepted_at: new Date().toISOString(),
+          terms_accepted_by_user_id: actor.userId,
+          terms_accepted_by_membro_id: actor.membroId,
+          terms_accepted_by_nome: actor.nome,
+        });
+      }
+      res.json({ success: true, account: normalizeBankAccount(account) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/documentos", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const tipo = String(req.body?.tipo || "").trim();
+      const fileId = String(req.body?.fileId || "").trim();
+      const membroId = req.body?.membroId ? String(req.body.membroId) : null;
+      if (!tipo || !fileId) return res.status(400).json({ error: "Informe o tipo do documento e o arquivo." });
+      if (!req.body?.permitirCompartilhamento) {
+        return res.status(400).json({ error: "Autorize o compartilhamento do documento com o banco." });
+      }
+      const actor = getAuditActor(req);
+      let document: any = null;
+      try {
+        const result: any = await db.execute(sql`
+          INSERT INTO bia_bank_documents (
+            bia_id, membro_id, tipo, file_id, status,
+            permission_shared_at, permission_shared_by_user_id, permission_shared_by_membro_id, updated_at
+          )
+          VALUES (${req.params.biaId}, ${membroId}, ${tipo}, ${fileId}, 'sent', now(), ${actor.userId}, ${actor.membroId}, now())
+          RETURNING *
+        `);
+        document = result.rows?.[0] || null;
+      } catch (error: any) {
+        console.warn("[bia-banco] Documento gravado em memoria:", error?.message || error);
+      }
+      if (!document) {
+        document = setMemoryBankDocument(req.params.biaId, {
+          id: `memory-doc-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          bia_id: req.params.biaId,
+          membro_id: membroId,
+          tipo,
+          file_id: fileId,
+          status: "sent",
+          provider_document_id: null,
+          provider_payload: null,
+          permission_shared_at: new Date().toISOString(),
+          permission_shared_by_user_id: actor.userId,
+          permission_shared_by_membro_id: actor.membroId,
+        });
+      }
+      const documents = await getBiaBankDocuments(req.params.biaId);
+      const missing = getBankDocumentMissing(documents);
+      const nextStatus = missing.length === 0 ? "terms_pending" : "documents_pending";
+      const account = await getBiaBankAccount(req.params.biaId);
+      if (!account || account.status === "not_started" || account.status === "documents_pending") {
+        try {
+          await db.execute(sql`
+            INSERT INTO bia_bank_accounts (bia_id, status, updated_at)
+            VALUES (${req.params.biaId}, ${nextStatus}, now())
+            ON CONFLICT (bia_id) DO UPDATE SET status = ${nextStatus}, updated_at = now()
+          `);
+        } catch (error: any) {
+          console.warn("[bia-banco] Status de documentos gravado em memoria:", error?.message || error);
+          memoryBankAccount(req.params.biaId, { ...(account || {}), status: nextStatus });
+        }
+      }
+      const codigoCliente = Number(account?.external_account_id || pinbank.defaultCodigoCliente || 0) || 0;
+      if (pinbank.configured && codigoCliente && document) {
+        const uploaded = await uploadBiaDocumentsToPinbank(req.params.biaId, codigoCliente, [document]);
+        if (uploaded.length > 0) {
+          try {
+            const refreshed: any = await db.execute(sql`SELECT * FROM bia_bank_documents WHERE id = ${document.id} LIMIT 1`);
+            document = refreshed.rows?.[0] || document;
+          } catch {}
+        }
+      }
+      res.json({ success: true, document, missingDocuments: missing });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/documentos/status", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const documents = await getBiaBankDocuments(req.params.biaId);
+      const account = await getBiaBankAccount(req.params.biaId);
+      let providerStatus = null;
+      const codigoCliente = Number(account?.external_account_id || pinbank.defaultCodigoCliente || 0) || 0;
+      if (pinbank.configured && codigoCliente) {
+        providerStatus = await pinbank.getDocumentStatus(codigoCliente).catch((error: any) => ({
+          error: error?.message || String(error),
+        }));
+      }
+      res.json({ documents, missingDocuments: getBankDocumentMissing(documents), providerStatus });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/documentos/inventario", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const codigoCliente = resolvePinbankCodigoCliente(account);
+      const localDocuments = await getBiaBankDocuments(req.params.biaId);
+      const inventory = await pinbank.getDocumentInventory(codigoCliente).catch((error: any) => ({
+        error: error?.message || String(error),
+      }));
+      res.json({
+        documents: localDocuments,
+        missingDocuments: getBankDocumentMissing(localDocuments),
+        providerInventory: inventory,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/documentos/:documentId/substituir", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const fileId = String(req.body?.fileId || "").trim();
+      if (!fileId) return res.status(400).json({ error: "Informe o novo arquivo." });
+      if (!req.body?.permitirCompartilhamento) {
+        return res.status(400).json({ error: "Autorize o compartilhamento do documento com o banco." });
+      }
+      const account = await getBiaBankAccount(req.params.biaId);
+      const documents = await getBiaBankDocuments(req.params.biaId);
+      const current = documents.find((doc: any) => String(doc.id) === String(req.params.documentId));
+      if (!current) return res.status(404).json({ error: "Documento nao encontrado." });
+      const file = await fetchDirectusFileForPinbank(fileId);
+      const providerResult = await pinbank.replaceDocument({
+        codigoCliente: resolvePinbankCodigoCliente(account),
+        codigoCanal: pinbank.defaultCodigoCanal,
+        tipoDocumento: pinbankDocTypeCode(String(current.tipo)),
+        nomeArquivo: file.filename,
+        formatoArquivo: file.format,
+        base64Arquivo: file.base64,
+        providerDocumentId: current.provider_document_id || null,
+      });
+      let updated = null;
+      try {
+        const result: any = await db.execute(sql`
+          UPDATE bia_bank_documents
+          SET file_id = ${fileId},
+              status = 'sent',
+              provider_document_id = ${providerResult?.externalId || current.provider_document_id || null},
+              provider_payload = ${JSON.stringify(providerResult)}::jsonb,
+              updated_at = now()
+          WHERE id = ${req.params.documentId} AND bia_id = ${req.params.biaId}
+          RETURNING *
+        `);
+        updated = result.rows?.[0] || null;
+      } catch (error: any) {
+        console.warn("[bia-banco] Substituicao de documento gravada em memoria:", error?.message || error);
+      }
+      if (!updated) {
+        updated = setMemoryBankDocument(req.params.biaId, {
+          ...current,
+          file_id: fileId,
+          status: "sent",
+          provider_document_id: providerResult?.externalId || current.provider_document_id || null,
+          provider_payload: providerResult,
+        });
+      }
+      res.json({ success: true, document: updated, providerResult });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/cobrancas", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const configStatus = pinbank.getConfigStatus();
+      if (!configStatus.configured) {
+        return res.status(400).json({
+          error: "Configure a integracao PINBANK no ambiente do servidor antes de gerar cobrancas bancarias.",
+          configStatus,
+        });
+      }
+      const account = await ensureBiaBankAccount(req.params.biaId);
+      const codigoCliente = resolvePinbankCodigoCliente(account);
+      if (pinbank.configured && !codigoCliente) {
+        return res.status(400).json({ error: "Abra a conta digital da BIA antes de gerar cobrancas PINBANK." });
+      }
+      const tipo = String(req.body?.tipo || "boleto").trim();
+      const payload = buildPinbankChargePayload(req, account);
+      let providerResult: any;
+      if (tipo === "boleto_split") {
+        providerResult = await pinbank.createSplitBoleto(payload);
+      } else if (tipo === "link_pagamento") {
+        providerResult = await pinbank.createPaymentLink(payload);
+      } else {
+        providerResult = await pinbank.createBoleto(payload);
+      }
+      const charge = await saveBiaBankCharge({
+        biaId: req.params.biaId,
+        fluxoCaixaId: req.body?.fluxoCaixaId || req.body?.fluxo_caixa_id || null,
+        type: tipo,
+        payload,
+        providerResult,
+        actor: getAuditActor(req),
+      });
+      res.json({ success: true, charge, providerResult });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/cobrancas/:chargeId/cancelar", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const charge = await findBiaBankCharge(req.params.biaId, req.params.chargeId);
+      if (!charge) return res.status(404).json({ error: "Cobranca nao encontrada." });
+      const providerResult = await pinbank.cancelBoleto(buildPinbankChargeQuery(account, charge));
+      const updated = await updateBiaBankCharge(req.params.biaId, String(charge.id), {
+        status: "cancelled",
+        provider_payload: { ...(charge.provider_payload || {}), cancelamento: providerResult },
+      });
+      res.json({ success: true, charge: updated || { ...charge, status: "cancelled" }, providerResult });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/cobrancas/:chargeId/status", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const charge = await findBiaBankCharge(req.params.biaId, req.params.chargeId);
+      if (!charge) return res.status(404).json({ error: "Cobranca nao encontrada." });
+      const providerResult = await pinbank.getBoletoStatus(buildPinbankChargeQuery(account, charge));
+      const nextStatus = providerStatus(providerResult, charge.status || "pending");
+      const updated = await updateBiaBankCharge(req.params.biaId, String(charge.id), {
+        status: nextStatus,
+        provider_payload: { ...(charge.provider_payload || {}), statusConsulta: providerResult },
+      });
+      res.json({ success: true, charge: updated || { ...charge, status: nextStatus }, providerResult });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/cobrancas/lote", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const localCharges = await getBiaBankCharges(req.params.biaId);
+      const providerResult = await pinbank.listBoletos(buildPinbankChargeQuery(account, null, {
+        dataInicio: req.query.inicio || req.query.dataInicio || null,
+        dataFim: req.query.fim || req.query.dataFim || null,
+      })).catch((error: any) => ({ error: error?.message || String(error) }));
+      res.json({ charges: localCharges, providerResult });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/cobrancas/metricas", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const localCharges = await getBiaBankCharges(req.params.biaId);
+      const providerResult = await pinbank.getChargeMetrics(buildPinbankChargeQuery(account, null, {
+        dataInicio: req.query.inicio || req.query.dataInicio || null,
+        dataFim: req.query.fim || req.query.dataFim || null,
+      })).catch((error: any) => ({ error: error?.message || String(error) }));
+      res.json({ metrics: summarizeBankCharges(localCharges), providerResult });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/saldo", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const result = await pinbank.getBalance(resolvePinbankCodigoCliente(account));
+      res.json({ balance: result });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/extrato", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const result = await pinbank.getStatement(buildPinbankChargeQuery(account, null, {
+        dataInicio: req.query.inicio || req.query.dataInicio || null,
+        dataFim: req.query.fim || req.query.dataFim || null,
+      }));
+      res.json({ statement: result });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:biaId/banco/comprovante/:transactionId", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await getBiaBankAccount(req.params.biaId);
+      const result = await pinbank.getTransactionReceipt(buildPinbankChargeQuery(account, null, {
+        transactionId: req.params.transactionId,
+      }));
+      res.json({ receipt: result });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:biaId/banco/onboarding", async (req: any, res) => {
+    try {
+      const bia = await requireBiaBancoAccess(req, res, req.params.biaId);
+      if (!bia) return;
+      const account = await ensureBiaBankAccount(req.params.biaId);
+      const configStatus = pinbank.getConfigStatus();
+      if (!configStatus.configured) {
+        return res.status(400).json({
+          error: "Configure a integracao PINBANK no ambiente do servidor antes de abrir a conta digital.",
+          configStatus,
+        });
+      }
+      if (!account?.terms_accepted_at) {
+        return res.status(400).json({ error: "Aceite os termos PINBANK antes de abrir a conta." });
+      }
+      const documents = await getBiaBankDocuments(req.params.biaId);
+      const missingDocuments = getBankDocumentMissing(documents);
+      if (missingDocuments.length > 0) {
+        return res.status(400).json({ error: "Envie todos os documentos obrigatorios antes do onboarding.", missingDocuments });
+      }
+      const infoLocal = await storage.getBiaInfoComercial(req.params.biaId).catch((error: any) => {
+        console.warn("[bia-banco] Info comercial local indisponivel:", error?.message || error);
+        return null;
+      });
+      const biaComInfo = {
+        ...bia,
+        ...pickFilledBiaInfoComercialFields(bia ?? {}),
+        ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
+      };
+      const participants = await getMouParticipantsForBia(biaComInfo, req.params.biaId).catch((error: any) => {
+        console.warn("[bia-banco] Participantes do MOU indisponiveis para PINBANK:", error?.message || error);
+        return [];
+      });
+      const { payload, missingFields } = buildPinbankCompanyPayload({
+        bia,
+        biaId: req.params.biaId,
+        info: biaComInfo,
+        participants,
+        account,
+      });
+      if (pinbank.configured && missingFields.length > 0) {
+        return res.status(400).json({
+          error: "Complete os dados obrigatorios antes de abrir a conta PINBANK.",
+          missingFields,
+        });
+      }
+      const providerResult: any = await pinbank.startCompanyOnboarding(payload);
+      const externalId = providerResult?.externalId || providerResult?.id || providerResult?.raw?.Data?.CodigoCliente || null;
+      const providerStatusText = String(providerResult?.status || "");
+      const status = ["open", "rejected", "documents_pending"].includes(providerStatusText) ? providerStatusText : "in_review";
+      let uploadedDocuments: any[] = [];
+      const codigoCliente = Number(providerResult?.raw?.Data?.CodigoCliente || externalId || pinbank.defaultCodigoCliente || 0) || 0;
+      if (pinbank.configured && codigoCliente) {
+        uploadedDocuments = await uploadBiaDocumentsToPinbank(req.params.biaId, codigoCliente, documents);
+      }
+      const onboardingPayload = { ...payload, documents: documents.map((doc: any) => ({ tipo: doc.tipo, fileId: doc.file_id, membroId: doc.membro_id || null })) };
+      let accountResult: any = null;
+      try {
+        const result: any = await db.execute(sql`
+          UPDATE bia_bank_accounts
+          SET status = ${status},
+              external_account_id = ${externalId},
+              onboarding_requested_at = now(),
+              onboarding_payload = ${JSON.stringify(onboardingPayload)}::jsonb,
+              provider_payload = ${JSON.stringify({ ...providerResult, uploadedDocuments })}::jsonb,
+              updated_at = now()
+          WHERE bia_id = ${req.params.biaId}
+          RETURNING *
+        `);
+        accountResult = result.rows?.[0] || null;
+      } catch (error: any) {
+        console.warn("[bia-banco] Onboarding gravado em memoria:", error?.message || error);
+      }
+      if (!accountResult) {
+        accountResult = memoryBankAccount(req.params.biaId, {
+          ...(account || {}),
+          status,
+          external_account_id: externalId,
+          onboarding_requested_at: new Date().toISOString(),
+          onboarding_payload: onboardingPayload,
+          provider_payload: { ...providerResult, uploadedDocuments },
+        });
+      }
+      if (status === "open") {
+        const email = (req.session as any)?.email;
+        if (email) {
+          import("./mailer")
+            .then(({ enviarContaBiaAberta }) => enviarContaBiaAberta({
+              destinatarioEmail: email,
+              destinatarioNome: (req.session as any)?.nome || null,
+              biaNome: bia.nome_bia || "BIA BUILT",
+            }))
+            .catch((error: any) => console.warn("[bia-banco] Email de conta aberta nao enviado:", error?.message || error));
+        }
+        recordUsageEvent(req, "bia_bank_account_open", {
+          path: `/bias/${req.params.biaId}`,
+          label: "Conta da BIA criada com sucesso! Voce ja pode movimentar.",
+          metadata: { biaId: req.params.biaId, provider: "pinbank" },
+        }).catch((error: any) => console.warn("[bia-banco] Alerta de conta aberta nao registrado:", error?.message || error));
+      }
+      res.json({ success: true, account: normalizeBankAccount(accountResult), uploadedDocuments });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -8988,6 +10389,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const finishLogin = (payload: Record<string, any>) => {
         req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
+        recordUsageEvent(req, "login", { path: "/login", label: "Login" }).catch(() => {});
         req.session.save((error) => {
           if (error) {
             console.error("[login] session save error:", error);
@@ -9551,6 +10953,188 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   });
 
   // ========== USER MANAGEMENT ==========
+  app.post("/api/usage-events", async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+      const pathValue = typeof req.body?.path === "string" ? req.body.path.slice(0, 500) : null;
+      const labelValue = typeof req.body?.label === "string" ? req.body.label.slice(0, 200) : null;
+      await recordUsageEvent(req, String(req.body?.event_type || "page_view"), {
+        path: pathValue,
+        label: labelValue,
+        metadata: typeof req.body?.metadata === "object" && req.body.metadata ? req.body.metadata : {},
+      });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/usage-heatmap", async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Apenas administradores podem acessar este dashboard." });
+
+      const days = Math.min(Math.max(parseInt(String(req.query.days || "30"), 10) || 30, 7), 180);
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const allUsers = await storage.getAllUsers().catch(() => []);
+      const safeUsers = allUsers.map(({ password, ...u }) => u);
+
+      const [
+        pageEvents,
+        interesses,
+        tarefas,
+        convites,
+        diretorSolicitacoes,
+        socioSolicitacoes,
+        mouAceites,
+        chamadas,
+        aura,
+      ] = await Promise.all([
+        db.select().from(userUsageEvents).where(sql`${userUsageEvents.created_at} >= ${since}`).catch(() => []),
+        db.select().from(opaInteresses).where(sql`${opaInteresses.criado_em} >= ${since}`).catch(() => []),
+        db.select().from(agendaTarefas).where(sql`${agendaTarefas.criado_em} >= ${since}`).catch(() => []),
+        db.select().from(convitesComunidade).where(sql`${convitesComunidade.criado_em} >= ${since}`).catch(() => []),
+        db.select().from(biaDiretorSolicitacoes).where(sql`${biaDiretorSolicitacoes.criado_em} >= ${since}`).catch(() => []),
+        db.select().from(biaSocioSolicitacoes).where(sql`${biaSocioSolicitacoes.criado_em} >= ${since}`).catch(() => []),
+        db.select().from(biaMouAceites).where(sql`${biaMouAceites.aceito_em} >= ${since}`).catch(() => []),
+        db.select().from(chamadasAlianca).where(sql`${chamadasAlianca.criado_em} >= ${since}`).catch(() => []),
+        db.select().from(auraAvaliacoes).where(sql`${auraAvaliacoes.created_at} >= ${since}`).catch(() => []),
+      ]);
+
+      const moduleInfo: Record<string, { label: string; weight: number }> = {
+        vitrine: { label: "Vitrine", weight: 1 },
+        alliances: { label: "Alliances", weight: 1 },
+        capital: { label: "Capital", weight: 1 },
+        aura: { label: "Aura", weight: 4 },
+        opas: { label: "OPAs", weight: 4 },
+        bias: { label: "BIAs", weight: 4 },
+        agenda: { label: "Agenda", weight: 3 },
+        documentos: { label: "Documentos/MOU", weight: 4 },
+        administracao: { label: "Administração", weight: 1 },
+      };
+      const moduleKeys = Object.keys(moduleInfo);
+      const members = new Map<string, any>();
+
+      function ensureMember(id: string | null | undefined, seed: Record<string, any> = {}) {
+        const key = id ? String(id) : "";
+        if (!key) return null;
+        if (!members.has(key)) {
+          members.set(key, {
+            id: key,
+            user_id: null,
+            nome: seed.nome || seed.email || "Membro sem nome",
+            email: seed.email || null,
+            role: seed.role || null,
+            total: 0,
+            last_activity_at: null,
+            modules: Object.fromEntries(moduleKeys.map((module) => [module, 0])),
+          });
+        }
+        const current = members.get(key);
+        if (seed.nome && (!current.nome || current.nome === "Membro sem nome")) current.nome = seed.nome;
+        if (seed.email && !current.email) current.email = seed.email;
+        if (seed.role && !current.role) current.role = seed.role;
+        if (seed.user_id && !current.user_id) current.user_id = seed.user_id;
+        return current;
+      }
+
+      for (const user of safeUsers as any[]) {
+        const id = user.membro_directus_id || user.id;
+        ensureMember(id, {
+          user_id: user.id,
+          nome: user.nome || user.username,
+          email: user.email,
+          role: user.role,
+        });
+      }
+
+      function touch(id: string | null | undefined, module: string, dateValue: any, points = 1, seed: Record<string, any> = {}) {
+        const member = ensureMember(id, seed);
+        if (!member || !moduleInfo[module]) return;
+        member.modules[module] += points;
+        member.total += points;
+        const date = dateValue ? new Date(dateValue) : new Date();
+        if (!member.last_activity_at || date > new Date(member.last_activity_at)) {
+          member.last_activity_at = date.toISOString();
+        }
+      }
+
+      function moduleFromPath(pathValue: string | null | undefined) {
+        const pathText = String(pathValue || "");
+        if (pathText.includes("aura")) return "aura";
+        if (pathText.includes("built-capital")) return "capital";
+        if (pathText.includes("area-aliancas") || pathText.includes("comunidade") || pathText.includes("land-bank")) return "alliances";
+        if (pathText.includes("opa")) return "opas";
+        if (pathText.includes("bia") || pathText.includes("movimentacao-cotas")) return "bias";
+        if (pathText.includes("agenda")) return "agenda";
+        if (pathText.includes("documentacao") || pathText.includes("api/files")) return "documentos";
+        if (pathText.includes("admin") || pathText.includes("membros")) return "administracao";
+        return "vitrine";
+      }
+
+      for (const event of pageEvents as any[]) {
+        touch(event.membro_id || event.user_id, moduleFromPath(event.path), event.created_at, moduleInfo[moduleFromPath(event.path)].weight, {
+          user_id: event.user_id,
+          nome: event.nome,
+          email: event.email,
+        });
+      }
+      for (const item of interesses as any[]) touch(item.membro_id || item.user_id, "opas", item.criado_em, 8, { nome: item.membro_nome });
+      for (const item of tarefas as any[]) touch(item.membro_id || item.user_id, "agenda", item.criado_em, 5);
+      for (const item of convites as any[]) {
+        touch(item.candidato_membro_id, "alliances", item.criado_em, 6, { nome: item.candidato_nome, email: item.candidato_email });
+        touch(item.invitador_membro_id, "alliances", item.criado_em, 4);
+      }
+      for (const item of diretorSolicitacoes as any[]) {
+        touch(item.diretor_membro_id, "bias", item.criado_em, 5, { nome: item.diretor_nome, email: item.diretor_email });
+        touch(item.solicitante_membro_id, "bias", item.criado_em, 4, { nome: item.solicitante_nome, email: item.solicitante_email });
+        if (item.respondido_em) touch(item.diretor_membro_id, "documentos", item.respondido_em, 5, { nome: item.diretor_nome, email: item.diretor_email });
+      }
+      for (const item of socioSolicitacoes as any[]) {
+        touch(item.socio_membro_id, "bias", item.criado_em, 5, { nome: item.socio_nome, email: item.socio_email });
+        touch(item.solicitante_membro_id, "bias", item.criado_em, 4, { nome: item.solicitante_nome, email: item.solicitante_email });
+        if (item.respondido_em) touch(item.socio_membro_id, "documentos", item.respondido_em, 5, { nome: item.socio_nome, email: item.socio_email });
+      }
+      for (const item of mouAceites as any[]) touch(item.membro_id, "documentos", item.aceito_em, 8);
+      for (const item of chamadas as any[]) {
+        touch(item.criado_por_membro_id, "agenda", item.criado_em, 5, { nome: item.criado_por_nome });
+        const destinatarios = Array.isArray(item.destinatarios) ? item.destinatarios : [];
+        for (const dest of destinatarios) touch(dest?.id, "agenda", item.criado_em, 2, { nome: dest?.nome, email: dest?.email });
+      }
+      for (const item of aura as any[]) {
+        touch(item.avaliador_membro_id, "aura", item.created_at, 8);
+        touch(item.avaliado_membro_id, "aura", item.created_at, 2);
+      }
+
+      const rows = [...members.values()].map((member) => ({
+        ...member,
+        status: member.total >= 40 ? "alta" : member.total >= 15 ? "media" : member.total > 0 ? "baixa" : "sem_uso",
+      })).sort((a, b) => b.total - a.total);
+      const activeRows = rows.filter((row) => row.total > 0);
+      const modules = moduleKeys.map((key) => {
+        const total = rows.reduce((sum, row) => sum + Number(row.modules[key] || 0), 0);
+        const activeMembers = rows.filter((row) => Number(row.modules[key] || 0) > 0).length;
+        return { key, label: moduleInfo[key].label, total, active_members: activeMembers };
+      });
+
+      res.json({
+        period_days: days,
+        generated_at: new Date().toISOString(),
+        summary: {
+          total_members: rows.length,
+          active_members: activeRows.length,
+          inactive_members: rows.length - activeRows.length,
+          total_events: Math.round(rows.reduce((sum, row) => sum + row.total, 0)),
+          high_usage_members: rows.filter((row) => row.status === "alta").length,
+        },
+        modules,
+        members: rows,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/users", async (req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
@@ -10993,10 +12577,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           { palavra: "COMPROMETIMENTO", pistas: ["comprometida", "comprometido", "trabalhadora", "trabalhador", "dedicada", "dedicado", "entrega", "veste a camisa", "vestir a camisa"] },
           { palavra: "ATENCIOSO", pistas: ["atenciosa", "atencioso", "atencao", "cuidadosa", "cuidadoso", "cuida das pessoas"] },
           { palavra: "EMPATIA", pistas: ["empatica", "empatico", "acolhedora", "acolhedor", "pessoas", "relaciona bem"] },
-          { palavra: "LIDERANÃ‡A", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
-          { palavra: "ALIANÃ‡A", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+          { palavra: "LIDERANCA", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
+          { palavra: "PARCEIRO", pistas: ["parceira", "parceiro", "parceria", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+          { palavra: "COMUNICATIVO", pistas: ["comunicadora", "comunicador", "comunicativa", "comunicativo", "boa comunicacao", "bom comunicador", "boa comunicadora", "comunica bem"] },
+          { palavra: "RESOLUTIVO", pistas: ["solucao", "solucoes", "boas solucoes", "resolve", "resolutiva", "resolutivo", "traz solucao", "traz solucoes"] },
+          { palavra: "COMPETENTE", pistas: ["competente", "capaz", "bom profissional", "boa profissional"] },
           { palavra: "RESPONSABILIDADE", pistas: ["responsavel", "responsabilidade", "cumpre", "presta contas"] },
-          { palavra: "EFICIÃŠNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
+          { palavra: "EFICIENTE", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
         ];
         for (const regra of regras) {
           if (regra.pistas.some((pista) => textoNormalizado.includes(normalizeAuraText(pista)))) pushPalavra(palavras, regra.palavra);
@@ -12440,10 +14027,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         { palavra: "COMPROMETIMENTO", pistas: ["comprometida", "comprometido", "trabalhadora", "trabalhador", "dedicada", "dedicado", "entrega", "veste a camisa", "vestir a camisa"] },
         { palavra: "ATENCIOSO", pistas: ["atenciosa", "atencioso", "atencao", "cuidadosa", "cuidadoso"] },
         { palavra: "EMPATIA", pistas: ["empatica", "empatico", "acolhedora", "acolhedor", "pessoas", "relaciona bem"] },
-        { palavra: "LIDERANÃ‡A", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
-        { palavra: "ALIANÃ‡A", pistas: ["parceira", "parceiro", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+        { palavra: "LIDERANCA", pistas: ["lidera", "lideranca", "lider", "coordena", "conduz", "comanda", "mobiliza", "empresarios"] },
+        { palavra: "PARCEIRO", pistas: ["parceira", "parceiro", "parceria", "aliada", "aliado", "colabora", "cooperativa", "coopera"] },
+        { palavra: "COMUNICATIVO", pistas: ["comunicadora", "comunicador", "comunicativa", "comunicativo", "boa comunicacao", "bom comunicador", "boa comunicadora", "comunica bem"] },
+        { palavra: "RESOLUTIVO", pistas: ["solucao", "solucoes", "boas solucoes", "resolve", "resolutiva", "resolutivo", "traz solucao", "traz solucoes"] },
+        { palavra: "COMPETENTE", pistas: ["competente", "capaz", "bom profissional", "boa profissional"] },
         { palavra: "RESPONSABILIDADE", pistas: ["responsavel", "responsabilidade", "cumpre", "presta contas"] },
-        { palavra: "EFICIÃŠNCIA", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
+        { palavra: "EFICIENTE", pistas: ["eficiente", "produtiva", "produtivo", "agil", "rapida", "rapido"] },
       ];
       for (const regra of regras) {
         if (regra.pistas.some((pista) => textoNormalizado.includes(normalizeAuraText(pista)))) {
@@ -12500,6 +14090,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       return res.json({ palavras });
     } catch (err: any) {
       console.error("[aura-ai]", err?.message);
+      const palavras = inferirPalavrasPorTexto();
+      if (palavras.length > 0) return res.json({ palavras });
       return res.status(500).json({ error: "Erro ao analisar texto com IA. Tente novamente." });
     }
   });

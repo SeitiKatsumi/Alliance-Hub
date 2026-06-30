@@ -259,7 +259,7 @@ function relationId(value: unknown): string {
   return String(value);
 }
 
-type AuraBlockedMember = { nome: string; count: number };
+type AuraLowEvaluationMember = { nome: string; count: number };
 
 async function getAuraEvaluationCount(membroId: string): Promise<number> {
   try {
@@ -274,36 +274,36 @@ async function getAuraEvaluationCount(membroId: string): Promise<number> {
   }
 }
 
-async function ensureMinimumAuraEvaluations(
+async function warnLowAuraEvaluations(
   membro: Membro,
-  setBlockedAuraMember: (member: AuraBlockedMember | null) => void,
-): Promise<boolean> {
+  setLowAuraMember: (member: AuraLowEvaluationMember | null) => void,
+): Promise<void> {
   const count = await getAuraEvaluationCount(membro.id);
-  if (count >= 2) return true;
-  setBlockedAuraMember({ nome: getMembroNome(membro) || "Este membro", count });
-  return false;
+  if (count >= 2) return;
+  setLowAuraMember({ nome: getMembroNome(membro) || "Este membro", count });
 }
 
-function AuraRequirementDialog({ blockedMember, onClose }: {
-  blockedMember: AuraBlockedMember | null;
+function AuraLowEvaluationDialog({ member, onClose }: {
+  member: AuraLowEvaluationMember | null;
   onClose: () => void;
 }) {
-  const count = blockedMember?.count ?? 0;
+  const count = member?.count ?? 0;
   const evaluationLabel = count === 1 ? "avaliação" : "avaliações";
   return (
-    <AlertDialog open={!!blockedMember} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <AlertDialog open={!!member} onOpenChange={(open) => { if (!open) onClose(); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-amber-500" />
-            Aura insuficiente
+            Pouca avaliação de Aura
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {blockedMember?.nome} possui {count} {evaluationLabel} de Aura. Para adicionar uma pessoa em uma BIA, ela precisa ter no mínimo 2 avaliações de Aura.
+            {member?.nome} possui {count} {evaluationLabel} de Aura. Isso reduz a base reputacional disponível, mas você pode continuar com a inclusão na BIA.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogAction onClick={onClose}>Entendi</AlertDialogAction>
+          <AlertDialogCancel onClick={onClose}>Voltar</AlertDialogCancel>
+          <AlertDialogAction onClick={onClose}>Continuar</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -730,7 +730,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
   disabledNote?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [blockedAuraMember, setBlockedAuraMember] = useState<AuraBlockedMember | null>(null);
+  const [lowAuraMember, setLowAuraMember] = useState<AuraLowEvaluationMember | null>(null);
   const isEmpty = required && !form[field];
   const options = filterFn ?membros.filter(filterFn) : membros;
   const selectedId = String(form[field] || "");
@@ -802,11 +802,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
                       key={m.id}
                       value={`${memberLabel} ${m.id}`}
                       onSelect={async () => {
-                        const allowed = await ensureMinimumAuraEvaluations(m, setBlockedAuraMember);
-                        if (!allowed) {
-                          setOpen(false);
-                          return;
-                        }
+                        await warnLowAuraEvaluations(m, setLowAuraMember);
                         const nextForm = { ...form, [field]: m.id };
                         if (field === "diretor_alianca" && !form.aliado_built) {
                           nextForm.aliado_built = m.id;
@@ -832,7 +828,7 @@ function MembroSelect({ label, field, form, setForm, membros, icon: Icon, requir
       {disabled && disabledNote && (
         <p className="text-[10px] text-muted-foreground">{disabledNote}</p>
       )}
-      <AuraRequirementDialog blockedMember={blockedAuraMember} onClose={() => setBlockedAuraMember(null)} />
+      <AuraLowEvaluationDialog member={lowAuraMember} onClose={() => setLowAuraMember(null)} />
     </div>
   );
 }
@@ -847,7 +843,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
   note?: string;
   pendingIds?: Set<string>;
 }) {
-  const [blockedAuraMember, setBlockedAuraMember] = useState<AuraBlockedMember | null>(null);
+  const [lowAuraMember, setLowAuraMember] = useState<AuraLowEvaluationMember | null>(null);
   const selectedIds = parseMemberList(form[field] as string[] | string);
   const selectedSet = new Set(selectedIds);
   const oppositeField = field === "socios_multiplicadores"
@@ -866,7 +862,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
     if (!alreadySelected && blockedIds.has(id)) return;
     if (!alreadySelected) {
       const membro = membros.find((item) => item.id === id);
-      if (membro && !(await ensureMinimumAuraEvaluations(membro, setBlockedAuraMember))) return;
+      if (membro) await warnLowAuraEvaluations(membro, setLowAuraMember);
     }
     const next = alreadySelected
       ?selectedIds.filter((current) => current !== id)
@@ -962,7 +958,7 @@ function MultiMembroSelect({ label, field, form, setForm, membros, icon: Icon, n
         </div>
       )}
       {note && <p className="text-[11px] text-muted-foreground leading-relaxed">{note}</p>}
-      <AuraRequirementDialog blockedMember={blockedAuraMember} onClose={() => setBlockedAuraMember(null)} />
+      <AuraLowEvaluationDialog member={lowAuraMember} onClose={() => setLowAuraMember(null)} />
     </div>
   );
 }
@@ -3227,6 +3223,30 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-foreground">
+                      Nº <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_numero}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_numero: e.target.value })}
+                      placeholder="Número"
+                      data-testid="input-ativo-numero"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Complemento <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                      value={infoForm.ativo_complemento}
+                      onChange={e => setInfoForm({ ...infoForm, ativo_complemento: e.target.value })}
+                      placeholder="Bloco, unidade, sala..."
+                      data-testid="input-ativo-complemento"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
                       Bairro <span className="text-destructive">*</span>
                     </label>
                     <input
@@ -3271,30 +3291,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                       onChange={e => setInfoForm({ ...infoForm, ativo_pais: e.target.value })}
                       placeholder="País"
                       data-testid="input-ativo-pais"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Nº <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_numero}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_numero: e.target.value })}
-                      placeholder="Número"
-                      data-testid="input-ativo-numero"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-foreground">
-                      Complemento <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                      value={infoForm.ativo_complemento}
-                      onChange={e => setInfoForm({ ...infoForm, ativo_complemento: e.target.value })}
-                      placeholder="Bloco, unidade, sala..."
-                      data-testid="input-ativo-complemento"
                     />
                   </div>
                   <div className="space-y-1">

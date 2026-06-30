@@ -1583,7 +1583,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       const token = auraDialogConvite?.avaliacaoToken;
       if (!token) throw new Error("Convite de Aura não encontrado.");
       const form = new FormData();
-      const uploadFilename = filename.toLowerCase().endsWith(".oga") ? filename.replace(/\.oga$/i, ".ogg") : filename;
+      const uploadFilename = filename.replace(/\.(oga|opus)$/i, ".ogg");
       form.append("audio", blob, uploadFilename);
       const res = await fetch(`/api/avaliacao-aura/${encodeURIComponent(token)}/transcrever-audio`, {
         method: "POST",
@@ -3311,12 +3311,12 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     <input
                       ref={auraAudioFileInputRef}
                       type="file"
-                      accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/webm,audio/ogg,audio/3gpp,audio/amr,.mp3,.m4a,.aac,.wav,.webm,.ogg,.3gp,.amr"
+                      accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/webm,audio/ogg,audio/opus,audio/3gpp,audio/amr,.mp3,.m4a,.aac,.wav,.webm,.ogg,.oga,.opus,.3gp,.amr"
                       className="hidden"
                       onChange={e => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const isAudio = file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|webm|ogg|3gp|amr)$/i.test(file.name);
+                          const isAudio = file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|webm|ogg|oga|opus|3gp|amr)$/i.test(file.name);
                           if (!isAudio) {
                             toast({
                               title: "Arquivo inválido",

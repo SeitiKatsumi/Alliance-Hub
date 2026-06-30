@@ -660,6 +660,12 @@ function LandBankPanel({
                       <span className="truncate">BIA: {asset.bia_nome}</span>
                     </Badge>
                   )}
+                  {asset.category === "land-bank" && asset.basicInfoAttachment && (
+                    <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700">
+                      <Paperclip className="h-3 w-3" />
+                      Informações básicas
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
                     ativo
                   </Badge>
@@ -1070,6 +1076,55 @@ export default function AreaAliancasPage() {
               </div>
             </div>
 
+            {landBankDialogCategory === "land-bank" && (
+              <div className="space-y-2">
+                <Label>Anexo de informações básicas</Label>
+                <div className="rounded-xl border border-border bg-background p-3">
+                  {landBankForm.basicInfoAttachment ? (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {landBankForm.basicInfoAttachment.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatLandBankFileSize(landBankForm.basicInfoAttachment.size)}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-fit text-muted-foreground hover:text-destructive"
+                        onClick={() => setLandBankForm((current) => ({ ...current, basicInfoAttachment: undefined }))}
+                      >
+                        <X className="mr-1.5 h-4 w-4" />
+                        Remover
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="outline" asChild>
+                      <label className="cursor-pointer">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Enviar arquivo
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp"
+                          className="hidden"
+                          onChange={(e) => handleLandBankBasicInfoAttachment(e.target.files?.[0])}
+                          data-testid="input-landbank-info-basicas"
+                        />
+                      </label>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Qualificação <span className="text-destructive">*</span></Label>
@@ -1150,6 +1205,27 @@ export default function AreaAliancasPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
+                <Label>Nº <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.numero}
+                  onChange={(e) => setLandBankField("numero", e.target.value)}
+                  placeholder="Número"
+                  data-testid="input-landbank-numero"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Complemento <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.complemento}
+                  onChange={(e) => setLandBankField("complemento", e.target.value)}
+                  placeholder="Bloco, unidade, sala..."
+                  data-testid="input-landbank-complemento"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
                 <Label>Bairro <span className="text-destructive">*</span></Label>
                 <Input
                   value={landBankForm.bairro}
@@ -1186,27 +1262,6 @@ export default function AreaAliancasPage() {
                   onChange={(e) => setLandBankField("pais", e.target.value)}
                   placeholder="País"
                   data-testid="input-landbank-pais"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Nº <span className="text-destructive">*</span></Label>
-                <Input
-                  value={landBankForm.numero}
-                  onChange={(e) => setLandBankField("numero", e.target.value)}
-                  placeholder="Número"
-                  data-testid="input-landbank-numero"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Complemento <span className="text-destructive">*</span></Label>
-                <Input
-                  value={landBankForm.complemento}
-                  onChange={(e) => setLandBankField("complemento", e.target.value)}
-                  placeholder="Bloco, unidade, sala..."
-                  data-testid="input-landbank-complemento"
                 />
               </div>
             </div>

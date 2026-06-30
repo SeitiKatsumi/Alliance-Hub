@@ -4,8 +4,11 @@ import {
   ArrowLeft,
   Briefcase,
   CheckCircle2,
+  Download,
+  FileText,
   HandHeart,
   MapPin,
+  Paperclip,
   Pencil,
   Ruler,
 } from "lucide-react";
@@ -46,6 +49,12 @@ interface LandBankAsset {
   category: LandBankCategoryValue | "transformation-bank";
   bia_id?: string;
   bia_nome?: string;
+  basicInfoAttachment?: {
+    name: string;
+    type: string;
+    size: number;
+    dataUrl: string;
+  };
   qualificacao: string;
   area: string;
   valor?: string;
@@ -115,6 +124,12 @@ function formatCurrency(value?: string | null, currency = "BRL"): string | null 
   } catch {
     return `${currency} ${value}`;
   }
+}
+
+function formatFileSize(size?: number): string {
+  if (!size || size <= 0) return "";
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 }
 
 export default function LandBankDetalhePage() {
@@ -279,6 +294,37 @@ export default function LandBankDetalhePage() {
               <InfoRow label="BIA vinculada" value={asset.bia_nome} />
             </CardContent>
           </Card>
+
+          {categoryKey === "land-bank" && asset.basicInfoAttachment && (
+            <Card>
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-center gap-2">
+                  <Paperclip className={`h-4 w-4 ${meta.accent}`} />
+                  <h2 className="font-semibold text-foreground">Informações básicas</h2>
+                </div>
+                <a
+                  href={asset.basicInfoAttachment.dataUrl}
+                  download={asset.basicInfoAttachment.name}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3 transition-colors hover:border-emerald-300 hover:bg-emerald-50"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {asset.basicInfoAttachment.name}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {formatFileSize(asset.basicInfoAttachment.size)}
+                      </span>
+                    </span>
+                  </span>
+                  <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </a>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="space-y-4 p-5">

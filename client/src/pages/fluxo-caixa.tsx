@@ -198,6 +198,21 @@ interface FluxoCaixaHistoricoItem {
   criado_em: string;
 }
 
+interface LancamentoImportadoIA {
+  tipo: "entrada" | "saida";
+  valor: number;
+  data: string;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  status: StatusPagamento;
+  descricao: string;
+  categoria_id: number | null;
+  categoria_nome?: string | null;
+  tipo_cpp_id: number | null;
+  tipo_cpp_nome?: string | null;
+  observacao?: string | null;
+}
+
 type AportePorMembro = {
   membroId: string;
   inlineName: string | null;
@@ -943,6 +958,7 @@ function LancamentoFormFields({
   formDataPagamento, setFormDataPagamento,
   membros, tiposCpp, categorias,
   favorecidos,
+  allocationItems = [],
   selectedBiaId,
   prefix,
   pendingFiles, setPendingFiles,
@@ -981,6 +997,7 @@ function LancamentoFormFields({
   setFormDataPagamento: (v: string) => void;
   membros: Membro[];
   favorecidos?: Membro[];
+  allocationItems?: AportePorMembro[];
   tiposCpp: TipoCPP[];
   categorias: CategoriaItem[];
   selectedBiaId?: string;
@@ -1012,6 +1029,24 @@ function LancamentoFormFields({
 
   function updateRateioItem(id: string, field: "membroId" | "valor", value: string) {
     setRateioItems(rateioItems.map((item) => item.id === id ?{ ...item, [field]: value } : item));
+  }
+
+  function applyAllocationMapToRateio() {
+    const validItems = allocationItems.filter((item) => item.membroId && item.percentual > 0);
+    if (validItems.length === 0) return;
+    const rounded = validItems.map((item) => Number(item.percentual.toFixed(2)));
+    const roundedTotal = rounded.reduce((sum, value) => sum + value, 0);
+    const diff = Number((100 - roundedTotal).toFixed(2));
+    if (Math.abs(diff) > 0 && rounded.length > 0) {
+      rounded[rounded.length - 1] = Number((rounded[rounded.length - 1] + diff).toFixed(2));
+    }
+    setRateioModo("percentual");
+    setRateioItems(validItems.map((item, index) => ({
+      id: `alloc-${item.membroId}-${Date.now()}-${index}`,
+      membroId: item.membroId,
+      valor: rounded[index].toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      anexos: [],
+    })));
   }
 
   const valorTotal = parseBRLToNumber(formValor);
@@ -1164,7 +1199,19 @@ function LancamentoFormFields({
           />
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={applyAllocationMapToRateio}
+                disabled={allocationItems.length === 0}
+                className="h-8 gap-1.5 text-xs"
+                data-testid={`${prefix}-rateio-usar-mapa-alocacao`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Usar mapa de alocação
+              </Button>
               <div className="flex gap-0.5 p-0.5 bg-muted rounded-md shrink-0">
                 <button
                   type="button"
@@ -1195,11 +1242,11 @@ function LancamentoFormFields({
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="w-full min-w-0 space-y-2 overflow-hidden">
               {rateioItems.map((item, idx) => (
-                <div key={item.id} className="space-y-1.5">
-                  <div className="flex gap-2 items-center">
-                    <div className="flex-1 min-w-0">
+                <div key={item.id} className="min-w-0 space-y-1.5">
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_110px_40px_28px] items-center gap-2 max-[520px]:grid-cols-[minmax(0,1fr)_88px]">
+                    <div className="min-w-0">
                       <SearchableMembroSelect
                         membros={favorecidosOptions}
                         value={item.membroId}
@@ -1209,7 +1256,7 @@ function LancamentoFormFields({
                         allowNone
                       />
                     </div>
-                    <div className="w-32 shrink-0 relative">
+                    <div className="relative min-w-0">
                       <Input
                         type="text"
                         inputMode="decimal"
@@ -1220,23 +1267,25 @@ function LancamentoFormFields({
                           rateioModo === "percentual" ?formatInputPercent(e.target.value) : formatInputBRL(e.target.value)
                         )}
                         placeholder="0,00"
-                        className="text-sm h-9 pr-9"
+                        className="h-9 pr-8 text-sm"
                         data-testid={`${prefix}-rateio-valor-${idx}`}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         {rateioModo === "percentual" ?"%" : "R$"}
                       </span>
                     </div>
+                    <div className="max-[520px]:justify-self-start">
                     <InlineFilePickerButton
                       prefix={`${prefix}-rateio-anexo-${idx}`}
                       uploading={uploading}
                       count={(item.anexos || []).length}
                       onFilesSelected={(files) => addRateioItemFiles(item.id, files)}
                     />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeRateioItem(item.id)}
-                      className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                      className="p-1.5 text-muted-foreground transition-colors hover:text-red-500 max-[520px]:justify-self-end"
                       data-testid={`${prefix}-rateio-remove-${idx}`}
                     >
                       <X className="w-4 h-4" />
@@ -1428,6 +1477,10 @@ export default function FluxoCaixaPage({
   const [boletoEmail, setBoletoEmail] = useState("");
   const [boletoDocumento, setBoletoDocumento] = useState("");
   const [boletoUrl, setBoletoUrl] = useState("");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<globalThis.File | null>(null);
+  const [importedLancamentos, setImportedLancamentos] = useState<LancamentoImportadoIA[]>([]);
+  const [importObservation, setImportObservation] = useState<string | null>(null);
 
   const [formTipo, setFormTipo] = useState<"entrada" | "saida">("entrada");
   const [formValor, setFormValor] = useState<string>("");
@@ -2105,6 +2158,79 @@ export default function FluxoCaixaPage({
     return result.fileIds;
   }
 
+  function resetImportDialog() {
+    setImportFile(null);
+    setImportedLancamentos([]);
+    setImportObservation(null);
+  }
+
+  const analyzeImportMutation = useMutation({
+    mutationFn: async () => {
+      if (!importFile) throw new Error("Selecione um arquivo para analisar");
+      const formDataObj = new FormData();
+      formDataObj.append("file", importFile);
+      if (selectedBiaId) formDataObj.append("bia_id", selectedBiaId);
+      const response = await fetch("/api/fluxo-caixa/importar-anexos", {
+        method: "POST",
+        body: formDataObj,
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Erro ao analisar arquivo" }));
+        throw new Error(err.error || "Erro ao analisar arquivo");
+      }
+      return response.json() as Promise<{ lancamentos: LancamentoImportadoIA[]; observacao?: string | null }>;
+    },
+    onSuccess: (data) => {
+      setImportedLancamentos(data.lancamentos || []);
+      setImportObservation(data.observacao || null);
+      toast({
+        title: data.lancamentos?.length ? "Arquivo analisado" : "Nenhum lançamento encontrado",
+        description: data.lancamentos?.length
+          ? `${data.lancamentos.length} lançamento${data.lancamentos.length === 1 ? "" : "s"} identificado${data.lancamentos.length === 1 ? "" : "s"}.`
+          : "Tente enviar uma planilha, boleto, nota ou extrato com valores e datas.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao analisar arquivo", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createImportedMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedBiaId) throw new Error("Selecione uma BIA");
+      if (!importedLancamentos.length) throw new Error("Nenhum lançamento para criar");
+      const fileIds = importFile ? await uploadFiles([importFile]) : [];
+      for (const item of importedLancamentos) {
+        await apiRequest("POST", "/api/fluxo-caixa", {
+          bia: selectedBiaId,
+          tipo: item.tipo,
+          valor: item.valor,
+          data: item.data || item.data_vencimento || new Date().toISOString().split("T")[0],
+          descricao: item.descricao,
+          membro_responsavel: null,
+          status: item.status || null,
+          data_vencimento: item.data_vencimento || null,
+          data_pagamento: item.data_pagamento || null,
+          Categoria: item.categoria_id != null ? [item.categoria_id] : [],
+          tipo_de_cpp: item.tipo_cpp_id != null ? [item.tipo_cpp_id] : [],
+          Favorecido: [],
+          anexos: fileIds,
+        });
+      }
+      return importedLancamentos.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      toast({ title: `${count} lançamento${count === 1 ? "" : "s"} criado${count === 1 ? "" : "s"} com sucesso` });
+      resetImportDialog();
+      setImportDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao criar lançamentos", description: error.message, variant: "destructive" });
+    },
+  });
+
   function normalizeTransferAnexos(anexos?: (AnexoFile | string)[] | null): AnexoFile[] {
     if (!Array.isArray(anexos)) return [];
     return anexos
@@ -2580,7 +2706,7 @@ export default function FluxoCaixaPage({
                   Novo Lançamento
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+              <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Wallet className="w-5 h-5 text-brand-gold" />
@@ -2602,7 +2728,7 @@ export default function FluxoCaixaPage({
                   formStatus={formStatus} setFormStatus={setFormStatus}
                   formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                   formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                  membros={membros} favorecidos={favorecidosDaBia} tiposCpp={tiposCpp}
+                  membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} tiposCpp={tiposCpp}
                   categorias={categorias}
                   selectedBiaId={selectedBiaId}
                   prefix="create"
@@ -3296,30 +3422,46 @@ export default function FluxoCaixaPage({
                   <FileText className="w-5 h-5 text-brand-gold" />
                   Lançamentos — {selectedBia?.nome_bia}
                 </CardTitle>
-                {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterStatus !== "todos" || filterDescricao || filterDataDe !== defaultDataDe || filterDataAte !== defaultDataAte) && (
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
-                    variant="ghost"
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={() => {
-                      setFilterTipo("todos");
-                      setFilterCategoria("todos");
-                      setFilterMembro("todos");
-                      setFilterFavorecido("todos");
-                      setFilterTipoCpp("todos");
-                      setFilterStatus("todos");
-                      setFilterDescricao("");
-                      const _now = new Date();
-                      const _lastDay = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate();
-                      setFilterDataDe(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-01`);
-                      setFilterDataAte(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_lastDay).padStart(2, "0")}`);
+                      resetImportDialog();
+                      setImportDialogOpen(true);
                     }}
-                    className="text-muted-foreground hover:text-foreground gap-1"
-                    data-testid="button-limpar-filtros"
+                    className="gap-1.5"
+                    data-testid="button-importar-lancamentos-ia"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Limpar filtros
+                    <Upload className="w-3.5 h-3.5" />
+                    Lançamentos por IA
                   </Button>
-                )}
+                  {(filterTipo !== "todos" || filterCategoria !== "todos" || filterMembro !== "todos" || filterFavorecido !== "todos" || filterTipoCpp !== "todos" || filterStatus !== "todos" || filterDescricao || filterDataDe !== defaultDataDe || filterDataAte !== defaultDataAte) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFilterTipo("todos");
+                        setFilterCategoria("todos");
+                        setFilterMembro("todos");
+                        setFilterFavorecido("todos");
+                        setFilterTipoCpp("todos");
+                        setFilterStatus("todos");
+                        setFilterDescricao("");
+                        const _now = new Date();
+                        const _lastDay = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate();
+                        setFilterDataDe(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-01`);
+                        setFilterDataAte(`${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_lastDay).padStart(2, "0")}`);
+                      }}
+                      className="text-muted-foreground hover:text-foreground gap-1"
+                      data-testid="button-limpar-filtros"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Limpar filtros
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2 mt-3" data-testid="panel-filtros">
@@ -3709,8 +3851,148 @@ export default function FluxoCaixaPage({
             </CardContent>
           </Card>
 
+          <Dialog open={importDialogOpen} onOpenChange={(open) => {
+            setImportDialogOpen(open);
+            if (!open && !analyzeImportMutation.isPending && !createImportedMutation.isPending) resetImportDialog();
+          }}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-brand-gold" />
+                  Lançamentos automáticos por IA
+                </DialogTitle>
+                <DialogDescription>
+                  Envie um boleto, nota, extrato, PDF, CSV ou Excel. A IA identifica os lançamentos e mostra uma prévia antes de criar.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="rounded-md border border-dashed border-border bg-muted/20 p-4">
+                  <Label className="text-sm font-medium">Arquivo para análise</Label>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      type="file"
+                      accept=".pdf,.csv,.txt,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] || null;
+                        setImportFile(file);
+                        setImportedLancamentos([]);
+                        setImportObservation(null);
+                      }}
+                      disabled={analyzeImportMutation.isPending || createImportedMutation.isPending}
+                      data-testid="input-importar-lancamentos-ia"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => analyzeImportMutation.mutate()}
+                      disabled={!importFile || analyzeImportMutation.isPending || createImportedMutation.isPending}
+                      className="shrink-0 gap-1.5"
+                      data-testid="button-analisar-lancamentos-ia"
+                    >
+                      {analyzeImportMutation.isPending ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <FileText className="w-4 h-4" />
+                      )}
+                      Analisar
+                    </Button>
+                  </div>
+                  {importFile && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Paperclip className="w-3.5 h-3.5" />
+                      <span className="truncate">{importFile.name}</span>
+                      <span>{(importFile.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                  )}
+                </div>
+
+                {importObservation && (
+                  <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                    {importObservation}
+                  </div>
+                )}
+
+                {importedLancamentos.length > 0 && (
+                  <div className="rounded-md border border-border">
+                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                      <div>
+                        <p className="text-sm font-semibold text-brand-navy">Prévia dos lançamentos</p>
+                        <p className="text-xs text-muted-foreground">
+                          {importedLancamentos.length} lançamento{importedLancamentos.length === 1 ? "" : "s"} será{importedLancamentos.length === 1 ? "" : "ão"} criado{importedLancamentos.length === 1 ? "" : "s"} com o arquivo anexado.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="max-h-80 overflow-auto">
+                      <table className="w-full min-w-[760px] text-sm">
+                        <thead className="sticky top-0 bg-background">
+                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                            <th className="px-3 py-2">Tipo</th>
+                            <th className="px-3 py-2 text-right">Valor</th>
+                            <th className="px-3 py-2">Vencimento</th>
+                            <th className="px-3 py-2">Status</th>
+                            <th className="px-3 py-2">Categoria</th>
+                            <th className="px-3 py-2">Descrição</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importedLancamentos.map((item, index) => {
+                            const statusInfo = getStatusConfig(item.status);
+                            return (
+                              <tr key={`${item.descricao}-${index}`} className="border-b border-border/60">
+                                <td className="px-3 py-2">
+                                  <Badge variant="outline" className={item.tipo === "entrada" ? "text-green-700 bg-green-50" : "text-red-700 bg-red-50"}>
+                                    {item.tipo === "entrada" ? "Entrada" : "Saída"}
+                                  </Badge>
+                                </td>
+                                <td className={`px-3 py-2 text-right font-semibold ${item.tipo === "entrada" ? "text-green-600" : "text-red-600"}`}>
+                                  {formatBRL(item.valor)}
+                                </td>
+                                <td className="px-3 py-2">{item.data_vencimento ? formatDate(item.data_vencimento) : formatDate(item.data)}</td>
+                                <td className="px-3 py-2">
+                                  <Badge variant="outline" className={statusInfo.color}>
+                                    {statusInfo.label}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground">{item.categoria_nome || "-"}</td>
+                                <td className="px-3 py-2">{item.descricao}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setImportDialogOpen(false)}
+                  disabled={analyzeImportMutation.isPending || createImportedMutation.isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => createImportedMutation.mutate()}
+                  disabled={!importedLancamentos.length || createImportedMutation.isPending || analyzeImportMutation.isPending}
+                  data-testid="button-criar-lancamentos-ia"
+                >
+                  {createImportedMutation.isPending ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                  )}
+                  Criar lançamentos
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) { setEditingItemId(null); } setEditDialogOpen(open); }}>
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Pencil className="w-5 h-5 text-brand-gold" />
@@ -3732,7 +4014,7 @@ export default function FluxoCaixaPage({
                 formStatus={formStatus} setFormStatus={setFormStatus}
                 formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                 formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
-                membros={membros} favorecidos={favorecidosDaBia} tiposCpp={tiposCpp}
+                membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} tiposCpp={tiposCpp}
                 categorias={categorias}
                 selectedBiaId={selectedBiaId}
                 prefix="edit"

@@ -165,7 +165,8 @@ export default function AvaliarAuraCandidatoPage() {
   const transcreverAudioMutation = useMutation({
     mutationFn: async ({ blob, filename = "percepcao-aura.webm" }: { blob: Blob; filename?: string }) => {
       const form = new FormData();
-      form.append("audio", blob, filename);
+      const uploadFilename = filename.replace(/\.(oga|opus)$/i, ".ogg");
+      form.append("audio", blob, uploadFilename);
       const res = await fetch(`/api/avaliacao-aura/${token}/transcrever-audio`, {
         method: "POST",
         body: form,
@@ -462,7 +463,7 @@ export default function AvaliarAuraCandidatoPage() {
               ref={audioFileInputRef}
               type="file"
               className="hidden"
-              accept="audio/*,video/mp4,video/quicktime"
+              accept="audio/*,audio/ogg,audio/opus,video/mp4,video/quicktime,.mp3,.m4a,.aac,.wav,.webm,.ogg,.oga,.opus,.3gp,.amr"
               onChange={event => {
                 const file = event.target.files?.[0];
                 event.target.value = "";

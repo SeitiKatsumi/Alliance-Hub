@@ -1503,7 +1503,7 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = [
-      ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif",
+      ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".csv", ".txt",
       ".doc", ".docx", ".xls", ".xlsx", ".heic", ".heif",
       ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
       ".zip", ".rar", ".7z",
@@ -1512,7 +1512,7 @@ const upload = multer({
     const allowedMime = [
       "image/jpeg", "image/png", "image/webp", "image/gif",
       "image/heic", "image/heif",
-      "application/pdf",
+      "application/pdf", "text/csv", "text/plain", "application/csv",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.ms-excel",
@@ -1539,7 +1539,6 @@ const auraAudioUpload = multer({
 function auraAudioMime(originalName?: string, mimeType?: string) {
   const ext = path.extname(originalName || "").toLowerCase();
   const mime = String(mimeType || "").toLowerCase();
-  if (mime.startsWith("audio/")) return mimeType || "audio/webm";
   if (ext === ".ogg" || ext === ".oga" || ext === ".opus") return "audio/ogg";
   if (ext === ".mp3") return "audio/mpeg";
   if (ext === ".m4a") return "audio/mp4";
@@ -1548,7 +1547,14 @@ function auraAudioMime(originalName?: string, mimeType?: string) {
   if (ext === ".webm") return "audio/webm";
   if (ext === ".3gp") return "audio/3gpp";
   if (ext === ".amr") return "audio/amr";
+  if (mime.startsWith("audio/")) return mimeType || "audio/webm";
   return "audio/webm";
+}
+
+function auraAudioFilename(originalName?: string) {
+  const ext = path.extname(originalName || "").toLowerCase() || ".webm";
+  const normalizedExt = ext === ".oga" || ext === ".opus" ? ".ogg" : ext;
+  return `percepcao-aura${normalizedExt}`;
 }
 
 async function grantCollectionPermissions(collection: string) {
@@ -6665,62 +6671,6 @@ export async function registerRoutes(
     return data;
   }
 
-  const BIA_MEMBER_AURA_FIELDS: Array<{ field: string; label: string; multiple?: boolean }> = [
-    { field: "aliado_built", label: "Aliado BUILT" },
-    { field: "diretor_alianca", label: "Diretor de Aliança" },
-    { field: "diretor_nucleo_tecnico", label: "Diretor Núcleo Técnico" },
-    { field: "diretor_execucao", label: "Diretor Núcleo de Obra" },
-    { field: "diretor_comercial", label: "Diretor Núcleo Comercial" },
-    { field: "diretor_capital", label: "Diretor Núcleo de Capital" },
-    { field: "socios_multiplicadores", label: "Sócios Multiplicadores", multiple: true },
-    { field: "socios_guardioes", label: "Sócios Guardiões", multiple: true },
-    { field: "terceiros", label: "Terceiros", multiple: true },
-  ];
-
-  async function getAuraEvaluationCountForBia(membroId: string): Promise<number> {
-    const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
-    const avaliadores = new Set(avaliacoes.map((av: any) => av.avaliador_membro_id).filter(Boolean));
-    return avaliadores.size || avaliacoes.length;
-  }
-
-  async function validateBiaMinimumAura(body: Record<string, any>, currentBia?: any | null, ignoredFields = new Set<string>()) {
-    const candidates: Array<{ id: string; label: string }> = [];
-    for (const config of BIA_MEMBER_AURA_FIELDS) {
-      if (ignoredFields.has(config.field) || !Object.prototype.hasOwnProperty.call(body, config.field)) continue;
-      if (config.multiple) {
-        const requestedIds = parseBiaMemberList(body[config.field]);
-        const currentIds = currentBia ? new Set(parseBiaMemberList(currentBia[config.field])) : new Set<string>();
-        for (const id of requestedIds) {
-          if (!currentIds.has(id)) candidates.push({ id, label: config.label });
-        }
-        continue;
-      }
-      const requestedId = body[config.field] ? String(body[config.field]) : "";
-      if (!requestedId) continue;
-      const currentId = currentBia ? directusRelationId(currentBia[config.field]) : null;
-      if (requestedId !== currentId) candidates.push({ id: requestedId, label: config.label });
-    }
-
-    const seen = new Set<string>();
-    for (const candidate of candidates) {
-      if (seen.has(candidate.id)) continue;
-      seen.add(candidate.id);
-      const count = await getAuraEvaluationCountForBia(candidate.id);
-      if (count < 2) {
-        const membro = await getMembroResumo(candidate.id).catch(() => null);
-        return {
-          ok: false,
-          membroId: candidate.id,
-          membroNome: membro?.nome || "Este membro",
-          count,
-          fieldLabel: candidate.label,
-        };
-      }
-    }
-
-    return { ok: true };
-  }
-
   const BIA_DIRETOR_DIRECT_FIELDS = [
     "diretor_alianca",
     "diretor_nucleo_tecnico",
@@ -6808,14 +6758,6 @@ export async function registerRoutes(
           return res.status(400).json({ error: "NÃ£o foi possÃ­vel identificar o Aliado BUILT da sua comunidade." });
         }
         if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
-      }
-      const auraValidation = await validateBiaMinimumAura(createBody, null);
-      if (!auraValidation.ok) {
-        return res.status(400).json({
-          error: `${auraValidation.membroNome} possui ${auraValidation.count} avaliação(ões) de Aura. Para adicionar uma pessoa em uma BIA, ela precisa ter no mínimo 2 avaliações de Aura.`,
-          code: "BIA_MIN_AURA_REQUIRED",
-          ...auraValidation,
-        });
       }
       const createPayload = prepareBiaPayload(createBody);
       createPayload.codigo_publico = await createUniqueBiaPublicCode();
@@ -6951,16 +6893,6 @@ export async function registerRoutes(
         } else {
           delete (payload as any).aliado_built;
         }
-      }
-      const ignoredAuraFields = new Set<string>();
-      if (!isSuperAdminRole) ignoredAuraFields.add("aliado_built");
-      const auraValidation = await validateBiaMinimumAura(req.body, currentBia, ignoredAuraFields);
-      if (!auraValidation.ok) {
-        return res.status(400).json({
-          error: `${auraValidation.membroNome} possui ${auraValidation.count} avaliação(ões) de Aura. Para adicionar uma pessoa em uma BIA, ela precisa ter no mínimo 2 avaliações de Aura.`,
-          code: "BIA_MIN_AURA_REQUIRED",
-          ...auraValidation,
-        });
       }
       let diretorSolicitacoes: any[] = [];
       let socioSolicitacoes: any[] = [];
@@ -8757,6 +8689,156 @@ export async function registerRoutes(
       res.json(result.rows || []);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/fluxo-caixa/importar-anexos", upload.single("file"), async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
+
+      const ext = path.extname(file.originalname || "").toLowerCase().replace(".", "");
+      const mime = String(file.mimetype || "").toLowerCase();
+      const isImageFile = mime.startsWith("image/") && ["png", "jpg", "jpeg", "webp"].includes(ext);
+      let textContent = "";
+
+      if (isImageFile) {
+        textContent = `Arquivo de imagem: ${file.originalname}. Leia visualmente o comprovante/anexo e extraia os lançamentos financeiros visíveis.`;
+      } else if (["xlsx", "xls"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel")) {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(file.buffer, { type: "buffer" });
+        const lines: string[] = [];
+        for (const sheetName of wb.SheetNames) {
+          const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
+          lines.push(`[Planilha: ${sheetName}]\n${csv}`);
+        }
+        textContent = lines.join("\n\n");
+      } else if (ext === "pdf" || mime.includes("pdf")) {
+        try {
+          const { PDFParse } = await import("pdf-parse");
+          const parser = new PDFParse({ data: file.buffer });
+          const result = await parser.getText();
+          textContent = result.text;
+        } catch (pdfErr: any) {
+          console.error("[fluxo-importar-anexos] pdf error:", pdfErr?.message || pdfErr);
+          return res.status(422).json({ error: "Não foi possível ler o PDF. Tente enviar Excel, CSV ou TXT." });
+        }
+      } else {
+        textContent = file.buffer.toString("utf-8");
+      }
+
+      if (!textContent.trim()) {
+        return res.status(422).json({ error: "Não foi possível extrair texto do arquivo." });
+      }
+      if (textContent.length > 18000) textContent = textContent.slice(0, 18000) + "\n[... truncado ...]";
+
+      const [categoriasRaw, tiposCppRaw] = await Promise.all([
+        directusFetch("Categorias").catch(() => []),
+        directusFetch("Tipos_CPP").catch(() => []),
+      ]);
+      const categoriaOptions = (categoriasRaw || [])
+        .map((c: any) => ({ id: c.id, nome: c.Nome_da_categoria, tipo: c.Tipo_de_categoria || null }))
+        .filter((c: any) => c.id && c.nome)
+        .slice(0, 140);
+      const tipoCppOptions = (tiposCppRaw || [])
+        .map((c: any) => ({ id: c.id, nome: c.Nome }))
+        .filter((c: any) => c.id && c.nome)
+        .slice(0, 80);
+
+      const today = new Date().toISOString().split("T")[0];
+      const prompt = `Você é um assistente financeiro da BUILT Alliances.
+Analise o arquivo e extraia lançamentos financeiros para o fluxo de caixa de uma BIA.
+Retorne SOMENTE JSON válido, sem markdown, neste formato:
+{"lancamentos":[{"tipo":"entrada|saida","valor":123.45,"data":"YYYY-MM-DD","data_vencimento":"YYYY-MM-DD|null","data_pagamento":"YYYY-MM-DD|null","status":"pendente|agendado|pago|parcial|vencido|cancelado","descricao":"texto curto","categoria_id":123|null,"categoria_nome":"texto|null","tipo_cpp_id":123|null,"tipo_cpp_nome":"texto|null","observacao":"texto curto|null"}],"observacao":"texto curto"}
+
+Regras:
+- Crie um lançamento para cada linha, parcela, nota, boleto, recibo ou item financeiro claro.
+- Valor sempre positivo, com até 2 casas decimais. Use tipo "saida" para despesa/pagamento/custo e "entrada" para receita/aporte/reembolso recebido.
+- Se o documento tiver valor negativo, converta para valor positivo e ajuste o tipo.
+- "data" deve ser a data do lançamento ou emissão; se não existir, use "${today}".
+- "data_vencimento" é a data de vencimento; se não existir, null.
+- "data_pagamento" só deve existir quando o arquivo indicar pagamento realizado.
+- Se já está pago/quitado/baixado/realizado, status "pago"; se vencimento é futuro e não pago, "pendente" ou "agendado"; se vencimento anterior a ${today} e não pago, "vencido".
+- Use categoria_id/tipo_cpp_id somente quando houver correspondência clara nas listas abaixo; caso contrário null.
+- Limite máximo: 80 lançamentos.
+
+Categorias disponíveis:
+${JSON.stringify(categoriaOptions)}
+
+Tipos CPP disponíveis:
+${JSON.stringify(tipoCppOptions)}
+
+ARQUIVO:
+${textContent}`;
+
+      const userContent: any = isImageFile
+        ? [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+              },
+            },
+          ]
+        : prompt;
+
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: userContent }],
+        temperature: 0,
+        max_tokens: 6000,
+      });
+
+      const raw = (response.choices[0]?.message?.content || "").trim();
+      const jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+      let parsed: any;
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch {
+        throw new Error("Não foi possível interpretar a resposta da IA. Tente com um arquivo menor ou mais estruturado.");
+      }
+
+      const validStatuses = new Set(["pendente", "agendado", "pago", "parcial", "vencido", "cancelado"]);
+      const validCategoryIds = new Set(categoriaOptions.map((c: any) => String(c.id)));
+      const validTipoCppIds = new Set(tipoCppOptions.map((c: any) => String(c.id)));
+      const lancamentos = (Array.isArray(parsed?.lancamentos) ? parsed.lancamentos : [])
+        .slice(0, 80)
+        .map((item: any) => {
+          const rawValue = Number(item.valor || 0);
+          const tipo = item.tipo === "entrada" || item.tipo === "saida"
+            ? item.tipo
+            : rawValue < 0 ? "saida" : "entrada";
+          const categoriaId = item.categoria_id != null && validCategoryIds.has(String(item.categoria_id)) ? item.categoria_id : null;
+          const tipoCppId = item.tipo_cpp_id != null && validTipoCppIds.has(String(item.tipo_cpp_id)) ? item.tipo_cpp_id : null;
+          const status = validStatuses.has(String(item.status || "")) ? String(item.status) : "pendente";
+          return {
+            tipo,
+            valor: Math.abs(Number(rawValue.toFixed ? rawValue.toFixed(2) : rawValue) || 0),
+            data: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data || "")) ? item.data : today,
+            data_vencimento: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_vencimento || "")) ? item.data_vencimento : null,
+            data_pagamento: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_pagamento || "")) ? item.data_pagamento : null,
+            status,
+            descricao: String(item.descricao || "Lançamento importado por IA").slice(0, 180),
+            categoria_id: categoriaId,
+            categoria_nome: item.categoria_nome || null,
+            tipo_cpp_id: tipoCppId,
+            tipo_cpp_nome: item.tipo_cpp_nome || null,
+            observacao: item.observacao ? String(item.observacao).slice(0, 180) : null,
+          };
+        })
+        .filter((item: any) => item.valor > 0);
+
+      res.json({
+        success: true,
+        arquivo: file.originalname,
+        lancamentos,
+        observacao: parsed?.observacao || null,
+      });
+    } catch (error: any) {
+      console.error("[fluxo-importar-anexos]", error.message);
+      res.status(500).json({ error: "Erro ao analisar arquivo: " + error.message });
     }
   });
 
@@ -12714,8 +12796,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const file = req.file;
       if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
       const { toFile } = await import("openai");
-      const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
-      const audioFile = await toFile(file.buffer, `percepcao-aura${ext === ".oga" ? ".ogg" : ext}`, { type: auraAudioMime(file.originalname, file.mimetype) });
+      const audioFile = await toFile(file.buffer, auraAudioFilename(file.originalname), { type: auraAudioMime(file.originalname, file.mimetype) });
       const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "gpt-4o-mini-transcribe",
@@ -13885,6 +13966,22 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       }
       const avaliacoes = await storage.getAuraAvaliacoesByAvaliado(membroId);
       if (avaliacoes.length === 0) {
+        const fallbackBase = process.env.AURA_SCORE_FALLBACK_URL || "https://app.builtalliances.com";
+        const requestHost = String(req.headers.host || "").toLowerCase();
+        const fallbackHost = new URL(fallbackBase).host.toLowerCase();
+        if (fallbackHost && fallbackHost !== requestHost && !requestHost.includes("app.builtalliances.com")) {
+          try {
+            const fallbackResponse = await fetch(`${fallbackBase.replace(/\/$/, "")}/api/aura/score/${encodeURIComponent(membroId)}`);
+            if (fallbackResponse.ok) {
+              const fallbackScore = await fallbackResponse.json();
+              if (Number(fallbackScore?.n || 0) > 0) {
+                return res.json({ ...fallbackScore, fonte: "published_fallback" });
+              }
+            }
+          } catch (fallbackError: any) {
+            console.warn("[aura-score-fallback]", fallbackError?.message || fallbackError);
+          }
+        }
         return res.json({
           score: null,
           T: null,
@@ -14190,8 +14287,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
     try {
       const { toFile } = await import("openai");
-      const ext = path.extname(file.originalname || "").toLowerCase() || ".webm";
-      const audioFile = await toFile(file.buffer, `percepcao-aura${ext === ".oga" ? ".ogg" : ext}`, { type: auraAudioMime(file.originalname, file.mimetype) });
+      const audioFile = await toFile(file.buffer, auraAudioFilename(file.originalname), { type: auraAudioMime(file.originalname, file.mimetype) });
       const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "gpt-4o-mini-transcribe",

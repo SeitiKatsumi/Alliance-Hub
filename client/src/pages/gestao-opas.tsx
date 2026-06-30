@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { OpaFormDialog } from "@/pages/oportunidades";
+import { getMembroUrl, getOpaUrl } from "@/lib/public-refs";
 
 interface Opa {
   id: string;
@@ -39,6 +40,7 @@ interface Opa {
   nucleo_alianca?: string | null;
   perfil_aliado?: string | null;
   status?: string | null;
+  date_created?: string | null;
   user_created?: string | { id?: string } | null;
   criado_por_user_id?: string | null;
   criado_por_membro_id?: string | null;
@@ -46,6 +48,7 @@ interface Opa {
 
 interface Bia {
   id: string;
+  codigo_publico?: string | null;
   nome_bia?: string | null;
   aliado_built?: string | { id?: string } | null;
 }
@@ -232,7 +235,7 @@ function KanbanClientCard({
             variant="outline"
             size="sm"
             className="h-8 w-full"
-            onClick={() => navigate(`/membro/${interesse.membro_id}`)}
+            onClick={() => navigate(getMembroUrl({ id: interesse.membro_id }))}
             data-testid={`btn-abrir-membro-${interesse.id}`}
           >
             Abrir perfil
@@ -446,7 +449,7 @@ export default function GestaoOpasPage() {
                       Editar OPA
                     </Button>
                   )}
-                  <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/opas/${selectedOpa.id}`)}>
+                  <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => navigate(getOpaUrl(selectedOpa, selectedBia, opas))}>
                     Abrir OPA
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Button>

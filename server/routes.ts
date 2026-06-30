@@ -1139,6 +1139,53 @@ async function ensureLandBankAssetsTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_land_bank_assets_created_at ON land_bank_assets (created_at DESC)`);
 }
 
+async function ensureLandBankAssetsDirectusCollection() {
+  const COL = "land_bank_assets";
+  try {
+    const check = await fetch(`${DIRECTUS_URL}/collections/${COL}`, {
+      headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!check.ok) {
+      const colRes = await fetch(`${DIRECTUS_URL}/collections`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${DIRECTUS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collection: COL,
+          meta: { singleton: false, icon: "map", note: "Ativos do Land Bank / Banco de Ativos BUILT" },
+          fields: [
+            { field: "id", type: "uuid", meta: { hidden: true, readonly: true, interface: "input", special: ["uuid"] }, schema: { is_primary_key: true, has_auto_increment: false } },
+            { field: "local_id", type: "string", meta: { interface: "input", label: "ID local" }, schema: { is_nullable: false, is_unique: true } },
+            { field: "category", type: "string", meta: { interface: "select-dropdown", label: "Categoria" }, schema: { is_nullable: false } },
+            { field: "bia_id", type: "string", meta: { interface: "input", label: "BIA ID" }, schema: { is_nullable: true } },
+            { field: "bia_nome", type: "string", meta: { interface: "input", label: "BIA vinculada" }, schema: { is_nullable: true } },
+            { field: "data", type: "json", meta: { interface: "input-code", label: "Dados do ativo" }, schema: { is_nullable: true } },
+            { field: "created_by_membro", type: "string", meta: { interface: "input", label: "Membro criador" }, schema: { is_nullable: true } },
+            { field: "date_created", type: "timestamp", meta: { interface: "datetime", readonly: true, special: ["date-created"] }, schema: { is_nullable: true } },
+            { field: "date_updated", type: "timestamp", meta: { interface: "datetime", readonly: true, special: ["date-updated"] }, schema: { is_nullable: true } },
+          ],
+        }),
+      });
+      if (!colRes.ok) {
+        console.warn("[land-bank-directus] create collection failed:", await colRes.text());
+        return;
+      }
+    } else {
+      const fields = [
+        { field: "local_id", type: "string", meta: { interface: "input", label: "ID local" }, schema: { is_nullable: false, is_unique: true } },
+        { field: "category", type: "string", meta: { interface: "select-dropdown", label: "Categoria" }, schema: { is_nullable: false } },
+        { field: "bia_id", type: "string", meta: { interface: "input", label: "BIA ID" }, schema: { is_nullable: true } },
+        { field: "bia_nome", type: "string", meta: { interface: "input", label: "BIA vinculada" }, schema: { is_nullable: true } },
+        { field: "data", type: "json", meta: { interface: "input-code", label: "Dados do ativo" }, schema: { is_nullable: true } },
+        { field: "created_by_membro", type: "string", meta: { interface: "input", label: "Membro criador" }, schema: { is_nullable: true } },
+      ];
+      for (const field of fields) await directusFieldPost(COL, field).catch(() => ({ ok: false }));
+    }
+    await grantCollectionPermissions(COL).catch(() => {});
+  } catch (err: any) {
+    console.warn("[land-bank-directus] Collection not synced:", err?.message || err);
+  }
+}
+
 async function ensureMembroComunidadeMaeTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS membro_comunidade_mae (
@@ -2226,6 +2273,7 @@ export async function registerRoutes(
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
   ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
   ensureLandBankAssetsTable().catch((err: any) => console.warn("[land-bank] Tabela nao sincronizada:", err?.message || err));
+  ensureLandBankAssetsDirectusCollection().catch((err: any) => console.warn("[land-bank-directus] Colecao nao sincronizada:", err?.message || err));
   ensureMembroComunidadeMaeTable().catch((err: any) => console.warn("[membro-comunidade-mae] Tabela nao sincronizada:", err?.message || err));
   db.execute(sql`
     CREATE TABLE IF NOT EXISTS user_usage_events (
@@ -3904,7 +3952,10 @@ export async function registerRoutes(
   }
 
   function buildBiaMouRodapeTexto(bia: any, biaId: string) {
-    const biaNome = String(bia?.nome_bia || "selecionada").trim();
+    const biaNome = String(bia?.nome_bia || "selecionada")
+      .replace(/\s+/g, " ")
+      .replace(/^BIA\s+/i, "")
+      .trim();
     const codigoCurto = String(bia?.codigo_publico || biaId).trim();
     const biaLabel = [biaNome, codigoCurto].filter(Boolean).join(" / ");
     return `Esta página integra o MoU Padrão BUILT vinculado à BIA ${biaLabel} e deve ser interpretada em conjunto com o documento completo, seus anexos, registros formais, deliberações internas e instrumentos jurídicos específicos da respectiva Aliança.`;
@@ -5097,6 +5148,24 @@ export async function registerRoutes(
       const widths = font === "F2" ? helveticaBoldWidths : helveticaWidths;
       return Array.from(value).reduce((total, char) => total + (widths[char] ?? 556), 0) * size / 1000;
     };
+    const wrapPdfLineByWidth = (line: string, maxWidth: number, size = 10, font = "F1"): string[] => {
+      const clean = normalizePdfText(line).replace(/\s+/g, " ").trim();
+      if (!clean) return [""];
+      const words = clean.split(" ");
+      const lines: string[] = [];
+      let current = "";
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        if (current && estimateTextWidth(candidate, size, font) > maxWidth) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = candidate;
+        }
+      }
+      if (current) lines.push(current);
+      return lines;
+    };
     type PdfInlineRun = { text: string; bold: boolean };
     const parsePdfInlineRuns = (value: string): PdfInlineRun[] => {
       const normalized = normalizePdfText(value).replace(/\s+/g, " ").trim();
@@ -5237,9 +5306,10 @@ export async function registerRoutes(
         if (footerCertifiedImage) {
           ops.push(`q ${footerSealSize} 0 0 ${footerSealSize} 144 ${footerSealY} cm /CertifiedSeal Do Q`);
         }
-        const footerLines = wrapPdfLine(options.footerLabel, 88).slice(0, 3);
+        const footerFontSize = 6.7;
+        const footerLines = wrapPdfLineByWidth(options.footerLabel, 318, footerFontSize, "F1").slice(0, 4);
         footerLines.forEach((lineText, index) => {
-          text(lineText, 210, 68 - index * 11, 7.1, "F1", navy);
+          text(lineText, 210, 72 - index * 9, footerFontSize, "F1", navy);
         });
       }
       y = 730;
@@ -9928,24 +9998,76 @@ ${textContent}`;
     const data = row.data && typeof row.data === "object" ? row.data : {};
     return {
       ...data,
-      id: row.id,
+      id: row.local_id || row.id,
       category: row.category,
       bia_id: row.bia_id || data.bia_id || "",
       bia_nome: row.bia_nome || data.bia_nome || "",
-      createdAt: row.created_at ? new Date(row.created_at).toISOString() : data.createdAt,
-      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : data.updatedAt,
+      createdAt: row.created_at || row.date_created ? new Date(row.created_at || row.date_created).toISOString() : data.createdAt,
+      updatedAt: row.updated_at || row.date_updated ? new Date(row.updated_at || row.date_updated).toISOString() : data.updatedAt,
       created_by: row.created_by || null,
       created_by_membro: row.created_by_membro || null,
+      directus_id: row.local_id ? row.id : row.directus_id || null,
     };
+  }
+
+  async function fetchLandBankAssetsFromDirectus(category = "") {
+    try {
+      const params = `${category ? `filter[category][_eq]=${encodeURIComponent(category)}&` : ""}fields=*&sort=-date_created`;
+      return (await directusFetchScoped("land_bank_assets", params)).map(normalizeLandBankAssetRow);
+    } catch (error: any) {
+      console.warn("[land-bank-directus] read skipped:", error?.message || error);
+      return [];
+    }
+  }
+
+  async function findDirectusLandBankByLocalId(localId: string) {
+    const items = await directusFetchScoped(
+      "land_bank_assets",
+      `filter[local_id][_eq]=${encodeURIComponent(localId)}&limit=1&fields=*`
+    ).catch(() => []);
+    return items[0] || null;
+  }
+
+  async function upsertLandBankAssetToDirectus(asset: any, req: Request) {
+    const localId = asset.id || asset.local_id;
+    if (!localId) return null;
+    const payload = {
+      local_id: localId,
+      category: asset.category || "land-bank",
+      bia_id: asset.bia_id || null,
+      bia_nome: asset.bia_nome || null,
+      data: asset,
+      created_by_membro: (req.session as any).membroId || asset.created_by_membro || null,
+    };
+    try {
+      const existing = await findDirectusLandBankByLocalId(localId);
+      if (existing?.id) return await directusUpdate("land_bank_assets", existing.id, payload);
+      return await directusCreate("land_bank_assets", payload);
+    } catch (error: any) {
+      console.warn("[land-bank-directus] save skipped:", error?.message || error);
+      return null;
+    }
+  }
+
+  async function deleteLandBankAssetFromDirectus(localId: string) {
+    try {
+      const existing = await findDirectusLandBankByLocalId(localId);
+      if (existing?.id) await directusDelete("land_bank_assets", existing.id);
+    } catch (error: any) {
+      console.warn("[land-bank-directus] delete skipped:", error?.message || error);
+    }
   }
 
   app.get("/api/land-bank-assets", async (req, res) => {
     try {
       const category = typeof req.query.category === "string" ? req.query.category : "";
-      const result = category
+      const localResult = category
         ? await db.execute(sql`SELECT * FROM land_bank_assets WHERE category = ${category} ORDER BY created_at DESC`)
         : await db.execute(sql`SELECT * FROM land_bank_assets ORDER BY created_at DESC`);
-      res.json((result.rows || []).map(normalizeLandBankAssetRow));
+      const byId = new Map<string, any>();
+      (localResult.rows || []).map(normalizeLandBankAssetRow).forEach((asset: any) => byId.set(asset.id, asset));
+      (await fetchLandBankAssetsFromDirectus(category)).forEach((asset: any) => byId.set(asset.id, asset));
+      res.json(Array.from(byId.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -9955,8 +10077,10 @@ ${textContent}`;
     try {
       const result = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
       const row = result.rows?.[0];
-      if (!row) return res.status(404).json({ error: "Ativo não encontrado" });
-      res.json(normalizeLandBankAssetRow(row));
+      if (row) return res.json(normalizeLandBankAssetRow(row));
+      const directusRow = await findDirectusLandBankByLocalId(req.params.id);
+      if (!directusRow) return res.status(404).json({ error: "Ativo não encontrado" });
+      res.json(normalizeLandBankAssetRow(directusRow));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -9993,6 +10117,7 @@ ${textContent}`;
           data = EXCLUDED.data,
           updated_at = now()
       `);
+      await upsertLandBankAssetToDirectus(data, req);
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -10022,6 +10147,7 @@ ${textContent}`;
             updated_at = now()
         WHERE id = ${req.params.id}
       `);
+      await upsertLandBankAssetToDirectus(data, req);
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -10032,6 +10158,7 @@ ${textContent}`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       await db.execute(sql`DELETE FROM land_bank_assets WHERE id = ${req.params.id}`);
+      await deleteLandBankAssetFromDirectus(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

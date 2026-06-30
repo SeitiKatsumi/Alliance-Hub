@@ -28,6 +28,7 @@ import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura } from "@/lib/aura-access";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { PhoneInput } from "@/components/phone-input";
+import { getVitrineOpaUrl } from "@/lib/public-refs";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -604,6 +605,7 @@ interface AnuncioVitrine {
 
 interface OportunidadeVitrine {
   id: string;
+  bia_id?: string | null;
   nome_oportunidade: string | null;
   tipo: string | null;
   valor_origem_opa: string | number | null;
@@ -947,7 +949,6 @@ export default function VitrinePage() {
       const data = await r.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!membroId && canUseAuraRegistration,
   });
 
   const auraLinkedMemberIds = useMemo(
@@ -1424,7 +1425,15 @@ export default function VitrinePage() {
         </div>
         <HorizontalCarousel testId="carousel-opas-destaque">
           {opasDestaque.length > 0 ? opasDestaque.map(opa => (
-            <OpaDestaqueCard key={opa.id} opa={opa} onOpen={() => navigate(`/vitrine/opas/${opa.id}`)} />
+            <OpaDestaqueCard
+              key={opa.id}
+              opa={opa}
+              onOpen={() => navigate(getVitrineOpaUrl(
+                opa,
+                opa.bia_id ? minhasBias.find((bia) => bia.id === opa.bia_id) : undefined,
+                opas,
+              ))}
+            />
           )) : (
             <div className="w-full rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               Nenhuma OPA em destaque no momento.

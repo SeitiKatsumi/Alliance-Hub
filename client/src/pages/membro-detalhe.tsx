@@ -11,6 +11,7 @@ import { AuraScore, getFaixaNome } from "@/components/aura-score";
 import { formatSegmentosDisplay, getNucleosForTipos, getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { RedeBadgeButton, getRedesBadges } from "@/components/rede-badge-viewer";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
+import { getMembroUrl, resolveMembroByRef } from "@/lib/public-refs";
 
 interface MembroDetalhe {
   id: string;
@@ -139,33 +140,34 @@ function getBiasCount(c: Comunidade): number {
 export default function MembroDetalhePage() {
   const { id } = useParams<{ id: string }>();
 
-  const { data: membro, isLoading } = useQuery<MembroDetalhe>({
-    queryKey: ["/api/membros", id],
-    queryFn: () => fetch(`/api/membros/${id}`).then(r => r.json()),
+  const { data: membros = [], isLoading: loadingMembros } = useQuery<MembroDetalhe[]>({
+    queryKey: ["/api/membros"],
     enabled: !!id,
   });
+  const membro = resolveMembroByRef(membros, id);
+  const resolvedMembroId = membro?.id || null;
 
   const { data: comunidades = [] } = useQuery<Comunidade[]>({
-    queryKey: ["/api/comunidades", { membro_id: id }],
-    queryFn: () => fetch(`/api/comunidades?membro_id=${id}`).then(r => r.json()),
-    enabled: !!id,
+    queryKey: ["/api/comunidades", { membro_id: resolvedMembroId }],
+    queryFn: () => fetch(`/api/comunidades?membro_id=${resolvedMembroId}`).then(r => r.json()),
+    enabled: !!resolvedMembroId,
   });
 
   const { data: convidador = null } = useQuery<ConvidadorInfo | null>({
-    queryKey: ["/api/membros", id, "convidador"],
-    queryFn: () => fetch(`/api/membros/${id}/convidador`).then(r => r.ok ? r.json() : null),
-    enabled: !!id,
+    queryKey: ["/api/membros", resolvedMembroId, "convidador"],
+    queryFn: () => fetch(`/api/membros/${resolvedMembroId}/convidador`).then(r => r.ok ? r.json() : null),
+    enabled: !!resolvedMembroId,
   });
 
   const { data: convidadosComunidade = [] } = useQuery<ConvidadoComunidade[]>({
-    queryKey: ["/api/membros", id, "convites-comunidade"],
-    queryFn: () => fetch(`/api/membros/${id}/convites-comunidade`).then(r => r.ok ? r.json() : []),
-    enabled: !!id,
+    queryKey: ["/api/membros", resolvedMembroId, "convites-comunidade"],
+    queryFn: () => fetch(`/api/membros/${resolvedMembroId}/convites-comunidade`).then(r => r.ok ? r.json() : []),
+    enabled: !!resolvedMembroId,
   });
 
   const { data: aura } = useQuery<{ score: number | null; n: number; faixa: string | null }>({
-    queryKey: ["/api/aura/score", id],
-    enabled: !!id,
+    queryKey: ["/api/aura/score", resolvedMembroId],
+    enabled: !!resolvedMembroId,
   });
 
   const foto = fotoUrl(membro?.foto_perfil);
@@ -180,7 +182,7 @@ export default function MembroDetalhePage() {
   const localidade = [membro?.cidade, membro?.estado?.toUpperCase(), membro?.pais]
     .filter(Boolean).join(", ");
 
-  if (isLoading) {
+  if (loadingMembros) {
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -524,7 +526,7 @@ export default function MembroDetalhePage() {
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 mb-3" data-testid="membro-convidado-por">
             <p className="text-[10px] font-mono text-gray-400 uppercase tracking-widest mb-1">Convidado por</p>
             {convidador ? (
-              <Link href={`/membro/${convidador.id}`}>
+              <Link href={getMembroUrl(convidador)}>
                 <button className="text-sm font-mono font-semibold text-gray-800 hover:text-brand-gold transition-colors">
                   {convidador.nome || "Membro BUILT"}
                 </button>
@@ -550,7 +552,7 @@ export default function MembroDetalhePage() {
                 {convidadosComunidade.map(convidado => {
                   const convidadoFoto = fotoUrl(convidado.foto_perfil);
                   return (
-                    <Link key={convidado.id} href={`/membro/${convidado.id}`}>
+                    <Link key={convidado.id} href={getMembroUrl(convidado)}>
                       <button
                         className="w-full flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-left hover:border-brand-gold/40 hover:bg-amber-50/40 transition-colors"
                         data-testid={`membro-convidado-${convidado.id}`}

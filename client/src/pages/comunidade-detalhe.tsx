@@ -4,6 +4,7 @@ import type React from "react";
 import { useParams, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getBiaUrl } from "@/lib/bia-url";
+import { getMembroUrl } from "@/lib/public-refs";
 import {
   ArrowLeft, MapPin, Users, Briefcase, Shield,
   MessageCircle, Pencil, Globe, Calendar, Hash
@@ -441,7 +442,7 @@ export default function ComunidadeDetalhePage() {
 
           {aliado ?(
             <button
-              onClick={() => navigate(`/membro/${aliado.id}`)}
+              onClick={() => navigate(getMembroUrl(aliado))}
               className="w-full flex items-center gap-4 p-3 rounded-xl transition-colors hover:bg-white/5 text-left"
               data-testid="btn-aliado-link"
             >
@@ -574,7 +575,7 @@ export default function ComunidadeDetalhePage() {
               return (
                 <button
                   key={m.id}
-                  onClick={() => navigate(`/membro/${m.id}`)}
+                  onClick={() => navigate(getMembroUrl(m))}
                   className="flex items-center gap-3 p-3 rounded-xl text-left transition-colors hover:bg-white/5"
                   style={{ border: "1px solid rgba(255,255,255,0.04)" }}
                   data-testid={`btn-membro-${m.id}`}

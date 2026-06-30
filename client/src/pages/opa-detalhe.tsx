@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { getBiaUrl } from "@/lib/bia-url";
+import { getOpaPublicRef, resolveOpaByRef } from "@/lib/public-refs";
 import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { OpaFormDialog } from "@/pages/oportunidades";
 
@@ -163,25 +164,44 @@ export default function OpaDetalhePage() {
     queryKey: ["/api/bias"],
   });
 
+  const opa = useMemo(
+    () => resolveOpaByRef(opasRaw as Oportunidade[], biasRaw as BiasProjeto[], id),
+    [opasRaw, biasRaw, id]
+  );
+
+  const bia = useMemo(
+    () => opa?.bia_id ?(biasRaw as BiasProjeto[]).find(b => b.id === opa.bia_id) : undefined,
+    [biasRaw, opa]
+  );
+
+  useEffect(() => {
+    if (!opa || !id) return;
+    if (opa.bia_id && !bia) return;
+    const publicRef = getOpaPublicRef(opa, bia, opasRaw as Oportunidade[]);
+    if (publicRef && id !== publicRef) navigate(`/opas/${publicRef}`, { replace: true });
+  }, [opa, bia, opasRaw, id, navigate]);
+
   const { data: interesseData } = useQuery<InteresseResponse>({
-    queryKey: ["/api/oportunidades", id, "interesse"],
+    queryKey: ["/api/oportunidades", opa?.id, "interesse"],
     queryFn: async () => {
-      const res = await fetch(`/api/oportunidades/${id}/interesse`);
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      const res = await fetch(`/api/oportunidades/${opa.id}/interesse`);
       if (!res.ok) throw new Error("Erro ao buscar interesses");
       return res.json();
     },
-    enabled: !!id,
+    enabled: !!opa?.id,
   });
 
   const interesseMutation = useMutation({
     mutationFn: async ({ msg, mult: multVal }: { msg: string; mult: string }) => {
-      return apiRequest("POST", `/api/oportunidades/${id}/interesse`, {
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, {
         mensagem: msg || null,
         multiplicador: multVal ?parseFloat(multVal) || null : null,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", opa?.id, "interesse"] });
       setInteresseDialog(false);
       setMensagem("");
       setMultiplicadorInput("");
@@ -201,10 +221,11 @@ export default function OpaDetalhePage() {
 
   const removerInteresseMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("DELETE", `/api/oportunidades/${id}/interesse`);
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      return apiRequest("DELETE", `/api/oportunidades/${opa.id}/interesse`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", opa?.id, "interesse"] });
       toast({ title: "Interesse removido", description: "Seu interesse nesta OPA foi cancelado." });
     },
     onError: () => {
@@ -240,16 +261,6 @@ export default function OpaDetalhePage() {
       });
     },
   });
-
-  const opa = useMemo(
-    () => (opasRaw as Oportunidade[]).find(o => o.id === id) || null,
-    [opasRaw, id]
-  );
-
-  const bia = useMemo(
-    () => opa?.bia_id ?(biasRaw as BiasProjeto[]).find(b => b.id === opa.bia_id) : undefined,
-    [biasRaw, opa]
-  );
 
   const valor = n(opa?.valor_origem_opa);
   const mult = n(opa?.Minimo_esforco_multiplicador);

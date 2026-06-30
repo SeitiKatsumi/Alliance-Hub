@@ -25,6 +25,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { formatSegmentosDisplay } from "@/lib/ramos-segmentos";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
+import { getMembroUrl } from "@/lib/public-refs";
 
 const WORLD_GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
@@ -342,7 +343,7 @@ function MapaMembros({ membros }: { membros: MembroBuilt[] }) {
         <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
           style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 70%, transparent 100%)", padding: "32px 24px 18px" }}>
           <div className="absolute top-3 right-4 flex items-center gap-3">
-            <button onClick={() => navigate(`/membro/${selectedMembro.id}`)}
+            <button onClick={() => navigate(getMembroUrl(selectedMembro))}
               className="text-brand-gold/70 hover:text-brand-gold transition-colors font-mono text-xs tracking-widest border border-brand-gold/20 hover:border-brand-gold/50 px-2 py-0.5 rounded">
               VER PERFIL →
             </button>
@@ -409,7 +410,7 @@ function MembroListItem({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: bool
         background: "linear-gradient(145deg, #071626, #040e1c)",
         borderColor: isOwn ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
       }}
-      onClick={() => navigate(`/membro/${m.id}`)}
+      onClick={() => navigate(getMembroUrl(m))}
       data-testid={`list-membro-${m.id}`}
     >
       <div className="w-14 h-14 rounded-full overflow-hidden border border-brand-gold/25 flex items-center justify-center shrink-0"
@@ -518,7 +519,7 @@ function MembroCard({ membro: m, isOwn }: { membro: MembroBuilt; isOwn: boolean 
           boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
           borderColor: isOwn ?"rgba(215,187,125,0.3)" : "rgba(255,255,255,0.06)",
         }}
-        onClick={() => navigate(`/membro/${m.id}`)}
+        onClick={() => navigate(getMembroUrl(m))}
         data-testid={`card-membro-${m.id}`}
       >
         {/* Top accent */}

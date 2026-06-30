@@ -115,8 +115,8 @@ export function AppSidebar() {
               {/* Administração — Super Admin only */}
               {isSuperAdmin && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/membros"} data-testid="nav-membros" className="text-sm">
-                    <Link href="/membros">
+                  <SidebarMenuButton asChild isActive={location === "/admin" || location === "/membros"} data-testid="nav-membros" className="text-sm">
+                    <Link href="/admin">
                       <Users className="w-3.5 h-3.5" />
                       <span>Administração</span>
                     </Link>

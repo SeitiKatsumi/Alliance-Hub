@@ -19,7 +19,6 @@ import NotFound from "@/pages/not-found";
 import BiasPage from "@/pages/bias";
 import BiaDetalhePage from "@/pages/bia-detalhe";
 import OpaDetalhePage from "@/pages/opa-detalhe";
-import MembrosPage from "@/pages/membros";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
 import AgendaPage from "@/pages/agenda";
@@ -100,6 +99,16 @@ function LegacyBiasRedirect() {
   useEffect(() => {
     window.location.replace("/area-aliancas?tab=bias");
   }, []);
+
+  return null;
+}
+
+function LegacyMembrosRedirect() {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    navigate("/admin", { replace: true });
+  }, [navigate]);
 
   return null;
 }
@@ -1246,7 +1255,7 @@ function ProtectedApp() {
               <Route path="/built-capital/chamadas/:id" component={BuiltCapitalChamadaDetalhePage} />
               <Route path="/built-capital/chamadas" component={BuiltCapitalChamadasPage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />
-              <Route path="/membros" component={MembrosPage} />
+              <Route path="/membros" component={LegacyMembrosRedirect} />
               <Route path="/aura/:membroId" component={AuraPage} />
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />

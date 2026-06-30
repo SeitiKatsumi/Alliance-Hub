@@ -44,6 +44,7 @@ import {
   X,
   Info,
 } from "lucide-react";
+import { getMembroUrl } from "@/lib/public-refs";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -153,7 +154,7 @@ function AliadosTab() {
               ? aliado.Outras_redes_as_quais_pertenco
               : [];
             return (
-              <Link key={aliado.id} href={`/membro/${aliado.id}`}>
+              <Link key={aliado.id} href={getMembroUrl(aliado)}>
                 <Card className="h-full cursor-pointer border-border/70 transition-colors hover:border-brand-gold/50">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">

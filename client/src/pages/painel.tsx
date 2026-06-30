@@ -30,6 +30,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
+import { getOpaUrl } from "@/lib/public-refs";
 import {
   Bar,
   BarChart,
@@ -160,6 +161,7 @@ interface DashboardOpa {
   nucleo_alianca?: string | null;
   perfil_aliado?: string | null;
   Minimo_esforco_multiplicador?: number | string | null;
+  date_created?: string | null;
 }
 
 interface DashboardData {
@@ -1529,7 +1531,7 @@ export default function PainelPage() {
                   <Card
                     key={opa.id}
                     className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/opas/${opa.id}`)}
+                    onClick={() => navigate(getOpaUrl(opa, bias.find((item) => item.id === opa.bia_id), opas))}
                     data-testid={`card-convergencia-${opa.id}`}
                   >
                     <CardContent className="p-4 space-y-2.5">
@@ -1631,7 +1633,7 @@ export default function PainelPage() {
                   <div
                     key={o.id}
                     className="flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/opas/${o.id}`)}
+                    onClick={() => navigate(getOpaUrl(o, bias.find((item) => item.id === o.bia_id), opas))}
                     data-testid={`item-opa-${o.id}`}
                   >
                     <Target className="w-3.5 h-3.5 text-cyan-600 shrink-0" />

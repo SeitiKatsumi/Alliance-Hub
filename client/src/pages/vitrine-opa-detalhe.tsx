@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import {
@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { useAuth } from "@/hooks/use-auth";
 import { getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { getOpaPublicRef, resolveOpaByRef } from "@/lib/public-refs";
 
 interface OportunidadePublica {
   id: string;
@@ -39,6 +40,7 @@ interface OportunidadePublica {
 
 interface BiasPublica {
   id: string;
+  codigo_publico?: string | null;
   nome_bia?: string | null;
   localizacao?: string | null;
   moeda?: string | null;
@@ -135,29 +137,43 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const { data: biasRaw = [] } = useQuery<BiasPublica[]>({
     queryKey: ["/api/bias"],
   });
-  const { data: interesseData } = useQuery<InteresseResponse>({
-    queryKey: ["/api/oportunidades", id, "interesse"],
-    queryFn: async () => {
-      const response = await fetch(`/api/oportunidades/${id}/interesse`, { credentials: "include" });
-      if (!response.ok) throw new Error("Erro ao buscar interesses");
-      return response.json();
-    },
-    enabled: !!id && !isCapital,
-  });
 
   const opa = useMemo(
-    () => (opasRaw as OportunidadePublica[]).find((item) => item.id === id) || null,
-    [opasRaw, id]
+    () => resolveOpaByRef(opasRaw as OportunidadePublica[], biasRaw as BiasPublica[], id),
+    [opasRaw, biasRaw, id]
   );
   const bia = useMemo(
     () => opa?.bia_id ? (biasRaw as BiasPublica[]).find((item) => item.id === opa.bia_id) : undefined,
     [biasRaw, opa]
   );
 
+  useEffect(() => {
+    if (!opa || !id) return;
+    if (opa.bia_id && !bia) return;
+    const publicRef = getOpaPublicRef(opa, bia, opasRaw as OportunidadePublica[]);
+    const targetPath = isCapital ? `/built-capital/chamadas/${publicRef}` : `/vitrine/opas/${publicRef}`;
+    if (publicRef && id !== publicRef) navigate(targetPath, { replace: true });
+  }, [opa, bia, opasRaw, id, navigate, isCapital]);
+
+  const alliancesAccess = environmentAccessFor(user, "alliances");
+  const interesseQueryKey = ["/api/oportunidades", opa?.id, "interesse"] as const;
+  const { data: interesseData } = useQuery<InteresseResponse>({
+    queryKey: interesseQueryKey,
+    queryFn: async () => {
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      const response = await apiRequest("GET", `/api/oportunidades/${opa.id}/interesse`);
+      return response.json();
+    },
+    enabled: !!opa?.id && alliancesAccess.canAccess,
+  });
+
   const interesseMutation = useMutation({
-    mutationFn: async () => apiRequest("POST", `/api/oportunidades/${id}/interesse`, { mensagem: mensagem || null }),
+    mutationFn: async () => {
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, { mensagem: mensagem || null });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
+      queryClient.invalidateQueries({ queryKey: interesseQueryKey });
       setInteresseOpen(false);
       setMensagem("");
       toast({ title: "Interesse registrado!" });
@@ -172,9 +188,12 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   });
 
   const removerInteresseMutation = useMutation({
-    mutationFn: async () => apiRequest("DELETE", `/api/oportunidades/${id}/interesse`),
+    mutationFn: async () => {
+      if (!opa?.id) throw new Error("OPA não encontrada");
+      return apiRequest("DELETE", `/api/oportunidades/${opa.id}/interesse`);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", id, "interesse"] });
+      queryClient.invalidateQueries({ queryKey: interesseQueryKey });
       toast({ title: "Interesse removido" });
     },
   });
@@ -208,7 +227,6 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const mem = num(opa.Minimo_esforco_multiplicador);
   const jaInteressado = !!interesseData?.meuInteresse;
   const totalInteresses = interesseData?.total || 0;
-  const alliancesAccess = environmentAccessFor(user, "alliances");
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">

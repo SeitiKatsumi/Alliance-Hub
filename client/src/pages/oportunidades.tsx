@@ -28,6 +28,7 @@ import { capitalizeWords } from "@/lib/utils";
 import { getAllTipos, getTipoDisplayName, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { ComposableMap, ZoomableGroup, Geographies, Geography, Marker } from "react-simple-maps";
+import { getOpaUrl } from "@/lib/public-refs";
 
 const WORLD_GEO = "/world-countries-50m.json";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
@@ -96,6 +97,7 @@ interface Oportunidade {
 
 interface BiasProjeto {
   id: string;
+  codigo_publico?: string | null;
   nome_bia: string;
   localizacao?: string;
   latitude?: number | null;
@@ -605,7 +607,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
               )}
               <div>
                 <button
-                  onClick={() => navigate(`/opas/${selectedOpa.id}`)}
+                  onClick={() => navigate(getOpaUrl(selectedOpa, selectedOpa.bia_id ?biasMap[selectedOpa.bia_id] : undefined, opas))}
                   className="mt-1 px-3 py-1.5 rounded border border-cyan-400/45 hover:bg-cyan-300/15 transition-colors text-xs text-cyan-300 font-mono tracking-wider"
                 >
                   VER OPA →
@@ -1684,7 +1686,7 @@ export default function OportunidadesPage() {
               key={opa.id}
               opa={opa}
               bia={opa.bia_id ?biasMap[opa.bia_id] : undefined}
-              onViewDetail={() => navigate(`/opas/${opa.id}`)}
+              onViewDetail={() => navigate(getOpaUrl(opa, opa.bia_id ?biasMap[opa.bia_id] : undefined, opas))}
             />
           ))}
         </div>

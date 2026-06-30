@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { PhoneInput } from "@/components/phone-input";
+import { getOpaUrl } from "@/lib/public-refs";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -279,7 +280,7 @@ interface Membro {
   em_built_capital?: boolean | number | null;
   Outras_redes_as_quais_pertenco?: string[] | null;
 }
-interface Bia { id: string; nome_bia?: string; }
+interface Bia { id: string; codigo_publico?: string | null; nome_bia?: string; }
 
 interface DiretorSolicitacao {
   id: string;
@@ -1879,6 +1880,8 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       return dateB - dateA;
     })
     .slice(0, 12);
+  const opaById = new Map((opasNotificacoes || []).map((opa: any) => [String(opa.id), opa]));
+  const biaById = new Map((bias || []).map((bia) => [String(bia.id), bia]));
   // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
     mergeConvitesById(vitrineCandidatos, todosCandidatos, convitesComoConector)
@@ -2446,7 +2449,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                         {chamada.opa_id && (
                           <button
                             type="button"
-                            onClick={() => navigate(`/opas/${chamada.opa_id}`)}
+                            onClick={() => {
+                              const opa = opaById.get(String(chamada.opa_id));
+                              const biaRef = opa?.bia_id ? biaById.get(String(opa.bia_id)) : undefined;
+                              navigate(getOpaUrl(opa || { id: chamada.opa_id }, biaRef, opasNotificacoes));
+                            }}
                             className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-mono text-blue-700 hover:bg-blue-50"
                           >
                             Ver OPA
@@ -2486,7 +2493,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     <button
                       key={opa.id}
                       type="button"
-                      onClick={() => navigate(`/opas/${opa.id}`)}
+                      onClick={() => navigate(getOpaUrl(opa, opa.bia_id ? biaById.get(String(opa.bia_id)) : undefined, opasNotificacoes))}
                       className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50"
                       data-testid={`btn-notificacao-opa-${opa.id}`}
                     >

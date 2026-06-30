@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { getTipoDisplayName } from "@/lib/ramos-segmentos";
+import { getOpaPublicRef } from "@/lib/public-refs";
 
 interface OportunidadeVitrine {
   id: string;
+  bia_id?: string | null;
   nome_oportunidade?: string | null;
   tipo?: string | null;
   valor_origem_opa?: string | number | null;
@@ -25,6 +27,11 @@ interface OportunidadeVitrine {
   perfil_aliado?: string | null;
   imagem_directus_id?: any;
   imagem_url?: any;
+}
+
+interface BiasVitrine {
+  id: string;
+  codigo_publico?: string | null;
 }
 
 function num(value: string | number | null | undefined): number {
@@ -136,7 +143,11 @@ export function VitrineOportunidadesPage(props: any = {}) {
   const mode = props.mode || "vitrine";
   const isCapital = mode === "capital";
   const backPath = isCapital ? "/built-capital" : "/vitrine";
-  const detailPath = (id: string) => isCapital ? `/built-capital/chamadas/${id}` : `/vitrine/opas/${id}`;
+  const detailPath = (opa: OportunidadeVitrine, bias: BiasVitrine[], opas: OportunidadeVitrine[]) => {
+    const bia = bias.find((item) => item.id === opa.bia_id);
+    const ref = getOpaPublicRef(opa, bia, opas);
+    return isCapital ? `/built-capital/chamadas/${ref}` : `/vitrine/opas/${ref}`;
+  };
   const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
   const title = isCapital ? "Chamadas de Capital" : "Oportunidades da Vitrine";
   const backLabel = isCapital ? "Voltar para BUILT Capital" : "Voltar para Vitrine";
@@ -145,6 +156,9 @@ export function VitrineOportunidadesPage(props: any = {}) {
     : "Explore OPAs publicas sem acessar o modulo BUILT Alliances.";
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadeVitrine[]>({
     queryKey: [endpoint],
+  });
+  const { data: biasRaw = [] } = useQuery<BiasVitrine[]>({
+    queryKey: ["/api/bias"],
   });
 
   const criarChamadaMutation = useMutation({
@@ -225,7 +239,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
       ) : opas.length ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {opas.map((opa) => (
-            <OpaPublicCard key={opa.id} opa={opa} onOpen={() => navigate(detailPath(opa.id))} />
+            <OpaPublicCard key={opa.id} opa={opa} onOpen={() => navigate(detailPath(opa, biasRaw as BiasVitrine[], opas))} />
           ))}
         </div>
       ) : (

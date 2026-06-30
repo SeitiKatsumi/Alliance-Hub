@@ -378,7 +378,7 @@ function formatInputPercent(value: string): string {
     .replace(/\./g, ",");
   const [integerPart, ...decimalParts] = cleaned.split(",");
   const integer = integerPart.replace(/\D/g, "");
-  const decimal = decimalParts.join("").replace(/\D/g, "").slice(0, 2);
+  const decimal = decimalParts.join("").replace(/\D/g, "").slice(0, 5);
   if (!integer && !decimal) return "";
   return decimalParts.length > 0 ?`${integer || "0"},${decimal}` : integer;
 }
@@ -1034,19 +1034,47 @@ function LancamentoFormFields({
   function applyAllocationMapToRateio() {
     const validItems = allocationItems.filter((item) => item.membroId && item.percentual > 0);
     if (validItems.length === 0) return;
-    const rounded = validItems.map((item) => Number(item.percentual.toFixed(2)));
+    const rounded = validItems.map((item) => Number(item.percentual.toFixed(5)));
     const roundedTotal = rounded.reduce((sum, value) => sum + value, 0);
-    const diff = Number((100 - roundedTotal).toFixed(2));
+    const diff = Number((100 - roundedTotal).toFixed(5));
     if (Math.abs(diff) > 0 && rounded.length > 0) {
-      rounded[rounded.length - 1] = Number((rounded[rounded.length - 1] + diff).toFixed(2));
+      rounded[rounded.length - 1] = Number((rounded[rounded.length - 1] + diff).toFixed(5));
     }
     setRateioModo("percentual");
     setRateioItems(validItems.map((item, index) => ({
       id: `alloc-${item.membroId}-${Date.now()}-${index}`,
       membroId: item.membroId,
-      valor: rounded[index].toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      valor: rounded[index].toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 5 }),
       anexos: [],
     })));
+  }
+
+  function equalizeRateioPercentual() {
+    const selectedIds = new Set(
+      rateioItems
+        .filter((item) => item.membroId && item.membroId !== "__none__")
+        .map((item) => item.id)
+    );
+    const targetIds = selectedIds.size > 0 ?selectedIds : new Set(rateioItems.map((item) => item.id));
+    const totalTargets = targetIds.size;
+    if (totalTargets === 0) return;
+    const base = Math.floor((100 / totalTargets) * 100000) / 100000;
+    let remaining = 100;
+    setRateioModo("percentual");
+    setRateioItems(rateioItems.map((item) => {
+      if (!targetIds.has(item.id)) return { ...item, valor: "" };
+      const value = targetIds.size === 1
+        ? remaining
+        : base;
+      targetIds.delete(item.id);
+      remaining = Number((remaining - value).toFixed(5));
+      const adjustedValue = targetIds.size === 0 ?Number((value + remaining).toFixed(5)) : value;
+      if (targetIds.size === 0) remaining = 0;
+      return {
+        ...item,
+        valor: adjustedValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 5 }),
+      };
+    }));
   }
 
   const valorTotal = parseBRLToNumber(formValor);
@@ -1211,6 +1239,18 @@ function LancamentoFormFields({
               >
                 <Layers className="w-3.5 h-3.5" />
                 Usar mapa de alocação
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={equalizeRateioPercentual}
+                disabled={rateioItems.length === 0}
+                className="h-8 gap-1.5 text-xs"
+                data-testid={`${prefix}-rateio-igualar-percentual`}
+              >
+                <BadgePercent className="w-3.5 h-3.5" />
+                Igualar 100%
               </Button>
               <div className="flex gap-0.5 p-0.5 bg-muted rounded-md shrink-0">
                 <button

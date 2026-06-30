@@ -1120,6 +1120,25 @@ async function ensureBiaBancoTables() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_bank_charges_fluxo ON bia_bank_charges (fluxo_caixa_id)`);
 }
 
+async function ensureLandBankAssetsTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS land_bank_assets (
+      id text PRIMARY KEY,
+      category text NOT NULL,
+      bia_id text,
+      bia_nome text,
+      data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_by text,
+      created_by_membro text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_land_bank_assets_category ON land_bank_assets (category)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_land_bank_assets_bia ON land_bank_assets (bia_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_land_bank_assets_created_at ON land_bank_assets (created_at DESC)`);
+}
+
 async function ensureMembroComunidadeMaeTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS membro_comunidade_mae (
@@ -2206,6 +2225,7 @@ export async function registerRoutes(
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
   ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
+  ensureLandBankAssetsTable().catch((err: any) => console.warn("[land-bank] Tabela nao sincronizada:", err?.message || err));
   ensureMembroComunidadeMaeTable().catch((err: any) => console.warn("[membro-comunidade-mae] Tabela nao sincronizada:", err?.message || err));
   db.execute(sql`
     CREATE TABLE IF NOT EXISTS user_usage_events (
@@ -9897,6 +9917,121 @@ ${textContent}`;
       if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const { id } = req.params;
       await storage.deleteOpaInteresse(id, directusUserId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== LAND BANK ASSETS ==========
+  function normalizeLandBankAssetRow(row: any) {
+    const data = row.data && typeof row.data === "object" ? row.data : {};
+    return {
+      ...data,
+      id: row.id,
+      category: row.category,
+      bia_id: row.bia_id || data.bia_id || "",
+      bia_nome: row.bia_nome || data.bia_nome || "",
+      createdAt: row.created_at ? new Date(row.created_at).toISOString() : data.createdAt,
+      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : data.updatedAt,
+      created_by: row.created_by || null,
+      created_by_membro: row.created_by_membro || null,
+    };
+  }
+
+  app.get("/api/land-bank-assets", async (req, res) => {
+    try {
+      const category = typeof req.query.category === "string" ? req.query.category : "";
+      const result = category
+        ? await db.execute(sql`SELECT * FROM land_bank_assets WHERE category = ${category} ORDER BY created_at DESC`)
+        : await db.execute(sql`SELECT * FROM land_bank_assets ORDER BY created_at DESC`);
+      res.json((result.rows || []).map(normalizeLandBankAssetRow));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/land-bank-assets/:id", async (req, res) => {
+    try {
+      const result = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
+      const row = result.rows?.[0];
+      if (!row) return res.status(404).json({ error: "Ativo não encontrado" });
+      res.json(normalizeLandBankAssetRow(row));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/land-bank-assets", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const body = req.body || {};
+      const id = body.id || `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const category = body.category || "land-bank";
+      const data = {
+        ...body,
+        id,
+        category,
+        createdAt: body.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await db.execute(sql`
+        INSERT INTO land_bank_assets (id, category, bia_id, bia_nome, data, created_by, created_by_membro)
+        VALUES (
+          ${id},
+          ${category},
+          ${body.bia_id || null},
+          ${body.bia_nome || null},
+          ${JSON.stringify(data)}::jsonb,
+          ${(req.session as any).directusUserId || null},
+          ${(req.session as any).membroId || null}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          category = EXCLUDED.category,
+          bia_id = EXCLUDED.bia_id,
+          bia_nome = EXCLUDED.bia_nome,
+          data = EXCLUDED.data,
+          updated_at = now()
+      `);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/land-bank-assets/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const currentResult = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
+      const current = currentResult.rows?.[0];
+      if (!current) return res.status(404).json({ error: "Ativo não encontrado" });
+      const currentData = current.data && typeof current.data === "object" ? current.data : {};
+      const data = {
+        ...currentData,
+        ...req.body,
+        id: req.params.id,
+        category: req.body.category || current.category,
+        updatedAt: new Date().toISOString(),
+      };
+      await db.execute(sql`
+        UPDATE land_bank_assets
+        SET category = ${data.category},
+            bia_id = ${data.bia_id || null},
+            bia_nome = ${data.bia_nome || null},
+            data = ${JSON.stringify(data)}::jsonb,
+            updated_at = now()
+        WHERE id = ${req.params.id}
+      `);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/land-bank-assets/:id", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await db.execute(sql`DELETE FROM land_bank_assets WHERE id = ${req.params.id}`);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

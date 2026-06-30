@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link, useLocation, useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -733,15 +734,7 @@ export default function AreaAliancasPage() {
   const [activeTab, setActiveTab] = useState(initialTabs.main);
   const [activeRedeTab, setActiveRedeTab] = useState(initialTabs.rede);
   const [activeLandBankTab, setActiveLandBankTab] = useState(initialTabs.landBank);
-  const [landBankAssets, setLandBankAssets] = useState<LandBankAsset[]>(() => {
-    try {
-      const stored = window.localStorage.getItem(landBankStorageKey);
-      const parsed = stored ? JSON.parse(stored) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [landBankAssets, setLandBankAssets] = useState<LandBankAsset[]>([]);
   const [landBankDialogOpen, setLandBankDialogOpen] = useState(false);
   const [landBankDialogCategory, setLandBankDialogCategory] = useState<LandBankCategory["value"]>(initialTabs.landBank as LandBankCategory["value"]);
   const [landBankForm, setLandBankForm] = useState<LandBankForm>(emptyLandBankForm);
@@ -754,6 +747,26 @@ export default function AreaAliancasPage() {
       if (!r.ok) return [];
       const data = await r.json();
       return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const { data: landBankAssetsFromApi = [] } = useQuery<LandBankAsset[]>({
+    queryKey: ["/api/land-bank-assets"],
+    queryFn: async () => {
+      const r = await fetch("/api/land-bank-assets", { credentials: "include" });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const createLandBankMutation = useMutation({
+    mutationFn: async (asset: LandBankAsset) => {
+      const response = await apiRequest("POST", "/api/land-bank-assets", asset);
+      return response.json() as Promise<LandBankAsset>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
     },
   });
 
@@ -770,8 +783,23 @@ export default function AreaAliancasPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    window.localStorage.setItem(landBankStorageKey, JSON.stringify(landBankAssets));
-  }, [landBankAssets]);
+    setLandBankAssets(landBankAssetsFromApi);
+    window.localStorage.setItem(landBankStorageKey, JSON.stringify(landBankAssetsFromApi));
+  }, [landBankAssetsFromApi]);
+
+  useEffect(() => {
+    if (landBankAssetsFromApi.length > 0) return;
+    try {
+      const stored = window.localStorage.getItem(landBankStorageKey);
+      const parsed = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      parsed.forEach((asset) => {
+        if (asset?.id && asset?.category) createLandBankMutation.mutate(asset);
+      });
+    } catch {
+      // Ignore legacy local storage migration failures.
+    }
+  }, [landBankAssetsFromApi.length]);
 
   const selectedLandBankCategory = landBankCategories.find((category) => category.value === landBankDialogCategory) || landBankCategories[0];
   const SelectedLandBankIcon = selectedLandBankCategory.icon;
@@ -830,17 +858,16 @@ export default function AreaAliancasPage() {
     if (!linkedBia) return;
 
     const estimatedCoords = estimateLandBankCoords(landBankForm);
-    setLandBankAssets((current) => [
-      {
-        ...landBankForm,
-        bia_nome: linkedBia.nome_bia,
-        ...estimatedCoords,
-        id: `land-${Date.now()}`,
-        category: landBankDialogCategory,
-        createdAt: new Date().toISOString(),
-      },
-      ...current,
-    ]);
+    const asset: LandBankAsset = {
+      ...landBankForm,
+      bia_nome: linkedBia.nome_bia,
+      ...estimatedCoords,
+      id: `land-${Date.now()}`,
+      category: landBankDialogCategory,
+      createdAt: new Date().toISOString(),
+    };
+    setLandBankAssets((current) => [asset, ...current]);
+    createLandBankMutation.mutate(asset);
     setActiveTab("landbank");
     setActiveLandBankTab(landBankDialogCategory);
     setLandBankDialogOpen(false);

@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   ArrowLeft,
   Briefcase,
@@ -142,7 +144,29 @@ export default function LandBankDetalhePage() {
   const [mensagem, setMensagem] = useState("");
   const [interests, setInterests] = useState<LandBankInterest[]>(readInterests);
 
-  const asset = useMemo(() => assets.find((item) => item.id === id) || null, [assets, id]);
+  const { data: assetFromApi = null } = useQuery<LandBankAsset | null>({
+    queryKey: ["/api/land-bank-assets", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const r = await fetch(`/api/land-bank-assets/${encodeURIComponent(id)}`, { credentials: "include" });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    enabled: !!id,
+  });
+
+  const updateAssetMutation = useMutation({
+    mutationFn: async (asset: LandBankAsset) => {
+      const response = await apiRequest("PATCH", `/api/land-bank-assets/${asset.id}`, asset);
+      return response.json() as Promise<LandBankAsset>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+    },
+  });
+
+  const asset = useMemo(() => assetFromApi || assets.find((item) => item.id === id) || null, [assetFromApi, assets, id]);
   const myInterest = interests.find((interest) => interest.assetId === id) || null;
   const categoryKey = asset?.category === "transformation-bank" ? "built-asset-bank" : asset?.category;
   const meta = categoryKey ? categoryMeta[categoryKey as LandBankCategoryValue] || categoryMeta["land-bank"] : categoryMeta["land-bank"];
@@ -191,6 +215,7 @@ export default function LandBankDetalhePage() {
     const next = assets.map((item) => item.id === editForm.id ? editForm : item);
     writeAssets(next);
     setAssets(next);
+    updateAssetMutation.mutate(editForm);
     setEditDialogOpen(false);
   };
 

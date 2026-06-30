@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
@@ -1414,6 +1415,8 @@ export default function FluxoCaixaPage({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [selectedLancamentoIds, setSelectedLancamentoIds] = useState<string[]>([]);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [profileMembro, setProfileMembro] = useState<Membro | null>(null);
   const [anexosModal, setAnexosModal] = useState<{ id: string; anexos: any[] } | null>(null);
   const [historicoItem, setHistoricoItem] = useState<FluxoCaixaItem | null>(null);
@@ -1728,6 +1731,36 @@ export default function FluxoCaixaPage({
       return 0;
     });
   }, [fluxoItemsAll, filterTipo, filterCategoria, filterMembro, filterFavorecido, filterTipoCpp, filterDescricao, filterDataDe, filterDataAte, filterStatus]);
+
+  const visibleLancamentoIds = useMemo(() => fluxoItems.map((item) => item.id), [fluxoItems]);
+  const selectedVisibleLancamentoIds = useMemo(
+    () => selectedLancamentoIds.filter((id) => visibleLancamentoIds.includes(id)),
+    [selectedLancamentoIds, visibleLancamentoIds]
+  );
+  const allVisibleLancamentosSelected = visibleLancamentoIds.length > 0 && selectedVisibleLancamentoIds.length === visibleLancamentoIds.length;
+  const someVisibleLancamentosSelected = selectedVisibleLancamentoIds.length > 0 && !allVisibleLancamentosSelected;
+
+  useEffect(() => {
+    setSelectedLancamentoIds((current) => current.filter((id) => fluxoItemsAll.some((item) => item.id === id)));
+  }, [fluxoItemsAll]);
+
+  function toggleLancamentoSelection(id: string, checked: boolean) {
+    setSelectedLancamentoIds((current) => {
+      if (checked) return current.includes(id) ?current : [...current, id];
+      return current.filter((itemId) => itemId !== id);
+    });
+  }
+
+  function toggleVisibleLancamentosSelection(checked: boolean) {
+    setSelectedLancamentoIds((current) => {
+      if (!checked) return current.filter((id) => !visibleLancamentoIds.includes(id));
+      const next = [...current];
+      visibleLancamentoIds.forEach((id) => {
+        if (!next.includes(id)) next.push(id);
+      });
+      return next;
+    });
+  }
 
   const totals = useMemo(() => {
     const entradas = fluxoItemsContabeis
@@ -2241,12 +2274,31 @@ export default function FluxoCaixaPage({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/fluxo-caixa/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      setSelectedLancamentoIds((current) => current.filter((itemId) => itemId !== id));
       toast({ title: "Lançamento excluído" });
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map((id) => apiRequest("DELETE", `/api/fluxo-caixa/${id}`)));
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
+      setSelectedLancamentoIds([]);
+      setBulkDeleteConfirmOpen(false);
+      toast({
+        title: `${count} lançamento${count === 1 ?"" : "s"} excluído${count === 1 ?"" : "s"}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao excluir lançamentos", description: error.message, variant: "destructive" });
     },
   });
 
@@ -3426,6 +3478,38 @@ export default function FluxoCaixaPage({
                   Mostrando {fluxoItems.length} de {fluxoItemsAll.length} lançamentos
                 </p>
               )}
+              {selectedLancamentoIds.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+                  <span className="text-sm font-medium text-red-700">
+                    {selectedLancamentoIds.length} lançamento{selectedLancamentoIds.length === 1 ?"" : "s"} selecionado{selectedLancamentoIds.length === 1 ?"" : "s"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-red-700 hover:bg-red-100 hover:text-red-800"
+                      onClick={() => setSelectedLancamentoIds([])}
+                      disabled={bulkDeleteMutation.isPending}
+                      data-testid="button-limpar-selecao-lancamentos"
+                    >
+                      Limpar seleção
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={() => setBulkDeleteConfirmOpen(true)}
+                      disabled={bulkDeleteMutation.isPending}
+                      data-testid="button-abrir-excluir-selecionados"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Apagar selecionados
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {loadingFluxo ?(
@@ -3441,65 +3525,95 @@ export default function FluxoCaixaPage({
                   <p className="text-sm text-muted-foreground/60 mt-1">Clique em "Novo Lançamento" para começar</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm" data-testid="table-lancamentos">
+                <div className="w-full">
+                  <table className="w-full table-fixed text-sm" data-testid="table-lancamentos">
+                    <colgroup>
+                      <col className="w-[5%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[15%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[17%]" />
+                      <col className="w-[7%]" />
+                    </colgroup>
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Vencimento</th>
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Status</th>
-                        <th className="text-right py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Valor</th>
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground">Descrição</th>
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Categoria</th>
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Favorecido</th>
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Tipo CPP</th>
-                        <th className="text-left py-3 px-3 font-medium text-muted-foreground whitespace-nowrap">Anexos</th>
-                        <th className="py-3 px-3 w-20"></th>
+                        <th className="py-3 px-2">
+                          <Checkbox
+                            checked={allVisibleLancamentosSelected ?true : someVisibleLancamentosSelected ?"indeterminate" : false}
+                            onCheckedChange={(checked) => toggleVisibleLancamentosSelection(checked === true)}
+                            aria-label="Selecionar lançamentos visíveis"
+                            disabled={fluxoItems.length === 0 || bulkDeleteMutation.isPending}
+                            data-testid="checkbox-selecionar-lancamentos"
+                          />
+                        </th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Vencimento</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Categoria</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Detalhes</th>
+                        <th className="py-3 px-2"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {fluxoItems.map((item) => (
+                      {fluxoItems.map((item) => {
+                        const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ?"vencido" : (item.status || null);
+                        const statusConfig = getStatusConfig(effective as StatusPagamento | null);
+                        return (
                         <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lancamento-${item.id}`}>
-                          {/* Vencimento */}
-                          <td className="py-3 px-3 text-sm whitespace-nowrap" data-testid={`text-vencimento-${item.id}`}>
-                            {item.data_vencimento ?(
-                              <span className={`flex items-center gap-1 ${isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ?"text-red-500 font-medium" : "text-muted-foreground"}`}>
-                                <CalendarClock className="w-3 h-3" />
-                                {formatDate(item.data_vencimento)}
-                              </span>
-                            ) : "-"}
+                          {/* Seleção */}
+                          <td className="py-3 px-2 align-top">
+                            <Checkbox
+                              checked={selectedLancamentoIds.includes(item.id)}
+                              onCheckedChange={(checked) => toggleLancamentoSelection(item.id, checked === true)}
+                              aria-label={`Selecionar lançamento ${item.descricao || item.id}`}
+                              disabled={bulkDeleteMutation.isPending}
+                              data-testid={`checkbox-lancamento-${item.id}`}
+                            />
                           </td>
-                          {/* Status */}
-                          <td className="py-3 px-3 whitespace-nowrap" data-testid={`text-status-${item.id}`}>
+                          {/* Vencimento */}
+                          <td className="py-3 px-2 align-top text-sm" data-testid={`text-vencimento-${item.id}`}>
                             {(() => {
-                              const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ?"vencido" : (item.status || null);
-                              const { label, color, Icon } = getStatusConfig(effective as StatusPagamento | null);
+                              const { label, color, Icon } = statusConfig;
                               return (
-                                <Badge variant="outline" className={`gap-1 ${color}`}>
-                                  <Icon className="w-3 h-3" />
-                                  {label}
-                                </Badge>
+                                <div className="space-y-1.5" data-testid={`text-status-${item.id}`}>
+                                  {item.data_vencimento ?(
+                                    <span className={`flex items-center gap-1 ${effective === "vencido" ?"text-red-500 font-medium" : "text-muted-foreground"}`}>
+                                      <CalendarClock className="w-3 h-3 shrink-0" />
+                                      <span>{formatDate(item.data_vencimento)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                  <Badge variant="outline" className={`inline-flex max-w-full gap-1 whitespace-normal text-[11px] leading-tight ${color}`}>
+                                    <Icon className="w-3 h-3 shrink-0" />
+                                    <span className="break-words">{label}</span>
+                                  </Badge>
+                                </div>
                               );
                             })()}
                           </td>
                           {/* Valor */}
-                          <td className={`py-3 px-3 text-right font-semibold whitespace-nowrap ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
+                          <td className={`py-3 px-2 align-top text-right font-semibold whitespace-normal break-words ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
                             {item.tipo === "entrada" ?"+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
                           {/* Descrição */}
-                          <td className="py-3 px-3" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
+                          <td className="py-3 px-2 align-top break-words" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           {/* Categoria */}
-                          <td className="py-3 px-3">
+                          <td className="py-3 px-2 align-top">
                             {item.Categoria && item.Categoria.length > 0 ?(
-                              <Badge variant="secondary" className="gap-1 whitespace-nowrap">
-                                <Tag className="w-3 h-3" />
-                                {item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}
+                              <Badge variant="outline" className={`inline-flex max-w-full items-start gap-1 whitespace-normal text-left leading-tight ${statusConfig.color}`}>
+                                <Tag className="w-3 h-3 shrink-0 mt-0.5" />
+                                <span className="break-words">{item.Categoria.map((c) => getCatName(c, catMap)).join(", ")}</span>
                               </Badge>
                             ) : "-"}
                           </td>
-                          {/* Favorecido */}
-                          <td className="py-3 px-3" data-testid={`text-favorecido-${item.id}`}>
-                            {item.Favorecido && item.Favorecido.length > 0 ?(
-                              <span className="flex flex-col gap-0.5">
+                          {/* Detalhes */}
+                          <td className="py-3 px-2 align-top">
+                            <div className="flex flex-col gap-1.5 text-xs">
+                              <div data-testid={`text-favorecido-${item.id}`}>
+                                {item.Favorecido && item.Favorecido.length > 0 ?(
+                                  <span className="flex flex-col gap-0.5">
                                 {item.Favorecido.map((f, idx) => {
                                   const favId = getRelId(f as any) || "";
                                   const nome = getFavName(f, membroMap);
@@ -3508,48 +3622,48 @@ export default function FluxoCaixaPage({
                                     <button
                                       key={idx}
                                       onClick={() => membro && setProfileMembro(membro)}
-                                      className="flex items-center gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left whitespace-nowrap"
+                                      className="flex items-start gap-1 text-brand-navy hover:text-brand-gold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0 text-left"
                                       data-testid={`link-favorecido-${item.id}-${idx}`}
                                     >
-                                      <UserCheck className="w-3 h-3 shrink-0" />
-                                      {nome}
+                                      <UserCheck className="w-3 h-3 shrink-0 mt-0.5" />
+                                      <span className="break-words">{nome}</span>
                                     </button>
                                   );
                                 })}
-                              </span>
-                            ) : "-"}
+                                  </span>
+                                ) : "-"}
+                              </div>
+                              <div data-testid={`text-tipo-cpp-${item.id}`}>
+                                {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ?(
+                                  <Badge variant="secondary" className="inline-flex max-w-full items-start gap-1 whitespace-normal text-left leading-tight">
+                                    <Layers className="w-3 h-3 shrink-0 mt-0.5" />
+                                    <span className="break-words">{item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}</span>
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <div data-testid={`text-anexos-${item.id}`}>
+                                {item.anexos && item.anexos.length > 0 ?(
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 max-w-full px-2 gap-1 text-xs hover:bg-brand-gold/10 hover:border-brand-gold/40"
+                                    onClick={() => setAnexosModal({ id: item.id, anexos: item.anexos as any[] })}
+                                    data-testid={`button-anexos-${item.id}`}
+                                  >
+                                    <Paperclip className="w-3 h-3 shrink-0" />
+                                    {item.anexos.length}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
                           </td>
-                          {/* Tipo CPP */}
-                          <td className="py-3 px-3" data-testid={`text-tipo-cpp-${item.id}`}>
-                            {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ?(
-                              <Badge variant="secondary" className="gap-1 whitespace-nowrap">
-                                <Layers className="w-3 h-3" />
-                                {item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}
-                              </Badge>
-                            ) : "-"}
-                          </td>
-                          {/* Anexos */}
-                          <td className="py-3 px-2 text-center" data-testid={`text-anexos-${item.id}`}>
-                            {item.anexos && item.anexos.length > 0 ?(
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 gap-1 text-xs hover:bg-brand-gold/10 hover:border-brand-gold/40"
-                                onClick={() => setAnexosModal({ id: item.id, anexos: item.anexos as any[] })}
-                                data-testid={`button-anexos-${item.id}`}
-                              >
-                                <Paperclip className="w-3 h-3" />
-                                {item.anexos.length}
-                              </Button>
-                            ) : "-"}
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex items-center gap-1">
+                          <td className="py-3 px-2 align-top">
+                            <div className="flex flex-col items-end gap-1">
                               {isDivisorDeibLancamento(item, catMap) && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
+                                  className="h-7 w-7 text-muted-foreground hover:text-brand-gold"
                                   onClick={() => openBoletoDialog(item)}
                                   data-testid={`button-gerar-boleto-${item.id}`}
                                   title={item.pagamento_url ?"Ver ou gerar novo pagamento" : "Gerar boleto"}
@@ -3560,7 +3674,7 @@ export default function FluxoCaixaPage({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
+                                className="h-7 w-7 text-muted-foreground hover:text-brand-gold"
                                 onClick={() => openEditDialog(item)}
                                 data-testid={`button-edit-${item.id}`}
                               >
@@ -3569,7 +3683,7 @@ export default function FluxoCaixaPage({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-brand-gold"
+                                className="h-7 w-7 text-muted-foreground hover:text-brand-gold"
                                 onClick={() => setHistoricoItem(item)}
                                 data-testid={`button-historico-${item.id}`}
                                 title="Histórico do lançamento"
@@ -3579,9 +3693,9 @@ export default function FluxoCaixaPage({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                                className="h-7 w-7 text-muted-foreground hover:text-red-500"
                                 onClick={() => setDeleteConfirmId(item.id)}
-                                disabled={deleteMutation.isPending}
+                                disabled={deleteMutation.isPending || bulkDeleteMutation.isPending}
                                 data-testid={`button-delete-${item.id}`}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -3589,7 +3703,8 @@ export default function FluxoCaixaPage({
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3798,6 +3913,38 @@ export default function FluxoCaixaPage({
                 >
                   {deleteMutation.isPending ?<RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
                   Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                  <Trash2 className="w-5 h-5" />
+                  Apagar {selectedLancamentoIds.length} lançamento{selectedLancamentoIds.length === 1 ?"" : "s"}?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Os {selectedLancamentoIds.length} lançamentos selecionados serão excluídos permanentemente do Directus.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={bulkDeleteMutation.isPending} data-testid="button-cancel-bulk-delete">
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => {
+                    if (selectedLancamentoIds.length > 0) {
+                      bulkDeleteMutation.mutate(selectedLancamentoIds);
+                    }
+                  }}
+                  disabled={bulkDeleteMutation.isPending || selectedLancamentoIds.length === 0}
+                  data-testid="button-confirm-bulk-delete"
+                >
+                  {bulkDeleteMutation.isPending ?<RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Confirmar exclusão
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

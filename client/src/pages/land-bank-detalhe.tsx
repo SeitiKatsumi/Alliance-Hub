@@ -44,6 +44,8 @@ type LandBankCategoryValue = keyof typeof categoryMeta;
 interface LandBankAsset {
   id: string;
   category: LandBankCategoryValue | "transformation-bank";
+  bia_id?: string;
+  bia_nome?: string;
   qualificacao: string;
   area: string;
   valor?: string;
@@ -274,6 +276,7 @@ export default function LandBankDetalhePage() {
               <InfoRow label="Valor" value={formatCurrency(asset.valor, asset.moeda || "BRL")} />
               <InfoRow label="Moeda" value={asset.moeda || "BRL"} />
               <InfoRow label="Categoria" value={meta.title} />
+              <InfoRow label="BIA vinculada" value={asset.bia_nome} />
             </CardContent>
           </Card>
 

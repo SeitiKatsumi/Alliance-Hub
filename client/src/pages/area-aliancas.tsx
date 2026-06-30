@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton } from "@/components/rede-badge-viewer";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
+import { useAuth } from "@/hooks/use-auth";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
@@ -26,16 +27,20 @@ import {
 } from "react-simple-maps";
 import {
   Briefcase,
+  FileText,
   Globe2,
   Handshake,
   MapPin,
   Network,
+  Paperclip,
   Plus,
   Ruler,
   Search,
   ShieldCheck,
   Target,
+  Upload,
   Users,
+  X,
   Info,
 } from "lucide-react";
 
@@ -224,9 +229,19 @@ const landBankCategories = [
 
 type LandBankCategory = (typeof landBankCategories)[number];
 
+interface LandBankBasicInfoAttachment {
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string;
+}
+
 interface LandBankAsset {
   id: string;
   category: LandBankCategory["value"];
+  bia_id?: string;
+  bia_nome?: string;
+  basicInfoAttachment?: LandBankBasicInfoAttachment;
   qualificacao: string;
   area: string;
   valor: string;
@@ -281,6 +296,8 @@ const ufApproxCoords: Record<string, [number, number]> = {
 };
 
 const emptyLandBankForm: LandBankForm = {
+  bia_id: "",
+  bia_nome: "",
   qualificacao: "",
   area: "",
   valor: "",
@@ -296,6 +313,71 @@ const emptyLandBankForm: LandBankForm = {
   complemento: "",
   foto: "",
 };
+
+interface BiasProjetoLandBank {
+  id: string;
+  nome_bia: string;
+  autor_bia?: string | { id?: string } | null;
+  aliado_built?: string | { id?: string } | null;
+  diretor_alianca?: string | { id?: string } | null;
+  diretor_nucleo_tecnico?: string | { id?: string } | null;
+  diretor_execucao?: string | { id?: string } | null;
+  diretor_comercial?: string | { id?: string } | null;
+  diretor_capital?: string | { id?: string } | null;
+  socios_guardioes?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
+  socios_multiplicadores?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
+  terceiros?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
+}
+
+function relationId(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "object") {
+    if (value.id) return String(value.id);
+    if (value.cadastro_geral_id) return relationId(value.cadastro_geral_id);
+    return null;
+  }
+  return String(value);
+}
+
+function parseBiaMemberIds(value: BiasProjetoLandBank["socios_guardioes"]): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        return relationId(item.cadastro_geral_id) || relationId(item);
+      })
+      .filter((id): id is string => Boolean(id));
+  }
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parseBiaMemberIds(parsed as any);
+  } catch {
+    // Legacy records can still arrive as comma-separated ids.
+  }
+  return value.split(",").map((id) => id.trim()).filter(Boolean);
+}
+
+function isMembroAssociatedToLandBankBia(bia: BiasProjetoLandBank, membroId?: string | null): boolean {
+  if (!membroId) return false;
+  const current = String(membroId);
+  const directRoles = [
+    bia.autor_bia,
+    bia.aliado_built,
+    bia.diretor_alianca,
+    bia.diretor_nucleo_tecnico,
+    bia.diretor_execucao,
+    bia.diretor_comercial,
+    bia.diretor_capital,
+  ].map(relationId);
+  const listRoles = [
+    ...parseBiaMemberIds(bia.socios_guardioes),
+    ...parseBiaMemberIds(bia.socios_multiplicadores),
+    ...parseBiaMemberIds(bia.terceiros),
+  ];
+  return [...directRoles, ...listRoles].some((id) => String(id) === current);
+}
 
 function estimateLandBankCoords(form: LandBankForm): { latitude: number | null; longitude: number | null } {
   const uf = form.estado.trim().toUpperCase();
@@ -314,6 +396,12 @@ function formatLandBankCurrency(value?: string | null, currency = "BRL"): string
   } catch {
     return `${currency} ${value}`;
   }
+}
+
+function formatLandBankFileSize(size?: number): string {
+  if (!size || size <= 0) return "";
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 }
 
 function LandBankMapHeader({ category, assets }: { category: LandBankCategory; assets: LandBankAsset[] }) {
@@ -567,6 +655,11 @@ function LandBankPanel({
                   <Badge variant="secondary" className="text-blue-700">
                     {category.title}
                   </Badge>
+                  {asset.bia_nome && (
+                    <Badge variant="outline" className="max-w-full border-orange-200 bg-orange-50 text-orange-700">
+                      <span className="truncate">BIA: {asset.bia_nome}</span>
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
                     ativo
                   </Badge>
@@ -608,6 +701,7 @@ function LandBankPanel({
 }
 
 export default function AreaAliancasPage() {
+  const { user } = useAuth();
   const searchParams = useSearch();
   const getTabsFromSearch = () => {
     const tab = new URLSearchParams(searchParams).get("tab");
@@ -645,6 +739,22 @@ export default function AreaAliancasPage() {
   const [landBankDialogOpen, setLandBankDialogOpen] = useState(false);
   const [landBankDialogCategory, setLandBankDialogCategory] = useState<LandBankCategory["value"]>(initialTabs.landBank as LandBankCategory["value"]);
   const [landBankForm, setLandBankForm] = useState<LandBankForm>(emptyLandBankForm);
+  const membroId = user?.membro_directus_id || null;
+
+  const { data: bias = [] } = useQuery<BiasProjetoLandBank[]>({
+    queryKey: ["/api/bias", "landbank-link"],
+    queryFn: async () => {
+      const r = await fetch("/api/bias", { credentials: "include" });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const associatedBias = useMemo(
+    () => bias.filter((bia) => isMembroAssociatedToLandBankBia(bia, membroId)),
+    [bias, membroId],
+  );
 
   useEffect(() => {
     const tabs = getTabsFromSearch();
@@ -670,6 +780,23 @@ export default function AreaAliancasPage() {
     };
     reader.readAsDataURL(file);
   };
+  const handleLandBankBasicInfoAttachment = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      setLandBankForm((current) => ({
+        ...current,
+        basicInfoAttachment: {
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: file.size,
+          dataUrl: reader.result,
+        },
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
   const openLandBankDialog = (category: LandBankCategory["value"]) => {
     setLandBankDialogCategory(category);
     setLandBankForm(emptyLandBankForm);
@@ -677,6 +804,7 @@ export default function AreaAliancasPage() {
   };
   const createLandBankAsset = () => {
     const requiredFields: Array<keyof LandBankForm> = [
+      "bia_id",
       "qualificacao",
       "area",
       "valor",
@@ -692,11 +820,14 @@ export default function AreaAliancasPage() {
     ];
     const missing = requiredFields.some((field) => !String(landBankForm[field] || "").trim());
     if (missing) return;
+    const linkedBia = associatedBias.find((bia) => bia.id === landBankForm.bia_id);
+    if (!linkedBia) return;
 
     const estimatedCoords = estimateLandBankCoords(landBankForm);
     setLandBankAssets((current) => [
       {
         ...landBankForm,
+        bia_nome: linkedBia.nome_bia,
         ...estimatedCoords,
         id: `land-${Date.now()}`,
         category: landBankDialogCategory,
@@ -864,6 +995,41 @@ export default function AreaAliancasPage() {
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Informações do ativo</p>
               <p className="mt-1 text-sm text-muted-foreground">{selectedLandBankCategory.shortDescription}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>BIA vinculada <span className="text-destructive">*</span></Label>
+              <Select
+                value={landBankForm.bia_id || undefined}
+                onValueChange={(value) => {
+                  const linkedBia = associatedBias.find((bia) => bia.id === value);
+                  setLandBankForm((current) => ({
+                    ...current,
+                    bia_id: value,
+                    bia_nome: linkedBia?.nome_bia || "",
+                  }));
+                }}
+              >
+                <SelectTrigger
+                  className={!landBankForm.bia_id ? "border-destructive/40 text-muted-foreground" : ""}
+                  data-testid="select-landbank-bia"
+                >
+                  <SelectValue placeholder="Selecione uma BIA associada..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {associatedBias.length > 0 ? (
+                    associatedBias.map((bia) => (
+                      <SelectItem key={bia.id} value={bia.id}>
+                        {bia.nome_bia}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      Nenhuma BIA associada disponível.
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1050,7 +1216,11 @@ export default function AreaAliancasPage() {
             <Button variant="outline" onClick={() => setLandBankDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={createLandBankAsset} data-testid="btn-salvar-landbank">
+            <Button
+              onClick={createLandBankAsset}
+              disabled={!landBankForm.bia_id || associatedBias.length === 0}
+              data-testid="btn-salvar-landbank"
+            >
               Criar ativo
             </Button>
           </DialogFooter>

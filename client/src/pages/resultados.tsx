@@ -33,6 +33,7 @@ interface BiasProjeto {
   lucro_previsto?: string | number;
   total_receita?: string | number;
   total_aportes?: string | number;
+  ativo_area_m2?: string | number;
   comissao_realizada?: string | number;
   ir_realizado?: string | number;
   inss_realizado?: string | number;
@@ -52,6 +53,15 @@ interface FluxoItem {
 function n(v?: string | number | null): number {
   if (v === null || v === undefined || v === "") return 0;
   return parseFloat(String(v)) || 0;
+}
+
+function parseAreaM2(value?: string | number | null): number {
+  if (typeof value === "number") return value;
+  const normalized = String(value || "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  return parseFloat(normalized) || 0;
 }
 
 function formatInputBRL(value: string): string {
@@ -78,6 +88,10 @@ function formatMoney(value: number, currency = "BRL"): string {
   } catch {
     return brl(value);
   }
+}
+
+function formatMoneyPerM2(value: number, currency = "BRL"): string {
+  return `${formatMoney(value, currency)}/m²`;
 }
 
 function pct(value: number, decimals = 2): string {
@@ -235,6 +249,7 @@ export default function ResultadosPage({
   const custoCPP            = n(bia?.custo_final_previsto);
   const custoOrigem         = n(bia?.custo_origem_bia);
   const valorOrigem         = n(bia?.valor_origem);
+  const areaM2              = parseAreaM2(bia?.ativo_area_m2);
 
   // Previsto (%)
   const comissaoPct         = n(bia?.comissao_prevista_corretor);
@@ -248,6 +263,9 @@ export default function ResultadosPage({
   const inssPrev        = (inssPct      / 100) * valorRealizado;
   const manutPrev       = (manutencaoPct / 100) * valorRealizado;
   const totalDeducoesPrev = comissaoPrev + irPrev + inssPrev + manutPrev;
+  const custoTotal = custoOrigem + totalSaidasPagas;
+  const custoPorM2 = areaM2 > 0 ?custoTotal / areaM2 : 0;
+  const receitaPorM2 = areaM2 > 0 ?valorRealizado / areaM2 : 0;
 
   // Realizado (valores BRL — usa os estados editáveis)
   const comissaoReal    = (comissaoRealPct  / 100) * valorRealizado;
@@ -353,7 +371,7 @@ export default function ResultadosPage({
           {/* Linha 2 — métricas secundárias */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
-              label="Total de Aportes"
+              label="Total de Entradas"
               value={formatMoney(totalAportesPagos, bia?.moeda || "BRL")}
               sub="entradas pagas no caixa"
               icon={ArrowUpCircle}
@@ -361,7 +379,7 @@ export default function ResultadosPage({
               border="border-blue-500/30"
             />
             <MetricCard
-              label="Saídas Realizadas"
+              label="Total de Saídas"
               value={formatMoney(totalSaidasPagas, bia?.moeda || "BRL")}
               sub="saídas pagas no caixa"
               icon={ArrowDownCircle}
@@ -389,13 +407,13 @@ export default function ResultadosPage({
           {/* Detalhamento */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Investimento */}
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Landmark className="w-4 h-4 text-blue-500" /> Investimento (Custos)
+                  <Landmark className="w-4 h-4 text-blue-500" /> Custo
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 <RowItem label="Valor de Origem" value={valorOrigem} positive={false} currency={bia?.moeda || "BRL"} />
                 <RowItem label="Divisor Multiplicador" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} withBorder={false} />
                 <Separator className="my-2" />
@@ -403,11 +421,25 @@ export default function ResultadosPage({
                   <span className="min-w-0 text-sm font-semibold">Custo de Origem da BIA</span>
                   <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoOrigem, bia?.moeda || "BRL")}</span>
                 </div>
+                <RowItem label="Total de Saídas" value={totalSaidasPagas} positive={false} currency={bia?.moeda || "BRL"} withBorder={false} />
+                <Separator className="my-2" />
+                <div className="flex items-start justify-between gap-4 pt-1">
+                  <span className="min-w-0 text-sm font-semibold">Custo Total</span>
+                  <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoTotal, bia?.moeda || "BRL")}</span>
+                </div>
+                <div className="mt-auto border-t border-border/40 pt-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="min-w-0 text-xs text-muted-foreground">Custo R$/m²</span>
+                    <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">
+                      {areaM2 > 0 ?formatMoneyPerM2(custoPorM2, bia?.moeda || "BRL") : "-"}
+                    </span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
             {/* Receita */}
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -425,7 +457,7 @@ export default function ResultadosPage({
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 {/* VGV */}
                 <div className="py-2 border-b border-border/40">
                   <div className="flex items-center justify-between mb-1.5">
@@ -469,6 +501,14 @@ export default function ResultadosPage({
                   <Badge variant={percVGV >= 100 ?"default" : "secondary"} className="text-xs">
                     {pct(percVGV, 1)} do VGV
                   </Badge>
+                </div>
+                <div className="mt-auto border-t border-border/40 pt-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="min-w-0 text-xs text-muted-foreground">Receita R$/m²</span>
+                    <span className="shrink-0 text-right text-sm font-bold text-green-600 tabular-nums">
+                      {areaM2 > 0 ?formatMoneyPerM2(receitaPorM2, bia?.moeda || "BRL") : "-"}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -535,7 +575,7 @@ export default function ResultadosPage({
           </div>
 
           {/* Resumo final */}
-          <Card className="border-brand-gold/30 bg-gradient-to-br from-brand-gold/5 to-transparent">
+          <Card className="hidden">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <BarChart3 className="w-5 h-5 text-brand-gold" /> Resumo do Investimento

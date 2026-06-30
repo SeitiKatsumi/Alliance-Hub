@@ -1258,6 +1258,7 @@ async function findTipoCppId(nome: string): Promise<number | null> {
 
 const CPP_CONTRIBUTOR_CATEGORY: Record<string, string> = {
   "BUILT":               "Direito EconÃ´mico Institucional BUILT (DEI-B)",
+  "Autor da Oportunidade":"Direito EconÃ´mico por Autoria da Oportunidade (DE-AO)",
   "Aliado BUILT":        "Direito EconÃ´mico Institucional do Aliado (DEI-A)",
   "Dir. de AlianÃ§a":     "Direito EconÃ´mico por LideranÃ§a de AlianÃ§a (DE-LA)",
   "Dir. NÃºcleo TÃ©cnico": "Direito EconÃ´mico por LideranÃ§a TÃ©cnica (DE-LTec)",
@@ -7036,6 +7037,11 @@ export async function registerRoutes(
               null;
             // Build contributors list for CPP entries
             const contributors: CppContributor[] = [
+              {
+                label: "Autor da Oportunidade",
+                memberId: directusRelationId(item.autor_bia) || directusRelationId(req.body.autor_bia) || item.autor_bia || req.body.autor_bia || null,
+                percentual: parseFloat(item.perc_autor_opa) || parseFloat(req.body.perc_autor_opa) || 0,
+              },
               { label: "Aliado BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
               { label: "BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
               { label: "Dir. de AlianÃ§a", memberId: item.diretor_alianca || null, percentual: parseFloat(item.perc_dir_alianca) || 0, isAporte: true },

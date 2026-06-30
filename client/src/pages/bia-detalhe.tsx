@@ -340,6 +340,7 @@ export default function BiaDetalhePage() {
   const equipe = useMemo(() => {
     if (!bia) return [];
     return [
+      { id: bia.autor_bia, role: "Autor da Oportunidade", icon: Target },
       { id: bia.aliado_built, role: "Aliado BUILT", icon: Shield },
       { id: bia.diretor_alianca, role: "Diretor de Aliança", icon: Crown },
       { id: bia.diretor_nucleo_tecnico, role: "Diretor de Núcleo Técnico", icon: Shield },
@@ -352,6 +353,7 @@ export default function BiaDetalhePage() {
   const cpp = useMemo(() => {
     if (!bia) return [];
     return [
+      { label: "Autor da Oportunidade", perc: bia.perc_autor_opa, cpp: bia.cpp_autor_opa },
       { label: "Dir. Aliança", perc: bia.perc_dir_alianca, cpp: bia.cpp_dir_alianca },
       { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
       { label: "Dir. Núcleo de Obra", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
@@ -371,7 +373,7 @@ export default function BiaDetalhePage() {
         value: "diretoria",
         label: "Diretoria",
         testId: "tab-bia-nucleo-diretoria",
-        allowed: canAccessAllNucleos || membroId === bia.aliado_built || membroId === bia.diretor_alianca,
+        allowed: canAccessAllNucleos || membroId === bia.autor_bia || membroId === bia.aliado_built || membroId === bia.diretor_alianca,
       },
       {
         value: "tecnico",
@@ -446,7 +448,7 @@ export default function BiaDetalhePage() {
       title: "Diretoria da Aliança",
       description: "Governança, papéis estratégicos e coordenação da BIA.",
       icon: Crown,
-      roles: equipe.filter((e) => ["Aliado BUILT", "Diretor de Aliança"].includes(e.role)),
+      roles: equipe.filter((e) => ["Autor da Oportunidade", "Aliado BUILT", "Diretor de Aliança"].includes(e.role)),
     },
     {
       id: "tecnico",

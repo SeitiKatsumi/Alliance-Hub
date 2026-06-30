@@ -176,7 +176,7 @@ export function PagamentoModal({
               type="button" variant="outline" size="sm"
               onClick={() => fileInputRef.current?.click()}
               disabled={aiLoading}
-              className="w-full border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10"
+              className="w-full border-blue-500 bg-blue-600 text-white hover:bg-blue-700 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-600"
               data-testid="button-ai-parse"
             >
               {aiLoading ?<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Lendo arquivo...</> : <><Upload className="w-4 h-4 mr-2" /> Enviar arquivo</>}

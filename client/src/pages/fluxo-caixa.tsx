@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,6 +68,7 @@ import {
   PlusCircle,
   ExternalLink,
   History,
+  MoreHorizontal,
 } from "lucide-react";
 
 interface BiasProjeto {
@@ -1763,14 +1765,14 @@ export default function FluxoCaixaPage({
   }
 
   const totals = useMemo(() => {
-    const entradas = fluxoItemsContabeis
+    const entradas = fluxoItemsAll
       .filter((i) => i.tipo === "entrada" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
-    const saidas = fluxoItemsContabeis
+    const saidas = fluxoItemsAll
       .filter((i) => i.tipo === "saida" && i.status === "pago")
       .reduce((sum, i) => sum + (parseFloat(String(i.valor)) || 0), 0);
     return { entradas, saidas, saldo: entradas - saidas };
-  }, [fluxoItemsContabeis]);
+  }, [fluxoItemsAll]);
 
   const today = new Date().toISOString().split("T")[0];
   const in7days = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
@@ -2692,7 +2694,7 @@ export default function FluxoCaixaPage({
               <CardContent>
                 <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-green-600" data-testid="text-total-entradas">{formatBRL(totals.entradas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
+                  {fluxoItemsAll.filter((i) => i.tipo === "entrada" && i.status === "pago").length} entrada(s) pagas
                 </p>
               </CardContent>
             </Card>
@@ -2705,7 +2707,7 @@ export default function FluxoCaixaPage({
               <CardContent>
                 <p className="max-w-full break-words text-[clamp(1.25rem,2.1vw,1.5rem)] font-bold leading-tight text-red-600" data-testid="text-total-saidas">{formatBRL(totals.saidas)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {fluxoItemsContabeis.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
+                  {fluxoItemsAll.filter((i) => i.tipo === "saida" && i.status === "pago").length} saída(s) pagas
                 </p>
               </CardContent>
             </Card>
@@ -3562,7 +3564,7 @@ export default function FluxoCaixaPage({
                         return (
                         <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lancamento-${item.id}`}>
                           {/* Seleção */}
-                          <td className="py-3 px-2 align-top">
+                          <td className="py-2 px-2 align-top">
                             <Checkbox
                               checked={selectedLancamentoIds.includes(item.id)}
                               onCheckedChange={(checked) => toggleLancamentoSelection(item.id, checked === true)}
@@ -3572,7 +3574,7 @@ export default function FluxoCaixaPage({
                             />
                           </td>
                           {/* Vencimento */}
-                          <td className="py-3 px-2 align-top text-sm" data-testid={`text-vencimento-${item.id}`}>
+                          <td className="py-2 px-2 align-top text-sm" data-testid={`text-vencimento-${item.id}`}>
                             {(() => {
                               const { label, color, Icon } = statusConfig;
                               return (
@@ -3594,13 +3596,13 @@ export default function FluxoCaixaPage({
                             })()}
                           </td>
                           {/* Valor */}
-                          <td className={`py-3 px-2 align-top text-right font-semibold whitespace-normal break-words ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
+                          <td className={`py-2 px-2 align-top text-right font-semibold whitespace-normal break-words ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
                             {item.tipo === "entrada" ?"+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
                           </td>
                           {/* Descrição */}
-                          <td className="py-3 px-2 align-top break-words" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
+                          <td className="py-2 px-2 align-top break-words" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
                           {/* Categoria */}
-                          <td className="py-3 px-2 align-top">
+                          <td className="py-2 px-2 align-top">
                             {item.Categoria && item.Categoria.length > 0 ?(
                               <Badge variant="outline" className={`inline-flex max-w-full items-start gap-1 whitespace-normal text-left leading-tight ${statusConfig.color}`}>
                                 <Tag className="w-3 h-3 shrink-0 mt-0.5" />
@@ -3609,7 +3611,7 @@ export default function FluxoCaixaPage({
                             ) : "-"}
                           </td>
                           {/* Detalhes */}
-                          <td className="py-3 px-2 align-top">
+                          <td className="py-2 px-2 align-top">
                             <div className="flex flex-col gap-1.5 text-xs">
                               <div data-testid={`text-favorecido-${item.id}`}>
                                 {item.Favorecido && item.Favorecido.length > 0 ?(
@@ -3635,71 +3637,66 @@ export default function FluxoCaixaPage({
                               </div>
                               <div data-testid={`text-tipo-cpp-${item.id}`}>
                                 {item.tipo_de_cpp && item.tipo_de_cpp.length > 0 ?(
-                                  <Badge variant="secondary" className="inline-flex max-w-full items-start gap-1 whitespace-normal text-left leading-tight">
+                                  <Badge variant="outline" className={`inline-flex max-w-full items-start gap-1 whitespace-normal text-left leading-tight ${statusConfig.color}`}>
                                     <Layers className="w-3 h-3 shrink-0 mt-0.5" />
                                     <span className="break-words">{item.tipo_de_cpp.map((c) => getCppName(c, cppMap)).join(", ")}</span>
                                   </Badge>
                                 ) : null}
                               </div>
-                              <div data-testid={`text-anexos-${item.id}`}>
-                                {item.anexos && item.anexos.length > 0 ?(
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 max-w-full px-2 gap-1 text-xs hover:bg-brand-gold/10 hover:border-brand-gold/40"
-                                    onClick={() => setAnexosModal({ id: item.id, anexos: item.anexos as any[] })}
-                                    data-testid={`button-anexos-${item.id}`}
-                                  >
-                                    <Paperclip className="w-3 h-3 shrink-0" />
-                                    {item.anexos.length}
-                                  </Button>
-                                ) : null}
-                              </div>
                             </div>
                           </td>
-                          <td className="py-3 px-2 align-top">
-                            <div className="flex flex-col items-end gap-1">
-                              {isDivisorDeibLancamento(item, catMap) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-brand-gold"
-                                  onClick={() => openBoletoDialog(item)}
-                                  data-testid={`button-gerar-boleto-${item.id}`}
-                                  title={item.pagamento_url ?"Ver ou gerar novo pagamento" : "Gerar boleto"}
-                                >
-                                  <Receipt className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-brand-gold"
-                                onClick={() => openEditDialog(item)}
-                                data-testid={`button-edit-${item.id}`}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-brand-gold"
-                                onClick={() => setHistoricoItem(item)}
-                                data-testid={`button-historico-${item.id}`}
-                                title="Histórico do lançamento"
-                              >
-                                <History className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-red-500"
-                                onClick={() => setDeleteConfirmId(item.id)}
-                                disabled={deleteMutation.isPending || bulkDeleteMutation.isPending}
-                                data-testid={`button-delete-${item.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                          <td className="py-2 px-2 align-top">
+                            <div className="flex justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-brand-navy"
+                                    data-testid={`button-acoes-lancamento-${item.id}`}
+                                    title="Ações"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-44">
+                                  {item.anexos && item.anexos.length > 0 && (
+                                    <DropdownMenuItem
+                                      onSelect={() => setAnexosModal({ id: item.id, anexos: item.anexos as any[] })}
+                                      data-testid={`button-anexos-${item.id}`}
+                                    >
+                                      <Paperclip className="h-4 w-4" />
+                                      Anexos ({item.anexos.length})
+                                    </DropdownMenuItem>
+                                  )}
+                                  {isDivisorDeibLancamento(item, catMap) && (
+                                    <DropdownMenuItem
+                                      onSelect={() => openBoletoDialog(item)}
+                                      data-testid={`button-gerar-boleto-${item.id}`}
+                                    >
+                                      <Receipt className="h-4 w-4" />
+                                      {item.pagamento_url ?"Pagamento" : "Gerar boleto"}
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onSelect={() => openEditDialog(item)} data-testid={`button-edit-${item.id}`}>
+                                    <Pencil className="h-4 w-4" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onSelect={() => setHistoricoItem(item)} data-testid={`button-historico-${item.id}`}>
+                                    <History className="h-4 w-4" />
+                                    Histórico
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => setDeleteConfirmId(item.id)}
+                                    disabled={deleteMutation.isPending || bulkDeleteMutation.isPending}
+                                    className="text-red-600 focus:text-red-700"
+                                    data-testid={`button-delete-${item.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </td>
                         </tr>

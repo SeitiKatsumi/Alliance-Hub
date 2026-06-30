@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Calculator,
+  Target,
   Save,
   RefreshCw,
   DollarSign,
@@ -330,7 +331,7 @@ export default function BiasCalculadoraPage({
 } = {}) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === "admin";
+  const isSuperAdmin = user?.role === "admin" || user?.role === "manager" || user?.role === "superadmin";
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const [cppSummary, setCppSummary] = useState<CppSummary | null>(null);
   const [cppError, setCppError] = useState<string | null>(null);
@@ -403,6 +404,10 @@ export default function BiasCalculadoraPage({
   const [percObras, setPercObras] = useState(0);
   const [percComercial, setPercComercial] = useState(0);
   const [percCapital, setPercCapital] = useState(0);
+  const applyPercentualMin = (value: number, min = 0) => {
+    if (isSuperAdmin) return Math.max(value, 0);
+    return Math.max(value, min);
+  };
 
   // Receita & impostos
   const [vgv, setVgv] = useState(0);
@@ -418,6 +423,7 @@ export default function BiasCalculadoraPage({
 
   // Estimate how many Directus entries will be created/deleted during sync
   const activeContributors = 1 // BUILT always
+    + (membroAutorOpa && percAutor > 0 ?1 : 0)
     + (membroAliadoBuilt && percAliado > 0 ?1 : 0)
     + (membroDirTecnico && percAlianca > 0 ?1 : 0)
     + (membroDirNucleoTecnico && percTecnico > 0 ?1 : 0)
@@ -443,10 +449,10 @@ export default function BiasCalculadoraPage({
       setValoresParcelas([]);
       setValorAVista(0);
       setPercAutor(toNum(selectedBia.perc_autor_opa));
-      setPercAliado(Math.max(toNum(selectedBia.perc_aliado_built), 1));
-      setPercBuilt(Math.max(toNum(selectedBia.perc_built), 1));
+      setPercAliado(applyPercentualMin(toNum(selectedBia.perc_aliado_built), 1));
+      setPercBuilt(applyPercentualMin(toNum(selectedBia.perc_built), 1));
       setPercTecnico(toNum(selectedBia.perc_dir_tecnico));
-      setPercAlianca(Math.max(toNum(selectedBia.perc_dir_alianca), 1));
+      setPercAlianca(applyPercentualMin(toNum(selectedBia.perc_dir_alianca), 1));
       setPercObras(toNum(selectedBia.perc_dir_obras));
       setPercComercial(toNum(selectedBia.perc_dir_comercial));
       setPercCapital(toNum(selectedBia.perc_dir_capital));
@@ -467,16 +473,22 @@ export default function BiasCalculadoraPage({
       setMembroDirComercial(selectedBia.diretor_comercial || "");
       setMembroDirCapital(selectedBia.diretor_capital || "");
     }
-  }, [selectedBia]);
+  }, [selectedBia, isSuperAdmin]);
 
   // Auto-zero percentage when member is cleared for member-dependent roles
   useEffect(() => {
+    if (!membroAutorOpa) {
+      setPercAutor(0);
+    }
+  }, [membroAutorOpa]);
+
+  useEffect(() => {
     if (!membroAliadoBuilt) {
       setPercAliado(0);
-    } else if (percAliado === 0) {
+    } else if (!isSuperAdmin && percAliado === 0) {
       setPercAliado(1);
     }
-  }, [membroAliadoBuilt]);
+  }, [membroAliadoBuilt, isSuperAdmin]);
 
   useEffect(() => {
     if (!membroDirNucleoTecnico) {
@@ -512,14 +524,15 @@ export default function BiasCalculadoraPage({
 
   useEffect(() => {
     if (institutionalPercent === null) return;
-    setPercAliado(institutionalPercent);
-    setPercBuilt(institutionalPercent);
-    setPercAlianca(institutionalPercent);
-  }, [institutionalPercent, valorOrigem, selectedBiaId]);
+    setPercAliado(applyPercentualMin(institutionalPercent, 1));
+    setPercBuilt(applyPercentualMin(institutionalPercent, 1));
+    setPercAlianca(applyPercentualMin(institutionalPercent, 1));
+  }, [institutionalPercent, valorOrigem, selectedBiaId, isSuperAdmin]);
 
   // Calculations
-  const divisorMultiplicador = percAliado + percBuilt + percTecnico + percAlianca + percObras + percComercial + percCapital;
+  const divisorMultiplicador = percAutor + percAliado + percBuilt + percTecnico + percAlianca + percObras + percComercial + percCapital;
   const custoOrigemBia = valorOrigem + (valorOrigem * divisorMultiplicador / 100);
+  const cppAutor = valorOrigem * percAutor / 100;
   const cppAliado = valorOrigem * percAliado / 100;
   const cppBuilt = valorOrigem * percBuilt / 100;
   const cppTecnico = valorOrigem * percTecnico / 100;
@@ -527,7 +540,7 @@ export default function BiasCalculadoraPage({
   const cppObras = valorOrigem * percObras / 100;
   const cppComercial = valorOrigem * percComercial / 100;
   const cppCapital = valorOrigem * percCapital / 100;
-  const custoFinalPrevisto = cppAliado + cppBuilt + cppTecnico + cppAlianca + cppObras + cppComercial + cppCapital;
+  const custoFinalPrevisto = cppAutor + cppAliado + cppBuilt + cppTecnico + cppAlianca + cppObras + cppComercial + cppCapital;
 
   // Total Aporte do Fator de Multiplicação — entrada entries generated per director with a member assigned
   const totalAporteFatorMultiplicacao =
@@ -553,6 +566,7 @@ export default function BiasCalculadoraPage({
       const r = (v: number) => parseFloat(v.toFixed(2));
       const payload = {
         divisor_multiplicador: r(divisorMultiplicador),
+        perc_autor_opa: r(percAutor),
         perc_aliado_built: r(percAliado),
         perc_built: r(percBuilt),
         perc_dir_tecnico: r(percTecnico),
@@ -560,6 +574,7 @@ export default function BiasCalculadoraPage({
         perc_dir_obras: r(percObras),
         perc_dir_comercial: r(percComercial),
         perc_dir_capital: r(percCapital),
+        cpp_autor_opa: r(cppAutor),
         cpp_aliado_built: r(cppAliado),
         cpp_built: r(cppBuilt),
         cpp_dir_tecnico: r(cppTecnico),
@@ -590,6 +605,7 @@ export default function BiasCalculadoraPage({
         _vencimentos_parcelas: formaPagamento === "parcelado" ?vencimentosParcelas : [],
         _valores_parcelas: formaPagamento === "parcelado" ?valoresParcelas : [],
         // Member selections needed for CPP lançamentos generation
+        autor_bia: membroAutorOpa || null,
         aliado_built: membroAliadoBuilt || null,
         diretor_alianca: membroDirTecnico || null,
         diretor_nucleo_tecnico: membroDirNucleoTecnico || null,
@@ -629,6 +645,7 @@ export default function BiasCalculadoraPage({
   const percFields = [
     { label: "Aliado BUILT", icon: Users, value: percAliado, setter: setPercAliado, cpp: cppAliado, color: "text-blue-500", memberId: membroAliadoBuilt, memberSetter: setMembroAliadoBuilt, min: 1 },
     { label: "BUILT", icon: Building2, value: percBuilt, setter: setPercBuilt, cpp: cppBuilt, color: "text-brand-gold", memberId: null, memberSetter: null, min: 1 },
+    { label: "Autor da Oportunidade", icon: Target, value: percAutor, setter: setPercAutor, cpp: cppAutor, color: "text-cyan-500", memberId: membroAutorOpa, memberSetter: setMembroAutorOpa },
     { label: "Dir. de Aliança", icon: Crown, value: percAlianca, setter: setPercAlianca, cpp: cppAlianca, color: "text-indigo-500", memberId: membroDirTecnico, memberSetter: setMembroDirTecnico, min: 1 },
     { label: "Dir. Núcleo Técnico", icon: Shield, value: percTecnico, setter: setPercTecnico, cpp: cppTecnico, color: "text-purple-500", memberId: membroDirNucleoTecnico, memberSetter: setMembroDirNucleoTecnico },
     { label: "Dir. Núcleo de Obra", icon: Hammer, value: percObras, setter: setPercObras, cpp: cppObras, color: "text-orange-500", memberId: membroDirObras, memberSetter: setMembroDirObras },
@@ -1017,13 +1034,13 @@ export default function BiasCalculadoraPage({
                             <Input
                               type="number"
                               step="0.01"
-                              min={(field as any).min ?? 0}
+                              min={isSuperAdmin ?0 : ((field as any).min ?? 0)}
                               value={field.value || ""}
                               disabled={field.memberSetter !== null && !(field as any).min && !field.memberId}
                               onChange={(e) => {
                                 const raw = parseFloat(e.target.value) || 0;
                                 const minVal = (field as any).min ?? 0;
-                                field.setter(Math.max(raw, minVal));
+                                field.setter(applyPercentualMin(raw, minVal));
                               }}
                               className="h-8 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                               placeholder="0,00"

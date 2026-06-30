@@ -40,7 +40,7 @@ import {
   Search, Building2, Crown, Shield, Hammer, Wallet, AlertCircle,
   Navigation, Crosshair, Loader2, Award, FileText, Paperclip, Upload,
   X, ExternalLink, ChevronsUpDown, Check, DollarSign, CreditCard, ImageIcon,
-  Clock, CheckCircle, XCircle, Bell, Ticket, Copy, RefreshCw
+  Clock, CheckCircle, XCircle, Bell, Ticket, Copy, RefreshCw, Target
 } from "lucide-react";
 import { PagamentoModal } from "@/components/PagamentoModal";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
@@ -2361,12 +2361,13 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     );
   }
 
-  const percTotal = ["perc_aliado_built","perc_built","perc_dir_alianca","perc_dir_tecnico",
+  const percTotal = ["perc_autor_opa","perc_aliado_built","perc_built","perc_dir_alianca","perc_dir_tecnico",
     "perc_dir_obras","perc_dir_comercial","perc_dir_capital"].reduce(
     (s, k) => s + (parseFloat(form[k as keyof FormState] as string) || 0), 0
   );
   const custoOrigemPreview = valorOrigem + (valorOrigem * percTotal / 100);
   const activeContributors = 1
+    + (form.autor_bia && (parseFloat(form.perc_autor_opa) || 0) > 0 ?1 : 0)
     + (form.aliado_built && (parseFloat(form.perc_aliado_built) || 0) > 0 ?1 : 0)
     + (form.diretor_alianca && (parseFloat(form.perc_dir_alianca) || 0) > 0 ?1 : 0)
     + (form.diretor_nucleo_tecnico && (parseFloat(form.perc_dir_tecnico) || 0) > 0 ?1 : 0)
@@ -2440,6 +2441,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         _vencimento_origem: formaPagamento === "a_vista" ?(vencimento || null) : null,
         _vencimentos_parcelas: formaPagamento === "parcelado" ?vencimentosParcelas : [],
         _valores_parcelas: formaPagamento === "parcelado" ?valoresParcelas : [],
+        perc_autor_opa: form.perc_autor_opa || null,
         perc_aliado_built: form.perc_aliado_built || null,
         perc_built: form.perc_built || null,
         perc_dir_alianca: form.perc_dir_alianca || null,
@@ -2953,6 +2955,14 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
             {/* Tab Equipe */}
             <TabsContent value="equipe" className="space-y-4 mt-4">
               <MembroSelect
+                label="Autor da Oportunidade"
+                field="autor_bia"
+                form={form}
+                setForm={setForm}
+                membros={membros}
+                icon={Target}
+              />
+              <MembroSelect
                 label="Aliado BUILT"
                 field="aliado_built"
                 form={form}
@@ -3070,6 +3080,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <Separator />
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais DM (% sobre Valor de Origem)</p>
               <div className="grid grid-cols-1 gap-3">
+                <PercField label="Autor da Oportunidade" field="perc_autor_opa" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="BUILT" field="perc_built" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Diretor de Aliança" field="perc_dir_alianca" form={form} setForm={setForm} baseValue={valorOrigem} />

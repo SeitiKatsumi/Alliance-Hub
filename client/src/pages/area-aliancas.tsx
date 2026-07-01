@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton } from "@/components/rede-badge-viewer";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
-import { useAuth } from "@/hooks/use-auth";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
@@ -257,6 +256,11 @@ interface LandBankAsset {
   pais: string;
   numero: string;
   complemento: string;
+  numero_matricula: string;
+  livro: string;
+  folha: string;
+  cartorio: string;
+  comarca: string;
   foto?: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -313,73 +317,13 @@ const emptyLandBankForm: LandBankForm = {
   pais: "Brasil",
   numero: "",
   complemento: "",
+  numero_matricula: "",
+  livro: "",
+  folha: "",
+  cartorio: "",
+  comarca: "",
   foto: "",
 };
-
-interface BiasProjetoLandBank {
-  id: string;
-  nome_bia: string;
-  autor_bia?: string | { id?: string } | null;
-  aliado_built?: string | { id?: string } | null;
-  diretor_alianca?: string | { id?: string } | null;
-  diretor_nucleo_tecnico?: string | { id?: string } | null;
-  diretor_execucao?: string | { id?: string } | null;
-  diretor_comercial?: string | { id?: string } | null;
-  diretor_capital?: string | { id?: string } | null;
-  socios_guardioes?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
-  socios_multiplicadores?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
-  terceiros?: Array<string | { id?: string; cadastro_geral_id?: string | { id?: string } }> | string | null;
-}
-
-function relationId(value: any): string | null {
-  if (!value) return null;
-  if (typeof value === "object") {
-    if (value.id) return String(value.id);
-    if (value.cadastro_geral_id) return relationId(value.cadastro_geral_id);
-    return null;
-  }
-  return String(value);
-}
-
-function parseBiaMemberIds(value: BiasProjetoLandBank["socios_guardioes"]): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => {
-        if (typeof item === "string") return item;
-        return relationId(item.cadastro_geral_id) || relationId(item);
-      })
-      .filter((id): id is string => Boolean(id));
-  }
-  if (typeof value !== "string" || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return parseBiaMemberIds(parsed as any);
-  } catch {
-    // Legacy records can still arrive as comma-separated ids.
-  }
-  return value.split(",").map((id) => id.trim()).filter(Boolean);
-}
-
-function isMembroAssociatedToLandBankBia(bia: BiasProjetoLandBank, membroId?: string | null): boolean {
-  if (!membroId) return false;
-  const current = String(membroId);
-  const directRoles = [
-    bia.autor_bia,
-    bia.aliado_built,
-    bia.diretor_alianca,
-    bia.diretor_nucleo_tecnico,
-    bia.diretor_execucao,
-    bia.diretor_comercial,
-    bia.diretor_capital,
-  ].map(relationId);
-  const listRoles = [
-    ...parseBiaMemberIds(bia.socios_guardioes),
-    ...parseBiaMemberIds(bia.socios_multiplicadores),
-    ...parseBiaMemberIds(bia.terceiros),
-  ];
-  return [...directRoles, ...listRoles].some((id) => String(id) === current);
-}
 
 function estimateLandBankCoords(form: LandBankForm): { latitude: number | null; longitude: number | null } {
   const uf = form.estado.trim().toUpperCase();
@@ -603,7 +547,11 @@ function LandBankPanel({
           </div>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-          <Button onClick={() => onCreate(category.value)} className="gap-2 whitespace-nowrap" data-testid={`btn-criar-${category.value}`}>
+          <Button
+            onClick={() => onCreate(category.value)}
+            className="gap-2 whitespace-nowrap bg-blue-500 text-white hover:bg-blue-600"
+            data-testid={`btn-criar-${category.value}`}
+          >
             <Plus className="h-4 w-4" />
             Criar novo
           </Button>
@@ -709,7 +657,6 @@ function LandBankPanel({
 }
 
 export default function AreaAliancasPage() {
-  const { user } = useAuth();
   const searchParams = useSearch();
   const getTabsFromSearch = () => {
     const tab = new URLSearchParams(searchParams).get("tab");
@@ -739,17 +686,6 @@ export default function AreaAliancasPage() {
   const [landBankDialogOpen, setLandBankDialogOpen] = useState(false);
   const [landBankDialogCategory, setLandBankDialogCategory] = useState<LandBankCategory["value"]>(initialTabs.landBank as LandBankCategory["value"]);
   const [landBankForm, setLandBankForm] = useState<LandBankForm>(emptyLandBankForm);
-  const membroId = user?.membro_directus_id || null;
-
-  const { data: bias = [] } = useQuery<BiasProjetoLandBank[]>({
-    queryKey: ["/api/bias", "landbank-link"],
-    queryFn: async () => {
-      const r = await fetch("/api/bias", { credentials: "include" });
-      if (!r.ok) return [];
-      const data = await r.json();
-      return Array.isArray(data) ? data : [];
-    },
-  });
 
   const { data: landBankAssetsFromApi = [] } = useQuery<LandBankAsset[]>({
     queryKey: ["/api/land-bank-assets"],
@@ -770,11 +706,6 @@ export default function AreaAliancasPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
     },
   });
-
-  const associatedBias = useMemo(
-    () => bias.filter((bia) => isMembroAssociatedToLandBankBia(bia, membroId)),
-    [bias, membroId],
-  );
 
   useEffect(() => {
     const tabs = getTabsFromSearch();
@@ -839,7 +770,6 @@ export default function AreaAliancasPage() {
   };
   const createLandBankAsset = () => {
     const requiredFields: Array<keyof LandBankForm> = [
-      "bia_id",
       "qualificacao",
       "area",
       "valor",
@@ -852,16 +782,20 @@ export default function AreaAliancasPage() {
       "pais",
       "numero",
       "complemento",
+      "numero_matricula",
+      "livro",
+      "folha",
+      "cartorio",
+      "comarca",
     ];
     const missing = requiredFields.some((field) => !String(landBankForm[field] || "").trim());
     if (missing) return;
-    const linkedBia = associatedBias.find((bia) => bia.id === landBankForm.bia_id);
-    if (!linkedBia) return;
 
     const estimatedCoords = estimateLandBankCoords(landBankForm);
     const asset: LandBankAsset = {
       ...landBankForm,
-      bia_nome: linkedBia.nome_bia,
+      bia_id: "",
+      bia_nome: "",
       ...estimatedCoords,
       id: `land-${Date.now()}`,
       category: landBankDialogCategory,
@@ -1029,41 +963,6 @@ export default function AreaAliancasPage() {
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Informações do ativo</p>
               <p className="mt-1 text-sm text-muted-foreground">{selectedLandBankCategory.shortDescription}</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>BIA vinculada <span className="text-destructive">*</span></Label>
-              <Select
-                value={landBankForm.bia_id || undefined}
-                onValueChange={(value) => {
-                  const linkedBia = associatedBias.find((bia) => bia.id === value);
-                  setLandBankForm((current) => ({
-                    ...current,
-                    bia_id: value,
-                    bia_nome: linkedBia?.nome_bia || "",
-                  }));
-                }}
-              >
-                <SelectTrigger
-                  className={!landBankForm.bia_id ? "border-destructive/40 text-muted-foreground" : ""}
-                  data-testid="select-landbank-bia"
-                >
-                  <SelectValue placeholder="Selecione uma BIA associada..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {associatedBias.length > 0 ? (
-                    associatedBias.map((bia) => (
-                      <SelectItem key={bia.id} value={bia.id}>
-                        {bia.nome_bia}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">
-                      Nenhuma BIA associada disponível.
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1293,6 +1192,60 @@ export default function AreaAliancasPage() {
                 />
               </div>
             </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Número da matrícula <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.numero_matricula}
+                  onChange={(e) => setLandBankField("numero_matricula", e.target.value)}
+                  placeholder="Número da matrícula"
+                  data-testid="input-landbank-numero-matricula"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Livro <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.livro}
+                  onChange={(e) => setLandBankField("livro", e.target.value)}
+                  placeholder="Livro"
+                  data-testid="input-landbank-livro"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Folha <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.folha}
+                  onChange={(e) => setLandBankField("folha", e.target.value)}
+                  placeholder="Folha"
+                  data-testid="input-landbank-folha"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cartório <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.cartorio}
+                  onChange={(e) => setLandBankField("cartorio", e.target.value)}
+                  placeholder="Cartório de registro"
+                  data-testid="input-landbank-cartorio"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Comarca <span className="text-destructive">*</span></Label>
+                <Input
+                  value={landBankForm.comarca}
+                  onChange={(e) => setLandBankField("comarca", e.target.value)}
+                  placeholder="Comarca do registro"
+                  data-testid="input-landbank-comarca"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1301,7 +1254,6 @@ export default function AreaAliancasPage() {
             </Button>
             <Button
               onClick={createLandBankAsset}
-              disabled={!landBankForm.bia_id || associatedBias.length === 0}
               data-testid="btn-salvar-landbank"
             >
               Criar ativo

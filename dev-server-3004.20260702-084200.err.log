@@ -123,3 +123,6 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [nucleo-tecnico-docs] usando fallback temporario: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
+[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs

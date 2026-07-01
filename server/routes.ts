@@ -1915,12 +1915,30 @@ async function ensureBiaMouAceitesTable() {
       mou_versao text NOT NULL,
       mou_titulo text NOT NULL,
       dados_contratuais jsonb,
+      aceite_localizacao jsonb,
       aceito_em timestamp DEFAULT now(),
       UNIQUE (bia_id, membro_id, mou_versao)
     )
   `);
   await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS dados_contratuais jsonb`);
+  await db.execute(sql`ALTER TABLE bia_mou_aceites ADD COLUMN IF NOT EXISTS aceite_localizacao jsonb`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_mou_aceites_bia_membro ON bia_mou_aceites (bia_id, membro_id, mou_versao)`);
+}
+
+async function ensureTermosAceiteAuditoriaTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS termos_aceite_auditoria (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      membro_id text NOT NULL,
+      termo_chave text NOT NULL,
+      termo_versao text,
+      origem text,
+      aceito_em timestamp DEFAULT now(),
+      aceite_localizacao jsonb,
+      created_at timestamp DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_termos_aceite_membro_chave ON termos_aceite_auditoria (membro_id, termo_chave, aceito_em DESC)`);
 }
 
 async function ensureChamadasAliancaTable() {
@@ -2269,6 +2287,7 @@ export async function registerRoutes(
   ensureBiaDiretorSolicitacoesTable().catch((err: any) => console.warn("[bia-diretores] Tabela nao sincronizada:", err?.message || err));
   ensureBiaSocioSolicitacoesTable().catch((err: any) => console.warn("[bia-socios] Tabela nao sincronizada:", err?.message || err));
   ensureBiaMouAceitesTable().catch((err: any) => console.warn("[bia-mou] Tabela nao sincronizada:", err?.message || err));
+  ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
   ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
@@ -3089,8 +3108,9 @@ export async function registerRoutes(
       // Strip client-side computed and relational fields that must not be sent to Directus as plain PATCH
       // Especialidades is a M2M junction â€” sending the full junction object array breaks the update silently
       const STRIP_FIELDS = ["Especialidades", "especialidades", "especialidade", "foto", "_nome", "cargo_computed"];
+      const aceiteLocalizacao = (req.body as any)?.aceite_localizacao;
       const payload = Object.fromEntries(
-        Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key))
+        Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key) && key !== "aceite_localizacao")
       );
 
       if ("tipo_pessoa" in payload) {
@@ -3194,6 +3214,25 @@ export async function registerRoutes(
       const directusPayload = await normalizeDirectusPatchPayload("cadastro_geral", payload);
       console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(directusPayload));
       const item = await directusUpdate("cadastro_geral", req.params.id, directusPayload);
+      const termAuditConfig: Array<{ key: string; acceptedAt: string; version: string }> = [
+        { key: "codigo_etica", acceptedAt: "codigo_etica_aceito_em", version: "codigo_etica_versao" },
+        { key: "politicas_participacao_protecao", acceptedAt: "politicas_participacao_aceito_em", version: "politicas_participacao_versao" },
+        { key: "vitrine", acceptedAt: "vitrine_termo_aceito_em", version: "vitrine_termo_versao" },
+        { key: "area_aliancas", acceptedAt: "area_aliancas_termo_aceito_em", version: "area_aliancas_termo_versao" },
+        { key: "built_capital", acceptedAt: "built_capital_termo_aceito_em", version: "built_capital_termo_versao" },
+      ];
+      for (const config of termAuditConfig) {
+        if ((payload as any)[config.acceptedAt]) {
+          await recordTermAcceptanceAudit({
+            membroId: req.params.id,
+            termoChave: config.key,
+            termoVersao: String((payload as any)[config.version] || ""),
+            origem: TERMOS_ACEITE_BUILT[config.key]?.origem || null,
+            aceitoEm: String((payload as any)[config.acceptedAt]),
+            aceiteLocalizacao,
+          });
+        }
+      }
       res.json(item);
     } catch (error: any) {
       console.error(`[membros PATCH ${req.params.id}] error:`, error.message);
@@ -4223,7 +4262,7 @@ export async function registerRoutes(
     ));
   }
 
-  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any) {
+  async function ensureMouAceitoOuRetornaPendencia(biaId: string, membroId: string, aceitarMou: boolean, dadosContratuais?: any, aceiteLocalizacao?: any) {
     const aceite = await storage.getBiaMouAceite(biaId, membroId, BIA_MOU_VERSAO);
     if (aceite) return { ok: true };
     if (!aceitarMou) {
@@ -4263,6 +4302,7 @@ export async function registerRoutes(
       mou_versao: BIA_MOU_VERSAO,
       mou_titulo: BIA_MOU_TITULO,
       dados_contratuais: dadosCheck.data,
+      aceite_localizacao: normalizeAcceptanceLocation(aceiteLocalizacao) as any,
     });
     await ensureVitrineFields();
     await directusUpdate("cadastro_geral", membroId, pickBiaDadosContratuaisCadastro(dadosCheck.data)).catch((error: any) => {
@@ -4968,6 +5008,7 @@ export async function registerRoutes(
       "\u00C3\u0083": "Ã",
       "\u00C3\u0087": "Ç",
       "\u00C3\u0089": "É",
+      "\u00C3\u2030": "É",
       "\u00C3\u008A": "Ê",
       "\u00C3\u0093": "Ó",
       "\u00C3\u0094": "Ô",
@@ -6109,27 +6150,28 @@ export async function registerRoutes(
     origem: string;
     bia_id?: string | null;
     bia_nome?: string | null;
+    aceite_localizacao?: any;
   };
 
   const TERMOS_ACEITE_BUILT: Record<string, { titulo: string; versao: string; origem: string; body: string }> = {
     codigo_etica: {
-      titulo: "CÃ³digo de Ã‰tica BUILT",
+      titulo: "Código de Ética BUILT",
       versao: "BUILT JUR - 1",
       origem: "Cadastro inicial",
       body: [
-        "CÃ“DIGO DE Ã‰TICA BUILT",
+        "CÓDIGO DE ÉTICA BUILT",
         "",
-        "Eu cumprirei minhas entregas, acordos e responsabilidades com excelÃªncia, Ã©tica e compromisso.",
+        "Eu cumprirei minhas entregas, acordos e responsabilidades com excelência, ética e compromisso.",
         "",
-        "Eu agirei com transparÃªncia, lealdade e respeito em todas as relaÃ§Ãµes.",
+        "Eu agirei com transparência, lealdade e respeito em todas as relações.",
         "",
-        "Eu protegerei a confianÃ§a construÃ­da e a reputaÃ§Ã£o coletiva.",
+        "Eu protegerei a confiança construída e a reputação coletiva.",
         "",
-        "Eu assumirei responsabilidade integral por minhas aÃ§Ãµes, decisÃµes e conduta.",
+        "Eu assumirei responsabilidade integral por minhas ações, decisões e conduta.",
         "",
-        "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianÃ§as.",
+        "Eu demonstrarei postura construtiva, colaborativa e comprometida com a continuidade das alianças.",
         "",
-        "Eu honrarei os esforÃ§os e a dignidade dos meus aliados acima do lucro.",
+        "Eu honrarei os esforços e a dignidade dos meus aliados acima do lucro.",
       ].join("\n"),
     },
     politicas_participacao_protecao: {
@@ -6232,18 +6274,80 @@ export async function registerRoutes(
     return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
   };
 
+  const normalizeAcceptanceLocation = (value: any) => {
+    if (!value || typeof value !== "object") return null;
+    const status = String(value.status || "").trim();
+    const allowed = new Set(["capturada", "negada", "indisponivel", "erro"]);
+    const normalized: Record<string, any> = {
+      status: allowed.has(status) ? status : "erro",
+      captured_at: acceptedDocDate(value.captured_at) || new Date().toISOString(),
+    };
+    const latitude = Number(value.latitude);
+    const longitude = Number(value.longitude);
+    const accuracy = Number(value.accuracy);
+    if (Number.isFinite(latitude)) normalized.latitude = latitude;
+    if (Number.isFinite(longitude)) normalized.longitude = longitude;
+    if (Number.isFinite(accuracy)) normalized.accuracy = accuracy;
+    if (value.message) normalized.message = String(value.message).slice(0, 240);
+    return normalized;
+  };
+
+  const formatAcceptanceLocationLines = (value: any) => {
+    const loc = normalizeAcceptanceLocation(value);
+    if (!loc || loc.status !== "capturada" || loc.latitude == null || loc.longitude == null) {
+      return ["Localização do aceite: não autorizada/indisponível"];
+    }
+    return [
+      `Localização do aceite: ${Number(loc.latitude).toFixed(6)}, ${Number(loc.longitude).toFixed(6)}`,
+      loc.accuracy != null ? `Precisão aproximada: ${Math.round(Number(loc.accuracy))} m` : "Precisão aproximada: não informada",
+      `Localização capturada em: ${loc.captured_at ? new Date(loc.captured_at).toLocaleString("pt-BR") : "não informado"}`,
+    ];
+  };
+
+  async function recordTermAcceptanceAudit(params: {
+    membroId: string;
+    termoChave: string;
+    termoVersao?: string | null;
+    origem?: string | null;
+    aceitoEm?: string | Date | null;
+    aceiteLocalizacao?: any;
+  }) {
+    const loc = normalizeAcceptanceLocation(params.aceiteLocalizacao);
+    await ensureTermosAceiteAuditoriaTable().catch(() => {});
+    const locJson = loc ? JSON.stringify(loc) : null;
+    await db.execute(sql`
+      INSERT INTO termos_aceite_auditoria (membro_id, termo_chave, termo_versao, origem, aceito_em, aceite_localizacao)
+      VALUES (${params.membroId}, ${params.termoChave}, ${params.termoVersao || null}, ${params.origem || null}, ${params.aceitoEm ? new Date(params.aceitoEm) : new Date()}, ${locJson}::jsonb)
+    `).catch((err: any) => console.warn("[termos-aceite] falha ao registrar auditoria:", err?.message || err));
+  }
+
+  async function getLatestTermAcceptanceLocations(membroId: string) {
+    await ensureTermosAceiteAuditoriaTable().catch(() => {});
+    const result: any = await db.execute(sql`
+      SELECT DISTINCT ON (termo_chave) termo_chave, aceite_localizacao
+      FROM termos_aceite_auditoria
+      WHERE membro_id = ${membroId}
+      ORDER BY termo_chave, aceito_em DESC
+    `).catch(() => ({ rows: [] }));
+    const rows = Array.isArray(result?.rows) ? result.rows : Array.isArray(result) ? result : [];
+    const map = new Map<string, any>();
+    rows.forEach((row: any) => map.set(String(row.termo_chave), row.aceite_localizacao || null));
+    return map;
+  }
+
   async function listarDocumentosAceitosDoUsuario(req: any): Promise<DocumentoAceiteResumo[]> {
     const membroId = req.session?.membroId as string | null;
     if (!membroId) return [];
 
     const docs = new Map<string, DocumentoAceiteResumo>();
+    const aceiteLocationByTerm = await getLatestTermAcceptanceLocations(membroId);
     const membro = await directusFetchOne(
       "cadastro_geral",
       membroId,
       "fields=id,nome,Nome_de_usuario,email,codigo_etica_aceito_em,codigo_etica_versao,politicas_participacao_aceito_em,politicas_participacao_versao,vitrine_termo_aceito_em,vitrine_termo_versao,area_aliancas_termo_aceito_em,area_aliancas_termo_versao,built_capital_termo_aceito_em,built_capital_termo_versao"
     ).catch(() => null);
 
-    const addTerm = (key: string, acceptedAt: any, version?: any, origem?: string) => {
+    const addTerm = (key: string, acceptedAt: any, version?: any, origem?: string, aceiteLocalizacao?: any) => {
       if (!acceptedAt) return;
       const term = TERMOS_ACEITE_BUILT[key];
       if (!term) return;
@@ -6256,6 +6360,7 @@ export async function registerRoutes(
         versao: version || term.versao,
         aceito_em: acceptedDocDate(acceptedAt),
         origem: origem || term.origem,
+        aceite_localizacao: aceiteLocalizacao ?? aceiteLocationByTerm.get(key) ?? null,
       });
     };
 
@@ -6277,7 +6382,7 @@ export async function registerRoutes(
         const versoes = dados.termos_versoes && typeof dados.termos_versoes === "object" ? dados.termos_versoes : {};
         const acceptedAt = dados.aceito_em || convite.termos_aceitos_em;
         for (const [key, accepted] of Object.entries(aceitos)) {
-          if (accepted) addTerm(key, acceptedAt, (versoes as any)[key]);
+          if (accepted) addTerm(key, acceptedAt, (versoes as any)[key], undefined, dados.aceite_localizacao);
         }
       }
     } catch (error: any) {
@@ -6294,6 +6399,7 @@ export async function registerRoutes(
           const bia = await directusFetchOne("bias_projetos", aceite.bia_id, "fields=id,nome_bia,codigo_publico").catch(() => null);
           biaNome = bia?.nome_bia || "";
         } catch {}
+        const biaNomeSemPrefixo = String(biaNome || "").replace(/\s+/g, " ").replace(/^BIA\s+/i, "").trim();
         const id = `mou-${aceite.id}`;
         docs.set(id, {
           id,
@@ -6303,9 +6409,10 @@ export async function registerRoutes(
             : aceite.mou_titulo || "MOU PadrÃ£o BUILT",
           versao: aceite.mou_versao || null,
           aceito_em: acceptedDocDate(aceite.aceito_em),
-          origem: biaNome ? `BIA ${biaNome}` : `BIA ${aceite.bia_id}`,
+          origem: biaNomeSemPrefixo ? `BIA ${biaNomeSemPrefixo}` : `BIA ${aceite.bia_id}`,
           bia_id: aceite.bia_id,
           bia_nome: biaNome || null,
+          aceite_localizacao: (aceite as any).aceite_localizacao || null,
         });
       }
     } catch (error: any) {
@@ -6354,27 +6461,28 @@ export async function registerRoutes(
       let sections: Array<{ title: string; body: string }> = [];
       let footerLabel: string | undefined;
       if (documento.tipo === "mou") {
-        const biaId = documento.bia_id;
-        if (!biaId) return res.status(404).json({ error: "BIA do MOU nÃ£o encontrada" });
-        const bia = await fetchBiaForMouPdf(biaId);
-        if (!bia) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
-        const infoLocal = await storage.getBiaInfoComercial(biaId).catch(() => null);
-        const biaComInfo = {
-          ...bia,
-          ...pickFilledBiaInfoComercialFields(bia ?? {}),
-          ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
-        };
-        const participants = await getMouParticipantsForBia(biaComInfo, biaId);
-        const allocationRows = await getBiaAllocationMap(biaComInfo, biaId);
-        const mouPadraoBase = readMouAsset("mou-padrao-built.txt") || "MOU PadrÃ£o BUILT nÃ£o localizado nos assets do servidor.";
+        const biaNome = String(documento.bia_nome || "").replace(/\s+/g, " ").replace(/^BIA\s+/i, "").trim();
         sections = [
-          { title: "MOU PadrÃ£o BUILT", body: personalizarBiaMouTexto(mouPadraoBase, biaId, biaComInfo) },
-          { title: "Anexo I - QualificaÃ§Ã£o das Partes", body: buildAnexoIQualificacao(biaComInfo, biaId, participants) },
-          { title: "Anexo II - Mapa de Aloca\u00E7\u00E3o Patrimonial Inicial", body: buildAnexoIIMapa(biaComInfo, biaId, allocationRows) },
-          { title: "Anexo III - Termo de AdesÃ£o Ã  Metodologia BUILT", body: readMouAsset("anexo-iii-termo-metodologia.txt") || "Anexo III nÃ£o localizado nos assets do servidor." },
-          { title: "Anexo IV - Termo de AdesÃ£o e Responsabilidade do Parceiro de Capital", body: readMouAsset("anexo-iv-parceiro-capital.txt") || "Anexo IV nÃ£o localizado nos assets do servidor." },
+          {
+            title: "Comprovante de aceite",
+            body: [
+              `Documento: ${documento.titulo}`,
+              `Tipo: MOU PadrÃ£o BUILT`,
+              `VersÃ£o: ${documento.versao || "nÃ£o informada"}`,
+              `Origem: ${biaNome ? `BIA ${biaNome}` : documento.origem}`,
+              `Pessoa: ${membroAceiteNome}`,
+              `CÃ³digo rastreÃ¡vel da pessoa: ${membroAceite?.id || membroAceiteId || "nÃ£o informado"}`,
+              `BIA vinculada: ${biaNome || documento.bia_id || "nÃ£o informada"}`,
+              `CÃ³digo rastreÃ¡vel da BIA: ${documento.bia_id || "nÃ£o informado"}`,
+              `Aceito em: ${documento.aceito_em ? new Date(documento.aceito_em).toLocaleString("pt-BR") : "nÃ£o informado"}`,
+              ...formatAcceptanceLocationLines(documento.aceite_localizacao),
+            ].join("\n"),
+          },
+          {
+            title: "Registro de aceite",
+            body: "Este comprovante registra que a pessoa indicada aceitou eletronicamente o MOU PadrÃ£o BUILT vinculado Ã  BIA informada na plataforma BUILT. O documento completo permanece vinculado aos registros formais da respectiva AlianÃ§a, seus anexos, deliberaÃ§Ãµes internas e instrumentos jurÃ­dicos especÃ­ficos.",
+          },
         ];
-        footerLabel = buildBiaFooterLabel(biaComInfo, biaId);
       } else {
         const term = documento.chave ? TERMOS_ACEITE_BUILT[documento.chave] : null;
         const body = term?.body || [
@@ -6392,6 +6500,7 @@ export async function registerRoutes(
               `Pessoa: ${membroAceiteNome}`,
               `C\u00F3digo rastre\u00E1vel da pessoa: ${membroAceite?.id || membroAceiteId || "n\u00E3o informado"}`,
               `Aceito em: ${documento.aceito_em ? new Date(documento.aceito_em).toLocaleString("pt-BR") : "n\u00E3o informado"}`,
+              ...formatAcceptanceLocationLines(documento.aceite_localizacao),
             ].join("\n"),
           },
           { title: documento.titulo, body },
@@ -6399,7 +6508,7 @@ export async function registerRoutes(
       }
 
       const pdf = buildSimpleTextPdf(documento.titulo, sections, {
-        headerLabel: documento.tipo === "mou" ? "MOU PADR\u00C3O BUILT" : "COMPROVANTE BUILT",
+        headerLabel: "COMPROVANTE BUILT",
         ...(footerLabel ? { footerLabel } : {}),
       });
       const filename = `${documento.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "documento-aceito"}.pdf`;
@@ -8483,7 +8592,8 @@ export async function registerRoutes(
         solicitacao.bia_id,
         solicitacao.diretor_membro_id,
         !!req.body?.aceitar_mou,
-        req.body?.dados_contratuais_mou
+        req.body?.dados_contratuais_mou,
+        req.body?.aceite_localizacao
       );
       if (!mouCheck.ok) return res.status((mouCheck as any).statusCode || 200).json(mouCheck.response);
 
@@ -8598,7 +8708,8 @@ export async function registerRoutes(
         solicitacao.bia_id,
         solicitacao.socio_membro_id,
         !!req.body?.aceitar_mou,
-        req.body?.dados_contratuais_mou
+        req.body?.dados_contratuais_mou,
+        req.body?.aceite_localizacao
       );
       if (!mouCheck.ok) return res.status((mouCheck as any).statusCode || 200).json(mouCheck.response);
 
@@ -12781,6 +12892,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         termos_aceitos: body.termos_aceitos && typeof body.termos_aceitos === "object" ? body.termos_aceitos : currentDados.termos_aceitos || {},
         termos_versoes: body.termos_versoes && typeof body.termos_versoes === "object" ? body.termos_versoes : currentDados.termos_versoes || {},
         aceito_em: body.aceito_em || now.toISOString(),
+        aceite_localizacao: normalizeAcceptanceLocation(body.aceite_localizacao) || currentDados.aceite_localizacao || null,
       };
       const updated = await storage.updateConvite(convite.id, {
         status: "pagamento_pendente",
@@ -12796,6 +12908,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           politicas_participacao_aceito_em: now.toISOString(),
           politicas_participacao_versao: dadosContratuais.termos_versoes?.politicas_participacao_protecao || "BUILT JUR - 1",
         }).catch((err: any) => console.warn("[adesao] Codigo de Etica nao atualizado no cadastro:", err?.message || err));
+        for (const [key, accepted] of Object.entries(dadosContratuais.termos_aceitos || {})) {
+          if (accepted) await recordTermAcceptanceAudit({
+            membroId: convite.candidato_membro_id,
+            termoChave: key,
+            termoVersao: dadosContratuais.termos_versoes?.[key] || null,
+            origem: TERMOS_ACEITE_BUILT[key]?.origem || null,
+            aceitoEm: dadosContratuais.aceito_em,
+            aceiteLocalizacao: dadosContratuais.aceite_localizacao,
+          });
+        }
       }
 
       // Notify about payment
@@ -12837,6 +12959,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         termos_aceitos: body.termos_aceitos && typeof body.termos_aceitos === "object" ? body.termos_aceitos : currentDados.termos_aceitos || {},
         termos_versoes: body.termos_versoes && typeof body.termos_versoes === "object" ? body.termos_versoes : currentDados.termos_versoes || {},
         aceito_em: body.aceito_em || now.toISOString(),
+        aceite_localizacao: normalizeAcceptanceLocation(body.aceite_localizacao) || currentDados.aceite_localizacao || null,
       };
       const updated = await storage.updateConvite(convite.id, {
         status: "termos_aceitos",
@@ -12851,6 +12974,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           politicas_participacao_aceito_em: now.toISOString(),
           politicas_participacao_versao: dadosContratuais.termos_versoes?.politicas_participacao_protecao || "BUILT JUR - 1",
         }).catch((err: any) => console.warn("[aceitar-termos] Codigo de Etica nao atualizado no cadastro:", err?.message || err));
+        for (const [key, accepted] of Object.entries(dadosContratuais.termos_aceitos || {})) {
+          if (accepted) await recordTermAcceptanceAudit({
+            membroId: convite.candidato_membro_id,
+            termoChave: key,
+            termoVersao: dadosContratuais.termos_versoes?.[key] || null,
+            origem: TERMOS_ACEITE_BUILT[key]?.origem || null,
+            aceitoEm: dadosContratuais.aceito_em,
+            aceiteLocalizacao: dadosContratuais.aceite_localizacao,
+          });
+        }
       }
 
       res.json(updated);

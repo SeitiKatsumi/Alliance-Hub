@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles, Store, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 
 interface ConviteData {
@@ -615,6 +616,7 @@ export default function AdesaoPage() {
 
   const aceitarTermosMutation = useMutation({
     mutationFn: async () => {
+      const aceite_localizacao = await captureAcceptanceLocation();
       const r = await fetch(`/api/convites/${token}/aceitar-termos`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -623,6 +625,7 @@ export default function AdesaoPage() {
           termos_aceitos: termosAceitosPayload,
           termos_versoes: termosVersoesPayload,
           aceito_em: new Date().toISOString(),
+          aceite_localizacao,
         }),
       });
       if (!r.ok) {
@@ -652,6 +655,7 @@ export default function AdesaoPage() {
   // Legacy: old flow for associacao_completa tipo (approved by aliado)
   const adesaoMutation = useMutation({
     mutationFn: async () => {
+      const aceite_localizacao = await captureAcceptanceLocation();
       const r = await fetch(`/api/convites/${token}/adesao`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -660,6 +664,7 @@ export default function AdesaoPage() {
           termos_aceitos: termosAceitosPayload,
           termos_versoes: termosVersoesPayload,
           aceito_em: new Date().toISOString(),
+          aceite_localizacao,
         }),
       });
       if (!r.ok) throw new Error("Erro ao registrar aceite");

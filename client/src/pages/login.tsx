@@ -23,6 +23,7 @@ import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
 import { formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamos, getTipoDisplayName, parseRamosValue, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -651,6 +652,7 @@ export default function LoginPage() {
       const now = new Date().toISOString();
       const termosAceitos = Object.fromEntries(requiredTermKeys.map((key) => [key, true]));
       const termosVersoes = Object.fromEntries(requiredTermKeys.map((key) => [key, TERM_CONFIG[key].version]));
+      const aceite_localizacao = await captureAcceptanceLocation();
       const res = await fetch(`/api/convites/${adesaoToken}/aceitar-termos`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -658,6 +660,7 @@ export default function LoginPage() {
           termos_aceitos: termosAceitos,
           termos_versoes: termosVersoes,
           aceito_em: now,
+          aceite_localizacao,
         }),
       });
       const data = await res.json();

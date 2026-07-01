@@ -2,6 +2,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -1346,12 +1347,14 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     mutationFn: async () => {
       if (!mouPendente) throw new Error("Nenhum MOU pendente");
       const base = mouPendente.tipo === "diretor" ? "bia-diretor-solicitacoes" : "bia-socio-solicitacoes";
+      const aceite_localizacao = await captureAcceptanceLocation();
       if (currentMembro?.id) {
         await apiRequest("PATCH", `/api/membros/${currentMembro.id}`, pickMouDadosProfilePayload(mouDadosForm));
       }
       return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, {
         aceitar_mou: true,
         dados_contratuais_mou: mouDadosForm,
+        aceite_localizacao,
       });
     },
     onSuccess: () => {

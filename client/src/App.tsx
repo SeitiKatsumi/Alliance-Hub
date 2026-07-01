@@ -51,6 +51,7 @@ import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
+import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
 
 interface OnboardingMembro {
   id: string;
@@ -85,6 +86,7 @@ interface OnboardingMembro {
   area_aliancas_termo_versao?: string | null;
   built_capital_termo_aceito_em?: string | null;
   built_capital_termo_versao?: string | null;
+  aceite_localizacao?: unknown;
 }
 
 function LegacyOpasRedirect() {
@@ -666,7 +668,7 @@ function PerfilOnboardingModal({
     });
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!mostrarPerfilCompleto) {
       if (!termoAtual) return;
       if (!termoAtual.checked) {
@@ -674,7 +676,8 @@ function PerfilOnboardingModal({
         return;
       }
 
-      salvarMutation.mutate(termoAtual.payload);
+      const aceite_localizacao = await captureAcceptanceLocation();
+      salvarMutation.mutate({ ...termoAtual.payload, aceite_localizacao });
       return;
     }
 
@@ -697,6 +700,7 @@ function PerfilOnboardingModal({
       ? Array.from(new Set([...(form.nucleos_alianca || []), BUILT_CAPITAL_NUCLEO]))
       : form.nucleos_alianca || [];
 
+    const aceite_localizacao = termoAtual?.checked ? await captureAcceptanceLocation() : undefined;
     salvarMutation.mutate({
       nome: String(form.nome || "").trim(),
       email: String(form.email || "").trim(),
@@ -718,7 +722,7 @@ function PerfilOnboardingModal({
       tipos_alianca: tiposAlianca,
       nucleos_alianca: nucleosAlianca,
       na_vitrine: !!form.na_vitrine,
-      ...(termoAtual?.checked ? termoAtual.payload : {}),
+      ...(termoAtual?.checked ? { ...termoAtual.payload, aceite_localizacao } : {}),
     });
   }
 

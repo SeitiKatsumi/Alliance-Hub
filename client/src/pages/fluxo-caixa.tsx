@@ -383,6 +383,13 @@ function formatInputPercent(value: string): string {
   return decimalParts.length > 0 ?`${integer || "0"},${decimal}` : integer;
 }
 
+function formatPercentDisplay(value: number, maximumFractionDigits = 5): string {
+  return Number(value || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  });
+}
+
 function getFileIcon(url: string) {
   const ext = url.split(".").pop()?.toLowerCase() || "";
   if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return Image;
@@ -1240,18 +1247,6 @@ function LancamentoFormFields({
                 <Layers className="w-3.5 h-3.5" />
                 Usar mapa de alocação
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={equalizeRateioPercentual}
-                disabled={rateioItems.length === 0}
-                className="h-8 gap-1.5 text-xs"
-                data-testid={`${prefix}-rateio-igualar-percentual`}
-              >
-                <BadgePercent className="w-3.5 h-3.5" />
-                Igualar 100%
-              </Button>
               <div className="flex gap-0.5 p-0.5 bg-muted rounded-md shrink-0">
                 <button
                   type="button"
@@ -1271,6 +1266,18 @@ function LancamentoFormFields({
                 </button>
               </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={equalizeRateioPercentual}
+              disabled={rateioItems.length === 0}
+              className="h-8 gap-1.5 text-xs"
+              data-testid={`${prefix}-rateio-igualar-percentual`}
+            >
+              <BadgePercent className="w-3.5 h-3.5" />
+              Igualar 100%
+            </Button>
 
             {valorTotal > 0 && (
               <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border ${Math.abs(totalRateado - valorTotal) < 0.01 ?"bg-green-50 border-green-200 text-green-700" : totalRateado > valorTotal ?"bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
@@ -1649,7 +1656,7 @@ export default function FluxoCaixaPage({
     enabled: !!selectedBiaId,
   });
 
-  const totalPercentual = destinatarios.reduce((s, d) => s + (d.percentual || 0), 0);
+  const totalPercentual = Number(destinatarios.reduce((s, d) => s + (d.percentual || 0), 0).toFixed(5));
   const destValidos = destinatarios.every((d) => d.membroId !== "");
   const hasDuplicateDest = destinatarios.length !== new Set(destinatarios.map((d) => d.membroId).filter(Boolean)).size;
 
@@ -1658,6 +1665,9 @@ export default function FluxoCaixaPage({
       if (!transferOrigemId) throw new Error("Membro de origem não definido");
       if (!destValidos) throw new Error("Selecione todos os membros destinatários");
       if (hasDuplicateDest) throw new Error("Destinatários duplicados");
+      if (destinatarios.some((dest) => !destinatariosTransferenciaIds.has(dest.membroId))) {
+        throw new Error("Selecione somente membros associados a esta BIA");
+      }
       if (totalPercentual > 100) throw new Error("A soma dos percentuais não pode exceder 100%");
       if (totalPercentual <= 0) throw new Error("A soma dos percentuais deve ser maior que 0%");
       const observacoes = transferObservacoes.trim();
@@ -1714,9 +1724,40 @@ export default function FluxoCaixaPage({
   function handleDividirIgualmente() {
     const n = destinatarios.length;
     if (n === 0) return;
-    const base = Math.floor(100 / n);
-    const resto = 100 - base * n;
-    setDestinatarios(destinatarios.map((d, i) => ({ ...d, percentual: i === n - 1 ?base + resto : base })));
+    const base = Math.floor((100 / n) * 100000) / 100000;
+    const resto = Number((100 - base * n).toFixed(5));
+    setDestinatarios(destinatarios.map((d, i) => ({ ...d, percentual: i === n - 1 ?Number((base + resto).toFixed(5)) : base })));
+  }
+
+  function handleUsarMapaAlocacaoTransferencia() {
+    const mapItems = aportesComTransferencias.rows.filter((item) =>
+      item.membroId &&
+      item.membroId !== transferOrigemId &&
+      destinatariosTransferenciaIds.has(item.membroId) &&
+      item.percentual > 0
+    );
+    if (mapItems.length === 0) {
+      toast({
+        title: "Mapa sem destinatários disponíveis",
+        description: "Não há outros membros com participação no mapa de alocação para preencher automaticamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const totalMapa = mapItems.reduce((sum, item) => sum + item.percentual, 0);
+    const normalized = mapItems.map((item) => ({
+      membroId: item.membroId,
+      percentual: totalMapa > 0 ?(item.percentual / totalMapa) * 100 : 0,
+    }));
+    const rounded = normalized.map((item) => Number(item.percentual.toFixed(5)));
+    const diff = Number((100 - rounded.reduce((sum, value) => sum + value, 0)).toFixed(5));
+    if (rounded.length > 0) {
+      rounded[rounded.length - 1] = Number((rounded[rounded.length - 1] + diff).toFixed(5));
+    }
+    setDestinatarios(normalized.map((item, index) => ({
+      membroId: item.membroId,
+      percentual: rounded[index],
+    })));
   }
 
   function updateDestinatario(idx: number, field: "membroId" | "percentual", value: string | number) {
@@ -1910,6 +1951,14 @@ export default function FluxoCaixaPage({
     ].filter(Boolean).forEach((id) => ids.add(String(id)));
     return membros.filter((m) => ids.has(m.id));
   }, [membros, selectedBia]);
+  const destinatariosTransferencia = useMemo(
+    () => favorecidosDaBia.filter((m) => m.id !== transferOrigemId),
+    [favorecidosDaBia, transferOrigemId]
+  );
+  const destinatariosTransferenciaIds = useMemo(
+    () => new Set(destinatariosTransferencia.map((m) => m.id)),
+    [destinatariosTransferencia]
+  );
 
   const aportesPorMembro = useMemo<AportePorMembro[]>(() => {
     const entradas = fluxoItemsContabeis.filter((i) => i.tipo === "entrada" && i.Favorecido && i.Favorecido.length > 0);
@@ -3058,40 +3107,46 @@ export default function FluxoCaixaPage({
                   <p className="text-sm font-semibold">{membroMap[transferOrigemId] || transferOrigemId}</p>
                   <p className="text-xs text-muted-foreground">
                     Cotas totais: {formatBRL(transferValorRef)}&nbsp;
-                    ({aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual.toFixed(1)}% do capital total da BIA)
+                    ({formatPercentDisplay(aportesPorMembro.find(a => a.membroId === transferOrigemId)?.percentual || 0)}% do capital total da BIA)
                   </p>
                 </div>
 
                 {/* Destinatários */}
                 <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-xs font-semibold uppercase tracking-wide">Destinatários</Label>
                     {!editingTransferId && (
-                    <div className="flex gap-1.5">
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      <button
+                        type="button"
+                        className="inline-flex h-7 items-center rounded-md border border-brand-gold/50 bg-white px-2 text-xs font-medium text-brand-navy shadow-sm transition-colors hover:bg-brand-gold/10 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
+                        onClick={handleUsarMapaAlocacaoTransferencia}
+                        disabled={aportesComTransferencias.rows.filter((item) => item.membroId !== transferOrigemId).length === 0}
+                        data-testid="btn-transfer-usar-mapa-alocacao"
+                      >
+                        <Layers className="w-3 h-3 mr-1" />
+                        Usar mapa
+                      </button>
                       {destinatarios.length > 1 && (
-                        <Button
+                        <button
                           type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
+                          className="inline-flex h-7 items-center rounded-md border border-slate-300 bg-white px-2 text-xs font-medium text-brand-navy shadow-sm transition-colors hover:bg-slate-50"
                           onClick={handleDividirIgualmente}
                           data-testid="btn-dividir-igualmente"
                         >
                           <Divide className="w-3 h-3 mr-1" />
                           Dividir igualmente
-                        </Button>
+                        </button>
                       )}
-                      <Button
+                      <button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-brand-gold border-brand-gold/50 hover:bg-brand-gold/10"
+                        className="inline-flex h-7 items-center rounded-md border border-brand-gold/50 bg-white px-2 text-xs font-medium text-brand-navy shadow-sm transition-colors hover:bg-brand-gold/10"
                         onClick={addDestinatario}
                         data-testid="btn-add-destinatario"
                       >
                         <PlusCircle className="w-3.5 h-3.5 mr-1" />
                         Adicionar
-                      </Button>
+                      </button>
                     </div>
                     )}
                   </div>
@@ -3112,11 +3167,13 @@ export default function FluxoCaixaPage({
                               <SelectValue placeholder="Selecione o membro..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {membros
-                                .filter((m) => m.id !== transferOrigemId)
-                                .map((m) => (
-                                  <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
-                                ))}
+                              {destinatariosTransferencia.length === 0 ? (
+                                <SelectItem value="__sem_membros_bia__" disabled>
+                                  Nenhum outro membro associado a esta BIA
+                                </SelectItem>
+                              ) : destinatariosTransferencia.map((m) => (
+                                <SelectItem key={m.id} value={m.id}>{getMembroNome(m)}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           {destinatarios.length > 1 && (
@@ -3137,7 +3194,7 @@ export default function FluxoCaixaPage({
                             type="range"
                             min={0}
                             max={100}
-                            step={1}
+                            step={0.00001}
                             value={dest.percentual}
                             onChange={(e) => updateDestinatario(idx, "percentual", Number(e.target.value))}
                             className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer accent-brand-gold"
@@ -3148,10 +3205,10 @@ export default function FluxoCaixaPage({
                               type="number"
                               min={0}
                               max={100}
-                              step={1}
+                              step={0.00001}
                               value={dest.percentual}
                               onChange={(e) => updateDestinatario(idx, "percentual", Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                              className="w-14 text-right text-xs font-semibold border rounded px-1.5 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                              className="w-20 text-right text-xs font-semibold border rounded px-1.5 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-brand-gold"
                               data-testid={`input-perc-dest-${idx}`}
                             />
                             <span className="text-xs text-brand-gold font-semibold">%</span>
@@ -3176,13 +3233,13 @@ export default function FluxoCaixaPage({
                     <span className="text-xs text-muted-foreground">Total alocado</span>
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-bold ${totalPercentual > 100 ?"text-red-500" : totalPercentual === 100 ?"text-green-600" : ""}`}>
-                        {totalPercentual}%
+                        {formatPercentDisplay(totalPercentual)}%
                       </span>
                       {totalPercentual < 100 && totalPercentual > 0 && (
-                        <span className="text-xs text-muted-foreground">({100 - totalPercentual}% disponível)</span>
+                        <span className="text-xs text-muted-foreground">({formatPercentDisplay(100 - totalPercentual)}% disponível)</span>
                       )}
                       {totalPercentual > 100 && (
-                        <span className="text-xs text-red-500">excede em {totalPercentual - 100}%</span>
+                        <span className="text-xs text-red-500">excede em {formatPercentDisplay(totalPercentual - 100)}%</span>
                       )}
                       {totalPercentual === 100 && (
                         <span className="text-xs text-green-600">✓ completo</span>
@@ -3255,8 +3312,8 @@ export default function FluxoCaixaPage({
 
                 <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
                   {destinatarios.length === 1
-                    ?<>Serão movimentados <strong>{destinatarios[0].percentual}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
-                    : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{totalPercentual}%</strong> das cotas ({formatBRL(parseFloat(((totalPercentual / 100) * transferValorRef).toFixed(2)))}).</>
+                    ?<>Serão movimentados <strong>{formatPercentDisplay(destinatarios[0].percentual)}% das cotas</strong> ({formatBRL(parseFloat(((destinatarios[0].percentual / 100) * transferValorRef).toFixed(2)))}) para o destinatário selecionado.</>
+                    : <>Serão criadas <strong>{destinatarios.length} solicitações</strong> totalizando <strong>{formatPercentDisplay(totalPercentual)}%</strong> das cotas ({formatBRL(parseFloat(((totalPercentual / 100) * transferValorRef).toFixed(2)))}).</>
                   } Necessária aprovação do Diretor de Aliança ou Aliado BUILT.
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, BarChart3, Banknote, Calculator, CheckCircle2, FileText,
@@ -66,6 +66,12 @@ const config: AliancaDocsPageConfig = {
     },
   ],
 };
+
+const CAPITAL_TABS = new Set(["banco", "documentos", "financeiro", "analises", "calculadora"]);
+
+function normalizeCapitalTab(value?: string | null) {
+  return value && CAPITAL_TABS.has(value) ? value : "banco";
+}
 
 type BancoStatus =
   | "not_started"
@@ -260,7 +266,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
       setConsulta({ title: "Cobranca gerada", data: result });
       toast({ title: "Cobranca gerada", description: "Boleto/link criado para esta BIA." });
     },
-    onError: (error: Error) => toast({ title: "Erro ao gerar cobranca", description: error.message, variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Erro ao gerar cobrança", description: error.message, variant: "destructive" }),
   });
 
   const refreshChargeMutation = useMutation({
@@ -271,7 +277,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [`/api/bias/${biaId}/banco`] });
-      setConsulta({ title: "Status da cobranca", data: result });
+      setConsulta({ title: "Status da cobrança", data: result });
     },
     onError: (error: Error) => toast({ title: "Erro ao consultar status", description: error.message, variant: "destructive" }),
   });
@@ -287,7 +293,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
       setConsulta({ title: "Cobranca cancelada", data: result });
       toast({ title: "Cobranca cancelada" });
     },
-    onError: (error: Error) => toast({ title: "Erro ao cancelar cobranca", description: error.message, variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Erro ao cancelar cobrança", description: error.message, variant: "destructive" }),
   });
 
   const consultaMutation = useMutation({
@@ -363,10 +369,10 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                 <div className="flex gap-2">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                   <div className="space-y-2">
-                    <p className="font-semibold">Configuracao tecnica PINBANK pendente</p>
-                    <p>
-                      O dossie pode ser preparado agora, mas a abertura automatica so fica ativa quando as credenciais e chaves da PINBANK estiverem no ambiente do servidor.
-                    </p>
+                <p className="font-semibold">Configuração técnica PINBANK pendente</p>
+                <p>
+                  O dossiê pode ser preparado agora, mas a abertura automática só fica ativa quando as credenciais e chaves da PINBANK estiverem no ambiente do servidor.
+                </p>
                     <div className="flex flex-wrap gap-2">
                       {(configStatus?.checks || []).map((check) => (
                         <Badge key={check.key} variant={check.ok ? "outline" : "destructive"} className="text-[11px]">
@@ -401,7 +407,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                 </div>
                 <p className="mt-2 max-h-24 overflow-auto text-sm text-muted-foreground">{terms?.body}</p>
                 <Button
-                  className="mt-3"
+                  className="mt-3 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
                   onClick={() => acceptTermsMutation.mutate()}
                   disabled={acceptTermsMutation.isPending || !providerReady}
                   data-testid="button-aceitar-termos-pinbank"
@@ -413,6 +419,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
             )}
 
             <Button
+              className="bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
               onClick={() => onboardingMutation.mutate()}
               disabled={onboardingMutation.isPending || !termsAccepted || missingDocuments.length > 0 || !providerReady}
               data-testid="button-abrir-conta-pinbank"
@@ -423,7 +430,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
             {(!providerReady || !termsAccepted || missingDocuments.length > 0) && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                Complete a configuracao PINBANK, aceite os termos e envie todos os documentos obrigatorios para habilitar a abertura da conta.
+                Complete a configuração PINBANK, aceite os termos e envie todos os documentos obrigatórios para habilitar a abertura da conta.
               </p>
             )}
           </CardContent>
@@ -431,9 +438,9 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Dossie KYC PINBANK</CardTitle>
+            <CardTitle className="text-base">Dossiê KYC PINBANK</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Selecione um item obrigatorio, anexe o arquivo e autorize o compartilhamento para abertura da conta da BIA.
+              Selecione um item obrigatório, anexe o arquivo e autorize o compartilhamento para abertura da conta da BIA.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -508,7 +515,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
               data-testid="button-enviar-documento-banco"
             >
               {uploadDocumentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              Enviar para o dossie
+              Enviar para o dossiê
             </Button>
           </CardContent>
         </Card>
@@ -517,7 +524,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Registrar aporte / cobranca</CardTitle>
+            <CardTitle className="text-base">Registrar aporte / cobrança</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -540,7 +547,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
               <Input
                 value={chargeForm.descricao}
                 onChange={(event) => setChargeForm((current) => ({ ...current, descricao: event.target.value }))}
-                placeholder="Descricao"
+                placeholder="Descrição"
                 data-testid="input-banco-cobranca-descricao"
               />
               <Input
@@ -581,19 +588,20 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
               </p>
             )}
             <Button
+              className="bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
               onClick={() => createChargeMutation.mutate()}
               disabled={createChargeMutation.isPending || !providerReady || !chargeForm.valor}
               data-testid="button-banco-gerar-cobranca"
             >
               {createChargeMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}
-              Gerar cobranca
+              Gerar cobrança
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Consultas bancarias</CardTitle>
+            <CardTitle className="text-base">Consultas bancárias</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -603,18 +611,18 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
               <Button variant="outline" onClick={() => consultaMutation.mutate({ title: "Extrato da conta", url: `/api/bias/${biaId}/banco/extrato` })} disabled={consultaMutation.isPending}>
                 <ReceiptText className="mr-2 h-4 w-4" /> Extrato
               </Button>
-              <Button variant="outline" onClick={() => consultaMutation.mutate({ title: "Inventario de documentos", url: `/api/bias/${biaId}/banco/documentos/inventario` })} disabled={consultaMutation.isPending}>
-                <ClipboardList className="mr-2 h-4 w-4" /> Inventario
+              <Button variant="outline" onClick={() => consultaMutation.mutate({ title: "Inventário de documentos", url: `/api/bias/${biaId}/banco/documentos/inventario` })} disabled={consultaMutation.isPending}>
+                <ClipboardList className="mr-2 h-4 w-4" /> Inventário
               </Button>
-              <Button variant="outline" onClick={() => consultaMutation.mutate({ title: "Metricas de cobranca", url: `/api/bias/${biaId}/banco/cobrancas/metricas` })} disabled={consultaMutation.isPending}>
-                <BarChart3 className="mr-2 h-4 w-4" /> Metricas
+              <Button variant="outline" onClick={() => consultaMutation.mutate({ title: "Métricas de cobrança", url: `/api/bias/${biaId}/banco/cobrancas/metricas` })} disabled={consultaMutation.isPending}>
+                <BarChart3 className="mr-2 h-4 w-4" /> Métricas
               </Button>
               <Button variant="outline" onClick={() => consultaMutation.mutate({ title: "Boletos em lote", url: `/api/bias/${biaId}/banco/cobrancas/lote` })} disabled={consultaMutation.isPending} className="sm:col-span-2">
                 <Search className="mr-2 h-4 w-4" /> Boletos em lote
               </Button>
             </div>
             <div className="flex gap-2">
-              <Input value={transactionId} onChange={(event) => setTransactionId(event.target.value)} placeholder="ID da transacao" />
+              <Input value={transactionId} onChange={(event) => setTransactionId(event.target.value)} placeholder="ID da transação" />
               <Button
                 variant="outline"
                 onClick={() => transactionId.trim() && consultaMutation.mutate({ title: "Comprovante detalhado", url: `/api/bias/${biaId}/banco/comprovante/${encodeURIComponent(transactionId.trim())}` })}
@@ -711,11 +719,25 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
 export default function NucleoCapitalPage({
   initialBiaId = null,
   embedded = false,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
+  activeTab?: string;
+  onTabChange?: (value: string) => void;
 } = {}) {
-  const [activeTab, setActiveTab] = useState("banco");
+  const [activeTab, setActiveTab] = useState(() => normalizeCapitalTab(controlledActiveTab));
+
+  useEffect(() => {
+    setActiveTab(normalizeCapitalTab(controlledActiveTab));
+  }, [controlledActiveTab]);
+
+  const handleTabChange = (value: string) => {
+    const next = normalizeCapitalTab(value);
+    setActiveTab(next);
+    onTabChange?.(next);
+  };
 
   return (
     <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}`}>
@@ -731,7 +753,7 @@ export default function NucleoCapitalPage({
         </p>
       </div>}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-5">
           <TabsTrigger value="banco" className="gap-2" data-testid="tab-capital-banco">
             <Banknote className="h-4 w-4" />

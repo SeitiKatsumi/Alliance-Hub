@@ -2790,7 +2790,11 @@ export default function FluxoCaixaPage({
           {selectedBiaId && !cotasOnly && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button data-testid="button-novo-lancamento" onClick={() => { resetForm(); setDialogOpen(true); }}>
+                <Button
+                  className="bg-blue-500 text-white hover:bg-blue-600"
+                  data-testid="button-novo-lancamento"
+                  onClick={() => { resetForm(); setDialogOpen(true); }}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Novo Lançamento
                 </Button>
@@ -3983,7 +3987,7 @@ export default function FluxoCaixaPage({
                       type="button"
                       onClick={() => analyzeImportMutation.mutate()}
                       disabled={!importFile || analyzeImportMutation.isPending || createImportedMutation.isPending}
-                      className="shrink-0 gap-1.5"
+                      className="shrink-0 gap-1.5 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                       data-testid="button-analisar-lancamentos-ia"
                     >
                       {analyzeImportMutation.isPending ? (
@@ -4075,6 +4079,7 @@ export default function FluxoCaixaPage({
                   type="button"
                   onClick={() => createImportedMutation.mutate()}
                   disabled={!importedLancamentos.length || createImportedMutation.isPending || analyzeImportMutation.isPending}
+                  className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                   data-testid="button-criar-lancamentos-ia"
                 >
                   {createImportedMutation.isPending ? (

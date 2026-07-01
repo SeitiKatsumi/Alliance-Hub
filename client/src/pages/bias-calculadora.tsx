@@ -711,6 +711,7 @@ export default function BiasCalculadoraPage({
           <Button
             onClick={() => needsWarning ?setShowSaveConfirm(true) : saveMutation.mutate()}
             disabled={!selectedBiaId || saveMutation.isPending}
+            className="bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
             data-testid="button-save"
           >
             {saveMutation.isPending ?(

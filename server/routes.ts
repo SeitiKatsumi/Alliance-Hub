@@ -32,6 +32,89 @@ function getOpenAI() {
   return openaiClient;
 }
 
+function parsePtBrMoney(value: string): number {
+  const normalized = String(value || "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(",", ".");
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? Math.abs(Number(amount.toFixed(2))) : 0;
+}
+
+function parsePtBrDate(value: string): string | null {
+  const match = String(value || "").match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (!match) return null;
+  const day = match[1].padStart(2, "0");
+  const month = match[2].padStart(2, "0");
+  const rawYear = match[3];
+  const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+  const iso = `${year}-${month}-${day}`;
+  const date = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : iso;
+}
+
+function inferFinancialStatus(rowText: string, dueDate: string | null, today: string): string {
+  const text = rowText.toLowerCase();
+  if (/\b(pago|paga|quitado|quitada|baixado|baixada|liquidado|liquidada|compensado|realizado|realizada)\b/.test(text)) return "pago";
+  if (/\b(agendado|agendada|programado|programada)\b/.test(text)) return "agendado";
+  if (/\b(cancelado|cancelada|estornado|estornada)\b/.test(text)) return "cancelado";
+  if (/\b(parcial|parcialmente)\b/.test(text)) return "parcial";
+  if (dueDate && dueDate < today) return "vencido";
+  return dueDate ? "agendado" : "pendente";
+}
+
+function extractInstallmentLancamentos(textContent: string, today: string) {
+  const rawLines = String(textContent || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\t/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const parsed = rawLines
+    .map((line) => {
+      const hasInstallmentSignal = /\bparcela\b/i.test(line) || /^\d{1,4}[\s,;|-]+/.test(line);
+      if (!hasInstallmentSignal) return null;
+      const date = parsePtBrDate(line);
+      if (!date) return null;
+
+      const beforeDate = line.slice(0, Math.max(0, line.search(/\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}/)));
+      const parcelaMatch = beforeDate.match(/(?:parcela\s*)?(\d{1,4})\D*$/i) || line.match(/\bparcela\s*(\d{1,4})\b/i);
+      if (!parcelaMatch) return null;
+
+      const moneyMatches = [...line.matchAll(/(?:R\$\s*)?-?\d{1,3}(?:\.\d{3})*,\d{2}|(?:R\$\s*)?-?\d+,\d{2}/gi)];
+      if (moneyMatches.length === 0) return null;
+      const amount = parsePtBrMoney(moneyMatches[moneyMatches.length - 1][0]);
+      if (amount <= 0) return null;
+
+      const parcela = Number(parcelaMatch[1]);
+      return {
+        parcela,
+        line,
+        tipo: "saida",
+        valor: amount,
+        data: date,
+        data_vencimento: date,
+        data_pagamento: /\b(pago|paga|quitado|quitada|baixado|baixada|liquidado|liquidada|compensado|realizado|realizada)\b/i.test(line) ? date : null,
+        status: inferFinancialStatus(line, date, today),
+        descricao: `Parcela ${parcela}`,
+        categoria_id: null,
+        categoria_nome: null,
+        tipo_cpp_id: null,
+        tipo_cpp_nome: null,
+        observacao: line.slice(0, 180),
+      };
+    })
+    .filter(Boolean) as any[];
+
+  if (parsed.length === 0) return [];
+  const totalParcelas = Math.max(...parsed.map((item) => item.parcela || 0));
+  return parsed
+    .sort((a, b) => (a.parcela || 0) - (b.parcela || 0))
+    .map((item) => ({
+      ...item,
+      descricao: totalParcelas > 0 ? `Parcela ${item.parcela}/${totalParcelas}` : `Parcela ${item.parcela}`,
+      observacao: `${item.observacao}${item.status === "pago" ? " | Pagamento identificado no arquivo" : " | Vencimento identificado no arquivo"}`.slice(0, 180),
+    }));
+}
+
 const DIRECTUS_URL = process.env.DIRECTUS_URL || "https://databases.builtalliances.com";
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || "";
 const PRODUCTION_APP_API_URL = (process.env.PRODUCTION_APP_API_URL || "https://app.builtalliances.com").replace(/\/$/, "");
@@ -8933,6 +9016,7 @@ export async function registerRoutes(
         return res.status(422).json({ error: "Não foi possível extrair texto do arquivo." });
       }
       if (textContent.length > 18000) textContent = textContent.slice(0, 18000) + "\n[... truncado ...]";
+      const deterministicLancamentos = extractInstallmentLancamentos(textContent, new Date().toISOString().split("T")[0]).slice(0, 80);
 
       const [categoriasRaw, tiposCppRaw] = await Promise.all([
         directusFetch("Categorias").catch(() => []),
@@ -8955,14 +9039,23 @@ Retorne SOMENTE JSON válido, sem markdown, neste formato:
 
 Regras:
 - Crie um lançamento para cada linha, parcela, nota, boleto, recibo ou item financeiro claro.
+- Em arquivos de amortização, boleto parcelado, simulação, carnê ou cronograma, cada linha/parcela é um lançamento separado.
+- Todo lançamento parcelado deve ter número da parcela na descrição, por exemplo "Parcela 15/49".
+- Toda linha com parcela deve preencher data_vencimento com a data de vencimento/amortização da própria linha.
+- Quando houver coluna ou texto de status, identifique se está pago, quitado, baixado, liquidado, realizado, agendado/programado ou pendente.
+- Se o arquivo for apenas cronograma futuro/simulação sem indicação de pagamento, use status "agendado" para parcelas futuras e "vencido" para parcelas passadas.
 - Valor sempre positivo, com até 2 casas decimais. Use tipo "saida" para despesa/pagamento/custo e "entrada" para receita/aporte/reembolso recebido.
 - Se o documento tiver valor negativo, converta para valor positivo e ajuste o tipo.
-- "data" deve ser a data do lançamento ou emissão; se não existir, use "${today}".
+- "data" deve ser a data da parcela/vencimento quando o arquivo for cronograma de parcelas; se não existir, use "${today}".
 - "data_vencimento" é a data de vencimento; se não existir, null.
 - "data_pagamento" só deve existir quando o arquivo indicar pagamento realizado.
 - Se já está pago/quitado/baixado/realizado, status "pago"; se vencimento é futuro e não pago, "pendente" ou "agendado"; se vencimento anterior a ${today} e não pago, "vencido".
 - Use categoria_id/tipo_cpp_id somente quando houver correspondência clara nas listas abaixo; caso contrário null.
 - Limite máximo: 80 lançamentos.
+
+Pré-leitura determinística de parcelas encontrada no arquivo.
+Use estes itens como base quando fizerem sentido; não descarte parcelas claras com data e valor:
+${JSON.stringify(deterministicLancamentos)}
 
 Categorias disponíveis:
 ${JSON.stringify(categoriaOptions)}
@@ -9004,7 +9097,11 @@ ${textContent}`;
       const validStatuses = new Set(["pendente", "agendado", "pago", "parcial", "vencido", "cancelado"]);
       const validCategoryIds = new Set(categoriaOptions.map((c: any) => String(c.id)));
       const validTipoCppIds = new Set(tipoCppOptions.map((c: any) => String(c.id)));
-      const lancamentos = (Array.isArray(parsed?.lancamentos) ? parsed.lancamentos : [])
+      const aiLancamentos = Array.isArray(parsed?.lancamentos) ? parsed.lancamentos : [];
+      const sourceLancamentos = deterministicLancamentos.length > aiLancamentos.length
+        ? deterministicLancamentos
+        : aiLancamentos.length > 0 ? aiLancamentos : deterministicLancamentos;
+      const lancamentos = sourceLancamentos
         .slice(0, 80)
         .map((item: any) => {
           const rawValue = Number(item.valor || 0);
@@ -9014,12 +9111,15 @@ ${textContent}`;
           const categoriaId = item.categoria_id != null && validCategoryIds.has(String(item.categoria_id)) ? item.categoria_id : null;
           const tipoCppId = item.tipo_cpp_id != null && validTipoCppIds.has(String(item.tipo_cpp_id)) ? item.tipo_cpp_id : null;
           const status = validStatuses.has(String(item.status || "")) ? String(item.status) : "pendente";
+          const dataVencimento = /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_vencimento || "")) ? item.data_vencimento : null;
+          const dataPagamento = /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_pagamento || "")) ? item.data_pagamento : null;
+          const data = /^\d{4}-\d{2}-\d{2}$/.test(String(item.data || "")) ? item.data : dataVencimento || today;
           return {
             tipo,
             valor: Math.abs(Number(rawValue.toFixed ? rawValue.toFixed(2) : rawValue) || 0),
-            data: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data || "")) ? item.data : today,
-            data_vencimento: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_vencimento || "")) ? item.data_vencimento : null,
-            data_pagamento: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_pagamento || "")) ? item.data_pagamento : null,
+            data,
+            data_vencimento: dataVencimento,
+            data_pagamento: dataPagamento,
             status,
             descricao: String(item.descricao || "Lançamento importado por IA").slice(0, 180),
             categoria_id: categoriaId,

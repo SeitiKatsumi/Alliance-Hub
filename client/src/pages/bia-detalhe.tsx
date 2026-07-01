@@ -267,10 +267,13 @@ function isMembroLinkedToBia(bia: BiasProjeto, membroId?: string | null): boolea
 // ---- Main page ----
 export default function BiaDetalhePage() {
   const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeDetailTab, setActiveDetailTab] = useState("visao");
+  const [activeDetailTab, setActiveDetailTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab || "visao";
+  });
   const [editOpen, setEditOpen] = useState(false);
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
@@ -322,9 +325,14 @@ export default function BiaDetalhePage() {
   useEffect(() => {
     const publicRef = getBiaPublicRef(bia);
     if (id && publicRef && publicRef !== id) {
-      navigate(`/bias/${publicRef}`, { replace: true });
+      navigate(`/bias/${publicRef}${window.location.search || ""}`, { replace: true });
     }
   }, [bia, id, navigate]);
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab") || "visao";
+    if (tab !== activeDetailTab) setActiveDetailTab(tab);
+  }, [location]);
 
   const membros = useMemo(() => {
     const m: Record<string, string> = {};
@@ -402,11 +410,30 @@ export default function BiaDetalhePage() {
     ].filter((tab) => tab.allowed);
   }, [bia, canAccessAllNucleos, membroId]);
   const canAccessNucleos = allowedNucleoTabs.length > 0;
-  useEffect(() => {
-    if (activeDetailTab !== "visao" && !allowedNucleoTabs.some((tab) => tab.value === activeDetailTab)) {
-      setActiveDetailTab("visao");
+  const updateDetailTab = (value: string) => {
+    setActiveDetailTab(value);
+    const params = new URLSearchParams(window.location.search);
+    if (value === "visao") {
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
     }
-  }, [activeDetailTab, allowedNucleoTabs]);
+    if (value !== "capital") params.delete("capital");
+    const query = params.toString();
+    navigate(`${window.location.pathname}${query ? `?${query}` : ""}`, { replace: true });
+  };
+  const updateCapitalTab = (value: string) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", "capital");
+    params.set("capital", value);
+    navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+  };
+  useEffect(() => {
+    if (!bia) return;
+    if (activeDetailTab !== "visao" && !allowedNucleoTabs.some((tab) => tab.value === activeDetailTab)) {
+      updateDetailTab("visao");
+    }
+  }, [activeDetailTab, allowedNucleoTabs, bia]);
 
   if (loadingBia) {
     return (
@@ -503,7 +530,7 @@ export default function BiaDetalhePage() {
         )}
       </div>
 
-      <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="space-y-5">
+      <Tabs value={activeDetailTab} onValueChange={updateDetailTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-wrap gap-1 bg-muted/60 p-1">
           <TabsTrigger value="visao" className="min-h-9 flex-1 basis-[120px]" data-testid="tab-bia-visao">Visão geral</TabsTrigger>
           {allowedNucleoTabs.map((nucleoTab) => (
@@ -827,7 +854,12 @@ export default function BiaDetalhePage() {
 
               {allowedNucleoTabs.some((tab) => tab.value === "capital") && (
               <TabsContent value="capital" className="space-y-4">
-                <NucleoCapitalPage initialBiaId={bia.id} embedded />
+                <NucleoCapitalPage
+                  initialBiaId={bia.id}
+                  embedded
+                  activeTab={new URLSearchParams(window.location.search).get("capital") || undefined}
+                  onTabChange={updateCapitalTab}
+                />
               </TabsContent>
               )}
 

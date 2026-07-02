@@ -77,6 +77,10 @@ interface BiasProjeto {
   ir_previsto?: string | number;
   inss_previsto?: string | number;
   manutencao_pos_obra_prevista?: string | number;
+  comissao_realizada?: string | number;
+  ir_realizado?: string | number;
+  inss_realizado?: string | number;
+  manutencao_realizada?: string | number;
   resultado_liquido?: string | number;
   lucro_previsto?: string | number;
   inicio_aportes?: string | null;
@@ -133,6 +137,36 @@ function formatMoney(value: number, currency = "BRL"): string {
   } catch {
     return brl(value);
   }
+}
+
+function fieldFilled(value: unknown): boolean {
+  return value !== undefined && value !== null && value !== "";
+}
+
+function calcularResultadoLiquidoBia(bia: BiasProjeto): number {
+  const hasFinancialBasis =
+    fieldFilled(bia.valor_realizado_venda) ||
+    fieldFilled(bia.custo_final_previsto) ||
+    fieldFilled(bia.comissao_realizada) ||
+    fieldFilled(bia.comissao_prevista_corretor) ||
+    fieldFilled(bia.ir_realizado) ||
+    fieldFilled(bia.ir_previsto) ||
+    fieldFilled(bia.inss_realizado) ||
+    fieldFilled(bia.inss_previsto) ||
+    fieldFilled(bia.manutencao_realizada) ||
+    fieldFilled(bia.manutencao_pos_obra_prevista);
+  if (!hasFinancialBasis) return n(bia.resultado_liquido);
+
+  const realizado = n(bia.valor_realizado_venda);
+  const custoFinal = n(bia.custo_final_previsto);
+  const pct = (realizadoField: keyof BiasProjeto, previstoField: keyof BiasProjeto) =>
+    n(fieldFilled(bia[realizadoField]) ? bia[realizadoField] : bia[previstoField]);
+  const totalDeducoes =
+    ((pct("comissao_realizada", "comissao_prevista_corretor") +
+      pct("ir_realizado", "ir_previsto") +
+      pct("inss_realizado", "inss_previsto") +
+      pct("manutencao_realizada", "manutencao_pos_obra_prevista")) / 100) * realizado;
+  return (realizado - totalDeducoes) - custoFinal;
 }
 
 function pct(v?: string | number | null): string {
@@ -458,7 +492,7 @@ export default function BiaDetalhePage() {
 
   const vgv = n(bia.valor_geral_venda_vgv);
   const realizado = n(bia.valor_realizado_venda);
-  const resultado = n(bia.resultado_liquido);
+  const resultado = calcularResultadoLiquidoBia(bia);
   const lucro = n(bia.lucro_previsto);
   const custoFinal = n(bia.custo_final_previsto);
   const totalAportes = n(bia.total_aportes);

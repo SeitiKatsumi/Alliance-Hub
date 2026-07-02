@@ -77,8 +77,8 @@ function membroFoto(m: Membro): string | null {
 }
 
 function MemberSelect({
-  value, onChange, membros, label
-}: { value: string; onChange: (v: string) => void; membros: Membro[]; label: string }) {
+  value, onChange, membros, label, pending
+}: { value: string; onChange: (v: string) => void; membros: Membro[]; label: string; pending?: boolean }) {
   const [open, setOpen] = useState(false);
   const selected = membros.find(m => m.id === value);
 
@@ -100,6 +100,11 @@ function MemberSelect({
                 </div>
               )}
               <span className="truncate text-foreground">{membroNome(selected)}</span>
+              {pending && (
+                <Badge variant="outline" className="h-4 shrink-0 border-amber-300 bg-amber-50 px-1.5 text-[9px] font-medium text-amber-700">
+                  Pendente
+                </Badge>
+              )}
             </>
           ) : (
             <>
@@ -196,6 +201,14 @@ interface BiasProjeto {
   total_receita?: string | number;
   inicio_aportes?: string | null;
   total_aportes?: string | number;
+}
+
+interface BiaDiretorSolicitacao {
+  id: string;
+  bia_id: string;
+  diretor_membro_id: string;
+  campo_diretor: string;
+  status: string;
 }
 
 function toNum(v: string | number | undefined | null): number {
@@ -347,6 +360,18 @@ export default function BiasCalculadoraPage({
     queryKey: ["/api/bias"],
   });
 
+  const { data: diretorSolicitacoesPendentes = [] } = useQuery<BiaDiretorSolicitacao[]>({
+    queryKey: ["/api/bia-diretor-solicitacoes/bia", selectedBiaId],
+    queryFn: async () => {
+      if (!selectedBiaId) return [];
+      const res = await fetch(`/api/bia-diretor-solicitacoes/bia/${selectedBiaId}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!selectedBiaId,
+  });
+
   const { data: membros = [] } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
   });
@@ -417,10 +442,6 @@ export default function BiasCalculadoraPage({
   const [inssPrevisto, setInssPrevisto] = useState(0);
   const [manutencao, setManutencao] = useState(0);
 
-  // Aportes
-  const [totalAportes, setTotalAportes] = useState(0);
-  const [inicioAportes, setInicioAportes] = useState<string>("");
-
   // Estimate how many Directus entries will be created/deleted during sync
   const activeContributors = 1 // BUILT always
     + (membroAutorOpa && percAutor > 0 ?1 : 0)
@@ -462,8 +483,6 @@ export default function BiasCalculadoraPage({
       setIrPrevisto(toNum(selectedBia.ir_previsto));
       setInssPrevisto(toNum(selectedBia.inss_previsto));
       setManutencao(toNum(selectedBia.manutencao_pos_obra_prevista));
-      setTotalAportes(toNum(selectedBia.total_aportes));
-      setInicioAportes(selectedBia.inicio_aportes || "");
       // Load member selections
       setMembroAutorOpa(selectedBia.autor_bia || "");
       setMembroAliadoBuilt(selectedBia.aliado_built || "");
@@ -493,36 +512,37 @@ export default function BiasCalculadoraPage({
   useEffect(() => {
     if (!membroDirNucleoTecnico) {
       setPercTecnico(0);
-    } else if (percTecnico === 0) {
+    } else if (!isSuperAdmin && percTecnico === 0) {
       setPercTecnico(2);
     }
-  }, [membroDirNucleoTecnico]);
+  }, [membroDirNucleoTecnico, isSuperAdmin]);
 
   useEffect(() => {
     if (!membroDirObras) {
       setPercObras(0);
-    } else if (percObras === 0) {
+    } else if (!isSuperAdmin && percObras === 0) {
       setPercObras(2);
     }
-  }, [membroDirObras]);
+  }, [membroDirObras, isSuperAdmin]);
 
   useEffect(() => {
     if (!membroDirComercial) {
       setPercComercial(0);
-    } else if (percComercial === 0) {
+    } else if (!isSuperAdmin && percComercial === 0) {
       setPercComercial(2);
     }
-  }, [membroDirComercial]);
+  }, [membroDirComercial, isSuperAdmin]);
 
   useEffect(() => {
     if (!membroDirCapital) {
       setPercCapital(0);
-    } else if (percCapital === 0) {
+    } else if (!isSuperAdmin && percCapital === 0) {
       setPercCapital(2);
     }
-  }, [membroDirCapital]);
+  }, [membroDirCapital, isSuperAdmin]);
 
   useEffect(() => {
+    if (isSuperAdmin) return;
     if (institutionalPercent === null) return;
     setPercAliado(applyPercentualMin(institutionalPercent, 1));
     setPercBuilt(applyPercentualMin(institutionalPercent, 1));
@@ -543,13 +563,6 @@ export default function BiasCalculadoraPage({
   const custoFinalPrevisto = cppAutor + cppAliado + cppBuilt + cppTecnico + cppAlianca + cppObras + cppComercial + cppCapital;
 
   // Total Aporte do Fator de Multiplicação — entrada entries generated per director with a member assigned
-  const totalAporteFatorMultiplicacao =
-    (membroDirTecnico ?cppAlianca : 0) +
-    (membroDirNucleoTecnico ?cppTecnico : 0) +
-    (membroDirObras ?cppObras : 0) +
-    (membroDirComercial ?cppComercial : 0) +
-    (membroDirCapital ?cppCapital : 0);
-
   // Deduções são percentuais sobre o valor realizado de venda
   const comissaoValor    = (comissaoCorretor / 100) * valorRealizadoVenda;
   const irValor          = (irPrevisto       / 100) * valorRealizadoVenda;
@@ -559,6 +572,40 @@ export default function BiasCalculadoraPage({
   const totalReceita = valorRealizadoVenda - totalDeducoes;
   const resultadoLiquido = totalReceita - custoFinalPrevisto;
   const lucroPrevisto = valorRealizadoVenda > 0 ?((resultadoLiquido / valorRealizadoVenda) * 100) : 0;
+
+  const rolePendingByLabel = useMemo(() => {
+    if (!selectedBia) return {};
+    const fields: Array<{ label: string; field: keyof BiasProjeto; selectedId: string }> = [
+      { label: "Aliado BUILT", field: "aliado_built", selectedId: membroAliadoBuilt },
+      { label: "Dir. de Aliança", field: "diretor_alianca", selectedId: membroDirTecnico },
+      { label: "Autor da Oportunidade", field: "autor_bia", selectedId: membroAutorOpa },
+      { label: "Dir. Núcleo Técnico", field: "diretor_nucleo_tecnico", selectedId: membroDirNucleoTecnico },
+      { label: "Dir. Núcleo de Obra", field: "diretor_execucao", selectedId: membroDirObras },
+      { label: "Dir. Núcleo Comercial", field: "diretor_comercial", selectedId: membroDirComercial },
+      { label: "Dir. Núcleo de Capital", field: "diretor_capital", selectedId: membroDirCapital },
+    ];
+    return fields.reduce<Record<string, boolean>>((acc, item) => {
+      if (!item.selectedId) return acc;
+      const savedId = String(selectedBia[item.field] || "");
+      const hasPendingSolicitacao = diretorSolicitacoesPendentes.some((solicitacao) =>
+        solicitacao.status === "pendente" &&
+        solicitacao.campo_diretor === item.field &&
+        solicitacao.diretor_membro_id === item.selectedId
+      );
+      acc[item.label] = hasPendingSolicitacao || item.selectedId !== savedId;
+      return acc;
+    }, {});
+  }, [
+    diretorSolicitacoesPendentes,
+    membroAliadoBuilt,
+    membroAutorOpa,
+    membroDirCapital,
+    membroDirComercial,
+    membroDirNucleoTecnico,
+    membroDirObras,
+    membroDirTecnico,
+    selectedBia,
+  ]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -584,17 +631,6 @@ export default function BiasCalculadoraPage({
         cpp_dir_capital: r(cppCapital),
         custo_origem_bia: r(custoOrigemBia),
         custo_final_previsto: r(custoFinalPrevisto),
-        valor_geral_venda_vgv: r(vgv),
-        valor_realizado_venda: r(valorRealizadoVenda),
-        comissao_prevista_corretor: r(comissaoCorretor),
-        ir_previsto: r(irPrevisto),
-        inss_previsto: r(inssPrevisto),
-        manutencao_pos_obra_prevista: r(manutencao),
-        total_receita: r(totalReceita),
-        resultado_liquido: r(resultadoLiquido),
-        lucro_previsto: r(lucroPrevisto),
-        total_aportes: r(totalAportes),
-        inicio_aportes: inicioAportes || null,
       };
       const res = await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,
@@ -1025,6 +1061,7 @@ export default function BiasCalculadoraPage({
                               onChange={field.memberSetter}
                               membros={membros}
                               label={field.label}
+                              pending={!!rolePendingByLabel[field.label]}
                             />
                           </div>
                         )}
@@ -1069,7 +1106,7 @@ export default function BiasCalculadoraPage({
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Divisor:</span>
+                        <span className="text-xs text-muted-foreground">Divisor Multiplicador:</span>
                         <Badge variant="outline">{formatPerc(divisorMultiplicador)}</Badge>
                       </div>
                       <div className="flex items-center justify-between">
@@ -1084,7 +1121,7 @@ export default function BiasCalculadoraPage({
           </Card>
 
           {/* Receita, Impostos e Resultado */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {false && <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Receita */}
             <Card data-testid="panel-receita">
               <CardHeader>
@@ -1169,10 +1206,10 @@ export default function BiasCalculadoraPage({
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </div>}
 
           {/* Aportes */}
-          <Card data-testid="panel-aportes">
+          {false && <Card data-testid="panel-aportes">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <HandCoins className="w-5 h-5 text-blue-500" />
@@ -1202,7 +1239,7 @@ export default function BiasCalculadoraPage({
                 />
               </div>
             </CardContent>
-          </Card>
+          </Card>}
 
           {/* Resultado Final */}
           <Card className="border-brand-gold/30 bg-gradient-to-br from-brand-gold/5 to-transparent" data-testid="panel-resultado">
@@ -1232,7 +1269,7 @@ export default function BiasCalculadoraPage({
                 </div>
               </div>
 
-              {totalAporteFatorMultiplicacao > 0 && (
+              {false && (
                 <div className="rounded-lg border border-blue-500/25 bg-blue-500/5 px-4 py-3 flex items-center justify-between gap-4" data-testid="panel-aporte-fm">
                   <div className="flex items-center gap-2">
                     <HandCoins className="w-4 h-4 text-blue-500 shrink-0" />
@@ -1242,7 +1279,7 @@ export default function BiasCalculadoraPage({
                     </div>
                   </div>
                   <p className="text-lg font-bold text-blue-600 tabular-nums shrink-0" data-testid="text-aporte-fm">
-                    {formatBRL(totalAporteFatorMultiplicacao)}
+                    {null}
                   </p>
                 </div>
               )}

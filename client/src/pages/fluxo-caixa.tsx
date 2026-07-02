@@ -2883,6 +2883,7 @@ export default function FluxoCaixaPage({
                   <Button
                     onClick={handleSubmit}
                     disabled={createMutation.isPending || uploading}
+                    className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                     data-testid="button-salvar-lancamento"
                   >
                     {createMutation.isPending || uploading ?(
@@ -4177,6 +4178,7 @@ export default function FluxoCaixaPage({
                 <Button
                   onClick={handleEditSubmit}
                   disabled={updateMutation.isPending || uploading}
+                  className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white"
                   data-testid="button-salvar-edit"
                 >
                   {updateMutation.isPending || uploading ?(

@@ -6953,6 +6953,63 @@ export async function registerRoutes(
     return data;
   }
 
+  function biaFinancialNumber(value: any): number {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const raw = String(value ?? "").trim();
+    if (!raw) return 0;
+    const normalized = raw.includes(",")
+      ? raw.replace(/\./g, "").replace(",", ".")
+      : raw;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function hasBiaFinancialField(payload: Record<string, any>): boolean {
+    return [
+      "valor_realizado_venda",
+      "custo_final_previsto",
+      "comissao_prevista_corretor",
+      "ir_previsto",
+      "inss_previsto",
+      "manutencao_pos_obra_prevista",
+      "comissao_realizada",
+      "ir_realizado",
+      "inss_realizado",
+      "manutencao_realizada",
+    ].some((field) => Object.prototype.hasOwnProperty.call(payload, field));
+  }
+
+  function withUpdatedBiaFinancials(payload: Record<string, any>, currentBia?: Record<string, any> | null): Record<string, any> {
+    if (!hasBiaFinancialField(payload) && !payload.resultado_liquido && !payload.total_receita && !payload.lucro_previsto) {
+      return payload;
+    }
+
+    const source = { ...(currentBia || {}), ...payload };
+    const valorRealizado = biaFinancialNumber(source.valor_realizado_venda);
+    const custoFinalPrevisto = biaFinancialNumber(source.custo_final_previsto);
+    const pct = (realizadoField: string, previstoField: string) => {
+      const hasRealizado = source[realizadoField] !== undefined && source[realizadoField] !== null && source[realizadoField] !== "";
+      return biaFinancialNumber(hasRealizado ? source[realizadoField] : source[previstoField]);
+    };
+
+    const totalDeducoes =
+      ((pct("comissao_realizada", "comissao_prevista_corretor") +
+        pct("ir_realizado", "ir_previsto") +
+        pct("inss_realizado", "inss_previsto") +
+        pct("manutencao_realizada", "manutencao_pos_obra_prevista")) / 100) * valorRealizado;
+    const totalReceita = valorRealizado - totalDeducoes;
+    const resultadoLiquido = totalReceita - custoFinalPrevisto;
+    const lucroPrevisto = valorRealizado > 0 ? (resultadoLiquido / valorRealizado) * 100 : 0;
+    const round = (value: number) => parseFloat(value.toFixed(2));
+
+    return {
+      ...payload,
+      total_receita: round(totalReceita),
+      resultado_liquido: round(resultadoLiquido),
+      lucro_previsto: round(lucroPrevisto),
+    };
+  }
+
   const BIA_DIRETOR_DIRECT_FIELDS = [
     "diretor_alianca",
     "diretor_nucleo_tecnico",
@@ -7041,7 +7098,7 @@ export async function registerRoutes(
         }
         if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
       }
-      const createPayload = prepareBiaPayload(createBody);
+      const createPayload = withUpdatedBiaFinancials(prepareBiaPayload(createBody), null);
       createPayload.codigo_publico = await createUniqueBiaPublicCode();
       let item = await directusCreate("bias_projetos", createPayload);
       let diretorFlowError: string | null = null;
@@ -7159,7 +7216,7 @@ export async function registerRoutes(
       const currentBia = await directusFetchOne(
         "bias_projetos",
         req.params.id,
-        "fields=id,nome_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores"
+        "fields=id,nome_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
       ).catch(() => null);
       const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
       const diretorAliancaAtual = directusRelationId(currentBia?.diretor_alianca) || currentBia?.diretor_alianca || null;
@@ -7209,6 +7266,7 @@ export async function registerRoutes(
       }
       // Remove already-known blocked fields before first attempt
       for (const f of biasBlockedFields) delete (payload as any)[f];
+      payload = withUpdatedBiaFinancials(payload, currentBia);
 
       let lastError: any = null;
       const newlySkipped: string[] = [];

@@ -4466,7 +4466,13 @@ export async function registerRoutes(
 
       if (currentDiretor && currentDiretor === requestedDiretor) {
         const mouAceito = await storage.getBiaMouAceite(opts.biaId, requestedDiretor, BIA_MOU_VERSAO);
-        if (mouAceito) continue;
+        if (mouAceito) {
+          if (opts.payload) {
+            opts.payload[config.campoDiretor] = requestedDiretor;
+            opts.payload[config.campoPercentual] = requestedPercentual;
+          }
+          continue;
+        }
         if (jaExiste) continue;
         if (opts.payload) {
           opts.payload[config.campoDiretor] = null;

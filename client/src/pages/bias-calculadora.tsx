@@ -1077,7 +1077,7 @@ export default function BiasCalculadoraPage({
                               type="number"
                               step="0.01"
                               min={isSuperAdmin ?0 : ((field as any).min ?? 0)}
-                              value={field.value || ""}
+                              value={Number.isFinite(field.value) ? field.value : ""}
                               disabled={field.memberSetter !== null && !(field as any).min && !field.memberId}
                               onChange={(e) => {
                                 const raw = parseFloat(e.target.value) || 0;

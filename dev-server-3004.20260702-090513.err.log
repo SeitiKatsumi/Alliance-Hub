@@ -368,3 +368,61 @@ Internal Server Error: Error: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-info] leitura local indisponivel: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[nucleo-tecnico-docs] usando fallback temporario: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+Internal Server Error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async Promise.all (index 0)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\routes.ts:14588:32) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
+[bia-info] leitura local indisponivel: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[nucleo-tecnico-docs] usando fallback temporario: connect ECONNREFUSED 127.0.0.1:5433
+[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
+[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs

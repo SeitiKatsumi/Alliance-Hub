@@ -277,9 +277,20 @@ function getMembroNome(membro: Membro): string {
   return [membro.primeiro_nome, membro.sobrenome].filter(Boolean).join(" ") || "Sem nome";
 }
 
-function getRelId(val: string | { id: string | number } | number | null): string | null {
+function getRelId(val: any): string | null {
   if (!val) return null;
-  if (typeof val === "object" && val !== null) return String((val as any).id);
+  if (typeof val === "object" && val !== null) {
+    const relationValue =
+      val.categorias_id ??
+      val.tipos_cpp_id ??
+      val.directus_files_id ??
+      val.cadastro_geral_id ??
+      val.id;
+    if (typeof relationValue === "object" && relationValue !== null) {
+      return relationValue.id != null ? String(relationValue.id) : null;
+    }
+    return relationValue != null ? String(relationValue) : null;
+  }
   return String(val);
 }
 
@@ -294,6 +305,10 @@ function parseMemberList(value?: string[] | string | null): string[] {
 }
 
 function getCppName(cpp: TipoCPP | number, cppMap: Record<number, string>): string {
+  if (typeof cpp === "object" && cpp !== null && (cpp as any).tipos_cpp_id) {
+    const rel = (cpp as any).tipos_cpp_id;
+    return typeof rel === "object" && rel !== null ? rel.Nome || "CPP" : cppMap[Number(rel)] || "CPP";
+  }
   if (typeof cpp === "object" && cpp !== null) return cpp.Nome || "CPP";
   return cppMap[cpp] || "CPP";
 }
@@ -308,6 +323,11 @@ function getFavName(fav: Membro | string, membroMap: Record<string, string>): st
 }
 
 function getCatName(cat: CategoriaItem | number, catMap: Record<number, string>): string {
+  if (typeof cat === "object" && cat !== null && (cat as any).categorias_id) {
+    const rel = (cat as any).categorias_id;
+    if (typeof rel === "object" && rel !== null) return stripPlanoContaCode(rel.Nome_da_categoria || "Categoria");
+    return stripPlanoContaCode(catMap[Number(rel)] || "Categoria");
+  }
   if (typeof cat === "object" && cat !== null) return stripPlanoContaCode(cat.Nome_da_categoria || "Categoria");
   return stripPlanoContaCode(catMap[cat] || "Categoria");
 }
@@ -2739,11 +2759,36 @@ export default function FluxoCaixaPage({
     return map;
   }, [tiposCpp]);
 
+  const categoriasFormulario = useMemo(() => {
+    const map = new Map<number, CategoriaItem>();
+    categorias.forEach((cat) => map.set(cat.id, cat));
+    fluxoItemsAll.forEach((item) => {
+      (item.Categoria || []).forEach((cat: any) => {
+        const id = Number(getRelId(cat));
+        if (!id || map.has(id)) return;
+        const source = cat?.categorias_id && typeof cat.categorias_id === "object" ? cat.categorias_id : cat;
+        if (source && typeof source === "object" && source.Nome_da_categoria) {
+          map.set(id, {
+            id,
+            Nome_da_categoria: source.Nome_da_categoria,
+            Descricao_das_categorias: source.Descricao_das_categorias,
+            Tipo_de_categoria: source.Tipo_de_categoria || null,
+            bia_id: source.bia_id || null,
+          });
+        }
+      });
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      String(a.Tipo_de_categoria || "").localeCompare(String(b.Tipo_de_categoria || ""), "pt-BR") ||
+      String(a.Nome_da_categoria || "").localeCompare(String(b.Nome_da_categoria || ""), "pt-BR", { numeric: true })
+    );
+  }, [categorias, fluxoItemsAll]);
+
   const catMap = useMemo(() => {
     const map: Record<number, string> = {};
-    categorias.forEach((c) => { map[c.id] = c.Nome_da_categoria; });
+    categoriasFormulario.forEach((c) => { map[c.id] = c.Nome_da_categoria; });
     return map;
-  }, [categorias]);
+  }, [categoriasFormulario]);
 
   if (loadingBias) {
     return (
@@ -2822,7 +2867,7 @@ export default function FluxoCaixaPage({
                   formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                   formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
                   membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} tiposCpp={tiposCpp}
-                  categorias={categorias}
+                  categorias={categoriasFormulario}
                   selectedBiaId={selectedBiaId}
                   prefix="create"
                   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
@@ -4117,7 +4162,7 @@ export default function FluxoCaixaPage({
                 formDataVencimento={formDataVencimento} setFormDataVencimento={setFormDataVencimento}
                 formDataPagamento={formDataPagamento} setFormDataPagamento={setFormDataPagamento}
                 membros={membros} favorecidos={favorecidosDaBia} allocationItems={aportesComTransferencias.rows} tiposCpp={tiposCpp}
-                categorias={categorias}
+                categorias={categoriasFormulario}
                 selectedBiaId={selectedBiaId}
                 prefix="edit"
                 pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}

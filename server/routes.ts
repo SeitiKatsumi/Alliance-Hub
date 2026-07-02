@@ -8899,10 +8899,16 @@ export async function registerRoutes(
           if (c && typeof c === "object" && c.categorias_id && typeof c.categorias_id === "object") {
             return c.categorias_id;
           }
+          if (c && typeof c === "object" && c.categorias_id) {
+            return c.categorias_id;
+          }
           return c;
         });
         const tiposCpp = (f.tipo_de_cpp || []).map((c: any) => {
           if (c && typeof c === "object" && c.tipos_cpp_id && typeof c.tipos_cpp_id === "object") {
+            return c.tipos_cpp_id;
+          }
+          if (c && typeof c === "object" && c.tipos_cpp_id) {
             return c.tipos_cpp_id;
           }
           return c;

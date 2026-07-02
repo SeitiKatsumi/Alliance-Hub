@@ -6,6 +6,7 @@ import { capitalizeWords } from "@/lib/utils";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
+import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { InviteQrCode } from "@/components/invite-qr-code";
@@ -1799,6 +1800,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const { toast } = useToast();
   const { user } = useAuth();
   const isEdit = !!bia;
+  const pendingFlowBypassed = isBiaPendingBypassed(bia);
   const membroLogadoId = user?.membro_directus_id || "";
   const canEditAliadoBuilt = user?.role === "admin" || user?.role === "manager";
 
@@ -1995,7 +1997,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: open && !!bia?.id,
+    enabled: open && !!bia?.id && !pendingFlowBypassed,
   });
 
   const { data: socioSolicitacoesPendentes = [] } = useQuery<BiaSocioSolicitacao[]>({
@@ -2006,7 +2008,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: open && !!bia?.id,
+    enabled: open && !!bia?.id && !pendingFlowBypassed,
   });
 
   const { data: chamadasAlianca = [] } = useQuery<ChamadaAlianca[]>({
@@ -2100,7 +2102,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   }, [open, isEdit, comunidadeMaeDoMembro, membroLogadoId]);
 
   useEffect(() => {
-    if (!open || !bia?.id || diretorSolicitacoesPendentes.length === 0) return;
+    if (pendingFlowBypassed || !open || !bia?.id || diretorSolicitacoesPendentes.length === 0) return;
 
     const diretorFields = new Set<keyof FormState>([
       "diretor_alianca",
@@ -2141,10 +2143,10 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
       return changed ? next : current;
     });
-  }, [open, bia?.id, diretorSolicitacoesPendentes]);
+  }, [open, bia?.id, diretorSolicitacoesPendentes, pendingFlowBypassed]);
 
   useEffect(() => {
-    if (!open || !bia?.id || socioSolicitacoesPendentes.length === 0) return;
+    if (pendingFlowBypassed || !open || !bia?.id || socioSolicitacoesPendentes.length === 0) return;
 
     setForm((current) => {
       let changed = false;
@@ -2170,7 +2172,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 
       return changed ? next : current;
     });
-  }, [open, bia?.id, socioSolicitacoesPendentes]);
+  }, [open, bia?.id, socioSolicitacoesPendentes, pendingFlowBypassed]);
 
   async function uploadFiles(files: File[]): Promise<string[]> {
     if (files.length === 0) return [];
@@ -2218,6 +2220,8 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   })();
 
   const diretorPendingByField = useMemo(() => {
+    if (pendingFlowBypassed) return {};
+
     const fields: Array<keyof FormState> = [
       "diretor_alianca",
       "diretor_nucleo_tecnico",
@@ -2251,6 +2255,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     form.diretor_comercial,
     form.diretor_capital,
     isEdit,
+    pendingFlowBypassed,
   ]);
 
   const socioPendingByField = useMemo(() => {
@@ -2262,6 +2267,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       socios_guardioes: new Set<string>(),
       socios_multiplicadores: new Set<string>(),
     };
+    if (pendingFlowBypassed) return result;
 
     fields.forEach((field) => {
       const selectedIds = parseMemberList(form[field] as string[] | string);
@@ -2285,6 +2291,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     form.socios_guardioes,
     form.socios_multiplicadores,
     isEdit,
+    pendingFlowBypassed,
     socioSolicitacoesPendentes,
   ]);
 
@@ -2334,9 +2341,9 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const chamadaValorZerado = isDiretorChamadaField(chamadaDiretorCampo) && parseBRLToNumber(chamadaOpaValor) <= 0;
 
   function renderDispararAliancaButton(field: ChamadaAlvoCampo) {
-    const cargoPreenchido = Array.isArray(form[field])
+    const cargoPreenchido = pendingFlowBypassed || (Array.isArray(form[field])
       ? parseMemberList(form[field] as string[] | string).length > 0
-      : !!form[field];
+      : !!form[field]);
     const nextOrder = getNextChamadaOrder(field);
     const concluded = nextOrder > 4;
     return (
@@ -3919,13 +3926,25 @@ export default function BiasPage() {
     onError: (e: any) => toast({ title: "Erro ao rejeitar", description: e.message, variant: "destructive" }),
   });
 
+  const bypassedBiaIds = useMemo(() => {
+    return new Set((biasRaw as BiasProjeto[]).filter(isBiaPendingBypassed).map((b) => b.id));
+  }, [biasRaw]);
+  const aprovacoesPendentesVisiveis = useMemo(
+    () => aprovacoesPendentes.filter((a) => a.status === "pendente" && !bypassedBiaIds.has(a.bia_id)),
+    [aprovacoesPendentes, bypassedBiaIds]
+  );
+  const minhasAprovacoesVisiveis = useMemo(
+    () => minhasAprovacoes.filter((a) => a.status === "pendente" && !bypassedBiaIds.has(a.bia_id)),
+    [minhasAprovacoes, bypassedBiaIds]
+  );
+
   // Map bia_id -> approval record for quick lookup
   const pendingBiaIds = useMemo(() => {
     const ids = new Set<string>();
-    aprovacoesPendentes.filter(a => a.status === "pendente").forEach(a => ids.add(a.bia_id));
-    minhasAprovacoes.filter(a => a.status === "pendente").forEach(a => ids.add(a.bia_id));
+    aprovacoesPendentesVisiveis.forEach(a => ids.add(a.bia_id));
+    minhasAprovacoesVisiveis.forEach(a => ids.add(a.bia_id));
     return ids;
-  }, [aprovacoesPendentes, minhasAprovacoes]);
+  }, [aprovacoesPendentesVisiveis, minhasAprovacoesVisiveis]);
 
   const membros = useMemo(
     () => [...(membrosRaw as Membro[])].sort((a, b) =>
@@ -4056,16 +4075,16 @@ export default function BiasPage() {
       )}
 
       {/* Approval Panel — visible to Aliado BUILT / admin when there are pending BIAs */}
-      {isAliadoBuilt && aprovacoesPendentes.filter(a => a.status === "pendente").length > 0 && (
+      {isAliadoBuilt && aprovacoesPendentesVisiveis.length > 0 && (
         <Card className="border-amber-400/40 bg-amber-50/40 dark:bg-amber-900/10">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <Bell className="w-4 h-4" />
-              BIAs aguardando sua aprovação ({aprovacoesPendentes.filter(a => a.status === "pendente").length})
+              BIAs aguardando sua aprovação ({aprovacoesPendentesVisiveis.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {aprovacoesPendentes.filter(a => a.status === "pendente").map((ap) => (
+            {aprovacoesPendentesVisiveis.map((ap) => (
               <div key={ap.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-background border border-amber-200/60 dark:border-amber-700/30">
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{ap.bia_nome || ap.bia_id}</p>
@@ -4102,11 +4121,11 @@ export default function BiasPage() {
       )}
 
       {/* Diretor: show notice about own pending BIAs */}
-      {isDiretorAlianca && minhasAprovacoes.filter(a => a.status === "pendente").length > 0 && (
+      {isDiretorAlianca && minhasAprovacoesVisiveis.length > 0 && (
         <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 text-sm text-amber-800 dark:text-amber-300">
           <Clock className="w-4 h-4 mt-0.5 shrink-0" />
           <span>
-            Você tem {minhasAprovacoes.filter(a => a.status === "pendente").length} BIA(s) aguardando aprovação do Aliado BUILT da sua comunidade. Você receberá um e-mail quando a decisão for tomada.
+            Você tem {minhasAprovacoesVisiveis.length} BIA(s) aguardando aprovação do Aliado BUILT da sua comunidade. Você receberá um e-mail quando a decisão for tomada.
           </span>
         </div>
       )}

@@ -12,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -360,6 +361,10 @@ export default function BiasCalculadoraPage({
     queryKey: ["/api/bias"],
   });
 
+  const bias = useMemo(() => biasRaw || [], [biasRaw]);
+  const selectedBia = useMemo(() => bias.find(b => b.id === selectedBiaId), [bias, selectedBiaId]);
+  const pendingFlowBypassed = isBiaPendingBypassed(selectedBia);
+
   const { data: diretorSolicitacoesPendentes = [] } = useQuery<BiaDiretorSolicitacao[]>({
     queryKey: ["/api/bia-diretor-solicitacoes/bia", selectedBiaId],
     queryFn: async () => {
@@ -369,7 +374,7 @@ export default function BiasCalculadoraPage({
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!selectedBiaId,
+    enabled: !!selectedBiaId && !pendingFlowBypassed,
   });
 
   const { data: membros = [] } = useQuery<Membro[]>({
@@ -384,9 +389,6 @@ export default function BiasCalculadoraPage({
   const [membroDirObras, setMembroDirObras] = useState<string>("");
   const [membroDirComercial, setMembroDirComercial] = useState<string>("");
   const [membroDirCapital, setMembroDirCapital] = useState<string>("");
-
-  const bias = useMemo(() => biasRaw || [], [biasRaw]);
-  const selectedBia = useMemo(() => bias.find(b => b.id === selectedBiaId), [bias, selectedBiaId]);
 
   useEffect(() => {
     if (initialBiaId && selectedBiaId !== initialBiaId) {
@@ -574,6 +576,7 @@ export default function BiasCalculadoraPage({
   const lucroPrevisto = valorRealizadoVenda > 0 ?((resultadoLiquido / valorRealizadoVenda) * 100) : 0;
 
   const rolePendingByLabel = useMemo(() => {
+    if (pendingFlowBypassed) return {};
     if (!selectedBia) return {};
     const fields: Array<{ label: string; field: keyof BiasProjeto; selectedId: string }> = [
       { label: "Aliado BUILT", field: "aliado_built", selectedId: membroAliadoBuilt },
@@ -604,6 +607,7 @@ export default function BiasCalculadoraPage({
     membroDirNucleoTecnico,
     membroDirObras,
     membroDirTecnico,
+    pendingFlowBypassed,
     selectedBia,
   ]);
 

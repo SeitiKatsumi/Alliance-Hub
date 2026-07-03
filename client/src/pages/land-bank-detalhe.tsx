@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { landBankPhotoUrl } from "@/lib/land-bank-assets";
 
 const landBankStorageKey = "built-land-bank-assets-v2";
 const landBankInterestStorageKey = "built-land-bank-interesses-v1";
@@ -201,13 +202,22 @@ export default function LandBankDetalhePage() {
     setEditForm((current) => current ? { ...current, [field]: value } : current);
   };
 
-  const handleEditPhoto = (file?: File) => {
+  const handleEditPhoto = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setEditField("foto", typeof reader.result === "string" ? reader.result : "");
-    };
-    reader.readAsDataURL(file);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const response = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.fileIds?.[0]) throw new Error(data.error || "Upload falhou");
+      setEditField("foto", data.fileIds[0]);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEditField("foto", typeof reader.result === "string" ? reader.result : "");
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const saveEdit = () => {
@@ -215,7 +225,13 @@ export default function LandBankDetalhePage() {
     const next = assets.map((item) => item.id === editForm.id ? editForm : item);
     writeAssets(next);
     setAssets(next);
-    updateAssetMutation.mutate(editForm);
+    updateAssetMutation.mutate(editForm, {
+      onSuccess: (updated) => {
+        const synced = next.map((item) => item.id === updated.id ? updated : item);
+        writeAssets(synced);
+        setAssets(synced);
+      },
+    });
     setEditDialogOpen(false);
   };
 
@@ -254,14 +270,14 @@ export default function LandBankDetalhePage() {
           <Card className="overflow-hidden">
             <div className={`flex h-72 items-center justify-center overflow-hidden ${meta.bg}`}>
               {asset.foto ? (
-                <img src={asset.foto} alt={asset.qualificacao} className="h-full w-full object-cover" />
+                <img src={landBankPhotoUrl(asset.foto) || ""} alt={asset.qualificacao} className="h-full w-full object-cover" />
               ) : (
                 <Icon className={`h-16 w-16 ${meta.accent}`} />
               )}
             </div>
             <CardContent className="space-y-5 p-6">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="text-blue-700">{meta.title}</Badge>
+                <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-500">{meta.title}</Badge>
                 <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">ativo</Badge>
                 {myInterest && (
                   <Badge variant="outline" className="border-cyan-200 bg-cyan-50 text-cyan-700">
@@ -364,7 +380,7 @@ export default function LandBankDetalhePage() {
                   </Button>
                 </>
               ) : (
-                <Button className="w-full gap-2" onClick={() => setInterestDialogOpen(true)}>
+                <Button className="w-full gap-2 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setInterestDialogOpen(true)}>
                   <HandHeart className="h-4 w-4" />
                   Manifestar interesse
                 </Button>
@@ -428,7 +444,7 @@ export default function LandBankDetalhePage() {
                 <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
                   <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted sm:w-32">
                     {editForm.foto ? (
-                      <img src={editForm.foto} alt="Prévia do ativo" className="h-full w-full object-cover" />
+                      <img src={landBankPhotoUrl(editForm.foto) || ""} alt="Prévia do ativo" className="h-full w-full object-cover" />
                     ) : (
                       <Icon className={`h-8 w-8 ${meta.accent}`} />
                     )}

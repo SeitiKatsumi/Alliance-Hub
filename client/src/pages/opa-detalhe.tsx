@@ -23,6 +23,14 @@ import { getOpaPublicRef, resolveOpaByRef } from "@/lib/public-refs";
 import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { OpaFormDialog } from "@/pages/oportunidades";
 
+const opaCyanText = "text-cyan-600";
+const opaCyanTextStrong = "text-cyan-700";
+const opaCyanTextHero = "text-cyan-300";
+const opaCyanTextHeroSoft = "text-cyan-300/70";
+const opaCyanTextHeroMuted = "text-cyan-300/45";
+const opaCyanBorder = "border-cyan-200";
+const opaCyanPanel = "bg-cyan-50/50";
+
 interface AnexoFile {
   id: string;
   title?: string;
@@ -324,7 +332,7 @@ export default function OpaDetalhePage() {
         {canManageOpa && (
           <Button
             size="sm"
-            className="gap-2 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
+            className="gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-200 disabled:text-white"
             onClick={() => setEditDialog(true)}
             data-testid="btn-edit-opa-detail"
           >
@@ -378,30 +386,30 @@ export default function OpaDetalhePage() {
             )}
           </div>
 
-          <h1 className="text-2xl font-bold text-brand-gold">
+          <h1 className={`text-2xl font-bold ${opaCyanTextHero}`}>
             {opa.nome_oportunidade || "Sem nome"}
           </h1>
 
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {opa.nucleo_alianca && (
-              <p className="text-sm text-brand-gold/60 flex items-center gap-1">
+              <p className={`text-sm ${opaCyanTextHeroSoft} flex items-center gap-1`}>
                 <Building2 className="w-3.5 h-3.5" />{opa.nucleo_alianca}
               </p>
             )}
             {opa.pais && (
-              <p className="text-sm text-brand-gold/60 flex items-center gap-1">
+              <p className={`text-sm ${opaCyanTextHeroSoft} flex items-center gap-1`}>
                 <Globe className="w-3.5 h-3.5" />{opa.pais}
               </p>
             )}
             {dias !== null && (
-              <p className="text-xs text-brand-gold/35 font-mono">
+              <p className={`text-xs ${opaCyanTextHeroMuted} font-mono`}>
                 {dias === 0 ?"Publicada hoje" : dias === 1 ?"Publicada há 1 dia" : `Publicada há ${dias} dias`}
               </p>
             )}
           </div>
 
           {opa.objetivo_alianca && (
-            <p className="text-sm text-brand-gold/50 mt-3 leading-relaxed max-w-3xl">{opa.objetivo_alianca}</p>
+            <p className={`text-sm ${opaCyanTextHeroMuted} mt-3 leading-relaxed max-w-3xl`}>{opa.objetivo_alianca}</p>
           )}
         </div>
       </div>
@@ -412,7 +420,7 @@ export default function OpaDetalhePage() {
           {valor > 0 && (
             <div className="rounded-lg bg-muted/40 border border-border/50 p-4">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Valor da OPA</p>
-              <p className="text-xl font-bold text-brand-gold tabular-nums">{brl(valor, bia?.moeda || "BRL")}</p>
+              <p className={`text-xl font-bold ${opaCyanTextStrong} tabular-nums`}>{brl(valor, bia?.moeda || "BRL")}</p>
             </div>
           )}
           {mult > 0 && (
@@ -435,23 +443,22 @@ export default function OpaDetalhePage() {
               <CardContent className="pt-5 pb-4">
                 <SectionTitle icon={Layers}>BIA Vinculada</SectionTitle>
                 <div
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 border border-brand-gold/20 transition-colors ${
-                    hasSeal ?"cursor-pointer hover:border-brand-gold/40" : "cursor-default"
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${opaCyanBorder} ${opaCyanPanel} transition-colors ${
+                    hasSeal ?"cursor-pointer hover:border-cyan-300" : "cursor-default"
                   }`}
-                  style={{ background: "rgba(215,187,125,0.04)" }}
                   onClick={hasSeal ?() => navigate(getBiaUrl(bia)) : undefined}
                   data-testid="link-bia-vinculada"
                 >
-                  <Layers className="w-4 h-4 text-brand-gold/50 shrink-0" />
+                  <Layers className={`w-4 h-4 ${opaCyanText} shrink-0`} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-brand-gold/80">{bia.nome_bia}</p>
+                    <p className={`text-sm font-semibold ${opaCyanTextStrong}`}>{bia.nome_bia}</p>
                     {bia.localizacao && (
                       <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 shrink-0" />{bia.localizacao}
                       </p>
                     )}
                   </div>
-                  {hasSeal && <ArrowLeft className="w-4 h-4 text-brand-gold/30 rotate-180 shrink-0" />}
+                  {hasSeal && <ArrowLeft className={`w-4 h-4 ${opaCyanText} rotate-180 shrink-0`} />}
                 </div>
               </CardContent>
             </Card>

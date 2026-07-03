@@ -44,6 +44,7 @@ import {
   Info,
 } from "lucide-react";
 import { getMembroUrl } from "@/lib/public-refs";
+import { landBankPhotoUrl } from "@/lib/land-bank-assets";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -595,14 +596,14 @@ function LandBankPanel({
             >
               <div className={`flex h-32 items-center justify-center overflow-hidden ${category.bg}`}>
                 {asset.foto ? (
-                  <img src={asset.foto} alt={asset.qualificacao} className="h-full w-full object-cover" />
+                  <img src={landBankPhotoUrl(asset.foto) || ""} alt={asset.qualificacao} className="h-full w-full object-cover" />
                 ) : (
                   <Icon className={`h-10 w-10 ${category.accent}`} />
                 )}
               </div>
               <CardContent className="space-y-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="text-blue-700">
+                  <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-500">
                     {category.title}
                   </Badge>
                   {asset.bia_nome && (
@@ -738,13 +739,22 @@ export default function AreaAliancasPage() {
   const setLandBankField = (field: keyof LandBankForm, value: string) => {
     setLandBankForm((current) => ({ ...current, [field]: value }));
   };
-  const handleLandBankPhoto = (file?: File) => {
+  const handleLandBankPhoto = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLandBankField("foto", typeof reader.result === "string" ? reader.result : "");
-    };
-    reader.readAsDataURL(file);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const response = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.fileIds?.[0]) throw new Error(data.error || "Upload falhou");
+      setLandBankField("foto", data.fileIds[0]);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setLandBankField("foto", typeof reader.result === "string" ? reader.result : "");
+      };
+      reader.readAsDataURL(file);
+    }
   };
   const handleLandBankBasicInfoAttachment = (file?: File) => {
     if (!file) return;
@@ -970,7 +980,7 @@ export default function AreaAliancasPage() {
               <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
                 <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-muted sm:w-32">
                   {landBankForm.foto ? (
-                    <img src={landBankForm.foto} alt="Prévia do ativo" className="h-full w-full object-cover" />
+                    <img src={landBankPhotoUrl(landBankForm.foto) || ""} alt="Prévia do ativo" className="h-full w-full object-cover" />
                   ) : (
                     <SelectedLandBankIcon className={`h-8 w-8 ${selectedLandBankCategory.accent}`} />
                   )}
@@ -1254,6 +1264,7 @@ export default function AreaAliancasPage() {
             </Button>
             <Button
               onClick={createLandBankAsset}
+              className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-salvar-landbank"
             >
               Criar ativo

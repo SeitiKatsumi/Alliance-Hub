@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -12,7 +12,9 @@ import {
   MapPin,
   Paperclip,
   Pencil,
+  Loader2,
   Ruler,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +83,20 @@ interface LandBankInterest {
   createdAt: string;
 }
 
+interface MarketM2Analysis {
+  success?: boolean;
+  classificacao?: "abaixo" | "media" | "acima" | "indeterminado";
+  preco_m2_informado?: number;
+  referencia_m2_min?: number;
+  referencia_m2_max?: number;
+  referencia_m2_media?: number;
+  diferenca_percentual?: number;
+  confianca?: "baixa" | "media" | "alta";
+  resumo?: string;
+  fatores?: string[];
+  observacao?: string;
+}
+
 function readAssets(): LandBankAsset[] {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(landBankStorageKey) || "[]");
@@ -129,6 +145,38 @@ function formatCurrency(value?: string | null, currency = "BRL"): string | null 
   }
 }
 
+function parseMarketNumber(value?: string | number | null): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const normalized = String(value || "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatMoneyPerM2(value: number, currency = "BRL"): string {
+  try {
+    return `${new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value)}/m²`;
+  } catch {
+    return `${currency} ${value.toLocaleString("pt-BR")}/m²`;
+  }
+}
+
+function classificationLabel(value?: string): string {
+  if (value === "acima") return "Acima da média";
+  if (value === "abaixo") return "Abaixo da média";
+  if (value === "media") return "Na média";
+  return "Indeterminado";
+}
+
+function classificationClass(value?: string): string {
+  if (value === "acima") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (value === "abaixo") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (value === "media") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
 function formatFileSize(size?: number): string {
   if (!size || size <= 0) return "";
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
@@ -142,6 +190,8 @@ export default function LandBankDetalhePage() {
   const [interestDialogOpen, setInterestDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState<LandBankAsset | null>(null);
+  const [marketAnalysis, setMarketAnalysis] = useState<MarketM2Analysis | null>(null);
+  const marketAnalysisKeyRef = useRef("");
   const [mensagem, setMensagem] = useState("");
   const [interests, setInterests] = useState<LandBankInterest[]>(readInterests);
 
@@ -172,6 +222,53 @@ export default function LandBankDetalhePage() {
   const categoryKey = asset?.category === "transformation-bank" ? "built-asset-bank" : asset?.category;
   const meta = categoryKey ? categoryMeta[categoryKey as LandBankCategoryValue] || categoryMeta["land-bank"] : categoryMeta["land-bank"];
   const Icon = meta.icon;
+  const assetValue = parseMarketNumber(asset?.valor || "");
+  const assetArea = parseMarketNumber(asset?.area || "");
+  const assetPriceM2 = assetArea > 0 ? assetValue / assetArea : 0;
+
+  const marketAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      if (!asset) throw new Error("Ativo não encontrado");
+      const response = await apiRequest("POST", "/api/ai/preco-m2", {
+        origem: "Banco de Ativos",
+        nome: asset.qualificacao,
+        tipo: meta.title,
+        valor: assetValue,
+        area_m2: assetArea,
+        moeda: asset.moeda || "BRL",
+        endereco: asset.endereco,
+        bairro: asset.bairro,
+        cidade: asset.cidade,
+        estado: asset.estado,
+        pais: asset.pais,
+        cep: asset.cep,
+      });
+      return response.json() as Promise<MarketM2Analysis>;
+    },
+    onSuccess: setMarketAnalysis,
+  });
+
+  useEffect(() => {
+    if (!asset || assetValue <= 0 || assetArea <= 0) return;
+    const locationKey = [asset.endereco, asset.bairro, asset.cidade, asset.estado, asset.pais, asset.cep].filter(Boolean).join("|");
+    if (!locationKey.trim()) return;
+    const key = `${asset.id}|${assetValue}|${assetArea}|${locationKey}|${asset.category}`;
+    if (marketAnalysisKeyRef.current === key || marketAnalysisMutation.isPending) return;
+    marketAnalysisKeyRef.current = key;
+    marketAnalysisMutation.mutate();
+  }, [
+    asset?.id,
+    asset?.endereco,
+    asset?.bairro,
+    asset?.cidade,
+    asset?.estado,
+    asset?.pais,
+    asset?.cep,
+    asset?.category,
+    assetValue,
+    assetArea,
+    marketAnalysisMutation.isPending,
+  ]);
 
   const registerInterest = () => {
     if (!asset) return;
@@ -333,6 +430,77 @@ export default function LandBankDetalhePage() {
               <InfoRow label="Moeda" value={asset.moeda || "BRL"} />
               <InfoRow label="Categoria" value={meta.title} />
               <InfoRow label="BIA vinculada" value={asset.bia_nome} />
+            </CardContent>
+          </Card>
+
+          <Card className="border-blue-200 bg-blue-50/40">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                    <h2 className="font-semibold text-foreground">IA de preço por m²</h2>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Compara o valor do ativo com a região.</p>
+                </div>
+                <Button
+                  size="sm"
+                  className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={marketAnalysisMutation.isPending || assetValue <= 0 || assetArea <= 0}
+                  onClick={() => marketAnalysisMutation.mutate()}
+                  data-testid="button-landbank-analise-preco-m2"
+                >
+                  {marketAnalysisMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {marketAnalysis ? "Reanalisar" : marketAnalysisMutation.isPending ? "Analisando" : "Analisar"}
+                </Button>
+              </div>
+
+              {assetValue <= 0 || assetArea <= 0 ? (
+                <p className="rounded-lg border border-dashed border-blue-200 bg-white/70 p-3 text-sm text-muted-foreground">
+                  Informe valor e área do ativo para analisar.
+                </p>
+              ) : !marketAnalysis ? (
+                <div className="rounded-lg border bg-white p-3">
+                  <p className="text-xs text-muted-foreground">Preço informado</p>
+                  <p className="text-base font-bold text-blue-700">{formatMoneyPerM2(assetPriceM2, asset.moeda || "BRL")}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {marketAnalysisMutation.isPending
+                      ? "Analisando automaticamente a média da região."
+                      : "A análise roda automaticamente com valor, área e localização suficientes."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className={classificationClass(marketAnalysis.classificacao)}>
+                      {classificationLabel(marketAnalysis.classificacao)}
+                    </Badge>
+                    <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                      Confiança {marketAnalysis.confianca || "baixa"}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-2">
+                    <InfoRow label="Informado" value={formatMoneyPerM2(marketAnalysis.preco_m2_informado || assetPriceM2, asset.moeda || "BRL")} />
+                    <InfoRow label="Referência média" value={marketAnalysis.referencia_m2_media ? formatMoneyPerM2(marketAnalysis.referencia_m2_media, asset.moeda || "BRL") : "-"} />
+                    {typeof marketAnalysis.diferenca_percentual === "number" && (
+                      <InfoRow label="Diferença vs referência" value={`${marketAnalysis.diferenca_percentual > 0 ? "+" : ""}${marketAnalysis.diferenca_percentual.toFixed(1)}%`} />
+                    )}
+                  </div>
+                  {marketAnalysis.resumo && <p className="text-sm leading-relaxed text-foreground">{marketAnalysis.resumo}</p>}
+                  {!!marketAnalysis.fatores?.length && (
+                    <div className="flex flex-wrap gap-2">
+                      {marketAnalysis.fatores.slice(0, 4).map((fator, index) => (
+                        <Badge key={`${fator}-${index}`} variant="secondary" className="bg-white text-slate-600">
+                          {fator}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {marketAnalysis.observacao || "Estimativa por IA para triagem interna; não substitui laudo de avaliação."}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

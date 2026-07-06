@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+﻿import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   TrendingUp, TrendingDown, BarChart3, DollarSign,
   Percent, PiggyBank, Receipt, Landmark, ArrowUpCircle,
-  ArrowDownCircle, Target, Layers, Save
+  ArrowDownCircle, Target, Layers, Save, Sparkles, Loader2
 } from "lucide-react";
 
 // ---- Types ----
@@ -21,8 +21,16 @@ interface BiasProjeto {
   id: string;
   nome_bia: string;
   valor_origem?: string | number;
-  custo_final_previsto?: string | number;
+  divisor_multiplicador?: string | number;
   custo_origem_bia?: string | number;
+  cpp_autor_opa?: string | number;
+  cpp_aliado_built?: string | number;
+  cpp_built?: string | number;
+  cpp_dir_alianca?: string | number;
+  cpp_dir_tecnico?: string | number;
+  cpp_dir_obras?: string | number;
+  cpp_dir_comercial?: string | number;
+  cpp_dir_capital?: string | number;
   valor_geral_venda_vgv?: string | number;
   valor_realizado_venda?: string | number;
   comissao_prevista_corretor?: string | number;
@@ -34,6 +42,14 @@ interface BiasProjeto {
   total_receita?: string | number;
   total_aportes?: string | number;
   ativo_area_m2?: string | number;
+  ativo_endereco?: string | number;
+  ativo_bairro?: string | number;
+  ativo_cidade?: string | number;
+  ativo_estado?: string | number;
+  ativo_pais?: string | number;
+  ativo_cep?: string | number;
+  ativo_qualificacao?: string | number;
+  localizacao?: string | number;
   comissao_realizada?: string | number;
   ir_realizado?: string | number;
   inss_realizado?: string | number;
@@ -47,6 +63,22 @@ interface FluxoItem {
   tipo: "entrada" | "saida";
   valor: string | number;
   status?: string;
+}
+
+interface MarketM2Analysis {
+  success?: boolean;
+  classificacao?: "abaixo" | "media" | "acima" | "indeterminado";
+  preco_m2_informado?: number;
+  referencia_m2_min?: number;
+  referencia_m2_max?: number;
+  referencia_m2_media?: number;
+  diferenca_percentual?: number;
+  confianca?: "baixa" | "media" | "alta";
+  resumo?: string;
+  fatores?: string[];
+  observacao?: string;
+  valor_total?: number;
+  area_m2?: number;
 }
 
 // ---- Helpers ----
@@ -104,6 +136,20 @@ function colorClass(value: number): string {
   return "text-muted-foreground";
 }
 
+function classificationLabel(value?: string): string {
+  if (value === "acima") return "Acima da média";
+  if (value === "abaixo") return "Abaixo da média";
+  if (value === "media") return "Na média";
+  return "Indeterminado";
+}
+
+function classificationClass(value?: string): string {
+  if (value === "acima") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (value === "abaixo") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (value === "media") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
 // ---- Sub-components ----
 function MetricCard({
   label, value, sub, icon: Icon, color = "text-brand-gold", border = "border-brand-gold/30", highlight = false
@@ -138,6 +184,158 @@ function RowItem({ label, value, sub, positive, currency = "BRL", withBorder = t
   );
 }
 
+function MarketM2AnalysisCard({
+  analysis,
+  loading,
+  disabled,
+  onAnalyze,
+  currentM2,
+  currency = "BRL",
+}: {
+  analysis: MarketM2Analysis | null;
+  loading: boolean;
+  disabled: boolean;
+  onAnalyze: () => void;
+  currentM2: number;
+  currency?: string;
+}) {
+  return (
+    <Card className="border-blue-200/70 bg-blue-50/30">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+              IA de preço por m²
+            </CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Compara o VGV da BIA com uma referência estimada para a região.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+            onClick={onAnalyze}
+            disabled={loading || disabled}
+            data-testid="button-analise-preco-m2"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {analysis ? "Reanalisar" : loading ? "Analisando" : "Analisar"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {disabled ? (
+          <p className="rounded-lg border border-dashed border-blue-200 bg-white/70 p-4 text-sm text-muted-foreground">
+            Informe VGV e área do ativo para calcular o preço por m².
+          </p>
+        ) : !analysis ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white/70 p-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Preço informado</p>
+              <p className="text-lg font-bold text-blue-700">{formatMoneyPerM2(currentM2, currency)}</p>
+            </div>
+            <p className="max-w-xl text-sm text-muted-foreground">
+              {loading
+                ? "Analisando automaticamente se o valor está acima, abaixo ou na média da região."
+                : "A análise roda automaticamente quando há VGV, área e localização suficientes."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant="outline" className={classificationClass(analysis.classificacao)}>
+                {classificationLabel(analysis.classificacao)}
+              </Badge>
+              <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                Confiança {analysis.confianca || "baixa"}
+              </Badge>
+              {typeof analysis.diferenca_percentual === "number" && (
+                <Badge variant="outline" className="border-blue-200 bg-white text-blue-700">
+                  {analysis.diferenca_percentual > 0 ? "+" : ""}{analysis.diferenca_percentual.toFixed(1)}% vs referência
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border bg-white p-3">
+                <p className="text-xs text-muted-foreground">Informado</p>
+                <p className="text-base font-bold text-blue-700">{formatMoneyPerM2(analysis.preco_m2_informado || currentM2, currency)}</p>
+              </div>
+              <div className="rounded-lg border bg-white p-3">
+                <p className="text-xs text-muted-foreground">Referência média</p>
+                <p className="text-base font-bold text-foreground">
+                  {analysis.referencia_m2_media ? formatMoneyPerM2(analysis.referencia_m2_media, currency) : "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border bg-white p-3">
+                <p className="text-xs text-muted-foreground">Faixa estimada</p>
+                <p className="text-base font-bold text-foreground">
+                  {analysis.referencia_m2_min && analysis.referencia_m2_max
+                    ? `${formatMoney(analysis.referencia_m2_min, currency)} - ${formatMoneyPerM2(analysis.referencia_m2_max, currency)}`
+                    : "-"}
+                </p>
+              </div>
+            </div>
+
+            {analysis.resumo && <p className="text-sm leading-relaxed text-foreground">{analysis.resumo}</p>}
+            {!!analysis.fatores?.length && (
+              <div className="flex flex-wrap gap-2">
+                {analysis.fatores.slice(0, 5).map((fator, index) => (
+                  <Badge key={`${fator}-${index}`} variant="secondary" className="bg-white text-slate-600">
+                    {fator}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {analysis.observacao || "Estimativa por IA para triagem interna; não substitui laudo de avaliação ou pesquisa formal de mercado."}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CostRowItem({
+  label,
+  value,
+  total,
+  areaM2,
+  currency = "BRL",
+  emphasized = false,
+  withBorder = true,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  areaM2: number;
+  currency?: string;
+  emphasized?: boolean;
+  withBorder?: boolean;
+}) {
+  const percent = total > 0 ?(value / total) * 100 : 0;
+  const perM2 = areaM2 > 0 ?value / areaM2 : 0;
+
+  return (
+    <div className={`grid grid-cols-[minmax(0,1fr)_minmax(116px,auto)] items-start gap-3 py-2 ${withBorder ?"border-b border-border/40 last:border-0" : ""}`}>
+      <span className={`min-w-0 text-sm leading-snug ${emphasized ?"font-semibold" : ""}`}>{label}</span>
+      <div className="min-w-0 space-y-0.5 text-right">
+        <p className={`text-sm ${emphasized ?"font-bold" : "font-semibold"} text-red-600 tabular-nums`}>
+          {formatMoney(value, currency)}
+        </p>
+        <p className={`text-xs ${emphasized ?"font-bold" : "font-semibold"} text-foreground tabular-nums`}>
+        {areaM2 > 0 ?formatMoneyPerM2(perM2, currency).replace("/m²", "") : "-"}
+        </p>
+        <p className={`text-xs ${emphasized ?"font-bold" : "font-semibold"} text-foreground tabular-nums`}>
+          {total > 0 ?pct(percent) : "-"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ---- Main Page ----
 export default function ResultadosPage({
   initialBiaId = null,
@@ -149,9 +347,11 @@ export default function ResultadosPage({
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const { toast } = useToast();
 
-  // Receita editável (string BRL formatada)
+  // Receita editÃ¡vel (string BRL formatada)
   const [vgvEdit, setVgvEdit] = useState("");
   const [valorRealizadoEdit, setValorRealizadoEdit] = useState("");
+  const [marketAnalysis, setMarketAnalysis] = useState<MarketM2Analysis | null>(null);
+  const marketAnalysisKeyRef = useRef("");
 
   // Realized percentage states
   const [comissaoRealPct, setComissaoRealPct] = useState(0);
@@ -199,6 +399,7 @@ export default function ResultadosPage({
       setIrRealPct(n(bia.ir_realizado));
       setInssRealPct(n(bia.inss_realizado));
       setManutRealPct(n(bia.manutencao_realizada));
+      setMarketAnalysis(null);
     }
   }, [bia?.id]);
 
@@ -227,6 +428,30 @@ export default function ResultadosPage({
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const marketAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      if (!bia) throw new Error("Selecione uma BIA");
+      const response = await apiRequest("POST", "/api/ai/preco-m2", {
+        origem: "BIA",
+        nome: bia.nome_bia,
+        tipo: bia.ativo_qualificacao || "BIA imobiliária",
+        valor: parseBRLToNumber(vgvEdit),
+        area_m2: parseAreaM2(bia.ativo_area_m2),
+        moeda: bia.moeda || "BRL",
+        localizacao: bia.localizacao,
+        endereco: bia.ativo_endereco,
+        bairro: bia.ativo_bairro,
+        cidade: bia.ativo_cidade,
+        estado: bia.ativo_estado,
+        pais: bia.ativo_pais,
+        cep: bia.ativo_cep,
+      });
+      return response.json() as Promise<MarketM2Analysis>;
+    },
+    onSuccess: setMarketAnalysis,
+    onError: (e: any) => toast({ title: "Erro na análise", description: e.message, variant: "destructive" }),
+  });
+
   // Soma de aportes pagos no fluxo de caixa desta BIA
   const totalAportesPagos = useMemo(() => {
     if (!selectedBiaId) return 0;
@@ -235,7 +460,7 @@ export default function ResultadosPage({
       .reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
   }, [fluxoRaw, selectedBiaId]);
 
-  // Soma de saídas pagas
+  // Soma de saÃ­das pagas
   const totalSaidasPagas = useMemo(() => {
     if (!selectedBiaId) return 0;
     return (fluxoRaw as FluxoItem[])
@@ -243,13 +468,25 @@ export default function ResultadosPage({
       .reduce((s, i) => s + (parseFloat(String(i.valor)) || 0), 0);
   }, [fluxoRaw, selectedBiaId]);
 
-  // ---- Cálculos ----
+  // ---- CÃ¡lculos ----
   const vgv                 = parseBRLToNumber(vgvEdit);
   const valorRealizado      = parseBRLToNumber(valorRealizadoEdit);
-  const custoCPP            = n(bia?.custo_final_previsto);
-  const custoOrigem         = n(bia?.custo_origem_bia);
   const valorOrigem         = n(bia?.valor_origem);
   const areaM2              = parseAreaM2(bia?.ativo_area_m2);
+  const divisorMultiplicador = n(bia?.divisor_multiplicador);
+  const cppFieldsTotal =
+    n(bia?.cpp_autor_opa) +
+    n(bia?.cpp_aliado_built) +
+    n(bia?.cpp_built) +
+    n(bia?.cpp_dir_alianca) +
+    n(bia?.cpp_dir_tecnico) +
+    n(bia?.cpp_dir_obras) +
+    n(bia?.cpp_dir_comercial) +
+    n(bia?.cpp_dir_capital);
+  const custoCPP = divisorMultiplicador > 0
+    ?(cppFieldsTotal > 0 ?cppFieldsTotal : valorOrigem * divisorMultiplicador / 100)
+    : 0;
+  const custoOrigem = valorOrigem + custoCPP;
 
   // Previsto (%)
   const comissaoPct         = n(bia?.comissao_prevista_corretor);
@@ -263,18 +500,49 @@ export default function ResultadosPage({
   const inssPrev        = (inssPct      / 100) * valorRealizado;
   const manutPrev       = (manutencaoPct / 100) * valorRealizado;
   const totalDeducoesPrev = comissaoPrev + irPrev + inssPrev + manutPrev;
-  const custoTotal = custoOrigem + totalSaidasPagas;
-  const custoPorM2 = areaM2 > 0 ?custoTotal / areaM2 : 0;
+  const custoTotal = totalSaidasPagas;
   const receitaPorM2 = areaM2 > 0 ?valorRealizado / areaM2 : 0;
+  const vgvPorM2 = areaM2 > 0 ?vgv / areaM2 : 0;
 
-  // Realizado (valores BRL — usa os estados editáveis)
+  useEffect(() => {
+    if (!bia || vgv <= 0 || areaM2 <= 0) return;
+    const locationKey = [
+      bia.localizacao,
+      bia.ativo_endereco,
+      bia.ativo_bairro,
+      bia.ativo_cidade,
+      bia.ativo_estado,
+      bia.ativo_pais,
+      bia.ativo_cep,
+    ].filter(Boolean).join("|");
+    if (!locationKey.trim()) return;
+    const key = `${bia.id}|${vgv}|${areaM2}|${locationKey}|${bia.ativo_qualificacao || ""}`;
+    if (marketAnalysisKeyRef.current === key || marketAnalysisMutation.isPending) return;
+    marketAnalysisKeyRef.current = key;
+    marketAnalysisMutation.mutate();
+  }, [
+    bia?.id,
+    bia?.localizacao,
+    bia?.ativo_endereco,
+    bia?.ativo_bairro,
+    bia?.ativo_cidade,
+    bia?.ativo_estado,
+    bia?.ativo_pais,
+    bia?.ativo_cep,
+    bia?.ativo_qualificacao,
+    vgv,
+    areaM2,
+    marketAnalysisMutation.isPending,
+  ]);
+
+  // Realizado (valores BRL â€” usa os estados editÃ¡veis)
   const comissaoReal    = (comissaoRealPct  / 100) * valorRealizado;
   const irReal          = (irRealPct        / 100) * valorRealizado;
   const inssReal        = (inssRealPct      / 100) * valorRealizado;
   const manutReal       = (manutRealPct     / 100) * valorRealizado;
   const totalDeducoesReal = comissaoReal + irReal + inssReal + manutReal;
 
-  // Resultado usando deduções realizadas
+  // Resultado usando deduÃ§Ãµes realizadas
   const receitaLiquida = valorRealizado - totalDeducoesReal;
   const resultadoLiquido = receitaLiquida - custoCPP;
   const lucroValor = resultadoLiquido - totalSaidasPagas;
@@ -368,7 +636,7 @@ export default function ResultadosPage({
             />
           </div>
 
-          {/* Linha 2 — métricas secundárias */}
+          {/* Linha 2 â€” mÃ©tricas secundÃ¡rias */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
               label="Total de Entradas"
@@ -414,27 +682,14 @@ export default function ResultadosPage({
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col">
-                <RowItem label="Valor de Origem" value={valorOrigem} positive={false} currency={bia?.moeda || "BRL"} />
-                <RowItem label="Divisor Multiplicador" value={custoCPP} positive={false} currency={bia?.moeda || "BRL"} withBorder={false} />
-                <Separator className="my-2" />
-                <div className="flex items-start justify-between gap-4 pt-1">
-                  <span className="min-w-0 text-sm font-semibold">Custo de Origem da BIA</span>
-                  <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoOrigem, bia?.moeda || "BRL")}</span>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(116px,auto)] gap-3 border-b border-border/60 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Item</span>
+                  <span className="text-right leading-tight">Valor<br />R$/m²<br />% custo</span>
                 </div>
-                <RowItem label="Total de Saídas" value={totalSaidasPagas} positive={false} currency={bia?.moeda || "BRL"} withBorder={false} />
-                <Separator className="my-2" />
-                <div className="flex items-start justify-between gap-4 pt-1">
-                  <span className="min-w-0 text-sm font-semibold">Custo Total</span>
-                  <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">{formatMoney(custoTotal, bia?.moeda || "BRL")}</span>
-                </div>
-                <div className="mt-auto border-t border-border/40 pt-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <span className="min-w-0 text-xs text-muted-foreground">Custo R$/m²</span>
-                    <span className="shrink-0 text-right text-sm font-bold text-red-600 tabular-nums">
-                      {areaM2 > 0 ?formatMoneyPerM2(custoPorM2, bia?.moeda || "BRL") : "-"}
-                    </span>
-                  </div>
-                </div>
+                <CostRowItem label="Valor de Origem" value={valorOrigem} total={custoTotal} areaM2={areaM2} currency={bia?.moeda || "BRL"} />
+                <CostRowItem label="Divisor Multiplicador" value={custoCPP} total={custoTotal} areaM2={areaM2} currency={bia?.moeda || "BRL"} />
+                <CostRowItem label="Custo de Origem da BIA" value={custoOrigem} total={custoTotal} areaM2={areaM2} currency={bia?.moeda || "BRL"} emphasized />
+                <CostRowItem label="Custo Total" value={custoTotal} total={custoTotal} areaM2={areaM2} currency={bia?.moeda || "BRL"} emphasized withBorder={false} />
               </CardContent>
             </Card>
 
@@ -574,6 +829,15 @@ export default function ResultadosPage({
             </Card>
           </div>
 
+          <MarketM2AnalysisCard
+            analysis={marketAnalysis}
+            loading={marketAnalysisMutation.isPending}
+            disabled={!bia || vgv <= 0 || areaM2 <= 0}
+            onAnalyze={() => marketAnalysisMutation.mutate()}
+            currentM2={vgvPorM2}
+            currency={bia?.moeda || "BRL"}
+          />
+
           {/* Resumo final */}
           <Card className="hidden">
             <CardHeader>
@@ -635,7 +899,7 @@ function DeducaoRow({
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
   return (
     <div className="py-2 border-b border-border/40 last:border-0 space-y-1.5">
-      {/* Linha previsto — igual ao layout original */}
+      {/* Linha previsto â€” igual ao layout original */}
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm">{label}</p>
@@ -644,7 +908,7 @@ function DeducaoRow({
         <span className="text-sm font-semibold text-red-600 tabular-nums shrink-0 ml-2">{fmt(prevVal)}</span>
       </div>
 
-      {/* Linha realizado — input embaixo */}
+      {/* Linha realizado â€” input embaixo */}
       <div className="flex items-center justify-between gap-2 pl-2 border-l-2 border-orange-400/40">
         <div className="flex items-center gap-1.5 flex-1">
           <div className="relative w-24">

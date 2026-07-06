@@ -7,6 +7,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
+import { getInstitutionalPercentageRange, loadDmRanges } from "@/lib/dm-ranges";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { InviteQrCode } from "@/components/invite-qr-code";
@@ -1837,6 +1838,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [infoForm, setInfoForm] = useState<InfoComercialForm>(EMPTY_INFO);
   const [activeTab, setActiveTab] = useState("geral");
+  const [institutionalRanges] = useState(() => loadDmRanges());
   const [quickMemberOpen, setQuickMemberOpen] = useState(false);
   const [quickMemberName, setQuickMemberName] = useState("");
   const [quickMemberCompany, setQuickMemberCompany] = useState("");
@@ -2218,6 +2220,31 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     if (formaPagamento === "a_vista") return valorAVista;
     return parseBRLToNumber(form.valor_origem);
   })();
+  const institutionalRange = useMemo(
+    () => getInstitutionalPercentageRange(valorOrigem, institutionalRanges),
+    [valorOrigem, institutionalRanges]
+  );
+  const institutionalPercent = institutionalRange?.percentual ?? null;
+
+  useEffect(() => {
+    if (!open || institutionalPercent === null) return;
+    const nextPercent = String(institutionalPercent);
+    setForm((current) => {
+      if (
+        current.perc_aliado_built === nextPercent &&
+        current.perc_built === nextPercent &&
+        current.perc_dir_alianca === nextPercent
+      ) {
+        return current;
+      }
+      return {
+        ...current,
+        perc_aliado_built: nextPercent,
+        perc_built: nextPercent,
+        perc_dir_alianca: nextPercent,
+      };
+    });
+  }, [open, institutionalPercent]);
 
   const diretorPendingByField = useMemo(() => {
     if (pendingFlowBypassed) return {};
@@ -3081,7 +3108,15 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 </div>
               </div>
               <Separator />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais DM (% sobre Valor de Origem)</p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Percentuais DM (% sobre Valor de Origem)</p>
+                <p className="text-xs text-muted-foreground">
+                  Range aplicado a Aliado BUILT, BUILT e Diretor de Aliança:{" "}
+                  <span className="font-semibold text-foreground">
+                    {institutionalPercent !== null ? `${institutionalPercent.toFixed(2)}%` : "sob proposta"}
+                  </span>
+                </p>
+              </div>
               <div className="grid grid-cols-1 gap-3">
                 <PercField label="Autor da Oportunidade" field="perc_autor_opa" form={form} setForm={setForm} baseValue={valorOrigem} />
                 <PercField label="Aliado BUILT" field="perc_aliado_built" form={form} setForm={setForm} baseValue={valorOrigem} />

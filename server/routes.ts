@@ -1222,6 +1222,34 @@ async function ensureLandBankAssetsTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_land_bank_assets_created_at ON land_bank_assets (created_at DESC)`);
 }
 
+async function ensureInventarioTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS inventario_imoveis (
+      id text PRIMARY KEY,
+      data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      owner_user_id text,
+      owner_membro_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS inventario_lancamentos (
+      id text PRIMARY KEY,
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      owner_user_id text,
+      owner_membro_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_imoveis_owner_user ON inventario_imoveis (owner_user_id, created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_imoveis_owner_membro ON inventario_imoveis (owner_membro_id, created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_lancamentos_imovel ON inventario_lancamentos (imovel_id, created_at DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_lancamentos_owner_user ON inventario_lancamentos (owner_user_id, created_at DESC)`);
+}
+
 async function ensureLandBankAssetsDirectusCollection() {
   const COL = "land_bank_assets";
   try {
@@ -2376,6 +2404,7 @@ export async function registerRoutes(
   ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
   ensureLandBankAssetsTable().catch((err: any) => console.warn("[land-bank] Tabela nao sincronizada:", err?.message || err));
   ensureLandBankAssetsDirectusCollection().catch((err: any) => console.warn("[land-bank-directus] Colecao nao sincronizada:", err?.message || err));
+  ensureInventarioTables().catch((err: any) => console.warn("[inventario] Tabelas nao sincronizadas:", err?.message || err));
   ensureMembroComunidadeMaeTable().catch((err: any) => console.warn("[membro-comunidade-mae] Tabela nao sincronizada:", err?.message || err));
   db.execute(sql`
     CREATE TABLE IF NOT EXISTS user_usage_events (
@@ -3417,6 +3446,20 @@ export async function registerRoutes(
     } catch (error: any) {
       console.warn("[membro-comunidade-mae] Nao foi possivel ler tabela local:", error?.message || error);
       return null;
+    }
+  }
+
+  async function getMembroIdsDaComunidadeMae(comunidadeId?: string | null): Promise<string[]> {
+    if (!comunidadeId) return [];
+    try {
+      const rows = await db
+        .select({ membro_id: membroComunidadeMae.membro_id })
+        .from(membroComunidadeMae)
+        .where(eq(membroComunidadeMae.comunidade_id, String(comunidadeId)));
+      return rows.map((row) => String(row.membro_id)).filter(Boolean);
+    } catch (error: any) {
+      console.warn("[membro-comunidade-mae] Nao foi possivel listar membros da comunidade:", error?.message || error);
+      return [];
     }
   }
 
@@ -10446,6 +10489,485 @@ ${textContent}`;
     }
   });
 
+  function requireInventoryActor(req: Request) {
+    const session = (req.session as any) || {};
+    const userId = session.directusUserId || session.userId || null;
+    const membroId = session.membroId || null;
+    if (!userId && !membroId) {
+      const error: any = new Error("Não autenticado");
+      error.status = 401;
+      throw error;
+    }
+    return { userId, membroId };
+  }
+
+  function normalizeInventarioRow(row: any) {
+    const data = row?.data && typeof row.data === "object" ? row.data : {};
+    return {
+      ...data,
+      id: row.id || data.id,
+      owner_user_id: row.owner_user_id || data.owner_user_id || null,
+      owner_membro_id: row.owner_membro_id || data.owner_membro_id || null,
+      createdAt: data.createdAt || row.created_at,
+      updatedAt: data.updatedAt || row.updated_at,
+    };
+  }
+
+  function inventoryOwnerWhere(actor: { userId?: string | null; membroId?: string | null }) {
+    if (actor.userId && actor.membroId) {
+      return sql`(owner_user_id = ${actor.userId} OR owner_membro_id = ${actor.membroId})`;
+    }
+    if (actor.userId) return sql`owner_user_id = ${actor.userId}`;
+    return sql`owner_membro_id = ${actor.membroId}`;
+  }
+
+  async function assertInventarioImovelOwner(imovelId: string, actor: { userId?: string | null; membroId?: string | null }) {
+    const result = await db.execute(sql`
+      SELECT * FROM inventario_imoveis
+      WHERE id = ${imovelId} AND ${inventoryOwnerWhere(actor)}
+      LIMIT 1
+    `);
+    const row = result.rows?.[0];
+    if (!row) {
+      const error: any = new Error("Imóvel não encontrado");
+      error.status = 404;
+      throw error;
+    }
+    return normalizeInventarioRow(row);
+  }
+
+  function sanitizeInventarioImovel(body: any, actor: { userId?: string | null; membroId?: string | null }, id: string) {
+    return {
+      id,
+      nome: String(body.nome || body.qualificacao || "Imóvel").slice(0, 180),
+      tipo: String(body.tipo || "Imóvel").slice(0, 80),
+      area_m2: body.area_m2 || body.area || "",
+      valor_pago: body.valor_pago || "",
+      valor_atual: body.valor_atual || body.valor || "",
+      moeda: body.moeda || "BRL",
+      descricao: body.descricao || "",
+      cep: body.cep || "",
+      endereco: body.endereco || "",
+      numero: body.numero || "",
+      complemento: body.complemento || "",
+      bairro: body.bairro || "",
+      cidade: body.cidade || "",
+      estado: body.estado || "",
+      pais: body.pais || "Brasil",
+      matricula: body.matricula || body.numero_matricula || "",
+      cartorio: body.cartorio || "",
+      foto: body.foto || "",
+      status: body.status || "ativo",
+      owner_user_id: actor.userId || null,
+      owner_membro_id: actor.membroId || null,
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  function sanitizeInventarioLancamento(body: any, actor: { userId?: string | null; membroId?: string | null }, id: string, imovelId: string) {
+    return {
+      id,
+      imovel_id: imovelId,
+      tipo: body.tipo === "receita" ? "receita" : "despesa",
+      categoria: String(body.categoria || "").slice(0, 100),
+      valor: Number(body.valor || 0),
+      data: body.data || new Date().toISOString().slice(0, 10),
+      data_vencimento: body.data_vencimento || null,
+      data_pagamento: body.data_pagamento || null,
+      status: body.status || "pago",
+      descricao: String(body.descricao || "Lançamento").slice(0, 220),
+      origem: body.origem || "manual",
+      anexos: Array.isArray(body.anexos) ? body.anexos : [],
+      observacao: body.observacao || "",
+      owner_user_id: actor.userId || null,
+      owner_membro_id: actor.membroId || null,
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  app.get("/api/inventario/imoveis", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      const result = await db.execute(sql`
+        SELECT * FROM inventario_imoveis
+        WHERE ${inventoryOwnerWhere(actor)}
+        ORDER BY created_at DESC
+      `);
+      res.json((result.rows || []).map(normalizeInventarioRow));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/inventario/imoveis", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      const id = req.body?.id || `inv-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const data = sanitizeInventarioImovel(req.body || {}, actor, id);
+      await db.execute(sql`
+        INSERT INTO inventario_imoveis (id, data, owner_user_id, owner_membro_id)
+        VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId || null}, ${actor.membroId || null})
+        ON CONFLICT (id) DO UPDATE SET
+          data = EXCLUDED.data,
+          owner_user_id = EXCLUDED.owner_user_id,
+          owner_membro_id = EXCLUDED.owner_membro_id,
+          updated_at = now()
+      `);
+      res.json(data);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/inventario/imoveis/:id", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      const current = await assertInventarioImovelOwner(req.params.id, actor);
+      const data = sanitizeInventarioImovel({ ...current, ...(req.body || {}) }, actor, req.params.id);
+      await db.execute(sql`
+        UPDATE inventario_imoveis
+        SET data = ${JSON.stringify(data)}::jsonb,
+            updated_at = now()
+        WHERE id = ${req.params.id} AND ${inventoryOwnerWhere(actor)}
+      `);
+      res.json(data);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/inventario/imoveis/:id", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      await assertInventarioImovelOwner(req.params.id, actor);
+      await db.execute(sql`DELETE FROM inventario_imoveis WHERE id = ${req.params.id} AND ${inventoryOwnerWhere(actor)}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/inventario/lancamentos", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      const imovelId = typeof req.query.imovel_id === "string" ? req.query.imovel_id : "";
+      const result = imovelId
+        ? await db.execute(sql`
+            SELECT * FROM inventario_lancamentos
+            WHERE imovel_id = ${imovelId} AND ${inventoryOwnerWhere(actor)}
+            ORDER BY COALESCE((data->>'data')::date, created_at::date) DESC, created_at DESC
+          `)
+        : await db.execute(sql`
+            SELECT * FROM inventario_lancamentos
+            WHERE ${inventoryOwnerWhere(actor)}
+            ORDER BY COALESCE((data->>'data')::date, created_at::date) DESC, created_at DESC
+          `);
+      res.json((result.rows || []).map(normalizeInventarioRow));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/inventario/lancamentos", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      const imovelId = req.body?.imovel_id;
+      if (!imovelId) return res.status(400).json({ error: "Selecione um imóvel." });
+      await assertInventarioImovelOwner(imovelId, actor);
+      const id = req.body?.id || `lan-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const data = sanitizeInventarioLancamento(req.body || {}, actor, id, imovelId);
+      await db.execute(sql`
+        INSERT INTO inventario_lancamentos (id, imovel_id, data, owner_user_id, owner_membro_id)
+        VALUES (${id}, ${imovelId}, ${JSON.stringify(data)}::jsonb, ${actor.userId || null}, ${actor.membroId || null})
+      `);
+      res.json(data);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/inventario/lancamentos/:id", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      const currentResult = await db.execute(sql`
+        SELECT * FROM inventario_lancamentos
+        WHERE id = ${req.params.id} AND ${inventoryOwnerWhere(actor)}
+        LIMIT 1
+      `);
+      const current = currentResult.rows?.[0];
+      if (!current) return res.status(404).json({ error: "Lançamento não encontrado" });
+      const currentData = normalizeInventarioRow(current);
+      await assertInventarioImovelOwner(currentData.imovel_id, actor);
+      const data = sanitizeInventarioLancamento({ ...currentData, ...(req.body || {}) }, actor, req.params.id, currentData.imovel_id);
+      await db.execute(sql`
+        UPDATE inventario_lancamentos
+        SET data = ${JSON.stringify(data)}::jsonb,
+            updated_at = now()
+        WHERE id = ${req.params.id} AND ${inventoryOwnerWhere(actor)}
+      `);
+      res.json(data);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/inventario/lancamentos/:id", async (req, res) => {
+    try {
+      const actor = requireInventoryActor(req);
+      await db.execute(sql`DELETE FROM inventario_lancamentos WHERE id = ${req.params.id} AND ${inventoryOwnerWhere(actor)}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  async function parseInventarioLancamentosFromText(textContent: string, origem: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const prompt = `Extraia lançamentos financeiros de imóvel do texto abaixo.
+Retorne SOMENTE JSON válido, sem markdown, no formato:
+{"lancamentos":[{"tipo":"receita|despesa","categoria":"IPTU|Condomínio|Aluguel|Manutenção|Imposto de Renda|Financiamento|Seguro|Outros","valor":123.45,"data":"YYYY-MM-DD","data_vencimento":"YYYY-MM-DD|null","data_pagamento":"YYYY-MM-DD|null","status":"pago|pendente|agendado|vencido","descricao":"texto curto","observacao":"texto curto|null"}],"observacao":"texto curto"}
+Regras:
+- Receita inclui aluguel, venda, reembolso recebido.
+- Despesa inclui IPTU, condomínio, manutenção, obra, imposto, financiamento, seguro.
+- Valor positivo com 2 casas decimais.
+- Se não houver data, use ${today}.
+- Máximo 30 lançamentos.
+
+TEXTO:
+${textContent.slice(0, 16000)}`;
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+      max_tokens: 2500,
+      response_format: { type: "json_object" },
+    });
+    const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+    const validStatus = new Set(["pago", "pendente", "agendado", "vencido"]);
+    return {
+      lancamentos: (Array.isArray(parsed.lancamentos) ? parsed.lancamentos : []).slice(0, 30).map((item: any) => ({
+        tipo: item.tipo === "receita" ? "receita" : "despesa",
+        categoria: String(item.categoria || "Outros").slice(0, 80),
+        valor: Math.abs(Number(item.valor || 0)),
+        data: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data || "")) ? item.data : today,
+        data_vencimento: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_vencimento || "")) ? item.data_vencimento : null,
+        data_pagamento: /^\d{4}-\d{2}-\d{2}$/.test(String(item.data_pagamento || "")) ? item.data_pagamento : null,
+        status: validStatus.has(String(item.status || "")) ? item.status : "pendente",
+        descricao: String(item.descricao || "Lançamento sugerido por IA").slice(0, 180),
+        observacao: item.observacao ? String(item.observacao).slice(0, 180) : null,
+        origem,
+      })).filter((item: any) => item.valor > 0),
+      observacao: parsed.observacao || null,
+    };
+  }
+
+  app.post("/api/inventario/importar-anexos", upload.single("file"), async (req, res) => {
+    try {
+      requireInventoryActor(req);
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
+      const ext = path.extname(file.originalname || "").toLowerCase().replace(".", "");
+      const mime = String(file.mimetype || "").toLowerCase();
+      let textContent = "";
+      if (mime.startsWith("image/") && ["png", "jpg", "jpeg", "webp"].includes(ext)) {
+        const response = await getOpenAI().chat.completions.create({
+          model: "gpt-4o",
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: "Leia este comprovante/documento de imóvel e extraia texto financeiro visível: datas, valores, categoria e descrição." },
+              { type: "image_url", image_url: { url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}` } },
+            ] as any,
+          }],
+          temperature: 0,
+          max_tokens: 1200,
+        });
+        textContent = response.choices[0]?.message?.content || "";
+      } else if (["xlsx", "xls"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel")) {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(file.buffer, { type: "buffer" });
+        textContent = wb.SheetNames.map((sheet) => XLSX.utils.sheet_to_csv(wb.Sheets[sheet])).join("\n\n");
+      } else if (ext === "pdf" || mime.includes("pdf")) {
+        const { PDFParse } = await import("pdf-parse");
+        const parser = new PDFParse({ data: file.buffer });
+        textContent = (await parser.getText()).text;
+      } else {
+        textContent = file.buffer.toString("utf-8");
+      }
+      if (!textContent.trim()) return res.status(422).json({ error: "Não foi possível ler o arquivo." });
+      const parsed = await parseInventarioLancamentosFromText(textContent, mime.startsWith("image/") ? "ia_imagem" : "ia_arquivo");
+      res.json({ success: true, arquivo: file.originalname, ...parsed });
+    } catch (error: any) {
+      console.error("[inventario-importar]", error?.message || error);
+      res.status(error.status || 500).json({ error: "Erro ao analisar arquivo: " + error.message });
+    }
+  });
+
+  app.post("/api/inventario/transcrever-audio", auraAudioUpload.single("audio"), async (req, res) => {
+    try {
+      requireInventoryActor(req);
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: "Nenhum áudio enviado" });
+      const { toFile } = await import("openai");
+      const audioFile = await toFile(file.buffer, auraAudioFilename(file.originalname), { type: auraAudioMime(file.originalname, file.mimetype) });
+      const transcription = await getOpenAI().audio.transcriptions.create({
+        file: audioFile,
+        model: "whisper-1",
+        language: "pt",
+      });
+      const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
+      const parsed = await parseInventarioLancamentosFromText(texto, "ia_voz");
+      res.json({ success: true, texto, ...parsed });
+    } catch (error: any) {
+      console.error("[inventario-audio]", error?.message || error);
+      res.status(error.status || 500).json({ error: "Erro ao transcrever áudio: " + error.message });
+    }
+  });
+
+  function parseAreaM2Server(value: any): number {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const normalized = String(value ?? "")
+      .replace(/[^\d,.-]/g, "")
+      .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+      .replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function parseMarketValueServer(value: any): number {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    return parsePtBrMoney(String(value ?? ""));
+  }
+
+  function estimateRegionalM2(location: string, tipo: string): { min: number; max: number; confidence: "baixa" | "media" } {
+    const normalized = `${location} ${tipo}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const isLand = /\b(terreno|lote|gleba|land|area)\b/.test(normalized);
+    const scale = isLand ? 0.45 : 1;
+    let min = 2500;
+    let max = 6500;
+    let confidence: "baixa" | "media" = "baixa";
+
+    if (/sao paulo|sp\b|jundiai|campinas|sorocaba|santo andre|sao bernardo|barueri|alphaville/.test(normalized)) {
+      min = /sao paulo/.test(normalized) ? 8000 : 4500;
+      max = /sao paulo/.test(normalized) ? 16000 : 9500;
+      confidence = "media";
+    } else if (/rio de janeiro|rj\b|niteroi/.test(normalized)) {
+      min = 6500; max = 15000; confidence = "media";
+    } else if (/belo horizonte|bh\b|nova lima|mg\b/.test(normalized)) {
+      min = 4500; max = 9500; confidence = "media";
+    } else if (/vitoria|vila velha|serra|espirito santo|es\b/.test(normalized)) {
+      min = 4500; max = 10000; confidence = "media";
+    } else if (/curitiba|florianopolis|porto alegre|brasilia|goiania|recife|salvador|fortaleza/.test(normalized)) {
+      min = 4500; max = 11000; confidence = "media";
+    } else if (/brasil|brazil/.test(normalized)) {
+      min = 2800; max = 7500;
+    }
+
+    return {
+      min: Math.round(min * scale),
+      max: Math.round(max * scale),
+      confidence,
+    };
+  }
+
+  function classifyM2(precoM2: number, media: number): "abaixo" | "media" | "acima" {
+    if (precoM2 < media * 0.9) return "abaixo";
+    if (precoM2 > media * 1.1) return "acima";
+    return "media";
+  }
+
+  app.post("/api/ai/preco-m2", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const body = req.body || {};
+      const areaM2 = parseAreaM2Server(body.area_m2);
+      const valor = parseMarketValueServer(body.valor);
+      if (areaM2 <= 0 || valor <= 0) {
+        return res.status(400).json({ error: "Informe valor e área em m² para analisar o preço por m²." });
+      }
+
+      const precoM2 = valor / areaM2;
+      const location = [
+        body.endereco,
+        body.bairro,
+        body.cidade,
+        body.estado,
+        body.pais,
+        body.cep ? `CEP ${body.cep}` : "",
+      ].filter(Boolean).join(", ") || body.localizacao || "Localização não informada";
+
+      const prompt = `Compare o preço por metro quadrado abaixo com o mercado imobiliário da região.
+
+Contexto:
+- Origem: ${body.origem || "ativo"}
+- Nome: ${body.nome || "Não informado"}
+- Tipo/qualificação: ${body.tipo || body.qualificacao || "Não informado"}
+- Localização: ${location}
+- Valor total informado: ${valor.toFixed(2)}
+- Área: ${areaM2.toFixed(2)} m²
+- Preço informado por m²: ${precoM2.toFixed(2)}
+- Moeda: ${body.moeda || "BRL"}
+
+Retorne SOMENTE JSON minificado neste formato:
+{"classificacao":"abaixo|media|acima|indeterminado","preco_m2_informado":0,"referencia_m2_min":0,"referencia_m2_max":0,"referencia_m2_media":0,"diferenca_percentual":0,"confianca":"baixa|media|alta","resumo":"texto curto","fatores":["item"],"observacao":"texto curto"}
+
+Regras:
+- Classifique como "media" quando estiver dentro de aproximadamente +/-10% da referência média.
+- Se houver pelo menos cidade/estado ou uma localização textual específica, estime uma faixa regional ampla e NÃO retorne "indeterminado"; use confiança "baixa" quando a referência for ampla.
+- Use "indeterminado" apenas se a localização for genérica ou ausente.
+- A referência é uma estimativa de mercado, não laudo de avaliação.
+- Responda em português brasileiro no resumo, fatores e observação.
+- Não invente precisão excessiva; arredonde valores monetários para inteiros.`;
+
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Você é um analista imobiliário da BUILT. Gere uma leitura prudente de preço por m² com linguagem objetiva, deixando claro quando a confiança for baixa.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 700,
+        response_format: { type: "json_object" },
+      });
+
+      const raw = response.choices[0]?.message?.content || "{}";
+      const parsed = JSON.parse(raw);
+      const referenceAverage = Number(parsed.referencia_m2_media || 0);
+      if (!Number.isFinite(referenceAverage) || referenceAverage <= 0 || parsed.classificacao === "indeterminado") {
+        const fallback = estimateRegionalM2(location, String(body.tipo || body.qualificacao || ""));
+        const media = Math.round((fallback.min + fallback.max) / 2);
+        parsed.referencia_m2_min = fallback.min;
+        parsed.referencia_m2_max = fallback.max;
+        parsed.referencia_m2_media = media;
+        parsed.diferenca_percentual = media > 0 ? Number((((precoM2 - media) / media) * 100).toFixed(1)) : 0;
+        parsed.classificacao = classifyM2(precoM2, media);
+        parsed.confianca = parsed.confianca === "alta" ? "media" : fallback.confidence;
+        parsed.resumo = parsed.resumo && !/insuficientes|indeterminado/i.test(parsed.resumo)
+          ? parsed.resumo
+          : `O preço informado foi comparado com uma faixa regional ampla para ${location}.`;
+        parsed.fatores = Array.isArray(parsed.fatores) && parsed.fatores.length > 0
+          ? parsed.fatores
+          : ["localização", "tipo do ativo", "área informada"];
+        parsed.observacao = "Estimativa regional por IA para triagem interna; não substitui laudo ou pesquisa formal.";
+      }
+      res.json({
+        success: true,
+        ...parsed,
+        preco_m2_informado: Math.round(precoM2),
+        valor_total: Math.round(valor),
+        area_m2: Number(areaM2.toFixed(2)),
+      });
+    } catch (error: any) {
+      console.error("[ai/preco-m2]", error?.message || error);
+      res.status(error?.status || 500).json({ error: error?.message || "Erro ao analisar preço por m²." });
+    }
+  });
+
   // ========== AI PARSE PAYMENT SCHEDULE ==========
   app.post("/api/parse-pagamento-file", upload.single("file"), async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
@@ -12245,7 +12767,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       let items = all;
       if (membroId) {
+        const storedComunidadeMae = await getStoredMembroComunidadeMae(membroId);
+        const comunidadeMaeId = storedComunidadeMae?.comunidade_id ? String(storedComunidadeMae.comunidade_id) : null;
         items = all.filter((c: any) => {
+          if (comunidadeMaeId && String(c.id) === comunidadeMaeId) return true;
           // M2O aliado
           const aId = typeof c.aliado === "string" ? c.aliado : c.aliado?.id;
           if (aId === membroId) return true;
@@ -12256,6 +12781,23 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
             return id === membroId;
           });
         });
+        if (comunidadeMaeId) {
+          const membrosMae = await getMembroIdsDaComunidadeMae(comunidadeMaeId);
+          items = items.map((comunidade: any) => {
+            if (String(comunidade?.id) !== comunidadeMaeId) return comunidade;
+            const membrosExistentes = Array.isArray(comunidade.membros) ? comunidade.membros : [];
+            const idsExistentes = new Set(
+              membrosExistentes
+                .map((m: any) => directusRelationId(m?.cadastro_geral_id))
+                .filter(Boolean)
+                .map(String)
+            );
+            const membrosLocais = membrosMae
+              .filter((id) => !idsExistentes.has(String(id)))
+              .map((id) => ({ cadastro_geral_id: { id } }));
+            return { ...comunidade, membros: [...membrosExistentes, ...membrosLocais] };
+          });
+        }
       }
 
       res.json(items);
@@ -13291,11 +13833,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           messages: [
             {
               role: "system",
-              content: `VocÃª Ã© um assistente de avaliaÃ§Ã£o de perfil profissional. Dado um texto descritivo sobre uma pessoa, selecione 1 a 3 palavras mais relevantes de um lÃ©xico fixo. Responda APENAS com um array JSON de strings. LÃ©xico disponÃ­vel: ${lexico.join(", ")}.`,
+              content: `VocÃª Ã© um assistente de avaliaÃ§Ã£o de perfil profissional. Dado um texto descritivo sobre uma pessoa, selecione 1 a 3 termos mais relevantes de um lÃ©xico fixo. Um termo pode ser uma palavra ou uma expressÃ£o curta do lÃ©xico. Responda APENAS com um array JSON de strings. LÃ©xico disponÃ­vel: ${lexico.join(", ")}.`,
             },
             {
               role: "user",
-              content: `Pessoa avaliada: ${membro_nome || validacao.convite.candidato_nome || "membro"}\n\nDescriÃ§Ã£o: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do lÃ©xico.`,
+              content: `Pessoa avaliada: ${membro_nome || validacao.convite.candidato_nome || "membro"}\n\nDescriÃ§Ã£o: ${texto.trim()}\n\nEscolha de 1 a 3 termos do lÃ©xico, podendo ser palavras ou expressÃµes.`,
             },
           ],
           temperature: 0.2,
@@ -13384,14 +13926,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!convite.invitador_membro_id) return res.status(400).json({ error: "Este convite nÃ£o possui um convidador identificado" });
       const { palavras } = req.body;
       if (!Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
-        return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
+        return res.status(400).json({ error: "Informe entre 1 e 3 termos" });
       }
       if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
-        return res.status(400).json({ error: "Todas as palavras devem ser texto nÃ£o vazio" });
+        return res.status(400).json({ error: "Todos os termos devem ser texto nÃ£o vazio" });
       }
       const { classificarPalavra } = await import("./aura-lexico");
       for (const p of palavras) {
-        if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra nÃ£o reconhecida no lÃ©xico: ${p}` });
+        if (!classificarPalavra(p)) return res.status(400).json({ error: `Termo nÃ£o reconhecido no lÃ©xico: ${p}` });
       }
       await storage.upsertAuraAvaliacao(convite.invitador_membro_id, convite.candidato_membro_id, palavras);
       await storage.updateConvite(convite.id, { status: "candidato", aura_invitador_avaliada_em: new Date() });
@@ -14412,6 +14954,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
 
     try {
+      const storedComunidadeMae = await getStoredMembroComunidadeMae(current);
+      if (storedComunidadeMae?.comunidade_id) {
+        const membrosMae = await getMembroIdsDaComunidadeMae(String(storedComunidadeMae.comunidade_id));
+        for (const id of membrosMae) ids.add(id);
+      }
+    } catch (error: any) {
+      console.warn("[aura-vinculos] falha ao carregar comunidade mae local:", error?.message);
+    }
+
+    try {
       const bias = await directusFetch(
         "bias_projetos",
         "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros&limit=-1"
@@ -14760,11 +15312,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         messages: [
           {
             role: "system",
-            content: `VocÃª Ã© um assistente de avaliaÃ§Ã£o de perfil profissional. Dado um texto descritivo sobre uma pessoa, seu trabalho Ã© selecionar as 1 a 3 palavras mais relevantes de um lÃ©xico fixo que melhor representem as caracterÃ­sticas descritas no texto. Responda APENAS com um array JSON de strings, sem nenhum texto adicional. Exemplo de resposta vÃ¡lida: ["LideranÃ§a","InovaÃ§Ã£o","ColaboraÃ§Ã£o"]. O lÃ©xico disponÃ­vel Ã©: ${lexico.join(", ")}.`,
+            content: `VocÃª Ã© um assistente de avaliaÃ§Ã£o de perfil profissional. Dado um texto descritivo sobre uma pessoa, seu trabalho Ã© selecionar os 1 a 3 termos mais relevantes de um lÃ©xico fixo que melhor representem as caracterÃ­sticas descritas no texto. Um termo pode ser uma palavra ou uma expressÃ£o curta do lÃ©xico. Responda APENAS com um array JSON de strings, sem nenhum texto adicional. Exemplo de resposta vÃ¡lida: ["LideranÃ§a","Bom ouvinte","Trabalha em equipe"]. O lÃ©xico disponÃ­vel Ã©: ${lexico.join(", ")}.`,
           },
           {
             role: "user",
-            content: `Pessoa avaliada: ${membro_nome || "membro"}\n\nDescriÃ§Ã£o: ${texto.trim()}\n\nEscolha de 1 a 3 palavras do lÃ©xico que melhor descrevem esta pessoa com base no texto acima.`,
+            content: `Pessoa avaliada: ${membro_nome || "membro"}\n\nDescriÃ§Ã£o: ${texto.trim()}\n\nEscolha de 1 a 3 termos do lÃ©xico que melhor descrevem esta pessoa com base no texto acima. Os termos podem ser palavras ou expressÃµes.`,
           },
         ],
         temperature: 0.2,
@@ -14874,10 +15426,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
     const { avaliado_membro_id, palavras } = req.body;
     if (!avaliado_membro_id || !Array.isArray(palavras) || palavras.length < 1 || palavras.length > 3) {
-      return res.status(400).json({ error: "Informe entre 1 e 3 palavras" });
+      return res.status(400).json({ error: "Informe entre 1 e 3 termos" });
     }
     if (!palavras.every((p: unknown) => typeof p === "string" && p.trim().length > 0)) {
-      return res.status(400).json({ error: "Todas as palavras devem ser texto nÃ£o vazio" });
+      return res.status(400).json({ error: "Todos os termos devem ser texto nÃ£o vazio" });
     }
     if (avaliado_membro_id === membroId) {
       return res.status(400).json({ error: "VocÃª nÃ£o pode avaliar a si mesmo" });
@@ -14888,9 +15440,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (existing) {
       return res.status(409).json({ error: "VocÃª jÃ¡ avaliou este membro e nÃ£o pode repetir a avaliaÃ§Ã£o." });
     }
-    // Validate all words are in the lexicon
+    // Validate all selected terms are in the lexicon.
     for (const p of palavras) {
-      if (!classificarPalavra(p)) return res.status(400).json({ error: `Palavra nÃ£o reconhecida: ${p}` });
+      if (!classificarPalavra(p)) return res.status(400).json({ error: `Termo nÃ£o reconhecido: ${p}` });
     }
     const result = await storage.upsertAuraAvaliacao(membroId, avaliado_membro_id, palavras);
     return res.json(result);

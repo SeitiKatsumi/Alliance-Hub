@@ -27,19 +27,26 @@ import {
 } from "react-simple-maps";
 import {
   Briefcase,
+  Building2,
   FileText,
   Globe2,
   Handshake,
+  Home,
+  Loader2,
   MapPin,
   Network,
   Paperclip,
   Plus,
+  Receipt,
   Ruler,
   Search,
   ShieldCheck,
+  Sparkles,
   Target,
+  Trash2,
   Upload,
   Users,
+  Wallet,
   X,
   Info,
 } from "lucide-react";
@@ -657,6 +664,657 @@ function LandBankPanel({
   );
 }
 
+interface InventarioImovel {
+  id: string;
+  nome: string;
+  tipo: string;
+  area_m2: string | number;
+  valor_pago: string | number;
+  valor_atual: string | number;
+  moeda: string;
+  descricao?: string;
+  cep?: string;
+  endereco?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  pais?: string;
+  matricula?: string;
+  cartorio?: string;
+  foto?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+interface InventarioLancamento {
+  id: string;
+  imovel_id: string;
+  tipo: "receita" | "despesa";
+  categoria: string;
+  valor: number;
+  data: string;
+  data_vencimento?: string | null;
+  data_pagamento?: string | null;
+  status?: string;
+  descricao: string;
+  origem?: string;
+  observacao?: string | null;
+}
+
+function parseInventoryNumber(value?: string | number | null): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const normalized = String(value || "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatInventoryMoney(value: number, currency = "BRL"): string {
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(value);
+  } catch {
+    return `${currency} ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+  }
+}
+
+const emptyInventarioImovel: Omit<InventarioImovel, "id"> = {
+  nome: "",
+  tipo: "Imóvel",
+  area_m2: "",
+  valor_pago: "",
+  valor_atual: "",
+  moeda: "BRL",
+  descricao: "",
+  cep: "",
+  endereco: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cidade: "",
+  estado: "",
+  pais: "Brasil",
+  matricula: "",
+  cartorio: "",
+  foto: "",
+  status: "ativo",
+};
+
+const emptyInventarioLancamento = (imovelId = ""): Omit<InventarioLancamento, "id"> => ({
+  imovel_id: imovelId,
+  tipo: "despesa",
+  categoria: "Manutenção",
+  valor: 0,
+  data: new Date().toISOString().slice(0, 10),
+  data_vencimento: null,
+  data_pagamento: null,
+  status: "pago",
+  descricao: "",
+  origem: "manual",
+  observacao: "",
+});
+
+function InventoryMetric({ label, value, sub, icon: Icon, tone = "text-slate-700" }: { label: string; value: string; sub?: string; icon: any; tone?: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className={`mt-1 text-xl font-bold ${tone}`}>{value}</p>
+            {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+          </div>
+          <Icon className={`h-5 w-5 ${tone}`} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?: (imovel: InventarioImovel) => void }) {
+  const [selectedId, setSelectedId] = useState("");
+  const [imovelDialogOpen, setImovelDialogOpen] = useState(false);
+  const [lancamentoDialogOpen, setLancamentoDialogOpen] = useState(false);
+  const [imovelForm, setImovelForm] = useState<Omit<InventarioImovel, "id">>(emptyInventarioImovel);
+  const [lancamentoForm, setLancamentoForm] = useState<Omit<InventarioLancamento, "id">>(emptyInventarioLancamento());
+  const [previewLancamentos, setPreviewLancamentos] = useState<Array<Omit<InventarioLancamento, "id" | "imovel_id">>>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const { data: imoveis = [], isLoading: loadingImoveis } = useQuery<InventarioImovel[]>({
+    queryKey: ["/api/inventario/imoveis"],
+  });
+
+  const { data: lancamentos = [], isLoading: loadingLancamentos } = useQuery<InventarioLancamento[]>({
+    queryKey: ["/api/inventario/lancamentos"],
+  });
+
+  const selectedImovel = imoveis.find((item) => item.id === selectedId) || imoveis[0] || null;
+
+  useEffect(() => {
+    if (!selectedId && imoveis[0]?.id) setSelectedId(imoveis[0].id);
+  }, [imoveis, selectedId]);
+
+  const selectedLancamentos = lancamentos.filter((item) => item.imovel_id === selectedImovel?.id);
+  const patrimonioPago = imoveis.reduce((sum, item) => sum + parseInventoryNumber(item.valor_pago), 0);
+  const patrimonioAtual = imoveis.reduce((sum, item) => sum + parseInventoryNumber(item.valor_atual), 0);
+  const receitas = lancamentos.filter((item) => item.tipo === "receita").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const despesas = lancamentos.filter((item) => item.tipo === "despesa").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const valorizacao = patrimonioAtual - patrimonioPago;
+  const moeda = selectedImovel?.moeda || "BRL";
+  const selectedAreaM2 = parseInventoryNumber(selectedImovel?.area_m2);
+  const selectedValorAtual = parseInventoryNumber(selectedImovel?.valor_atual);
+
+  const { data: precoM2Analysis, isLoading: loadingPrecoM2 } = useQuery<any>({
+    queryKey: [
+      "/api/ai/preco-m2",
+      "inventario",
+      selectedImovel?.id,
+      selectedImovel?.area_m2,
+      selectedImovel?.valor_atual,
+      selectedImovel?.cidade,
+      selectedImovel?.estado,
+      selectedImovel?.pais,
+    ],
+    enabled: Boolean(selectedImovel?.id && selectedAreaM2 > 0 && selectedValorAtual > 0),
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/ai/preco-m2", {
+        origem: "inventario",
+        nome: selectedImovel?.nome,
+        tipo: selectedImovel?.tipo,
+        valor: selectedValorAtual,
+        area_m2: selectedAreaM2,
+        moeda,
+        cep: selectedImovel?.cep,
+        endereco: selectedImovel?.endereco,
+        bairro: selectedImovel?.bairro,
+        cidade: selectedImovel?.cidade,
+        estado: selectedImovel?.estado,
+        pais: selectedImovel?.pais,
+      });
+      return response.json();
+    },
+  });
+
+  const createImovelMutation = useMutation({
+    mutationFn: async (payload: Omit<InventarioImovel, "id">) => {
+      const response = await apiRequest("POST", "/api/inventario/imoveis", payload);
+      return response.json() as Promise<InventarioImovel>;
+    },
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventario/imoveis"] });
+      setSelectedId(created.id);
+      setImovelDialogOpen(false);
+      setImovelForm(emptyInventarioImovel);
+    },
+  });
+
+  const createLancamentoMutation = useMutation({
+    mutationFn: async (payload: Omit<InventarioLancamento, "id">) => {
+      const response = await apiRequest("POST", "/api/inventario/lancamentos", payload);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventario/lancamentos"] });
+      setLancamentoDialogOpen(false);
+      setLancamentoForm(emptyInventarioLancamento(selectedImovel?.id));
+    },
+  });
+
+  const deleteLancamentoMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/inventario/lancamentos/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/inventario/lancamentos"] }),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async ({ file, audio }: { file: File; audio?: boolean }) => {
+      const fd = new FormData();
+      fd.append(audio ? "audio" : "file", file);
+      const response = await fetch(audio ? "/api/inventario/transcrever-audio" : "/api/inventario/importar-anexos", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Falha na análise por IA");
+      return data;
+    },
+    onSuccess: (data) => {
+      setPreviewLancamentos(Array.isArray(data.lancamentos) ? data.lancamentos : []);
+      setPreviewOpen(true);
+    },
+  });
+
+  const savePreviewLancamentos = async () => {
+    if (!selectedImovel || previewLancamentos.length === 0) return;
+    await Promise.all(previewLancamentos.map((item) =>
+      apiRequest("POST", "/api/inventario/lancamentos", { ...item, imovel_id: selectedImovel.id })
+    ));
+    queryClient.invalidateQueries({ queryKey: ["/api/inventario/lancamentos"] });
+    setPreviewLancamentos([]);
+    setPreviewOpen(false);
+  };
+
+  const handleImovelPhoto = async (file?: File) => {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("files", file);
+    const response = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.fileIds?.[0]) {
+      setImovelForm((current) => ({ ...current, foto: data.fileIds[0] }));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">Inventário</h2>
+          <p className="text-sm text-muted-foreground">Gerencie imóveis próprios, receitas, despesas e leitura patrimonial por IA.</p>
+        </div>
+        <Button className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setImovelDialogOpen(true)} data-testid="btn-novo-imovel-inventario">
+          <Plus className="h-4 w-4" />
+          Novo imóvel
+        </Button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <InventoryMetric label="Patrimônio pago" value={formatInventoryMoney(patrimonioPago, moeda)} icon={Wallet} tone="text-blue-700" />
+        <InventoryMetric label="Valor atual" value={formatInventoryMoney(patrimonioAtual, moeda)} icon={Home} tone="text-emerald-700" />
+        <InventoryMetric label="Valorização" value={formatInventoryMoney(valorizacao, moeda)} icon={Sparkles} tone={valorizacao >= 0 ? "text-emerald-700" : "text-red-700"} />
+        <InventoryMetric label="Receitas" value={formatInventoryMoney(receitas, moeda)} icon={Receipt} tone="text-green-700" />
+        <InventoryMetric label="Despesas" value={formatInventoryMoney(despesas, moeda)} icon={Receipt} tone="text-red-700" />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)]">
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Imóveis</h3>
+              <Badge variant="outline">{imoveis.length}</Badge>
+            </div>
+            {loadingImoveis ? (
+              <div className="h-40 animate-pulse rounded-lg bg-muted" />
+            ) : imoveis.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Cadastre seu primeiro imóvel para iniciar o inventário.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {imoveis.map((imovel) => {
+                  const active = selectedImovel?.id === imovel.id;
+                  const foto = landBankPhotoUrl(imovel.foto || "");
+                  return (
+                    <button
+                      key={imovel.id}
+                      type="button"
+                      onClick={() => setSelectedId(imovel.id)}
+                      className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${active ? "border-blue-300 bg-blue-50" : "border-border hover:border-blue-200"}`}
+                    >
+                      {foto ? (
+                        <img src={foto} alt={imovel.nome} className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <Building2 className="h-5 w-5" />
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{imovel.nome}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {[imovel.cidade, imovel.estado].filter(Boolean).join(", ") || imovel.tipo}
+                        </span>
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700">{formatInventoryMoney(parseInventoryNumber(imovel.valor_atual), imovel.moeda)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-5 p-5">
+            {!selectedImovel ? (
+              <div className="py-20 text-center text-muted-foreground">Selecione ou cadastre um imóvel.</div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">{selectedImovel.nome}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {[selectedImovel.endereco, selectedImovel.numero, selectedImovel.bairro, selectedImovel.cidade, selectedImovel.estado].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {onPublishToLandBank && (
+                      <Button variant="outline" className="gap-2" onClick={() => onPublishToLandBank(selectedImovel)}>
+                        <Upload className="h-4 w-4" />
+                        Publicar no Banco de Ativos
+                      </Button>
+                    )}
+                    <Button className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setLancamentoForm(emptyInventarioLancamento(selectedImovel.id)); setLancamentoDialogOpen(true); }}>
+                      <Plus className="h-4 w-4" />
+                      Lançamento
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Valor pago</p>
+                    <p className="font-bold">{formatInventoryMoney(parseInventoryNumber(selectedImovel.valor_pago), selectedImovel.moeda)}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Valor atual</p>
+                    <p className="font-bold text-emerald-700">{formatInventoryMoney(parseInventoryNumber(selectedImovel.valor_atual), selectedImovel.moeda)}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">R$/m²</p>
+                    <p className="font-bold text-blue-700">
+                      {parseInventoryNumber(selectedImovel.area_m2) > 0
+                        ? formatInventoryMoney(parseInventoryNumber(selectedImovel.valor_atual) / parseInventoryNumber(selectedImovel.area_m2), selectedImovel.moeda)
+                      : "-"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-blue-100 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="flex items-center gap-2 font-semibold text-slate-900">
+                        <Sparkles className="h-4 w-4 text-blue-600" />
+                        IA de preço por m²
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Compara o valor atual do imóvel com uma referência estimada para a região.
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        precoM2Analysis?.classificacao === "abaixo"
+                          ? "border-green-200 bg-green-50 text-green-700"
+                          : precoM2Analysis?.classificacao === "acima"
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-blue-200 bg-blue-50 text-blue-700"
+                      }
+                    >
+                      {loadingPrecoM2
+                        ? "Analisando..."
+                        : precoM2Analysis?.classificacao === "abaixo"
+                          ? "Abaixo da média"
+                          : precoM2Analysis?.classificacao === "acima"
+                            ? "Acima da média"
+                            : precoM2Analysis?.classificacao === "media"
+                              ? "Na média"
+                              : "Dados insuficientes"}
+                    </Badge>
+                  </div>
+                  {selectedAreaM2 <= 0 || selectedValorAtual <= 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Informe área e valor atual estimado para a IA comparar o preço por m².
+                    </p>
+                  ) : (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border bg-background p-3">
+                        <p className="text-xs text-muted-foreground">Informado</p>
+                        <p className="font-bold text-blue-700">
+                          {formatInventoryMoney(precoM2Analysis?.preco_m2_informado || selectedValorAtual / selectedAreaM2, moeda)}/m²
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-background p-3">
+                        <p className="text-xs text-muted-foreground">Referência média</p>
+                        <p className="font-bold">
+                          {precoM2Analysis?.referencia_m2_media ? `${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_media), moeda)}/m²` : "-"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-background p-3">
+                        <p className="text-xs text-muted-foreground">Faixa estimada</p>
+                        <p className="font-bold">
+                          {precoM2Analysis?.referencia_m2_min && precoM2Analysis?.referencia_m2_max
+                            ? `${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_min), moeda)} - ${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_max), moeda)}`
+                            : "-"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {precoM2Analysis?.resumo && (
+                    <p className="mt-3 text-sm text-slate-700">{precoM2Analysis.resumo}</p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-blue-900">IA para documentos, imagem ou voz</p>
+                      <p className="text-sm text-blue-700/80">Envie IPTU, recibo, boleto, nota ou áudio; a IA gera uma prévia editável.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" disabled={importMutation.isPending} asChild>
+                        <label className="cursor-pointer">
+                          {importMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Paperclip className="mr-2 h-4 w-4" />}
+                          Arquivo/imagem
+                          <input type="file" className="hidden" accept=".pdf,.csv,.txt,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(e) => e.target.files?.[0] && importMutation.mutate({ file: e.target.files[0] })} />
+                        </label>
+                      </Button>
+                      <Button variant="outline" disabled={importMutation.isPending} asChild>
+                        <label className="cursor-pointer">
+                          <Upload className="mr-2 h-4 w-4" />
+                          Áudio
+                          <input type="file" className="hidden" accept="audio/*" onChange={(e) => e.target.files?.[0] && importMutation.mutate({ file: e.target.files[0], audio: true })} />
+                        </label>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="mb-3 font-semibold">Lançamentos</h4>
+                  {loadingLancamentos ? (
+                    <div className="h-32 animate-pulse rounded-lg bg-muted" />
+                  ) : selectedLancamentos.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                      Nenhum lançamento para este imóvel.
+                    </div>
+                  ) : (
+                    <div className="divide-y rounded-lg border">
+                      {selectedLancamentos.map((item) => (
+                        <div key={item.id} className="flex flex-wrap items-center gap-3 p-3">
+                          <Badge className={item.tipo === "receita" ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-red-100 text-red-700 hover:bg-red-100"}>
+                            {item.tipo}
+                          </Badge>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium">{item.descricao}</p>
+                            <p className="text-xs text-muted-foreground">{item.categoria} · {item.data}</p>
+                          </div>
+                          <p className={`font-bold ${item.tipo === "receita" ? "text-green-700" : "text-red-700"}`}>
+                            {item.tipo === "receita" ? "+" : "-"}{formatInventoryMoney(Number(item.valor || 0), moeda)}
+                          </p>
+                          <Button variant="ghost" size="icon" onClick={() => deleteLancamentoMutation.mutate(item.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={imovelDialogOpen} onOpenChange={setImovelDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Novo imóvel no inventário</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Foto</Label>
+              <Button variant="outline" asChild>
+                <label className="cursor-pointer">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Escolher foto
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImovelPhoto(e.target.files?.[0])} />
+                </label>
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={imovelForm.nome} onChange={(e) => setImovelForm({ ...imovelForm, nome: e.target.value })} placeholder="Apartamento Jardim..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Input value={imovelForm.tipo} onChange={(e) => setImovelForm({ ...imovelForm, tipo: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Área m²</Label>
+              <Input value={String(imovelForm.area_m2)} onChange={(e) => setImovelForm({ ...imovelForm, area_m2: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Moeda</Label>
+              <Select value={imovelForm.moeda} onValueChange={(value) => setImovelForm({ ...imovelForm, moeda: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Valor pago</Label>
+              <Input value={String(imovelForm.valor_pago)} onChange={(e) => setImovelForm({ ...imovelForm, valor_pago: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Valor atual estimado</Label>
+              <Input value={String(imovelForm.valor_atual)} onChange={(e) => setImovelForm({ ...imovelForm, valor_atual: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>CEP</Label>
+              <Input value={imovelForm.cep} onChange={(e) => setImovelForm({ ...imovelForm, cep: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Endereço</Label>
+              <Input value={imovelForm.endereco} onChange={(e) => setImovelForm({ ...imovelForm, endereco: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Número</Label>
+              <Input value={imovelForm.numero} onChange={(e) => setImovelForm({ ...imovelForm, numero: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Complemento</Label>
+              <Input value={imovelForm.complemento} onChange={(e) => setImovelForm({ ...imovelForm, complemento: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Bairro</Label>
+              <Input value={imovelForm.bairro} onChange={(e) => setImovelForm({ ...imovelForm, bairro: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Cidade</Label>
+              <Input value={imovelForm.cidade} onChange={(e) => setImovelForm({ ...imovelForm, cidade: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Estado</Label>
+              <Input value={imovelForm.estado} onChange={(e) => setImovelForm({ ...imovelForm, estado: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>País</Label>
+              <Input value={imovelForm.pais} onChange={(e) => setImovelForm({ ...imovelForm, pais: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Matrícula</Label>
+              <Input value={imovelForm.matricula} onChange={(e) => setImovelForm({ ...imovelForm, matricula: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Cartório</Label>
+              <Input value={imovelForm.cartorio} onChange={(e) => setImovelForm({ ...imovelForm, cartorio: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Descrição</Label>
+              <Textarea value={imovelForm.descricao} onChange={(e) => setImovelForm({ ...imovelForm, descricao: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImovelDialogOpen(false)}>Cancelar</Button>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!imovelForm.nome || createImovelMutation.isPending} onClick={() => createImovelMutation.mutate(imovelForm)}>
+              Salvar imóvel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={lancamentoDialogOpen} onOpenChange={setLancamentoDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Novo lançamento</DialogTitle></DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={lancamentoForm.tipo} onValueChange={(value: "receita" | "despesa") => setLancamentoForm({ ...lancamentoForm, tipo: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="despesa">Despesa</SelectItem><SelectItem value="receita">Receita</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Input value={lancamentoForm.categoria} onChange={(e) => setLancamentoForm({ ...lancamentoForm, categoria: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Valor</Label>
+              <Input type="number" value={lancamentoForm.valor || ""} onChange={(e) => setLancamentoForm({ ...lancamentoForm, valor: Number(e.target.value || 0) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Data</Label>
+              <Input type="date" value={lancamentoForm.data} onChange={(e) => setLancamentoForm({ ...lancamentoForm, data: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Descrição</Label>
+              <Input value={lancamentoForm.descricao} onChange={(e) => setLancamentoForm({ ...lancamentoForm, descricao: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLancamentoDialogOpen(false)}>Cancelar</Button>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => createLancamentoMutation.mutate({ ...lancamentoForm, imovel_id: selectedImovel?.id || "" })}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader><DialogTitle>Prévia da IA</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {previewLancamentos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">A IA não encontrou lançamentos claros.</p>
+            ) : previewLancamentos.map((item, index) => (
+              <div key={index} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[120px_1fr_130px_130px]">
+                <Select value={item.tipo} onValueChange={(value: "receita" | "despesa") => {
+                  const next = [...previewLancamentos]; next[index] = { ...item, tipo: value }; setPreviewLancamentos(next);
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="despesa">Despesa</SelectItem><SelectItem value="receita">Receita</SelectItem></SelectContent>
+                </Select>
+                <Input value={item.descricao} onChange={(e) => { const next = [...previewLancamentos]; next[index] = { ...item, descricao: e.target.value }; setPreviewLancamentos(next); }} />
+                <Input type="number" value={item.valor || ""} onChange={(e) => { const next = [...previewLancamentos]; next[index] = { ...item, valor: Number(e.target.value || 0) }; setPreviewLancamentos(next); }} />
+                <Input type="date" value={item.data} onChange={(e) => { const next = [...previewLancamentos]; next[index] = { ...item, data: e.target.value }; setPreviewLancamentos(next); }} />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Cancelar</Button>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!selectedImovel || previewLancamentos.length === 0} onClick={savePreviewLancamentos}>
+              Confirmar lançamentos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function AreaAliancasPage() {
   const searchParams = useSearch();
   const getTabsFromSearch = () => {
@@ -778,6 +1436,15 @@ export default function AreaAliancasPage() {
     setLandBankForm(emptyLandBankForm);
     setLandBankDialogOpen(true);
   };
+  const updateAreaTab = (value: string) => {
+    setActiveTab(value);
+    const urlTab = value === "landbank" ? activeLandBankTab : value;
+    window.history.replaceState(null, "", `/area-aliancas?tab=${encodeURIComponent(urlTab)}`);
+  };
+  const updateLandBankTab = (value: string) => {
+    setActiveLandBankTab(value);
+    window.history.replaceState(null, "", `/area-aliancas?tab=${encodeURIComponent(value)}`);
+  };
   const createLandBankAsset = () => {
     const requiredFields: Array<keyof LandBankForm> = [
       "qualificacao",
@@ -818,6 +1485,47 @@ export default function AreaAliancasPage() {
     setLandBankDialogOpen(false);
     setLandBankForm(emptyLandBankForm);
   };
+  const publishInventarioToLandBank = (imovel: InventarioImovel) => {
+    const tipo = `${imovel.tipo || ""} ${imovel.descricao || ""}`.toLowerCase();
+    const category: LandBankCategory["value"] =
+      tipo.includes("terreno") || tipo.includes("lote") || tipo.includes("gleba")
+        ? "land-bank"
+        : "built-asset-bank";
+    const estimatedCoords = estimateLandBankCoords({
+      ...emptyLandBankForm,
+      estado: imovel.estado || "",
+    });
+    const asset: LandBankAsset = {
+      ...emptyLandBankForm,
+      bia_id: "",
+      bia_nome: "",
+      qualificacao: imovel.nome || imovel.tipo || "Imóvel do inventário",
+      area: String(imovel.area_m2 || ""),
+      valor: String(imovel.valor_atual || imovel.valor_pago || ""),
+      moeda: imovel.moeda || "BRL",
+      descricao: imovel.descricao || "",
+      cep: imovel.cep || "",
+      endereco: imovel.endereco || "",
+      bairro: imovel.bairro || "",
+      cidade: imovel.cidade || "",
+      estado: imovel.estado || "",
+      pais: imovel.pais || "Brasil",
+      numero: imovel.numero || "",
+      complemento: imovel.complemento || "",
+      numero_matricula: imovel.matricula || "",
+      cartorio: imovel.cartorio || "",
+      foto: imovel.foto || "",
+      ...estimatedCoords,
+      id: `land-${Date.now()}-${imovel.id.slice(-4)}`,
+      category,
+      createdAt: new Date().toISOString(),
+    };
+    setLandBankAssets((current) => [asset, ...current]);
+    createLandBankMutation.mutate(asset);
+    setActiveTab("landbank");
+    setActiveLandBankTab(category);
+    window.history.replaceState(null, "", `/area-aliancas?tab=${encodeURIComponent(category)}`);
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -828,7 +1536,7 @@ export default function AreaAliancasPage() {
         </h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+      <Tabs value={activeTab} onValueChange={updateAreaTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
           <TabsTrigger
             value="opas"
@@ -926,7 +1634,7 @@ export default function AreaAliancasPage() {
         </TabsContent>
         <TabsContent value="landbank" className="space-y-5">
           {activeTab === "landbank" && (
-            <Tabs value={activeLandBankTab} onValueChange={setActiveLandBankTab} className="space-y-5">
+            <Tabs value={activeLandBankTab} onValueChange={updateLandBankTab} className="space-y-5">
               <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
                 {landBankCategories.map((category) => {
                   const Icon = category.icon;

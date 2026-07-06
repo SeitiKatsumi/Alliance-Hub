@@ -13,6 +13,12 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
+import {
+  formatDmRangeLabel,
+  loadDmRanges,
+  saveDmRanges,
+  type InstitutionalPercentageRange,
+} from "@/lib/dm-ranges";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -225,12 +231,6 @@ function formatPerc(value: number): string {
   return `${value.toFixed(2)}%`;
 }
 
-interface InstitutionalPercentageRange {
-  label: string;
-  maxValue: number;
-  percentual: number;
-}
-
 const DEFAULT_INSTITUTIONAL_PERCENTAGE_RANGES: InstitutionalPercentageRange[] = [
   { label: "Até R$ 1,5 milhões", maxValue: 1_500_000, percentual: 1.25 },
   { label: "Até R$ 3 milhões", maxValue: 3_000_000, percentual: 1 },
@@ -353,9 +353,7 @@ export default function BiasCalculadoraPage({
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showRangeTable, setShowRangeTable] = useState(false);
   const [editingRangeIndex, setEditingRangeIndex] = useState<number | null>(null);
-  const [institutionalRanges, setInstitutionalRanges] = useState<InstitutionalPercentageRange[]>(
-    DEFAULT_INSTITUTIONAL_PERCENTAGE_RANGES
-  );
+  const [institutionalRanges, setInstitutionalRanges] = useState<InstitutionalPercentageRange[]>(() => loadDmRanges());
 
   const { data: biasRaw = [], isLoading: loadingBias } = useQuery<BiasProjeto[]>({
     queryKey: ["/api/bias"],
@@ -544,7 +542,6 @@ export default function BiasCalculadoraPage({
   }, [membroDirCapital, isSuperAdmin]);
 
   useEffect(() => {
-    if (isSuperAdmin) return;
     if (institutionalPercent === null) return;
     setPercAliado(applyPercentualMin(institutionalPercent, 1));
     setPercBuilt(applyPercentualMin(institutionalPercent, 1));
@@ -694,18 +691,22 @@ export default function BiasCalculadoraPage({
   ];
 
   function updateInstitutionalRange(index: number, patch: Partial<InstitutionalPercentageRange>) {
-    setInstitutionalRanges((current) => current.map((range, rangeIndex) => {
-      if (rangeIndex !== index) return range;
-      const maxValue = Math.max(0, patch.maxValue ?? range.maxValue);
-      const percentual = Math.max(0, patch.percentual ?? range.percentual);
-      return {
-        ...range,
-        ...patch,
-        maxValue,
-        percentual,
-        label: patch.maxValue !== undefined ?formatRangeLabel(maxValue) : range.label,
-      };
-    }));
+    setInstitutionalRanges((current) => {
+      const next = current.map((range, rangeIndex) => {
+        if (rangeIndex !== index) return range;
+        const maxValue = Math.max(0, patch.maxValue ?? range.maxValue);
+        const percentual = Math.max(0, patch.percentual ?? range.percentual);
+        return {
+          ...range,
+          ...patch,
+          maxValue,
+          percentual,
+          label: patch.maxValue !== undefined ?formatDmRangeLabel(maxValue) : range.label,
+        };
+      });
+      saveDmRanges(next);
+      return next;
+    });
   }
 
   if (loadingBias) {
@@ -1295,12 +1296,12 @@ export default function BiasCalculadoraPage({
       <PagamentoModal
         open={pagamentoModalOpen}
         onClose={() => setPagamentoModalOpen(false)}
-        initialFormaPagamento={formaPagamento}
+        initialFormaPagamento={formaPagamento || "a_vista"}
         initialNumeroParcelas={numeroParcelas}
         initialVencimento={vencimento}
         initialVencimentosParcelas={vencimentosParcelas}
         initialValoresParcelas={valoresParcelas}
-        initialValorAVista={valorAVista}
+        initialValorAVista={valorAVista || biaValorOrigem}
         onConfirm={(d) => {
           setFormaPagamento(d.formaPagamento);
           setNumeroParcelas(d.numeroParcelas);
@@ -1308,6 +1309,7 @@ export default function BiasCalculadoraPage({
           setVencimentosParcelas(d.vencimentosParcelas);
           setValoresParcelas(d.valoresParcelas);
           setValorAVista(d.valorAVista);
+          if (d.formaPagamento === "a_vista") setBiaValorOrigem(d.valorAVista);
         }}
       />
     </div>

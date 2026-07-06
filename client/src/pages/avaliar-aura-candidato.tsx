@@ -200,7 +200,7 @@ export default function AvaliarAuraCandidatoPage() {
     },
     onSuccess: data => {
       if (!data.palavras?.length) {
-        setPageError("Nenhuma palavra identificada. Descreva com mais detalhes a reputação, confiança e forma de relacionamento.");
+        setPageError("Nenhum termo identificado. Descreva com mais detalhes a reputação, confiança e forma de relacionamento.");
         return;
       }
       setSelected(data.palavras.slice(0, 3));
@@ -356,7 +356,7 @@ export default function AvaliarAuraCandidatoPage() {
             <p className="text-xs font-mono text-brand-gold/80 font-semibold">Comunidade: {convite.comunidade?.nome}</p>
           </div>
           <p className="text-[11px] font-mono text-white/40">
-            Escolha até <strong className="text-white/60">3 palavras</strong> do léxico BUILT que melhor descrevam as qualidades desta pessoa.
+            Escolha até <strong className="text-white/60">3 termos</strong> do léxico BUILT que melhor descrevam as qualidades desta pessoa. Podem ser palavras ou expressões.
           </p>
         </div>
 
@@ -393,7 +393,7 @@ export default function AvaliarAuraCandidatoPage() {
               data-testid="btn-modo-palavras-publico"
             >
               <Sparkles className="w-4 h-4" />
-              Escolher palavras
+              Escolher termos
             </button>
             <button
               type="button"
@@ -506,7 +506,7 @@ export default function AvaliarAuraCandidatoPage() {
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar palavra no léxico..."
+            placeholder="Buscar palavra ou expressão no léxico..."
             className="pl-9"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(215,187,125,0.2)", color: "rgba(255,255,255,0.85)" }}
             data-testid="input-busca-lexico"
@@ -551,7 +551,7 @@ export default function AvaliarAuraCandidatoPage() {
         >
           {avaliarMutation.isPending ?<Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
           Registrar Percepção de Aura
-          {selected.length > 0 && ` (${selected.length} palavra${selected.length > 1 ?"s" : ""})`}
+          {selected.length > 0 && ` (${selected.length} termo${selected.length > 1 ?"s" : ""})`}
         </Button>
 
         {pageError && (

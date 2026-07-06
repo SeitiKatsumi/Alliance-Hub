@@ -674,12 +674,12 @@ export default function AuraPage() {
     },
     onSuccess: (data) => {
       if (data.palavras.length === 0) {
-        toast({ title: "Nenhuma palavra identificada", description: "Tente descrever mais detalhadamente as características do membro.", variant: "destructive" });
+        toast({ title: "Nenhum termo identificado", description: "Tente descrever mais detalhadamente as características do membro.", variant: "destructive" });
         return;
       }
       setSelectedPalavras(data.palavras);
       setEvalMode("palavras");
-      toast({ title: "IA identificou as palavras!", description: `Sugestão: ${data.palavras.join(", ")}. Você pode ajustar antes de enviar.` });
+      toast({ title: "IA identificou os termos!", description: `Sugestão: ${data.palavras.join(", ")}. Você pode ajustar antes de enviar.` });
     },
     onError: (err: Error) => {
       toast({ title: "Erro na análise", description: err.message || "Não foi possível analisar o texto.", variant: "destructive" });
@@ -704,7 +704,7 @@ export default function AuraPage() {
     setSelectedPalavras(prev => {
       if (prev.includes(p)) return prev.filter(x => x !== p);
       if (prev.length >= 3) {
-        toast({ title: "Máximo de 3 palavras", description: "Remova uma para adicionar outra.", variant: "destructive" });
+        toast({ title: "Máximo de 3 termos", description: "Remova um para adicionar outro.", variant: "destructive" });
         return prev;
       }
       return [...prev, p];
@@ -792,7 +792,7 @@ export default function AuraPage() {
   const convergenciaSecundaria = convergenciaPorNucleo.find((item) => item.nucleo !== convergenciaPrincipal?.nucleo && item.score > 0);
   const leituraAplicabilidade = score === null || n === 0
     ? "A leitura contextual ainda está em formação. Ela será exibida quando houver base reputacional suficiente para orientar aplicabilidade por núcleo."
-    : `${viewedName} apresenta ${faixaDescricao(score)}, com convergência predominante para o Núcleo ${convergenciaPrincipal?.nucleo || "em formação"}${convergenciaSecundaria ? ` e convergência secundária para ${convergenciaSecundaria.nucleo}` : ""}. As palavras recebidas indicam força em ${convergenciaPrincipal?.palavras.slice(0, 5).join(", ").toLowerCase() || "percepções ainda iniciais"}. Essa combinação sugere boa aplicabilidade em ${NUCLEOS_APLICABILIDADE.find((item) => item.nucleo === convergenciaPrincipal?.nucleo)?.foco || "contextos a serem validados pela aliança"}. As dimensões com baixa convergência não indicam ausência de capacidade, mas sim que as avaliações atuais ainda não trouxeram sinais suficientes para esses papéis. Para responsabilidades críticas, recomenda-se atuação acompanhada ou nova validação após entregas reais.`;
+    : `${viewedName} apresenta ${faixaDescricao(score)}, com convergência predominante para o Núcleo ${convergenciaPrincipal?.nucleo || "em formação"}${convergenciaSecundaria ? ` e convergência secundária para ${convergenciaSecundaria.nucleo}` : ""}. Os termos recebidos indicam força em ${convergenciaPrincipal?.palavras.slice(0, 5).join(", ").toLowerCase() || "percepções ainda iniciais"}. Essa combinação sugere boa aplicabilidade em ${NUCLEOS_APLICABILIDADE.find((item) => item.nucleo === convergenciaPrincipal?.nucleo)?.foco || "contextos a serem validados pela aliança"}. As dimensões com baixa convergência não indicam ausência de capacidade, mas sim que as avaliações atuais ainda não trouxeram sinais suficientes para esses papéis. Para responsabilidades críticas, recomenda-se atuação acompanhada ou nova validação após entregas reais.`;
   const aplicacaoRecomendada = getAplicacaoRecomendada(convergenciaPrincipal, convergenciaSecundaria);
   const matrizAplicabilidade = [
     { icon: CalendarDays, label: "Horizonte de Projeto", value: horizonteProjeto, color: "#22C55E" },
@@ -959,7 +959,7 @@ export default function AuraPage() {
                     <div className="rounded-lg border border-border/50 p-3">
                       <Tags className="w-4 h-4 text-[#D7BB7D] mb-1" />
                       <strong className="text-foreground">{palavrasValidas}</strong>
-                      <p className="text-xs text-muted-foreground">palavras válidas</p>
+                      <p className="text-xs text-muted-foreground">termos válidos</p>
                     </div>
                   </div>
                   <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
@@ -1057,7 +1057,7 @@ export default function AuraPage() {
                   </div>
                 ) : (
                   <div className="h-full flex items-center justify-center text-center text-xs text-muted-foreground">
-                    Sem palavras recebidas ainda.
+                    Sem termos recebidos ainda.
                   </div>
                 )}
               </div>
@@ -1093,7 +1093,7 @@ export default function AuraPage() {
                   </div>
                 ))}
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Palavras negativas reduzem a Aura quando vinculadas a antônimos reputacionais reconhecidos. Termos críticos exigem validação humana antes de impacto automático.
+                  Termos negativos reduzem a Aura quando vinculados a antônimos reputacionais reconhecidos. Termos críticos exigem validação humana antes de impacto automático.
                 </p>
               </CardContent>
             </Card>
@@ -1390,7 +1390,7 @@ export default function AuraPage() {
                     data-testid="btn-modo-palavras"
                   >
                     <Tags className="w-3.5 h-3.5" />
-                    Escolher palavras
+                    Escolher termos
                   </button>
                   <button
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
@@ -1411,7 +1411,7 @@ export default function AuraPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-medium text-muted-foreground">
-                        Descreva as características de <strong className="text-foreground">{selectedMembro.nome}</strong> e a IA escolherá as palavras mais adequadas
+                        Descreva as características de <strong className="text-foreground">{selectedMembro.nome}</strong> e a IA escolherá os termos mais adequados
                       </label>
                       <button
                         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/50 text-muted-foreground hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D] transition-colors shrink-0 ml-3"
@@ -1485,7 +1485,7 @@ export default function AuraPage() {
                 {evalMode === "palavras" && (
                 <div className="space-y-3">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Digite para buscar até 3 palavras que descrevem este membro
+                    Digite para buscar até 3 palavras ou expressões que descrevem este membro
                   </label>
 
                   {selectedPalavras.length > 0 && (
@@ -1508,7 +1508,7 @@ export default function AuraPage() {
                   {selectedPalavras.length < 3 && (
                     <div className="relative">
                       <Input
-                        placeholder="Digitar para buscar palavra..."
+                        placeholder="Buscar palavra ou expressão..."
                         value={palavraInput}
                         onChange={e => { setPalavraInput(e.target.value); setShowSugestoes(true); }}
                         onFocus={() => setShowSugestoes(true)}
@@ -1627,7 +1627,7 @@ export default function AuraPage() {
             Como funciona a Percepção de Aura
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A Aura Percebida BUILT é o índice de validação reputacional da rede. Cada avaliação registra até 3 palavras baseadas em experiências reais; essas palavras são agrupadas por palavra-cânone, dimensão, frequência entre avaliadores distintos e aderência ao DNA BUILT.
+            A Aura Percebida BUILT é o índice de validação reputacional da rede. Cada avaliação registra até 3 termos baseados em experiências reais; esses termos podem ser palavras ou expressões e são agrupados por cânone, dimensão, frequência entre avaliadores distintos e aderência ao DNA BUILT.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
@@ -1647,8 +1647,8 @@ export default function AuraPage() {
             ))}
           </div>
           <div className="space-y-1.5 text-[11px] text-muted-foreground">
-            <p>• Palavras citadas por 2-3 avaliadores distintos têm peso 1.5×; por 4 ou mais, peso 2.0×.</p>
-            <p>• Cada dimensão é normalizada por <strong className="text-foreground">palavras-cânone válidas × 2</strong>, incluindo antônimos reputacionais quando houver impacto confirmado.</p>
+            <p>• Termos citados por 2-3 avaliadores distintos têm peso 1.5×; por 4 ou mais, peso 2.0×.</p>
+            <p>• Cada dimensão é normalizada por <strong className="text-foreground">termos-cânone válidos × 2</strong>, incluindo antônimos reputacionais quando houver impacto confirmado.</p>
             <p>• O cálculo aplica o <strong className="text-foreground">Fator de Relevância</strong>, que valoriza em até 20% as dimensões alinhadas ao DNA BUILT.</p>
             <p>• O Score da Aura é limitado pela <strong className="text-foreground">Confiança da Aura</strong>: Inicial, em Validação, Validada ou Consolidada.</p>
             <p>• Cada par avaliador/avaliado registra uma avaliação única, sem alteração posterior.</p>

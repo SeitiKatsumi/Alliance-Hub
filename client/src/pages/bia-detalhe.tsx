@@ -501,7 +501,13 @@ export default function BiaDetalhePage() {
     user?.role === "manager" ||
     (!!membroId && (membroId === bia.aliado_built || membroId === bia.diretor_alianca));
 
-  const aporteFMEntries = aportesRaw as AporteEntry[];
+  const aporteFMEntries = Array.isArray(aportesRaw)
+    ? aportesRaw as AporteEntry[]
+    : Array.isArray((aportesRaw as any)?.data)
+      ? (aportesRaw as any).data as AporteEntry[]
+      : Array.isArray((aportesRaw as any)?.items)
+        ? (aportesRaw as any).items as AporteEntry[]
+        : [];
   const totalAporteFM = aporteFMEntries.reduce((sum, e) => sum + n(e.valor), 0);
   const nucleoCards = [
     {

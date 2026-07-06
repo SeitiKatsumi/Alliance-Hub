@@ -698,7 +698,7 @@ export async function notificarInvitadorAvaliarAura(opts: {
       <p style="color:rgba(255,255,255,0.7)"><strong style="color:#D7BB7D">${opts.candidatoNome}</strong> aceitou os Termos de Adesão da <strong>${opts.comunidadeNome}</strong> e concluiu seu acesso inicial à plataforma.</p>
       <p style="color:rgba(255,255,255,0.7)">Na BUILT, reputação antecede participação. Como você foi responsável pelo convite, sua leitura contribui para contextualizar a reputação, a postura e o potencial de contribuição do candidato.</p>
       <div style="background:rgba(215,187,125,0.08);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
-        <p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">Registre até <strong style="color:#D7BB7D">3 palavras</strong> que representem, na sua visão, as principais qualidades, atitudes ou características percebidas em ${opts.candidatoNome} dentro da rede BUILT.</p>
+        <p style="color:rgba(255,255,255,0.6);margin:0;font-size:13px">Registre até <strong style="color:#D7BB7D">3 termos</strong>, palavras ou expressões, que representem, na sua visão, as principais qualidades, atitudes ou características percebidas em ${opts.candidatoNome} dentro da rede BUILT.</p>
       </div>
       <p style="color:rgba(255,255,255,0.7)">Após o registro, o Aliado BUILT será notificado para dar continuidade à análise da candidatura.</p>
       <div style="text-align:center;margin:32px 0">

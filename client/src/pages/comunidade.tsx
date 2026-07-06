@@ -1631,7 +1631,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     onSuccess: data => {
       if (!data.palavras?.length) {
         toast({
-          title: "Nenhuma palavra identificada",
+          title: "Nenhum termo identificado",
           description: "Descreva com mais detalhes a reputação, confiança e forma de relacionamento.",
           variant: "destructive",
         });
@@ -1639,7 +1639,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       }
       setAuraSelectedWords(data.palavras.slice(0, 3));
       setAuraEvalMode("palavras");
-      toast({ title: "IA sugeriu palavras", description: `Sugestão: ${data.palavras.slice(0, 3).join(", ")}` });
+      toast({ title: "IA sugeriu termos", description: `Sugestão: ${data.palavras.slice(0, 3).join(", ")}` });
     },
     onError: (err: Error) => toast({ title: "Erro na análise", description: err.message, variant: "destructive" }),
   });
@@ -3225,7 +3225,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               Percepção de Aura
             </DialogTitle>
             <DialogDescription className="text-white/40 font-mono text-xs">
-              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT? Escolha até 3 palavras ou use a análise com IA.
+              Como você percebe {auraDialogConvite?.candidatoNome} na rede BUILT? Escolha até 3 palavras ou expressões, ou use a análise com IA.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -3250,7 +3250,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 data-testid="btn-aura-modo-palavras-notificacoes"
               >
                 <Tags className="w-3.5 h-3.5" />
-                Escolher palavras
+                Escolher termos
               </button>
               <button
                 type="button"
@@ -3397,7 +3397,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                   <Input
                     value={auraSearch}
                     onChange={e => setAuraSearch(e.target.value)}
-                    placeholder="Buscar..."
+                    placeholder="Buscar palavra ou expressão..."
                     className="pl-8 h-8 text-xs font-mono"
                     style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
                   />

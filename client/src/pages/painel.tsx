@@ -31,6 +31,7 @@ import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { getOpaUrl } from "@/lib/public-refs";
+import { InventarioPanel } from "@/pages/area-aliancas";
 import {
   Bar,
   BarChart,
@@ -1810,6 +1811,10 @@ export default function PainelPage() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <InventarioPanel />
           </div>
         </TabsContent>
       </Tabs>

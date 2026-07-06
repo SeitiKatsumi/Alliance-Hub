@@ -23,6 +23,14 @@ interface BiasProjeto {
   valor_origem?: string | number;
   divisor_multiplicador?: string | number;
   custo_origem_bia?: string | number;
+  perc_autor_opa?: string | number;
+  perc_aliado_built?: string | number;
+  perc_built?: string | number;
+  perc_dir_alianca?: string | number;
+  perc_dir_tecnico?: string | number;
+  perc_dir_obras?: string | number;
+  perc_dir_comercial?: string | number;
+  perc_dir_capital?: string | number;
   cpp_autor_opa?: string | number;
   cpp_aliado_built?: string | number;
   cpp_built?: string | number;
@@ -473,19 +481,21 @@ export default function ResultadosPage({
   const valorRealizado      = parseBRLToNumber(valorRealizadoEdit);
   const valorOrigem         = n(bia?.valor_origem);
   const areaM2              = parseAreaM2(bia?.ativo_area_m2);
-  const divisorMultiplicador = n(bia?.divisor_multiplicador);
-  const cppFieldsTotal =
-    n(bia?.cpp_autor_opa) +
-    n(bia?.cpp_aliado_built) +
-    n(bia?.cpp_built) +
-    n(bia?.cpp_dir_alianca) +
-    n(bia?.cpp_dir_tecnico) +
-    n(bia?.cpp_dir_obras) +
-    n(bia?.cpp_dir_comercial) +
-    n(bia?.cpp_dir_capital);
-  const custoCPP = divisorMultiplicador > 0
-    ?(cppFieldsTotal > 0 ?cppFieldsTotal : valorOrigem * divisorMultiplicador / 100)
-    : 0;
+  const percentFields = [
+    bia?.perc_autor_opa,
+    bia?.perc_aliado_built,
+    bia?.perc_built,
+    bia?.perc_dir_alianca,
+    bia?.perc_dir_tecnico,
+    bia?.perc_dir_obras,
+    bia?.perc_dir_comercial,
+    bia?.perc_dir_capital,
+  ];
+  const hasPercentFields = percentFields.some((value) => value !== null && value !== undefined && String(value) !== "");
+  const divisorMultiplicador = hasPercentFields
+    ? percentFields.reduce((sum, value) => sum + n(value), 0)
+    : n(bia?.divisor_multiplicador);
+  const custoCPP = divisorMultiplicador > 0 ? valorOrigem * divisorMultiplicador / 100 : 0;
   const custoOrigem = valorOrigem + custoCPP;
 
   // Previsto (%)

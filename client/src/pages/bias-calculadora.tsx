@@ -542,6 +542,7 @@ export default function BiasCalculadoraPage({
   }, [membroDirCapital, isSuperAdmin]);
 
   useEffect(() => {
+    if (isSuperAdmin) return;
     if (institutionalPercent === null) return;
     setPercAliado(applyPercentualMin(institutionalPercent, 1));
     setPercBuilt(applyPercentualMin(institutionalPercent, 1));

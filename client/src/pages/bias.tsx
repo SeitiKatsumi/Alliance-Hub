@@ -1803,6 +1803,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const isEdit = !!bia;
   const pendingFlowBypassed = isBiaPendingBypassed(bia);
   const membroLogadoId = user?.membro_directus_id || "";
+  const isSuperAdmin = user?.role === "admin" || user?.role === "manager" || user?.role === "superadmin" || user?.role === "master";
   const canEditAliadoBuilt = user?.role === "admin" || user?.role === "manager";
 
   const EMPTY_INFO = {
@@ -2227,6 +2228,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const institutionalPercent = institutionalRange?.percentual ?? null;
 
   useEffect(() => {
+    if (isSuperAdmin) return;
     if (!open || institutionalPercent === null) return;
     const nextPercent = String(institutionalPercent);
     setForm((current) => {
@@ -2244,7 +2246,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         perc_dir_alianca: nextPercent,
       };
     });
-  }, [open, institutionalPercent]);
+  }, [open, institutionalPercent, isSuperAdmin]);
 
   const diretorPendingByField = useMemo(() => {
     if (pendingFlowBypassed) return {};

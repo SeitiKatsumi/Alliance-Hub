@@ -2,7 +2,7 @@
 Error: connect ECONNREFUSED 127.0.0.1:5433
     at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:1923:3) {
+    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:1933:3) {
   errno: -4078,
   code: 'ECONNREFUSED',
   syscall: 'connect',
@@ -23,20 +23,20 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [membro-comunidade-mae] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
 [anuncios_pagamento] Campos de pagamento nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] Tabela de historico nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
-[vitrine-fields] Field na_vitrine response: 400
 [geo-bias] Field latitude response: 400
+[geo-opa] Field latitude response: 400
 [opa-media] Field imagem_directus_id response: 400
+[vitrine-fields] Field na_vitrine response: 400
 [geo-bias] Field longitude response: 400
+[geo-bias] Field localizacao response: 400
+[geo-opa] Field longitude response: 400
+[geo-opa] Field localizacao response: 400
 [opa-media] Field ramo_atuacao response: 400
 [vitrine-fields] Field em_membros_built response: 400
 [opa-media] Field criado_por_user_id response: 400
-[geo-bias] Field localizacao response: 400
-[opa-media] Field criado_por_membro_id response: 400
-[geo-opa] Field latitude response: 400
 [vitrine-fields] Field em_built_capital response: 400
-[geo-opa] Field longitude response: 400
+[opa-media] Field criado_por_membro_id response: 400
 [vitrine-fields] Field link_site response: 400
-[geo-opa] Field localizacao response: 400
 [vitrine-fields] Field latitude response: 400
 [vitrine-fields] Field longitude response: 400
 [vitrine-fields] Field foto_posicao_x response: 400
@@ -52,7 +52,12 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field nucleos_alianca response: 400
 [vitrine-fields] Field tipos_alianca response: 400
 [vitrine-fields] Field codigo_etica_aceito_em response: 400
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
 [vitrine-fields] Field codigo_etica_versao response: 400
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
 [vitrine-fields] Field politicas_participacao_aceito_em response: 400
 [vitrine-fields] Field politicas_participacao_versao response: 400
 [vitrine-fields] Field vitrine_termo_aceito_em response: 400
@@ -103,11 +108,6 @@ Error: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field conjuge_cidade response: 400
 [vitrine-fields] Field conjuge_estado response: 400
 [vitrine-fields] Field conjuge_pais response: 400
-Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
-  npx update-browserslist-db@latest
-  Why you should do it regularly: https://github.com/browserslist/update-db#readme
-
-A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
 [login] local user lookup error: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
@@ -115,28 +115,12 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
-[membro-comunidade-mae] Nao foi possivel ler tabela local: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
 [bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
 [bia-banco] Nao foi possivel criar conta local; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
 [bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
 [bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-diretores] failed to process requests; saving direct BIA fields instead: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
@@ -144,28 +128,19 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] falha em bias_projetos: Production API fallback error: 500
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-diretores] failed to process requests; saving direct BIA fields instead: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [findTipoCppId] Could not fetch tipos_cpp: Directus error: 403 â€” tipo_de_cpp will be empty
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
-[fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
+[directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
+[fluxo_historico] excluido_por_sync: connect ECONNREFUSED 127.0.0.1:5433
+[findTipoCppId] Could not fetch tipos_cpp: Directus error: 403 â€” tipo_de_cpp will be empty
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
 [fluxo_historico] criado_por_sync: connect ECONNREFUSED 127.0.0.1:5433
@@ -173,34 +148,5 @@ A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cau
 [membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
 [usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[membro-comunidade-mae] Nao foi possivel ler tabela local: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
-    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
-    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
-    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
-  errno: -4078,
-  code: 'ECONNREFUSED',
-  syscall: 'connect',
-  address: '127.0.0.1',
-  port: 5433
-}
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[membros] Nao foi possivel carregar convidadores: connect ECONNREFUSED 127.0.0.1:5433
 [directus-fallback] Comunidade carregado do ultimo snapshot local dos logs
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[comunidades] Directus indisponivel; usando ultimo snapshot local dos logs.
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-banco] Banco local indisponivel; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-banco] Documentos locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[bia-banco] Cobrancas locais indisponiveis; usando memoria: connect ECONNREFUSED 127.0.0.1:5433
-[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433

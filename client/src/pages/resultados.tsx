@@ -217,7 +217,7 @@ function MarketM2AnalysisCard({
               IA de preço por m²
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              Compara o VGV da BIA com uma referência estimada para a região.
+              Compara a receita da BIA com uma referência estimada para a região.
             </p>
           </div>
           <Button
@@ -235,7 +235,7 @@ function MarketM2AnalysisCard({
       <CardContent className="space-y-4">
         {disabled ? (
           <p className="rounded-lg border border-dashed border-blue-200 bg-white/70 p-4 text-sm text-muted-foreground">
-            Informe VGV e área do ativo para calcular o preço por m².
+            Informe o valor realizado de venda e a área do ativo para calcular o preço por m².
           </p>
         ) : !analysis ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white/70 p-4">
@@ -246,7 +246,7 @@ function MarketM2AnalysisCard({
             <p className="max-w-xl text-sm text-muted-foreground">
               {loading
                 ? "Analisando automaticamente se o valor está acima, abaixo ou na média da região."
-                : "A análise roda automaticamente quando há VGV, área e localização suficientes."}
+                : "A análise roda automaticamente quando há receita, área e localização suficientes."}
             </p>
           </div>
         ) : (
@@ -443,7 +443,7 @@ export default function ResultadosPage({
         origem: "BIA",
         nome: bia.nome_bia,
         tipo: bia.ativo_qualificacao || "BIA imobiliária",
-        valor: parseBRLToNumber(vgvEdit),
+        valor: parseBRLToNumber(valorRealizadoEdit),
         area_m2: parseAreaM2(bia.ativo_area_m2),
         moeda: bia.moeda || "BRL",
         localizacao: bia.localizacao,
@@ -481,19 +481,19 @@ export default function ResultadosPage({
   const valorRealizado      = parseBRLToNumber(valorRealizadoEdit);
   const valorOrigem         = n(bia?.valor_origem);
   const areaM2              = parseAreaM2(bia?.ativo_area_m2);
-  const percentFields = [
-    bia?.perc_autor_opa,
-    bia?.perc_aliado_built,
-    bia?.perc_built,
-    bia?.perc_dir_alianca,
-    bia?.perc_dir_tecnico,
-    bia?.perc_dir_obras,
-    bia?.perc_dir_comercial,
-    bia?.perc_dir_capital,
+  const percentItems = [
+    { value: bia?.perc_autor_opa, member: bia?.autor_bia },
+    { value: bia?.perc_aliado_built, member: bia?.aliado_built },
+    { value: bia?.perc_built, member: "__built__" },
+    { value: bia?.perc_dir_alianca, member: bia?.diretor_alianca },
+    { value: bia?.perc_dir_tecnico, member: bia?.diretor_nucleo_tecnico },
+    { value: bia?.perc_dir_obras, member: bia?.diretor_execucao },
+    { value: bia?.perc_dir_comercial, member: bia?.diretor_comercial },
+    { value: bia?.perc_dir_capital, member: bia?.diretor_capital },
   ];
-  const hasPercentFields = percentFields.some((value) => value !== null && value !== undefined && String(value) !== "");
+  const hasPercentFields = percentItems.some(({ value }) => value !== null && value !== undefined && String(value) !== "");
   const divisorMultiplicador = hasPercentFields
-    ? percentFields.reduce((sum, value) => sum + n(value), 0)
+    ? percentItems.reduce((sum, item) => sum + (item.member ? n(item.value) : 0), 0)
     : n(bia?.divisor_multiplicador);
   const custoCPP = divisorMultiplicador > 0 ? valorOrigem * divisorMultiplicador / 100 : 0;
   const custoOrigem = valorOrigem + custoCPP;
@@ -512,10 +512,9 @@ export default function ResultadosPage({
   const totalDeducoesPrev = comissaoPrev + irPrev + inssPrev + manutPrev;
   const custoTotal = totalSaidasPagas;
   const receitaPorM2 = areaM2 > 0 ?valorRealizado / areaM2 : 0;
-  const vgvPorM2 = areaM2 > 0 ?vgv / areaM2 : 0;
 
   useEffect(() => {
-    if (!bia || vgv <= 0 || areaM2 <= 0) return;
+    if (!bia || valorRealizado <= 0 || areaM2 <= 0) return;
     const locationKey = [
       bia.localizacao,
       bia.ativo_endereco,
@@ -526,7 +525,7 @@ export default function ResultadosPage({
       bia.ativo_cep,
     ].filter(Boolean).join("|");
     if (!locationKey.trim()) return;
-    const key = `${bia.id}|${vgv}|${areaM2}|${locationKey}|${bia.ativo_qualificacao || ""}`;
+    const key = `${bia.id}|${valorRealizado}|${areaM2}|${locationKey}|${bia.ativo_qualificacao || ""}`;
     if (marketAnalysisKeyRef.current === key || marketAnalysisMutation.isPending) return;
     marketAnalysisKeyRef.current = key;
     marketAnalysisMutation.mutate();
@@ -540,7 +539,7 @@ export default function ResultadosPage({
     bia?.ativo_pais,
     bia?.ativo_cep,
     bia?.ativo_qualificacao,
-    vgv,
+    valorRealizado,
     areaM2,
     marketAnalysisMutation.isPending,
   ]);
@@ -842,9 +841,9 @@ export default function ResultadosPage({
           <MarketM2AnalysisCard
             analysis={marketAnalysis}
             loading={marketAnalysisMutation.isPending}
-            disabled={!bia || vgv <= 0 || areaM2 <= 0}
+            disabled={!bia || valorRealizado <= 0 || areaM2 <= 0}
             onAnalyze={() => marketAnalysisMutation.mutate()}
-            currentM2={vgvPorM2}
+            currentM2={receitaPorM2}
             currency={bia?.moeda || "BRL"}
           />
 

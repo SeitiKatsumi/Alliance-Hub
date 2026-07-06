@@ -344,8 +344,15 @@ export default function BiasCalculadoraPage({
   embedded?: boolean;
 } = {}) {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === "admin" || user?.role === "manager" || user?.role === "superadmin";
+  const { user, isLoading: authLoading } = useAuth();
+  const userRole = user?.role || "";
+  const userEmail = String(user?.email || "").trim().toLowerCase();
+  const isSuperAdmin =
+    userRole === "admin" ||
+    userRole === "manager" ||
+    userRole === "superadmin" ||
+    userRole === "master" ||
+    userEmail === "seitikatsumi@gmail.com";
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const [cppSummary, setCppSummary] = useState<CppSummary | null>(null);
   const [cppError, setCppError] = useState<string | null>(null);
@@ -460,6 +467,7 @@ export default function BiasCalculadoraPage({
     : `~${estimatedSeconds}s`;
 
   useEffect(() => {
+    if (authLoading) return;
     if (selectedBia) {
       setBiaValorOrigem(toNum(selectedBia.valor_origem));
       // Reset payment form when BIA changes — each BIA has its own forma de pagamento
@@ -492,62 +500,69 @@ export default function BiasCalculadoraPage({
       setMembroDirComercial(selectedBia.diretor_comercial || "");
       setMembroDirCapital(selectedBia.diretor_capital || "");
     }
-  }, [selectedBia, isSuperAdmin]);
+  }, [selectedBia, isSuperAdmin, authLoading]);
 
   // Auto-zero percentage when member is cleared for member-dependent roles
   useEffect(() => {
+    if (authLoading) return;
     if (!membroAutorOpa) {
       setPercAutor(0);
     }
-  }, [membroAutorOpa]);
+  }, [membroAutorOpa, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!membroAliadoBuilt) {
       setPercAliado(0);
     } else if (!isSuperAdmin && percAliado === 0) {
       setPercAliado(1);
     }
-  }, [membroAliadoBuilt, isSuperAdmin]);
+  }, [membroAliadoBuilt, isSuperAdmin, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!membroDirNucleoTecnico) {
       setPercTecnico(0);
     } else if (!isSuperAdmin && percTecnico === 0) {
       setPercTecnico(2);
     }
-  }, [membroDirNucleoTecnico, isSuperAdmin]);
+  }, [membroDirNucleoTecnico, isSuperAdmin, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!membroDirObras) {
       setPercObras(0);
     } else if (!isSuperAdmin && percObras === 0) {
       setPercObras(2);
     }
-  }, [membroDirObras, isSuperAdmin]);
+  }, [membroDirObras, isSuperAdmin, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!membroDirComercial) {
       setPercComercial(0);
     } else if (!isSuperAdmin && percComercial === 0) {
       setPercComercial(2);
     }
-  }, [membroDirComercial, isSuperAdmin]);
+  }, [membroDirComercial, isSuperAdmin, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!membroDirCapital) {
       setPercCapital(0);
     } else if (!isSuperAdmin && percCapital === 0) {
       setPercCapital(2);
     }
-  }, [membroDirCapital, isSuperAdmin]);
+  }, [membroDirCapital, isSuperAdmin, authLoading]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (isSuperAdmin) return;
     if (institutionalPercent === null) return;
     setPercAliado(applyPercentualMin(institutionalPercent, 1));
     setPercBuilt(applyPercentualMin(institutionalPercent, 1));
     setPercAlianca(applyPercentualMin(institutionalPercent, 1));
-  }, [institutionalPercent, valorOrigem, selectedBiaId, isSuperAdmin]);
+  }, [institutionalPercent, valorOrigem, selectedBiaId, isSuperAdmin, authLoading]);
 
   // Calculations
   const divisorMultiplicador = percAutor + percAliado + percBuilt + percTecnico + percAlianca + percObras + percComercial + percCapital;
@@ -613,26 +628,43 @@ export default function BiasCalculadoraPage({
     mutationFn: async () => {
       if (!selectedBiaId) throw new Error("Selecione uma BIA");
       const r = (v: number) => parseFloat(v.toFixed(2));
+      const percAutorSave = membroAutorOpa ? percAutor : 0;
+      const percAliadoSave = membroAliadoBuilt ? percAliado : 0;
+      const percBuiltSave = percBuilt;
+      const percTecnicoSave = membroDirNucleoTecnico ? percTecnico : 0;
+      const percAliancaSave = membroDirTecnico ? percAlianca : 0;
+      const percObrasSave = membroDirObras ? percObras : 0;
+      const percComercialSave = membroDirComercial ? percComercial : 0;
+      const percCapitalSave = membroDirCapital ? percCapital : 0;
+      const divisorMultiplicadorSave =
+        percAutorSave +
+        percAliadoSave +
+        percBuiltSave +
+        percTecnicoSave +
+        percAliancaSave +
+        percObrasSave +
+        percComercialSave +
+        percCapitalSave;
       const payload = {
-        divisor_multiplicador: r(divisorMultiplicador),
-        perc_autor_opa: r(percAutor),
-        perc_aliado_built: r(percAliado),
-        perc_built: r(percBuilt),
-        perc_dir_tecnico: r(percTecnico),
-        perc_dir_alianca: r(percAlianca),
-        perc_dir_obras: r(percObras),
-        perc_dir_comercial: r(percComercial),
-        perc_dir_capital: r(percCapital),
-        cpp_autor_opa: r(cppAutor),
-        cpp_aliado_built: r(cppAliado),
-        cpp_built: r(cppBuilt),
-        cpp_dir_tecnico: r(cppTecnico),
-        cpp_dir_alianca: r(cppAlianca),
-        cpp_dir_obras: r(cppObras),
-        cpp_dir_comercial: r(cppComercial),
-        cpp_dir_capital: r(cppCapital),
-        custo_origem_bia: r(custoOrigemBia),
-        custo_final_previsto: r(custoFinalPrevisto),
+        divisor_multiplicador: r(divisorMultiplicadorSave),
+        perc_autor_opa: r(percAutorSave),
+        perc_aliado_built: r(percAliadoSave),
+        perc_built: r(percBuiltSave),
+        perc_dir_tecnico: r(percTecnicoSave),
+        perc_dir_alianca: r(percAliancaSave),
+        perc_dir_obras: r(percObrasSave),
+        perc_dir_comercial: r(percComercialSave),
+        perc_dir_capital: r(percCapitalSave),
+        cpp_autor_opa: r(valorOrigem * percAutorSave / 100),
+        cpp_aliado_built: r(valorOrigem * percAliadoSave / 100),
+        cpp_built: r(valorOrigem * percBuiltSave / 100),
+        cpp_dir_tecnico: r(valorOrigem * percTecnicoSave / 100),
+        cpp_dir_alianca: r(valorOrigem * percAliancaSave / 100),
+        cpp_dir_obras: r(valorOrigem * percObrasSave / 100),
+        cpp_dir_comercial: r(valorOrigem * percComercialSave / 100),
+        cpp_dir_capital: r(valorOrigem * percCapitalSave / 100),
+        custo_origem_bia: r(valorOrigem + (valorOrigem * divisorMultiplicadorSave / 100)),
+        custo_final_previsto: r(valorOrigem * divisorMultiplicadorSave / 100),
       };
       const res = await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,

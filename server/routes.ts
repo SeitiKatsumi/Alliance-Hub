@@ -140,6 +140,16 @@ function isBootstrapSuperAdmin(email?: string | null) {
 }
 // Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE â€” discovered at runtime
 const biasBlockedFields = new Set<string>();
+const BIA_DM_PERCENT_FIELDS = new Set([
+  "perc_autor_opa",
+  "perc_aliado_built",
+  "perc_built",
+  "perc_dir_alianca",
+  "perc_dir_tecnico",
+  "perc_dir_obras",
+  "perc_dir_comercial",
+  "perc_dir_capital",
+]);
 
 // Resolved at startup: actual collection name for comunidade (default is "Comunidade" â€” confirmed always correct)
 let COMUNIDADE_COL = "Comunidade";
@@ -7260,13 +7270,19 @@ export async function registerRoutes(
     try {
       const sessionRole = (req.session as any).role || "user";
       const sessionMembroId = (req.session as any).membroId as string | null;
-      const isSuperAdminRole = sessionRole === "admin" || sessionRole === "manager";
+      const isSuperAdminRole =
+        sessionRole === "admin" ||
+        sessionRole === "manager" ||
+        sessionRole === "superadmin" ||
+        sessionRole === "master" ||
+        isBootstrapSuperAdmin((req.session as any).email);
       let payload = prepareBiaPayload(req.body);
-      const currentBia = await directusFetchOne(
-        "bias_projetos",
+      const currentBia = await resolveBiaByIdOrPublicCode(
         req.params.id,
-        "fields=id,nome_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
+        "id,nome_bia,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_autor_opa,perc_aliado_built,perc_built,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,valor_origem,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
       ).catch(() => null);
+      if (!currentBia?.id) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
+      const biaUpdateId = String(currentBia.id);
       const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
       const diretorAliancaAtual = directusRelationId(currentBia?.diretor_alianca) || currentBia?.diretor_alianca || null;
       const canEditBia =
@@ -7285,21 +7301,25 @@ export async function registerRoutes(
       let diretorSolicitacoes: any[] = [];
       let socioSolicitacoes: any[] = [];
       let diretorFlowError: string | null = null;
-      try {
-        const payloadComSolicitacoes = { ...payload };
-        diretorSolicitacoes = await processDiretorSolicitacoes({
-          biaId: req.params.id,
-          biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
-          body: req.body,
-          payload: payloadComSolicitacoes,
-          req,
-          currentBia,
-        });
-        payload = payloadComSolicitacoes;
-      } catch (e: any) {
-        console.error("[bia-diretores] failed to process requests; saving direct BIA fields instead:", e.message);
-        diretorFlowError = e.message;
+      if (isSuperAdminRole) {
         Object.assign(payload, pickBiaDiretorDirectFields(req.body));
+      } else {
+        try {
+          const payloadComSolicitacoes = { ...payload };
+          diretorSolicitacoes = await processDiretorSolicitacoes({
+            biaId: req.params.id,
+            biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
+            body: req.body,
+            payload: payloadComSolicitacoes,
+            req,
+            currentBia,
+          });
+          payload = payloadComSolicitacoes;
+        } catch (e: any) {
+          console.error("[bia-diretores] failed to process requests; saving direct BIA fields instead:", e.message);
+          diretorFlowError = e.message;
+          Object.assign(payload, pickBiaDiretorDirectFields(req.body));
+        }
       }
       try {
         socioSolicitacoes = await processSocioSolicitacoes({
@@ -7314,7 +7334,10 @@ export async function registerRoutes(
         console.error("[bia-socios] failed to process requests:", e.message);
       }
       // Remove already-known blocked fields before first attempt
-      for (const f of biasBlockedFields) delete (payload as any)[f];
+      for (const f of biasBlockedFields) {
+        if (isSuperAdminRole && BIA_DM_PERCENT_FIELDS.has(f)) continue;
+        delete (payload as any)[f];
+      }
       payload = withUpdatedBiaFinancials(payload, currentBia);
 
       let lastError: any = null;
@@ -7340,7 +7363,7 @@ export async function registerRoutes(
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-          const item = await directusUpdate("bias_projetos", req.params.id, payload);
+          const item = await directusUpdate("bias_projetos", biaUpdateId, payload);
           if (newlySkipped.length > 0) console.log(`[bias patch] discovered blocked fields: ${newlySkipped.join(", ")}`);
           if (req.body.valor_origem !== undefined) {
             const valorOrigem = parseFloat(req.body.valor_origem) || 0;
@@ -7356,23 +7379,42 @@ export async function registerRoutes(
               currentBia?.aliado_built ||
               req.body.aliado_built ||
               null;
+            const savedBia = { ...(currentBia || {}), ...payload, ...(item || {}) };
+            const hasSavedField = (field: string) =>
+              Object.prototype.hasOwnProperty.call(payload, field) ||
+              Object.prototype.hasOwnProperty.call(item || {}, field) ||
+              Object.prototype.hasOwnProperty.call(currentBia || {}, field);
+            const savedPercent = (field: string) => {
+              const sourceValue = Object.prototype.hasOwnProperty.call(payload, field)
+                ? payload[field]
+                : Object.prototype.hasOwnProperty.call(item || {}, field)
+                  ? item[field]
+                  : currentBia?.[field];
+              if (!hasSavedField(field) || sourceValue === null || sourceValue === undefined || sourceValue === "") return 0;
+              const parsed = Number(String(sourceValue).replace(",", "."));
+              return Number.isFinite(parsed) ? parsed : 0;
+            };
+            const savedMemberId = (field: string) =>
+              directusRelationId(savedBia[field]) || savedBia[field] || null;
+            const savedMemberPercent = (memberField: string, percentField: string) =>
+              savedMemberId(memberField) ? savedPercent(percentField) : 0;
             // Build contributors list for CPP entries
             const contributors: CppContributor[] = [
               {
                 label: "Autor da Oportunidade",
-                memberId: directusRelationId(item.autor_bia) || directusRelationId(req.body.autor_bia) || item.autor_bia || req.body.autor_bia || null,
-                percentual: parseFloat(item.perc_autor_opa) || parseFloat(req.body.perc_autor_opa) || 0,
+                memberId: savedMemberId("autor_bia"),
+                percentual: savedMemberPercent("autor_bia", "perc_autor_opa"),
               },
-              { label: "Aliado BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_aliado_built) || 0 },
-              { label: "BUILT", memberId: aliadoCppId, percentual: parseFloat(req.body.perc_built) || 0, alwaysCreate: true },
-              { label: "Dir. de AlianÃ§a", memberId: item.diretor_alianca || null, percentual: parseFloat(item.perc_dir_alianca) || 0, isAporte: true },
-              { label: "Dir. NÃºcleo TÃ©cnico", memberId: item.diretor_nucleo_tecnico || null, percentual: parseFloat(item.perc_dir_tecnico) || 0, isAporte: true },
-              { label: "Dir. NÃºcleo de Obra", memberId: item.diretor_execucao || null, percentual: parseFloat(item.perc_dir_obras) || 0, isAporte: true },
-              { label: "Dir. NÃºcleo Comercial", memberId: item.diretor_comercial || null, percentual: parseFloat(item.perc_dir_comercial) || 0, isAporte: true },
-              { label: "Dir. NÃºcleo de Capital", memberId: item.diretor_capital || null, percentual: parseFloat(item.perc_dir_capital) || 0, isAporte: true },
+              { label: "Aliado BUILT", memberId: aliadoCppId, percentual: aliadoCppId ? savedPercent("perc_aliado_built") : 0 },
+              { label: "BUILT", memberId: aliadoCppId, percentual: savedPercent("perc_built"), alwaysCreate: true },
+              { label: "Dir. de AlianÃ§a", memberId: savedMemberId("diretor_alianca"), percentual: savedMemberPercent("diretor_alianca", "perc_dir_alianca"), isAporte: true },
+              { label: "Dir. NÃºcleo TÃ©cnico", memberId: savedMemberId("diretor_nucleo_tecnico"), percentual: savedMemberPercent("diretor_nucleo_tecnico", "perc_dir_tecnico"), isAporte: true },
+              { label: "Dir. NÃºcleo de Obra", memberId: savedMemberId("diretor_execucao"), percentual: savedMemberPercent("diretor_execucao", "perc_dir_obras"), isAporte: true },
+              { label: "Dir. NÃºcleo Comercial", memberId: savedMemberId("diretor_comercial"), percentual: savedMemberPercent("diretor_comercial", "perc_dir_comercial"), isAporte: true },
+              { label: "Dir. NÃºcleo de Capital", memberId: savedMemberId("diretor_capital"), percentual: savedMemberPercent("diretor_capital", "perc_dir_capital"), isAporte: true },
             ];
             try {
-              const cppSummary = await syncValorOrigemLancamento(req.params.id, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
+              const cppSummary = await syncValorOrigemLancamento(biaUpdateId, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
               return res.json({ ...item, _cppSummary: cppSummary, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
             } catch (syncErr: any) {
               console.error("[sync fluxo_caixa] error:", syncErr.message);
@@ -7405,6 +7447,11 @@ export async function registerRoutes(
             break;
           }
           for (const f of rejectedFields) {
+            if (isSuperAdminRole && BIA_DM_PERCENT_FIELDS.has(f)) {
+              newlySkipped.push(f);
+              delete (payload as any)[f];
+              continue;
+            }
             biasBlockedFields.add(f);
             newlySkipped.push(f);
             delete (payload as any)[f];

@@ -343,7 +343,7 @@ function isDivisorDeibLancamento(item: FluxoCaixaItem, catMap: Record<number, st
   const descricao = normalizeText(item.descricao);
   const hasDivisor = descricao.startsWith("divisor multiplicador");
   const hasDeib = (item.Categoria || []).some((cat) => {
-    const name = normalizeText(typeof cat === "object" && cat !== null ?cat.Nome_da_categoria : catMap[cat]);
+    const name = normalizeText(getCatName(cat, catMap));
     return name.includes("direito economico institucional built") && (name.includes("dei-b") || name.includes("built"));
   });
   return hasDivisor && hasDeib;

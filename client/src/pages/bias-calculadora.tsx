@@ -665,6 +665,12 @@ export default function BiasCalculadoraPage({
         cpp_dir_capital: r(valorOrigem * percCapitalSave / 100),
         custo_origem_bia: r(valorOrigem + (valorOrigem * divisorMultiplicadorSave / 100)),
         custo_final_previsto: r(valorOrigem * divisorMultiplicadorSave / 100),
+        valor_geral_venda_vgv: r(vgv),
+        valor_realizado_venda: r(valorRealizadoVenda),
+        comissao_prevista_corretor: r(comissaoCorretor),
+        ir_previsto: r(irPrevisto),
+        inss_previsto: r(inssPrevisto),
+        manutencao_pos_obra_prevista: r(manutencao),
       };
       const res = await apiRequest("PATCH", `/api/bias/${selectedBiaId}`, {
         ...payload,

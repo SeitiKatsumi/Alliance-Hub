@@ -85,6 +85,7 @@ interface MarketM2Analysis {
   resumo?: string;
   fatores?: string[];
   observacao?: string;
+  fontes?: Array<{ titulo: string; url: string; trecho?: string }>;
   valor_total?: number;
   area_m2?: number;
 }
@@ -294,6 +295,25 @@ function MarketM2AnalysisCard({
                     {fator}
                   </Badge>
                 ))}
+              </div>
+            )}
+            {!!analysis.fontes?.length && (
+              <div className="space-y-2 rounded-lg border border-blue-100 bg-white/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fontes consultadas</p>
+                <div className="space-y-2">
+                  {analysis.fontes.slice(0, 4).map((fonte, index) => (
+                    <a
+                      key={`${fonte.url}-${index}`}
+                      href={fonte.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-md border border-border/60 p-2 text-xs hover:border-blue-200 hover:bg-blue-50/60"
+                    >
+                      <span className="block font-medium text-blue-700">{fonte.titulo || fonte.url}</span>
+                      {fonte.trecho && <span className="mt-1 block text-muted-foreground">{fonte.trecho}</span>}
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
             <p className="text-xs text-muted-foreground">

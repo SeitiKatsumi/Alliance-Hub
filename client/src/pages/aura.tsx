@@ -663,6 +663,31 @@ export default function AuraPage() {
     },
   });
 
+  const transcreverAudioMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("audio", file);
+      if (selectedMembro?.id) form.append("avaliado_membro_id", selectedMembro.id);
+      const res = await fetch("/api/aura/transcrever-audio", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Erro ao transcrever áudio." }));
+        throw new Error(err.error || "Erro ao transcrever áudio.");
+      }
+      return res.json() as Promise<{ texto: string }>;
+    },
+    onSuccess: (data) => {
+      setTextoIA(prev => prev ? prev + "\n\n" + data.texto : data.texto);
+      toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo abaixo." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro no áudio", description: err.message, variant: "destructive" });
+    },
+  });
+
   const analisarMutation = useMutation({
     mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
       const res = await apiRequest("POST", "/api/aura/analisar-texto", {
@@ -1416,28 +1441,31 @@ export default function AuraPage() {
                       <button
                         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/50 text-muted-foreground hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D] transition-colors shrink-0 ml-3"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={extrairArquivoMutation.isPending}
+                        disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending}
                         data-testid="btn-anexar-arquivo"
-                        title="Anexar PDF ou TXT"
+                        title="Anexar PDF, TXT, CSV ou áudio"
                       >
-                        {extrairArquivoMutation.isPending ? (
+                        {extrairArquivoMutation.isPending || transcreverAudioMutation.isPending ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <Paperclip className="w-3.5 h-3.5" />
                         )}
-                        {extrairArquivoMutation.isPending ? "Lendo..." : "Anexar arquivo"}
+                        {extrairArquivoMutation.isPending ? "Lendo..." : transcreverAudioMutation.isPending ? "Transcrevendo..." : "Anexar arquivo"}
                       </button>
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".pdf,.txt,.md,.csv,text/plain,application/pdf"
+                        accept=".pdf,.txt,.md,.csv,.mp3,.m4a,.wav,.ogg,.oga,.opus,.webm,.aac,.3gp,.amr,text/plain,application/pdf,audio/*"
                         className="hidden"
                         data-testid="input-arquivo"
                         onChange={e => {
                           const file = e.target.files?.[0];
                           if (file) {
                             setArquivoNome(file.name);
-                            extrairArquivoMutation.mutate(file);
+                            const name = file.name.toLowerCase();
+                            const isAudio = file.type.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|oga|opus|webm|aac|3gp|amr)$/i.test(name);
+                            if (isAudio) transcreverAudioMutation.mutate(file);
+                            else extrairArquivoMutation.mutate(file);
                           }
                           e.target.value = "";
                         }}

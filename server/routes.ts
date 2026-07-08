@@ -7025,6 +7025,7 @@ export async function registerRoutes(
 
   function hasBiaFinancialField(payload: Record<string, any>): boolean {
     return [
+      "valor_geral_venda_vgv",
       "valor_realizado_venda",
       "custo_final_previsto",
       "comissao_prevista_corretor",
@@ -7406,7 +7407,7 @@ export async function registerRoutes(
                 percentual: savedMemberPercent("autor_bia", "perc_autor_opa"),
               },
               { label: "Aliado BUILT", memberId: aliadoCppId, percentual: aliadoCppId ? savedPercent("perc_aliado_built") : 0 },
-              { label: "BUILT", memberId: aliadoCppId, percentual: savedPercent("perc_built"), alwaysCreate: true },
+              { label: "BUILT", memberId: null, percentual: savedPercent("perc_built"), alwaysCreate: true },
               { label: "Dir. de AlianÃ§a", memberId: savedMemberId("diretor_alianca"), percentual: savedMemberPercent("diretor_alianca", "perc_dir_alianca"), isAporte: true },
               { label: "Dir. NÃºcleo TÃ©cnico", memberId: savedMemberId("diretor_nucleo_tecnico"), percentual: savedMemberPercent("diretor_nucleo_tecnico", "perc_dir_tecnico"), isAporte: true },
               { label: "Dir. NÃºcleo de Obra", memberId: savedMemberId("diretor_execucao"), percentual: savedMemberPercent("diretor_execucao", "perc_dir_obras"), isAporte: true },
@@ -10925,6 +10926,85 @@ ${textContent.slice(0, 16000)}`;
     return "media";
   }
 
+  function extractJsonObject(text: string): any {
+    const raw = String(text || "").trim();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {}
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return {};
+    return JSON.parse(match[0]);
+  }
+
+  function normalizeMarketSources(value: any): Array<{ titulo: string; url: string; trecho?: string }> {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => ({
+        titulo: String(item?.titulo || item?.title || item?.nome || "Fonte").slice(0, 160),
+        url: String(item?.url || item?.link || "").trim(),
+        trecho: item?.trecho || item?.resumo ? String(item.trecho || item.resumo).slice(0, 240) : undefined,
+      }))
+      .filter((item) => /^https?:\/\//i.test(item.url))
+      .slice(0, 8);
+  }
+
+  async function analyzeM2WithWebSearch(params: {
+    origem: string;
+    nome: string;
+    tipo: string;
+    location: string;
+    valor: number;
+    areaM2: number;
+    precoM2: number;
+    moeda: string;
+  }) {
+    const prompt = `Pesquise na internet referências atuais de preço por metro quadrado para comparar um imóvel/BIA.
+
+Dados do ativo:
+- Origem: ${params.origem}
+- Nome: ${params.nome}
+- Tipo/qualificação: ${params.tipo}
+- Localização/endereço: ${params.location}
+- Valor total informado: ${params.valor.toFixed(2)} ${params.moeda}
+- Área: ${params.areaM2.toFixed(2)} m²
+- Preço informado por m²: ${params.precoM2.toFixed(2)} ${params.moeda}/m²
+
+Instruções:
+- Use pesquisa web real. Priorize portais imobiliários, índices de mercado, relatórios de incorporadoras/consultorias, anúncios comparáveis e páginas com data recente.
+- Compare imóveis do mesmo tipo e região mais próxima possível. Se só houver dados da cidade/região ampla, marque confiança baixa ou média.
+- Não use conhecimento genérico nem tabela fixa interna. Se não encontrar referências úteis, retorne "indeterminado".
+- Extraia ao menos 2 fontes quando possível. Não invente URLs, valores ou fontes.
+- Classifique como "media" quando o preço informado estiver dentro de aproximadamente +/-10% da referência média.
+- Arredonde valores monetários para inteiros.
+- Responda SOMENTE JSON minificado neste formato:
+{"classificacao":"abaixo|media|acima|indeterminado","preco_m2_informado":0,"referencia_m2_min":0,"referencia_m2_max":0,"referencia_m2_media":0,"diferenca_percentual":0,"confianca":"baixa|media|alta","resumo":"texto curto","fatores":["item"],"observacao":"texto curto","fontes":[{"titulo":"nome da fonte","url":"https://...","trecho":"referência usada"}]}`;
+
+    const client = getOpenAI() as any;
+    if (!client.responses?.create) {
+      const error: any = new Error("Pesquisa web da OpenAI indisponível neste servidor.");
+      error.status = 503;
+      throw error;
+    }
+
+    const response = await client.responses.create({
+      model: process.env.OPENAI_WEB_SEARCH_MODEL || "gpt-4.1-mini",
+      input: [
+        {
+          role: "system",
+          content: "Você é um analista imobiliário prudente. Use somente evidências encontradas na web para referência de preço por m². Se a pesquisa for insuficiente, declare indeterminado.",
+        },
+        { role: "user", content: prompt },
+      ],
+      tools: [{ type: "web_search_preview" }],
+      include: ["web_search_call.results"],
+      temperature: 0.1,
+      max_output_tokens: 1200,
+    });
+
+    return extractJsonObject(response.output_text || "");
+  }
+
   app.post("/api/ai/preco-m2", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
@@ -10945,66 +11025,35 @@ ${textContent.slice(0, 16000)}`;
         body.cep ? `CEP ${body.cep}` : "",
       ].filter(Boolean).join(", ") || body.localizacao || "Localização não informada";
 
-      const prompt = `Compare o preço por metro quadrado abaixo com o mercado imobiliário da região.
-
-Contexto:
-- Origem: ${body.origem || "ativo"}
-- Nome: ${body.nome || "Não informado"}
-- Tipo/qualificação: ${body.tipo || body.qualificacao || "Não informado"}
-- Localização: ${location}
-- Valor total informado: ${valor.toFixed(2)}
-- Área: ${areaM2.toFixed(2)} m²
-- Preço informado por m²: ${precoM2.toFixed(2)}
-- Moeda: ${body.moeda || "BRL"}
-
-Retorne SOMENTE JSON minificado neste formato:
-{"classificacao":"abaixo|media|acima|indeterminado","preco_m2_informado":0,"referencia_m2_min":0,"referencia_m2_max":0,"referencia_m2_media":0,"diferenca_percentual":0,"confianca":"baixa|media|alta","resumo":"texto curto","fatores":["item"],"observacao":"texto curto"}
-
-Regras:
-- Classifique como "media" quando estiver dentro de aproximadamente +/-10% da referência média.
-- Se houver pelo menos cidade/estado ou uma localização textual específica, estime uma faixa regional ampla e NÃO retorne "indeterminado"; use confiança "baixa" quando a referência for ampla.
-- Use "indeterminado" apenas se a localização for genérica ou ausente.
-- A referência é uma estimativa de mercado, não laudo de avaliação.
-- Responda em português brasileiro no resumo, fatores e observação.
-- Não invente precisão excessiva; arredonde valores monetários para inteiros.`;
-
-      const response = await getOpenAI().chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Você é um analista imobiliário da BUILT. Gere uma leitura prudente de preço por m² com linguagem objetiva, deixando claro quando a confiança for baixa.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 700,
-        response_format: { type: "json_object" },
+      const parsed = await analyzeM2WithWebSearch({
+        origem: String(body.origem || "ativo"),
+        nome: String(body.nome || "Não informado"),
+        tipo: String(body.tipo || body.qualificacao || "Não informado"),
+        location,
+        valor,
+        areaM2,
+        precoM2,
+        moeda: String(body.moeda || "BRL"),
       });
 
-      const raw = response.choices[0]?.message?.content || "{}";
-      const parsed = JSON.parse(raw);
+      const fontes = normalizeMarketSources(parsed.fontes);
       const referenceAverage = Number(parsed.referencia_m2_media || 0);
-      if (!Number.isFinite(referenceAverage) || referenceAverage <= 0 || parsed.classificacao === "indeterminado") {
-        const fallback = estimateRegionalM2(location, String(body.tipo || body.qualificacao || ""));
-        const media = Math.round((fallback.min + fallback.max) / 2);
-        parsed.referencia_m2_min = fallback.min;
-        parsed.referencia_m2_max = fallback.max;
-        parsed.referencia_m2_media = media;
-        parsed.diferenca_percentual = media > 0 ? Number((((precoM2 - media) / media) * 100).toFixed(1)) : 0;
-        parsed.classificacao = classifyM2(precoM2, media);
-        parsed.confianca = parsed.confianca === "alta" ? "media" : fallback.confidence;
-        parsed.resumo = parsed.resumo && !/insuficientes|indeterminado/i.test(parsed.resumo)
-          ? parsed.resumo
-          : `O preço informado foi comparado com uma faixa regional ampla para ${location}.`;
-        parsed.fatores = Array.isArray(parsed.fatores) && parsed.fatores.length > 0
-          ? parsed.fatores
-          : ["localização", "tipo do ativo", "área informada"];
-        parsed.observacao = "Estimativa regional por IA para triagem interna; não substitui laudo ou pesquisa formal.";
+      const hasReference = Number.isFinite(referenceAverage) && referenceAverage > 0 && fontes.length > 0 && parsed.classificacao !== "indeterminado";
+      if (!hasReference) {
+        parsed.classificacao = "indeterminado";
+        parsed.referencia_m2_min = 0;
+        parsed.referencia_m2_max = 0;
+        parsed.referencia_m2_media = 0;
+        parsed.diferenca_percentual = 0;
+        parsed.confianca = "baixa";
+        parsed.resumo = "Não foi possível encontrar referências públicas suficientes na internet para comparar o preço por m² com segurança.";
+        parsed.fatores = ["pesquisa web insuficiente", "localização", "tipo de imóvel"];
+        parsed.observacao = "Sem fallback estimado: a análise só informa média quando encontra fontes públicas úteis.";
       }
       res.json({
         success: true,
         ...parsed,
+        fontes,
         preco_m2_informado: Math.round(precoM2),
         valor_total: Math.round(valor),
         area_m2: Number(areaM2.toFixed(2)),

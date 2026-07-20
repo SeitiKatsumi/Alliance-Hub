@@ -14,7 +14,7 @@ import {
   Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, ArrowRight, Mail,
   Store, TrendingUp, Handshake, Shield, Send, Crown, FolderKanban, Scale, Lightbulb,
   ShieldCheck, CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Building2, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info, Search, ChevronDown, X,
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info, Search, ChevronDown, X, MapPin,
 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,7 @@ import { TERM_CONFIG, getRequiredTermKeys, type TermKey } from "./adesao";
 import { formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamos, getTipoDisplayName, parseRamosValue, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
+import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -652,7 +652,7 @@ export default function LoginPage() {
       const now = new Date().toISOString();
       const termosAceitos = Object.fromEntries(requiredTermKeys.map((key) => [key, true]));
       const termosVersoes = Object.fromEntries(requiredTermKeys.map((key) => [key, TERM_CONFIG[key].version]));
-      const aceite_localizacao = await captureAcceptanceLocation();
+      const aceite_localizacao = await captureRequiredAcceptanceLocation();
       const res = await fetch(`/api/convites/${adesaoToken}/aceitar-termos`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1616,6 +1616,11 @@ export default function LoginPage() {
                     </label>
                   );
                 })}
+              </div>
+
+              <div className="mt-4 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                <span>{ACCEPTANCE_LOCATION_NOTICE}</span>
               </div>
 
               {regError && <p className="text-red-600 text-sm text-center mt-3">{regError}</p>}

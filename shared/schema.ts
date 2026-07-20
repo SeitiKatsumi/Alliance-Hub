@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, date, unique, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { BiaAccessMatrix } from "./bia-access";
 
 export const MODULE_KEYS = [
   "oportunidades",
@@ -622,6 +623,23 @@ export const biaMouAceites = pgTable("bia_mou_aceites", {
 export type BiaMouAceite = typeof biaMouAceites.$inferSelect;
 export const insertBiaMouAceiteSchema = createInsertSchema(biaMouAceites).omit({ id: true, aceito_em: true });
 export type InsertBiaMouAceite = z.infer<typeof insertBiaMouAceiteSchema>;
+
+export const biaUserPermissions = pgTable("bia_user_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  membro_id: text("membro_id").notNull(),
+  permissions: jsonb("permissions").$type<BiaAccessMatrix>().notNull(),
+  updated_by_user_id: text("updated_by_user_id"),
+  updated_by_membro_id: text("updated_by_membro_id"),
+  updated_by_nome: text("updated_by_nome"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueBiaMembro: unique("bia_user_permissions_bia_membro_uniq").on(table.bia_id, table.membro_id),
+}));
+
+export type BiaUserPermission = typeof biaUserPermissions.$inferSelect;
+export type InsertBiaUserPermission = typeof biaUserPermissions.$inferInsert;
 
 export const chamadasAlianca = pgTable("chamadas_alianca", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

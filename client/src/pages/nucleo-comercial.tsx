@@ -1,7 +1,7 @@
 import { TrendingUp } from "lucide-react";
 import AliancaDocsPage, { AliancaDocsPageConfig } from "./alianca-docs-page";
 
-const config: AliancaDocsPageConfig = {
+export const NUCLEO_COMERCIAL_DOCS_CONFIG: AliancaDocsPageConfig = {
   modulo: "comercial",
   titulo: "Núcleo Comercial",
   subtitulo: "Documentos de alianças comerciais, vendas e marketing",
@@ -58,5 +58,5 @@ export default function NucleoComercialPage({
   initialBiaId?: string | null;
   embedded?: boolean;
 } = {}) {
-  return <AliancaDocsPage config={config} initialBiaId={initialBiaId} embedded={embedded} />;
+  return <AliancaDocsPage config={NUCLEO_COMERCIAL_DOCS_CONFIG} initialBiaId={initialBiaId} embedded={embedded} />;
 }

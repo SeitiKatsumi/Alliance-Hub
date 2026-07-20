@@ -7,6 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +46,7 @@ import {
   MapPin,
   Network,
   Paperclip,
+  Pencil,
   Plus,
   Receipt,
   Ruler,
@@ -52,6 +63,8 @@ import {
 } from "lucide-react";
 import { getMembroUrl } from "@/lib/public-refs";
 import { landBankPhotoUrl } from "@/lib/land-bank-assets";
+import type { MarketM2Analysis } from "@/lib/market-analysis";
+import { useToast } from "@/hooks/use-toast";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -723,7 +736,7 @@ function formatInventoryMoney(value: number, currency = "BRL"): string {
 
 const emptyInventarioImovel: Omit<InventarioImovel, "id"> = {
   nome: "",
-  tipo: "Imóvel",
+  tipo: "",
   area_m2: "",
   valor_pago: "",
   valor_atual: "",
@@ -775,10 +788,15 @@ function InventoryMetric({ label, value, sub, icon: Icon, tone = "text-slate-700
 }
 
 export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?: (imovel: InventarioImovel) => void }) {
+  const { toast } = useToast();
   const [selectedId, setSelectedId] = useState("");
   const [imovelDialogOpen, setImovelDialogOpen] = useState(false);
+  const [editingImovelId, setEditingImovelId] = useState<string | null>(null);
+  const [deletingImovel, setDeletingImovel] = useState<InventarioImovel | null>(null);
   const [lancamentoDialogOpen, setLancamentoDialogOpen] = useState(false);
   const [imovelForm, setImovelForm] = useState<Omit<InventarioImovel, "id">>(emptyInventarioImovel);
+  const [inventarioCepLoading, setInventarioCepLoading] = useState(false);
+  const [inventarioCepError, setInventarioCepError] = useState("");
   const [lancamentoForm, setLancamentoForm] = useState<Omit<InventarioLancamento, "id">>(emptyInventarioLancamento());
   const [previewLancamentos, setPreviewLancamentos] = useState<Array<Omit<InventarioLancamento, "id" | "imovel_id">>>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -807,13 +825,16 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
   const selectedAreaM2 = parseInventoryNumber(selectedImovel?.area_m2);
   const selectedValorAtual = parseInventoryNumber(selectedImovel?.valor_atual);
 
-  const { data: precoM2Analysis, isLoading: loadingPrecoM2 } = useQuery<any>({
+  const { data: precoM2Analysis, isLoading: loadingPrecoM2 } = useQuery<MarketM2Analysis>({
     queryKey: [
       "/api/ai/preco-m2",
       "inventario",
       selectedImovel?.id,
       selectedImovel?.area_m2,
       selectedImovel?.valor_atual,
+      selectedImovel?.tipo,
+      selectedImovel?.endereco,
+      selectedImovel?.bairro,
       selectedImovel?.cidade,
       selectedImovel?.estado,
       selectedImovel?.pais,
@@ -839,16 +860,36 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
     },
   });
 
-  const createImovelMutation = useMutation({
-    mutationFn: async (payload: Omit<InventarioImovel, "id">) => {
-      const response = await apiRequest("POST", "/api/inventario/imoveis", payload);
+  const saveImovelMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id?: string | null; payload: Omit<InventarioImovel, "id"> }) => {
+      const response = await apiRequest(id ? "PATCH" : "POST", id ? `/api/inventario/imoveis/${id}` : "/api/inventario/imoveis", payload);
       return response.json() as Promise<InventarioImovel>;
     },
-    onSuccess: (created) => {
+    onSuccess: (saved, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventario/imoveis"] });
-      setSelectedId(created.id);
+      setSelectedId(saved.id);
       setImovelDialogOpen(false);
+      setEditingImovelId(null);
       setImovelForm(emptyInventarioImovel);
+      setInventarioCepError("");
+      toast({ title: variables.id ? "Imóvel atualizado" : "Imóvel cadastrado" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Não foi possível salvar o imóvel", description: error?.message, variant: "destructive" });
+    },
+  });
+
+  const deleteImovelMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/inventario/imoveis/${id}`),
+    onSuccess: (_response, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventario/imoveis"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventario/lancamentos"] });
+      setSelectedId(imoveis.find((item) => item.id !== deletedId)?.id || "");
+      setDeletingImovel(null);
+      toast({ title: "Imóvel removido do inventário" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Não foi possível remover o imóvel", description: error?.message, variant: "destructive" });
     },
   });
 
@@ -909,6 +950,64 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
     }
   };
 
+  const handleInventarioCepChange = async (rawCep: string) => {
+    const digits = rawCep.replace(/\D/g, "").slice(0, 8);
+    const formattedCep = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+    setImovelForm((current) => ({ ...current, cep: formattedCep }));
+    setInventarioCepError("");
+    if (digits.length !== 8) return;
+
+    setInventarioCepLoading(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data || data.erro) {
+        setInventarioCepError("CEP não encontrado.");
+        return;
+      }
+      setImovelForm((current) => {
+        if (String(current.cep || "").replace(/\D/g, "") !== digits) return current;
+        return {
+          ...current,
+          cep: formattedCep,
+          endereco: data.logradouro || current.endereco,
+          complemento: data.complemento || current.complemento,
+          bairro: data.bairro || current.bairro,
+          cidade: data.localidade || current.cidade,
+          estado: data.uf || current.estado,
+          pais: "Brasil",
+        };
+      });
+    } catch (error) {
+      console.warn("[inventario] Nao foi possivel buscar o CEP", error);
+      setInventarioCepError("Não foi possível consultar o CEP.");
+    } finally {
+      setInventarioCepLoading(false);
+    }
+  };
+
+  const openCreateImovel = () => {
+    setEditingImovelId(null);
+    setImovelForm(emptyInventarioImovel);
+    setInventarioCepError("");
+    setImovelDialogOpen(true);
+  };
+
+  const openEditImovel = (imovel: InventarioImovel) => {
+    const { id: _id, createdAt: _createdAt, ...editableFields } = imovel;
+    setEditingImovelId(imovel.id);
+    setImovelForm({ ...emptyInventarioImovel, ...editableFields });
+    setInventarioCepError("");
+    setImovelDialogOpen(true);
+  };
+
+  const closeImovelDialog = () => {
+    setImovelDialogOpen(false);
+    setEditingImovelId(null);
+    setImovelForm(emptyInventarioImovel);
+    setInventarioCepError("");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -916,7 +1015,7 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
           <h2 className="text-xl font-semibold text-foreground">Inventário</h2>
           <p className="text-sm text-muted-foreground">Gerencie imóveis próprios, receitas, despesas e leitura patrimonial por IA.</p>
         </div>
-        <Button className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setImovelDialogOpen(true)} data-testid="btn-novo-imovel-inventario">
+        <Button className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={openCreateImovel} data-testid="btn-novo-imovel-inventario">
           <Plus className="h-4 w-4" />
           Novo imóvel
         </Button>
@@ -991,6 +1090,29 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => openEditImovel(selectedImovel)}
+                      aria-label="Editar imóvel"
+                      title="Editar imóvel"
+                      data-testid="btn-editar-imovel-inventario"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => setDeletingImovel(selectedImovel)}
+                      aria-label="Remover imóvel"
+                      title="Remover imóvel"
+                      data-testid="btn-remover-imovel-inventario"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                     {onPublishToLandBank && (
                       <Button variant="outline" className="gap-2" onClick={() => onPublishToLandBank(selectedImovel)}>
                         <Upload className="h-4 w-4" />
@@ -1031,60 +1153,95 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
                         IA de preço por m²
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Compara o valor atual do imóvel com uma referência estimada para a região.
+                        Compara o valor atual com imóveis à venda do mesmo tipo, região e faixa de área.
                       </p>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={
-                        precoM2Analysis?.classificacao === "abaixo"
-                          ? "border-green-200 bg-green-50 text-green-700"
-                          : precoM2Analysis?.classificacao === "acima"
-                            ? "border-red-200 bg-red-50 text-red-700"
-                            : "border-blue-200 bg-blue-50 text-blue-700"
-                      }
-                    >
-                      {loadingPrecoM2
-                        ? "Analisando..."
-                        : precoM2Analysis?.classificacao === "abaixo"
-                          ? "Abaixo da média"
-                          : precoM2Analysis?.classificacao === "acima"
-                            ? "Acima da média"
-                            : precoM2Analysis?.classificacao === "media"
-                              ? "Na média"
-                              : "Dados insuficientes"}
-                    </Badge>
+                    {(loadingPrecoM2 || precoM2Analysis?.amostra_suficiente) && (
+                      <Badge
+                        variant="outline"
+                        className={
+                          precoM2Analysis?.classificacao === "abaixo"
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : precoM2Analysis?.classificacao === "acima"
+                              ? "border-red-200 bg-red-50 text-red-700"
+                              : "border-blue-200 bg-blue-50 text-blue-700"
+                        }
+                      >
+                        {loadingPrecoM2
+                          ? "Analisando..."
+                          : precoM2Analysis?.classificacao === "abaixo"
+                            ? "Abaixo da média"
+                            : precoM2Analysis?.classificacao === "acima"
+                              ? "Acima da média"
+                              : "Na média"}
+                      </Badge>
+                    )}
                   </div>
                   {selectedAreaM2 <= 0 || selectedValorAtual <= 0 ? (
                     <p className="mt-3 text-sm text-muted-foreground">
                       Informe área e valor atual estimado para a IA comparar o preço por m².
                     </p>
-                  ) : (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg border bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Informado</p>
-                        <p className="font-bold text-blue-700">
-                          {formatInventoryMoney(precoM2Analysis?.preco_m2_informado || selectedValorAtual / selectedAreaM2, moeda)}/m²
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Referência média</p>
-                        <p className="font-bold">
-                          {precoM2Analysis?.referencia_m2_media ? `${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_media), moeda)}/m²` : "-"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background p-3">
-                        <p className="text-xs text-muted-foreground">Faixa estimada</p>
-                        <p className="font-bold">
-                          {precoM2Analysis?.referencia_m2_min && precoM2Analysis?.referencia_m2_max
-                            ? `${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_min), moeda)} - ${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_max), moeda)}`
-                            : "-"}
-                        </p>
-                      </div>
+                  ) : loadingPrecoM2 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">Pesquisando imóveis comparáveis...</p>
+                  ) : precoM2Analysis?.amostra_suficiente === false ? (
+                    <div className="mt-3 rounded-lg border border-dashed border-blue-200 bg-background p-3">
+                      <p className="text-sm font-medium text-foreground">Ainda não há imóveis comparáveis suficientes.</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {precoM2Analysis.resumo || "A média será exibida quando forem encontrados pelo menos 3 anúncios válidos."}
+                      </p>
                     </div>
-                  )}
-                  {precoM2Analysis?.resumo && (
-                    <p className="mt-3 text-sm text-slate-700">{precoM2Analysis.resumo}</p>
+                  ) : precoM2Analysis?.amostra_suficiente ? (
+                    <>
+                      <p className="mt-3 text-sm font-medium text-blue-800">
+                        Baseado em {precoM2Analysis.quantidade_comparaveis} imóveis comparáveis entre {precoM2Analysis.area_min.toLocaleString("pt-BR")} e {precoM2Analysis.area_max.toLocaleString("pt-BR")} m².
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-lg border bg-background p-3">
+                          <p className="text-xs text-muted-foreground">Informado</p>
+                          <p className="font-bold text-blue-700">
+                            {formatInventoryMoney(precoM2Analysis.preco_m2_informado || selectedValorAtual / selectedAreaM2, moeda)}/m²
+                          </p>
+                        </div>
+                        <div className="rounded-lg border bg-background p-3">
+                          <p className="text-xs text-muted-foreground">Referência média</p>
+                          <p className="font-bold">
+                            {precoM2Analysis.referencia_m2_media ? `${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_media), moeda)}/m²` : "-"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border bg-background p-3">
+                          <p className="text-xs text-muted-foreground">Faixa dos comparáveis</p>
+                          <p className="font-bold">
+                            {precoM2Analysis.referencia_m2_min && precoM2Analysis.referencia_m2_max
+                              ? `${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_min), moeda)} - ${formatInventoryMoney(Number(precoM2Analysis.referencia_m2_max), moeda)}`
+                              : "-"}
+                          </p>
+                        </div>
+                      </div>
+                      {precoM2Analysis.resumo && (
+                        <p className="mt-3 text-sm text-slate-700">{precoM2Analysis.resumo}</p>
+                      )}
+                      {!!precoM2Analysis.fontes?.length && (
+                        <div className="mt-3 space-y-2 rounded-lg border bg-background p-3">
+                          <p className="text-xs font-semibold uppercase text-muted-foreground">Imóveis comparáveis</p>
+                          {precoM2Analysis.fontes.slice(0, 4).map((fonte, index) => (
+                            <a
+                              key={`${fonte.url}-${index}`}
+                              href={fonte.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block rounded-md border p-2 text-xs hover:border-blue-200 hover:bg-blue-50"
+                            >
+                              <span className="block font-medium text-blue-700">{fonte.titulo || fonte.url}</span>
+                              {fonte.trecho && <span className="mt-1 block text-muted-foreground">{fonte.trecho}</span>}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      A análise começa automaticamente quando há tipo, localização, área e valor.
+                    </p>
                   )}
                 </div>
 
@@ -1149,10 +1306,10 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
         </Card>
       </div>
 
-      <Dialog open={imovelDialogOpen} onOpenChange={setImovelDialogOpen}>
+      <Dialog open={imovelDialogOpen} onOpenChange={(open) => open ? setImovelDialogOpen(true) : closeImovelDialog()}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Novo imóvel no inventário</DialogTitle>
+            <DialogTitle>{editingImovelId ? "Editar imóvel" : "Novo imóvel no inventário"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -1194,7 +1351,22 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
             </div>
             <div className="space-y-2">
               <Label>CEP</Label>
-              <Input value={imovelForm.cep} onChange={(e) => setImovelForm({ ...imovelForm, cep: e.target.value })} />
+              <div className="relative">
+                <Input
+                  value={imovelForm.cep}
+                  onChange={(e) => void handleInventarioCepChange(e.target.value)}
+                  placeholder="00000-000"
+                  inputMode="numeric"
+                  maxLength={9}
+                  aria-invalid={Boolean(inventarioCepError)}
+                  className="pr-10"
+                  data-testid="input-inventario-cep"
+                />
+                {inventarioCepLoading && (
+                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {inventarioCepError && <p className="text-xs text-destructive">{inventarioCepError}</p>}
             </div>
             <div className="space-y-2">
               <Label>Endereço</Label>
@@ -1238,13 +1410,40 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImovelDialogOpen(false)}>Cancelar</Button>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!imovelForm.nome || createImovelMutation.isPending} onClick={() => createImovelMutation.mutate(imovelForm)}>
-              Salvar imóvel
+            <Button variant="outline" onClick={closeImovelDialog}>Cancelar</Button>
+            <Button
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              disabled={!imovelForm.nome || saveImovelMutation.isPending}
+              onClick={() => saveImovelMutation.mutate({ id: editingImovelId, payload: imovelForm })}
+            >
+              {saveImovelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingImovelId ? "Salvar alterações" : "Salvar imóvel"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={Boolean(deletingImovel)} onOpenChange={(open) => !open && setDeletingImovel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover imóvel do inventário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{deletingImovel?.nome || "Este imóvel"}” e todos os seus lançamentos serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteImovelMutation.isPending}
+              onClick={() => deletingImovel && deleteImovelMutation.mutate(deletingImovel.id)}
+            >
+              {deleteImovelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={lancamentoDialogOpen} onOpenChange={setLancamentoDialogOpen}>
         <DialogContent>

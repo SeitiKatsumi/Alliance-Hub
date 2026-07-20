@@ -51,7 +51,7 @@ import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
-import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
+import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 
 interface OnboardingMembro {
   id: string;
@@ -676,8 +676,16 @@ function PerfilOnboardingModal({
         return;
       }
 
-      const aceite_localizacao = await captureAcceptanceLocation();
-      salvarMutation.mutate({ ...termoAtual.payload, aceite_localizacao });
+      try {
+        const aceite_localizacao = await captureRequiredAcceptanceLocation();
+        salvarMutation.mutate({ ...termoAtual.payload, aceite_localizacao });
+      } catch (error: any) {
+        toast({
+          title: "Localização obrigatória",
+          description: error?.message || ACCEPTANCE_LOCATION_NOTICE,
+          variant: "destructive",
+        });
+      }
       return;
     }
 
@@ -700,7 +708,19 @@ function PerfilOnboardingModal({
       ? Array.from(new Set([...(form.nucleos_alianca || []), BUILT_CAPITAL_NUCLEO]))
       : form.nucleos_alianca || [];
 
-    const aceite_localizacao = termoAtual?.checked ? await captureAcceptanceLocation() : undefined;
+    let aceite_localizacao;
+    if (termoAtual?.checked) {
+      try {
+        aceite_localizacao = await captureRequiredAcceptanceLocation();
+      } catch (error: any) {
+        toast({
+          title: "Localização obrigatória",
+          description: error?.message || ACCEPTANCE_LOCATION_NOTICE,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     salvarMutation.mutate({
       nome: String(form.nome || "").trim(),
       email: String(form.email || "").trim(),
@@ -978,6 +998,10 @@ function PerfilOnboardingModal({
               )}
             </span>
           </label>
+          <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-relaxed text-blue-900">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+            <span>{ACCEPTANCE_LOCATION_NOTICE}</span>
+          </div>
         </div>
         )}
         {mostrarPerfilCompleto && (

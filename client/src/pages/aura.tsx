@@ -529,14 +529,26 @@ export default function AuraPage() {
     enabled: !!myId && canConsultAura,
   });
 
-  const auraLinkedMemberIds = useMemo(
-    () => getAuraLinkedMemberIds({
+  const { data: vinculosAuraServidor = [] } = useQuery<string[]>({
+    queryKey: ["/api/aura/vinculos", myId],
+    queryFn: async () => {
+      const res = await fetch("/api/aura/vinculos", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data?.ids) ? data.ids.map(String) : [];
+    },
+    enabled: !!myId && canConsultAura,
+  });
+
+  const auraLinkedMemberIds = useMemo(() => {
+    const linkedIds = getAuraLinkedMemberIds({
       comunidades: minhasComunidadesAura,
       bias: minhasBiasAura,
       currentMemberId: myId,
-    }),
-    [minhasComunidadesAura, minhasBiasAura, myId]
-  );
+    });
+    for (const id of vinculosAuraServidor) linkedIds.add(String(id));
+    return linkedIds;
+  }, [minhasComunidadesAura, minhasBiasAura, myId, vinculosAuraServidor]);
 
   const memberSearchTerm = searchQuery.trim();
   const memberSearchActive = memberSearchTerm.length >= 2;

@@ -1789,7 +1789,7 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
 }
 
 // ---- BIA Form Sheet ----
-export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = false, onRequestDelete }: {
+export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete = false, onRequestDelete, readOnly = false }: {
   open: boolean;
   onClose: () => void;
   bia: BiasProjeto | null;
@@ -1797,6 +1797,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   isLoading: boolean;
   canDelete?: boolean;
   onRequestDelete?: (bia: BiasProjeto) => void;
+  readOnly?: boolean;
 }) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -2370,9 +2371,10 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const chamadaValorZerado = isDiretorChamadaField(chamadaDiretorCampo) && parseBRLToNumber(chamadaOpaValor) <= 0;
 
   function renderDispararAliancaButton(field: ChamadaAlvoCampo) {
-    const cargoPreenchido = pendingFlowBypassed || (Array.isArray(form[field])
+    if (pendingFlowBypassed) return null;
+    const cargoPreenchido = Array.isArray(form[field])
       ? parseMemberList(form[field] as string[] | string).length > 0
-      : !!form[field]);
+      : !!form[field];
     const nextOrder = getNextChamadaOrder(field);
     const concluded = nextOrder > 4;
     return (
@@ -2682,11 +2684,16 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               {isEdit ?<Pencil className="w-4 h-4 text-brand-gold" /> : <Plus className="w-4 h-4 text-brand-gold" />}
-              {isEdit ?`Editar BIA` : "Nova BIA"}
+              {isEdit ? readOnly ? "Visualizar BIA" : "Editar BIA" : "Nova BIA"}
             </SheetTitle>
             <SheetDescription>{isEdit ?bia?.nome_bia : "Preencha os dados da nova aliança"}</SheetDescription>
           </SheetHeader>
 
+          {readOnly && (
+            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              Acesso somente para visualização.
+            </div>
+          )}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList className="grid grid-cols-5">
               <TabsTrigger value="geral" data-testid="tab-geral">Geral</TabsTrigger>
@@ -2695,6 +2702,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <TabsTrigger value="receita" data-testid="tab-receita">Análises</TabsTrigger>
               <TabsTrigger value="info" data-testid="tab-info">Informações</TabsTrigger>
             </TabsList>
+            <fieldset disabled={readOnly} className="contents">
 
             {/* Tab Geral */}
             <TabsContent value="geral" className="space-y-4 mt-4">
@@ -3530,13 +3538,14 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 </div>
               </div>
             </TabsContent>
+            </fieldset>
           </Tabs>
           </div>
 
           <div className="shrink-0 border-t bg-background px-6 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {isEdit && canDelete && bia && (
+                {!readOnly && isEdit && canDelete && bia && (
                   <Button
                     type="button"
                     variant="outline"
@@ -3554,14 +3563,14 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                 <Button variant="outline" onClick={onClose} disabled={saveMutation.isPending}>
                   Cancelar
                 </Button>
-                <Button
+                {!readOnly && <Button
                   onClick={handleSaveClick}
                   disabled={saveMutation.isPending || uploading || isLoading || hasIncompleteInstallments}
                   className="bg-brand-gold text-brand-navy hover:bg-brand-gold/90"
                   data-testid="btn-save-bia"
                 >
                   {uploading ?"Enviando arquivos..." : saveMutation.isPending && formaPagamento ?"Gerando lançamentos..." : saveMutation.isPending ?"Salvando..." : isEdit ?"Salvar alterações" : "Criar BIA"}
-                </Button>
+                </Button>}
               </div>
             </div>
           </div>

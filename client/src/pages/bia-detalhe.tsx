@@ -3,7 +3,8 @@ import { useParams, useLocation } from "wouter";
 import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
   Wallet, TrendingDown, Target, Building2, Globe,
-  Pencil, Layers, FileText, Users, Paperclip, ExternalLink, Loader2
+  Pencil, Layers, FileText, Users, Paperclip, ExternalLink, Loader2,
+  Settings2, RotateCcw, Save, LockKeyhole
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,16 +12,23 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
 import { getBiaPublicRef } from "@/lib/bia-url";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import NucleoTecnicoPage from "./nucleo-tecnico";
-import NucleoObraPage from "./nucleo-obra";
-import NucleoComercialPage from "./nucleo-comercial";
+import BiaDocumentosPage, { type DocumentoModulo } from "./bia-documentos";
 import NucleoCapitalPage from "./nucleo-capital";
 import { BiaFormSheet } from "./bias";
+import {
+  EMPTY_BIA_ACCESS,
+  hasBiaAccess,
+  normalizeBiaAccessMatrix,
+  type BiaAccessKey,
+  type BiaAccessLevel,
+  type BiaAccessMatrix,
+} from "@shared/bia-access";
 
 // ---- Types ----
 interface AnexoFile {
@@ -121,6 +129,35 @@ interface Oportunidade {
   perfil_aliado?: string;
 }
 
+interface BiaAccessParticipant {
+  membro_id: string;
+  nome: string;
+  email?: string | null;
+  avatar_url?: string | null;
+  roles: string[];
+  role_labels: string[];
+  default_permissions: BiaAccessMatrix;
+  permissions: BiaAccessMatrix;
+  customized: boolean;
+  updated_at?: string | null;
+  updated_by_nome?: string | null;
+}
+
+interface BiaAccessResponse {
+  bia_id: string;
+  can_manage: boolean;
+  storage_available: boolean;
+  current: {
+    membro_id?: string | null;
+    permissions: BiaAccessMatrix;
+    default_permissions: BiaAccessMatrix;
+    customized: boolean;
+    is_participant: boolean;
+    is_bypass: boolean;
+  };
+  participants?: BiaAccessParticipant[];
+}
+
 // ---- Helpers ----
 function n(v?: string | number | null): number {
   if (v === null || v === undefined || v === "") return 0;
@@ -143,7 +180,7 @@ function fieldFilled(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "";
 }
 
-function calcularResultadoLiquidoBia(bia: BiasProjeto): number {
+function calcularResultadoLiquidoBia(bia: BiasProjeto, custoFinalOverride?: number): number {
   const hasFinancialBasis =
     fieldFilled(bia.valor_realizado_venda) ||
     fieldFilled(bia.custo_final_previsto) ||
@@ -158,7 +195,7 @@ function calcularResultadoLiquidoBia(bia: BiasProjeto): number {
   if (!hasFinancialBasis) return n(bia.resultado_liquido);
 
   const realizado = n(bia.valor_realizado_venda);
-  const custoFinal = n(bia.custo_final_previsto);
+  const custoFinal = custoFinalOverride ?? n(bia.custo_final_previsto);
   const pct = (realizadoField: keyof BiasProjeto, previstoField: keyof BiasProjeto) =>
     n(fieldFilled(bia[realizadoField]) ? bia[realizadoField] : bia[previstoField]);
   const totalDeducoes =
@@ -232,6 +269,161 @@ function MembroChip({ nome, role, icon: Icon }: { nome?: string; role: string; i
   );
 }
 
+const ACCESS_GROUPS: Array<{ label: string; items: Array<{ key: BiaAccessKey; label: string }> }> = [
+  {
+    label: "Governança",
+    items: [
+      { key: "diretoria", label: "Diretoria" },
+      { key: "configuracao_bia", label: "Configuração da BIA" },
+    ],
+  },
+  {
+    label: "Documentos",
+    items: [
+      { key: "documentos_tecnico", label: "Núcleo Técnico" },
+      { key: "documentos_obra", label: "Núcleo de Obra" },
+      { key: "documentos_comercial", label: "Núcleo Comercial" },
+      { key: "documentos_capital", label: "Núcleo de Capital" },
+    ],
+  },
+  {
+    label: "Capital",
+    items: [
+      { key: "capital_banco", label: "Banco" },
+      { key: "capital_financeiro", label: "Financeiro" },
+      { key: "capital_analises", label: "Análises" },
+      { key: "capital_calculadora", label: "Calculadora DM" },
+    ],
+  },
+];
+
+function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessResponse }) {
+  const { toast } = useToast();
+  const [selected, setSelected] = useState<BiaAccessParticipant | null>(null);
+  const [matrix, setMatrix] = useState<BiaAccessMatrix>({ ...EMPTY_BIA_ACCESS });
+
+  const openParticipant = (participant: BiaAccessParticipant) => {
+    setSelected(participant);
+    setMatrix(normalizeBiaAccessMatrix(participant.permissions));
+  };
+  const close = () => setSelected(null);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!selected) return;
+      await apiRequest("PUT", `/api/bias/${biaId}/access-control/${selected.membro_id}`, { permissions: matrix });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bias", biaId, "access-control"] });
+      toast({ title: "Acessos atualizados", description: `As permissões de ${selected?.nome || "participante"} foram salvas.` });
+      close();
+    },
+    onError: (error: Error) => toast({ title: "Erro ao salvar acessos", description: error.message, variant: "destructive" }),
+  });
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      if (!selected) return;
+      await apiRequest("DELETE", `/api/bias/${biaId}/access-control/${selected.membro_id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bias", biaId, "access-control"] });
+      toast({ title: "Padrão restaurado", description: "A personalização foi removida." });
+      close();
+    },
+    onError: (error: Error) => toast({ title: "Erro ao restaurar", description: error.message, variant: "destructive" }),
+  });
+
+  const setView = (key: BiaAccessKey, checked: boolean) => {
+    setMatrix((current) => ({ ...current, [key]: checked ? (current[key] === "edit" ? "edit" : "view") : "none" }));
+  };
+  const setEdit = (key: BiaAccessKey, checked: boolean) => {
+    setMatrix((current) => ({ ...current, [key]: checked ? "edit" : "view" }));
+  };
+
+  return (
+    <Card data-testid="bia-access-manager">
+      <CardContent className="pt-5 pb-4">
+        <SectionTitle icon={LockKeyhole}>Acessos da BIA</SectionTitle>
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">Defina o que cada participante pode visualizar ou editar nesta BIA.</p>
+          {!data.storage_available && <Badge variant="destructive">Armazenamento indisponível</Badge>}
+        </div>
+        <div className="divide-y rounded-lg border">
+          {(data.participants || []).map((participant) => (
+            <div key={participant.membro_id} className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-sm font-medium">{participant.nome}</p>
+                  {participant.customized && <Badge variant="secondary">Personalizado</Badge>}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{participant.role_labels.join(" · ")}</p>
+                {participant.customized && participant.updated_at && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Atualizado{participant.updated_by_nome ? ` por ${participant.updated_by_nome}` : ""} em {new Date(participant.updated_at).toLocaleString("pt-BR")}
+                  </p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-2"
+                onClick={() => openParticipant(participant)}
+                disabled={!data.storage_available}
+              >
+                <Settings2 className="h-4 w-4" /> Configurar
+              </Button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && close()}>
+        <SheetContent side="right" className="flex w-full flex-col bg-background p-0 sm:max-w-xl">
+          <SheetHeader className="border-b px-6 py-5 text-left">
+            <SheetTitle className="flex items-center gap-2"><LockKeyhole className="h-5 w-5 text-blue-600" /> Acessos de {selected?.nome}</SheetTitle>
+            <p className="text-sm text-muted-foreground">{selected?.role_labels.join(" · ")}</p>
+          </SheetHeader>
+          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            {ACCESS_GROUPS.map((group) => (
+              <section key={group.label}>
+                <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{group.label}</h3>
+                <div className="overflow-hidden rounded-lg border">
+                  <div className="grid grid-cols-[minmax(0,1fr)_88px_70px] border-b bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    <span>Módulo</span><span className="text-center">Visualizar</span><span className="text-center">Editar</span>
+                  </div>
+                  {group.items.map((item) => {
+                    const fixedManagerAccess = item.key === "diretoria" && Boolean(selected?.roles.some((role) => role === "aliado" || role === "diretor_alianca"));
+                    const level = matrix[item.key];
+                    return (
+                      <div key={item.key} className="grid min-h-11 grid-cols-[minmax(0,1fr)_88px_70px] items-center border-b px-3 py-2 last:border-b-0">
+                        <span className="text-sm">{item.label}</span>
+                        <div className="flex justify-center"><Checkbox checked={level === "view" || level === "edit"} disabled={fixedManagerAccess} onCheckedChange={(checked) => setView(item.key, checked === true)} /></div>
+                        <div className="flex justify-center"><Checkbox checked={level === "edit"} disabled={fixedManagerAccess} onCheckedChange={(checked) => setEdit(item.key, checked === true)} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-between gap-2 border-t bg-background px-6 py-4">
+            <Button type="button" variant="outline" className="gap-2" onClick={() => resetMutation.mutate()} disabled={!selected?.customized || resetMutation.isPending || saveMutation.isPending}>
+              <RotateCcw className="h-4 w-4" /> Restaurar padrão
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={close}>Cancelar</Button>
+              <Button type="button" className="gap-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || resetMutation.isPending}>
+                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar acessos
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </Card>
+  );
+}
+
 function OpaCard({ opa, currency = "BRL" }: { opa: Oportunidade; currency?: string }) {
   const valor = n(opa.valor_origem_opa);
   return (
@@ -298,16 +490,34 @@ function isMembroLinkedToBia(bia: BiasProjeto, membroId?: string | null): boolea
   return [...directRoles, ...listRoles].some((id) => id === membroId);
 }
 
+const DOCUMENT_MODULE_VALUES = new Set<DocumentoModulo>(["tecnico", "obra", "comercial", "capital"]);
+
+function documentModuleFromSearch(search: string): DocumentoModulo | undefined {
+  const params = new URLSearchParams(search);
+  const tab = params.get("tab");
+  const requestedModule = params.get("nucleo");
+  if (requestedModule && DOCUMENT_MODULE_VALUES.has(requestedModule as DocumentoModulo)) {
+    return requestedModule as DocumentoModulo;
+  }
+  if (tab && DOCUMENT_MODULE_VALUES.has(tab as DocumentoModulo) && tab !== "capital") {
+    return tab as DocumentoModulo;
+  }
+  if (tab === "capital" && params.get("capital") === "documentos") return "capital";
+  return undefined;
+}
+
+function normalizeDetailTab(search: string) {
+  const params = new URLSearchParams(search);
+  const tab = params.get("tab") || "visao";
+  return documentModuleFromSearch(search) ? "documentos" : tab;
+}
+
 // ---- Main page ----
 export default function BiaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [activeDetailTab, setActiveDetailTab] = useState(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    return tab || "visao";
-  });
+  const [activeDetailTab, setActiveDetailTab] = useState(() => normalizeDetailTab(window.location.search));
   const [editOpen, setEditOpen] = useState(false);
 
   const { data: bia, isLoading: loadingBia } = useQuery<BiasProjeto>({
@@ -316,12 +526,28 @@ export default function BiaDetalhePage() {
     enabled: !!id,
   });
 
+  const { data: accessData, isLoading: loadingAccess } = useQuery<BiaAccessResponse>({
+    queryKey: ["/api/bias", bia?.id, "access-control"],
+    queryFn: async () => {
+      const response = await fetch(`/api/bias/${bia!.id}/access-control`, { credentials: "include" });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Não foi possível carregar os acessos da BIA." }));
+        throw new Error(error.error || "Não foi possível carregar os acessos da BIA.");
+      }
+      return response.json();
+    },
+    enabled: Boolean(bia?.id),
+    retry: false,
+    refetchInterval: 30_000,
+  });
+  const accessMatrix = accessData?.current.permissions || EMPTY_BIA_ACCESS;
+
   const { data: membrosRaw = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"] });
   const { data: opasRaw = [] } = useQuery<Oportunidade[]>({ queryKey: ["/api/oportunidades"] });
   const { data: aportesRaw = [] } = useQuery<AporteEntry[]>({
     queryKey: ["/api/bias", bia?.id, "aportes"],
     queryFn: () => fetch(`/api/bias/${bia!.id}/aportes`).then(r => r.json()),
-    enabled: !!bia?.id,
+    enabled: Boolean(bia?.id && hasBiaAccess(accessMatrix, "capital_financeiro", "view")),
   });
 
   const gerarMouMutation = useMutation({
@@ -364,9 +590,19 @@ export default function BiaDetalhePage() {
   }, [bia, id, navigate]);
 
   useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab") || "visao";
+    const rawParams = new URLSearchParams(window.location.search);
+    const rawTab = rawParams.get("tab") || "visao";
+    const legacyModule = documentModuleFromSearch(window.location.search);
+    const tab = normalizeDetailTab(window.location.search);
+    if (legacyModule && rawTab !== "documentos") {
+      rawParams.set("tab", "documentos");
+      rawParams.set("nucleo", legacyModule);
+      rawParams.delete("capital");
+      navigate(`${window.location.pathname}?${rawParams.toString()}`, { replace: true });
+      return;
+    }
     if (tab !== activeDetailTab) setActiveDetailTab(tab);
-  }, [location]);
+  }, [activeDetailTab, location, navigate]);
 
   const membros = useMemo(() => {
     const m: Record<string, string> = {};
@@ -392,22 +628,46 @@ export default function BiaDetalhePage() {
     ];
   }, [bia]);
 
-  const cpp = useMemo(() => {
-    if (!bia) return [];
-    return [
-      { label: "Autor da Oportunidade", perc: bia.perc_autor_opa, cpp: bia.cpp_autor_opa },
-      { label: "Dir. Aliança", perc: bia.perc_dir_alianca, cpp: bia.cpp_dir_alianca },
-      { label: "Dir. Núcleo Técnico", perc: bia.perc_dir_tecnico, cpp: bia.cpp_dir_tecnico },
-      { label: "Dir. Núcleo de Obra", perc: bia.perc_dir_obras, cpp: bia.cpp_dir_obras },
-      { label: "Dir. Núcleo Comercial", perc: bia.perc_dir_comercial, cpp: bia.cpp_dir_comercial },
-      { label: "Dir. Núcleo de Capital", perc: bia.perc_dir_capital, cpp: bia.cpp_dir_capital },
-      { label: "Aliado BUILT", perc: bia.perc_aliado_built, cpp: bia.cpp_aliado_built },
-      { label: "BUILT", perc: bia.perc_built, cpp: bia.cpp_built },
-    ].filter(row => n(row.perc) > 0 || n(row.cpp) > 0);
+  const dmSummary = useMemo(() => {
+    const valorOrigem = n(bia?.valor_origem);
+    const rows = [
+      { label: "Autor da Oportunidade", perc: n(bia?.perc_autor_opa) },
+      { label: "Dir. Aliança", perc: n(bia?.perc_dir_alianca) },
+      { label: "Dir. Núcleo Técnico", perc: n(bia?.perc_dir_tecnico) },
+      { label: "Dir. Núcleo de Obra", perc: n(bia?.perc_dir_obras) },
+      { label: "Dir. Núcleo Comercial", perc: n(bia?.perc_dir_comercial) },
+      { label: "Dir. Núcleo de Capital", perc: n(bia?.perc_dir_capital) },
+      { label: "Aliado BUILT", perc: n(bia?.perc_aliado_built) },
+      { label: "BUILT", perc: n(bia?.perc_built) },
+    ].map((row) => ({ ...row, cpp: valorOrigem * row.perc / 100 }));
+    const divisor = rows.reduce((total, row) => total + row.perc, 0);
+    const cppTotal = rows.reduce((total, row) => total + row.cpp, 0);
+    return {
+      rows,
+      divisor,
+      cppTotal,
+      custoOrigem: valorOrigem + cppTotal,
+    };
   }, [bia]);
+  const cpp = dmSummary.rows;
 
-  const membroId = user?.membro_directus_id || null;
-  const canAccessAllNucleos = user?.role === "admin" || user?.role === "manager";
+  const documentAccess: Record<DocumentoModulo, BiaAccessLevel> = {
+    tecnico: accessMatrix.documentos_tecnico,
+    obra: accessMatrix.documentos_obra,
+    comercial: accessMatrix.documentos_comercial,
+    capital: accessMatrix.documentos_capital,
+  };
+  const allowedDocumentModules = useMemo<DocumentoModulo[]>(() => {
+    return (Object.keys(documentAccess) as DocumentoModulo[])
+      .filter((module) => documentAccess[module] === "view" || documentAccess[module] === "edit");
+  }, [accessMatrix]);
+  const capitalAccess = {
+    banco: accessMatrix.capital_banco,
+    financeiro: accessMatrix.capital_financeiro,
+    analises: accessMatrix.capital_analises,
+    calculadora: accessMatrix.capital_calculadora,
+  };
+  const hasCapitalAccess = Object.values(capitalAccess).some((level) => level === "view" || level === "edit");
   const allowedNucleoTabs = useMemo(() => {
     if (!bia) return [];
     return [
@@ -415,34 +675,22 @@ export default function BiaDetalhePage() {
         value: "diretoria",
         label: "Diretoria",
         testId: "tab-bia-nucleo-diretoria",
-        allowed: canAccessAllNucleos || membroId === bia.autor_bia || membroId === bia.aliado_built || membroId === bia.diretor_alianca,
+        allowed: hasBiaAccess(accessMatrix, "diretoria", "view"),
       },
       {
-        value: "tecnico",
-        label: "Núcleo Técnico",
-        testId: "tab-bia-nucleo-tecnico",
-        allowed: canAccessAllNucleos || membroId === bia.diretor_nucleo_tecnico,
-      },
-      {
-        value: "obra",
-        label: "Núcleo de Obra",
-        testId: "tab-bia-nucleo-obra",
-        allowed: canAccessAllNucleos || membroId === bia.diretor_execucao,
-      },
-      {
-        value: "comercial",
-        label: "Núcleo Comercial",
-        testId: "tab-bia-nucleo-comercial",
-        allowed: canAccessAllNucleos || membroId === bia.diretor_comercial,
+        value: "documentos",
+        label: "Documentos",
+        testId: "tab-bia-documentos",
+        allowed: allowedDocumentModules.length > 0,
       },
       {
         value: "capital",
         label: "Núcleo de Capital",
         testId: "tab-bia-nucleo-capital",
-        allowed: canAccessAllNucleos || membroId === bia.diretor_capital,
+        allowed: hasCapitalAccess,
       },
     ].filter((tab) => tab.allowed);
-  }, [bia, canAccessAllNucleos, membroId]);
+  }, [accessMatrix, allowedDocumentModules, bia, hasCapitalAccess]);
   const canAccessNucleos = allowedNucleoTabs.length > 0;
   const updateDetailTab = (value: string) => {
     setActiveDetailTab(value);
@@ -453,6 +701,7 @@ export default function BiaDetalhePage() {
       params.set("tab", value);
     }
     if (value !== "capital") params.delete("capital");
+    if (value !== "documentos") params.delete("nucleo");
     const query = params.toString();
     navigate(`${window.location.pathname}${query ? `?${query}` : ""}`, { replace: true });
   };
@@ -465,11 +714,12 @@ export default function BiaDetalhePage() {
   useEffect(() => {
     if (!bia) return;
     if (activeDetailTab !== "visao" && !allowedNucleoTabs.some((tab) => tab.value === activeDetailTab)) {
+      toast({ title: "Acesso atualizado", description: "Você não possui mais acesso a esta área da BIA." });
       updateDetailTab("visao");
     }
   }, [activeDetailTab, allowedNucleoTabs, bia]);
 
-  if (loadingBia) {
+  if (loadingBia || (bia && loadingAccess)) {
     return (
       <div className="p-6 space-y-4 max-w-5xl mx-auto">
         <Skeleton className="h-8 w-32" />
@@ -492,14 +742,12 @@ export default function BiaDetalhePage() {
 
   const vgv = n(bia.valor_geral_venda_vgv);
   const realizado = n(bia.valor_realizado_venda);
-  const resultado = calcularResultadoLiquidoBia(bia);
+  const resultado = calcularResultadoLiquidoBia(bia, dmSummary.cppTotal);
   const lucro = n(bia.lucro_previsto);
-  const custoFinal = n(bia.custo_final_previsto);
+  const custoFinal = dmSummary.cppTotal;
   const totalAportes = n(bia.total_aportes);
-  const canEditBia =
-    user?.role === "admin" ||
-    user?.role === "manager" ||
-    (!!membroId && (membroId === bia.aliado_built || membroId === bia.diretor_alianca));
+  const canEditBia = hasBiaAccess(accessMatrix, "configuracao_bia", "edit");
+  const canViewBiaConfiguration = hasBiaAccess(accessMatrix, "configuracao_bia", "view");
 
   const aporteFMEntries = Array.isArray(aportesRaw)
     ? aportesRaw as AporteEntry[]
@@ -557,7 +805,7 @@ export default function BiaDetalhePage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para BIAs
         </Button>
-        {canEditBia && (
+        {canViewBiaConfiguration && (
           <Button
             size="sm"
             className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
@@ -565,7 +813,7 @@ export default function BiaDetalhePage() {
             data-testid="btn-edit-bia-detail"
           >
             <Pencil className="w-3.5 h-3.5" />
-            Editar
+            {canEditBia ? "Editar" : "Visualizar"}
           </Button>
         )}
       </div>
@@ -634,21 +882,6 @@ export default function BiaDetalhePage() {
             <p className="text-sm text-cyan-300/65 mt-3 leading-relaxed max-w-3xl">{bia.objetivo_alianca}</p>
           )}
         </div>
-      </div>
-
-      {/* Key metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {vgv > 0 && <StatBox label="VGV" value={formatMoney(vgv, bia.moeda || "BRL")} />}
-        {realizado > 0 && <StatBox label="Realizado" value={formatMoney(realizado, bia.moeda || "BRL")} />}
-        {resultado !== 0 && (
-          <StatBox
-            label="Resultado Líquido"
-            value={formatMoney(resultado, bia.moeda || "BRL")}
-            color={resultado >= 0 ?"text-green-600" : "text-red-600"}
-          />
-        )}
-        {lucro !== 0 && <StatBox label="Lucro Previsto" value={formatMoney(lucro, bia.moeda || "BRL")} />}
-        {custoFinal > 0 && <StatBox label="Custo Final Previsto" value={formatMoney(custoFinal, bia.moeda || "BRL")} />}
       </div>
 
         <TabsContent value="visao" className="space-y-6">
@@ -761,9 +994,7 @@ export default function BiaDetalhePage() {
                       <span className="text-sm text-muted-foreground">{row.label}</span>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold text-brand-gold/80">{pct(row.perc)}</p>
-                        {n(row.cpp) > 0 && (
-                          <p className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(n(row.cpp), bia.moeda || "BRL")}</p>
-                        )}
+                        <p className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(row.cpp, bia.moeda || "BRL")}</p>
                       </div>
                     </div>
                   ))}
@@ -776,18 +1007,16 @@ export default function BiaDetalhePage() {
                       <span className="font-medium tabular-nums">{formatMoney(n(bia.valor_origem), bia.moeda || "BRL")}</span>
                     </div>
                   )}
-                  {n(bia.custo_origem_bia) > 0 && (
+                  {n(bia.valor_origem) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Custo Origem</span>
-                      <span className="font-medium tabular-nums">{formatMoney(n(bia.custo_origem_bia), bia.moeda || "BRL")}</span>
+                      <span className="font-medium tabular-nums">{formatMoney(dmSummary.custoOrigem, bia.moeda || "BRL")}</span>
                     </div>
                   )}
-                  {n(bia.divisor_multiplicador) > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Divisor/Multiplicador</span>
-                      <span className="font-medium tabular-nums">{n(bia.divisor_multiplicador)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Divisor/Multiplicador</span>
+                    <span className="font-medium tabular-nums">{dmSummary.divisor}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -842,7 +1071,7 @@ export default function BiaDetalhePage() {
                     <p className="mb-4 text-sm text-muted-foreground">
                       Governança, papéis estratégicos e coordenação da BIA.
                     </p>
-                    <div className="mb-4 flex justify-end">
+                    {canEditBia && <div className="mb-4 flex justify-end">
                       <Button
                         type="button"
                         size="sm"
@@ -858,7 +1087,7 @@ export default function BiaDetalhePage() {
                         )}
                         {gerarMouMutation.isPending ? "Gerando..." : "Gerar MOU Padrão"}
                       </Button>
-                    </div>
+                    </div>}
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {equipe.map((e, i) => (
                         <MembroChip
@@ -871,24 +1100,18 @@ export default function BiaDetalhePage() {
                     </div>
                   </CardContent>
                 </Card>
+                {accessData?.can_manage && <BiaAccessManager biaId={bia.id} data={accessData} />}
               </TabsContent>
               )}
 
-              {allowedNucleoTabs.some((tab) => tab.value === "tecnico") && (
-              <TabsContent value="tecnico" className="space-y-4">
-                <NucleoTecnicoPage initialBiaId={bia.id} embedded />
-              </TabsContent>
-              )}
-
-              {allowedNucleoTabs.some((tab) => tab.value === "obra") && (
-              <TabsContent value="obra" className="space-y-4">
-                <NucleoObraPage initialBiaId={bia.id} embedded />
-              </TabsContent>
-              )}
-
-              {allowedNucleoTabs.some((tab) => tab.value === "comercial") && (
-              <TabsContent value="comercial" className="space-y-4">
-                <NucleoComercialPage initialBiaId={bia.id} embedded />
+              {allowedNucleoTabs.some((tab) => tab.value === "documentos") && (
+              <TabsContent value="documentos" className="space-y-4">
+                <BiaDocumentosPage
+                  biaId={bia.id}
+                  allowedModules={allowedDocumentModules}
+                  moduleAccess={documentAccess}
+                  initialModule={documentModuleFromSearch(window.location.search)}
+                />
               </TabsContent>
               )}
 
@@ -899,6 +1122,7 @@ export default function BiaDetalhePage() {
                   embedded
                   activeTab={new URLSearchParams(window.location.search).get("capital") || undefined}
                   onTabChange={updateCapitalTab}
+                  access={capitalAccess}
                 />
               </TabsContent>
               )}
@@ -993,8 +1217,8 @@ export default function BiaDetalhePage() {
                   <TabsContent value="calculadora" className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-3">
                       <StatBox label="Valor origem" value={formatMoney(n(bia.valor_origem), bia.moeda || "BRL")} />
-                      <StatBox label="Custo origem" value={formatMoney(n(bia.custo_origem_bia), bia.moeda || "BRL")} />
-                      <StatBox label="Divisor / multiplicador" value={n(bia.divisor_multiplicador) ?String(n(bia.divisor_multiplicador)) : "0"} />
+                      <StatBox label="Custo origem" value={formatMoney(dmSummary.custoOrigem, bia.moeda || "BRL")} />
+                      <StatBox label="Divisor / multiplicador" value={String(dmSummary.divisor)} />
                     </div>
                     <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
                       <SectionTitle icon={Layers}>Distribuição CPP</SectionTitle>
@@ -1024,6 +1248,7 @@ export default function BiaDetalhePage() {
         bia={bia}
         membros={membrosRaw as any}
         isLoading={loadingBia}
+        readOnly={!canEditBia}
       />
     </div>
   );

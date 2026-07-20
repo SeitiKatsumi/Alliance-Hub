@@ -339,9 +339,11 @@ function PercInput({
 export default function BiasCalculadoraPage({
   initialBiaId = null,
   embedded = false,
+  readOnly = false,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
+  readOnly?: boolean;
 } = {}) {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
@@ -762,7 +764,8 @@ export default function BiasCalculadoraPage({
   }
 
   return (
-    <div className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} space-y-6`}>
+    <fieldset disabled={readOnly} className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} min-w-0 space-y-6 border-0`}>
+      {readOnly && <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Acesso somente para visualização.</div>}
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -1351,6 +1354,6 @@ export default function BiasCalculadoraPage({
           if (d.formaPagamento === "a_vista") setBiaValorOrigem(d.valorAVista);
         }}
       />
-    </div>
+    </fieldset>
   );
 }

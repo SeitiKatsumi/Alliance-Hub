@@ -15,7 +15,7 @@ import { Wrench, Plus, Pencil, Trash2, FileText, Star, Upload, X, Paperclip, Ext
 
 const ACCENT = "#5B9BD5";
 
-const TIPOS_POR_ALIANCA: Record<string, { label: string; verde?: boolean }[]> = {
+export const TECNICO_TIPOS_POR_ALIANCA: Record<string, { label: string; verde?: boolean }[]> = {
   projetos: [
     { label: "Proposta técnica / SOW (escopo, entregáveis, prazos, critérios de aceite)" },
     { label: "Anteprojeto, estudo preliminar, projeto legal, projeto executivo (disciplinas)" },
@@ -69,7 +69,7 @@ const TIPOS_POR_ALIANCA: Record<string, { label: string; verde?: boolean }[]> = 
   ],
 };
 
-const ABA_LABELS: Record<string, string> = {
+export const TECNICO_ABA_LABELS: Record<string, string> = {
   projetos: "Alianças de Projetos",
   juridica: "Alianças Jurídicas",
   inteligencia: "Alianças de Inteligência",
@@ -91,7 +91,7 @@ type Doc = {
 
 function isVerde(tipo: string | undefined, alianca: string): boolean {
   if (!tipo) return false;
-  return (TIPOS_POR_ALIANCA[alianca] || []).some(t => t.label === tipo && t.verde);
+  return (TECNICO_TIPOS_POR_ALIANCA[alianca] || []).some(t => t.label === tipo && t.verde);
 }
 
 function formatDate(d?: string) {
@@ -130,7 +130,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose, lockBia = false }: D
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const tipos = TIPOS_POR_ALIANCA[aliancaTipo] || [];
+  const tipos = TECNICO_TIPOS_POR_ALIANCA[aliancaTipo] || [];
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -175,7 +175,7 @@ function DocSheet({ aliancaTipo, biaId, bias, doc, onClose, lockBia = false }: D
             <Wrench className="w-4 h-4" style={{ color: ACCENT }} />
             {doc ?"Editar Documento" : "Novo Documento"}
           </SheetTitle>
-          <p className="text-xs text-white/40 mt-1">{ABA_LABELS[aliancaTipo]}</p>
+          <p className="text-xs text-white/40 mt-1">{TECNICO_ABA_LABELS[aliancaTipo]}</p>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
@@ -488,7 +488,7 @@ export default function NucleoTecnicoPage({
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="w-full mb-6 p-1 rounded-xl flex gap-1 flex-wrap bg-white shadow-sm" style={{ border: "1px solid #e2e8f0" }}>
-          {Object.entries(ABA_LABELS).map(([key, label]) => {
+          {Object.entries(TECNICO_ABA_LABELS).map(([key, label]) => {
             const count = (biaId ?docs.filter(d => d.bia_id === biaId) : docs).filter(d => d.alianca_tipo === key).length;
             const isActive = activeTab === key;
             return (
@@ -511,7 +511,7 @@ export default function NucleoTecnicoPage({
           })}
         </div>
 
-        {Object.keys(ABA_LABELS).map(key => (
+        {Object.keys(TECNICO_ABA_LABELS).map(key => (
           <TabsContent key={key} value={key}>
             <TabContent
               aliancaTipo={key}

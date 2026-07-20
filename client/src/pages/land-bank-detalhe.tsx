@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { landBankPhotoUrl } from "@/lib/land-bank-assets";
+import type { MarketM2Analysis } from "@/lib/market-analysis";
 
 const landBankStorageKey = "built-land-bank-assets-v2";
 const landBankInterestStorageKey = "built-land-bank-interesses-v1";
@@ -81,20 +82,6 @@ interface LandBankInterest {
   assetId: string;
   mensagem: string;
   createdAt: string;
-}
-
-interface MarketM2Analysis {
-  success?: boolean;
-  classificacao?: "abaixo" | "media" | "acima" | "indeterminado";
-  preco_m2_informado?: number;
-  referencia_m2_min?: number;
-  referencia_m2_max?: number;
-  referencia_m2_media?: number;
-  diferenca_percentual?: number;
-  confianca?: "baixa" | "media" | "alta";
-  resumo?: string;
-  fatores?: string[];
-  observacao?: string;
 }
 
 function readAssets(): LandBankAsset[] {
@@ -232,7 +219,7 @@ export default function LandBankDetalhePage() {
       const response = await apiRequest("POST", "/api/ai/preco-m2", {
         origem: "Banco de Ativos",
         nome: asset.qualificacao,
-        tipo: meta.title,
+        tipo: asset.qualificacao,
         valor: assetValue,
         area_m2: assetArea,
         moeda: asset.moeda || "BRL",
@@ -252,7 +239,7 @@ export default function LandBankDetalhePage() {
     if (!asset || assetValue <= 0 || assetArea <= 0) return;
     const locationKey = [asset.endereco, asset.bairro, asset.cidade, asset.estado, asset.pais, asset.cep].filter(Boolean).join("|");
     if (!locationKey.trim()) return;
-    const key = `${asset.id}|${assetValue}|${assetArea}|${locationKey}|${asset.category}`;
+    const key = `${asset.id}|${assetValue}|${assetArea}|${locationKey}|${asset.qualificacao}`;
     if (marketAnalysisKeyRef.current === key || marketAnalysisMutation.isPending) return;
     marketAnalysisKeyRef.current = key;
     marketAnalysisMutation.mutate();
@@ -265,6 +252,7 @@ export default function LandBankDetalhePage() {
     asset?.pais,
     asset?.cep,
     asset?.category,
+    asset?.qualificacao,
     assetValue,
     assetArea,
     marketAnalysisMutation.isPending,
@@ -441,7 +429,7 @@ export default function LandBankDetalhePage() {
                     <Sparkles className="h-4 w-4 text-blue-600" />
                     <h2 className="font-semibold text-foreground">IA de preço por m²</h2>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">Compara o valor do ativo com a região.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Compara o valor do ativo com imóveis à venda do mesmo tipo, região e faixa de área.</p>
                 </div>
                 <Button
                   size="sm"
@@ -469,8 +457,18 @@ export default function LandBankDetalhePage() {
                       : "A análise roda automaticamente com valor, área e localização suficientes."}
                   </p>
                 </div>
+              ) : marketAnalysis.amostra_suficiente === false ? (
+                <div className="rounded-lg border border-dashed border-blue-200 bg-white/70 p-3">
+                  <p className="text-sm font-medium text-foreground">Ainda não há imóveis comparáveis suficientes.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {marketAnalysis.resumo || "A média será exibida quando forem encontrados pelo menos 3 anúncios válidos."}
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
+                  <p className="text-sm font-medium text-blue-800">
+                    Baseado em {marketAnalysis.quantidade_comparaveis} imóveis comparáveis entre {marketAnalysis.area_min.toLocaleString("pt-BR")} e {marketAnalysis.area_max.toLocaleString("pt-BR")} m².
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className={classificationClass(marketAnalysis.classificacao)}>
                       {classificationLabel(marketAnalysis.classificacao)}
@@ -482,6 +480,12 @@ export default function LandBankDetalhePage() {
                   <div className="grid gap-2">
                     <InfoRow label="Informado" value={formatMoneyPerM2(marketAnalysis.preco_m2_informado || assetPriceM2, asset.moeda || "BRL")} />
                     <InfoRow label="Referência média" value={marketAnalysis.referencia_m2_media ? formatMoneyPerM2(marketAnalysis.referencia_m2_media, asset.moeda || "BRL") : "-"} />
+                    <InfoRow
+                      label="Faixa dos comparáveis"
+                      value={marketAnalysis.referencia_m2_min && marketAnalysis.referencia_m2_max
+                        ? `${formatMoneyPerM2(marketAnalysis.referencia_m2_min, asset.moeda || "BRL")} - ${formatMoneyPerM2(marketAnalysis.referencia_m2_max, asset.moeda || "BRL")}`
+                        : "-"}
+                    />
                     {typeof marketAnalysis.diferenca_percentual === "number" && (
                       <InfoRow label="Diferença vs referência" value={`${marketAnalysis.diferenca_percentual > 0 ? "+" : ""}${marketAnalysis.diferenca_percentual.toFixed(1)}%`} />
                     )}
@@ -493,6 +497,23 @@ export default function LandBankDetalhePage() {
                         <Badge key={`${fator}-${index}`} variant="secondary" className="bg-white text-slate-600">
                           {fator}
                         </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {!!marketAnalysis.fontes?.length && (
+                    <div className="space-y-2 rounded-lg border border-blue-100 bg-white/70 p-3">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">Imóveis comparáveis</p>
+                      {marketAnalysis.fontes.slice(0, 4).map((fonte, index) => (
+                        <a
+                          key={`${fonte.url}-${index}`}
+                          href={fonte.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block rounded-md border p-2 text-xs hover:border-blue-200 hover:bg-blue-50"
+                        >
+                          <span className="block font-medium text-blue-700">{fonte.titulo || fonte.url}</span>
+                          {fonte.trecho && <span className="mt-1 block text-muted-foreground">{fonte.trecho}</span>}
+                        </a>
                       ))}
                     </div>
                   )}

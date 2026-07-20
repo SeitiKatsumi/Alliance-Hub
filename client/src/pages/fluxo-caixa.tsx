@@ -1520,10 +1520,12 @@ export default function FluxoCaixaPage({
   initialBiaId = null,
   embedded = false,
   cotasOnly = false,
+  readOnly = false,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
   cotasOnly?: boolean;
+  readOnly?: boolean;
 } = {}) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -1651,7 +1653,13 @@ export default function FluxoCaixaPage({
   });
 
   const { data: allFluxo = [], isLoading: loadingFluxo } = useQuery<FluxoCaixaItem[]>({
-    queryKey: ["/api/fluxo-caixa"],
+    queryKey: ["/api/fluxo-caixa", selectedBiaId],
+    queryFn: async () => {
+      const query = selectedBiaId ? `?bia_id=${encodeURIComponent(selectedBiaId)}` : "";
+      const response = await fetch(`/api/fluxo-caixa${query}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Erro ao buscar lançamentos autorizados");
+      return response.json();
+    },
   });
 
   const { data: historico = [], isLoading: loadingHistorico } = useQuery<FluxoCaixaHistoricoItem[]>({
@@ -2805,7 +2813,8 @@ export default function FluxoCaixaPage({
   }
 
   return (
-    <div className={`${embedded ? "p-0" : "p-4"} space-y-6`}>
+    <div className={`${embedded ? "p-0" : "p-4"} space-y-6 ${readOnly ? "[&_[data-testid='button-novo-lancamento']]:hidden [&_[data-testid='button-importar-lancamentos-ia']]:hidden [&_[data-testid='card-movimentacao-cotas-link']]:hidden [&_[data-testid='checkbox-selecionar-lancamentos']]:hidden [&_[data-testid^='checkbox-lancamento-']]:hidden [&_[data-testid^='button-acoes-lancamento-']]:hidden [&_[data-testid^='btn-transfer-membro-']]:hidden [&_[data-testid^='btn-editar-transfer-']]:hidden [&_[data-testid^='btn-aceitar-']]:hidden [&_[data-testid^='btn-rejeitar-']]:hidden [&_[data-testid='button-abrir-excluir-selecionados']]:hidden" : ""}`}>
+      {readOnly && <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Acesso somente para visualização.</div>}
       {!cotasOnly && (
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

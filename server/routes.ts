@@ -1,19 +1,37 @@
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import express from "express";
 import { db } from "./db";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 import { PinbankClient, type PinbankChargePayload, type PinbankChargeQueryPayload, type PinbankCompanyOnboardingPayload, type PinbankDocumentPayload } from "./pinbank-client";
 import { PNG } from "pngjs";
 import { randomUUID } from "crypto";
 import { deflateSync } from "zlib";
+import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
+import {
+  BIA_ACCESS_KEYS,
+  BIA_PARTICIPANT_ROLE_LABELS,
+  EMPTY_BIA_ACCESS,
+  FULL_BIA_ACCESS,
+  canManageBiaAccess,
+  collectBiaParticipantRoles,
+  defaultBiaAccessForRoles,
+  hasBiaAccess,
+  isBiaAccessLevel,
+  normalizeBiaAccessMatrix,
+  resolveBiaParticipantPermissions,
+  type BiaAccessKey,
+  type BiaAccessLevel,
+  type BiaAccessMatrix,
+  type BiaParticipantRole,
+} from "@shared/bia-access";
 
 let openaiClient: OpenAI | null = null;
 function getOpenAI() {
@@ -121,6 +139,49 @@ const PRODUCTION_APP_API_URL = (process.env.PRODUCTION_APP_API_URL || "https://a
 const ASSET_CACHE_VERSION = "directus-db-20260616";
 const ROUTES_DIR = process.env.NODE_ENV === "production" ? path.join(process.cwd(), "dist") : process.cwd();
 const nucleoTecnicoDocsFallback: any[] = [];
+const documentsFallbackFile = path.join(process.cwd(), "data", "documentos-aliancas-fallback.json");
+type DocumentsFallbackKind = "tecnico" | "alianca";
+
+function readDocumentsFallback(): Record<DocumentsFallbackKind, any[]> {
+  try {
+    if (!fs.existsSync(documentsFallbackFile)) return { tecnico: [], alianca: [] };
+    const parsed = JSON.parse(fs.readFileSync(documentsFallbackFile, "utf8"));
+    return {
+      tecnico: Array.isArray(parsed?.tecnico) ? parsed.tecnico : [],
+      alianca: Array.isArray(parsed?.alianca) ? parsed.alianca : [],
+    };
+  } catch (error: any) {
+    console.warn("[documentos-fallback] arquivo local invalido:", error?.message || error);
+    return { tecnico: [], alianca: [] };
+  }
+}
+
+function writeDocumentsFallback(store: Record<DocumentsFallbackKind, any[]>) {
+  fs.mkdirSync(path.dirname(documentsFallbackFile), { recursive: true });
+  fs.writeFileSync(documentsFallbackFile, JSON.stringify(store, null, 2), "utf8");
+}
+
+function listFallbackDocuments(kind: DocumentsFallbackKind) {
+  return readDocumentsFallback()[kind];
+}
+
+function upsertFallbackDocument(kind: DocumentsFallbackKind, item: any) {
+  const store = readDocumentsFallback();
+  const index = store[kind].findIndex((current: any) => String(current.id) === String(item.id));
+  if (index >= 0) store[kind][index] = item;
+  else store[kind].unshift(item);
+  writeDocumentsFallback(store);
+  return item;
+}
+
+function deleteFallbackDocument(kind: DocumentsFallbackKind, id: string) {
+  const store = readDocumentsFallback();
+  const next = store[kind].filter((item: any) => String(item.id) !== String(id));
+  if (next.length === store[kind].length) return false;
+  store[kind] = next;
+  writeDocumentsFallback(store);
+  return true;
+}
 
 const BOOTSTRAP_SUPERADMIN_EMAILS = new Set(["seitikatsumi@gmail.com"]);
 const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
@@ -138,8 +199,6 @@ const FULL_ADMIN_PERMISSIONS: Record<string, string> = {
 function isBootstrapSuperAdmin(email?: string | null) {
   return !!email && BOOTSTRAP_SUPERADMIN_EMAILS.has(String(email).trim().toLowerCase());
 }
-// Cache of fields that Directus rejects with VALUE_OUT_OF_RANGE â€” discovered at runtime
-const biasBlockedFields = new Set<string>();
 const BIA_DM_PERCENT_FIELDS = new Set([
   "perc_autor_opa",
   "perc_aliado_built",
@@ -338,6 +397,55 @@ async function ensureBiasExtraFields() {
     } catch (e) {
       // silently ignore
     }
+  }
+}
+
+async function ensureBiasFinancialFieldPrecision() {
+  const field = "total_receita";
+  const desiredPrecision = 18;
+  const desiredScale = 2;
+
+  try {
+    const currentRes = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/${field}`, {
+      headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+    });
+    if (!currentRes.ok) {
+      console.warn(`[bia-financeiro] Cannot inspect ${field}:`, currentRes.status);
+      return;
+    }
+
+    const current = (await currentRes.json())?.data;
+    const precision = Number(current?.schema?.numeric_precision || 0);
+    const scale = Number(current?.schema?.numeric_scale || 0);
+    const integerDigits = precision - scale;
+    const desiredIntegerDigits = desiredPrecision - desiredScale;
+    if (integerDigits >= desiredIntegerDigits && scale >= desiredScale) return;
+
+    const patchRes = await fetch(`${DIRECTUS_URL}/fields/bias_projetos/${field}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${DIRECTUS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "decimal",
+        schema: {
+          data_type: "numeric",
+          numeric_precision: desiredPrecision,
+          numeric_scale: desiredScale,
+          is_nullable: true,
+        },
+      }),
+    });
+    if (!patchRes.ok) {
+      const body = await patchRes.json().catch(() => ({}));
+      console.warn(`[bia-financeiro] Could not expand ${field}:`, patchRes.status, JSON.stringify(body));
+      return;
+    }
+
+    console.log(`[bia-financeiro] Expanded ${field} to numeric(${desiredPrecision},${desiredScale})`);
+  } catch (error) {
+    console.warn(`[bia-financeiro] Error while expanding ${field}:`, error);
   }
 }
 
@@ -1144,6 +1252,24 @@ async function ensureFluxoCaixaHistoricoTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fluxo_caixa_historico_bia ON fluxo_caixa_historico (bia_id, criado_em DESC)`);
 }
 
+async function ensureBiaUserPermissionsTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_user_permissions (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      membro_id text NOT NULL,
+      permissions jsonb NOT NULL,
+      updated_by_user_id text,
+      updated_by_membro_id text,
+      updated_by_nome text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT bia_user_permissions_bia_membro_uniq UNIQUE (bia_id, membro_id)
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_user_permissions_bia ON bia_user_permissions (bia_id)`);
+}
+
 async function ensureBiaBancoTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bia_bank_accounts (
@@ -1157,6 +1283,7 @@ async function ensureBiaBancoTables() {
       terms_accepted_by_user_id text,
       terms_accepted_by_membro_id text,
       terms_accepted_by_nome text,
+      terms_acceptance_location jsonb,
       onboarding_requested_at timestamp,
       onboarding_payload jsonb,
       provider_payload jsonb,
@@ -1164,6 +1291,7 @@ async function ensureBiaBancoTables() {
       updated_at timestamp DEFAULT now() NOT NULL
     )
   `);
+  await db.execute(sql`ALTER TABLE bia_bank_accounts ADD COLUMN IF NOT EXISTS terms_acceptance_location jsonb`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bia_bank_documents (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2397,6 +2525,7 @@ export async function registerRoutes(
   ensureGeoFields("tipos_oportunidades", "geo-opa").catch(console.error);
   ensureOpaMediaFields().catch(console.error);
   ensureBiasExtraFields().catch(console.error);
+  ensureBiasFinancialFieldPrecision().catch(console.error);
   ensureComunidadeFields().catch(console.error);
   ensureNomeBiaLength().catch(console.error);
   ensureCadastroGeralFields().catch(console.error);
@@ -2408,6 +2537,7 @@ export async function registerRoutes(
   ensureBiaDiretorSolicitacoesTable().catch((err: any) => console.warn("[bia-diretores] Tabela nao sincronizada:", err?.message || err));
   ensureBiaSocioSolicitacoesTable().catch((err: any) => console.warn("[bia-socios] Tabela nao sincronizada:", err?.message || err));
   ensureBiaMouAceitesTable().catch((err: any) => console.warn("[bia-mou] Tabela nao sincronizada:", err?.message || err));
+  ensureBiaUserPermissionsTable().catch((err: any) => console.warn("[bia-access] Tabela nao sincronizada:", err?.message || err));
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
@@ -3234,6 +3364,16 @@ export async function registerRoutes(
       const payload = Object.fromEntries(
         Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key) && key !== "aceite_localizacao")
       );
+      const acceptanceTimestampFields = [
+        "codigo_etica_aceito_em",
+        "politicas_participacao_aceito_em",
+        "vitrine_termo_aceito_em",
+        "area_aliancas_termo_aceito_em",
+        "built_capital_termo_aceito_em",
+      ];
+      if (acceptanceTimestampFields.some((field) => Boolean((payload as any)[field])) && !getCapturedAcceptanceLocation(aceiteLocalizacao)) {
+        return res.status(400).json({ error: ACCEPTANCE_LOCATION_REQUIRED_ERROR });
+      }
 
       if ("tipo_pessoa" in payload) {
         const tipoPessoa = String(payload.tipo_pessoa || "").trim();
@@ -3909,6 +4049,124 @@ export async function registerRoutes(
     return isUserLinkedToBia(bia, req.session?.membroId);
   }
 
+  type ResolvedBiaAccess = {
+    permissions: BiaAccessMatrix;
+    defaultPermissions: BiaAccessMatrix;
+    roles: BiaParticipantRole[];
+    canManage: boolean;
+    isParticipant: boolean;
+    isBypass: boolean;
+    customized: boolean;
+    storageAvailable: boolean;
+    override: any | null;
+  };
+
+  function hasBiaAdminBypass(req: any): boolean {
+    const role = String(req.session?.role || "user").toLowerCase();
+    return ["admin", "manager", "superadmin", "master"].includes(role)
+      || isBootstrapSuperAdmin(req.session?.email);
+  }
+
+  async function readBiaPermissionOverride(biaId: string, membroId: string) {
+    try {
+      const [row] = await db.select()
+        .from(biaUserPermissions)
+        .where(and(eq(biaUserPermissions.bia_id, biaId), eq(biaUserPermissions.membro_id, membroId)))
+        .limit(1);
+      return { row: row || null, available: true };
+    } catch (error: any) {
+      console.warn("[bia-access] leitura indisponivel:", error?.message || error);
+      ensureBiaUserPermissionsTable().catch(() => {});
+      return { row: null, available: false };
+    }
+  }
+
+  function effectiveParticipantPermissions(
+    roles: BiaParticipantRole[],
+    override: any | null,
+    storageAvailable: boolean,
+  ): BiaAccessMatrix {
+    return resolveBiaParticipantPermissions(roles, override?.permissions, storageAvailable);
+  }
+
+  async function resolveBiaAccessForRequest(bia: any, req: any): Promise<ResolvedBiaAccess> {
+    if (hasBiaAdminBypass(req)) {
+      return {
+        permissions: { ...FULL_BIA_ACCESS },
+        defaultPermissions: { ...FULL_BIA_ACCESS },
+        roles: [],
+        canManage: true,
+        isParticipant: true,
+        isBypass: true,
+        customized: false,
+        storageAvailable: true,
+        override: null,
+      };
+    }
+
+    const membroId = req.session?.membroId ? String(req.session.membroId) : null;
+    const participantRoles = collectBiaParticipantRoles(bia);
+    const roles = membroId ? participantRoles.get(membroId) || [] : [];
+    const defaultPermissions = defaultBiaAccessForRoles(roles);
+    if (!membroId || roles.length === 0) {
+      return {
+        permissions: { ...EMPTY_BIA_ACCESS },
+        defaultPermissions,
+        roles,
+        canManage: false,
+        isParticipant: false,
+        isBypass: false,
+        customized: false,
+        storageAvailable: true,
+        override: null,
+      };
+    }
+
+    const stored = await readBiaPermissionOverride(String(bia.id), membroId);
+    return {
+      permissions: effectiveParticipantPermissions(roles, stored.row, stored.available),
+      defaultPermissions,
+      roles,
+      canManage: canManageBiaAccess(roles),
+      isParticipant: true,
+      isBypass: false,
+      customized: Boolean(stored.row),
+      storageAvailable: stored.available,
+      override: stored.row,
+    };
+  }
+
+  async function requireBiaModuleAccess(
+    req: any,
+    res: any,
+    biaRef: string,
+    key: BiaAccessKey,
+    required: Exclude<BiaAccessLevel, "none"> = "view",
+  ) {
+    if (!(req.session as any).directusUserId) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return null;
+    }
+    const bia = await resolveBiaByIdOrPublicCode(biaRef, "*");
+    if (!bia?.id) {
+      res.status(404).json({ error: "BIA nao encontrada" });
+      return null;
+    }
+    const access = await resolveBiaAccessForRequest(bia, req);
+    if (!hasBiaAccess(access.permissions, key, required)) {
+      res.status(403).json({
+        error: access.storageAvailable
+          ? "Seu acesso a esta area da BIA foi removido."
+          : "Nao foi possivel confirmar seu acesso agora.",
+        code: "BIA_ACCESS_DENIED",
+        module: key,
+        required,
+      });
+      return null;
+    }
+    return { bia, access };
+  }
+
   function directusRelationId(value: any): string | null {
     if (!value) return null;
     if (typeof value === "object") return value.id ? String(value.id) : null;
@@ -3948,6 +4206,14 @@ export async function registerRoutes(
     { campoSocios: "socios_guardioes", papel: "Sócio Guardião" },
     { campoSocios: "socios_multiplicadores", papel: "Sócio Multiplicador" },
   ];
+
+  const BIA_PENDING_BYPASS_CODES = new Set(["RHCF8KKLKC"]);
+
+  function isBiaPendingBypassed(bia?: any | null, fallbackId?: string | null): boolean {
+    const publicCode = String(bia?.codigo_publico || "").trim().toUpperCase();
+    const routeId = String(fallbackId || "").trim().toUpperCase();
+    return BIA_PENDING_BYPASS_CODES.has(publicCode) || BIA_PENDING_BYPASS_CODES.has(routeId);
+  }
 
   const BIA_MOU_VERSAO = "BUILT-JUR-6-BIA-PATRIMONIAL-2026-23.06.26";
   const BIA_MOU_TITULO = "MOU Padrao BUILT - BIA Patrimonial";
@@ -4421,6 +4687,14 @@ export async function registerRoutes(
         },
       };
     }
+    const capturedLocation = getCapturedAcceptanceLocation(aceiteLocalizacao);
+    if (!capturedLocation) {
+      return {
+        ok: false,
+        statusCode: 400,
+        response: { error: ACCEPTANCE_LOCATION_REQUIRED_ERROR },
+      };
+    }
     const dadosCheck = validateBiaMouDadosContratuais(dadosContratuais);
     if (!dadosCheck.ok) {
       return {
@@ -4438,7 +4712,7 @@ export async function registerRoutes(
       mou_versao: BIA_MOU_VERSAO,
       mou_titulo: BIA_MOU_TITULO,
       dados_contratuais: dadosCheck.data,
-      aceite_localizacao: normalizeAcceptanceLocation(aceiteLocalizacao) as any,
+      aceite_localizacao: capturedLocation as any,
     });
     await ensureVitrineFields();
     await directusUpdate("cadastro_geral", membroId, pickBiaDadosContratuaisCadastro(dadosCheck.data)).catch((error: any) => {
@@ -4945,9 +5219,9 @@ export async function registerRoutes(
       if (Number.isNaN(dataHora.getTime())) return res.status(400).json({ error: "Data da reuniao invalida" });
       if (!/^https?:\/\//i.test(linkReuniao)) return res.status(400).json({ error: "Informe um link de reuniao valido" });
 
-      const bia = await directusFetchOne("bias_projetos", req.params.id, "fields=*");
-      if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
-      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+      const authorization = await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "edit");
+      if (!authorization) return;
+      const bia = authorization.bia;
       const diretorId = isPatrimonialTarget ? null : directusRelationId(bia[diretorCampo]);
       const papelPreenchido = isPatrimonialTarget
         ? parseBiaMemberList(bia[diretorCampo]).length > 0
@@ -6220,7 +6494,8 @@ export async function registerRoutes(
     try {
       const bia = await fetchBiaForMouPdf(req.params.id);
       if (!bia) return res.status(404).json({ error: "BIA nao encontrada" });
-      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+      const authorization = await requireBiaModuleAccess(req, res, String(bia.id), "configuracao_bia", "edit");
+      if (!authorization) return;
 
       const infoLocal = await storage.getBiaInfoComercial(req.params.id).catch(() => null);
       const biaComInfo = {
@@ -6273,6 +6548,7 @@ export async function registerRoutes(
           arquivos,
         };
         nucleoTecnicoDocsFallback.unshift(item);
+        upsertFallbackDocument("tecnico", item);
         console.warn("[bia-mou-padrao] PDF registrado em fallback temporario:", error?.message || error);
       }
       res.json({ success: true, item, arquivo: arquivos[0] || { id: fileId, url: `/api/files/${fileId}` }, warning });
@@ -6396,6 +6672,18 @@ export async function registerRoutes(
         "O usuÃ¡rio compromete-se a fornecer informaÃ§Ãµes verdadeiras, manter seus dados atualizados, respeitar confidencialidade, compliance, origem lÃ­cita de recursos e legislaÃ§Ã£o aplicÃ¡vel.",
       ].join("\n"),
     },
+    pinbank_baas: {
+      titulo: "Termos de Uso BaaS PINBANK",
+      versao: "PINBANK",
+      origem: "Núcleo de Capital",
+      body: [
+        "COMPROVANTE DE ACEITE DOS TERMOS DE USO BAAS PINBANK",
+        "",
+        "Este comprovante registra o aceite eletrônico da versão informada pela PINBANK no momento da confirmação.",
+        "",
+        "O conteúdo integral oficial permanece vinculado ao provedor bancário e ao processo de abertura e operação da conta da respectiva BIA.",
+      ].join("\n"),
+    },
   };
 
   app.get("/api/termos-aceite/:chave", (req, res) => {
@@ -6424,14 +6712,30 @@ export async function registerRoutes(
       status: allowed.has(status) ? status : "erro",
       captured_at: acceptedDocDate(value.captured_at) || new Date().toISOString(),
     };
-    const latitude = Number(value.latitude);
-    const longitude = Number(value.longitude);
-    const accuracy = Number(value.accuracy);
+    const hasLatitude = value.latitude !== null && value.latitude !== undefined && value.latitude !== "";
+    const hasLongitude = value.longitude !== null && value.longitude !== undefined && value.longitude !== "";
+    const hasAccuracy = value.accuracy !== null && value.accuracy !== undefined && value.accuracy !== "";
+    const latitude = hasLatitude ? Number(value.latitude) : Number.NaN;
+    const longitude = hasLongitude ? Number(value.longitude) : Number.NaN;
+    const accuracy = hasAccuracy ? Number(value.accuracy) : Number.NaN;
     if (Number.isFinite(latitude)) normalized.latitude = latitude;
     if (Number.isFinite(longitude)) normalized.longitude = longitude;
-    if (Number.isFinite(accuracy)) normalized.accuracy = accuracy;
+    if (Number.isFinite(accuracy) && accuracy >= 0) normalized.accuracy = accuracy;
     if (value.message) normalized.message = String(value.message).slice(0, 240);
     return normalized;
+  };
+
+  const ACCEPTANCE_LOCATION_REQUIRED_ERROR =
+    "Para registrar o aceite, permita o acesso à localização do dispositivo e tente novamente.";
+
+  const getCapturedAcceptanceLocation = (value: any) => {
+    const location = normalizeAcceptanceLocation(value);
+    if (!location || location.status !== "capturada") return null;
+    const latitude = Number(location.latitude);
+    const longitude = Number(location.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
+    return location;
   };
 
   const formatAcceptanceLocationLines = (value: any) => {
@@ -6559,6 +6863,46 @@ export async function registerRoutes(
       }
     } catch (error: any) {
       console.warn("[documentos-aceitos] falha ao buscar MOUs aceitos:", error?.message || error);
+    }
+
+    try {
+      const bankResult: any = await db.execute(sql`
+        SELECT bia_id, terms_version, terms_accepted_at, terms_acceptance_location
+        FROM bia_bank_accounts
+        WHERE terms_accepted_by_membro_id = ${membroId}
+          AND terms_accepted_at IS NOT NULL
+        ORDER BY terms_accepted_at DESC
+      `).catch(() => ({ rows: [] }));
+      const persistedAccounts = Array.isArray(bankResult?.rows) ? bankResult.rows : [];
+      const memoryAccounts = Array.from(memoryBiaBankAccounts.values()).filter((account: any) =>
+        String(account?.terms_accepted_by_membro_id || "") === String(membroId)
+        && Boolean(account?.terms_accepted_at)
+      );
+      const accountsByBia = new Map<string, any>();
+      [...persistedAccounts, ...memoryAccounts].forEach((account: any) => {
+        const biaId = String(account?.bia_id || "").trim();
+        if (biaId && !accountsByBia.has(biaId)) accountsByBia.set(biaId, account);
+      });
+
+      for (const account of Array.from(accountsByBia.values())) {
+        const bia = await directusFetchOne("bias_projetos", account.bia_id, "fields=id,nome_bia,codigo_publico").catch(() => null);
+        const biaNome = String(bia?.nome_bia || "").replace(/\s+/g, " ").replace(/^BIA\s+/i, "").trim();
+        const id = `termo-pinbank-${account.bia_id}`;
+        docs.set(id, {
+          id,
+          tipo: "termo",
+          chave: "pinbank_baas",
+          titulo: biaNome ? `Termos de Uso BaaS PINBANK - BIA ${biaNome}` : "Termos de Uso BaaS PINBANK",
+          versao: account.terms_version || "PINBANK",
+          aceito_em: acceptedDocDate(account.terms_accepted_at),
+          origem: biaNome ? `Núcleo de Capital - BIA ${biaNome}` : `Núcleo de Capital - BIA ${account.bia_id}`,
+          bia_id: account.bia_id,
+          bia_nome: biaNome || null,
+          aceite_localizacao: account.terms_acceptance_location || null,
+        });
+      }
+    } catch (error: any) {
+      console.warn("[documentos-aceitos] falha ao buscar termos bancários aceitos:", error?.message || error);
     }
 
     return Array.from(docs.values()).sort((a, b) => {
@@ -7023,6 +7367,42 @@ export async function registerRoutes(
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  const BIA_DM_FIELD_MAP = [
+    ["perc_autor_opa", "cpp_autor_opa"],
+    ["perc_aliado_built", "cpp_aliado_built"],
+    ["perc_built", "cpp_built"],
+    ["perc_dir_alianca", "cpp_dir_alianca"],
+    ["perc_dir_tecnico", "cpp_dir_tecnico"],
+    ["perc_dir_obras", "cpp_dir_obras"],
+    ["perc_dir_comercial", "cpp_dir_comercial"],
+    ["perc_dir_capital", "cpp_dir_capital"],
+  ] as const;
+
+  function withUpdatedBiaDm(payload: Record<string, any>, currentBia?: Record<string, any> | null): Record<string, any> {
+    const source = { ...(currentBia || {}), ...payload };
+    const valorOrigem = biaFinancialNumber(source.valor_origem);
+    const round = (value: number) => parseFloat(value.toFixed(2));
+    let divisorMultiplicador = 0;
+    let cppTotal = 0;
+    const calculated: Record<string, number> = {};
+
+    for (const [percentField, cppField] of BIA_DM_FIELD_MAP) {
+      const percentual = biaFinancialNumber(source[percentField]);
+      const cpp = valorOrigem * percentual / 100;
+      divisorMultiplicador += percentual;
+      cppTotal += cpp;
+      calculated[cppField] = round(cpp);
+    }
+
+    return {
+      ...payload,
+      ...calculated,
+      divisor_multiplicador: round(divisorMultiplicador),
+      custo_origem_bia: round(valorOrigem + cppTotal),
+      custo_final_previsto: round(cppTotal),
+    };
+  }
+
   function hasBiaFinancialField(payload: Record<string, any>): boolean {
     return [
       "valor_geral_venda_vgv",
@@ -7093,6 +7473,34 @@ export async function registerRoutes(
     return data;
   }
 
+  function pickBiaSocioDirectFields(body: Record<string, any>): Record<string, any> {
+    const data: Record<string, any> = {};
+    for (const { campoSocios } of SOCIO_SOLICITACAO_CONFIG) {
+      if (!Object.prototype.hasOwnProperty.call(body, campoSocios)) continue;
+      data[campoSocios] = JSON.stringify(parseBiaMemberList(body[campoSocios]));
+    }
+    return data;
+  }
+
+  async function cancelPendingRequestsForBypassedBia(biaId: string, body: Record<string, any>) {
+    const cancellations: Promise<void>[] = [];
+    for (const config of DIRETOR_SOLICITACAO_CONFIG) {
+      if (Object.prototype.hasOwnProperty.call(body, config.campoDiretor)) {
+        cancellations.push(storage.cancelBiaDiretorSolicitacoes(biaId, config.campoDiretor));
+      }
+    }
+    for (const config of SOCIO_SOLICITACAO_CONFIG) {
+      if (Object.prototype.hasOwnProperty.call(body, config.campoSocios)) {
+        cancellations.push(storage.cancelBiaSocioSolicitacoes(biaId, config.campoSocios));
+      }
+    }
+    const results = await Promise.allSettled(cancellations);
+    const failed = results.filter((result) => result.status === "rejected");
+    if (failed.length > 0) {
+      console.warn(`[bia-pending-bypass] BIA ${biaId} salva diretamente; ${failed.length} limpeza(s) de pendência não puderam ser concluídas.`);
+    }
+  }
+
   app.post("/api/bias", async (req, res) => {
     try {
       const sessionRole = (req.session as any).role || "user";
@@ -7158,7 +7566,7 @@ export async function registerRoutes(
         }
         if (aliadoDaComunidade) createBody.aliado_built = aliadoDaComunidade;
       }
-      const createPayload = withUpdatedBiaFinancials(prepareBiaPayload(createBody), null);
+      const createPayload = withUpdatedBiaFinancials(withUpdatedBiaDm(prepareBiaPayload(createBody), null), null);
       createPayload.codigo_publico = await createUniqueBiaPublicCode();
       let item = await directusCreate("bias_projetos", createPayload);
       let diretorFlowError: string | null = null;
@@ -7280,17 +7688,40 @@ export async function registerRoutes(
       let payload = prepareBiaPayload(req.body);
       const currentBia = await resolveBiaByIdOrPublicCode(
         req.params.id,
-        "id,nome_bia,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_autor_opa,perc_aliado_built,perc_built,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,valor_origem,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
+        "id,codigo_publico,nome_bia,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_autor_opa,perc_aliado_built,perc_built,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,terceiros,valor_origem,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
       ).catch(() => null);
       if (!currentBia?.id) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
       const biaUpdateId = String(currentBia.id);
       const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
-      const diretorAliancaAtual = directusRelationId(currentBia?.diretor_alianca) || currentBia?.diretor_alianca || null;
-      const canEditBia =
-        isSuperAdminRole ||
-        (!!sessionMembroId && (sessionMembroId === aliadoAtual || sessionMembroId === diretorAliancaAtual));
-      if (!canEditBia) {
-        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de AlianÃ§a desta BIA podem editÃ¡-la." });
+      const analysisFields = new Set([
+        "valor_geral_venda_vgv", "valor_realizado_venda", "comissao_prevista_corretor",
+        "ir_previsto", "inss_previsto", "manutencao_pos_obra_prevista", "comissao_realizada",
+        "ir_realizado", "inss_realizado", "manutencao_realizada", "total_receita",
+        "resultado_liquido", "lucro_previsto",
+      ]);
+      const calculatorFields = new Set([
+        "valor_origem", "divisor_multiplicador", "perc_autor_opa", "perc_aliado_built",
+        "perc_built", "perc_dir_alianca", "perc_dir_tecnico", "perc_dir_obras",
+        "perc_dir_comercial", "perc_dir_capital", "cpp_autor_opa", "cpp_aliado_built",
+        "cpp_built", "cpp_dir_alianca", "cpp_dir_tecnico", "cpp_dir_obras",
+        "cpp_dir_comercial", "cpp_dir_capital", "custo_origem_bia", "custo_final_previsto",
+      ]);
+      const requestedFields = Object.keys(req.body || {}).filter((field) => !field.startsWith("_"));
+      const requiredModules = new Set<BiaAccessKey>();
+      if (requestedFields.some((field) => analysisFields.has(field))) requiredModules.add("capital_analises");
+      if (requestedFields.some((field) => calculatorFields.has(field))) requiredModules.add("capital_calculadora");
+      if (requestedFields.some((field) => !analysisFields.has(field) && !calculatorFields.has(field))) {
+        requiredModules.add("configuracao_bia");
+      }
+      if (requiredModules.size === 0) requiredModules.add("configuracao_bia");
+      const resolvedAccess = await resolveBiaAccessForRequest(currentBia, req);
+      const deniedModule = Array.from(requiredModules).find((module) => !hasBiaAccess(resolvedAccess.permissions, module, "edit"));
+      if (deniedModule) {
+        return res.status(403).json({
+          error: "Voce nao tem permissao para salvar alteracoes nesta area da BIA.",
+          code: "BIA_ACCESS_DENIED",
+          module: deniedModule,
+        });
       }
       if (!isSuperAdminRole && Object.prototype.hasOwnProperty.call(payload, "aliado_built")) {
         if (aliadoAtual) {
@@ -7302,13 +7733,14 @@ export async function registerRoutes(
       let diretorSolicitacoes: any[] = [];
       let socioSolicitacoes: any[] = [];
       let diretorFlowError: string | null = null;
-      if (isSuperAdminRole) {
+      const pendingFlowBypassed = isBiaPendingBypassed(currentBia, req.params.id);
+      if (isSuperAdminRole || pendingFlowBypassed) {
         Object.assign(payload, pickBiaDiretorDirectFields(req.body));
       } else {
         try {
           const payloadComSolicitacoes = { ...payload };
           diretorSolicitacoes = await processDiretorSolicitacoes({
-            biaId: req.params.id,
+            biaId: biaUpdateId,
             biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
             body: req.body,
             payload: payloadComSolicitacoes,
@@ -7322,23 +7754,24 @@ export async function registerRoutes(
           Object.assign(payload, pickBiaDiretorDirectFields(req.body));
         }
       }
-      try {
-        socioSolicitacoes = await processSocioSolicitacoes({
-          biaId: req.params.id,
-          biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
-          body: req.body,
-          req,
-          payload,
-          currentBia,
-        });
-      } catch (e: any) {
-        console.error("[bia-socios] failed to process requests:", e.message);
+      if (pendingFlowBypassed) {
+        Object.assign(payload, pickBiaSocioDirectFields(req.body));
+        await cancelPendingRequestsForBypassedBia(biaUpdateId, req.body);
+      } else {
+        try {
+          socioSolicitacoes = await processSocioSolicitacoes({
+            biaId: biaUpdateId,
+            biaNome: currentBia?.nome_bia || req.body.nome_bia || null,
+            body: req.body,
+            req,
+            payload,
+            currentBia,
+          });
+        } catch (e: any) {
+          console.error("[bia-socios] failed to process requests:", e.message);
+        }
       }
-      // Remove already-known blocked fields before first attempt
-      for (const f of biasBlockedFields) {
-        if (isSuperAdminRole && BIA_DM_PERCENT_FIELDS.has(f)) continue;
-        delete (payload as any)[f];
-      }
+      payload = withUpdatedBiaDm(payload, currentBia);
       payload = withUpdatedBiaFinancials(payload, currentBia);
 
       let lastError: any = null;
@@ -7358,7 +7791,7 @@ export async function registerRoutes(
             if (match?.[1]) fields.add(match[1]);
           }
         }
-        return [...fields].filter((field) => Object.prototype.hasOwnProperty.call(payload, field));
+        return Array.from(fields).filter((field) => Object.prototype.hasOwnProperty.call(payload, field));
       };
       const maxAttempts = Object.keys(payload).length + 5;
 
@@ -7431,6 +7864,10 @@ export async function registerRoutes(
             parsed = JSON.parse(jsonStr);
           } catch {}
           const rejectedFields = extractRejectedFields(parsed);
+          const retryableRejectedFields = rejectedFields.filter((field) =>
+            genericRetryFields.includes(field) || (isSuperAdminRole && BIA_DM_PERCENT_FIELDS.has(field))
+          );
+          const requiredRejectedFields = rejectedFields.filter((field) => !retryableRejectedFields.includes(field));
           const isInternalDirectusError = (parsed?.errors || []).some((e: any) =>
             e.extensions?.code === "INTERNAL_SERVER_ERROR" || /unexpected error/i.test(e.message || "")
           );
@@ -7447,13 +7884,13 @@ export async function registerRoutes(
             lastError = err;
             break;
           }
-          for (const f of rejectedFields) {
-            if (isSuperAdminRole && BIA_DM_PERCENT_FIELDS.has(f)) {
-              newlySkipped.push(f);
-              delete (payload as any)[f];
-              continue;
-            }
-            biasBlockedFields.add(f);
+          // Core fields must never be silently discarded after a Directus error.
+          // Nullable team fields such as autor_bia need to reach Directus on every save.
+          if (requiredRejectedFields.length > 0) {
+            lastError = err;
+            break;
+          }
+          for (const f of retryableRejectedFields) {
             newlySkipped.push(f);
             delete (payload as any)[f];
           }
@@ -7483,6 +7920,138 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bias/:id/access-control", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia?.id) return res.status(404).json({ error: "BIA nao encontrada" });
+      if (!canViewBia(bia, req)) return res.status(403).json({ error: "Voce nao tem acesso a esta BIA" });
+
+      const current = await resolveBiaAccessForRequest(bia, req);
+      const response: any = {
+        bia_id: String(bia.id),
+        can_manage: current.canManage,
+        storage_available: current.storageAvailable,
+        current: {
+        membro_id: (req.session as any)?.membroId || null,
+          roles: current.roles,
+          permissions: current.permissions,
+          default_permissions: current.defaultPermissions,
+          customized: current.customized,
+          is_participant: current.isParticipant,
+          is_bypass: current.isBypass,
+        },
+      };
+
+      if (current.canManage) {
+        const rolesByMember = collectBiaParticipantRoles(bia);
+        let overrides: any[] = [];
+        let storageAvailable = true;
+        try {
+          overrides = await db.select().from(biaUserPermissions)
+            .where(eq(biaUserPermissions.bia_id, String(bia.id)));
+        } catch (error: any) {
+          storageAvailable = false;
+          console.warn("[bia-access] lista de personalizacoes indisponivel:", error?.message || error);
+        }
+        response.storage_available = storageAvailable;
+        const overridesByMember = new Map(overrides.map((row) => [String(row.membro_id), row]));
+        response.participants = await Promise.all(Array.from(rolesByMember.entries()).map(async ([membroId, roles]) => {
+          const override = overridesByMember.get(membroId) || null;
+          const member = await directusFetchOne("cadastro_geral", membroId).catch(() => null);
+          const defaultPermissions = defaultBiaAccessForRoles(roles);
+          return {
+            membro_id: membroId,
+            nome: member?.Nome_de_usuario || member?.nome || member?.nome_completo || membroId,
+            email: member?.email || null,
+            avatar_url: assetApiUrl(member?.foto || member?.avatar),
+            roles,
+            role_labels: roles.map((role) => BIA_PARTICIPANT_ROLE_LABELS[role]),
+            default_permissions: defaultPermissions,
+            permissions: effectiveParticipantPermissions(roles, override, storageAvailable),
+            customized: Boolean(override),
+            updated_at: override?.updated_at || null,
+            updated_by_nome: override?.updated_by_nome || null,
+          };
+        }));
+      }
+      return res.json(response);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/bias/:id/access-control/:membroId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia?.id) return res.status(404).json({ error: "BIA nao encontrada" });
+      const manager = await resolveBiaAccessForRequest(bia, req);
+      if (!manager.canManage) return res.status(403).json({ error: "Apenas gestores da BIA podem administrar acessos." });
+
+      const targetId = String(req.params.membroId);
+      const targetRoles = collectBiaParticipantRoles(bia).get(targetId) || [];
+      if (targetRoles.length === 0) {
+        return res.status(400).json({ error: "Este membro nao participa mais desta BIA." });
+      }
+      const input = req.body?.permissions ?? req.body;
+      const keys = input && typeof input === "object" ? Object.keys(input) : [];
+      const isComplete = keys.length === BIA_ACCESS_KEYS.length
+        && BIA_ACCESS_KEYS.every((key) => Object.prototype.hasOwnProperty.call(input, key) && isBiaAccessLevel(input[key]));
+      if (!isComplete || keys.some((key) => !BIA_ACCESS_KEYS.includes(key as BiaAccessKey))) {
+        return res.status(400).json({ error: "Envie a matriz completa com niveis none, view ou edit." });
+      }
+      const permissions = normalizeBiaAccessMatrix(input);
+      const [saved] = await db.insert(biaUserPermissions).values({
+        bia_id: String(bia.id),
+        membro_id: targetId,
+        permissions,
+        updated_by_user_id: String((req.session as any).directusUserId || "") || null,
+        updated_by_membro_id: (req.session as any).membroId || null,
+        updated_by_nome: (req.session as any).nome || (req.session as any).email || null,
+      }).onConflictDoUpdate({
+        target: [biaUserPermissions.bia_id, biaUserPermissions.membro_id],
+        set: {
+          permissions,
+          updated_by_user_id: String((req.session as any).directusUserId || "") || null,
+          updated_by_membro_id: (req.session as any).membroId || null,
+          updated_by_nome: (req.session as any).nome || (req.session as any).email || null,
+          updated_at: new Date(),
+        },
+      }).returning();
+      return res.json({
+        ...saved,
+        permissions: effectiveParticipantPermissions(targetRoles, saved, true),
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/bias/:id/access-control/:membroId", async (req, res) => {
+    if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(req.params.id, "*");
+      if (!bia?.id) return res.status(404).json({ error: "BIA nao encontrada" });
+      const manager = await resolveBiaAccessForRequest(bia, req);
+      if (!manager.canManage) return res.status(403).json({ error: "Apenas gestores da BIA podem administrar acessos." });
+      const targetId = String(req.params.membroId);
+      const targetRoles = collectBiaParticipantRoles(bia).get(targetId) || [];
+      if (targetRoles.length === 0) return res.status(400).json({ error: "Este membro nao participa mais desta BIA." });
+      await db.delete(biaUserPermissions).where(and(
+        eq(biaUserPermissions.bia_id, String(bia.id)),
+        eq(biaUserPermissions.membro_id, targetId),
+      ));
+      return res.json({
+        success: true,
+        permissions: effectiveParticipantPermissions(targetRoles, null, true),
+        default_permissions: defaultBiaAccessForRoles(targetRoles),
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========== BIA BANCO / PINBANK ==========
 
   const pinbank = new PinbankClient();
@@ -7500,6 +8069,7 @@ export async function registerRoutes(
     status: row.status,
     terms_version: row.terms_version,
     terms_accepted_at: row.terms_accepted_at,
+    terms_acceptance_location: row.terms_acceptance_location || null,
     onboarding_requested_at: row.onboarding_requested_at,
     provider_payload: row.provider_payload || null,
   } : null;
@@ -7526,20 +8096,9 @@ export async function registerRoutes(
   } : null;
 
   async function requireBiaBancoAccess(req: any, res: any, biaId: string) {
-    if (!(req.session as any).directusUserId) {
-      res.status(401).json({ error: "Nao autenticado" });
-      return null;
-    }
-    const bia = await directusFetchOne("bias_projetos", biaId, "fields=*");
-    if (!bia) {
-      res.status(404).json({ error: "BIA nao encontrada" });
-      return null;
-    }
-    if (!canViewBia(bia, req)) {
-      res.status(403).json({ error: "Voce nao tem acesso ao Nucleo de Capital desta BIA" });
-      return null;
-    }
-    return bia;
+    const required = String(req.method || "GET").toUpperCase() === "GET" ? "view" : "edit";
+    const authorization = await requireBiaModuleAccess(req, res, biaId, "capital_banco", required);
+    return authorization?.bia || null;
   }
 
   function memoryBankAccount(biaId: string, patch: Record<string, any> = {}) {
@@ -7554,6 +8113,7 @@ export async function registerRoutes(
       terms_accepted_by_user_id: null,
       terms_accepted_by_membro_id: null,
       terms_accepted_by_nome: null,
+      terms_acceptance_location: null,
       onboarding_requested_at: null,
       onboarding_payload: null,
       provider_payload: null,
@@ -8118,14 +8678,20 @@ export async function registerRoutes(
       }
       const actor = getAuditActor(req);
       const version = String(req.body?.version || "pinbank_terms_pending");
+      const acceptanceLocation = getCapturedAcceptanceLocation(req.body?.aceite_localizacao);
+      if (!acceptanceLocation) {
+        return res.status(400).json({ error: ACCEPTANCE_LOCATION_REQUIRED_ERROR });
+      }
+      const acceptanceLocationJson = JSON.stringify(acceptanceLocation);
       let account: any = null;
       try {
         const result: any = await db.execute(sql`
           INSERT INTO bia_bank_accounts (
             bia_id, status, terms_version, terms_accepted_at,
-            terms_accepted_by_user_id, terms_accepted_by_membro_id, terms_accepted_by_nome, updated_at
+            terms_accepted_by_user_id, terms_accepted_by_membro_id, terms_accepted_by_nome,
+            terms_acceptance_location, updated_at
           )
-          VALUES (${req.params.biaId}, 'documents_pending', ${version}, now(), ${actor.userId}, ${actor.membroId}, ${actor.nome}, now())
+          VALUES (${req.params.biaId}, 'documents_pending', ${version}, now(), ${actor.userId}, ${actor.membroId}, ${actor.nome}, ${acceptanceLocationJson}::jsonb, now())
           ON CONFLICT (bia_id) DO UPDATE SET
             status = CASE WHEN bia_bank_accounts.status = 'not_started' THEN 'documents_pending' ELSE bia_bank_accounts.status END,
             terms_version = EXCLUDED.terms_version,
@@ -8133,6 +8699,7 @@ export async function registerRoutes(
             terms_accepted_by_user_id = EXCLUDED.terms_accepted_by_user_id,
             terms_accepted_by_membro_id = EXCLUDED.terms_accepted_by_membro_id,
             terms_accepted_by_nome = EXCLUDED.terms_accepted_by_nome,
+            terms_acceptance_location = EXCLUDED.terms_acceptance_location,
             updated_at = now()
           RETURNING *
         `);
@@ -8150,6 +8717,17 @@ export async function registerRoutes(
           terms_accepted_by_user_id: actor.userId,
           terms_accepted_by_membro_id: actor.membroId,
           terms_accepted_by_nome: actor.nome,
+          terms_acceptance_location: acceptanceLocation,
+        });
+      }
+      if (actor.membroId) {
+        await recordTermAcceptanceAudit({
+          membroId: actor.membroId,
+          termoChave: "pinbank_baas",
+          termoVersao: version,
+          origem: `Núcleo de Capital - BIA ${req.params.biaId}`,
+          aceitoEm: account?.terms_accepted_at || new Date(),
+          aceiteLocalizacao: acceptanceLocation,
         });
       }
       res.json({ success: true, account: normalizeBankAccount(account) });
@@ -8584,6 +9162,7 @@ export async function registerRoutes(
   app.get("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
+      if (!await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "view")) return;
       const localInfo = await storage.getBiaInfoComercial(req.params.id).catch((error: any) => {
         console.warn(`[bia-info] leitura local indisponivel: ${error?.message || error}`);
         return null;
@@ -8605,18 +9184,7 @@ export async function registerRoutes(
   app.put("/api/bias/:id/info-comercial", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
-      const sessionRole = (req.session as any).role || "user";
-      const sessionMembroId = (req.session as any).membroId as string | null;
-      const isSuperAdminRole = sessionRole === "admin" || sessionRole === "manager";
-      const biaPermissao = await directusFetchOne("bias_projetos", req.params.id, "fields=id,aliado_built,diretor_alianca").catch(() => null);
-      const aliadoAtual = directusRelationId(biaPermissao?.aliado_built) || biaPermissao?.aliado_built || null;
-      const diretorAliancaAtual = directusRelationId(biaPermissao?.diretor_alianca) || biaPermissao?.diretor_alianca || null;
-      const canEditBia =
-        isSuperAdminRole ||
-        (!!sessionMembroId && (sessionMembroId === aliadoAtual || sessionMembroId === diretorAliancaAtual));
-      if (!canEditBia) {
-        return res.status(403).json({ error: "Apenas o Aliado BUILT ou o Diretor de AlianÃ§a desta BIA podem editar estas informaÃ§Ãµes." });
-      }
+      if (!await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "edit")) return;
       const infoPayload = pickBiaInfoComercialFields(req.body);
       let directusInfo = infoPayload;
       try {
@@ -8644,6 +9212,7 @@ export async function registerRoutes(
   app.get("/api/bias/:id/aportes", async (req, res) => {
     try {
       const biaId = req.params.id;
+      if (!await requireBiaModuleAccess(req, res, biaId, "capital_financeiro", "view")) return;
       // Filter by BIA server-side to avoid loading all fluxo_caixa entries;
       // description prefix filter applied in-memory (Directus bracket filters are BIA-scoped here)
       const entries = await directusFetch(
@@ -9030,10 +9599,53 @@ export async function registerRoutes(
     console.warn(`[fluxo_pagamento] Campos de pagamento nao sincronizados: ${err.message}`);
   });
 
+  const fluxoBiaId = (item: any): string | null => directusRelationId(item?.bia || item?.bia_id);
+
+  async function requireFluxoAccess(req: any, res: any, fluxoId: string, required: "view" | "edit") {
+    if (!(req.session as any).directusUserId) {
+      res.status(401).json({ error: "Nao autenticado" });
+      return null;
+    }
+    const snapshot = await fetchFluxoSnapshot(fluxoId).catch(() => null);
+    if (!snapshot) {
+      res.status(404).json({ error: "Lancamento nao encontrado" });
+      return null;
+    }
+    const biaId = fluxoBiaId(snapshot);
+    if (!biaId) {
+      res.status(403).json({ error: "O lancamento nao esta vinculado a uma BIA autorizada." });
+      return null;
+    }
+    const authorization = await requireBiaModuleAccess(req, res, biaId, "capital_financeiro", required);
+    return authorization ? { snapshot, biaId, authorization } : null;
+  }
+
   app.get("/api/fluxo-caixa", async (req, res) => {
     try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+      const requestedBiaId = req.query.bia_id ? String(req.query.bia_id) : null;
+      if (requestedBiaId && !await requireBiaModuleAccess(req, res, requestedBiaId, "capital_financeiro", "view")) return;
       const items = await directusFetch("fluxo_caixa", "fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.id,favorecido_id.nome,favorecido_id.Nome_de_usuario,favorecido_id.razao_social");
-      const mapped = items.map((f: any) => {
+      let authorizedItems = requestedBiaId
+        ? items.filter((item: any) => fluxoBiaId(item) === requestedBiaId)
+        : items;
+      if (!requestedBiaId && !hasBiaAdminBypass(req)) {
+        const uniqueBiaIds = Array.from(new Set<string>(
+          (items as any[]).map(fluxoBiaId).filter((id: string | null): id is string => Boolean(id)),
+        ));
+        const decisions = await Promise.all(uniqueBiaIds.map(async (biaId) => {
+          const bia = await resolveBiaByIdOrPublicCode(biaId, "*").catch(() => null);
+          if (!bia) return [biaId, false] as const;
+          const access = await resolveBiaAccessForRequest(bia, req);
+          return [biaId, hasBiaAccess(access.permissions, "capital_financeiro", "view")] as const;
+        }));
+        const allowedBiaIds = new Set(decisions.filter(([, allowed]) => allowed).map(([biaId]) => biaId));
+        authorizedItems = items.filter((item: any) => {
+          const biaId = fluxoBiaId(item);
+          return Boolean(biaId && allowedBiaIds.has(biaId));
+        });
+      }
+      const mapped = authorizedItems.map((f: any) => {
         const anexos = (f.Anexos || []).map((a: any) => {
           if (a && a.directus_files_id) {
             const file = typeof a.directus_files_id === "object" ? a.directus_files_id : null;
@@ -9112,6 +9724,7 @@ export async function registerRoutes(
 
   app.get("/api/fluxo-caixa/:id/historico", async (req, res) => {
     try {
+      if (!await requireFluxoAccess(req, res, req.params.id, "view")) return;
       const result = await db.execute(sql`
         SELECT
           id,
@@ -9140,6 +9753,9 @@ export async function registerRoutes(
   app.post("/api/fluxo-caixa/importar-anexos", upload.single("file"), async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
+      const biaId = String(req.body?.bia_id || "");
+      if (!biaId) return res.status(400).json({ error: "Selecione uma BIA antes de analisar o arquivo." });
+      if (!await requireBiaModuleAccess(req, res, biaId, "capital_financeiro", "edit")) return;
       const file = (req as any).file;
       if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
 
@@ -9307,6 +9923,9 @@ ${textContent}`;
   app.post("/api/fluxo-caixa", async (req, res) => {
     try {
       const body = req.body;
+      const biaId = String(body.bia || body.bia_id || "");
+      if (!biaId) return res.status(400).json({ error: "bia_id e obrigatorio" });
+      if (!await requireBiaModuleAccess(req, res, biaId, "capital_financeiro", "edit")) return;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const anexoFileIds: string[] = (body.anexos || []).filter((id: string) => uuidRegex.test(id));
       const anexosPayload = anexoFileIds.map((fileId: string) => ({
@@ -9351,7 +9970,9 @@ ${textContent}`;
 
   app.patch("/api/fluxo-caixa/:id", async (req, res) => {
     try {
-      const antes = await fetchFluxoSnapshot(req.params.id);
+      const flowAccess = await requireFluxoAccess(req, res, req.params.id, "edit");
+      if (!flowAccess) return;
+      const antes = flowAccess.snapshot;
       const body = req.body;
       const data: Record<string, any> = {};
       if (body.tipo !== undefined) data.tipo = body.tipo;
@@ -9537,6 +10158,7 @@ ${textContent}`;
 
   app.post("/api/fluxo-caixa/:id/gerar-pagamento", async (req, res) => {
     try {
+      if (!await requireFluxoAccess(req, res, req.params.id, "edit")) return;
       const pais = req.body?.pais === "fora" ? "fora" : "brasil";
       const nome = String(req.body?.nome || "").trim();
       const email = String(req.body?.email || "").trim();
@@ -9643,7 +10265,9 @@ ${textContent}`;
 
   app.delete("/api/fluxo-caixa/:id", async (req, res) => {
     try {
-      const antes = await fetchFluxoSnapshot(req.params.id);
+      const flowAccess = await requireFluxoAccess(req, res, req.params.id, "edit");
+      if (!flowAccess) return;
+      const antes = flowAccess.snapshot;
       await registrarFluxoHistorico({
         fluxoId: req.params.id,
         acao: "excluido",
@@ -10588,7 +11212,7 @@ ${textContent}`;
     return {
       id,
       nome: String(body.nome || body.qualificacao || "Imóvel").slice(0, 180),
-      tipo: String(body.tipo || "Imóvel").slice(0, 80),
+      tipo: String(body.tipo || "").slice(0, 80),
       area_m2: body.area_m2 || body.area || "",
       valor_pago: body.valor_pago || "",
       valor_atual: body.valor_atual || body.valor || "",
@@ -10889,43 +11513,6 @@ ${textContent.slice(0, 16000)}`;
     return parsePtBrMoney(String(value ?? ""));
   }
 
-  function estimateRegionalM2(location: string, tipo: string): { min: number; max: number; confidence: "baixa" | "media" } {
-    const normalized = `${location} ${tipo}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const isLand = /\b(terreno|lote|gleba|land|area)\b/.test(normalized);
-    const scale = isLand ? 0.45 : 1;
-    let min = 2500;
-    let max = 6500;
-    let confidence: "baixa" | "media" = "baixa";
-
-    if (/sao paulo|sp\b|jundiai|campinas|sorocaba|santo andre|sao bernardo|barueri|alphaville/.test(normalized)) {
-      min = /sao paulo/.test(normalized) ? 8000 : 4500;
-      max = /sao paulo/.test(normalized) ? 16000 : 9500;
-      confidence = "media";
-    } else if (/rio de janeiro|rj\b|niteroi/.test(normalized)) {
-      min = 6500; max = 15000; confidence = "media";
-    } else if (/belo horizonte|bh\b|nova lima|mg\b/.test(normalized)) {
-      min = 4500; max = 9500; confidence = "media";
-    } else if (/vitoria|vila velha|serra|espirito santo|es\b/.test(normalized)) {
-      min = 4500; max = 10000; confidence = "media";
-    } else if (/curitiba|florianopolis|porto alegre|brasilia|goiania|recife|salvador|fortaleza/.test(normalized)) {
-      min = 4500; max = 11000; confidence = "media";
-    } else if (/brasil|brazil/.test(normalized)) {
-      min = 2800; max = 7500;
-    }
-
-    return {
-      min: Math.round(min * scale),
-      max: Math.round(max * scale),
-      confidence,
-    };
-  }
-
-  function classifyM2(precoM2: number, media: number): "abaixo" | "media" | "acima" {
-    if (precoM2 < media * 0.9) return "abaixo";
-    if (precoM2 > media * 1.1) return "acima";
-    return "media";
-  }
-
   function extractJsonObject(text: string): any {
     const raw = String(text || "").trim();
     if (!raw) return {};
@@ -10937,48 +11524,44 @@ ${textContent.slice(0, 16000)}`;
     return JSON.parse(match[0]);
   }
 
-  function normalizeMarketSources(value: any): Array<{ titulo: string; url: string; trecho?: string }> {
-    if (!Array.isArray(value)) return [];
-    return value
-      .map((item) => ({
-        titulo: String(item?.titulo || item?.title || item?.nome || "Fonte").slice(0, 160),
-        url: String(item?.url || item?.link || "").trim(),
-        trecho: item?.trecho || item?.resumo ? String(item.trecho || item.resumo).slice(0, 240) : undefined,
-      }))
-      .filter((item) => /^https?:\/\//i.test(item.url))
-      .slice(0, 8);
-  }
-
   async function analyzeM2WithWebSearch(params: {
     origem: string;
     nome: string;
     tipo: string;
     location: string;
+    bairro: string;
+    cidade: string;
     valor: number;
     areaM2: number;
     precoM2: number;
     moeda: string;
   }) {
-    const prompt = `Pesquise na internet referências atuais de preço por metro quadrado para comparar um imóvel/BIA.
+    const areaMin = Math.max(1, params.areaM2 - MARKET_AREA_TOLERANCE_M2);
+    const areaMax = params.areaM2 + MARKET_AREA_TOLERANCE_M2;
+    const requiredRegion = params.bairro || params.cidade || params.location;
+    const prompt = `Pesquise na internet anúncios atuais e individuais de imóveis à venda para comparar um imóvel/BIA.
 
 Dados do ativo:
 - Origem: ${params.origem}
 - Nome: ${params.nome}
 - Tipo/qualificação: ${params.tipo}
 - Localização/endereço: ${params.location}
+- Região obrigatória: ${requiredRegion}
 - Valor total informado: ${params.valor.toFixed(2)} ${params.moeda}
 - Área: ${params.areaM2.toFixed(2)} m²
+- Faixa de área permitida: ${areaMin.toFixed(2)} a ${areaMax.toFixed(2)} m², inclusive
 - Preço informado por m²: ${params.precoM2.toFixed(2)} ${params.moeda}/m²
 
 Instruções:
-- Use pesquisa web real. Priorize portais imobiliários, índices de mercado, relatórios de incorporadoras/consultorias, anúncios comparáveis e páginas com data recente.
-- Compare imóveis do mesmo tipo e região mais próxima possível. Se só houver dados da cidade/região ampla, marque confiança baixa ou média.
-- Não use conhecimento genérico nem tabela fixa interna. Se não encontrar referências úteis, retorne "indeterminado".
-- Extraia ao menos 2 fontes quando possível. Não invente URLs, valores ou fontes.
-- Classifique como "media" quando o preço informado estiver dentro de aproximadamente +/-10% da referência média.
-- Arredonde valores monetários para inteiros.
+- Use pesquisa web real e retorne somente anúncios individuais de venda com URL pública direta.
+- Não use índices genéricos, médias municipais, relatórios, páginas de busca sem imóvel específico, aluguel ou conhecimento interno.
+- Cada anúncio precisa ser do mesmo tipo do ativo, estar em ${requiredRegion} e ter área entre ${areaMin.toFixed(2)} e ${areaMax.toFixed(2)} m².
+- Para cada anúncio, extraia o preço total de venda, a área, o tipo, o bairro, a cidade, a localização e a URL.
+- Procure até 12 anúncios válidos. Não amplie silenciosamente a região nem a faixa de área.
+- Não calcule média, faixa, diferença, confiança ou classificação; o servidor fará esses cálculos.
+- Não invente anúncios, URLs, preços, áreas ou localizações. Quando um dado não estiver explícito na fonte, não inclua o anúncio.
 - Responda SOMENTE JSON minificado neste formato:
-{"classificacao":"abaixo|media|acima|indeterminado","preco_m2_informado":0,"referencia_m2_min":0,"referencia_m2_max":0,"referencia_m2_media":0,"diferenca_percentual":0,"confianca":"baixa|media|alta","resumo":"texto curto","fatores":["item"],"observacao":"texto curto","fontes":[{"titulo":"nome da fonte","url":"https://...","trecho":"referência usada"}]}`;
+{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","bairro":"bairro","cidade":"cidade","localizacao":"bairro, cidade, estado","area_m2":0,"preco_total":0,"moeda":"BRL","trecho":"preço e área encontrados na fonte"}]}`;
 
     const client = getOpenAI() as any;
     if (!client.responses?.create) {
@@ -10992,14 +11575,14 @@ Instruções:
       input: [
         {
           role: "system",
-          content: "Você é um analista imobiliário prudente. Use somente evidências encontradas na web para referência de preço por m². Se a pesquisa for insuficiente, declare indeterminado.",
+          content: "Você é um pesquisador de comparáveis imobiliários. Extraia somente anúncios públicos de venda que atendam exatamente ao tipo, à região e à faixa de área solicitados.",
         },
         { role: "user", content: prompt },
       ],
       tools: [{ type: "web_search_preview" }],
       include: ["web_search_call.results"],
       temperature: 0.1,
-      max_output_tokens: 1200,
+      max_output_tokens: 2600,
     });
 
     return extractJsonObject(response.output_text || "");
@@ -11009,6 +11592,10 @@ Instruções:
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
       const body = req.body || {};
+      if (String(body.origem || "").toLowerCase() === "bia") {
+        if (!body.bia_id) return res.status(400).json({ error: "bia_id e obrigatorio para analisar uma BIA." });
+        if (!await requireBiaModuleAccess(req, res, String(body.bia_id), "capital_analises", "edit")) return;
+      }
       const areaM2 = parseAreaM2Server(body.area_m2);
       const valor = parseMarketValueServer(body.valor);
       if (areaM2 <= 0 || valor <= 0) {
@@ -11030,30 +11617,25 @@ Instruções:
         nome: String(body.nome || "Não informado"),
         tipo: String(body.tipo || body.qualificacao || "Não informado"),
         location,
+        bairro: String(body.bairro || ""),
+        cidade: String(body.cidade || ""),
         valor,
         areaM2,
         precoM2,
         moeda: String(body.moeda || "BRL"),
       });
-
-      const fontes = normalizeMarketSources(parsed.fontes);
-      const referenceAverage = Number(parsed.referencia_m2_media || 0);
-      const hasReference = Number.isFinite(referenceAverage) && referenceAverage > 0 && fontes.length > 0 && parsed.classificacao !== "indeterminado";
-      if (!hasReference) {
-        parsed.classificacao = "indeterminado";
-        parsed.referencia_m2_min = 0;
-        parsed.referencia_m2_max = 0;
-        parsed.referencia_m2_media = 0;
-        parsed.diferenca_percentual = 0;
-        parsed.confianca = "baixa";
-        parsed.resumo = "Não foi possível encontrar referências públicas suficientes na internet para comparar o preço por m² com segurança.";
-        parsed.fatores = ["pesquisa web insuficiente", "localização", "tipo de imóvel"];
-        parsed.observacao = "Sem fallback estimado: a análise só informa média quando encontra fontes públicas úteis.";
-      }
+      const analysis = buildComparableMarketAnalysis(parsed.comparaveis || parsed.imoveis, {
+        tipo: String(body.tipo || body.qualificacao || "Não informado"),
+        bairro: String(body.bairro || ""),
+        cidade: String(body.cidade || ""),
+        localizacao: String(body.localizacao || location),
+        areaM2,
+        precoM2,
+        moeda: String(body.moeda || "BRL"),
+      });
       res.json({
         success: true,
-        ...parsed,
-        fontes,
+        ...analysis,
         preco_m2_informado: Math.round(precoM2),
         valor_total: Math.round(valor),
         area_m2: Number(areaM2.toFixed(2)),
@@ -12492,17 +13074,50 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   });
 
   // â”€â”€ NÃºcleo TÃ©cnico Documentos (PostgreSQL local) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function findNucleoTecnicoDoc(id: string) {
+    try {
+      const [row] = await db.select().from(nucleoTecnicoDocs).where(eq(nucleoTecnicoDocs.id, id)).limit(1);
+      if (row) return row;
+    } catch {}
+    return [...nucleoTecnicoDocsFallback, ...listFallbackDocuments("tecnico")]
+      .find((item: any) => String(item.id) === String(id)) || null;
+  }
+
+  const aliancaDocumentAccessKey = (modulo: unknown): BiaAccessKey | null => {
+    const keys: Record<string, BiaAccessKey> = {
+      obra: "documentos_obra",
+      comercial: "documentos_comercial",
+      capital: "documentos_capital",
+    };
+    return keys[String(modulo || "")] || null;
+  };
+
+  async function findAliancaDoc(id: string) {
+    try {
+      const [row] = await db.select().from(aliancaDocs).where(eq(aliancaDocs.id, id)).limit(1);
+      if (row) return row;
+    } catch {}
+    return listFallbackDocuments("alianca").find((item: any) => String(item.id) === String(id)) || null;
+  }
+
   app.get("/api/nucleo-tecnico-docs", async (req, res) => {
     try {
+      const biaId = String(req.query.bia_id || "");
+      if (!biaId) return res.status(400).json({ error: "bia_id e obrigatorio" });
+      if (!await requireBiaModuleAccess(req, res, biaId, "documentos_tecnico", "view")) return;
       let rows: any[] = [];
       try {
         rows = await db.select().from(nucleoTecnicoDocs).orderBy(desc(nucleoTecnicoDocs.created_at));
       } catch (error: any) {
         console.warn("[nucleo-tecnico-docs] usando fallback temporario:", error?.message || error);
       }
-      const fallbackIds = new Set(nucleoTecnicoDocsFallback.map((item: any) => item.id));
+      const persistedFallback = listFallbackDocuments("tecnico");
+      const fallbackRows = [...nucleoTecnicoDocsFallback, ...persistedFallback].filter(
+        (item: any, index, items) => items.findIndex((current: any) => String(current.id) === String(item.id)) === index,
+      );
+      const fallbackIds = new Set(fallbackRows.map((item: any) => item.id));
       const mergedRows = [
-        ...nucleoTecnicoDocsFallback,
+        ...fallbackRows,
         ...rows.filter((item: any) => !fallbackIds.has(item.id)),
       ];
       const filtered = mergedRows.filter((r: any) => {
@@ -12522,32 +13137,59 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   });
 
   app.post("/api/nucleo-tecnico-docs", async (req, res) => {
+    const { arquivos, ...rest } = req.body;
     try {
-      const { arquivos, ...rest } = req.body;
+      if (!rest.bia_id) return res.status(400).json({ error: "bia_id e obrigatorio" });
+      if (!await requireBiaModuleAccess(req, res, String(rest.bia_id), "documentos_tecnico", "edit")) return;
       const [item] = await db.insert(nucleoTecnicoDocs).values(rest).returning();
       res.json(item);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      const item = upsertFallbackDocument("tecnico", {
+        ...rest,
+        id: randomUUID(),
+        created_at: new Date().toISOString(),
+      });
+      console.warn("[nucleo-tecnico-docs] documento salvo no fallback local:", error?.message || error);
+      res.json({ ...item, fallback: true });
     }
   });
 
   app.patch("/api/nucleo-tecnico-docs/:id", async (req, res) => {
+    const { arquivos, ...rest } = req.body;
+    const existing = await findNucleoTecnicoDoc(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Documento não encontrado." });
+    if (!await requireBiaModuleAccess(req, res, String(existing.bia_id), "documentos_tecnico", "edit")) return;
+    let databaseError: any = null;
     try {
-      const { arquivos, ...rest } = req.body;
       const [item] = await db.update(nucleoTecnicoDocs).set(rest).where(eq(nucleoTecnicoDocs.id, req.params.id)).returning();
-      res.json(item);
+      if (item) return res.json(item);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      databaseError = error;
     }
+    const current = listFallbackDocuments("tecnico").find((item: any) => String(item.id) === String(req.params.id));
+    if (current) return res.json(upsertFallbackDocument("tecnico", { ...current, ...rest, id: current.id }));
+    if (databaseError) return res.status(503).json({ error: "Banco de documentos indisponível no momento." });
+    return res.status(404).json({ error: "Documento não encontrado." });
   });
 
   app.delete("/api/nucleo-tecnico-docs/:id", async (req, res) => {
+    const existing = await findNucleoTecnicoDoc(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Documento não encontrado." });
+    if (!await requireBiaModuleAccess(req, res, String(existing.bia_id), "documentos_tecnico", "edit")) return;
+    let databaseAvailable = true;
+    let databaseDeleted = false;
     try {
-      await db.delete(nucleoTecnicoDocs).where(eq(nucleoTecnicoDocs.id, req.params.id));
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      const deleted = await db.delete(nucleoTecnicoDocs).where(eq(nucleoTecnicoDocs.id, req.params.id)).returning({ id: nucleoTecnicoDocs.id });
+      databaseDeleted = deleted.length > 0;
+    } catch {
+      databaseAvailable = false;
     }
+    const fallbackDeleted = deleteFallbackDocument("tecnico", req.params.id);
+    const memoryIndex = nucleoTecnicoDocsFallback.findIndex((item: any) => String(item.id) === String(req.params.id));
+    if (memoryIndex >= 0) nucleoTecnicoDocsFallback.splice(memoryIndex, 1);
+    if (databaseDeleted || fallbackDeleted || memoryIndex >= 0) return res.json({ success: true });
+    if (!databaseAvailable) return res.status(503).json({ error: "Banco de documentos indisponível no momento." });
+    return res.status(404).json({ error: "Documento não encontrado." });
   });
 
   // â”€â”€ Directus Asset Proxy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -12558,8 +13200,20 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   // â”€â”€ AlianÃ§a Docs (Obra / Comercial / Capital) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   app.get("/api/alianca-docs", async (req, res) => {
     try {
-      const rows = await db.select().from(aliancaDocs).orderBy(desc(aliancaDocs.created_at));
-      const filtered = rows.filter((r: any) => {
+      const biaId = String(req.query.bia_id || "");
+      const accessKey = aliancaDocumentAccessKey(req.query.modulo);
+      if (!biaId || !accessKey) return res.status(400).json({ error: "bia_id e modulo sao obrigatorios" });
+      if (!await requireBiaModuleAccess(req, res, biaId, accessKey, "view")) return;
+      let rows: any[] = [];
+      try {
+        rows = await db.select().from(aliancaDocs).orderBy(desc(aliancaDocs.created_at));
+      } catch (error: any) {
+        console.warn("[alianca-docs] usando fallback local:", error?.message || error);
+      }
+      const fallbackRows = listFallbackDocuments("alianca");
+      const fallbackIds = new Set(fallbackRows.map((item: any) => String(item.id)));
+      const mergedRows = [...fallbackRows, ...rows.filter((item: any) => !fallbackIds.has(String(item.id)))];
+      const filtered = mergedRows.filter((r: any) => {
         if (req.query.modulo && r.modulo !== req.query.modulo) return false;
         if (req.query.bia_id && r.bia_id !== req.query.bia_id) return false;
         if (req.query.alianca_tipo && r.alianca_tipo !== req.query.alianca_tipo) return false;
@@ -12575,26 +13229,60 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   });
 
   app.post("/api/alianca-docs", async (req, res) => {
+    const { arquivos, ...rest } = req.body;
     try {
-      const { arquivos, ...rest } = req.body;
+      const accessKey = aliancaDocumentAccessKey(rest.modulo);
+      if (!rest.bia_id || !accessKey) return res.status(400).json({ error: "bia_id e modulo sao obrigatorios" });
+      if (!await requireBiaModuleAccess(req, res, String(rest.bia_id), accessKey, "edit")) return;
       const [item] = await db.insert(aliancaDocs).values(rest).returning();
       res.json(item);
-    } catch (error: any) { res.status(500).json({ error: error.message }); }
+    } catch (error: any) {
+      const item = upsertFallbackDocument("alianca", {
+        ...rest,
+        id: randomUUID(),
+        created_at: new Date().toISOString(),
+      });
+      console.warn("[alianca-docs] documento salvo no fallback local:", error?.message || error);
+      res.json({ ...item, fallback: true });
+    }
   });
 
   app.patch("/api/alianca-docs/:id", async (req, res) => {
+    const { arquivos, ...rest } = req.body;
+    const existing = await findAliancaDoc(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Documento não encontrado." });
+    const accessKey = aliancaDocumentAccessKey(existing.modulo);
+    if (!accessKey || !await requireBiaModuleAccess(req, res, String(existing.bia_id), accessKey, "edit")) return;
+    let databaseError: any = null;
     try {
-      const { arquivos, ...rest } = req.body;
       const [item] = await db.update(aliancaDocs).set(rest).where(eq(aliancaDocs.id, req.params.id)).returning();
-      res.json(item);
-    } catch (error: any) { res.status(500).json({ error: error.message }); }
+      if (item) return res.json(item);
+    } catch (error: any) {
+      databaseError = error;
+    }
+    const current = listFallbackDocuments("alianca").find((item: any) => String(item.id) === String(req.params.id));
+    if (current) return res.json(upsertFallbackDocument("alianca", { ...current, ...rest, id: current.id }));
+    if (databaseError) return res.status(503).json({ error: "Banco de documentos indisponível no momento." });
+    return res.status(404).json({ error: "Documento não encontrado." });
   });
 
   app.delete("/api/alianca-docs/:id", async (req, res) => {
+    const existing = await findAliancaDoc(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Documento não encontrado." });
+    const accessKey = aliancaDocumentAccessKey(existing.modulo);
+    if (!accessKey || !await requireBiaModuleAccess(req, res, String(existing.bia_id), accessKey, "edit")) return;
+    let databaseAvailable = true;
+    let databaseDeleted = false;
     try {
-      await db.delete(aliancaDocs).where(eq(aliancaDocs.id, req.params.id));
-      res.json({ success: true });
-    } catch (error: any) { res.status(500).json({ error: error.message }); }
+      const deleted = await db.delete(aliancaDocs).where(eq(aliancaDocs.id, req.params.id)).returning({ id: aliancaDocs.id });
+      databaseDeleted = deleted.length > 0;
+    } catch {
+      databaseAvailable = false;
+    }
+    const fallbackDeleted = deleteFallbackDocument("alianca", req.params.id);
+    if (databaseDeleted || fallbackDeleted) return res.json({ success: true });
+    if (!databaseAvailable) return res.status(503).json({ error: "Banco de documentos indisponível no momento." });
+    return res.status(404).json({ error: "Documento não encontrado." });
   });
 
   // â”€â”€ Estudos de Viabilidade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -12688,6 +13376,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       const biaId = req.query.bia_id as string;
       if (!biaId) return res.status(400).json({ error: "bia_id Ã© obrigatÃ³rio" });
+      if (!await requireBiaModuleAccess(req, res, biaId, "capital_financeiro", "view")) return;
       const items = await storage.getTransferenciasCotasByBia(biaId);
       res.json(items);
     } catch (error: any) {
@@ -12705,6 +13394,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if (!bia_id || !membro_origem_id || !membro_destino_id) {
         return res.status(400).json({ error: "Campos obrigatÃ³rios: bia_id, membro_origem_id, membro_destino_id" });
       }
+      if (!await requireBiaModuleAccess(req, res, String(bia_id), "capital_financeiro", "edit")) return;
       const observacao = typeof observacoes === "string" ? observacoes.trim() : "";
       if (!observacao) {
         return res.status(400).json({ error: "ObservaÃ§Ã£o Ã© obrigatÃ³ria" });
@@ -12758,6 +13448,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const transfer = await storage.getTransferenciaCotas(req.params.id);
       if (!transfer) return res.status(404).json({ error: "SolicitaÃ§Ã£o nÃ£o encontrada" });
+      if (!transfer.bia_id || !await requireBiaModuleAccess(req, res, String(transfer.bia_id), "capital_financeiro", "edit")) return;
       if (transfer.status !== "pendente") {
         return res.status(400).json({ error: "SolicitaÃ§Ã£o jÃ¡ foi processada" });
       }
@@ -13692,6 +14383,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       paymentExpiry.setHours(paymentExpiry.getHours() + 24);
       const now = new Date();
       const body = req.body || {};
+      const acceptanceLocation = getCapturedAcceptanceLocation(body.aceite_localizacao);
+      if (!acceptanceLocation) {
+        return res.status(400).json({ error: ACCEPTANCE_LOCATION_REQUIRED_ERROR });
+      }
       const currentDados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
         ? convite.dados_contratuais as Record<string, any>
         : {};
@@ -13700,7 +14395,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         termos_aceitos: body.termos_aceitos && typeof body.termos_aceitos === "object" ? body.termos_aceitos : currentDados.termos_aceitos || {},
         termos_versoes: body.termos_versoes && typeof body.termos_versoes === "object" ? body.termos_versoes : currentDados.termos_versoes || {},
         aceito_em: body.aceito_em || now.toISOString(),
-        aceite_localizacao: normalizeAcceptanceLocation(body.aceite_localizacao) || currentDados.aceite_localizacao || null,
+        aceite_localizacao: acceptanceLocation,
       };
       const updated = await storage.updateConvite(convite.id, {
         status: "pagamento_pendente",
@@ -13759,6 +14454,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const now = new Date();
       const body = req.body || {};
+      const acceptanceLocation = getCapturedAcceptanceLocation(body.aceite_localizacao);
+      if (!acceptanceLocation) {
+        return res.status(400).json({ error: ACCEPTANCE_LOCATION_REQUIRED_ERROR });
+      }
       const currentDados = convite.dados_contratuais && typeof convite.dados_contratuais === "object"
         ? convite.dados_contratuais as Record<string, any>
         : {};
@@ -13767,7 +14466,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         termos_aceitos: body.termos_aceitos && typeof body.termos_aceitos === "object" ? body.termos_aceitos : currentDados.termos_aceitos || {},
         termos_versoes: body.termos_versoes && typeof body.termos_versoes === "object" ? body.termos_versoes : currentDados.termos_versoes || {},
         aceito_em: body.aceito_em || now.toISOString(),
-        aceite_localizacao: normalizeAcceptanceLocation(body.aceite_localizacao) || currentDados.aceite_localizacao || null,
+        aceite_localizacao: acceptanceLocation,
       };
       const updated = await storage.updateConvite(convite.id, {
         status: "termos_aceitos",
@@ -15002,7 +15701,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       redes.includes("BUILT_ALLIANCE_PARTNER");
     const canConsultAura =
       emMembrosBuilt ||
-      ["membro", "aliado", "manager", "admin"].includes(role) ||
+      ["membro", "aliado", "manager", "admin", "superadmin"].includes(role) ||
       hasMemberSeal;
     const canRegisterAura = canConsultAura;
     const isVitrineOnly =
@@ -15025,12 +15724,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   async function getAuraLinkedMemberIdsServer(currentMemberId?: string | null): Promise<Set<string>> {
     const ids = new Set<string>();
+    const communityIds = new Set<string>();
     if (!currentMemberId) return ids;
     const current = String(currentMemberId);
 
     try {
       const col = await getComunidadeCol();
-      const comunidades = await directusFetch(
+      const comunidades = await directusFetchScoped(
         col,
         "fields=id,aliado.id,membros.cadastro_geral_id.id&limit=-1"
       );
@@ -15038,9 +15738,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         const aliadoId = directusRelationId(comunidade?.aliado);
         const membros = Array.isArray(comunidade?.membros) ? comunidade.membros : [];
         const membroIds = membros
-          .map((m: any) => directusRelationId(m?.cadastro_geral_id))
+          .map((m: any) => directusRelationId(m?.cadastro_geral_id ?? m))
           .filter(Boolean) as string[];
-        if (aliadoId === current || membroIds.includes(current)) {
+        if (String(aliadoId || "") === current || membroIds.map(String).includes(current)) {
+          if (comunidade?.id != null) communityIds.add(String(comunidade.id));
           if (aliadoId) ids.add(aliadoId);
           for (const id of membroIds) ids.add(id);
         }
@@ -15052,11 +15753,68 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     try {
       const storedComunidadeMae = await getStoredMembroComunidadeMae(current);
       if (storedComunidadeMae?.comunidade_id) {
-        const membrosMae = await getMembroIdsDaComunidadeMae(String(storedComunidadeMae.comunidade_id));
+        const comunidadeMaeId = String(storedComunidadeMae.comunidade_id);
+        communityIds.add(comunidadeMaeId);
+        const membrosMae = await getMembroIdsDaComunidadeMae(comunidadeMaeId);
         for (const id of membrosMae) ids.add(id);
       }
     } catch (error: any) {
       console.warn("[aura-vinculos] falha ao carregar comunidade mae local:", error?.message);
+    }
+
+    try {
+      const convites = await storage.getAllConvites();
+      const inactiveStatuses = new Set([
+        "rejeitado",
+        "rejeitada",
+        "cancelado",
+        "cancelada",
+        "arquivado",
+        "arquivada",
+      ]);
+      const activeInvites = (convites || []).filter((convite: any) => {
+        const status = String(convite?.status || "").trim().toLowerCase();
+        return !inactiveStatuses.has(status);
+      });
+
+      // A member may belong to more than one community. First collect every
+      // community reached by their active memberships/invitations.
+      for (const convite of activeInvites) {
+        const candidatoId = convite?.candidato_membro_id
+          ? String(convite.candidato_membro_id)
+          : "";
+        const invitadorId = convite?.invitador_membro_id
+          ? String(convite.invitador_membro_id)
+          : "";
+        const comunidadeId = convite?.comunidade_id
+          ? String(convite.comunidade_id)
+          : "";
+        if (comunidadeId && (candidatoId === current || invitadorId === current)) {
+          communityIds.add(comunidadeId);
+        }
+      }
+
+      // Then include every member found in any of those communities, as well
+      // as direct inviter/candidate relationships.
+      for (const convite of activeInvites) {
+        const candidatoId = convite?.candidato_membro_id
+          ? String(convite.candidato_membro_id)
+          : "";
+        const invitadorId = convite?.invitador_membro_id
+          ? String(convite.invitador_membro_id)
+          : "";
+        const comunidadeId = convite?.comunidade_id
+          ? String(convite.comunidade_id)
+          : "";
+        const linkedByInvitation = candidatoId === current || invitadorId === current;
+        const linkedByCommunity = Boolean(comunidadeId && communityIds.has(comunidadeId));
+
+        if (!linkedByInvitation && !linkedByCommunity) continue;
+        if (candidatoId) ids.add(candidatoId);
+        if (invitadorId) ids.add(invitadorId);
+      }
+    } catch (error: any) {
+      console.warn("[aura-vinculos] falha ao carregar convites da comunidade:", error?.message);
     }
 
     try {
@@ -15162,6 +15920,22 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       return res.json(items);
     } catch {
       return res.json([]);
+    }
+  });
+
+  // GET /api/aura/vinculos - canonical list used by the UI and write authorization.
+  app.get("/api/aura/vinculos", async (req: any, res) => {
+    if (!(req.session as any).directusUserId) {
+      return res.status(401).json({ error: "Nao autenticado" });
+    }
+    try {
+      const access = await getAuraAccessContext(req);
+      if (!access.membroId || !access.canConsultAura) return res.json({ ids: [] });
+      const linkedIds = await getAuraLinkedMemberIdsServer(access.membroId);
+      return res.json({ ids: Array.from(linkedIds) });
+    } catch (error: any) {
+      console.error("[aura-vinculos] erro ao montar vinculos:", error?.message || error);
+      return res.status(500).json({ error: "Nao foi possivel carregar os vinculos de Aura" });
     }
   });
 

@@ -1,9 +1,9 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles, Store, TrendingUp } from "lucide-react";
+import { Loader2, FileText, CheckCircle2, AlertCircle, Shield, Clock, Send, Sparkles, Store, TrendingUp, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
+import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import builtLogo from "@assets/Logo_Built_2_Horizontal_Branca_Nova.png";
 
 interface ConviteData {
@@ -571,6 +571,11 @@ function TermosAceiteView({
           })}
         </div>
 
+        <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <span>{ACCEPTANCE_LOCATION_NOTICE}</span>
+        </div>
+
         <Button
           onClick={onAccept}
           disabled={!allAccepted || isPending}
@@ -616,7 +621,7 @@ export default function AdesaoPage() {
 
   const aceitarTermosMutation = useMutation({
     mutationFn: async () => {
-      const aceite_localizacao = await captureAcceptanceLocation();
+      const aceite_localizacao = await captureRequiredAcceptanceLocation();
       const r = await fetch(`/api/convites/${token}/aceitar-termos`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -655,7 +660,7 @@ export default function AdesaoPage() {
   // Legacy: old flow for associacao_completa tipo (approved by aliado)
   const adesaoMutation = useMutation({
     mutationFn: async () => {
-      const aceite_localizacao = await captureAcceptanceLocation();
+      const aceite_localizacao = await captureRequiredAcceptanceLocation();
       const r = await fetch(`/api/convites/${token}/adesao`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

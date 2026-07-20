@@ -3,24 +3,26 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle, BarChart3, Banknote, Calculator, CheckCircle2, FileText,
   ClipboardList, Copy, Info, Landmark, Link2, Loader2, ReceiptText,
-  RefreshCw, Search, ShieldCheck, Upload, Wallet, XCircle
+  RefreshCw, Search, ShieldCheck, Upload, Wallet, XCircle, MapPin
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import AliancaDocsPage, { AliancaDocsPageConfig } from "./alianca-docs-page";
+import type { AliancaDocsPageConfig } from "./alianca-docs-page";
 import FluxoCaixaPage from "./fluxo-caixa";
 import ResultadosPage from "./resultados";
 import BiasCalculadoraPage from "./bias-calculadora";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
+import type { BiaAccessLevel } from "@shared/bia-access";
 
-const config: AliancaDocsPageConfig = {
+export const NUCLEO_CAPITAL_DOCS_CONFIG: AliancaDocsPageConfig = {
   modulo: "capital",
   titulo: "Documentos",
-  subtitulo: "Documentos de investimento, contabilidade e gestao financeira",
+  subtitulo: "Documentos de investimento, contabilidade e gestão financeira",
   accentColor: "#D7BB7D",
   icon: Landmark,
   theme: "light",
@@ -29,45 +31,45 @@ const config: AliancaDocsPageConfig = {
   aliancas: [
     {
       key: "aporte-financeiro",
-      label: "Aliancas de Aporte Financeiro",
+      label: "Alianças de Aporte Financeiro",
       tipos: [
         { label: "Memorando/teaser do investimento + pitch deck + data room" },
-        { label: "Estrutura do investimento (instrumento, risco, retorno, etc.) (Padrao Politicas BUILT)" },
-        { label: "Acordo de socios/cotistas (governanca, saida, preferencia) (Padrao Politicas BUILT)" },
-        { label: "Plano de captacao por parcelas + condicoes + garantias" },
-        { label: "Cessao de recebiveis / garantias (quando aplicavel)" },
+        { label: "Estrutura do investimento (instrumento, risco, retorno, etc.) (Padrão Políticas BUILT)" },
+        { label: "Acordo de sócios/cotistas (governança, saída, preferência) (Padrão Políticas BUILT)" },
+        { label: "Plano de captação por parcelas + condições + garantias" },
+        { label: "Cessão de recebíveis / garantias (quando aplicável)" },
         { label: "Outro" },
       ],
     },
     {
       key: "contabil",
-      label: "Aliancas Contabeis e Fiscais",
+      label: "Alianças Contábeis e Fiscais",
       tipos: [
-        { label: "Escrituracao e obrigacoes (conforme regime)" },
-        { label: "DRE do projeto, balanco, balancetes, razao, conciliacoes" },
-        { label: "Relatorios de prestacao de contas para cotistas/acionistas (Dashboard)" },
-        { label: "Pastas fiscais (NF, retencoes, impostos, guias, garantias)" },
+        { label: "Escrituração e obrigações (conforme regime)" },
+        { label: "DRE do projeto, balanço, balancetes, razão, conciliações" },
+        { label: "Relatórios de prestação de contas para cotistas/acionistas (Dashboard)" },
+        { label: "Pastas fiscais (NF, retenções, impostos, guias, garantias)" },
         { label: "Outro" },
       ],
     },
     {
       key: "financeiro",
-      label: "Aliancas de Gestao Financeira",
+      label: "Alianças de Gestão Financeira",
       tipos: [
-        { label: "Plano de contas do projeto (CAPEX/OPEX/receitas/distribuicoes) (Fluxo de Caixa)" },
-        { label: "Orcamento baseline + revisoes + controle de versoes" },
+        { label: "Plano de contas do projeto (CAPEX/OPEX/receitas/distribuições) (Fluxo de Caixa)" },
+        { label: "Orçamento baseline + revisões + controle de versões" },
         { label: "Fluxo de caixa (previsto x realizado) + curva de desembolso" },
-        { label: "Politica de pagamentos (alcadas, aprovadores, evidencias)" },
-        { label: "Conciliacao bancaria + extratos + trilha de aprovacao" },
-        { label: "Relatorios de distribuicao (lucro distribuivel, comprovantes, recibos)" },
-        { label: "Estornos/correcoes de despesas e receitas" },
+        { label: "Política de pagamentos (alçadas, aprovadores, evidências)" },
+        { label: "Conciliação bancária + extratos + trilha de aprovação" },
+        { label: "Relatórios de distribuição (lucro distribuível, comprovantes, recibos)" },
+        { label: "Estornos/correções de despesas e receitas" },
         { label: "Outro" },
       ],
     },
   ],
 };
 
-const CAPITAL_TABS = new Set(["banco", "documentos", "financeiro", "analises", "calculadora"]);
+const CAPITAL_TABS = new Set(["banco", "financeiro", "analises", "calculadora"]);
 
 function normalizeCapitalTab(value?: string | null) {
   return value && CAPITAL_TABS.has(value) ? value : "banco";
@@ -163,7 +165,7 @@ function formatJson(value: unknown) {
   }
 }
 
-function BancoBiaPage({ biaId }: { biaId?: string | null }) {
+function BancoBiaPage({ biaId, readOnly = false }: { biaId?: string | null; readOnly?: boolean }) {
   const { toast } = useToast();
   const [docTipo, setDocTipo] = useState<BankDocumentType>(BANK_DOCUMENT_TYPES[0].value);
   const [file, setFile] = useState<File | null>(null);
@@ -195,7 +197,11 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
   const acceptTermsMutation = useMutation({
     mutationFn: async () => {
       if (!biaId) throw new Error("BIA não selecionada");
-      await apiRequest("POST", `/api/bias/${biaId}/banco/aceite-termos`, { version: terms?.version || "pinbank_terms_pending" });
+      const aceite_localizacao = await captureRequiredAcceptanceLocation();
+      await apiRequest("POST", `/api/bias/${biaId}/banco/aceite-termos`, {
+        version: terms?.version || "pinbank_terms_pending",
+        aceite_localizacao,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/bias/${biaId}/banco`] });
@@ -406,10 +412,14 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                   <p className="font-semibold">{terms?.title || "Termos de Uso PINBANK"}</p>
                 </div>
                 <p className="mt-2 max-h-24 overflow-auto text-sm text-muted-foreground">{terms?.body}</p>
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                  <span>{ACCEPTANCE_LOCATION_NOTICE}</span>
+                </div>
                 <Button
                   className="mt-3 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
                   onClick={() => acceptTermsMutation.mutate()}
-                  disabled={acceptTermsMutation.isPending || !providerReady}
+                  disabled={readOnly || acceptTermsMutation.isPending || !providerReady}
                   data-testid="button-aceitar-termos-pinbank"
                 >
                   {acceptTermsMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
@@ -421,7 +431,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
             <Button
               className="bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
               onClick={() => onboardingMutation.mutate()}
-              disabled={onboardingMutation.isPending || !termsAccepted || missingDocuments.length > 0 || !providerReady}
+              disabled={readOnly || onboardingMutation.isPending || !termsAccepted || missingDocuments.length > 0 || !providerReady}
               data-testid="button-abrir-conta-pinbank"
             >
               {onboardingMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />}
@@ -453,6 +463,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                     key={doc.value}
                     type="button"
                     onClick={() => setDocTipo(doc.value)}
+                    disabled={readOnly}
                     className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
                       active ? "border-blue-500 bg-blue-50" : "hover:bg-muted/50"
                     }`}
@@ -487,6 +498,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
               onChange={(event) => setDocTipo(event.target.value as BankDocumentType)}
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               data-testid="select-banco-documento-tipo"
+              disabled={readOnly}
             >
               {BANK_DOCUMENT_TYPES.map((doc) => (
                 <option key={doc.value} value={doc.value}>{doc.group} - {doc.label}</option>
@@ -498,6 +510,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
               accept=".pdf,image/*"
               onChange={(event) => setFile(event.target.files?.[0] || null)}
               data-testid="input-banco-documento-file"
+              disabled={readOnly}
             />
             <label className="flex items-start gap-2 text-sm text-muted-foreground">
               <input
@@ -505,13 +518,14 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                 checked={permitirCompartilhamento}
                 onChange={(event) => setPermitirCompartilhamento(event.target.checked)}
                 className="mt-1"
+                disabled={readOnly}
               />
               Autorizo o compartilhamento deste documento com o banco para fins de KYC e abertura da conta da BIA.
             </label>
             <Button
               variant="outline"
               onClick={() => uploadDocumentMutation.mutate()}
-              disabled={uploadDocumentMutation.isPending || !file || !permitirCompartilhamento}
+              disabled={readOnly || uploadDocumentMutation.isPending || !file || !permitirCompartilhamento}
               data-testid="button-enviar-documento-banco"
             >
               {uploadDocumentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
@@ -533,6 +547,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                 onChange={(event) => setChargeForm((current) => ({ ...current, tipo: event.target.value }))}
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                 data-testid="select-banco-cobranca-tipo"
+                disabled={readOnly}
               >
                 <option value="boleto">Boleto</option>
                 <option value="boleto_split">Boleto com split</option>
@@ -543,34 +558,40 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                 onChange={(event) => setChargeForm((current) => ({ ...current, valor: event.target.value }))}
                 placeholder="Valor, ex: 1500,00"
                 data-testid="input-banco-cobranca-valor"
+                disabled={readOnly}
               />
               <Input
                 value={chargeForm.descricao}
                 onChange={(event) => setChargeForm((current) => ({ ...current, descricao: event.target.value }))}
                 placeholder="Descrição"
                 data-testid="input-banco-cobranca-descricao"
+                disabled={readOnly}
               />
               <Input
                 type="date"
                 value={chargeForm.vencimento}
                 onChange={(event) => setChargeForm((current) => ({ ...current, vencimento: event.target.value }))}
                 data-testid="input-banco-cobranca-vencimento"
+                disabled={readOnly}
               />
               <Input
                 value={chargeForm.pagadorNome}
                 onChange={(event) => setChargeForm((current) => ({ ...current, pagadorNome: event.target.value }))}
                 placeholder="Pagador"
+                disabled={readOnly}
               />
               <Input
                 value={chargeForm.pagadorEmail}
                 onChange={(event) => setChargeForm((current) => ({ ...current, pagadorEmail: event.target.value }))}
                 placeholder="E-mail do pagador"
+                disabled={readOnly}
               />
               <Input
                 value={chargeForm.pagadorDocumento}
                 onChange={(event) => setChargeForm((current) => ({ ...current, pagadorDocumento: event.target.value }))}
                 placeholder="CPF/CNPJ do pagador"
                 className="sm:col-span-2"
+                disabled={readOnly}
               />
             </div>
             {chargeForm.tipo === "boleto_split" && (
@@ -579,6 +600,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                 onChange={(event) => setChargeForm((current) => ({ ...current, splitJson: event.target.value }))}
                 placeholder='Split em JSON, ex: [{"documento":"00000000000","valor":500}]'
                 className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                disabled={readOnly}
               />
             )}
             {!providerReady && (
@@ -590,7 +612,7 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
             <Button
               className="bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
               onClick={() => createChargeMutation.mutate()}
-              disabled={createChargeMutation.isPending || !providerReady || !chargeForm.valor}
+              disabled={readOnly || createChargeMutation.isPending || !providerReady || !chargeForm.valor}
               data-testid="button-banco-gerar-cobranca"
             >
               {createChargeMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}
@@ -699,10 +721,10 @@ function BancoBiaPage({ biaId }: { biaId?: string | null }) {
                         <Copy className="mr-2 h-3.5 w-3.5" /> Copiar linha
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => refreshChargeMutation.mutate(charge.id)} disabled={refreshChargeMutation.isPending}>
+                    <Button variant="outline" size="sm" onClick={() => refreshChargeMutation.mutate(charge.id)} disabled={readOnly || refreshChargeMutation.isPending}>
                       <RefreshCw className="mr-2 h-3.5 w-3.5" /> Atualizar status
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => cancelChargeMutation.mutate(charge.id)} disabled={cancelChargeMutation.isPending || String(charge.status || charge.pagamento_status || "").toLowerCase().includes("cancel")}>
+                    <Button variant="outline" size="sm" onClick={() => cancelChargeMutation.mutate(charge.id)} disabled={readOnly || cancelChargeMutation.isPending || String(charge.status || charge.pagamento_status || "").toLowerCase().includes("cancel")}>
                       <XCircle className="mr-2 h-3.5 w-3.5" /> Cancelar
                     </Button>
                   </div>
@@ -721,23 +743,46 @@ export default function NucleoCapitalPage({
   embedded = false,
   activeTab: controlledActiveTab,
   onTabChange,
+  access,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
   activeTab?: string;
   onTabChange?: (value: string) => void;
+  access?: Partial<Record<"banco" | "financeiro" | "analises" | "calculadora", BiaAccessLevel>>;
 } = {}) {
-  const [activeTab, setActiveTab] = useState(() => normalizeCapitalTab(controlledActiveTab));
+  const tabDefinitions = [
+    { key: "banco", label: "Banco", icon: Banknote, testId: "tab-capital-banco" },
+    { key: "financeiro", label: "Financeiro", icon: Wallet, testId: "tab-capital-financeiro" },
+    { key: "analises", label: "Análises", icon: BarChart3, testId: "tab-capital-analises" },
+    { key: "calculadora", label: "Calculadora DM", icon: Calculator, testId: "tab-capital-calculadora" },
+  ] as const;
+  const allowedTabs = tabDefinitions.filter((tab) => {
+    const level = access?.[tab.key] || (access ? "none" : "edit");
+    return level === "view" || level === "edit";
+  });
+  const allowedTabKey = allowedTabs.map((tab) => tab.key).join("|");
+  const resolveAllowedTab = (value?: string | null) => {
+    const normalized = normalizeCapitalTab(value);
+    return allowedTabs.some((tab) => tab.key === normalized) ? normalized : allowedTabs[0]?.key || "banco";
+  };
+  const [activeTab, setActiveTab] = useState(() => resolveAllowedTab(controlledActiveTab));
 
   useEffect(() => {
-    setActiveTab(normalizeCapitalTab(controlledActiveTab));
-  }, [controlledActiveTab]);
+    const next = resolveAllowedTab(controlledActiveTab);
+    setActiveTab(next);
+    if (controlledActiveTab && controlledActiveTab !== next) onTabChange?.(next);
+  }, [controlledActiveTab, allowedTabKey]);
 
   const handleTabChange = (value: string) => {
-    const next = normalizeCapitalTab(value);
+    const next = resolveAllowedTab(value);
     setActiveTab(next);
     onTabChange?.(next);
   };
+
+  if (allowedTabs.length === 0) {
+    return <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">Você não possui acesso aos módulos de Capital desta BIA.</div>;
+  }
 
   return (
     <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"}`}>
@@ -749,48 +794,41 @@ export default function NucleoCapitalPage({
           Núcleo de Capital
         </h1>
         <p className="text-sm text-muted-foreground">
-          Documentos, financeiro, análises e calculadora DM em uma visão única.
+          Banco, financeiro, análises e calculadora DM em uma visão única.
         </p>
       </div>}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/60 p-1 md:grid-cols-5">
-          <TabsTrigger value="banco" className="gap-2" data-testid="tab-capital-banco">
+        <TabsList className="grid h-auto w-full gap-1 bg-muted/60 p-1" style={{ gridTemplateColumns: `repeat(${allowedTabs.length}, minmax(0, 1fr))` }}>
+          {allowedTabs.some((tab) => tab.key === "banco") && <TabsTrigger value="banco" className="gap-2" data-testid="tab-capital-banco">
             <Banknote className="h-4 w-4" />
             Banco
-          </TabsTrigger>
-          <TabsTrigger value="documentos" className="gap-2" data-testid="tab-capital-documentos">
-            <FileText className="h-4 w-4" />
-            Documentos
-          </TabsTrigger>
-          <TabsTrigger value="financeiro" className="gap-2" data-testid="tab-capital-financeiro">
+          </TabsTrigger>}
+          {allowedTabs.some((tab) => tab.key === "financeiro") && <TabsTrigger value="financeiro" className="gap-2" data-testid="tab-capital-financeiro">
             <Wallet className="h-4 w-4" />
             Financeiro
-          </TabsTrigger>
-          <TabsTrigger value="analises" className="gap-2" data-testid="tab-capital-analises">
+          </TabsTrigger>}
+          {allowedTabs.some((tab) => tab.key === "analises") && <TabsTrigger value="analises" className="gap-2" data-testid="tab-capital-analises">
             <BarChart3 className="h-4 w-4" />
             Análises
-          </TabsTrigger>
-          <TabsTrigger value="calculadora" className="gap-2" data-testid="tab-capital-calculadora">
+          </TabsTrigger>}
+          {allowedTabs.some((tab) => tab.key === "calculadora") && <TabsTrigger value="calculadora" className="gap-2" data-testid="tab-capital-calculadora">
             <Calculator className="h-4 w-4" />
             Calculadora DM
-          </TabsTrigger>
+          </TabsTrigger>}
         </TabsList>
 
         <TabsContent value="banco" className="[&>div]:p-0 [&>div]:max-w-none">
-          {activeTab === "banco" && <BancoBiaPage biaId={initialBiaId} />}
-        </TabsContent>
-        <TabsContent value="documentos" className="[&>div]:p-0 [&>div]:max-w-none">
-          {activeTab === "documentos" && <AliancaDocsPage config={config} initialBiaId={initialBiaId} embedded={embedded} />}
+          {activeTab === "banco" && <BancoBiaPage biaId={initialBiaId} readOnly={access?.banco === "view"} />}
         </TabsContent>
         <TabsContent value="financeiro" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "financeiro" && <FluxoCaixaPage initialBiaId={initialBiaId} embedded={embedded} />}
+          {activeTab === "financeiro" && <FluxoCaixaPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.financeiro === "view"} />}
         </TabsContent>
         <TabsContent value="analises" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "analises" && <ResultadosPage initialBiaId={initialBiaId} embedded={embedded} />}
+          {activeTab === "analises" && <ResultadosPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.analises === "view"} />}
         </TabsContent>
         <TabsContent value="calculadora" className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-page-title']>div]:hidden">
-          {activeTab === "calculadora" && <BiasCalculadoraPage initialBiaId={initialBiaId} embedded={embedded} />}
+          {activeTab === "calculadora" && <BiasCalculadoraPage initialBiaId={initialBiaId} embedded={embedded} readOnly={access?.calculadora === "view"} />}
         </TabsContent>
       </Tabs>
     </div>

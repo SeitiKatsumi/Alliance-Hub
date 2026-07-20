@@ -8,6 +8,8 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "test:bia-access": "node --import tsx --test shared/bia-access.test.ts",
+    "test:market-comparables": "node --import tsx --test server/market-comparables.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

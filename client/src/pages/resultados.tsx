@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { MarketM2Analysis } from "@/lib/market-analysis";
 import {
   TrendingUp, TrendingDown, BarChart3, DollarSign,
   Percent, PiggyBank, Receipt, Landmark, ArrowUpCircle,
@@ -71,23 +72,6 @@ interface FluxoItem {
   tipo: "entrada" | "saida";
   valor: string | number;
   status?: string;
-}
-
-interface MarketM2Analysis {
-  success?: boolean;
-  classificacao?: "abaixo" | "media" | "acima" | "indeterminado";
-  preco_m2_informado?: number;
-  referencia_m2_min?: number;
-  referencia_m2_max?: number;
-  referencia_m2_media?: number;
-  diferenca_percentual?: number;
-  confianca?: "baixa" | "media" | "alta";
-  resumo?: string;
-  fatores?: string[];
-  observacao?: string;
-  fontes?: Array<{ titulo: string; url: string; trecho?: string }>;
-  valor_total?: number;
-  area_m2?: number;
 }
 
 // ---- Helpers ----
@@ -218,7 +202,7 @@ function MarketM2AnalysisCard({
               IA de preço por m²
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              Compara a receita da BIA com uma referência estimada para a região.
+              Compara a receita da BIA com imóveis à venda do mesmo tipo, região e faixa de área.
             </p>
           </div>
           <Button
@@ -250,8 +234,18 @@ function MarketM2AnalysisCard({
                 : "A análise roda automaticamente quando há receita, área e localização suficientes."}
             </p>
           </div>
+        ) : analysis.amostra_suficiente === false ? (
+          <div className="rounded-lg border border-dashed border-blue-200 bg-white/70 p-4">
+            <p className="text-sm font-medium text-foreground">Ainda não há imóveis comparáveis suficientes.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {analysis.resumo || "A média será exibida quando forem encontrados pelo menos 3 anúncios válidos."}
+            </p>
+          </div>
         ) : (
           <>
+            <p className="text-sm font-medium text-blue-800">
+              Baseado em {analysis.quantidade_comparaveis} imóveis comparáveis entre {analysis.area_min.toLocaleString("pt-BR")} e {analysis.area_max.toLocaleString("pt-BR")} m².
+            </p>
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="outline" className={classificationClass(analysis.classificacao)}>
                 {classificationLabel(analysis.classificacao)}
@@ -278,7 +272,7 @@ function MarketM2AnalysisCard({
                 </p>
               </div>
               <div className="rounded-lg border bg-white p-3">
-                <p className="text-xs text-muted-foreground">Faixa estimada</p>
+                <p className="text-xs text-muted-foreground">Faixa dos comparáveis</p>
                 <p className="text-base font-bold text-foreground">
                   {analysis.referencia_m2_min && analysis.referencia_m2_max
                     ? `${formatMoney(analysis.referencia_m2_min, currency)} - ${formatMoneyPerM2(analysis.referencia_m2_max, currency)}`
@@ -368,9 +362,11 @@ function CostRowItem({
 export default function ResultadosPage({
   initialBiaId = null,
   embedded = false,
+  readOnly = false,
 }: {
   initialBiaId?: string | null;
   embedded?: boolean;
+  readOnly?: boolean;
 } = {}) {
   const [selectedBiaId, setSelectedBiaId] = useState<string>(initialBiaId || "");
   const { toast } = useToast();
@@ -461,6 +457,7 @@ export default function ResultadosPage({
       if (!bia) throw new Error("Selecione uma BIA");
       const response = await apiRequest("POST", "/api/ai/preco-m2", {
         origem: "BIA",
+        bia_id: bia.id,
         nome: bia.nome_bia,
         tipo: bia.ativo_qualificacao || "BIA imobiliária",
         valor: parseBRLToNumber(valorRealizadoEdit),
@@ -594,7 +591,8 @@ export default function ResultadosPage({
   }
 
   return (
-    <div className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} space-y-6`}>
+    <fieldset disabled={readOnly} className={`${embedded ? "p-0 max-w-none" : "p-6 max-w-7xl mx-auto"} min-w-0 space-y-6 border-0`}>
+      {readOnly && <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Acesso somente para visualização.</div>}
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -910,7 +908,7 @@ export default function ResultadosPage({
           </Card>
         </>
       )}
-    </div>
+    </fieldset>
   );
 }
 

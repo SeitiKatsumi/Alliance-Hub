@@ -2,7 +2,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { captureAcceptanceLocation } from "@/lib/acceptanceLocation";
+import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -1360,7 +1360,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     mutationFn: async () => {
       if (!mouPendente) throw new Error("Nenhum MOU pendente");
       const base = mouPendente.tipo === "diretor" ? "bia-diretor-solicitacoes" : "bia-socio-solicitacoes";
-      const aceite_localizacao = await captureAcceptanceLocation();
+      const aceite_localizacao = await captureRequiredAcceptanceLocation();
       if (currentMembro?.id) {
         await apiRequest("PATCH", `/api/membros/${currentMembro.id}`, pickMouDadosProfilePayload(mouDadosForm));
       }
@@ -2977,6 +2977,10 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 Li e aceito o MOU Padrão BUILT para a BIA {mouPendente?.bia_nome || "selecionada"}.
               </span>
             </label>
+            <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+              <span>{ACCEPTANCE_LOCATION_NOTICE}</span>
+            </div>
           </div>
           <DialogFooter>
             <Button

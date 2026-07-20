@@ -1,7 +1,7 @@
 import { HardHat } from "lucide-react";
 import AliancaDocsPage, { AliancaDocsPageConfig } from "./alianca-docs-page";
 
-const config: AliancaDocsPageConfig = {
+export const NUCLEO_OBRA_DOCS_CONFIG: AliancaDocsPageConfig = {
   modulo: "obra",
   titulo: "Núcleo de Obra",
   subtitulo: "Documentos de execução e fornecimento",
@@ -46,5 +46,5 @@ export default function NucleoObraPage({
   initialBiaId?: string | null;
   embedded?: boolean;
 } = {}) {
-  return <AliancaDocsPage config={config} initialBiaId={initialBiaId} embedded={embedded} />;
+  return <AliancaDocsPage config={NUCLEO_OBRA_DOCS_CONFIG} initialBiaId={initialBiaId} embedded={embedded} />;
 }

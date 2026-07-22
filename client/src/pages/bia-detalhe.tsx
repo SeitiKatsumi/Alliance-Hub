@@ -301,6 +301,8 @@ function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessRespo
   const { toast } = useToast();
   const [selected, setSelected] = useState<BiaAccessParticipant | null>(null);
   const [matrix, setMatrix] = useState<BiaAccessMatrix>({ ...EMPTY_BIA_ACCESS });
+  const configurableParticipants = (data.participants || [])
+    .filter((participant) => participant.roles.some((role) => role !== "terceiro"));
 
   const openParticipant = (participant: BiaAccessParticipant) => {
     setSelected(participant);
@@ -349,7 +351,7 @@ function BiaAccessManager({ biaId, data }: { biaId: string; data: BiaAccessRespo
           {!data.storage_available && <Badge variant="destructive">Armazenamento indisponível</Badge>}
         </div>
         <div className="divide-y rounded-lg border">
-          {(data.participants || []).map((participant) => (
+          {configurableParticipants.map((participant) => (
             <div key={participant.membro_id} className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">

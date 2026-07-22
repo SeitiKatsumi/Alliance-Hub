@@ -10,6 +10,7 @@
     "check": "tsc",
     "test:bia-access": "node --import tsx --test shared/bia-access.test.ts",
     "test:market-comparables": "node --import tsx --test server/market-comparables.test.ts",
+    "test:aura": "node --import tsx --test server/aura-lexico.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

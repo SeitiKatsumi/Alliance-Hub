@@ -2435,6 +2435,9 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
           throw new Error("Preencha a data de vencimento de todas as parcelas antes de salvar.");
         }
       }
+      if (formaPagamento === "a_vista" && valorAVista <= 0) {
+        throw new Error("Informe um valor de origem maior que zero.");
+      }
       setUploading(pendingFiles.length > 0);
       let newFileIds: string[] = [];
       if (pendingFiles.length > 0) {
@@ -2447,6 +2450,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       const multiplicadoresSet = new Set(sociosMultiplicadores);
       const sociosGuardioes = parseMemberList(form.socios_guardioes).filter((id) => !multiplicadoresSet.has(id));
       const terceiros = parseMemberList(form.terceiros);
+      const shouldSubmitValorOrigem = !isEdit || !!formaPagamento || form.valor_origem.trim() !== "";
 
       const payload: Record<string, any> = {
         nome_bia: form.nome_bia.trim(),
@@ -2469,7 +2473,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         socios_multiplicadores: sociosMultiplicadores,
         socios_guardioes: sociosGuardioes,
         terceiros,
-        valor_origem: valorOrigem || null,
         _forma_pagamento: formaPagamento || null,
         _numero_parcelas: formaPagamento === "parcelado" ?numParcelasInt : null,
         _vencimento_origem: formaPagamento === "a_vista" ?(vencimento || null) : null,
@@ -2494,6 +2497,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
         imagem_directus_id: form.imagem_directus_id || null,
         moeda: form.moeda || "BRL",
       };
+      if (shouldSubmitValorOrigem) payload.valor_origem = valorOrigem;
       if (pendingFiles.length > 0 || allAnexoIds.length > 0) {
         payload.Anexos = allAnexoIds;
       }

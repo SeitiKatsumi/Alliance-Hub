@@ -163,6 +163,10 @@ export function canManageBiaAccess(roles: BiaParticipantRole[]): boolean {
   return roles.includes("aliado") || roles.includes("diretor_alianca");
 }
 
+export function canConfigureBiaParticipantAccess(roles: BiaParticipantRole[]): boolean {
+  return roles.some((role) => role !== "terceiro");
+}
+
 export function resolveBiaParticipantPermissions(
   roles: BiaParticipantRole[],
   override: unknown | null | undefined,

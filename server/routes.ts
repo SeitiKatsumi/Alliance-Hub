@@ -15,11 +15,13 @@ import { PNG } from "pngjs";
 import { randomUUID } from "crypto";
 import { deflateSync } from "zlib";
 import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
+import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import {
   BIA_ACCESS_KEYS,
   BIA_PARTICIPANT_ROLE_LABELS,
   EMPTY_BIA_ACCESS,
   FULL_BIA_ACCESS,
+  canConfigureBiaParticipantAccess,
   canManageBiaAccess,
   collectBiaParticipantRoles,
   defaultBiaAccessForRoles,
@@ -7692,6 +7694,14 @@ export async function registerRoutes(
       ).catch(() => null);
       if (!currentBia?.id) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
       const biaUpdateId = String(currentBia.id);
+      const originPatch = normalizeBiaOriginPatch(req.body);
+      if (originPatch.error) return res.status(400).json({ error: originPatch.error });
+      if (originPatch.shouldUpdate) {
+        payload.valor_origem = originPatch.value;
+      } else if (originPatch.provided) {
+        // Formularios de outras areas nao podem apagar um valor financeiro ja salvo.
+        delete payload.valor_origem;
+      }
       const aliadoAtual = directusRelationId(currentBia?.aliado_built) || currentBia?.aliado_built || null;
       const analysisFields = new Set([
         "valor_geral_venda_vgv", "valor_realizado_venda", "comissao_prevista_corretor",
@@ -7706,7 +7716,9 @@ export async function registerRoutes(
         "cpp_built", "cpp_dir_alianca", "cpp_dir_tecnico", "cpp_dir_obras",
         "cpp_dir_comercial", "cpp_dir_capital", "custo_origem_bia", "custo_final_previsto",
       ]);
-      const requestedFields = Object.keys(req.body || {}).filter((field) => !field.startsWith("_"));
+      const requestedFields = Object.keys(req.body || {}).filter((field) =>
+        !field.startsWith("_") && !(field === "valor_origem" && !originPatch.shouldUpdate)
+      );
       const requiredModules = new Set<BiaAccessKey>();
       if (requestedFields.some((field) => analysisFields.has(field))) requiredModules.add("capital_analises");
       if (requestedFields.some((field) => calculatorFields.has(field))) requiredModules.add("capital_calculadora");
@@ -7799,8 +7811,8 @@ export async function registerRoutes(
         try {
           const item = await directusUpdate("bias_projetos", biaUpdateId, payload);
           if (newlySkipped.length > 0) console.log(`[bias patch] discovered blocked fields: ${newlySkipped.join(", ")}`);
-          if (req.body.valor_origem !== undefined) {
-            const valorOrigem = parseFloat(req.body.valor_origem) || 0;
+          if (originPatch.shouldUpdate) {
+            const valorOrigem = originPatch.value ?? 0;
             const vencimentoOrigem = req.body._vencimento_origem || null;
             const numeroParcelas = req.body._numero_parcelas ? parseInt(req.body._numero_parcelas) : null;
             const vencimentosParcelas: string[] = Array.isArray(req.body._vencimentos_parcelas) ? req.body._vencimentos_parcelas : [];
@@ -7956,7 +7968,9 @@ export async function registerRoutes(
         }
         response.storage_available = storageAvailable;
         const overridesByMember = new Map(overrides.map((row) => [String(row.membro_id), row]));
-        response.participants = await Promise.all(Array.from(rolesByMember.entries()).map(async ([membroId, roles]) => {
+        const configurableParticipants = Array.from(rolesByMember.entries())
+          .filter(([, roles]) => canConfigureBiaParticipantAccess(roles));
+        response.participants = await Promise.all(configurableParticipants.map(async ([membroId, roles]) => {
           const override = overridesByMember.get(membroId) || null;
           const member = await directusFetchOne("cadastro_geral", membroId).catch(() => null);
           const defaultPermissions = defaultBiaAccessForRoles(roles);
@@ -7993,6 +8007,9 @@ export async function registerRoutes(
       const targetRoles = collectBiaParticipantRoles(bia).get(targetId) || [];
       if (targetRoles.length === 0) {
         return res.status(400).json({ error: "Este membro nao participa mais desta BIA." });
+      }
+      if (!canConfigureBiaParticipantAccess(targetRoles)) {
+        return res.status(400).json({ error: "Terceiros vinculados nao possuem permissoes internas configuraveis." });
       }
       const input = req.body?.permissions ?? req.body;
       const keys = input && typeof input === "object" ? Object.keys(input) : [];
@@ -8038,6 +8055,9 @@ export async function registerRoutes(
       const targetId = String(req.params.membroId);
       const targetRoles = collectBiaParticipantRoles(bia).get(targetId) || [];
       if (targetRoles.length === 0) return res.status(400).json({ error: "Este membro nao participa mais desta BIA." });
+      if (!canConfigureBiaParticipantAccess(targetRoles)) {
+        return res.status(400).json({ error: "Terceiros vinculados nao possuem permissoes internas configuraveis." });
+      }
       await db.delete(biaUserPermissions).where(and(
         eq(biaUserPermissions.bia_id, String(bia.id)),
         eq(biaUserPermissions.membro_id, targetId),
@@ -15990,7 +16010,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           confianca: "Sem base reputacional",
           confianca_descricao: "Aguardando primeira avaliaÃ§Ã£o",
           total_palavras: 0,
+          scores_reputacionais: { T: 0, R: 0, C: 0 },
+          scores_ajustados: { T: 0, R: 0, C: 0 },
+          pontos_positivos: { T: 0, R: 0, C: 0 },
+          penalidades_negativas: { T: 0, R: 0, C: 0 },
+          amplitude_reputacional: { T: 0, R: 0, C: 0 },
+          convergencia_reputacional: { T: 0, R: 0, C: 0 },
+          dimensoes_com_evidencia: [],
           dimensoes_sem_evidencia: ["T", "R", "C"],
+          elegivel_aura_suprema: false,
           correspondencia_valores: { T: 0, R: 0, C: 0 },
           redutor_reputacional: 0,
           pontos_atencao_reputacional: [],

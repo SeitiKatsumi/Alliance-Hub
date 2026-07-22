@@ -47,7 +47,15 @@ interface AuraResult {
   confianca?: string;
   confianca_descricao?: string;
   total_palavras?: number;
+  scores_reputacionais?: Record<"T" | "R" | "C", number>;
+  scores_ajustados?: Record<"T" | "R" | "C", number>;
+  pontos_positivos?: Record<"T" | "R" | "C", number>;
+  penalidades_negativas?: Record<"T" | "R" | "C", number>;
+  amplitude_reputacional?: Record<"T" | "R" | "C", number>;
+  convergencia_reputacional?: Record<"T" | "R" | "C", number>;
+  dimensoes_com_evidencia?: Array<"T" | "R" | "C">;
   dimensoes_sem_evidencia?: Array<"T" | "R" | "C">;
+  elegivel_aura_suprema?: boolean;
   correspondencia_valores?: Record<"T" | "R" | "C", number>;
   redutor_reputacional?: number;
   pontos_atencao_reputacional?: Array<{
@@ -312,7 +320,9 @@ function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
       pontos[dim] += peso;
       canonicos[dim] += 1;
     }
-    const dimScore = (dim: "T" | "R" | "C") => canonicos[dim] ? Math.min((pontos[dim] / (canonicos[dim] * 2)) * 100, 100) : 0;
+    const dimScore = (dim: "T" | "R" | "C") => canonicos[dim] ? 100 : 0;
+    const convergenciaDim = (dim: "T" | "R" | "C") =>
+      canonicos[dim] ? Math.min((pontos[dim] / (canonicos[dim] * 2)) * 100, 100) : 0;
     const pesos = { T: 0.4, R: 0.25, C: 0.35 };
     const dims: Array<"T" | "R" | "C"> = ["T", "R", "C"];
     const dimsComEvidencia = dims.filter(dim => canonicos[dim] > 0);
@@ -324,7 +334,8 @@ function calcularEvolucao(avaliacoes: MinhaAvaliacao[]): EvolucaoPonto[] {
     const tetoCobertura = tetoCoberturaAura(cobertura);
     const tetoConfianca = tetoConfiancaAura(n);
     let score = tetoCobertura === null ? 0 : Math.min(auraObservada, tetoCobertura, tetoConfianca);
-    if (score >= 90 && (cobertura < 100 || n < 5 || dims.some(dim => dimScore(dim) < 70))) score = 89;
+    const dimensoesConvergentes = dims.filter((dim) => convergenciaDim(dim) >= 60).length;
+    if (score >= 90 && (cobertura < 100 || n < 5 || dims.some(dim => dimScore(dim) < 70) || dimensoesConvergentes < 2)) score = 89;
     const date = new Date(av.created_at);
     const label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
     result.push({ label, score, n });
@@ -761,14 +772,21 @@ export default function AuraPage() {
   const viewedName = isOwnAura ? (user?.nome || user?.username || "Membro BUILT") : (viewedMembro?.nome || "Membro BUILT");
   const viewedEmail = isOwnAura ? user?.email : "";
   const viewedFoto = isOwnAura ? user?.foto_perfil : viewedMembro?.foto;
-  const confiancaAura = viewedAura?.confianca || (n === 0 ? "Sem base reputacional" : n >= 10 ? "Aura Consolidada" : n >= 5 ? "Aura Validada" : n >= 2 ? "Aura em Validação" : "Aura Inicial");
-  const confiancaDescricao = viewedAura?.confianca_descricao || (n === 0 ? "Aguardando primeira avaliação" : n >= 10 ? "Alta maturidade estatística" : n >= 5 ? "Base mínima adequada para decisões operacionais" : n >= 2 ? "Percepção em formação" : "Primeira leitura reputacional");
+  const confiancaAura = viewedAura?.confianca || (n === 0 ? "Sem base reputacional" : n >= 10 ? "Confiança Consolidada" : n >= 5 ? "Confiança Validada" : n >= 2 ? "Confiança em Validação" : "Confiança Inicial");
+  const confiancaDescricao = viewedAura?.confianca_descricao || (n === 0 ? "Aguardando primeira avaliação" : n >= 10 ? "Alta maturidade estatística" : n >= 5 ? "Base adequada para decisões operacionais" : n >= 2 ? "Percepção em formação" : "Primeira leitura reputacional");
+  const amplitudeReputacional = viewedAura?.amplitude_reputacional ?? { T: 0, R: 0, C: 0 };
+  const convergenciaReputacional = viewedAura?.convergencia_reputacional ?? { T: 0, R: 0, C: 0 };
+  const dimensoesSemEvidencia = viewedAura?.dimensoes_sem_evidencia ?? [];
+  const coberturaDimensional = viewedAura?.cobertura_dimensional ?? 0;
   const dimensoesAura = [
     {
       dim: "T" as const,
       label: "Técnica",
       peso: 40,
       pontuacao: Math.round(T),
+      amplitude: amplitudeReputacional.T,
+      convergencia: convergenciaReputacional.T,
+      semEvidencia: dimensoesSemEvidencia.includes("T"),
       descricao: "Capacidade de entrega, método e eficiência técnica.",
     },
     {
@@ -776,6 +794,9 @@ export default function AuraPage() {
       label: "Relacional",
       peso: 25,
       pontuacao: Math.round(R),
+      amplitude: amplitudeReputacional.R,
+      convergencia: convergenciaReputacional.R,
+      semEvidencia: dimensoesSemEvidencia.includes("R"),
       descricao: "Capacidade de gerar confiança, colaboração e conexão.",
     },
     {
@@ -783,12 +804,19 @@ export default function AuraPage() {
       label: "Comportamental",
       peso: 35,
       pontuacao: Math.round(C),
+      amplitude: amplitudeReputacional.C,
+      convergencia: convergenciaReputacional.C,
+      semEvidencia: dimensoesSemEvidencia.includes("C"),
       descricao: "Maturidade ética, consistência institucional e atitude.",
     },
   ];
   const palavrasValidas = viewedAura?.total_palavras ?? palavrasRecebidas.reduce((total, p) => total + p.count, 0);
   const topPalavra = palavrasPositivas[0] ?? palavrasRecebidas[0] ?? null;
-  const convergencia = n >= 5 && palavrasPositivas.some(p => p.count >= 2) ? "Alta" : n >= 3 ? "Média" : "Em formação";
+  const convergenciasComEvidencia = dimensoesAura.filter((d) => !d.semEvidencia).map((d) => d.convergencia);
+  const convergenciaMedia = convergenciasComEvidencia.length
+    ? convergenciasComEvidencia.reduce((total, valor) => total + valor, 0) / convergenciasComEvidencia.length
+    : 0;
+  const convergencia = convergenciaMedia >= 70 ? "Alta" : convergenciaMedia >= 50 ? "Média" : "Em formação";
   const fatorRelevancia = score === null ? 0 : Math.max(viewedAura?.FR_T ?? 1, viewedAura?.FR_R ?? 1, viewedAura?.FR_C ?? 1);
   const dnaBuilt = [
     { label: "Mentalidade de Aliança", value: dimensoesAura[1].pontuacao },
@@ -836,6 +864,7 @@ export default function AuraPage() {
     { icon: BarChart3, label: "Nível de Responsabilidade", value: nivelResponsabilidade, color: "#3B82F6" },
     { icon: Handshake, label: "Tipo de Aliança Recomendada", value: nucleoMaisForte.dim === "T" ? "Técnica e liderança" : nucleoMaisForte.dim === "R" ? "Relacionamento e comunidade" : "Governança e liderança", color: "#D7BB7D" },
     { icon: Users, label: "Compatibilidade Cultural", value: compatibilidadeCultural, color: "#22C55E" },
+    { icon: Target, label: "Cobertura Dimensional", value: `${coberturaDimensional}%`, color: "#005BFF" },
   ];
 
   return (
@@ -987,7 +1016,7 @@ export default function AuraPage() {
                       {score === null ? "Aguardando base reputacional" : "Leitura consolidada da percepção da rede."}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-3 gap-3 text-sm">
                     <div className="rounded-lg border border-border/50 p-3">
                       <Users className="w-4 h-4 text-[#D7BB7D] mb-1" />
                       <strong className="text-foreground">{n}</strong>
@@ -997,6 +1026,11 @@ export default function AuraPage() {
                       <Tags className="w-4 h-4 text-[#D7BB7D] mb-1" />
                       <strong className="text-foreground">{palavrasValidas}</strong>
                       <p className="text-xs text-muted-foreground">termos válidos</p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 p-3">
+                      <Target className="w-4 h-4 text-[#005BFF] mb-1" />
+                      <strong className="text-foreground">{coberturaDimensional}%</strong>
+                      <p className="text-xs text-muted-foreground">cobertura</p>
                     </div>
                   </div>
                   <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
@@ -1025,6 +1059,27 @@ export default function AuraPage() {
               </div>
             </CardContent>
           </Card>
+
+          {(dimensoesSemEvidencia.length > 0 || (viewedAura?.motivos_trava?.length ?? 0) > 0) && (
+            <Card className="border border-amber-200 bg-amber-50/40 xl:col-span-12">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-amber-900">Cobertura e travas da Aura</p>
+                    {dimensoesSemEvidencia.length > 0 && (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Dimensão sem evidência não representa fraqueza automática, mas lacuna reputacional. A leitura técnica considera apenas as dimensões avaliadas, enquanto a Aura Percebida BUILT respeita a Cobertura Dimensional, o Grau de Confiança e as travas de proteção da rede BUILT.
+                      </p>
+                    )}
+                    {(viewedAura?.motivos_trava ?? []).map((motivo) => (
+                      <p key={motivo} className="text-xs text-amber-800">{motivo}</p>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border border-border/60 xl:col-span-5">
             <CardHeader className="pb-2">
@@ -1055,8 +1110,13 @@ export default function AuraPage() {
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${d.pontuacao}%`, background: dimColor(d.dim) }} />
                     </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {d.semEvidencia
+                        ? "Sem evidência"
+                        : `Amplitude ${d.amplitude} · Convergência ${Math.round(d.convergencia)}%`}
+                    </p>
                   </div>
-                  <strong className="text-lg text-right text-foreground">{d.pontuacao}</strong>
+                  <strong className="text-lg text-right text-foreground">{d.semEvidencia ? "—" : d.pontuacao}</strong>
                 </div>
                 );
               })}
@@ -1688,9 +1748,10 @@ export default function AuraPage() {
           </div>
           <div className="space-y-1.5 text-[11px] text-muted-foreground">
             <p>• Termos citados por 2-3 avaliadores distintos têm peso 1.5×; por 4 ou mais, peso 2.0×.</p>
-            <p>• Cada dimensão é normalizada por <strong className="text-foreground">termos-cânone válidos × 2</strong>, incluindo antônimos reputacionais quando houver impacto confirmado.</p>
+            <p>• A pontuação-base de cada dimensão é calculada por <strong className="text-foreground">pontos positivos ÷ (pontos positivos + penalidades negativas validadas)</strong>.</p>
+            <p>• Amplitude mede a variedade de atributos positivos; convergência mede a repetição desses atributos por avaliadores distintos. Diversidade positiva não reduz a Aura.</p>
             <p>• O cálculo aplica o <strong className="text-foreground">Fator de Relevância</strong>, que valoriza em até 20% as dimensões alinhadas ao DNA BUILT.</p>
-            <p>• O Score da Aura é limitado pela <strong className="text-foreground">Confiança da Aura</strong>: Inicial, em Validação, Validada ou Consolidada.</p>
+            <p>• O índice publicado respeita a <strong className="text-foreground">Cobertura Dimensional</strong>, a <strong className="text-foreground">Confiança da Aura</strong> e as travas de proteção da Aura Suprema.</p>
             <p>• Cada par avaliador/avaliado registra uma avaliação única, sem alteração posterior.</p>
           </div>
         </CardContent>

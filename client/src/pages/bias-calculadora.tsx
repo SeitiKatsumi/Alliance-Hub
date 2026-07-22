@@ -629,6 +629,16 @@ export default function BiasCalculadoraPage({
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedBiaId) throw new Error("Selecione uma BIA");
+      if (!selectedBia) throw new Error("Aguarde os dados da BIA terminarem de carregar.");
+      if (formaPagamento === "a_vista" && valorAVista <= 0) {
+        throw new Error("Informe um valor de origem maior que zero.");
+      }
+      if (
+        formaPagamento === "parcelado" &&
+        (numParcelasInt <= 1 || valoresParcelas.length !== numParcelasInt || valoresParcelas.some((value) => value <= 0))
+      ) {
+        throw new Error("Preencha o valor de todas as parcelas antes de salvar.");
+      }
       const r = (v: number) => parseFloat(v.toFixed(2));
       const percAutorSave = membroAutorOpa ? percAutor : 0;
       const percAliadoSave = membroAliadoBuilt ? percAliado : 0;
@@ -694,6 +704,10 @@ export default function BiasCalculadoraPage({
       return res.json();
     },
     onSuccess: (data: SaveBiaResponse) => {
+      setBiaValorOrigem(toNum((data?.valor_origem as string | number | null | undefined) ?? valorOrigem));
+      queryClient.setQueryData<BiasProjeto[]>(["/api/bias"], (current = []) =>
+        current.map((bia) => bia.id === selectedBiaId ? { ...bia, ...data } : bia)
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       setCppError(null);
       setShowCppDetails(false);
@@ -793,7 +807,7 @@ export default function BiasCalculadoraPage({
 
           <Button
             onClick={() => needsWarning ?setShowSaveConfirm(true) : saveMutation.mutate()}
-            disabled={!selectedBiaId || saveMutation.isPending}
+            disabled={!selectedBiaId || !selectedBia || loadingBias || saveMutation.isPending}
             className="bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-200 disabled:text-white"
             data-testid="button-save"
           >

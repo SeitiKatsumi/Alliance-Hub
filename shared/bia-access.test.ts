@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   EMPTY_BIA_ACCESS,
+  canConfigureBiaParticipantAccess,
   canManageBiaAccess,
   collectBiaParticipantRoles,
   defaultBiaAccessForRoles,
@@ -104,4 +105,10 @@ test("falha de armazenamento nega módulos internos e preserva a gestão fixa", 
   assert.equal(manager.diretoria, "edit");
   assert.equal(manager.configuracao_bia, "none");
   assert.equal(manager.capital_financeiro, "none");
+});
+
+test("nao oferece configuracao de permissoes para terceiros puros", () => {
+  assert.equal(canConfigureBiaParticipantAccess(["terceiro"]), false);
+  assert.equal(canConfigureBiaParticipantAccess(["terceiro", "socio_guardiao"]), true);
+  assert.equal(canConfigureBiaParticipantAccess(["diretor_tecnico"]), true);
 });

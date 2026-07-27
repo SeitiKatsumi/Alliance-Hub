@@ -24,13 +24,18 @@ import {
   TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
   ShieldCheck, Target, Briefcase, CalendarDays, BarChart3,
   AlertTriangle, Lock, BookOpen, Handshake, Settings,
-  Info,
+  Info, Mic, Square, Upload,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useLocation, useParams } from "wouter";
 import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura, isVitrineOnlyUser } from "@/lib/aura-access";
+import {
+  createAuraMediaRecorder,
+  formatAuraRecordingTime,
+  getAuraAudioFilename,
+} from "@/lib/aura-audio";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 
 interface AuraResult {
@@ -448,8 +453,38 @@ export default function AuraPage() {
   const [showAvaliacoesDadas, setShowAvaliacoesDadas] = useState(false);
   const [textoIA, setTextoIA] = useState("");
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
+  const [audioRecording, setAudioRecording] = useState(false);
+  const [audioRecordingSeconds, setAudioRecordingSeconds] = useState(0);
+  const [micBlocked, setMicBlocked] = useState(false);
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (!audioRecording) {
+      setAudioRecordingSeconds(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setAudioRecordingSeconds(seconds => seconds + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [audioRecording]);
+
+  useEffect(() => {
+    return () => {
+      const recorder = mediaRecorderRef.current;
+      if (!recorder) return;
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.stream.getTracks().forEach(track => track.stop());
+      if (recorder.state !== "inactive") recorder.stop();
+    };
+  }, []);
 
   const myId = user?.membro_directus_id;
   const viewedMembroId = routeMembroId || myId;
@@ -595,6 +630,7 @@ export default function AuraPage() {
     setSearchQuery("");
     setTextoIA("");
     setArquivoNome(null);
+    setMicBlocked(false);
     setEvalMode("palavras");
   }, [routeMembroId, myId, viewedMembro]);
 
@@ -694,9 +730,9 @@ export default function AuraPage() {
   });
 
   const transcreverAudioMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ blob, filename }: { blob: Blob; filename?: string }) => {
       const form = new FormData();
-      form.append("audio", file);
+      form.append("audio", blob, filename || getAuraAudioFilename(blob.type));
       if (selectedMembro?.id) form.append("avaliado_membro_id", selectedMembro.id);
       const res = await fetch("/api/aura/transcrever-audio", {
         method: "POST",
@@ -704,19 +740,82 @@ export default function AuraPage() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Erro ao transcrever áudio." }));
-        throw new Error(err.error || "Erro ao transcrever áudio.");
+        const err = await res.json().catch(() => ({ error: "Não foi possível processar o áudio. Tente novamente." }));
+        throw new Error(err.error || "Não foi possível processar o áudio. Tente novamente.");
       }
       return res.json() as Promise<{ texto: string }>;
     },
     onSuccess: (data) => {
       setTextoIA(prev => prev ? prev + "\n\n" + data.texto : data.texto);
-      toast({ title: "Áudio transcrito!", description: "A transcrição foi adicionada ao campo abaixo." });
     },
     onError: (err: Error) => {
       toast({ title: "Erro no áudio", description: err.message, variant: "destructive" });
     },
   });
+
+  async function startAuraAudioRecording() {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        toast({
+          title: "Áudio indisponível",
+          description: "Este navegador não permite gravação aqui. Use Enviar áudio para selecionar uma gravação.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = createAuraMediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const recordedMimeType = recorder.mimeType || audioChunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: recordedMimeType });
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        setAudioRecording(false);
+        if (blob.size > 0 && selectedMembro?.id) {
+          transcreverAudioMutation.mutate({
+            blob,
+            filename: getAuraAudioFilename(recordedMimeType),
+          });
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setAudioRecording(true);
+      setMicBlocked(false);
+      setEvalMode("texto");
+    } catch (error: any) {
+      const permissionDenied =
+        error?.name === "NotAllowedError" ||
+        /permission|denied|permiss/i.test(error?.message || "");
+      if (permissionDenied) setMicBlocked(true);
+      toast({
+        title: permissionDenied ? "Microfone bloqueado" : "Não foi possível gravar",
+        description: permissionDenied
+          ? "Permita o microfone nas configurações do navegador ou use Enviar áudio."
+          : error?.message || "Tente novamente ou envie um áudio já gravado.",
+        variant: "destructive",
+      });
+    }
+  }
+
+  function stopAuraAudioRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  }
+
+  function toggleAuraAudioRecording() {
+    if (audioRecording) {
+      stopAuraAudioRecording();
+      return;
+    }
+    void startAuraAudioRecording();
+  }
 
   const analisarMutation = useMutation({
     mutationFn: async ({ texto, membro_nome }: { texto: string; membro_nome: string }) => {
@@ -905,9 +1004,9 @@ export default function AuraPage() {
   ];
 
   return (
-    <div className="p-6 space-y-8 max-w-7xl mx-auto">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:gap-8 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="order-0 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
         <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#D7BB7D]" />
@@ -1012,7 +1111,7 @@ export default function AuraPage() {
       )}
 
       {canViewRequestedAura && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4" data-testid="section-aura-dashboard">
+        <div className="order-2 grid grid-cols-1 gap-4 xl:grid-cols-12" data-testid="section-aura-dashboard">
           <Card className="border border-border/60 xl:col-span-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(0,29,52,0.04), rgba(215,187,125,0.04))" }}>
             <CardContent className="p-5 space-y-4">
               <div className="flex items-start gap-4">
@@ -1370,7 +1469,7 @@ export default function AuraPage() {
 
       {/* Received evaluations list */}
       {isOwnAura && myId && minhasAvaliacoesRecebidas.length > 0 && (
-        <div className="space-y-3" data-testid="section-avaliacoes-recebidas">
+        <div className="order-3 space-y-3" data-testid="section-avaliacoes-recebidas">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Users className="w-4 h-4 text-[#D7BB7D]" />
             Avaliações Recebidas ({minhasAvaliacoesRecebidas.length})
@@ -1419,7 +1518,7 @@ export default function AuraPage() {
 
       {/* Evaluate a member */}
       {myId && routeMembroId && routeMembroId !== myId && canViewRequestedAura && (
-        <Card className="border border-border/60" data-testid="card-avaliar">
+        <Card className="order-1 border border-border/60" data-testid="card-avaliar">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Users className="w-4 h-4 text-[#D7BB7D]" />
@@ -1497,7 +1596,15 @@ export default function AuraPage() {
                   </div>
                   <button
                     className="p-1 rounded hover:bg-white/10 transition-colors"
-                    onClick={() => { setSelectedMembro(null); setSelectedPalavras([]); setSearchQuery(""); setTextoIA(""); setArquivoNome(null); setEvalMode("palavras"); }}
+                    onClick={() => {
+                      stopAuraAudioRecording();
+                      setSelectedMembro(null);
+                      setSelectedPalavras([]);
+                      setSearchQuery("");
+                      setTextoIA("");
+                      setArquivoNome(null);
+                      setEvalMode("palavras");
+                    }}
                     data-testid="btn-limpar-membro"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
@@ -1534,18 +1641,23 @@ export default function AuraPage() {
                 {/* Mode toggle */}
                 <div className="flex rounded-lg border border-[#D7BB7D]/30 overflow-hidden text-xs" style={{ background: "rgba(0,29,52,0.06)" }}>
                   <button
+                    type="button"
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
                     style={evalMode === "palavras"
                       ?
                       { background: "rgba(215,187,125,0.18)", color: "#b8962e", borderRight: "1px solid rgba(215,187,125,0.2)" }
                       : { color: "#64748b", borderRight: "1px solid rgba(0,0,0,0.08)" }}
-                    onClick={() => setEvalMode("palavras")}
+                    onClick={() => {
+                      stopAuraAudioRecording();
+                      setEvalMode("palavras");
+                    }}
                     data-testid="btn-modo-palavras"
                   >
                     <Tags className="w-3.5 h-3.5" />
                     Escolher termos
                   </button>
                   <button
+                    type="button"
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 transition-all font-semibold"
                     style={evalMode === "texto"
                       ?
@@ -1562,43 +1674,121 @@ export default function AuraPage() {
                 {/* AI text mode */}
                 {evalMode === "texto" && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground">
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium leading-relaxed text-muted-foreground">
                         Descreva as características de <strong className="text-foreground">{selectedMembro.nome}</strong> e a IA escolherá os termos mais adequados
-                      </label>
-                      <button
-                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/50 text-muted-foreground hover:border-[#D7BB7D]/50 hover:text-[#D7BB7D] transition-colors shrink-0 ml-3"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending}
-                        data-testid="btn-anexar-arquivo"
-                        title="Anexar PDF, TXT, CSV ou áudio"
-                      >
-                        {extrairArquivoMutation.isPending || transcreverAudioMutation.isPending ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Paperclip className="w-3.5 h-3.5" />
-                        )}
-                        {extrairArquivoMutation.isPending ? "Lendo..." : transcreverAudioMutation.isPending ? "Transcrevendo..." : "Anexar arquivo"}
-                      </button>
+                      </p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={extrairArquivoMutation.isPending || transcreverAudioMutation.isPending || audioRecording}
+                          data-testid="btn-anexar-arquivo"
+                          title="Anexar PDF, TXT, MD ou CSV"
+                        >
+                          {extrairArquivoMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Paperclip className="h-4 w-4" />
+                          )}
+                          {extrairArquivoMutation.isPending ? "Lendo..." : "Anexar"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={
+                            audioRecording
+                              ? "w-full gap-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+                              : "w-full gap-2"
+                          }
+                          onClick={toggleAuraAudioRecording}
+                          disabled={transcreverAudioMutation.isPending}
+                          data-testid="btn-gravar-audio"
+                          title={micBlocked ? "Permita o microfone no navegador ou envie um áudio" : "Gravar áudio"}
+                        >
+                          {audioRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-4 w-4" />}
+                          {audioRecording ? "Parar áudio" : "Gravar áudio"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={() => audioFileInputRef.current?.click()}
+                          disabled={transcreverAudioMutation.isPending || audioRecording}
+                          data-testid="btn-enviar-audio"
+                          title="Selecionar um áudio já gravado"
+                        >
+                          {transcreverAudioMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4" />
+                          )}
+                          {transcreverAudioMutation.isPending ? "Processando..." : "Enviar áudio"}
+                        </Button>
+                      </div>
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".pdf,.txt,.md,.csv,.mp3,.m4a,.wav,.ogg,.oga,.opus,.webm,.aac,.3gp,.amr,text/plain,application/pdf,audio/*"
+                        accept=".pdf,.txt,.md,.csv,text/plain,application/pdf"
                         className="hidden"
                         data-testid="input-arquivo"
                         onChange={e => {
                           const file = e.target.files?.[0];
                           if (file) {
                             setArquivoNome(file.name);
-                            const name = file.name.toLowerCase();
-                            const isAudio = file.type.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|oga|opus|webm|aac|3gp|amr)$/i.test(name);
-                            if (isAudio) transcreverAudioMutation.mutate(file);
-                            else extrairArquivoMutation.mutate(file);
+                            extrairArquivoMutation.mutate(file);
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                      <input
+                        ref={audioFileInputRef}
+                        type="file"
+                        accept=".mp3,.m4a,.mp4,.wav,.ogg,.oga,.opus,.webm,.aac,.3gp,.amr,audio/*,video/mp4"
+                        className="hidden"
+                        data-testid="input-audio"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setArquivoNome(file.name);
+                            transcreverAudioMutation.mutate({ blob: file, filename: file.name });
                           }
                           e.target.value = "";
                         }}
                       />
                     </div>
+
+                    {audioRecording && (
+                      <div
+                        className="flex min-h-12 items-center gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700"
+                        role="status"
+                        aria-live="polite"
+                        data-testid="status-aura-gravando"
+                      >
+                        <span className="relative flex h-3 w-3 shrink-0">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />
+                          <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+                        </span>
+                        <div className="flex h-5 items-center gap-0.5" aria-hidden="true">
+                          {[0, 1, 2, 3, 4].map(index => (
+                            <span
+                              key={index}
+                              className="w-1 animate-pulse rounded-full bg-red-500"
+                              style={{
+                                height: `${8 + (index % 3) * 4}px`,
+                                animationDelay: `${index * 110}ms`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-semibold">Gravando</span>
+                        <span className="ml-auto font-mono text-sm tabular-nums">
+                          {formatAuraRecordingTime(audioRecordingSeconds)}
+                        </span>
+                      </div>
+                    )}
 
                     {arquivoNome && (
                       <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border/40 text-xs text-muted-foreground" style={{ background: "rgba(215,187,125,0.05)" }}>
@@ -1722,7 +1912,7 @@ export default function AuraPage() {
 
       {/* My evaluations given */}
       {isOwnAura && myId && minhasAvaliacoesDadas.length > 0 && (
-        <div className="space-y-3" data-testid="section-minhas-avaliacoes">
+        <div className="order-4 space-y-3" data-testid="section-minhas-avaliacoes">
           <button
             type="button"
             onClick={() => setShowAvaliacoesDadas(open => !open)}
@@ -1776,7 +1966,7 @@ export default function AuraPage() {
       )}
 
       {/* Explanation */}
-      <Card className="border border-border/40 bg-transparent" data-testid="card-explicacao">
+      <Card className="order-5 border border-border/40 bg-transparent" data-testid="card-explicacao">
         <CardContent className="p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#D7BB7D]" />
@@ -1814,7 +2004,7 @@ export default function AuraPage() {
       </Card>
 
       {myId && (
-        <Card className="border border-border/60" data-testid="card-alertas-governanca">
+        <Card className="order-6 border border-border/60" data-testid="card-alertas-governanca">
           <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
               { icon: ShieldCheck, title: "Sem alertas ativos", desc: "Membro em conformidade com as políticas BUILT.", color: "#22C55E" },

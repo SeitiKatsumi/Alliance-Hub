@@ -53,6 +53,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
+import { companyModuleForLocation, hasEmployeeModuleAccess } from "@/lib/company-access";
 
 interface OnboardingMembro {
   id: string;
@@ -1085,6 +1086,12 @@ function ProtectedApp() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const companyRouteModule = companyModuleForLocation(location);
+  const companyRouteDenied = Boolean(
+    user?.company_employee
+    && companyRouteModule
+    && !hasEmployeeModuleAccess(user, companyRouteModule, "view"),
+  );
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || !location) return;
@@ -1227,7 +1234,7 @@ function ProtectedApp() {
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
-        <PerfilOnboardingModal membroId={user?.membro_directus_id} fallbackUser={user} />
+        {!user?.company_employee && <PerfilOnboardingModal membroId={user?.membro_directus_id} fallbackUser={user} />}
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="flex items-center gap-2 p-3 border-b border-border bg-background">
@@ -1250,7 +1257,22 @@ function ProtectedApp() {
             </div>
           </header>
           <main className="flex-1 overflow-auto overflow-x-hidden bg-background">
-            <Switch>
+            {companyRouteDenied ? (
+              <div className="flex min-h-[55vh] items-center justify-center px-5">
+                <div className="max-w-md text-center">
+                  <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-full bg-blue-50 text-blue-700">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <h1 className="text-xl font-bold text-[#001D34]">Acesso não liberado</h1>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    O responsável pela conta da empresa ainda não liberou esta área para você.
+                  </p>
+                  <Button className="mt-5 bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/meu-perfil")}>
+                    Ver meu acesso
+                  </Button>
+                </div>
+              </div>
+            ) : <Switch>
               <Route path="/" component={PainelPage} />
               <Route path="/carteira/:id" component={CarteiraPage} />
               <Route path="/carteira" component={CarteiraPage} />
@@ -1295,7 +1317,7 @@ function ProtectedApp() {
               <Route path="/admin" component={AdminPage} />
               <Route path="/aguardando-aprovacao" component={AguardandoAprovacaoPage} />
               <Route component={NotFound} />
-            </Switch>
+            </Switch>}
           </main>
         </div>
       </div>

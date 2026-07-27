@@ -3,6 +3,7 @@ import { pgTable, text, varchar, boolean, jsonb, timestamp, serial, numeric, dat
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import type { BiaAccessMatrix } from "./bia-access";
+import type { CompanyAccessMatrix } from "./company-access";
 
 export const MODULE_KEYS = [
   "oportunidades",
@@ -111,6 +112,24 @@ export const users = pgTable("users", {
   ativo: boolean("ativo").notNull().default(true),
   created_at: timestamp("created_at").defaultNow(),
 });
+
+export const companyEmployeeAccounts = pgTable("company_employee_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  owner_user_id: text("owner_user_id").notNull(),
+  owner_membro_id: text("owner_membro_id"),
+  owner_nome: text("owner_nome"),
+  owner_email: text("owner_email"),
+  employee_user_id: text("employee_user_id").notNull().unique(),
+  cargo: text("cargo"),
+  permissions: jsonb("permissions").$type<CompanyAccessMatrix>().notNull(),
+  status: text("status").notNull().default("ativo"),
+  updated_by_user_id: text("updated_by_user_id"),
+  last_login_at: timestamp("last_login_at"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type CompanyEmployeeAccount = typeof companyEmployeeAccounts.$inferSelect;
 
 export const userUsageEvents = pgTable("user_usage_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

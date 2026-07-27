@@ -35,7 +35,8 @@ import {
   Users, Search, Mail, Phone, MapPin, Building2,
   Briefcase, Globe, Activity, Cpu, Wifi, X,
   Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle,
-  CheckCircle2, FileText, Trash2, Settings, BarChart3, Flame, Clock3
+  CheckCircle2, FileText, Trash2, Settings, BarChart3, Flame, Clock3,
+  BadgeDollarSign, CreditCard, Megaphone, ReceiptText, CircleAlert, WalletCards
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
@@ -153,6 +154,60 @@ interface UsageHeatmapData {
   };
   modules: Array<{ key: string; label: string; total: number; active_members: number }>;
   members: UsageHeatmapMember[];
+}
+
+interface AdminMonetizationData {
+  period_days: number;
+  generated_at: string;
+  summary: {
+    platform_confirmed_revenue: number;
+    platform_pending_revenue: number;
+    active_memberships: number;
+    pending_memberships: number;
+    active_ads: number;
+    paid_ads: number;
+    pending_ads: number;
+    bia_collections_received: number;
+    bia_collections_pending: number;
+  };
+  channels: Array<{
+    key: string;
+    label: string;
+    provider?: string | null;
+    billing_model: string;
+    tracking: "operational" | "partial" | "not_configured";
+    confirmed_amount?: number | null;
+    pending_amount?: number | null;
+    paid_count: number;
+    pending_count: number;
+    active_count: number;
+    note: string;
+  }>;
+  memberships: Array<{
+    id: string;
+    member_id?: string | null;
+    name: string;
+    email?: string | null;
+    community_name: string;
+    status: string;
+    provider: string;
+    billing_model: string;
+    amount?: number | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+  }>;
+  transactions: Array<{
+    id: string;
+    source: "membership" | "ads" | "pinbank";
+    label: string;
+    user_name: string;
+    user_email?: string | null;
+    provider?: string | null;
+    status: string;
+    amount?: number | null;
+    created_at?: string | null;
+    reference?: string | null;
+  }>;
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -2076,6 +2131,314 @@ function StatItem({ label, value, icon: Icon }: { label: string; value: number |
   );
 }
 
+function formatAdminMoney(value?: number | null, fallback = "Não rastreado") {
+  if (value == null || !Number.isFinite(Number(value))) return fallback;
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(value));
+}
+
+function formatAdminDate(value?: string | null) {
+  if (!value) return "Sem data";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function paymentStatusMeta(statusValue?: string | null) {
+  const status = String(statusValue || "").toLowerCase();
+  if (["membro", "pago", "paid", "received", "received_in_cash", "confirmed", "completed"].includes(status)) {
+    return { label: "Confirmado", className: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  }
+  if (["pagamento_pendente", "pendente", "pending", "awaiting_payment", "overdue"].includes(status)) {
+    return { label: "Pendente", className: "border-amber-200 bg-amber-50 text-amber-700" };
+  }
+  if (status === "dispensado") {
+    return { label: "Dispensado", className: "border-slate-200 bg-slate-50 text-slate-600" };
+  }
+  if (["cancelado", "cancelled", "rejeitado", "failed"].includes(status)) {
+    return { label: "Cancelado", className: "border-red-200 bg-red-50 text-red-700" };
+  }
+  return {
+    label: status ? status.replaceAll("_", " ") : "Não informado",
+    className: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+}
+
+function AdminMetric({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  tone = "blue",
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+  icon: any;
+  tone?: "blue" | "green" | "amber" | "violet";
+}) {
+  const tones = {
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-emerald-50 text-emerald-600",
+    amber: "bg-amber-50 text-amber-600",
+    violet: "bg-violet-50 text-violet-600",
+  };
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-500">{label}</p>
+          <p className="mt-2 break-words text-xl font-bold tabular-nums text-brand-navy">{value}</p>
+          <p className="mt-1 text-[11px] text-slate-500">{detail}</p>
+        </div>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminMonetizationPanel({
+  data,
+  loading,
+  period,
+  onPeriodChange,
+}: {
+  data?: AdminMonetizationData;
+  loading: boolean;
+  period: string;
+  onPeriodChange: (value: string) => void;
+}) {
+  const sourceLabels = {
+    membership: "Adesao",
+    ads: "Anuncio",
+    pinbank: "PINBANK",
+  };
+
+  return (
+    <section className="space-y-4" data-testid="admin-monetization-dashboard">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-brand-navy">
+            <BadgeDollarSign className="h-5 w-5 text-blue-600" />
+            Pagamentos e monetização
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Receita da plataforma, adesões, anúncios e cobranças operacionais.
+          </p>
+        </div>
+        <Select value={period} onValueChange={onPeriodChange}>
+          <SelectTrigger className="h-9 w-full border-slate-200 bg-white text-sm sm:w-44" data-testid="select-admin-finance-period">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="30">Últimos 30 dias</SelectItem>
+            <SelectItem value="90">Últimos 90 dias</SelectItem>
+            <SelectItem value="365">Últimos 12 meses</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {loading ? (
+        <div className="flex min-h-40 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm text-slate-500 shadow-sm">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Carregando pagamentos...
+        </div>
+      ) : !data ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          Não foi possível carregar o controle de pagamentos.
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <AdminMetric
+              label="Receita da plataforma"
+              value={formatAdminMoney(data.summary.platform_confirmed_revenue)}
+              detail={`Adesões confirmadas em ${data.period_days} dias`}
+              icon={BadgeDollarSign}
+              tone="green"
+            />
+            <AdminMetric
+              label="Receita pendente"
+              value={formatAdminMoney(data.summary.platform_pending_revenue)}
+              detail={`${data.summary.pending_memberships} adesão(ões) aguardando`}
+              icon={CircleAlert}
+              tone="amber"
+            />
+            <AdminMetric
+              label="Adesões ativas"
+              value={data.summary.active_memberships}
+              detail="Usuários com adesão confirmada"
+              icon={Users}
+              tone="blue"
+            />
+            <AdminMetric
+              label="Anúncios ativos"
+              value={data.summary.active_ads}
+              detail={`${data.summary.paid_ads} pagamento(s) confirmado(s)`}
+              icon={Megaphone}
+              tone="violet"
+            />
+            <AdminMetric
+              label="PINBANK recebido"
+              value={formatAdminMoney(data.summary.bia_collections_received)}
+              detail={`Cobranças das BIAs em ${data.period_days} dias`}
+              icon={WalletCards}
+              tone="green"
+            />
+            <AdminMetric
+              label="PINBANK pendente"
+              value={formatAdminMoney(data.summary.bia_collections_pending)}
+              detail="Valores operacionais das BIAs"
+              icon={ReceiptText}
+              tone="amber"
+            />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <h3 className="text-sm font-bold text-brand-navy">Canais de monetização</h3>
+                <p className="mt-0.5 text-xs text-slate-500">Cobertura e rastreamento por fonte.</p>
+              </div>
+              <div>
+                {data.channels.map((channel) => {
+                  const tracking = channel.tracking === "operational"
+                    ? { label: "Rastreado", className: "border-emerald-200 bg-emerald-50 text-emerald-700" }
+                    : channel.tracking === "partial"
+                      ? { label: "Parcial", className: "border-amber-200 bg-amber-50 text-amber-700" }
+                      : { label: "Não integrado", className: "border-slate-200 bg-slate-50 text-slate-600" };
+                  return (
+                    <div key={channel.key} className="border-b border-slate-100 px-4 py-3 last:border-b-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-brand-navy">{channel.label}</p>
+                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${tracking.className}`}>
+                              {tracking.label}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {[channel.provider, channel.billing_model].filter(Boolean).join(" · ")}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-bold tabular-nums text-brand-navy">
+                            {channel.confirmed_amount == null
+                              ? `${channel.active_count} ativo(s)`
+                              : formatAdminMoney(channel.confirmed_amount)}
+                          </p>
+                          <p className="mt-0.5 text-[11px] tabular-nums text-slate-500">
+                            {channel.pending_count} pendente(s)
+                          </p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-slate-500">{channel.note}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <h3 className="text-sm font-bold text-brand-navy">Usuários em adesão</h3>
+                <p className="mt-0.5 text-xs text-slate-500">Confirmados e aguardando pagamento.</p>
+              </div>
+              {data.memberships.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">Nenhuma adesão paga ou pendente.</div>
+              ) : (
+                <div className="max-h-[420px] overflow-y-auto">
+                  {data.memberships.map((membership) => {
+                    const status = paymentStatusMeta(membership.status);
+                    return (
+                      <div key={membership.id} className="border-b border-slate-100 px-4 py-3 last:border-b-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-brand-navy">{membership.name}</p>
+                            <p className="truncate text-xs text-slate-500">{membership.email || "E-mail não informado"}</p>
+                            <p className="mt-1 truncate text-[11px] text-slate-400">{membership.community_name}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${status.className}`}>
+                              {status.label}
+                            </span>
+                            <p className="mt-1 text-xs font-semibold tabular-nums text-brand-navy">
+                              {formatAdminMoney(membership.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="text-sm font-bold text-brand-navy">Movimentações recentes</h3>
+              <p className="mt-0.5 text-xs text-slate-500">Eventos financeiros e de monetização no período.</p>
+            </div>
+            {data.transactions.length === 0 ? (
+              <div className="p-8 text-center text-sm text-slate-500">Nenhuma movimentação encontrada no período.</div>
+            ) : (
+              <div className="max-h-[460px] overflow-y-auto">
+                {data.transactions.slice(0, 30).map((transaction) => {
+                  const status = paymentStatusMeta(transaction.status);
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="grid gap-2 border-b border-slate-100 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1.4fr)_minmax(150px,0.7fr)_120px_130px] md:items-center"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-semibold uppercase text-blue-600">
+                            {sourceLabels[transaction.source]}
+                          </span>
+                          <p className="truncate text-sm font-semibold text-brand-navy">{transaction.label}</p>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
+                          {transaction.user_name}{transaction.user_email ? ` · ${transaction.user_email}` : ""}
+                        </p>
+                      </div>
+                      <div className="min-w-0 text-xs text-slate-500">
+                        <p className="truncate">{transaction.reference || "Sem referência"}</p>
+                        <p className="mt-0.5 uppercase text-[10px]">{transaction.provider || "Provedor não informado"}</p>
+                      </div>
+                      <div className="md:text-center">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${status.className}`}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <div className="md:text-right">
+                        <p className="text-sm font-bold tabular-nums text-brand-navy">
+                          {formatAdminMoney(transaction.amount)}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">{formatAdminDate(transaction.created_at)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function MembrosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -2086,6 +2449,8 @@ export default function MembrosPage() {
   const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Membro | null>(null);
   const [adminTab, setAdminTab] = useState<"dashboard" | "cadastro" | "configuracoes">("cadastro");
+  const [dashboardView, setDashboardView] = useState<"monetization" | "usage">("monetization");
+  const [financePeriod, setFinancePeriod] = useState("90");
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
     queryKey: ["/api/membros"],
@@ -2094,7 +2459,12 @@ export default function MembrosPage() {
 
   const { data: usageData, isLoading: loadingUsage } = useQuery<UsageHeatmapData>({
     queryKey: ["/api/admin/usage-heatmap"],
-    enabled: !!user && user.role === "admin" && adminTab === "dashboard",
+    enabled: !!user && user.role === "admin" && adminTab === "dashboard" && dashboardView === "usage",
+  });
+
+  const { data: monetizationData, isLoading: loadingMonetization } = useQuery<AdminMonetizationData>({
+    queryKey: [`/api/admin/monetization?days=${financePeriod}`],
+    enabled: !!user && user.role === "admin" && adminTab === "dashboard" && dashboardView === "monetization",
   });
 
   const membros = useMemo(
@@ -2272,6 +2642,13 @@ export default function MembrosPage() {
         .membros-light-page [data-testid^="card-membro-"] .font-mono {
           color: rgba(215, 187, 125, 0.72) !important;
         }
+        .membros-light-page [data-dashboard-view][aria-pressed="true"] .dashboard-view-title,
+        .membros-light-page [data-dashboard-view][aria-pressed="true"] .dashboard-view-icon {
+          color: #ffffff !important;
+        }
+        .membros-light-page [data-dashboard-view][aria-pressed="true"] .dashboard-view-description {
+          color: #dbeafe !important;
+        }
         @keyframes scanline {
           0% { transform: translateY(-100%); }
           100% { transform: translateY(100%); }
@@ -2395,13 +2772,82 @@ export default function MembrosPage() {
 
       {adminTab === "dashboard" ? (
         <div className="space-y-5 p-6">
-          {loadingUsage ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Visão do dashboard">
+              <button
+                type="button"
+                onClick={() => setDashboardView("monetization")}
+                className={`flex min-h-16 items-center gap-3 rounded-md px-4 py-3 text-left transition-colors ${
+                  dashboardView === "monetization"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-brand-navy"
+                }`}
+                aria-pressed={dashboardView === "monetization"}
+                data-dashboard-view
+                data-testid="tab-admin-monetization"
+              >
+                <span
+                  className={`dashboard-view-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                    dashboardView === "monetization" ? "bg-white/15" : "bg-blue-50 text-blue-600"
+                  }`}
+                >
+                  <BadgeDollarSign className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="dashboard-view-title block text-sm font-semibold">
+                    Pagamentos e monetização
+                  </span>
+                  <span className="dashboard-view-description mt-0.5 block text-xs text-slate-500">
+                    Receitas, adesões, anúncios e cobranças
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDashboardView("usage")}
+                className={`flex min-h-16 items-center gap-3 rounded-md px-4 py-3 text-left transition-colors ${
+                  dashboardView === "usage"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-brand-navy"
+                }`}
+                aria-pressed={dashboardView === "usage"}
+                data-dashboard-view
+                data-testid="tab-admin-usage-heatmap"
+              >
+                <span
+                  className={`dashboard-view-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                    dashboardView === "usage" ? "bg-white/15" : "bg-orange-50 text-orange-600"
+                  }`}
+                >
+                  <Flame className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="dashboard-view-title block text-sm font-semibold">
+                    Mapa de calor
+                  </span>
+                  <span className="dashboard-view-description mt-0.5 block text-xs text-slate-500">
+                    Utilização dos módulos e atividade dos membros
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {dashboardView === "monetization" ? (
+            <AdminMonetizationPanel
+              data={monetizationData}
+              loading={loadingMonetization}
+              period={financePeriod}
+              onPeriodChange={setFinancePeriod}
+            />
+          ) : loadingUsage ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
               Carregando mapa de uso...
             </div>
           ) : !usageData ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
-              Nao foi possivel carregar o dashboard.
+              Não foi possível carregar o dashboard.
             </div>
           ) : (
             <>
@@ -2415,7 +2861,7 @@ export default function MembrosPage() {
                   <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.summary.inactive_members}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-medium text-slate-500">Alta utilizacao</p>
+                  <p className="text-xs font-medium text-slate-500">Alta utilização</p>
                   <p className="mt-2 text-2xl font-bold tabular-nums text-brand-navy">{usageData.summary.high_usage_members}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -2431,7 +2877,7 @@ export default function MembrosPage() {
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="flex items-center gap-2 text-base font-bold text-brand-navy">
                   <Activity className="h-4 w-4 text-blue-600" />
-                  Utilizacao por modulo
+                  Utilização por módulo
                 </h2>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {usageData.modules.map((mod) => {
@@ -2461,7 +2907,7 @@ export default function MembrosPage() {
                 <div className="mt-4">
                   {usageData.members.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                      Nenhum uso registrado no periodo.
+                      Nenhum uso registrado no período.
                     </div>
                   ) : (
                     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

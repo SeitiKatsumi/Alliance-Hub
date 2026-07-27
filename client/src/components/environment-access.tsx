@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { AppUser } from "@/hooks/use-auth";
+import { hasEmployeeModuleAccess } from "@/lib/company-access";
 
 export type EnvironmentTarget = "vitrine" | "alliances" | "capital";
 
@@ -28,15 +29,25 @@ function userRedes(user?: AppUser | null): string[] {
 }
 
 export function environmentAccessFor(user: AppUser | null | undefined, target: EnvironmentTarget): AccessState {
+  if (user?.company_employee && !hasEmployeeModuleAccess(user, target, "view")) {
+    return {
+      canAccess: false,
+      target,
+      title: "Acesso não liberado",
+      description: "O responsável pela conta da empresa ainda não liberou este ambiente para você.",
+      actionLabel: "Ver meu acesso",
+    };
+  }
   const role = user?.role || "";
   const redes = userRedes(user);
   const isAdmin = role === "admin" || role === "manager" || role === "superadmin";
   const isLicensedAlly = role === "aliado";
   const hasCapitalSeal = redes.includes("BUILT_CAPITAL_PARTNER");
 
-  const hasVitrineAccess = isAdmin || user?.na_vitrine === true;
-  const hasCapitalAccess = isAdmin || user?.em_built_capital === true || role === "investidor" || hasCapitalSeal;
-  const hasAlliancesAccess = isAdmin || isLicensedAlly || role === "membro" || user?.em_membros_built === true;
+  const isEmployee = user?.company_employee === true;
+  const hasVitrineAccess = isEmployee || isAdmin || user?.na_vitrine === true;
+  const hasCapitalAccess = isEmployee || isAdmin || user?.em_built_capital === true || role === "investidor" || hasCapitalSeal;
+  const hasAlliancesAccess = isEmployee || isAdmin || isLicensedAlly || role === "membro" || user?.em_membros_built === true;
 
   if (target === "vitrine") {
     return {

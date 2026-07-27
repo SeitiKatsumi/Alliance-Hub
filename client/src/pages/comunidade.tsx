@@ -35,6 +35,11 @@ import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { PhoneInput } from "@/components/phone-input";
 import { getOpaUrl } from "@/lib/public-refs";
 import {
+  createAuraMediaRecorder,
+  formatAuraRecordingTime,
+  getAuraAudioFilename,
+} from "@/lib/aura-audio";
+import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 
@@ -1462,6 +1467,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [auraTextoIA, setAuraTextoIA] = useState("");
   const [auraArquivoNome, setAuraArquivoNome] = useState<string | null>(null);
   const [auraRecording, setAuraRecording] = useState(false);
+  const [auraRecordingSeconds, setAuraRecordingSeconds] = useState(0);
   const [auraMicBlocked, setAuraMicBlocked] = useState(false);
   const [auraMicPromptOpen, setAuraMicPromptOpen] = useState(false);
   const [mouPendente, setMouPendente] = useState<MouPendente | null>(null);
@@ -1472,6 +1478,19 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const auraAudioFileInputRef = useRef<HTMLInputElement>(null);
   const auraMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const auraAudioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (!auraRecording) {
+      setAuraRecordingSeconds(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setAuraRecordingSeconds(seconds => seconds + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [auraRecording]);
 
   const { data: auraLexico = [] } = useQuery<{ canonico: string; dimensao: string }[]>({
     queryKey: ["/api/aura/lexico"],
@@ -1596,11 +1615,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   });
 
   const transcreverAuraAudioMutation = useMutation({
-    mutationFn: async ({ blob, filename = "percepcao-aura.webm" }: { blob: Blob; filename?: string }) => {
+    mutationFn: async ({ blob, filename }: { blob: Blob; filename?: string }) => {
       const token = auraDialogConvite?.avaliacaoToken;
       if (!token) throw new Error("Convite de Aura não encontrado.");
       const form = new FormData();
-      const uploadFilename = filename.replace(/\.(oga|opus)$/i, ".ogg");
+      const uploadFilename = (filename || getAuraAudioFilename(blob.type)).replace(/\.(oga|opus)$/i, ".ogg");
       form.append("audio", blob, uploadFilename);
       const res = await fetch(`/api/avaliacao-aura/${encodeURIComponent(token)}/transcrever-audio`, {
         method: "POST",
@@ -1608,15 +1627,14 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Erro ao transcrever áudio." }));
-        throw new Error(err.error || "Erro ao transcrever áudio.");
+        const err = await res.json().catch(() => ({ error: "Não foi possível processar o áudio. Tente novamente." }));
+        throw new Error(err.error || "Não foi possível processar o áudio. Tente novamente.");
       }
       return res.json() as Promise<{ texto: string }>;
     },
     onSuccess: data => {
       setAuraTextoIA(prev => prev ?prev + "\n\n" + data.texto : data.texto);
       setAuraEvalMode("ia");
-      toast({ title: "Áudio transcrito", description: "Revise o texto antes de analisar com IA." });
     },
     onError: (err: Error) => toast({ title: "Erro no áudio", description: err.message, variant: "destructive" }),
   });
@@ -1663,6 +1681,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     setAuraTextoIA("");
     setAuraArquivoNome(null);
     setAuraRecording(false);
+    setAuraRecordingSeconds(0);
     setAuraMicBlocked(false);
     setAuraMicPromptOpen(false);
   };
@@ -1682,18 +1701,22 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const recorder = createAuraMediaRecorder(stream);
       auraAudioChunksRef.current = [];
       recorder.ondataavailable = event => {
         if (event.data.size > 0) auraAudioChunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop());
-        const blob = new Blob(auraAudioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const recordedMimeType = recorder.mimeType || auraAudioChunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(auraAudioChunksRef.current, { type: recordedMimeType });
         auraAudioChunksRef.current = [];
         setAuraRecording(false);
         if (blob.size > 0 && auraDialogConvite) {
-          transcreverAuraAudioMutation.mutate({ blob, filename: "percepcao-aura.webm" });
+          transcreverAuraAudioMutation.mutate({
+            blob,
+            filename: getAuraAudioFilename(recordedMimeType),
+          });
         }
       };
       auraMediaRecorderRef.current = recorder;
@@ -3289,7 +3312,11 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-8 border-white/10 bg-transparent text-xs text-white/65 hover:text-white"
+                      className={`h-8 bg-transparent text-xs hover:text-white ${
+                        auraRecording
+                          ? "border-red-400/50 text-red-200 bg-red-500/10"
+                          : "border-white/10 text-white/65"
+                      }`}
                       onClick={requestAuraRecording}
                       disabled={transcreverAuraAudioMutation.isPending}
                       data-testid="btn-aura-audio-notificacoes"
@@ -3302,7 +3329,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                       ) : (
                         <Mic className="w-3.5 h-3.5 mr-1.5" />
                       )}
-                      {transcreverAuraAudioMutation.isPending ?"Transcrevendo..." : auraRecording ?"Parar áudio" : auraMicBlocked ?"Ativar microfone" : "Gravar áudio"}
+                      {transcreverAuraAudioMutation.isPending ?"Processando áudio..." : auraRecording ?"Parar áudio" : auraMicBlocked ?"Ativar microfone" : "Gravar áudio"}
                     </Button>
                     <Button
                       type="button"
@@ -3360,6 +3387,32 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                     />
                   </div>
                 </div>
+
+                {auraRecording && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="flex items-center gap-3 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100"
+                    data-testid="status-aura-gravando-notificacoes"
+                  >
+                    <span className="relative flex h-3 w-3 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-300 opacity-70" />
+                      <span className="relative inline-flex h-3 w-3 rounded-full bg-red-400" />
+                    </span>
+                    <span className="flex h-5 items-center gap-0.5" aria-hidden="true">
+                      {[10, 18, 14, 20, 12].map((height, index) => (
+                        <span
+                          key={height}
+                          className="w-1 animate-pulse rounded-full bg-red-200"
+                          style={{ height, animationDelay: `${index * 100}ms` }}
+                        />
+                      ))}
+                    </span>
+                    <span className="font-medium">Gravando</span>
+                    <span className="font-mono tabular-nums">{formatAuraRecordingTime(auraRecordingSeconds)}</span>
+                    <span className="ml-auto hidden text-red-100/65 sm:inline">Toque em Parar áudio ao terminar.</span>
+                  </div>
+                )}
 
                 {auraArquivoNome && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-xs text-white/60" style={{ background: "rgba(255,255,255,0.04)" }}>

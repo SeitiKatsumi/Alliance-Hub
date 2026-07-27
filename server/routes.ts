@@ -1,7 +1,7 @@
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -16,6 +16,7 @@ import { randomUUID } from "crypto";
 import { deflateSync } from "zlib";
 import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
+import { resolveAuraAudioMetadata } from "./aura-audio";
 import {
   buildCarteiraAlternativas,
   diagnosticarCarteira,
@@ -41,6 +42,15 @@ import {
   type BiaAccessMatrix,
   type BiaParticipantRole,
 } from "@shared/bia-access";
+import {
+  COMPANY_ACCESS_KEYS,
+  companyAccessToLegacyPermissions,
+  hasCompanyAccess,
+  normalizeCompanyAccess,
+  type CompanyAccessKey,
+  type CompanyAccessLevel,
+  type CompanyAccessMatrix,
+} from "@shared/company-access";
 
 let openaiClient: OpenAI | null = null;
 function getOpenAI() {
@@ -1279,6 +1289,31 @@ async function ensureBiaUserPermissionsTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_user_permissions_bia ON bia_user_permissions (bia_id)`);
 }
 
+async function ensureCompanyEmployeeAccountsTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS company_employee_accounts (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_user_id text NOT NULL,
+      owner_membro_id text,
+      owner_nome text,
+      owner_email text,
+      employee_user_id text NOT NULL UNIQUE,
+      cargo text,
+      permissions jsonb NOT NULL DEFAULT '{}'::jsonb,
+      status text NOT NULL DEFAULT 'ativo',
+      updated_by_user_id text,
+      last_login_at timestamp,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS owner_nome text`);
+  await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS owner_email text`);
+  await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS updated_by_user_id text`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_company_employee_accounts_owner ON company_employee_accounts (owner_user_id, created_at DESC)`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_company_employee_accounts_employee ON company_employee_accounts (employee_user_id)`);
+}
+
 async function ensureBiaBancoTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bia_bank_accounts (
@@ -1973,25 +2008,44 @@ const auraAudioUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-function auraAudioMime(originalName?: string, mimeType?: string) {
-  const ext = path.extname(originalName || "").toLowerCase();
-  const mime = String(mimeType || "").toLowerCase();
-  if (ext === ".ogg" || ext === ".oga" || ext === ".opus") return "audio/ogg";
-  if (ext === ".mp3") return "audio/mpeg";
-  if (ext === ".m4a") return "audio/mp4";
-  if (ext === ".aac") return "audio/aac";
-  if (ext === ".wav") return "audio/wav";
-  if (ext === ".webm") return "audio/webm";
-  if (ext === ".3gp") return "audio/3gpp";
-  if (ext === ".amr") return "audio/amr";
-  if (mime.startsWith("audio/")) return mimeType || "audio/webm";
-  return "audio/webm";
+function auraAudioMime(originalName?: string, mimeType?: string, buffer?: Buffer) {
+  return resolveAuraAudioMetadata(originalName, mimeType, buffer).mimeType;
 }
 
-function auraAudioFilename(originalName?: string) {
-  const ext = path.extname(originalName || "").toLowerCase() || ".webm";
-  const normalizedExt = ext === ".oga" || ext === ".opus" ? ".ogg" : ext;
-  return `percepcao-aura${normalizedExt}`;
+function auraAudioFilename(originalName?: string, mimeType?: string, buffer?: Buffer) {
+  return resolveAuraAudioMetadata(originalName, mimeType, buffer).filename;
+}
+
+async function transcribeAuraAudioFile(file: { buffer: Buffer; originalname?: string; mimetype?: string; size?: number }) {
+  const { toFile } = await import("openai");
+  const filename = auraAudioFilename(file.originalname, file.mimetype, file.buffer);
+  const mimeType = auraAudioMime(file.originalname, file.mimetype, file.buffer);
+  const models = ["gpt-4o-mini-transcribe", "whisper-1"] as const;
+  let lastError: any;
+
+  for (const model of models) {
+    try {
+      const audioFile = await toFile(file.buffer, filename, { type: mimeType });
+      const transcription = await getOpenAI().audio.transcriptions.create({
+        file: audioFile,
+        model,
+        language: "pt",
+      });
+      return (transcription.text || "").replace(/\s+/g, " ").trim();
+    } catch (error: any) {
+      lastError = error;
+      console.warn("[aura-audio-attempt]", {
+        model,
+        error: error?.message,
+        filename,
+        mimeType,
+        receivedMimeType: file.mimetype,
+        bytes: file.size ?? file.buffer.length,
+      });
+    }
+  }
+
+  throw lastError;
 }
 
 async function grantCollectionPermissions(collection: string) {
@@ -2660,6 +2714,7 @@ export async function registerRoutes(
   ensureBiaSocioSolicitacoesTable().catch((err: any) => console.warn("[bia-socios] Tabela nao sincronizada:", err?.message || err));
   ensureBiaMouAceitesTable().catch((err: any) => console.warn("[bia-mou] Tabela nao sincronizada:", err?.message || err));
   ensureBiaUserPermissionsTable().catch((err: any) => console.warn("[bia-access] Tabela nao sincronizada:", err?.message || err));
+  ensureCompanyEmployeeAccountsTable().catch((err: any) => console.warn("[company-access] Tabela nao sincronizada:", err?.message || err));
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
@@ -2717,6 +2772,315 @@ export async function registerRoutes(
       console.warn("[usage] evento registrado apenas em memoria:", err?.message || err);
     });
   }
+
+  function resultRows(result: any): any[] {
+    return Array.isArray(result?.rows) ? result.rows : Array.isArray(result) ? result : [];
+  }
+
+  async function getCompanyEmployeeByUserId(employeeUserId: string): Promise<any | null> {
+    await ensureCompanyEmployeeAccountsTable();
+    const result: any = await db.execute(sql`
+      SELECT
+        account.*,
+        employee.nome AS employee_nome,
+        employee.email AS employee_email,
+        employee.username AS employee_username,
+        employee.ativo AS employee_ativo
+      FROM company_employee_accounts account
+      LEFT JOIN users employee ON employee.id::text = account.employee_user_id
+      WHERE account.employee_user_id = ${employeeUserId}
+      LIMIT 1
+    `);
+    return resultRows(result)[0] || null;
+  }
+
+  async function getCompanyEmployeeForOwner(ownerUserId: string, accountId: string): Promise<any | null> {
+    const result: any = await db.execute(sql`
+      SELECT
+        account.*,
+        employee.nome AS employee_nome,
+        employee.email AS employee_email,
+        employee.username AS employee_username,
+        employee.ativo AS employee_ativo
+      FROM company_employee_accounts account
+      LEFT JOIN users employee ON employee.id::text = account.employee_user_id
+      WHERE account.owner_user_id = ${ownerUserId} AND account.id = ${accountId}
+      LIMIT 1
+    `);
+    return resultRows(result)[0] || null;
+  }
+
+  function applyCompanyEmployeeSession(req: any, account: any, localUser?: any) {
+    const permissions = normalizeCompanyAccess(account?.permissions);
+    req.session.companyEmployeeId = String(account.id);
+    req.session.companyOwnerUserId = String(account.owner_user_id);
+    req.session.companyOwnerMembroId = account.owner_membro_id ? String(account.owner_membro_id) : null;
+    req.session.companyEmployeePermissions = permissions;
+    req.session.membroId = account.owner_membro_id ? String(account.owner_membro_id) : null;
+    req.session.nome = localUser?.nome || account.employee_nome || req.session.nome;
+    req.session.email = localUser?.email || account.employee_email || req.session.email;
+    req.session.role = "employee";
+    req.session.permissions = companyAccessToLegacyPermissions(permissions);
+  }
+
+  function companyModuleForApiPath(pathname: string): CompanyAccessKey | null {
+    const path = pathname.toLowerCase();
+    if (path.startsWith("/api/agenda")) return "agenda";
+    if (path.startsWith("/api/carteira") || path.startsWith("/api/inventario")) return "carteira";
+    if (path.startsWith("/api/vitrine") || path.startsWith("/api/anuncios")) return "vitrine";
+    if (path.startsWith("/api/aura")) return "aura";
+    if (
+      path.startsWith("/api/built-capital")
+      || path.startsWith("/api/land-bank")
+      || path.startsWith("/api/fluxo-caixa")
+      || path.startsWith("/api/bia-banco")
+      || path.startsWith("/api/pinbank")
+    ) return "capital";
+    if (
+      path.startsWith("/api/bias")
+      || path.startsWith("/api/bia-")
+      || path.startsWith("/api/opas")
+      || path.startsWith("/api/opa/")
+      || path.startsWith("/api/comunidade")
+      || path.startsWith("/api/chamadas-alianca")
+      || path.startsWith("/api/nucleo-tecnico")
+      || path.startsWith("/api/alianca-docs")
+      || path.startsWith("/api/movimentacao-cotas")
+    ) return "alliances";
+    return null;
+  }
+
+  app.use("/api", async (req: any, res, next) => {
+    const employeeId = req.session?.companyEmployeeId;
+    if (!employeeId) return next();
+    const pathname = String(req.originalUrl || req.url || "").split("?")[0];
+    if (pathname === "/api/logout") return next();
+
+    try {
+      const account = await getCompanyEmployeeByUserId(String(req.session.directusUserId || ""));
+      if (!account || account.status !== "ativo" || account.employee_ativo === false) {
+        return res.status(403).json({
+          error: "Este acesso de funcionário está suspenso. Fale com o responsável da empresa.",
+          code: "COMPANY_ACCOUNT_SUSPENDED",
+        });
+      }
+      applyCompanyEmployeeSession(req, account);
+
+      if (pathname.startsWith("/api/empresa/funcionarios")) return next();
+      if (pathname.startsWith("/api/membros/") && !["GET", "HEAD"].includes(req.method)) {
+        return res.status(403).json({
+          error: "Funcionários não podem alterar o perfil principal da empresa.",
+          code: "COMPANY_ACCESS_DENIED",
+        });
+      }
+
+      const module = companyModuleForApiPath(pathname);
+      const required: Exclude<CompanyAccessLevel, "none"> = ["GET", "HEAD", "OPTIONS"].includes(req.method) ? "view" : "edit";
+      if (module && !hasCompanyAccess(account.permissions, module, required)) {
+        return res.status(403).json({
+          error: required === "edit"
+            ? "Seu acesso permite apenas visualizar esta área."
+            : "O responsável da empresa não liberou esta área para você.",
+          code: "COMPANY_ACCESS_DENIED",
+          module,
+          required,
+        });
+      }
+      return next();
+    } catch (error: any) {
+      console.error("[company-access] falha ao validar acesso:", error?.message || error);
+      return res.status(503).json({
+        error: "Não foi possível confirmar seu acesso da empresa agora.",
+        code: "COMPANY_ACCESS_UNAVAILABLE",
+      });
+    }
+  });
+
+  function requireCompanyOwner(req: any, res: any): string | null {
+    const ownerUserId = req.session?.directusUserId ? String(req.session.directusUserId) : "";
+    if (!ownerUserId) {
+      res.status(401).json({ error: "Não autenticado" });
+      return null;
+    }
+    if (req.session?.companyEmployeeId) {
+      res.status(403).json({ error: "Somente o responsável da empresa pode gerenciar funcionários." });
+      return null;
+    }
+    return ownerUserId;
+  }
+
+  app.get("/api/empresa/funcionarios", async (req: any, res) => {
+    const ownerUserId = requireCompanyOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      await ensureCompanyEmployeeAccountsTable();
+      const result: any = await db.execute(sql`
+        SELECT
+          account.*,
+          employee.nome,
+          employee.email,
+          employee.username,
+          employee.ativo
+        FROM company_employee_accounts account
+        LEFT JOIN users employee ON employee.id::text = account.employee_user_id
+        WHERE account.owner_user_id = ${ownerUserId}
+        ORDER BY account.created_at DESC
+      `);
+      const items = resultRows(result).map((item) => ({
+        ...item,
+        permissions: normalizeCompanyAccess(item.permissions),
+      }));
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar funcionários" });
+    }
+  });
+
+  app.post("/api/empresa/funcionarios", async (req: any, res) => {
+    const ownerUserId = requireCompanyOwner(req, res);
+    if (!ownerUserId) return;
+    const nome = String(req.body?.nome || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const password = String(req.body?.password || "");
+    const cargo = String(req.body?.cargo || "").trim();
+    if (!nome || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Informe nome e e-mail válidos." });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: "A senha inicial deve ter pelo menos 6 caracteres." });
+    }
+
+    let employeeUser: any | null = null;
+    try {
+      await ensureCompanyEmployeeAccountsTable();
+      const existing = await storage.getUsersByEmail(email);
+      if (existing.length > 0) {
+        return res.status(409).json({ error: "Já existe uma conta com este e-mail." });
+      }
+      const companyPermissions = normalizeCompanyAccess(req.body?.permissions);
+      employeeUser = await storage.createUser({
+        username: email,
+        password,
+        nome,
+        email,
+        membro_directus_id: req.session?.membroId || null,
+        role: "user",
+        permissions: companyAccessToLegacyPermissions(companyPermissions) as any,
+        ativo: true,
+      } as any);
+      const result: any = await db.execute(sql`
+        INSERT INTO company_employee_accounts (
+          owner_user_id,
+          owner_membro_id,
+          owner_nome,
+          owner_email,
+          employee_user_id,
+          cargo,
+          permissions,
+          status,
+          updated_by_user_id
+        )
+        VALUES (
+          ${ownerUserId},
+          ${req.session?.membroId ? String(req.session.membroId) : null},
+          ${req.session?.nome || null},
+          ${req.session?.email || null},
+          ${employeeUser.id},
+          ${cargo || null},
+          ${JSON.stringify(companyPermissions)}::jsonb,
+          'ativo',
+          ${ownerUserId}
+        )
+        RETURNING *
+      `);
+      const account = resultRows(result)[0];
+      res.status(201).json({
+        ...account,
+        nome: employeeUser.nome,
+        email: employeeUser.email,
+        ativo: employeeUser.ativo,
+        permissions: companyPermissions,
+      });
+    } catch (error: any) {
+      if (employeeUser?.id) await storage.deleteUser(employeeUser.id).catch(() => false);
+      res.status(500).json({ error: error.message || "Erro ao criar acesso de funcionário" });
+    }
+  });
+
+  app.patch("/api/empresa/funcionarios/:id", async (req: any, res) => {
+    const ownerUserId = requireCompanyOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const account = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
+      if (!account) return res.status(404).json({ error: "Funcionário não encontrado." });
+
+      const nextPermissions = req.body?.permissions === undefined
+        ? normalizeCompanyAccess(account.permissions)
+        : normalizeCompanyAccess(req.body.permissions);
+      const nextStatus = req.body?.status === "suspenso" ? "suspenso" : "ativo";
+      const nextCargo = req.body?.cargo === undefined ? account.cargo : String(req.body.cargo || "").trim() || null;
+      const userUpdate: Record<string, any> = {
+        ativo: nextStatus === "ativo",
+        permissions: companyAccessToLegacyPermissions(nextPermissions),
+      };
+      if (req.body?.nome !== undefined) {
+        const nome = String(req.body.nome || "").trim();
+        if (!nome) return res.status(400).json({ error: "O nome não pode ficar vazio." });
+        userUpdate.nome = nome;
+      }
+      if (req.body?.email !== undefined) {
+        const email = String(req.body.email || "").trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "E-mail inválido." });
+        const matches = await storage.getUsersByEmail(email);
+        if (matches.some((item) => String(item.id) !== String(account.employee_user_id))) {
+          return res.status(409).json({ error: "Já existe uma conta com este e-mail." });
+        }
+        userUpdate.email = email;
+        userUpdate.username = email;
+      }
+      if (req.body?.password) {
+        const password = String(req.body.password);
+        if (password.length < 6) return res.status(400).json({ error: "A nova senha deve ter pelo menos 6 caracteres." });
+        userUpdate.password = password;
+      }
+
+      await storage.updateUser(String(account.employee_user_id), userUpdate as any);
+      await db.execute(sql`
+        UPDATE company_employee_accounts
+        SET
+          owner_membro_id = ${req.session?.membroId ? String(req.session.membroId) : null},
+          owner_nome = ${req.session?.nome || null},
+          owner_email = ${req.session?.email || null},
+          cargo = ${nextCargo},
+          permissions = ${JSON.stringify(nextPermissions)}::jsonb,
+          status = ${nextStatus},
+          updated_by_user_id = ${ownerUserId},
+          updated_at = now()
+        WHERE id = ${req.params.id} AND owner_user_id = ${ownerUserId}
+      `);
+      const updated = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
+      res.json({ ...updated, permissions: normalizeCompanyAccess(updated?.permissions) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar acesso" });
+    }
+  });
+
+  app.delete("/api/empresa/funcionarios/:id", async (req: any, res) => {
+    const ownerUserId = requireCompanyOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const account = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
+      if (!account) return res.status(404).json({ error: "Funcionário não encontrado." });
+      await db.execute(sql`
+        DELETE FROM company_employee_accounts
+        WHERE id = ${req.params.id} AND owner_user_id = ${ownerUserId}
+      `);
+      await storage.deleteUser(String(account.employee_user_id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao remover acesso" });
+    }
+  });
   // Update observacoes field label in Directus admin
   fetch(`${DIRECTUS_URL}/fields/bias_projetos/observacoes`, {
     method: "PATCH",
@@ -4268,6 +4632,20 @@ export async function registerRoutes(
     if (!(req.session as any).directusUserId) {
       res.status(401).json({ error: "Nao autenticado" });
       return null;
+    }
+    if (req.session?.companyEmployeeId) {
+      const companyModule: CompanyAccessKey = key.startsWith("capital_") ? "capital" : "alliances";
+      if (!hasCompanyAccess(req.session.companyEmployeePermissions, companyModule, required)) {
+        res.status(403).json({
+          error: required === "edit"
+            ? "Seu acesso da empresa permite apenas visualizar esta área."
+            : "O responsável da empresa não liberou esta área para você.",
+          code: "COMPANY_ACCESS_DENIED",
+          module: companyModule,
+          required,
+        });
+        return null;
+      }
     }
     const bia = await resolveBiaByIdOrPublicCode(biaRef, "*");
     if (!bia?.id) {
@@ -12942,7 +13320,11 @@ ${textContent.slice(0, 16000)}`;
       const file = (req as any).file;
       if (!file) return res.status(400).json({ error: "Nenhum áudio enviado" });
       const { toFile } = await import("openai");
-      const audioFile = await toFile(file.buffer, auraAudioFilename(file.originalname), { type: auraAudioMime(file.originalname, file.mimetype) });
+      const audioFile = await toFile(
+        file.buffer,
+        auraAudioFilename(file.originalname, file.mimetype, file.buffer),
+        { type: auraAudioMime(file.originalname, file.mimetype, file.buffer) },
+      );
       const transcription = await getOpenAI().audio.transcriptions.create({
         file: audioFile,
         model: "whisper-1",
@@ -13747,6 +14129,36 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
             if (!localUser.ativo) continue;
             const valid = await comparePasswords(password, localUser.password);
             if (valid) {
+              const employeeAccount = await getCompanyEmployeeByUserId(String(localUser.id)).catch(() => null);
+              if (employeeAccount) {
+                if (employeeAccount.status !== "ativo" || employeeAccount.employee_ativo === false) {
+                  return res.status(403).json({
+                    error: "Este acesso de funcionário está suspenso. Fale com o responsável da empresa.",
+                    code: "COMPANY_ACCOUNT_SUSPENDED",
+                  });
+                }
+                (req.session as any).directusUserId = localUser.id;
+                applyCompanyEmployeeSession(req, employeeAccount, localUser);
+                await db.execute(sql`
+                  UPDATE company_employee_accounts
+                  SET last_login_at = now()
+                  WHERE id = ${employeeAccount.id}
+                `).catch(() => {});
+                return finishLogin({
+                  id: localUser.id,
+                  nome: localUser.nome,
+                  email: localUser.email,
+                  membro_directus_id: employeeAccount.owner_membro_id || null,
+                  role: "employee",
+                  permissions: companyAccessToLegacyPermissions(employeeAccount.permissions),
+                  company_employee: true,
+                  company_owner_user_id: employeeAccount.owner_user_id,
+                  company_owner_membro_id: employeeAccount.owner_membro_id || null,
+                  company_owner_nome: employeeAccount.owner_nome || null,
+                  company_employee_role: employeeAccount.cargo || null,
+                  company_permissions: normalizeCompanyAccess(employeeAccount.permissions),
+                });
+              }
               const role = localUser.role || "user";
               const permissions = (Object.keys(localUser.permissions as any || {}).length > 0
                 ? localUser.permissions
@@ -13890,6 +14302,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   app.get("/api/me", async (req, res) => {
     const directusUserId = (req.session as any).directusUserId;
     if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
+    const companyEmployee = await getCompanyEmployeeByUserId(String(directusUserId)).catch(() => null);
+    if (companyEmployee && (companyEmployee.status !== "ativo" || companyEmployee.employee_ativo === false)) {
+      return res.status(403).json({
+        error: "Este acesso de funcionário está suspenso. Fale com o responsável da empresa.",
+        code: "COMPANY_ACCOUNT_SUSPENDED",
+      });
+    }
+    if (companyEmployee) {
+      applyCompanyEmployeeSession(req, companyEmployee);
+    }
     let role = (req.session as any).role || "user";
     let permissions = (req.session as any).permissions || {};
     const email = (req.session as any).email || "";
@@ -13903,7 +14325,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           || (sessionMembroId ? localUsers.find((u: any) => String(u.membro_directus_id || "") === String(sessionMembroId)) : null)
           || localUsers[0]
           || null;
-        if (matchedLocalUser && matchedLocalUser.ativo) {
+        if (matchedLocalUser && matchedLocalUser.ativo && !companyEmployee) {
           role = matchedLocalUser.role || role;
           if ((matchedLocalUser.permissions as any) && Object.keys(matchedLocalUser.permissions as any).length > 0) {
             permissions = matchedLocalUser.permissions as Record<string, string>;
@@ -13948,7 +14370,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       try {
         const membro = await directusFetchOne("cadastro_geral", membroId, "fields=Nome_de_usuario,nome,tipos_alianca,Outras_redes_as_quais_pertenco,foto_perfil,na_vitrine,em_membros_built,em_built_capital,vitrine_termo_aceito_em,vitrine_termo_versao,area_aliancas_termo_aceito_em,area_aliancas_termo_versao,built_capital_termo_aceito_em,built_capital_termo_versao");
         if (membro) {
-          nomePerfil = membro.Nome_de_usuario || membro.nome || nomePerfil;
+          if (!companyEmployee) nomePerfil = membro.Nome_de_usuario || membro.nome || nomePerfil;
           tipos_alianca = Array.isArray(membro.tipos_alianca) ? membro.tipos_alianca : [];
           Outras_redes_as_quais_pertenco = Array.isArray(membro.Outras_redes_as_quais_pertenco) ? membro.Outras_redes_as_quais_pertenco : [];
           fotoPerfil = membro.foto_perfil || null;
@@ -13961,7 +14383,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           areaAliancasTermoVersao = membro.area_aliancas_termo_versao || null;
           builtCapitalTermoAceitoEm = membro.built_capital_termo_aceito_em || null;
           builtCapitalTermoVersao = membro.built_capital_termo_versao || null;
-          (req.session as any).nome = nomePerfil;
+          if (!companyEmployee) (req.session as any).nome = nomePerfil;
         }
       } catch (_) {}
     }
@@ -14019,6 +14441,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       pending_vitrine,
       convite_pendente,
       adesao_pendente,
+      company_employee: Boolean(companyEmployee),
+      company_owner_user_id: companyEmployee?.owner_user_id || null,
+      company_owner_membro_id: companyEmployee?.owner_membro_id || null,
+      company_owner_nome: companyEmployee?.owner_nome || null,
+      company_owner_email: companyEmployee?.owner_email || null,
+      company_employee_role: companyEmployee?.cargo || null,
+      company_permissions: companyEmployee
+        ? normalizeCompanyAccess(companyEmployee.permissions)
+        : null,
     });
   });
 
@@ -14456,6 +14887,291 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         members: rows,
       });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/monetization", async (req, res) => {
+    try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Apenas administradores podem acessar este dashboard." });
+
+      const days = Math.min(Math.max(parseInt(String(req.query.days || "90"), 10) || 90, 30), 365);
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const membershipPrice = 3197;
+      const paidStatuses = new Set(["paid", "pago", "received", "received_in_cash", "confirmed", "completed", "membro"]);
+      const pendingStatuses = new Set(["pending", "pendente", "pagamento_pendente", "awaiting_payment", "overdue"]);
+      const normalizedStatus = (value: any) => String(value || "").trim().toLowerCase();
+      const isPaid = (value: any) => paidStatuses.has(normalizedStatus(value));
+      const isPending = (value: any) => pendingStatuses.has(normalizedStatus(value));
+      const asDate = (value: any) => {
+        if (!value) return null;
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      };
+      const inPeriod = (value: any) => {
+        const parsed = asDate(value);
+        return Boolean(parsed && parsed >= since);
+      };
+
+      const allUsers = await storage.getAllUsers().catch(() => []);
+      const usersById = new Map(
+        (allUsers as any[]).map((user) => [
+          String(user.id),
+          {
+            nome: user.nome || user.username || user.email || "Usuario",
+            email: user.email || null,
+            membro_id: user.membro_directus_id || null,
+          },
+        ]),
+      );
+      const usersByMemberId = new Map(
+        (allUsers as any[])
+          .filter((user) => user.membro_directus_id)
+          .map((user) => [
+            String(user.membro_directus_id),
+            {
+              nome: user.nome || user.username || user.email || "Usuario",
+              email: user.email || null,
+            },
+          ]),
+      );
+
+      const [allInvites, allAds, bankChargeResult, communities, bias] = await Promise.all([
+        db.select().from(convitesComunidade).catch(() => []),
+        db.select().from(anuncios).catch(() => []),
+        db.execute(sql`
+          SELECT *
+          FROM bia_bank_charges
+          ORDER BY created_at DESC
+        `).catch(() => ({ rows: [] } as any)),
+        (async () => {
+          try {
+            const collection = await getComunidadeCol();
+            return await directusFetchScoped(collection, "fields=id,nome,sigla&limit=-1");
+          } catch {
+            return [];
+          }
+        })(),
+        directusFetchScoped("bias_projetos", "fields=id,nome,nome_bia,titulo,codigo_bia&limit=-1").catch(() => []),
+      ]);
+
+      const communitiesById = new Map(
+        (communities as any[]).map((community) => [
+          String(community.id),
+          community.nome || community.sigla || `Comunidade ${community.id}`,
+        ]),
+      );
+      const biasById = new Map(
+        (bias as any[]).map((bia) => [
+          String(bia.id),
+          bia.nome_bia || bia.nome || bia.titulo || bia.codigo_bia || `BIA ${bia.id}`,
+        ]),
+      );
+
+      const membershipTypes = new Set(["associacao_completa", "completo"]);
+      const membershipRows = (allInvites as any[])
+        .filter((invite) => membershipTypes.has(String(invite.tipo || "").toLowerCase()))
+        .map((invite) => {
+          const status = normalizedStatus(invite.status);
+          const paid = status === "membro";
+          const pending = status === "pagamento_pendente";
+          const eventDate = invite.atualizado_em || invite.termos_aceitos_em || invite.criado_em;
+          return {
+            id: String(invite.id),
+            member_id: invite.candidato_membro_id ? String(invite.candidato_membro_id) : null,
+            name: invite.candidato_nome || invite.candidato_email || "Candidato",
+            email: invite.candidato_email || null,
+            community_id: invite.comunidade_id ? String(invite.comunidade_id) : null,
+            community_name: communitiesById.get(String(invite.comunidade_id)) || `Comunidade ${invite.comunidade_id}`,
+            status,
+            provider: "asaas/stripe",
+            billing_model: "pagamento_unico",
+            amount: paid || pending ? membershipPrice : null,
+            paid,
+            pending,
+            created_at: invite.criado_em || null,
+            updated_at: eventDate || null,
+          };
+        })
+        .sort((a, b) => Number(asDate(b.updated_at)) - Number(asDate(a.updated_at)));
+
+      const adsRows = (allAds as any[])
+        .map((ad) => {
+          const member = usersByMemberId.get(String(ad.membro_id));
+          const eventDate = ad.publicado_em || ad.pagamento_gerado_em || ad.created_at;
+          return {
+            id: String(ad.id),
+            member_id: ad.membro_id ? String(ad.membro_id) : null,
+            name: member?.nome || "Anunciante",
+            email: member?.email || null,
+            title: ad.titulo || "Anuncio",
+            environment: ad.ambiente || "vitrine",
+            slot_type: ad.slot_tipo || "padrao",
+            provider: ad.pagamento_provider || (ad.pagamento_status === "dispensado" ? "administrativo" : null),
+            status: normalizedStatus(ad.pagamento_status || (ad.ativo ? "ativo" : "inativo")),
+            amount: null,
+            active: Boolean(ad.ativo),
+            start_at: ad.data_inicio || null,
+            end_at: ad.data_fim || null,
+            created_at: eventDate || null,
+          };
+        })
+        .sort((a, b) => Number(asDate(b.created_at)) - Number(asDate(a.created_at)));
+
+      const bankRows = resultRows(bankChargeResult)
+        .map((charge: any) => {
+          const creator = usersById.get(String(charge.created_by_user_id));
+          const amount = charge.valor == null ? null : Number(charge.valor);
+          return {
+            id: String(charge.id),
+            bia_id: charge.bia_id ? String(charge.bia_id) : null,
+            bia_name: biasById.get(String(charge.bia_id)) || (charge.bia_id ? `BIA ${charge.bia_id}` : "BIA"),
+            user_name: charge.pagador_nome || creator?.nome || "Pagador",
+            user_email: charge.pagador_email || creator?.email || null,
+            description: charge.descricao || "Cobranca da BIA",
+            provider: charge.provider || "pinbank",
+            type: charge.type || "boleto",
+            status: normalizedStatus(charge.status),
+            amount: Number.isFinite(amount) ? amount : null,
+            created_at: charge.created_at || null,
+            due_at: charge.data_vencimento || null,
+          };
+        })
+        .sort((a: any, b: any) => Number(asDate(b.created_at)) - Number(asDate(a.created_at)));
+
+      const activeMemberships = membershipRows.filter((row) => row.paid);
+      const pendingMemberships = membershipRows.filter((row) => row.pending);
+      const paidMembershipsInPeriod = activeMemberships.filter((row) => inPeriod(row.updated_at));
+      const pendingMembershipsInPeriod = pendingMemberships.filter((row) => inPeriod(row.updated_at));
+      const paidAds = adsRows.filter((row) => row.status === "pago");
+      const pendingAds = adsRows.filter((row) => row.status === "pendente");
+      const activeAds = adsRows.filter((row) => row.active);
+      const periodBankRows = bankRows.filter((row: any) => inPeriod(row.created_at));
+      const paidBankRows = periodBankRows.filter((row: any) => isPaid(row.status));
+      const pendingBankRows = periodBankRows.filter((row: any) => isPending(row.status));
+      const sumAmounts = (rows: Array<{ amount: number | null }>) =>
+        rows.reduce((sum, row) => sum + (typeof row.amount === "number" ? row.amount : 0), 0);
+
+      const transactions = [
+        ...membershipRows
+          .filter((row) => (row.paid || row.pending) && inPeriod(row.updated_at))
+          .map((row) => ({
+            id: `membership:${row.id}`,
+            source: "membership",
+            label: row.paid ? "Adesao confirmada" : "Adesao aguardando pagamento",
+            user_name: row.name,
+            user_email: row.email,
+            provider: row.provider,
+            status: row.status,
+            amount: row.amount,
+            created_at: row.updated_at,
+            reference: row.community_name,
+          })),
+        ...adsRows
+          .filter((row) => inPeriod(row.created_at))
+          .map((row) => ({
+            id: `ad:${row.id}`,
+            source: "ads",
+            label: row.title,
+            user_name: row.name,
+            user_email: row.email,
+            provider: row.provider,
+            status: row.status,
+            amount: null,
+            created_at: row.created_at,
+            reference: `${row.environment} / ${row.slot_type}`,
+          })),
+        ...periodBankRows.map((row: any) => ({
+          id: `pinbank:${row.id}`,
+          source: "pinbank",
+          label: row.description,
+          user_name: row.user_name,
+          user_email: row.user_email,
+          provider: row.provider,
+          status: row.status,
+          amount: row.amount,
+          created_at: row.created_at,
+          reference: row.bia_name,
+        })),
+      ]
+        .sort((a, b) => Number(asDate(b.created_at)) - Number(asDate(a.created_at)))
+        .slice(0, 100);
+
+      res.json({
+        period_days: days,
+        generated_at: new Date().toISOString(),
+        summary: {
+          platform_confirmed_revenue: sumAmounts(paidMembershipsInPeriod),
+          platform_pending_revenue: sumAmounts(pendingMembershipsInPeriod),
+          active_memberships: activeMemberships.length,
+          pending_memberships: pendingMemberships.length,
+          active_ads: activeAds.length,
+          paid_ads: paidAds.length,
+          pending_ads: pendingAds.length,
+          bia_collections_received: sumAmounts(paidBankRows),
+          bia_collections_pending: sumAmounts(pendingBankRows),
+        },
+        channels: [
+          {
+            key: "membership",
+            label: "Adesões BUILT",
+            provider: "Asaas / Stripe",
+            billing_model: "Pagamento único",
+            tracking: "operational",
+            confirmed_amount: sumAmounts(paidMembershipsInPeriod),
+            pending_amount: sumAmounts(pendingMembershipsInPeriod),
+            paid_count: paidMembershipsInPeriod.length,
+            pending_count: pendingMemberships.length,
+            active_count: activeMemberships.length,
+            note: "O fluxo atual cobra uma taxa única de adesão de R$ 3.197,00.",
+          },
+          {
+            key: "ads",
+            label: "Anúncios",
+            provider: "Asaas / Stripe",
+            billing_model: "Por periodo de exibicao",
+            tracking: "partial",
+            confirmed_amount: null,
+            pending_amount: null,
+            paid_count: paidAds.length,
+            pending_count: pendingAds.length,
+            active_count: activeAds.length,
+            note: "O status é rastreado, mas o valor cobrado ainda não é persistido no anúncio.",
+          },
+          {
+            key: "pinbank",
+            label: "Cobranças das BIAs",
+            provider: "PINBANK",
+            billing_model: "Boleto, split e link",
+            tracking: "operational",
+            confirmed_amount: sumAmounts(paidBankRows),
+            pending_amount: sumAmounts(pendingBankRows),
+            paid_count: paidBankRows.length,
+            pending_count: pendingBankRows.length,
+            active_count: periodBankRows.length,
+            note: "Valores operacionais das BIAs; não compõem a receita da plataforma.",
+          },
+          {
+            key: "recurring",
+            label: "Assinaturas recorrentes",
+            provider: null,
+            billing_model: "Recorrencia",
+            tracking: "not_configured",
+            confirmed_amount: null,
+            pending_amount: null,
+            paid_count: 0,
+            pending_count: 0,
+            active_count: 0,
+            note: "Ainda não existe cobrança recorrente integrada ou persistida na plataforma.",
+          },
+        ],
+        memberships: membershipRows.filter((row) => row.paid || row.pending).slice(0, 100),
+        ads: adsRows.slice(0, 100),
+        transactions,
+      });
+    } catch (error: any) {
+      console.error("[admin/monetization]", error?.message || error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -16156,18 +16872,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       if ("error" in validacao) return res.status(validacao.status).json({ error: validacao.error });
       const file = req.file;
       if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
-      const { toFile } = await import("openai");
-      const audioFile = await toFile(file.buffer, auraAudioFilename(file.originalname), { type: auraAudioMime(file.originalname, file.mimetype) });
-      const transcription = await getOpenAI().audio.transcriptions.create({
-        file: audioFile,
-        model: "gpt-4o-mini-transcribe",
-      });
-      const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
-      if (texto.length < 3) return res.status(400).json({ error: "NÃ£o foi possÃ­vel transcrever o Ã¡udio." });
+      const texto = await transcribeAuraAudioFile(file);
+      if (texto.length < 3) return res.status(400).json({ error: "NÃ£o foi possÃ­vel entender o Ã¡udio." });
       res.json({ texto: texto.length > 4000 ?texto.slice(0, 4000) + "..." : texto });
     } catch (error: any) {
       console.error("[aura-audio-publico]", error?.message);
-      res.status(500).json({ error: "Erro ao transcrever Ã¡udio. Tente novamente." });
+      res.status(500).json({ error: "NÃ£o foi possÃ­vel processar o Ã¡udio. Tente novamente." });
     }
   });
 
@@ -17734,24 +18444,18 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     if (await blockVitrineOnlyAura(req, res)) return;
     const avaliadoMembroId = String(req.body?.avaliado_membro_id || "");
-    if (!avaliadoMembroId) return res.status(400).json({ error: "Informe o membro avaliado para transcrever o áudio." });
+    if (!avaliadoMembroId) return res.status(400).json({ error: "Informe o membro avaliado para processar o áudio." });
     if (!(await requireAuraRegisterTarget(req, res, avaliadoMembroId))) return;
     const file = req.file;
     if (!file) return res.status(400).json({ error: "Nenhum Ã¡udio enviado." });
 
     try {
-      const { toFile } = await import("openai");
-      const audioFile = await toFile(file.buffer, auraAudioFilename(file.originalname), { type: auraAudioMime(file.originalname, file.mimetype) });
-      const transcription = await getOpenAI().audio.transcriptions.create({
-        file: audioFile,
-        model: "gpt-4o-mini-transcribe",
-      });
-      const texto = (transcription.text || "").replace(/\s+/g, " ").trim();
-      if (texto.length < 3) return res.status(400).json({ error: "NÃ£o foi possÃ­vel transcrever o Ã¡udio." });
+      const texto = await transcribeAuraAudioFile(file);
+      if (texto.length < 3) return res.status(400).json({ error: "NÃ£o foi possÃ­vel entender o Ã¡udio." });
       return res.json({ texto: texto.length > 4000 ?texto.slice(0, 4000) + "..." : texto });
     } catch (err: any) {
       console.error("[aura-audio]", err?.message);
-      return res.status(500).json({ error: "Erro ao transcrever Ã¡udio. Tente novamente." });
+      return res.status(500).json({ error: "NÃ£o foi possÃ­vel processar o Ã¡udio. Tente novamente." });
     }
   });
 

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
+import { hasEmployeeModuleAccess } from "@/lib/company-access";
 import builtLogo from "@assets/Logo_Built_3_Horizontal_Negativo.png";
 
 export function AppSidebar() {
@@ -26,6 +27,13 @@ export function AppSidebar() {
   const isSuperAdmin = user?.role === "admin";
   const [location, navigate] = useLocation();
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
+  const canInicio = hasEmployeeModuleAccess(user, "inicio");
+  const canAgenda = hasEmployeeModuleAccess(user, "agenda");
+  const canVitrine = hasEmployeeModuleAccess(user, "vitrine");
+  const canAlliances = hasEmployeeModuleAccess(user, "alliances");
+  const canCapital = hasEmployeeModuleAccess(user, "capital");
+  const canAura = hasEmployeeModuleAccess(user, "aura");
+  const canAnyEnvironment = canVitrine || canAlliances || canCapital;
 
   const isAmbientesSection = location.startsWith("/vitrine") || location.startsWith("/opas") || location === "/area-aliancas" || location === "/built-capital";
   const [ambientesOpen, setAmbientesOpen] = useState(isAmbientesSection);
@@ -54,25 +62,25 @@ export function AppSidebar() {
             <SidebarMenu>
 
               {/* Inicio */}
-              <SidebarMenuItem>
+              {canInicio && <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/"} data-testid="nav-dashboard" className="text-sm">
                   <Link href="/">
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     <span>Início</span>
                   </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
+              </SidebarMenuItem>}
 
-              <SidebarMenuItem>
+              {canAgenda && <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/agenda"} data-testid="nav-agenda" className="text-sm">
                   <Link href="/agenda">
                     <CalendarDays className="w-3.5 h-3.5" />
                     <span>Agenda</span>
                   </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
+              </SidebarMenuItem>}
 
-              <Collapsible open={ambientesOpen} onOpenChange={setAmbientesOpen}>
+              {canAnyEnvironment && <Collapsible open={ambientesOpen} onOpenChange={setAmbientesOpen}>
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton isActive={isAmbientesSection} className="text-sm" data-testid="nav-ambientes-built">
@@ -84,33 +92,33 @@ export function AppSidebar() {
                 </SidebarMenuItem>
                 <CollapsibleContent>
                   <SidebarMenuSub>
-                    <SidebarMenuSubItem>
+                    {canVitrine && <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine">
                         <button type="button" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
                           <Gem className="w-3.5 h-3.5" />
                           <span>BUILT Vitrine</span>
                         </button>
                       </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
+                    </SidebarMenuSubItem>}
+                    {canAlliances && <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas">
                         <button type="button" onClick={() => handleEnvironmentClick("alliances", "/area-aliancas?tab=opas")}>
                           <Users className="w-3.5 h-3.5" />
                           <span>BUILT Alliances</span>
                         </button>
                       </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
+                    </SidebarMenuSubItem>}
+                    {canCapital && <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital">
                         <button type="button" onClick={() => handleEnvironmentClick("capital", "/built-capital")}>
                           <TrendingUp className="w-3.5 h-3.5" />
                           <span>BUILT Capital</span>
                         </button>
                       </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
+                    </SidebarMenuSubItem>}
                   </SidebarMenuSub>
                 </CollapsibleContent>
-              </Collapsible>
+              </Collapsible>}
 
               {/* Administração — Super Admin only */}
               {isSuperAdmin && (
@@ -125,14 +133,14 @@ export function AppSidebar() {
               )}
 
               {/* Aura — visível para todos; consultar/registrar é restrito a membros */}
-              <SidebarMenuItem>
+              {canAura && <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location.startsWith("/aura")} data-testid="nav-aura" className="text-sm">
                   <Link href="/aura">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Aura</span>
                   </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
+              </SidebarMenuItem>}
 
               {/* Meu Perfil — sempre visível */}
               <SidebarMenuItem>

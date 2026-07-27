@@ -19,6 +19,13 @@ export interface AppUser {
   pending_vitrine?: boolean;
   convite_pendente?: { token: string; status: string } | null;
   adesao_pendente?: { token: string; status: string } | null;
+  company_employee?: boolean;
+  company_owner_user_id?: string | null;
+  company_owner_membro_id?: string | null;
+  company_owner_nome?: string | null;
+  company_owner_email?: string | null;
+  company_employee_role?: string | null;
+  company_permissions?: Record<string, "none" | "view" | "edit"> | null;
 }
 
 export function useAuth() {

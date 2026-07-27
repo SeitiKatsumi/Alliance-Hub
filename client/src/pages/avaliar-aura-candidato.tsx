@@ -1,9 +1,14 @@
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, Search, Bot, Paperclip, Mic, StopCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  createAuraMediaRecorder,
+  formatAuraRecordingTime,
+  getAuraAudioFilename,
+} from "@/lib/aura-audio";
 
 interface ConviteData {
   id: string;
@@ -84,12 +89,37 @@ export default function AvaliarAuraCandidatoPage() {
   const [textoIA, setTextoIA] = useState("");
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [micBlocked, setMicBlocked] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (!recording) {
+      setRecordingSeconds(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setRecordingSeconds(seconds => seconds + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [recording]);
+
+  useEffect(() => {
+    return () => {
+      const recorder = mediaRecorderRef.current;
+      if (!recorder) return;
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.stream.getTracks().forEach(track => track.stop());
+      if (recorder.state !== "inactive") recorder.stop();
+    };
+  }, []);
 
   const { data: convite, isLoading, error } = useQuery<ConviteData>({
     queryKey: ["/api/avaliacao-aura", token],
@@ -163,17 +193,17 @@ export default function AvaliarAuraCandidatoPage() {
   });
 
   const transcreverAudioMutation = useMutation({
-    mutationFn: async ({ blob, filename = "percepcao-aura.webm" }: { blob: Blob; filename?: string }) => {
+    mutationFn: async ({ blob, filename }: { blob: Blob; filename?: string }) => {
       const form = new FormData();
-      const uploadFilename = filename.replace(/\.(oga|opus)$/i, ".ogg");
+      const uploadFilename = (filename || getAuraAudioFilename(blob.type)).replace(/\.(oga|opus)$/i, ".ogg");
       form.append("audio", blob, uploadFilename);
       const res = await fetch(`/api/avaliacao-aura/${token}/transcrever-audio`, {
         method: "POST",
         body: form,
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Erro ao transcrever áudio." }));
-        throw new Error(err.error || "Erro ao transcrever áudio.");
+        const err = await res.json().catch(() => ({ error: "Não foi possível processar o áudio. Tente novamente." }));
+        throw new Error(err.error || "Não foi possível processar o áudio. Tente novamente.");
       }
       return res.json() as Promise<{ texto: string }>;
     },
@@ -299,18 +329,22 @@ export default function AvaliarAuraCandidatoPage() {
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const recorder = createAuraMediaRecorder(stream);
       audioChunksRef.current = [];
       recorder.ondataavailable = event => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop());
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const recordedMimeType = recorder.mimeType || audioChunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: recordedMimeType });
         audioChunksRef.current = [];
         setRecording(false);
         if (blob.size > 0) {
-          transcreverAudioMutation.mutate({ blob, filename: "percepcao-aura.webm" });
+          transcreverAudioMutation.mutate({
+            blob,
+            filename: getAuraAudioFilename(recordedMimeType),
+          });
         }
       };
       mediaRecorderRef.current = recorder;
@@ -428,12 +462,16 @@ export default function AvaliarAuraCandidatoPage() {
                 type="button"
                 onClick={() => recording ?stopRecording() : startRecording()}
                 disabled={transcreverAudioMutation.isPending}
-                className="h-10 rounded-lg border border-white/10 text-white/65 text-xs font-mono flex items-center justify-center gap-2"
+                className={`h-10 rounded-lg border text-xs font-mono flex items-center justify-center gap-2 ${
+                  recording
+                    ? "border-red-400/50 bg-red-500/10 text-red-200"
+                    : "border-white/10 text-white/65"
+                }`}
                 data-testid="btn-audio-publico"
                 title={micBlocked ? "Microfone bloqueado. Use Enviar áudio para escolher uma gravação." : undefined}
               >
                 {recording ?<StopCircle className="w-4 h-4 text-red-300" /> : <Mic className="w-4 h-4" />}
-                {transcreverAudioMutation.isPending ?"Transcrevendo..." : recording ?"Parar" : "Gravar"}
+                {transcreverAudioMutation.isPending ?"Processando..." : recording ?"Parar" : "Gravar"}
               </button>
               <button
                 type="button"
@@ -446,6 +484,30 @@ export default function AvaliarAuraCandidatoPage() {
                 Enviar áudio
               </button>
             </div>
+            {recording && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-center gap-3 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-100"
+                data-testid="status-aura-gravando-publico"
+              >
+                <span className="relative flex h-3 w-3 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-300 opacity-70" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-red-400" />
+                </span>
+                <span className="flex h-5 items-center gap-0.5" aria-hidden="true">
+                  {[10, 18, 14, 20, 12].map((height, index) => (
+                    <span
+                      key={height}
+                      className="w-1 animate-pulse rounded-full bg-red-200"
+                      style={{ height, animationDelay: `${index * 100}ms` }}
+                    />
+                  ))}
+                </span>
+                <span className="font-semibold">Gravando</span>
+                <span className="tabular-nums">{formatAuraRecordingTime(recordingSeconds)}</span>
+              </div>
+            )}
             <input
               ref={fileInputRef}
               type="file"

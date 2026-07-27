@@ -33,6 +33,8 @@ import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
 import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamos, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseRamosValue, parseSegmentosValue } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode, normalizePhoneValue } from "@/components/phone-input";
+import { CompanyAccessPanel } from "@/components/company-access-panel";
+import { COMPANY_ACCESS_KEYS, COMPANY_ACCESS_LABELS, normalizeCompanyAccess } from "@shared/company-access";
 
 interface NominatimResult {
   place_id: number;
@@ -684,7 +686,7 @@ export default function MeuPerfilPage() {
   const { data: membro, isLoading } = useQuery<Membro>({
     queryKey: ["/api/membros", membroId],
     queryFn: () => fetch(`/api/membros/${membroId}`).then(r => r.json()),
-    enabled: !!membroId,
+    enabled: !!membroId && !user?.company_employee,
   });
 
   // All authenticated members may generate a personal invite link
@@ -768,6 +770,7 @@ export default function MeuPerfilPage() {
       return res.json();
     },
     staleTime: 60000,
+    enabled: !user?.company_employee,
   });
   const meuConviteLink = normalizeInviteLink(meuConvite?.link);
 
@@ -1074,6 +1077,101 @@ export default function MeuPerfilPage() {
     changePasswordMutation.mutate({ currentPassword, newPassword });
   }
 
+  if (user?.company_employee) {
+    const companyPermissions = normalizeCompanyAccess(user.company_permissions);
+    return (
+      <div className="min-h-full bg-slate-50 px-4 py-6 text-[#001D34] sm:px-6">
+        <div className="mx-auto max-w-4xl space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-blue-600" />
+              <h1 className="text-2xl font-bold">Meu acesso empresarial</h1>
+            </div>
+            <p className="mt-1 text-sm text-slate-600">Consulte os acessos liberados pelo responsável da empresa e gerencie sua senha.</p>
+          </div>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-lg font-bold">{user.nome}</p>
+                <p className="mt-1 text-sm text-slate-500">{user.email}</p>
+                {user.company_employee_role && <p className="mt-1 text-sm text-slate-600">{user.company_employee_role}</p>}
+              </div>
+              <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                <p className="font-semibold">Conta vinculada</p>
+                <p className="mt-0.5 text-xs">{user.company_owner_nome || "Responsável da empresa"}</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2 className="text-sm font-bold">Áreas liberadas</h2>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {COMPANY_ACCESS_KEYS.map((key) => {
+                const level = companyPermissions[key];
+                return (
+                  <div key={key} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2.5">
+                    <span className="text-sm font-medium">{COMPANY_ACCESS_LABELS[key]}</span>
+                    <span className={`rounded px-2 py-1 text-[11px] font-semibold ${
+                      level === "edit"
+                        ? "bg-blue-50 text-blue-700"
+                        : level === "view"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {level === "edit" ? "Pode editar" : level === "view" ? "Pode visualizar" : "Sem acesso"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-blue-600" />
+              <h2 className="text-sm font-bold">Alterar minha senha</h2>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <Input
+                type="password"
+                autoComplete="current-password"
+                placeholder="Senha atual"
+                value={passwordForm.currentPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+              />
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Nova senha"
+                value={passwordForm.newPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+              />
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Confirmar nova senha"
+                value={passwordForm.confirmPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+              />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                type="button"
+                onClick={handleChangePassword}
+                disabled={changePasswordMutation.isPending}
+                className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {changePasswordMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                Alterar senha
+              </Button>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   if (!membroId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -1192,7 +1290,8 @@ export default function MeuPerfilPage() {
         .profile-light-page [class*="text-brand-gold"],
         .profile-light-page [data-testid^="chip-"],
         .profile-light-page [data-testid^="btn-rede-"] span { color: #1d4ed8 !important; }
-        .profile-light-page [data-testid="btn-salvar-perfil"] { color: #ffffff !important; }
+        .profile-light-page [data-testid="btn-salvar-perfil"],
+        .profile-light-page [data-testid="btn-add-company-employee"] { color: #ffffff !important; }
         .profile-light-page [data-testid="switch-perfil-na-vitrine"] {
           background: #cbd5e1 !important;
           border: 1px solid #94a3b8 !important;
@@ -1303,6 +1402,8 @@ export default function MeuPerfilPage() {
           </div>
         ) : (
           <>
+            <CompanyAccessPanel />
+
             <div className="xl:hidden">
               {profileSummary}
             </div>

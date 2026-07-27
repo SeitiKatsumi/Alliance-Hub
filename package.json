@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "test:bia-access": "node --import tsx --test shared/bia-access.test.ts",
+    "test:carteira": "node --import tsx --test server/carteira-domain.test.ts",
     "test:market-comparables": "node --import tsx --test server/market-comparables.test.ts",
     "test:aura": "node --import tsx --test server/aura-lexico.test.ts",
     "db:push": "drizzle-kit push"

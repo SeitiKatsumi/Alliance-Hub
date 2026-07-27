@@ -290,7 +290,7 @@ export async function enviarConviteAdesaoMembro(opts: {
       <h2 style="color:#D7BB7D;margin-top:0">Continue sua adesao BUILT</h2>
       <p style="color:rgba(255,255,255,0.8)">Ola, <strong>${opts.candidatoNome}</strong>!</p>
       <p style="color:rgba(255,255,255,0.7)">Voce solicitou acesso para se tornar membro da <strong style="color:#D7BB7D">${opts.comunidadeNome}</strong>.</p>
-      <p style="color:rgba(255,255,255,0.7)">Este convite foi vinculado a sua comunidade de origem e ao seu convidador, <strong>${opts.invitadorNome}</strong>. Clique abaixo para iniciar o fluxo de adesao e liberar a manifestacao de interesse em OPAs apos receber o selo Proud Member.</p>
+      <p style="color:rgba(255,255,255,0.7)">Este convite foi vinculado a sua comunidade de origem e ao seu convidador, <strong>${opts.invitadorNome}</strong>. Clique abaixo para iniciar o fluxo de adesao e liberar a manifestacao de interesse em OBAs apos receber o selo Proud Member.</p>
       <div style="text-align:center;margin:32px 0">
         <a href="${link}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Iniciar adesao</a>
       </div>
@@ -608,7 +608,7 @@ export async function enviarChamadaAlianca(opts: {
     opts.nucleo ? `Núcleo: ${opts.nucleo}.` : null,
     `Escopo: ${opts.escopo}.`,
     `Link da reunião: ${opts.linkReuniao}`,
-    opts.opaId ? `OPA: ${opaLink}` : null,
+    opts.opaId ? `OBA: ${opaLink}` : null,
   ].filter(Boolean).join("\n");
   const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(opts.titulo)}&dates=${toCalendarDate(calendarStart)}/${toCalendarDate(calendarEnd)}&details=${encodeURIComponent(calendarDetails)}&location=${encodeURIComponent(opts.linkReuniao)}`;
   const platformAgendaParams = new URLSearchParams({
@@ -634,7 +634,7 @@ export async function enviarChamadaAlianca(opts: {
       <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">Data: ${dataText}</p>
     </div>
     <div style="text-align:center;margin:24px 0">
-      <a href="${opaLink}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;margin:6px">Acessar OPA</a>
+      <a href="${opaLink}" style="display:inline-block;background-color:#D7BB7D;background:linear-gradient(135deg,#D7BB7D,#b89a50);color:#001D34;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;margin:6px">Acessar OBA</a>
       <a href="${calendarLink}" style="display:inline-block;background-color:transparent;color:#D7BB7D;padding:13px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;border:1px solid rgba(215,187,125,0.55);margin:6px">Adicionar a agenda</a>
     </div>
     <p style="color:rgba(255,255,255,0.45);font-size:12px">Voce tambem pode acompanhar esta chamada em ${BASE_URL}/notificacoes.</p>
@@ -661,11 +661,11 @@ export async function notificarInteresseOpa(opts: {
     : "";
   await send(
     opts.destinatarioEmail,
-    `Interesse manifestado na OPA "${opts.opaNome}"`,
+    `Interesse manifestado na OBA "${opts.opaNome}"`,
     baseTemplate(`
-      <h2 style="color:#D7BB7D;margin-top:0">Interesse manifestado em OPA</h2>
+      <h2 style="color:#D7BB7D;margin-top:0">Interesse manifestado em OBA</h2>
       <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.destinatarioNome}</strong>!</p>
-      <p style="color:rgba(255,255,255,0.7)">O membro <strong style="color:#D7BB7D">${opts.membroNome}</strong> manifestou interesse na seguinte OPA da BIA <strong>${opts.biaNome}</strong>:</p>
+      <p style="color:rgba(255,255,255,0.7)">O membro <strong style="color:#D7BB7D">${opts.membroNome}</strong> manifestou interesse na seguinte OBA da BIA <strong>${opts.biaNome}</strong>:</p>
       <div style="background:rgba(215,187,125,0.07);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
         <p style="color:#D7BB7D;margin:0;font-weight:bold;font-size:15px">${opts.opaNome}</p>
         <table style="width:100%;margin-top:10px;border-collapse:collapse">

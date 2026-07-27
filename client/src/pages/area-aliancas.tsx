@@ -1743,7 +1743,7 @@ export default function AreaAliancasPage() {
             data-testid="tab-area-opas"
           >
             <Target className="h-4 w-4 shrink-0 text-cyan-500" />
-            OPAs
+            OBAs
           </TabsTrigger>
           <TabsTrigger
             value="bias"

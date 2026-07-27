@@ -127,6 +127,131 @@ export const userUsageEvents = pgTable("user_usage_events", {
 
 export type UserUsageEvent = typeof userUsageEvents.$inferSelect;
 
+export const inventarioImoveis = pgTable("inventario_imoveis", {
+  id: text("id").primaryKey(),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+  owner_user_id: text("owner_user_id"),
+  owner_membro_id: text("owner_membro_id"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const inventarioLancamentos = pgTable("inventario_lancamentos", {
+  id: text("id").primaryKey(),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+  owner_user_id: text("owner_user_id"),
+  owner_membro_id: text("owner_membro_id"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const carteiraEventos = pgTable("carteira_eventos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  tipo: text("tipo").notNull(),
+  origem: text("origem").notNull().default("declarada"),
+  titulo: text("titulo"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const carteiraDocumentos = pgTable("carteira_documentos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  file_id: text("file_id").notNull(),
+  nome: text("nome").notNull(),
+  tipo: text("tipo").notNull(),
+  versao: integer("versao").notNull().default(1),
+  emissao: date("emissao"),
+  validade: date("validade"),
+  origem: text("origem").notNull().default("declarada"),
+  status_validacao: text("status_validacao").notNull().default("declarado"),
+  dados_extraidos: jsonb("dados_extraidos").$type<Record<string, unknown>>().notNull().default({}),
+  observacao: text("observacao"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const carteiraAnalises = pgTable("carteira_analises", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  tipo: text("tipo").notNull(),
+  versao_regra: text("versao_regra").notNull().default("carteira-v1"),
+  entrada: jsonb("entrada").$type<Record<string, unknown>>().notNull().default({}),
+  resultado: jsonb("resultado").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const carteiraAlertas = pgTable("carteira_alertas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  tipo: text("tipo").notNull(),
+  severidade: text("severidade").notNull().default("media"),
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao"),
+  impacto: text("impacto"),
+  acao_sugerida: text("acao_sugerida"),
+  prazo: date("prazo"),
+  status: text("status").notNull().default("aberto"),
+  delegado_para_user_id: text("delegado_para_user_id"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const carteiraDemandas = pgTable("carteira_demandas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  tipo_resolucao: text("tipo_resolucao").notNull().default("solicitacao"),
+  alternativa: text("alternativa"),
+  titulo: text("titulo").notNull(),
+  escopo: text("escopo"),
+  urgencia: text("urgencia").notNull().default("normal"),
+  especialidades: jsonb("especialidades").$type<string[]>().notNull().default([]),
+  status: text("status").notNull().default("rascunho"),
+  responsavel_user_id: text("responsavel_user_id"),
+  propostas: jsonb("propostas").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  documentos: jsonb("documentos").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  proximas_etapas: jsonb("proximas_etapas").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  opa_id: text("opa_id"),
+  resultado: text("resultado"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const carteiraAcessos = pgTable("carteira_acessos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  user_id: text("user_id"),
+  membro_id: text("membro_id"),
+  nivel: text("nivel").notNull().default("leitura"),
+  concedido_por_user_id: text("concedido_por_user_id"),
+  concedido_por_membro_id: text("concedido_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+}, (t) => ({
+  imovelUserUniq: unique("carteira_acessos_imovel_user_uniq").on(t.imovel_id, t.user_id),
+  imovelMembroUniq: unique("carteira_acessos_imovel_membro_uniq").on(t.imovel_id, t.membro_id),
+}));
+
+export type InventarioImovel = typeof inventarioImoveis.$inferSelect;
+export type InventarioLancamento = typeof inventarioLancamentos.$inferSelect;
+export type CarteiraEvento = typeof carteiraEventos.$inferSelect;
+export type CarteiraDocumento = typeof carteiraDocumentos.$inferSelect;
+export type CarteiraAnalise = typeof carteiraAnalises.$inferSelect;
+export type CarteiraAlerta = typeof carteiraAlertas.$inferSelect;
+export type CarteiraDemanda = typeof carteiraDemandas.$inferSelect;
+export type CarteiraAcesso = typeof carteiraAcessos.$inferSelect;
+
 export const membroComunidadeMae = pgTable("membro_comunidade_mae", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   membro_id: text("membro_id").notNull().unique(),

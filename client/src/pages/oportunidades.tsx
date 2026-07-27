@@ -256,7 +256,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
             <Navigation className="w-5 h-5 text-brand-gold" />
             Selecionar Localização
           </DialogTitle>
-          <DialogDescription>Busque cidade, país ou endereço para geolocalizar esta OPA no mapa.</DialogDescription>
+          <DialogDescription>Busque cidade, país ou endereço para geolocalizar esta OBA no mapa.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="flex gap-2">
@@ -302,7 +302,7 @@ function LocationPickerModal({ open, onClose, onSelect }: {
   );
 }
 
-// ---- OPA World Map ----
+// ---- OBA World Map ----
 type OpaResolved = Oportunidade & { _lat: number; _lng: number; _localizacao: string | null };
 
 function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[] }) {
@@ -319,7 +319,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
     return m;
   }, [bias]);
 
-  // Resolve effective coordinates: OPA's own coords first, then fall back to BIA's coords
+  // Resolve effective coordinates: OBA's own coords first, then fall back to BIA's coords
   const opasWithCoords = useMemo(() => {
     return opas
       .map(o => {
@@ -388,7 +388,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
       {/* Top-right stats */}
       <div className="absolute top-5 right-6 z-20 text-right font-mono">
         <div className="mb-3">
-          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">OPAs</p>
+          <p className="text-[9px] text-cyan-300/50 tracking-widest uppercase">OBAs</p>
           <p className="text-4xl font-bold leading-none text-cyan-300">{opas.length}</p>
         </div>
         <div className="mb-2">
@@ -426,8 +426,8 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
       {opasWithCoords.length === 0 && (
         <div className="absolute inset-0 flex items-end justify-center pb-16 z-10 pointer-events-none">
           <div className="text-center">
-            <p className="text-[10px] text-cyan-300/35 font-mono tracking-widest uppercase">Nenhuma OPA geolocal.</p>
-            <p className="text-[9px] text-cyan-300/25 font-mono mt-0.5">Edite uma OPA e adicione localização</p>
+            <p className="text-[10px] text-cyan-300/35 font-mono tracking-widest uppercase">Nenhuma OBA geolocal.</p>
+            <p className="text-[9px] text-cyan-300/25 font-mono mt-0.5">Edite uma OBA e adicione localização</p>
           </div>
         </div>
       )}
@@ -519,7 +519,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
                 {hoveredCluster.items.length > 1 ?(
                   <>
                     <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase">Clique para selecionar</p>
-                    <p className="text-sm font-bold text-cyan-300 mt-0.5">{hoveredCluster.items.length} OPAs neste local</p>
+                    <p className="text-sm font-bold text-cyan-300 mt-0.5">{hoveredCluster.items.length} OBAs neste local</p>
                   </>
                 ) : (
                   <>
@@ -552,7 +552,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
           <button onClick={() => setClusterOpas(null)} className="absolute top-3 right-4 text-cyan-300/45 hover:text-cyan-200 transition-colors font-mono text-xs tracking-widest">
             ✕ FECHAR
           </button>
-          <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase font-mono mb-2">{clusterOpas.length} OPAs neste local</p>
+          <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase font-mono mb-2">{clusterOpas.length} OBAs neste local</p>
           <div className="flex flex-wrap gap-2">
             {clusterOpas.map(o => (
               <button key={o.id} onClick={() => { setClusterOpas(null); setSelectedOpa(o); }}
@@ -566,7 +566,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
         </div>
       )}
 
-      {/* Selected OPA panel */}
+      {/* Selected OBA panel */}
       {selectedOpa && (
         <div className="absolute bottom-0 left-0 right-0 z-30 transition-all duration-300"
           style={{ background: "linear-gradient(to top, rgba(0,8,20,0.98) 0%, rgba(0,12,28,0.96) 80%, transparent 100%)", padding: "32px 24px 18px" }}
@@ -576,7 +576,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
           </button>
           <div className="flex items-end justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase font-mono">OPA Selecionada</p>
+              <p className="text-[9px] text-cyan-300/45 tracking-[0.3em] uppercase font-mono">OBA Selecionada</p>
               <p className="text-base font-bold text-cyan-300 font-mono truncate mt-0.5">{selectedOpa.nome_oportunidade}</p>
               {selectedOpa._localizacao && (
                 <p className="text-[11px] text-cyan-300/60 flex items-center gap-1 mt-0.5 truncate">
@@ -610,7 +610,7 @@ function OpaWorldMap({ opas, bias }: { opas: Oportunidade[]; bias: BiasProjeto[]
                   onClick={() => navigate(getOpaUrl(selectedOpa, selectedOpa.bia_id ?biasMap[selectedOpa.bia_id] : undefined, opas))}
                   className="mt-1 px-3 py-1.5 rounded border border-cyan-400/45 hover:bg-cyan-300/15 transition-colors text-xs text-cyan-300 font-mono tracking-wider"
                 >
-                  VER OPA →
+                  VER OBA →
                 </button>
               </div>
             </div>
@@ -652,7 +652,7 @@ function EncerramentoDialog({ open, onClose, onConfirm }: {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Ban className="w-4 h-4 text-destructive" /> Encerrar OPA
+            <Ban className="w-4 h-4 text-destructive" /> Encerrar OBA
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -679,7 +679,7 @@ function EncerramentoDialog({ open, onClose, onConfirm }: {
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Motivo / Justificativa *</Label>
             <Textarea
-              placeholder="Descreva o motivo do encerramento desta OPA..."
+              placeholder="Descreva o motivo do encerramento desta OBA..."
               value={motivo}
               onChange={e => setMotivo(e.target.value)}
               rows={4}
@@ -706,7 +706,7 @@ function EncerramentoDialog({ open, onClose, onConfirm }: {
   );
 }
 
-// ---- OPA Card ----
+// ---- OBA Card ----
 function OpaCard({
   opa, bia, onViewDetail
 }: {
@@ -729,14 +729,14 @@ function OpaCard({
     >
       <div className="relative h-[112px] w-full bg-gradient-to-br from-blue-50 to-slate-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={opa.nome_oportunidade || "OPA"} className="h-full w-full object-cover" />
+          <img src={imageUrl} alt={opa.nome_oportunidade || "OBA"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-blue-500/25">
             <Target className="h-9 w-9" />
           </div>
         )}
         <span className="absolute left-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">
-          Pública
+          OBA
         </span>
       </div>
 
@@ -744,7 +744,7 @@ function OpaCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap gap-1.5">
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-              {getTipoDisplayName(opa.tipo || "") || "OPA"}
+              {getTipoDisplayName(opa.tipo || "") || "OBA"}
             </span>
             {opa.ramo_atuacao && (
               <span className="max-w-[180px] truncate rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
@@ -758,7 +758,7 @@ function OpaCard({
         </div>
 
         <CardTitle className="mt-3 line-clamp-2 min-h-[40px] text-base font-semibold leading-tight" data-testid={`text-opa-nome-${opa.id}`}>
-          {opa.nome_oportunidade || "OPA sem nome"}
+          {opa.nome_oportunidade || "OBA sem nome"}
         </CardTitle>
 
         <p className="mt-2 line-clamp-1 text-sm text-muted-foreground">
@@ -810,7 +810,7 @@ function OpaCard({
   );
 }
 
-// ---- OPA Form ----
+// ---- OBA Form ----
 const EMPTY_OPA = {
   nome_oportunidade: "",
   tipo: "",
@@ -911,7 +911,7 @@ export function OpaFormDialog({
         : apiRequest("POST", "/api/oportunidades", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
-      toast({ title: opa ?"OPA atualizada" : "OPA criada" });
+      toast({ title: opa ?"OBA atualizada" : "OBA criada" });
       onClose();
     },
     onError: (e: any) => {
@@ -921,12 +921,12 @@ export function OpaFormDialog({
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       return apiRequest("DELETE", `/api/oportunidades/${opa.id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
-      toast({ title: "OPA excluída" });
+      toast({ title: "OBA excluída" });
       setDeleteConfirmOpen(false);
       onClose();
       if (window.location.pathname.startsWith("/opas/")) {
@@ -973,7 +973,7 @@ export function OpaFormDialog({
 
   async function handleSave() {
     if (!form.nome_oportunidade.trim()) {
-      toast({ title: "Nome da OPA é obrigatório", variant: "destructive" });
+      toast({ title: "Nome da OBA é obrigatório", variant: "destructive" });
       return;
     }
     if (!form.nucleo_alianca.trim()) {
@@ -991,13 +991,13 @@ export function OpaFormDialog({
     if (!selectedBiaIsAllowed) {
       toast({
         title: "BIA não permitida",
-        description: "Você só pode vincular OPAs a BIAs em que está associado.",
+        description: "Você só pode vincular OBAs a BIAs em que está associado.",
         variant: "destructive",
       });
       return;
     }
     if (!form.valor_origem_opa || parseBRLToNumber(form.valor_origem_opa) <= 0) {
-      toast({ title: "Valor da OPA é obrigatório", variant: "destructive" });
+      toast({ title: "Valor da OBA é obrigatório", variant: "destructive" });
       return;
     }
     if (!form.Minimo_esforco_multiplicador || parseFloat(form.Minimo_esforco_multiplicador) <= 0) {
@@ -1043,13 +1043,13 @@ export function OpaFormDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{opa ?"Editar OPA" : "Nova OPA"}</DialogTitle>
+          <DialogTitle>{opa ?"Editar OBA" : "Nova OBA"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* 1. Título */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Título da OPA *</Label>
+            <Label className="text-xs text-muted-foreground">Título da OBA *</Label>
             <Input
               value={form.nome_oportunidade}
               onChange={e => setForm(f => ({ ...f, nome_oportunidade: e.target.value }))}
@@ -1061,18 +1061,18 @@ export function OpaFormDialog({
 
           {/* Imagem de capa */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Imagem de capa da OPA</Label>
+            <Label className="text-xs text-muted-foreground">Imagem de capa da OBA</Label>
             <div className="rounded-xl border border-border bg-muted/20 p-2">
               <div className="flex items-center gap-3">
                 <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
                   {imagemOpaPreview ? (
-                    <img src={imagemOpaPreview} alt="Imagem da OPA" className="h-full w-full object-cover" />
+                    <img src={imagemOpaPreview} alt="Imagem da OBA" className="h-full w-full object-cover" />
                   ) : (
                     <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-xs font-medium text-foreground">Card da OPA</p>
+                  <p className="text-xs font-medium text-foreground">Card da OBA</p>
                   <p className="text-[11px] text-muted-foreground">Use uma imagem horizontal para aparecer nos destaques da Vitrine.</p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button
@@ -1220,7 +1220,7 @@ export function OpaFormDialog({
 
           {/* 6. Status */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Status da OPA *</Label>
+            <Label className="text-xs text-muted-foreground">Status da OBA *</Label>
             <Select
               value={form.status || "ativa"}
               onValueChange={v => setForm(f => ({ ...f, status: v as OpaStatus }))}
@@ -1275,7 +1275,7 @@ export function OpaFormDialog({
           {/* 7. Valor + Mín Esforço Multiplicador */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Valor da OPA (R$) *</Label>
+              <Label className="text-xs text-muted-foreground">Valor da OBA (R$) *</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                 <Input
@@ -1426,7 +1426,7 @@ export function OpaFormDialog({
               data-testid="btn-delete-opa"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Excluir OPA
+              Excluir OBA
             </Button>
           ) : <span />}
           <div className="flex gap-2">
@@ -1437,7 +1437,7 @@ export function OpaFormDialog({
               className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-save-opa"
             >
-              {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OPA"}
+              {uploading ?"Enviando arquivos..." : saveMutation.isPending ?"Salvando..." : opa ?"Salvar" : "Criar OBA"}
             </Button>
           </div>
         </DialogFooter>
@@ -1455,9 +1455,9 @@ export function OpaFormDialog({
     <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir OPA?</AlertDialogTitle>
+          <AlertDialogTitle>Excluir OBA?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta ação remove a OPA {opa?.nome_oportunidade ? `"${opa.nome_oportunidade}"` : "selecionada"} da lista. Essa operação não pode ser desfeita.
+            Esta ação remove a OBA {opa?.nome_oportunidade ? `"${opa.nome_oportunidade}"` : "selecionada"} da lista. Essa operação não pode ser desfeita.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -1471,7 +1471,7 @@ export function OpaFormDialog({
             className="bg-red-600 text-white hover:bg-red-700"
             data-testid="btn-confirm-delete-opa"
           >
-            {deleteMutation.isPending ? "Excluindo..." : "Excluir OPA"}
+            {deleteMutation.isPending ? "Excluindo..." : "Excluir OBA"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -1547,10 +1547,10 @@ export default function OportunidadesPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Target className="w-6 h-6 text-cyan-500" />
-            OPAs
+            OBAs
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Ofertas Públicas de Aliança
+            Oportunidades BUILT de Aliança
           </p>
         </div>
         <Button
@@ -1559,7 +1559,7 @@ export default function OportunidadesPage() {
           data-testid="button-new-opa"
         >
           <Plus className="w-4 h-4" />
-          Nova OPA
+          Nova OBA
         </Button>
       </div>
 
@@ -1572,7 +1572,7 @@ export default function OportunidadesPage() {
         <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar OPA..."
+            placeholder="Buscar OBA..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9"
@@ -1645,7 +1645,7 @@ export default function OportunidadesPage() {
             )}
           </div>
           <div className="ml-auto text-right">
-            <p className="text-[10px] text-muted-foreground">OPAs nesta BIA</p>
+            <p className="text-[10px] text-muted-foreground">OBAs nesta BIA</p>
             <p className="text-2xl font-bold text-brand-gold">
               {opas.filter(o => o.bia_id === filterBia).length}
             </p>
@@ -1665,7 +1665,7 @@ export default function OportunidadesPage() {
             {search || filterBia !== "__all__" ?(
               <>
                 <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-                <p className="text-muted-foreground">Nenhuma OPA encontrada com esses filtros</p>
+                <p className="text-muted-foreground">Nenhuma OBA encontrada com esses filtros</p>
                 <Button variant="ghost" onClick={() => { setSearch(""); setFilterBia("__all__"); setFilterNucleo("__all__"); setFilterTipo("__all__"); }} className="mt-2 text-blue-600 hover:text-blue-700">
                   Limpar filtros
                 </Button>
@@ -1673,8 +1673,8 @@ export default function OportunidadesPage() {
             ) : (
               <>
                 <Target className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-medium text-muted-foreground mb-2">Nenhuma OPA cadastrada</h3>
-                <p className="text-sm text-muted-foreground/70 mb-4">Crie oportunidades pela Gestão OPAs</p>
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">Nenhuma OBA cadastrada</h3>
+                <p className="text-sm text-muted-foreground/70 mb-4">Crie oportunidades pela Gestão OBAs</p>
               </>
             )}
           </CardContent>

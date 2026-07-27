@@ -436,7 +436,7 @@ function OpaCard({ opa, currency = "BRL" }: { opa: Oportunidade; currency?: stri
             <span className="text-brand-gold/50 text-[10px]">◆</span>
             {opa.tipo && <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{opa.tipo}</Badge>}
           </div>
-          <p className="text-sm font-semibold">{opa.nome_oportunidade || "OPA sem nome"}</p>
+          <p className="text-sm font-semibold">{opa.nome_oportunidade || "OBA sem nome"}</p>
         </div>
         {valor > 0 && (
           <div className="text-right shrink-0">
@@ -875,7 +875,7 @@ export default function BiaDetalhePage() {
             {opas.length > 0 && (
               <Badge className="gap-1 bg-cyan-400/15 text-cyan-200 border-cyan-300/25 hover:bg-cyan-400/20">
                 <Target className="w-3 h-3" />
-                {opas.length} OPA{opas.length !== 1 ?"s" : ""}
+                {opas.length} OBA{opas.length !== 1 ?"s" : ""}
               </Badge>
             )}
           </div>
@@ -908,11 +908,11 @@ export default function BiaDetalhePage() {
             </CardContent>
           </Card>
 
-          {/* OPAs relacionadas */}
+          {/* OBAs relacionadas */}
           <Card>
             <CardContent className="pt-5 pb-4">
               <SectionTitle icon={Target}>
-                OPAs Relacionadas
+                OBAs Relacionadas
                 {opas.length > 0 && (
                   <Badge variant="secondary" className="ml-2 text-xs">{opas.length}</Badge>
                 )}
@@ -920,14 +920,14 @@ export default function BiaDetalhePage() {
               {opas.length === 0 ?(
                 <div className="text-center py-8 text-muted-foreground/50">
                   <Target className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">Nenhuma OPA vinculada a esta BIA</p>
+                  <p className="text-sm">Nenhuma OBA vinculada a esta BIA</p>
                   <Button
                     variant="link"
                     size="sm"
                     onClick={() => navigate("/area-aliancas?tab=opas")}
                     className="mt-1 text-brand-gold/60"
                   >
-                    Criar OPA →
+                    Criar OBA →
                   </Button>
                 </div>
               ) : (
@@ -1155,7 +1155,7 @@ export default function BiaDetalhePage() {
                       </div>
                       {"opas" in nucleo && (
                         <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">OPAs deste núcleo</p>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">OBAs deste núcleo</p>
                           <p className="mt-1 text-xl font-semibold text-foreground">{relatedOpas.length}</p>
                         </div>
                       )}

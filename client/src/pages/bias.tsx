@@ -1548,7 +1548,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 
             {/* Details row */}
             <div className="flex items-start gap-6">
-              {/* Left: objetivo + OPAs */}
+              {/* Left: objetivo + OBAs */}
               <div className="flex-1 min-w-0 space-y-2">
                 {selectedBia.objetivo_alianca && (
                   <p className="text-[10px] text-brand-gold/45 leading-relaxed line-clamp-2">{selectedBia.objetivo_alianca}</p>
@@ -1559,7 +1559,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                   return (
                     <div>
                       <p className="text-[8px] text-brand-gold/35 tracking-[0.3em] uppercase mb-1.5">
-                        OPAs Relacionadas ({biasOpas.length})
+                        OBAs Relacionadas ({biasOpas.length})
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {biasOpas.map(opa => (
@@ -1569,7 +1569,7 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
                             style={{ background: "rgba(215,187,125,0.1)", border: "1px solid rgba(215,187,125,0.25)", color: "#D7BB7D99" }}
                           >
                             <span style={{ color: "#D7BB7D60" }}>◆</span>
-                            {opa.nome_oportunidade || "OPA sem nome"}
+                            {opa.nome_oportunidade || "OBA sem nome"}
                             {n(opa.valor_origem_opa) > 0 && (
                               <span style={{ color: "#D7BB7D50" }}> · {formatMoney(n(opa.valor_origem_opa), selectedBia.moeda || "BRL")}</span>
                             )}
@@ -1972,7 +1972,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
       if (bia?.id) queryClient.invalidateQueries({ queryKey: ["/api/chamadas-alianca/bia", bia.id] });
       toast({
         title: "Aliança disparada",
-        description: `OPA “${data?.opa?.nome_oportunidade || chamadaOpaTitulo}” criada e chamada enviada para ${count} membro${count !== 1 ? "s" : ""}.`,
+        description: `OBA “${data?.opa?.nome_oportunidade || chamadaOpaTitulo}” criada e chamada enviada para ${count} membro${count !== 1 ? "s" : ""}.`,
       });
       setChamadaDialogOpen(false);
       setChamadaDiretorCampo(null);
@@ -3595,7 +3595,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               Disparar chamada para aliança
             </DialogTitle>
             <DialogDescription>
-              Revise os dados da reunião e edite as informações da OPA que será criada.
+              Revise os dados da reunião e edite as informações da OBA que será criada.
             </DialogDescription>
           </DialogHeader>
 
@@ -3629,11 +3629,11 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <Separator />
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-brand-navy">Informações da OPA</p>
-                  <p className="text-xs text-muted-foreground">Esses dados serão usados na OPA publicada pela chamada.</p>
+                  <p className="text-sm font-semibold text-brand-navy">Informações da OBA</p>
+                  <p className="text-xs text-muted-foreground">Esses dados serão usados na OBA publicada pela chamada.</p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Título da OPA *</Label>
+                  <Label className="text-xs text-muted-foreground">Título da OBA *</Label>
                   <Input
                     value={chamadaOpaTitulo}
                     onChange={(event) => setChamadaOpaTitulo(event.target.value)}
@@ -3653,7 +3653,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Valor da OPA</Label>
+                    <Label className="text-xs text-muted-foreground">Valor da OBA</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                       <Input

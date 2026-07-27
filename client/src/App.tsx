@@ -21,6 +21,7 @@ import BiaDetalhePage from "@/pages/bia-detalhe";
 import OpaDetalhePage from "@/pages/opa-detalhe";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
+import CarteiraPage from "@/pages/carteira";
 import AgendaPage from "@/pages/agenda";
 import AdminPage from "@/pages/admin";
 import MeuPerfilPage from "@/pages/meu-perfil";
@@ -1251,6 +1252,8 @@ function ProtectedApp() {
           <main className="flex-1 overflow-auto overflow-x-hidden bg-background">
             <Switch>
               <Route path="/" component={PainelPage} />
+              <Route path="/carteira/:id" component={CarteiraPage} />
+              <Route path="/carteira" component={CarteiraPage} />
               <Route path="/agenda" component={AgendaPage} />
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />

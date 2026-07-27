@@ -1415,7 +1415,7 @@ export default function VitrinePage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Navigation className="w-4 h-4 text-blue-600" />
-            <h2 className="text-sm font-semibold text-foreground">OPAs em destaque</h2>
+            <h2 className="text-sm font-semibold text-foreground">OBAs em destaque</h2>
           </div>
           <div className="flex-1 h-px bg-border" />
           <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/vitrine/oportunidades")}>
@@ -1436,7 +1436,7 @@ export default function VitrinePage() {
             />
           )) : (
             <div className="w-full rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              Nenhuma OPA em destaque no momento.
+              Nenhuma OBA em destaque no momento.
             </div>
           )}
         </HorizontalCarousel>
@@ -2321,19 +2321,19 @@ function OpaDestaqueCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: ()
     >
       <div className="relative h-[86px] w-full bg-gradient-to-br from-blue-50 to-slate-100">
         {opa.imagem_url ? (
-          <img src={versionAssetUrl(opa.imagem_url) || ""} alt={opa.nome_oportunidade || "OPA"} className="h-full w-full object-cover" />
+          <img src={versionAssetUrl(opa.imagem_url) || ""} alt={opa.nome_oportunidade || "OBA"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-blue-500/25">
             <Target className="h-8 w-8" />
           </div>
         )}
         <span className="absolute left-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">
-          Pública
+          OBA
         </span>
       </div>
       <div className="flex items-start justify-between gap-3 px-3.5 pt-3.5">
         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-          {opa.tipo || "OPA"}
+          {opa.tipo || "OBA"}
         </span>
         {opa.status && (
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -2342,7 +2342,7 @@ function OpaDestaqueCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: ()
         )}
       </div>
       <h3 className="mx-3.5 mt-2.5 line-clamp-2 min-h-[36px] text-[13px] font-semibold text-foreground">
-        {opa.nome_oportunidade || "OPA sem nome"}
+        {opa.nome_oportunidade || "OBA sem nome"}
       </h3>
       <p className="mx-3.5 mt-1.5 line-clamp-1 text-xs text-muted-foreground">{opa.nucleo_alianca || opa.localizacao || "Oportunidade BUILT"}</p>
       <div className="mx-3.5 mb-3.5 mt-3 grid grid-cols-2 gap-3 border-t border-border pt-2.5">

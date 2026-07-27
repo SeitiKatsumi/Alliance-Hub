@@ -17,6 +17,13 @@ import { deflateSync } from "zlib";
 import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import {
+  buildCarteiraAlternativas,
+  diagnosticarCarteira,
+  hasCarteiraAccess,
+  isCarteiraAccessLevel,
+  type CarteiraAccessLevel,
+} from "@shared/carteira";
+import {
   BIA_ACCESS_KEYS,
   BIA_PARTICIPANT_ROLE_LABELS,
   EMPTY_BIA_ACCESS,
@@ -607,7 +614,7 @@ async function ensureOpaMediaFields() {
         interface: "file-image",
         display: "image",
         hidden: false,
-        note: "Imagem de capa da OPA exibida nos cards da Vitrine",
+        note: "Imagem de capa da OBA exibida nos cards da Vitrine",
       },
       schema: { is_nullable: true },
     },
@@ -618,7 +625,7 @@ async function ensureOpaMediaFields() {
         interface: "input",
         display: "raw",
         hidden: false,
-        note: "Ramo de atuaÃ§Ã£o da OPA usado no Painel de ConvergÃªncia",
+        note: "Ramo de atuaÃ§Ã£o da OBA usado no Painel de ConvergÃªncia",
       },
       schema: { is_nullable: true },
     },
@@ -629,7 +636,7 @@ async function ensureOpaMediaFields() {
         interface: "input",
         display: "raw",
         hidden: true,
-        note: "UsuÃ¡rio local que criou a OPA",
+        note: "UsuÃ¡rio local que criou a OBA",
       },
       schema: { is_nullable: true },
     },
@@ -640,7 +647,7 @@ async function ensureOpaMediaFields() {
         interface: "input",
         display: "raw",
         hidden: true,
-        note: "Membro que criou a OPA",
+        note: "Membro que criou a OBA",
       },
       schema: { is_nullable: true },
     },
@@ -1388,6 +1395,119 @@ async function ensureInventarioTables() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_imoveis_owner_membro ON inventario_imoveis (owner_membro_id, created_at DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_lancamentos_imovel ON inventario_lancamentos (imovel_id, created_at DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_inventario_lancamentos_owner_user ON inventario_lancamentos (owner_user_id, created_at DESC)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_eventos (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      tipo text NOT NULL,
+      origem text NOT NULL DEFAULT 'declarada',
+      titulo text,
+      payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_documentos (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      file_id text NOT NULL,
+      nome text NOT NULL,
+      tipo text NOT NULL,
+      versao integer NOT NULL DEFAULT 1,
+      emissao date,
+      validade date,
+      origem text NOT NULL DEFAULT 'declarada',
+      status_validacao text NOT NULL DEFAULT 'declarado',
+      dados_extraidos jsonb NOT NULL DEFAULT '{}'::jsonb,
+      observacao text,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_analises (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      tipo text NOT NULL,
+      versao_regra text NOT NULL DEFAULT 'carteira-v1',
+      entrada jsonb NOT NULL DEFAULT '{}'::jsonb,
+      resultado jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_alertas (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      tipo text NOT NULL,
+      severidade text NOT NULL DEFAULT 'media',
+      titulo text NOT NULL,
+      descricao text,
+      impacto text,
+      acao_sugerida text,
+      prazo date,
+      status text NOT NULL DEFAULT 'aberto',
+      delegado_para_user_id text,
+      criado_por_user_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_demandas (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      tipo_resolucao text NOT NULL DEFAULT 'solicitacao',
+      alternativa text,
+      titulo text NOT NULL,
+      escopo text,
+      urgencia text NOT NULL DEFAULT 'normal',
+      especialidades jsonb NOT NULL DEFAULT '[]'::jsonb,
+      status text NOT NULL DEFAULT 'rascunho',
+      responsavel_user_id text,
+      propostas jsonb NOT NULL DEFAULT '[]'::jsonb,
+      documentos jsonb NOT NULL DEFAULT '[]'::jsonb,
+      proximas_etapas jsonb NOT NULL DEFAULT '[]'::jsonb,
+      opa_id text,
+      resultado text,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_acessos (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      user_id text,
+      membro_id text,
+      nivel text NOT NULL DEFAULT 'leitura',
+      concedido_por_user_id text,
+      concedido_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT carteira_acessos_destinatario_check CHECK (user_id IS NOT NULL OR membro_id IS NOT NULL)
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_eventos_imovel ON carteira_eventos (imovel_id, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_documentos_imovel ON carteira_documentos (imovel_id, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_analises_imovel ON carteira_analises (imovel_id, tipo, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_alertas_imovel ON carteira_alertas (imovel_id, status, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_demandas_imovel ON carteira_demandas (imovel_id, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_user ON carteira_acessos (user_id, imovel_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_membro ON carteira_acessos (membro_id, imovel_id)`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS propostas jsonb NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS documentos jsonb NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS proximas_etapas jsonb NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_acessos_imovel_user_unique ON carteira_acessos (imovel_id, user_id) WHERE user_id IS NOT NULL`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_acessos_imovel_membro_unique ON carteira_acessos (imovel_id, membro_id) WHERE membro_id IS NOT NULL`);
 }
 
 async function ensureLandBankAssetsDirectusCollection() {
@@ -5134,7 +5254,7 @@ export async function registerRoutes(
       params.nucleo ? `Nucleo: ${params.nucleo}.` : null,
       params.escopo ? `Escopo: ${params.escopo}.` : null,
       params.linkReuniao ? `Link da reuniao: ${params.linkReuniao}` : null,
-      opaLink ? `OPA: ${opaLink}` : null,
+      opaLink ? `OBA: ${opaLink}` : null,
     ].filter(Boolean).join("\n");
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(params.titulo)}&dates=${format(start)}/${format(end)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(params.linkReuniao || "")}`;
   }
@@ -5185,7 +5305,7 @@ export async function registerRoutes(
               nucleo ? `Nucleo: ${nucleo}.` : null,
               escopo ? `Escopo: ${escopo}.` : null,
               linkReuniao ? `Link da reuniao: ${linkReuniao}` : null,
-              opaId ? `OPA: ${(process.env.APP_URL || "https://app.builtalliances.com")}/opas/${opaId}` : null,
+              opaId ? `OBA: ${(process.env.APP_URL || "https://app.builtalliances.com")}/opas/${opaId}` : null,
             ].filter(Boolean).join("\n"),
             data: dataBase.toISOString().slice(0, 10),
             hora: dataBase.toTimeString().slice(0, 5),
@@ -5325,7 +5445,7 @@ export async function registerRoutes(
           chamada = await storage.createChamadaAlianca(chamadaPayload);
         } catch (error: any) {
           chamadasStorageDisponivel = false;
-          console.warn("[chamadas-alianca] OPA criada, mas registro local falhou:", error?.message || error);
+          console.warn("[chamadas-alianca] OBA criada, mas registro local falhou:", error?.message || error);
         }
       }
 
@@ -6603,7 +6723,7 @@ export async function registerRoutes(
         "",
         "Estas PolÃ­ticas definem as regras gerais de acesso, participaÃ§Ã£o, permanÃªncia, conduta, proteÃ§Ã£o institucional e uso do ecossistema BUILT.",
         "",
-        "Seu objetivo Ã© proteger a BUILT, seus membros, comunidades, OPAs, BIAs, parceiros, ativos, registros, metodologia, plataforma, marca e reputaÃ§Ã£o.",
+        "Seu objetivo Ã© proteger a BUILT, seus membros, comunidades, OBAs, BIAs, parceiros, ativos, registros, metodologia, plataforma, marca e reputaÃ§Ã£o.",
         "",
         "A BUILT opera com base em boa-fÃ© objetiva, lealdade, comprometimento, transparÃªncia, rastreabilidade, responsabilidade individual, validaÃ§Ã£o reputacional, cooperaÃ§Ã£o estratÃ©gica, proteÃ§Ã£o institucional, integridade patrimonial e disciplina relacional.",
         "",
@@ -6613,13 +6733,13 @@ export async function registerRoutes(
         "",
         "SÃ£o confidenciais as informaÃ§Ãµes estratÃ©gicas, comerciais, tÃ©cnicas, financeiras, jurÃ­dicas, societÃ¡rias, patrimoniais, reputacionais, operacionais, metodolÃ³gicas, documentais ou negociais acessadas no ecossistema BUILT, salvo quando expressamente classificadas como pÃºblicas.",
         "",
-        "A manifestaÃ§Ã£o de interesse em OPA Ã© ato preliminar e dependerÃ¡ de anÃ¡lise, seleÃ§Ã£o, aprovaÃ§Ã£o, aceite especÃ­fico, registro na Plataforma BUILT e instrumentos aplicÃ¡veis da respectiva BIA.",
+        "A manifestaÃ§Ã£o de interesse em OBA Ã© ato preliminar e dependerÃ¡ de anÃ¡lise, seleÃ§Ã£o, aprovaÃ§Ã£o, aceite especÃ­fico, registro na Plataforma BUILT e instrumentos aplicÃ¡veis da respectiva BIA.",
         "",
         "A participaÃ§Ã£o em BIA especÃ­fica dependerÃ¡ de aprovaÃ§Ã£o da governanÃ§a competente, aceite prÃ³prio, registro na Plataforma BUILT, definiÃ§Ã£o de funÃ§Ã£o, aporte, entrega ou responsabilidade, e vinculaÃ§Ã£o aos instrumentos aplicÃ¡veis.",
         "",
         "A BUILT atua como plataforma privada de mÃ©todo, rede, governanÃ§a, rastreabilidade, validaÃ§Ã£o reputacional, organizaÃ§Ã£o informacional e proteÃ§Ã£o institucional.",
         "",
-        "Estas PolÃ­ticas integram, por referÃªncia, os Termos de Acesso da Plataforma BUILT, fluxos de OPA, MOUs de BIA, MAPs, termos de adesÃ£o, atas, registros, anexos e demais instrumentos aplicÃ¡veis.",
+        "Estas PolÃ­ticas integram, por referÃªncia, os Termos de Acesso da Plataforma BUILT, fluxos de OBA, MOUs de BIA, MAPs, termos de adesÃ£o, atas, registros, anexos e demais instrumentos aplicÃ¡veis.",
       ].join("\n"),
     },
     vitrine: {
@@ -10740,7 +10860,7 @@ ${textContent}`;
 
     const sessionMembroId = (req.session as any).membroId as string | undefined;
     if (!sessionMembroId) {
-      const error: any = new Error("Seu perfil nÃ£o estÃ¡ vinculado a um membro para criar OPA nesta BIA.");
+      const error: any = new Error("Seu perfil nÃ£o estÃ¡ vinculado a um membro para criar OBA nesta BIA.");
       error.statusCode = 403;
       throw error;
     }
@@ -10756,7 +10876,7 @@ ${textContent}`;
       throw error;
     }
     if (!isUserLinkedToBia(bia, sessionMembroId)) {
-      const error: any = new Error("VocÃª sÃ³ pode vincular OPAs a BIAs em que estÃ¡ associado.");
+      const error: any = new Error("VocÃª sÃ³ pode vincular OBAs a BIAs em que estÃ¡ associado.");
       error.statusCode = 403;
       throw error;
     }
@@ -10807,7 +10927,7 @@ ${textContent}`;
     try {
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       if (!(await canManageOpa(req, req.params.id))) {
-        return res.status(403).json({ error: "Sem permissÃ£o para editar esta OPA" });
+        return res.status(403).json({ error: "Sem permissÃ£o para editar esta OBA" });
       }
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
@@ -10823,7 +10943,7 @@ ${textContent}`;
     try {
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       if (!(await canManageOpa(req, req.params.id))) {
-        return res.status(403).json({ error: "Sem permissÃ£o para excluir esta OPA" });
+        return res.status(403).json({ error: "Sem permissÃ£o para excluir esta OBA" });
       }
       await directusDelete("tipos_oportunidades", req.params.id);
       res.json({ success: true });
@@ -10832,7 +10952,7 @@ ${textContent}`;
     }
   });
 
-  // ========== OPA INTERESSES ==========
+  // ========== OBA INTERESSES ==========
   app.get("/api/oportunidades/:id/interesse", async (req, res) => {
     try {
       const { id } = req.params;
@@ -10887,7 +11007,7 @@ ${textContent}`;
       const existing = await storage.getUserInteresseByOpa(id, directusUserId);
       if (existing) return res.status(409).json({ error: "Interesse jÃ¡ registrado" });
       const multiplicador = req.body.multiplicador != null ? String(req.body.multiplicador) : null;
-      // Validate submitted multiplicador against OPA minimum
+      // Validate submitted multiplicador against OBA minimum
       if (multiplicador != null) {
         const opaFields = await directusFetchOne("tipos_oportunidades", id, "fields=Minimo_esforco_multiplicador");
         const minMult = parseFloat(String(opaFields?.Minimo_esforco_multiplicador || "0")) || 0;
@@ -10911,15 +11031,15 @@ ${textContent}`;
           const { notificarInteresseOpa } = await import("./mailer");
           // Directus stores the BIA link in field 'bia' (not 'bia_id')
           const opa = await directusFetchOne("tipos_oportunidades", id, "fields=nome_oportunidade,bia");
-          console.log(`[interesse-opa] OPA fetched: id=${id} nome=${opa?.nome_oportunidade} bia=${opa?.bia}`);
+          console.log(`[interesse-opa] OBA fetched: id=${id} nome=${opa?.nome_oportunidade} bia=${opa?.bia}`);
           const rawBiaId = opa?.bia;
           // bia may be a plain UUID string or a Directus M2O object {id:...}
           const biaId: string | null = rawBiaId
             ? (typeof rawBiaId === "object" ? String((rawBiaId as any).id) : String(rawBiaId))
             : null;
-          const opaNome = (opa?.nome_oportunidade as string) || "OPA";
+          const opaNome = (opa?.nome_oportunidade as string) || "OBA";
           if (!biaId) {
-            console.warn(`[interesse-opa] OPA ${id} has no bia linked, skipping email notification`);
+            console.warn(`[interesse-opa] OBA ${id} has no bia linked, skipping email notification`);
             return;
           }
           // Fetch the BIA to get roles and name
@@ -11229,6 +11349,16 @@ ${textContent}`;
   }
 
   function sanitizeInventarioImovel(body: any, actor: { userId?: string | null; membroId?: string | null }, id: string) {
+    const now = new Date();
+    const frequenciaPulso = ["mensal", "trimestral", "desativado"].includes(String(body.frequencia_pulso || ""))
+      ? String(body.frequencia_pulso)
+      : "mensal";
+    const proximoPulso = body.proximo_pulso_em || (() => {
+      if (frequenciaPulso === "desativado") return null;
+      const date = new Date(now);
+      date.setMonth(date.getMonth() + (frequenciaPulso === "trimestral" ? 3 : 1));
+      return date.toISOString().slice(0, 10);
+    })();
     return {
       id,
       nome: String(body.nome || body.qualificacao || "Imóvel").slice(0, 180),
@@ -11250,10 +11380,24 @@ ${textContent}`;
       cartorio: body.cartorio || "",
       foto: body.foto || "",
       status: body.status || "ativo",
+      ocupacao: body.ocupacao || "desconhecido",
+      objetivo: body.objetivo || "indefinido",
+      titularidade: Array.isArray(body.titularidade) ? body.titularidade : [],
+      divida_saldo: body.divida_saldo || "",
+      valor_data_base: body.valor_data_base || now.toISOString().slice(0, 10),
+      valor_origem: body.valor_origem || "declarada",
+      area_origem: body.area_origem || "declarada",
+      ocupacao_origem: body.ocupacao_origem || "declarada",
+      dados_origem: body.dados_origem && typeof body.dados_origem === "object"
+        ? body.dados_origem
+        : {},
+      frequencia_pulso: frequenciaPulso,
+      proximo_pulso_em: proximoPulso,
+      ultima_atualizacao: body.ultima_atualizacao || now.toISOString(),
       owner_user_id: actor.userId || null,
       owner_membro_id: actor.membroId || null,
       createdAt: body.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updatedAt: now.toISOString(),
     };
   }
 
@@ -11415,6 +11559,1296 @@ ${textContent}`;
     }
   });
 
+  type CarteiraActor = {
+    userId: string | null;
+    membroId: string | null;
+    role: string | null;
+    isPlatformAdmin: boolean;
+  };
+
+  type CarteiraResolvedAccess = {
+    imovel: any;
+    nivel: CarteiraAccessLevel;
+    isOwner: boolean;
+  };
+
+  function requireCarteiraActor(req: Request): CarteiraActor {
+    const session = (req.session as any) || {};
+    const userId = session.directusUserId || session.userId || null;
+    const membroId = session.membroId || null;
+    const role = session.role || null;
+    if (!userId && !membroId) {
+      const error: any = new Error("Não autenticado");
+      error.status = 401;
+      throw error;
+    }
+    return {
+      userId,
+      membroId,
+      role,
+      isPlatformAdmin: ["admin", "superadmin"].includes(String(role || "").toLowerCase()),
+    };
+  }
+
+  function carteiraAccessibleWhere(actor: CarteiraActor) {
+    if (actor.isPlatformAdmin) return sql`TRUE`;
+    return sql`(
+      (i.owner_user_id IS NOT NULL AND i.owner_user_id = ${actor.userId})
+      OR (i.owner_membro_id IS NOT NULL AND i.owner_membro_id = ${actor.membroId})
+      OR EXISTS (
+        SELECT 1
+        FROM carteira_acessos ca
+        WHERE ca.imovel_id = i.id
+          AND (
+            (ca.user_id IS NOT NULL AND ca.user_id = ${actor.userId})
+            OR (ca.membro_id IS NOT NULL AND ca.membro_id = ${actor.membroId})
+          )
+      )
+    )`;
+  }
+
+  function carteiraOwnerActor(imovel: any) {
+    return {
+      userId: imovel.owner_user_id || null,
+      membroId: imovel.owner_membro_id || null,
+    };
+  }
+
+  async function resolveCarteiraAccess(imovelId: string, actor: CarteiraActor): Promise<CarteiraResolvedAccess | null> {
+    const imovelResult = await db.execute(sql`
+      SELECT *
+      FROM inventario_imoveis
+      WHERE id = ${imovelId}
+      LIMIT 1
+    `);
+    const row = imovelResult.rows?.[0];
+    if (!row) return null;
+    const imovel = normalizeInventarioRow(row);
+    const isOwner = Boolean(
+      (actor.userId && row.owner_user_id && String(actor.userId) === String(row.owner_user_id))
+      || (actor.membroId && row.owner_membro_id && String(actor.membroId) === String(row.owner_membro_id)),
+    );
+    if (isOwner) return { imovel, nivel: "proprietario", isOwner: true };
+    if (actor.isPlatformAdmin) return { imovel, nivel: "administracao", isOwner: false };
+
+    const accessResult = await db.execute(sql`
+      SELECT nivel
+      FROM carteira_acessos
+      WHERE imovel_id = ${imovelId}
+        AND (
+          (user_id IS NOT NULL AND user_id = ${actor.userId})
+          OR (membro_id IS NOT NULL AND membro_id = ${actor.membroId})
+        )
+      ORDER BY CASE nivel
+        WHEN 'administracao' THEN 3
+        WHEN 'colaboracao' THEN 2
+        ELSE 1
+      END DESC
+      LIMIT 1
+    `);
+    const nivel = String(accessResult.rows?.[0]?.nivel || "");
+    if (!isCarteiraAccessLevel(nivel) || nivel === "proprietario") return null;
+    return { imovel, nivel, isOwner: false };
+  }
+
+  async function requireCarteiraAccess(
+    imovelId: string,
+    actor: CarteiraActor,
+    required: CarteiraAccessLevel,
+  ): Promise<CarteiraResolvedAccess> {
+    const resolved = await resolveCarteiraAccess(imovelId, actor);
+    if (!resolved) {
+      const error: any = new Error("Imóvel não encontrado");
+      error.status = 404;
+      throw error;
+    }
+    if (!hasCarteiraAccess(resolved.nivel, required)) {
+      const error: any = new Error("Você não possui permissão para esta ação.");
+      error.status = 403;
+      throw error;
+    }
+    return resolved;
+  }
+
+  async function recordCarteiraEvent(
+    imovelId: string,
+    actor: CarteiraActor,
+    tipo: string,
+    titulo: string,
+    payload: Record<string, unknown> = {},
+    origem = "declarada",
+  ) {
+    await db.execute(sql`
+      INSERT INTO carteira_eventos (
+        imovel_id, tipo, origem, titulo, payload, criado_por_user_id, criado_por_membro_id
+      )
+      VALUES (
+        ${imovelId}, ${tipo}, ${origem}, ${titulo}, ${JSON.stringify(payload)}::jsonb,
+        ${actor.userId}, ${actor.membroId}
+      )
+    `);
+  }
+
+  async function loadCarteiraContext(imovelId: string) {
+    const [imovelResult, lancamentosResult, documentosResult, alertasResult] = await Promise.all([
+      db.execute(sql`SELECT * FROM inventario_imoveis WHERE id = ${imovelId} LIMIT 1`),
+      db.execute(sql`SELECT * FROM inventario_lancamentos WHERE imovel_id = ${imovelId} ORDER BY created_at DESC`),
+      db.execute(sql`SELECT * FROM carteira_documentos WHERE imovel_id = ${imovelId} ORDER BY criado_em DESC`),
+      db.execute(sql`SELECT * FROM carteira_alertas WHERE imovel_id = ${imovelId} ORDER BY criado_em DESC`),
+    ]);
+    const imovelRow = imovelResult.rows?.[0];
+    if (!imovelRow) return null;
+    return {
+      imovel: normalizeInventarioRow(imovelRow),
+      lancamentos: (lancamentosResult.rows || []).map(normalizeInventarioRow),
+      documentos: documentosResult.rows || [],
+      alertas: alertasResult.rows || [],
+    };
+  }
+
+  async function calculateCarteiraDiagnosis(imovelId: string) {
+    const context = await loadCarteiraContext(imovelId);
+    if (!context) return null;
+    return diagnosticarCarteira(context);
+  }
+
+  async function persistCarteiraAnalysis(
+    imovelId: string,
+    actor: CarteiraActor,
+    tipo: string,
+    entrada: Record<string, unknown>,
+    resultado: Record<string, unknown>,
+  ) {
+    const insert = await db.execute(sql`
+      INSERT INTO carteira_analises (
+        imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id
+      )
+      VALUES (
+        ${imovelId}, ${tipo}, 'carteira-v1', ${JSON.stringify(entrada)}::jsonb,
+        ${JSON.stringify(resultado)}::jsonb, ${actor.userId}, ${actor.membroId}
+      )
+      RETURNING *
+    `);
+    return insert.rows?.[0];
+  }
+
+  async function carteiraCardForRow(row: any, actor: CarteiraActor) {
+    const imovel = normalizeInventarioRow(row);
+    const resolved = await resolveCarteiraAccess(imovel.id, actor);
+    const diagnostico = await calculateCarteiraDiagnosis(imovel.id);
+    return {
+      ...imovel,
+      access_level: resolved?.nivel || "leitura",
+      is_owner: resolved?.isOwner || false,
+      diagnostico,
+    };
+  }
+
+  app.get("/api/carteira/resumo", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        SELECT i.*
+        FROM inventario_imoveis i
+        WHERE ${carteiraAccessibleWhere(actor)}
+        ORDER BY i.updated_at DESC
+      `);
+      const imoveis = await Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor)));
+      const patrimonioPago = imoveis.reduce((sum, item) => sum + parseMarketValueServer(item.valor_pago), 0);
+      const patrimonioAtual = imoveis.reduce((sum, item) => sum + parseMarketValueServer(item.valor_atual), 0);
+      const divida = imoveis.reduce((sum, item) => sum + parseMarketValueServer(item.divida_saldo), 0);
+      const receitas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.receitas || 0), 0);
+      const despesas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.despesas || 0), 0);
+      res.json({
+        imoveis,
+        totais: {
+          patrimonio_total: Number((patrimonioAtual - divida).toFixed(2)),
+          patrimonio_pago: Number(patrimonioPago.toFixed(2)),
+          patrimonio_atual: Number(patrimonioAtual.toFixed(2)),
+          divida: Number(divida.toFixed(2)),
+          valorizacao: Number((patrimonioAtual - patrimonioPago).toFixed(2)),
+          receitas: Number(receitas.toFixed(2)),
+          despesas: Number(despesas.toFixed(2)),
+          resultado_liquido: Number((receitas - despesas).toFixed(2)),
+          alertas_abertos: imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.alertas_abertos || 0), 0),
+        },
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        SELECT i.*
+        FROM inventario_imoveis i
+        WHERE ${carteiraAccessibleWhere(actor)}
+        ORDER BY i.updated_at DESC
+      `);
+      res.json(await Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor))));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const diagnostico = await calculateCarteiraDiagnosis(req.params.id);
+      res.json({
+        ...access.imovel,
+        access_level: access.nivel,
+        is_owner: access.isOwner,
+        diagnostico,
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const id = req.body?.id || `inv-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const data = sanitizeInventarioImovel(req.body || {}, actor, id);
+      await db.execute(sql`
+        INSERT INTO inventario_imoveis (id, data, owner_user_id, owner_membro_id)
+        VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})
+      `);
+      await recordCarteiraEvent(id, actor, "imovel_criado", "Imóvel adicionado à Carteira", { depois: data });
+      res.status(201).json({ ...data, access_level: "proprietario", is_owner: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/imoveis/:id", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const ownerActor = carteiraOwnerActor(access.imovel);
+      const data = sanitizeInventarioImovel(
+        { ...access.imovel, ...(req.body || {}), owner_user_id: access.imovel.owner_user_id, owner_membro_id: access.imovel.owner_membro_id },
+        ownerActor,
+        req.params.id,
+      );
+      await db.execute(sql`
+        UPDATE inventario_imoveis
+        SET data = ${JSON.stringify(data)}::jsonb, updated_at = now()
+        WHERE id = ${req.params.id}
+      `);
+      await recordCarteiraEvent(req.params.id, actor, "imovel_atualizado", "Dados do imóvel atualizados", {
+        antes: access.imovel,
+        depois: data,
+      });
+      res.json({ ...data, access_level: access.nivel, is_owner: access.isOwner });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/carteira/imoveis/:id", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "proprietario");
+      if (!access.isOwner) return res.status(403).json({ error: "Somente o proprietário pode excluir este imóvel." });
+      await db.execute(sql`DELETE FROM inventario_imoveis WHERE id = ${req.params.id}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/lancamentos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const imovelId = typeof req.query.imovel_id === "string" ? req.query.imovel_id : "";
+      if (imovelId) {
+        await requireCarteiraAccess(imovelId, actor, "leitura");
+        const result = await db.execute(sql`
+          SELECT *
+          FROM inventario_lancamentos
+          WHERE imovel_id = ${imovelId}
+          ORDER BY COALESCE((data->>'data')::date, created_at::date) DESC, created_at DESC
+        `);
+        return res.json((result.rows || []).map(normalizeInventarioRow));
+      }
+      const result = await db.execute(sql`
+        SELECT l.*
+        FROM inventario_lancamentos l
+        JOIN inventario_imoveis i ON i.id = l.imovel_id
+        WHERE ${carteiraAccessibleWhere(actor)}
+        ORDER BY COALESCE((l.data->>'data')::date, l.created_at::date) DESC, l.created_at DESC
+      `);
+      res.json((result.rows || []).map(normalizeInventarioRow));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/lancamentos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const imovelId = String(req.body?.imovel_id || "");
+      if (!imovelId) return res.status(400).json({ error: "Selecione um imóvel." });
+      const access = await requireCarteiraAccess(imovelId, actor, "colaboracao");
+      const id = req.body?.id || `lan-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const ownerActor = carteiraOwnerActor(access.imovel);
+      const data = sanitizeInventarioLancamento(req.body || {}, ownerActor, id, imovelId);
+      await db.execute(sql`
+        INSERT INTO inventario_lancamentos (id, imovel_id, data, owner_user_id, owner_membro_id)
+        VALUES (
+          ${id}, ${imovelId}, ${JSON.stringify(data)}::jsonb,
+          ${access.imovel.owner_user_id || null}, ${access.imovel.owner_membro_id || null}
+        )
+      `);
+      await recordCarteiraEvent(imovelId, actor, "lancamento_criado", "Lançamento registrado", { lancamento: data }, data.origem || "declarada");
+      res.status(201).json(data);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/lancamentos/:id", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const currentResult = await db.execute(sql`SELECT * FROM inventario_lancamentos WHERE id = ${req.params.id} LIMIT 1`);
+      const currentRow = currentResult.rows?.[0];
+      if (!currentRow) return res.status(404).json({ error: "Lançamento não encontrado" });
+      const current = normalizeInventarioRow(currentRow);
+      const access = await requireCarteiraAccess(current.imovel_id, actor, "colaboracao");
+      const data = sanitizeInventarioLancamento(
+        { ...current, ...(req.body || {}) },
+        carteiraOwnerActor(access.imovel),
+        req.params.id,
+        current.imovel_id,
+      );
+      await db.execute(sql`
+        UPDATE inventario_lancamentos
+        SET data = ${JSON.stringify(data)}::jsonb, updated_at = now()
+        WHERE id = ${req.params.id}
+      `);
+      await recordCarteiraEvent(current.imovel_id, actor, "lancamento_atualizado", "Lançamento atualizado", {
+        antes: current,
+        depois: data,
+      });
+      res.json(data);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/carteira/lancamentos/:id", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const currentResult = await db.execute(sql`SELECT * FROM inventario_lancamentos WHERE id = ${req.params.id} LIMIT 1`);
+      const currentRow = currentResult.rows?.[0];
+      if (!currentRow) return res.status(404).json({ error: "Lançamento não encontrado" });
+      const current = normalizeInventarioRow(currentRow);
+      await requireCarteiraAccess(current.imovel_id, actor, "colaboracao");
+      await db.execute(sql`DELETE FROM inventario_lancamentos WHERE id = ${req.params.id}`);
+      await recordCarteiraEvent(current.imovel_id, actor, "lancamento_removido", "Lançamento removido", { antes: current });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/eventos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const result = await db.execute(sql`
+        SELECT *
+        FROM carteira_eventos
+        WHERE imovel_id = ${req.params.id}
+        ORDER BY criado_em DESC
+        LIMIT 250
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/documentos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const result = await db.execute(sql`
+        SELECT *
+        FROM carteira_documentos
+        WHERE imovel_id = ${req.params.id}
+        ORDER BY criado_em DESC
+      `);
+      res.json((result.rows || []).map((row: any) => ({
+        ...row,
+        file_url: assetApiUrl(row.file_id),
+      })));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/documentos/preview", upload.single("file"), async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(String(req.params.id), actor, "colaboracao");
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: "Selecione um documento." });
+      const textContent = await extractInventarioFileText(file, "Leia este documento de imóvel e transcreva apenas as informações visíveis, preservando datas, identificadores e valores.");
+      if (!textContent.trim()) return res.status(422).json({ error: "Não foi possível ler o documento." });
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: `Extraia metadados do documento de imóvel abaixo. Não invente dados ausentes.
+Responda SOMENTE JSON válido no formato:
+{"nome":"título curto","tipo":"Matrícula|IPTU / ITR|Escritura|Contrato de locação|Laudo / inspeção|Planta|Fotos|Orçamento|Financiamento|Planilha financeira|Outro","emissao":"YYYY-MM-DD|null","validade":"YYYY-MM-DD|null","observacao":"resumo curto","dados_extraidos":{"campos relevantes":"valores"}}
+
+DOCUMENTO:
+${textContent.slice(0, 16000)}`,
+        }],
+        temperature: 0,
+        max_tokens: 1400,
+        response_format: { type: "json_object" },
+      });
+      const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+      res.json({
+        preview: {
+          nome: String(parsed.nome || file.originalname || "Documento").slice(0, 180),
+          tipo: String(parsed.tipo || "Outro").slice(0, 100),
+          emissao: /^\d{4}-\d{2}-\d{2}$/.test(String(parsed.emissao || "")) ? parsed.emissao : null,
+          validade: /^\d{4}-\d{2}-\d{2}$/.test(String(parsed.validade || "")) ? parsed.validade : null,
+          observacao: parsed.observacao ? String(parsed.observacao).slice(0, 500) : null,
+          dados_extraidos: parsed.dados_extraidos && typeof parsed.dados_extraidos === "object"
+            ? parsed.dados_extraidos
+            : {},
+          origem: "extraida",
+          status_validacao: "extraido",
+        },
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: "Erro ao analisar documento: " + error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/documentos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const fileId = String(req.body?.file_id || "").trim();
+      const nome = String(req.body?.nome || "").trim();
+      const tipo = String(req.body?.tipo || "Outro").trim();
+      if (!fileId || !nome) return res.status(400).json({ error: "Informe o arquivo e o nome do documento." });
+      const versionResult = await db.execute(sql`
+        SELECT COALESCE(MAX(versao), 0) + 1 AS proxima_versao
+        FROM carteira_documentos
+        WHERE imovel_id = ${req.params.id} AND lower(tipo) = lower(${tipo})
+      `);
+      const versao = Number(versionResult.rows?.[0]?.proxima_versao || 1);
+      const origem = ["declarada", "extraida", "externa", "validada", "estimada"].includes(String(req.body?.origem || ""))
+        ? String(req.body.origem)
+        : "declarada";
+      const insert = await db.execute(sql`
+        INSERT INTO carteira_documentos (
+          imovel_id, file_id, nome, tipo, versao, emissao, validade, origem,
+          status_validacao, dados_extraidos, observacao, criado_por_user_id, criado_por_membro_id
+        )
+        VALUES (
+          ${req.params.id}, ${fileId}, ${nome}, ${tipo}, ${versao},
+          ${req.body?.emissao || null}, ${req.body?.validade || null}, ${origem},
+          ${req.body?.status_validacao || "declarado"},
+          ${JSON.stringify(req.body?.dados_extraidos || {})}::jsonb,
+          ${req.body?.observacao || null}, ${actor.userId}, ${actor.membroId}
+        )
+        RETURNING *
+      `);
+      const documento = insert.rows?.[0];
+      await recordCarteiraEvent(req.params.id, actor, "documento_adicionado", "Documento adicionado", {
+        documento_id: documento?.id,
+        nome,
+        tipo,
+        versao,
+      }, origem);
+      if (req.body?.validade) {
+        const validade = new Date(`${req.body.validade}T12:00:00Z`);
+        const dias = Math.ceil((validade.getTime() - Date.now()) / 86400000);
+        if (Number.isFinite(dias) && dias <= 30) {
+          await db.execute(sql`
+            INSERT INTO carteira_alertas (
+              imovel_id, tipo, severidade, titulo, descricao, impacto, acao_sugerida, prazo, criado_por_user_id
+            )
+            VALUES (
+              ${req.params.id}, 'documental', ${dias < 0 ? "alta" : "media"},
+              ${dias < 0 ? "Documento vencido" : "Documento próximo do vencimento"},
+              ${`${nome} · versão ${versao}`},
+              'A validade documental pode limitar decisões ou transações relacionadas ao imóvel.',
+              'Revisar o documento e providenciar uma versão atualizada.',
+              ${req.body.validade}, ${actor.userId}
+            )
+          `);
+        }
+      }
+      res.status(201).json({ ...documento, file_url: assetApiUrl(fileId) });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/imoveis/:id/documentos/:documentoId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const currentResult = await db.execute(sql`
+        SELECT *
+        FROM carteira_documentos
+        WHERE id = ${req.params.documentoId} AND imovel_id = ${req.params.id}
+        LIMIT 1
+      `);
+      const current = currentResult.rows?.[0];
+      if (!current) return res.status(404).json({ error: "Documento não encontrado" });
+      const next = {
+        nome: String(req.body?.nome ?? current.nome),
+        tipo: String(req.body?.tipo ?? current.tipo),
+        emissao: req.body?.emissao === undefined ? current.emissao : req.body.emissao || null,
+        validade: req.body?.validade === undefined ? current.validade : req.body.validade || null,
+        origem: String(req.body?.origem ?? current.origem),
+        status_validacao: String(req.body?.status_validacao ?? current.status_validacao),
+        dados_extraidos: req.body?.dados_extraidos ?? current.dados_extraidos ?? {},
+        observacao: req.body?.observacao === undefined ? current.observacao : req.body.observacao || null,
+      };
+      const updated = await db.execute(sql`
+        UPDATE carteira_documentos
+        SET nome = ${next.nome}, tipo = ${next.tipo}, emissao = ${next.emissao},
+            validade = ${next.validade}, origem = ${next.origem},
+            status_validacao = ${next.status_validacao},
+            dados_extraidos = ${JSON.stringify(next.dados_extraidos)}::jsonb,
+            observacao = ${next.observacao}, atualizado_em = now()
+        WHERE id = ${req.params.documentoId} AND imovel_id = ${req.params.id}
+        RETURNING *
+      `);
+      await recordCarteiraEvent(req.params.id, actor, "documento_atualizado", "Documento atualizado", {
+        documento_id: req.params.documentoId,
+        antes: current,
+        depois: next,
+      });
+      res.json({ ...updated.rows?.[0], file_url: assetApiUrl(current.file_id) });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/carteira/imoveis/:id/documentos/:documentoId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const currentResult = await db.execute(sql`
+        SELECT *
+        FROM carteira_documentos
+        WHERE id = ${req.params.documentoId} AND imovel_id = ${req.params.id}
+        LIMIT 1
+      `);
+      const current = currentResult.rows?.[0];
+      if (!current) return res.status(404).json({ error: "Documento não encontrado" });
+      await db.execute(sql`DELETE FROM carteira_documentos WHERE id = ${req.params.documentoId}`);
+      await recordCarteiraEvent(req.params.id, actor, "documento_removido", "Documento removido", { antes: current });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/alertas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const result = await db.execute(sql`
+        SELECT *
+        FROM carteira_alertas
+        WHERE imovel_id = ${req.params.id}
+        ORDER BY CASE severidade WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END,
+                 criado_em DESC
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/imoveis/:id/alertas/:alertaId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const status = ["aberto", "adiado", "delegado", "resolvido"].includes(String(req.body?.status || ""))
+        ? String(req.body.status)
+        : "aberto";
+      const updated = await db.execute(sql`
+        UPDATE carteira_alertas
+        SET status = ${status},
+            prazo = COALESCE(${req.body?.prazo || null}, prazo),
+            delegado_para_user_id = ${req.body?.delegado_para_user_id || null},
+            atualizado_em = now()
+        WHERE id = ${req.params.alertaId} AND imovel_id = ${req.params.id}
+        RETURNING *
+      `);
+      if (!updated.rows?.[0]) return res.status(404).json({ error: "Alerta não encontrado" });
+      await recordCarteiraEvent(req.params.id, actor, "alerta_atualizado", "Alerta atualizado", {
+        alerta_id: req.params.alertaId,
+        status,
+      });
+      res.json(updated.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/pulso/preview", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const today = new Date().toISOString().slice(0, 10);
+      const receita = parseMarketValueServer(req.body?.receita || 0);
+      const despesa = parseMarketValueServer(req.body?.despesa || 0);
+      const acontecimento = String(req.body?.acontecimento || "").trim();
+      const lancamentos: any[] = [];
+      if (receita > 0) {
+        lancamentos.push({
+          tipo: "receita",
+          categoria: String(req.body?.receita_categoria || "Receita do imóvel"),
+          valor: receita,
+          data: req.body?.data_referencia || today,
+          status: req.body?.receita_status || "pago",
+          descricao: String(req.body?.receita_descricao || "Receita informada no Pulso Patrimonial"),
+          origem: "declarada",
+        });
+      }
+      if (despesa > 0) {
+        lancamentos.push({
+          tipo: "despesa",
+          categoria: String(req.body?.despesa_categoria || "Despesa do imóvel"),
+          valor: despesa,
+          data: req.body?.data_referencia || today,
+          status: req.body?.despesa_status || "pago",
+          descricao: String(req.body?.despesa_descricao || "Despesa informada no Pulso Patrimonial"),
+          origem: "declarada",
+        });
+      }
+      const alertas: any[] = [];
+      if (/\b(vazamento|infiltra[cç][aã]o|dano|risco|problema|urgente|inc[eê]ndio|rachadura)\b/i.test(acontecimento)) {
+        alertas.push({
+          tipo: "tecnico",
+          severidade: "alta",
+          titulo: "Ocorrência técnica informada no Pulso",
+          descricao: acontecimento,
+          impacto: "Pode afetar segurança, conservação ou resultado do imóvel.",
+          acao_sugerida: "Solicitar inspeção profissional.",
+        });
+      } else if (acontecimento) {
+        alertas.push({
+          tipo: "atualizacao",
+          severidade: "baixa",
+          titulo: "Mudança registrada no Pulso",
+          descricao: acontecimento,
+          impacto: "A informação pode alterar o diagnóstico patrimonial.",
+          acao_sugerida: "Revisar o diagnóstico após confirmar a atualização.",
+        });
+      }
+
+      let resumoIa = "";
+      if (acontecimento.length >= 10) {
+        try {
+          const response = await getOpenAI().chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{
+              role: "user",
+              content: `Resuma em uma frase objetiva a atualização patrimonial abaixo. Não dê parecer jurídico, técnico ou financeiro definitivo.\n\n${acontecimento.slice(0, 3000)}`,
+            }],
+            temperature: 0,
+            max_tokens: 180,
+          });
+          resumoIa = String(response.choices[0]?.message?.content || "").trim();
+        } catch (error: any) {
+          console.warn("[carteira-pulso-preview] resumo IA indisponivel:", error?.message || error);
+        }
+      }
+
+      res.json({
+        preview: {
+          campos: {
+            ocupacao: req.body?.ocupacao || null,
+            objetivo: req.body?.objetivo || null,
+          },
+          lancamentos,
+          alertas,
+          acontecimento,
+          resumo: resumoIa || acontecimento || "Atualização periódica da Carteira.",
+          data_referencia: req.body?.data_referencia || today,
+        },
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/pulsos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const preview = req.body?.preview;
+      if (!preview || typeof preview !== "object") return res.status(400).json({ error: "Gere e confirme a prévia antes de salvar." });
+      const current = access.imovel;
+      const frequencia = String(current.frequencia_pulso || "mensal");
+      const now = new Date();
+      const nextPulse = frequencia === "desativado" ? null : (() => {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() + (frequencia === "trimestral" ? 3 : 1));
+        return date.toISOString().slice(0, 10);
+      })();
+      const ownerActor = carteiraOwnerActor(current);
+      const updatedData = sanitizeInventarioImovel({
+        ...current,
+        ocupacao: preview.campos?.ocupacao || current.ocupacao,
+        objetivo: preview.campos?.objetivo || current.objetivo,
+        ocupacao_origem: preview.campos?.ocupacao ? "declarada" : current.ocupacao_origem,
+        ultima_atualizacao: now.toISOString(),
+        proximo_pulso_em: nextPulse,
+      }, ownerActor, req.params.id);
+      await db.execute(sql`
+        UPDATE inventario_imoveis
+        SET data = ${JSON.stringify(updatedData)}::jsonb, updated_at = now()
+        WHERE id = ${req.params.id}
+      `);
+
+      const savedLancamentos: any[] = [];
+      for (const item of Array.isArray(preview.lancamentos) ? preview.lancamentos : []) {
+        const id = `lan-${Date.now()}-${randomUUID().slice(0, 8)}`;
+        const data = sanitizeInventarioLancamento(item, ownerActor, id, req.params.id);
+        await db.execute(sql`
+          INSERT INTO inventario_lancamentos (id, imovel_id, data, owner_user_id, owner_membro_id)
+          VALUES (
+            ${id}, ${req.params.id}, ${JSON.stringify(data)}::jsonb,
+            ${current.owner_user_id || null}, ${current.owner_membro_id || null}
+          )
+        `);
+        savedLancamentos.push(data);
+      }
+
+      const savedAlertas: any[] = [];
+      for (const item of Array.isArray(preview.alertas) ? preview.alertas : []) {
+        const inserted = await db.execute(sql`
+          INSERT INTO carteira_alertas (
+            imovel_id, tipo, severidade, titulo, descricao, impacto, acao_sugerida, criado_por_user_id
+          )
+          VALUES (
+            ${req.params.id}, ${item.tipo || "atualizacao"}, ${item.severidade || "media"},
+            ${String(item.titulo || "Alerta do Pulso").slice(0, 180)},
+            ${item.descricao || null}, ${item.impacto || null}, ${item.acao_sugerida || null}, ${actor.userId}
+          )
+          RETURNING *
+        `);
+        if (inserted.rows?.[0]) savedAlertas.push(inserted.rows[0]);
+      }
+      await recordCarteiraEvent(req.params.id, actor, "pulso_confirmado", "Pulso Patrimonial confirmado", {
+        resumo: preview.resumo || null,
+        acontecimento: preview.acontecimento || null,
+        campos: preview.campos || {},
+        lancamentos: savedLancamentos.map((item) => item.id),
+        alertas: savedAlertas.map((item) => item.id),
+      });
+      const diagnostico = await calculateCarteiraDiagnosis(req.params.id);
+      if (diagnostico) {
+        await persistCarteiraAnalysis(req.params.id, actor, "diagnostico", { origem: "pulso" }, diagnostico as any);
+      }
+      res.status(201).json({
+        success: true,
+        imovel: updatedData,
+        lancamentos: savedLancamentos,
+        alertas: savedAlertas,
+        diagnostico,
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/diagnostico", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const diagnostico = await calculateCarteiraDiagnosis(req.params.id);
+      if (!diagnostico) return res.status(404).json({ error: "Imóvel não encontrado" });
+      res.json(diagnostico);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/diagnostico", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const diagnostico = await calculateCarteiraDiagnosis(req.params.id);
+      if (!diagnostico) return res.status(404).json({ error: "Imóvel não encontrado" });
+      await persistCarteiraAnalysis(req.params.id, actor, "diagnostico", { origem: req.body?.origem || "manual" }, diagnostico as any);
+      await recordCarteiraEvent(req.params.id, actor, "diagnostico_atualizado", "Diagnóstico patrimonial atualizado", {
+        situacao: diagnostico.situacao,
+        confianca: diagnostico.confianca,
+      }, "estimada");
+      res.json(diagnostico);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/alternativas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const result = await db.execute(sql`
+        SELECT *
+        FROM carteira_analises
+        WHERE imovel_id = ${req.params.id} AND tipo = 'alternativas'
+        ORDER BY criado_em DESC
+        LIMIT 1
+      `);
+      res.json(result.rows?.[0]?.resultado || null);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/alternativas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "colaboracao");
+      const diagnostico = await calculateCarteiraDiagnosis(req.params.id);
+      const entrada = {
+        capacidade_investimento: req.body?.capacidade_investimento || 0,
+        prazo: req.body?.prazo || "médio prazo",
+        preferencia: req.body?.preferencia || "equilibrio",
+        objetivo: access.imovel.objetivo || null,
+      };
+      let alternativas = buildCarteiraAlternativas({ ...entrada, diagnostico });
+      let explicacaoIa: string | null = null;
+      try {
+        const response = await getOpenAI().chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{
+            role: "user",
+            content: `Explique em até 80 palavras, sem prometer resultado, por que a alternativa "${alternativas[0].titulo}" tem melhor aderência.
+Objetivo: ${entrada.objetivo || "não informado"}.
+Prazo: ${entrada.prazo}.
+Preferência: ${entrada.preferencia}.
+Situação: ${diagnostico?.situacao || "preliminar"}.
+Dados faltantes: ${(diagnostico?.dados_faltantes || []).join(", ") || "nenhum identificado"}.
+Deixe claro que premissas precisam de validação profissional.`,
+          }],
+          temperature: 0.2,
+          max_tokens: 220,
+        });
+        explicacaoIa = String(response.choices[0]?.message?.content || "").trim() || null;
+      } catch (error: any) {
+        console.warn("[carteira-alternativas] explicacao IA indisponivel:", error?.message || error);
+      }
+      const resultado = {
+        alternativas,
+        melhor_alternativa: alternativas[0]?.tipo || null,
+        resumo: explicacaoIa || alternativas[0]?.justificativa || "",
+        preliminar: true,
+        aviso: "Cenários informativos. Valores, prazos e viabilidade dependem de validação profissional.",
+        criado_em: new Date().toISOString(),
+      };
+      await persistCarteiraAnalysis(req.params.id, actor, "alternativas", entrada, resultado);
+      await recordCarteiraEvent(req.params.id, actor, "alternativas_analisadas", "Alternativas patrimoniais comparadas", {
+        melhor_alternativa: resultado.melhor_alternativa,
+        entrada,
+      }, "estimada");
+      res.json(resultado);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/demandas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const result = await db.execute(sql`
+        SELECT *
+        FROM carteira_demandas
+        WHERE imovel_id = ${req.params.id}
+        ORDER BY criado_em DESC
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/demandas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const titulo = String(req.body?.titulo || "").trim();
+      if (!titulo) return res.status(400).json({ error: "Informe o título da demanda." });
+      const tipoResolucao = ["solicitacao", "opa", "bia_sugerida"].includes(String(req.body?.tipo_resolucao || ""))
+        ? String(req.body.tipo_resolucao)
+        : "solicitacao";
+      const insert = await db.execute(sql`
+        INSERT INTO carteira_demandas (
+          imovel_id, tipo_resolucao, alternativa, titulo, escopo, urgencia,
+          especialidades, status, responsavel_user_id, propostas, documentos,
+          proximas_etapas, criado_por_user_id, criado_por_membro_id
+        )
+        VALUES (
+          ${req.params.id}, ${tipoResolucao}, ${req.body?.alternativa || null}, ${titulo},
+          ${req.body?.escopo || null}, ${req.body?.urgencia || "normal"},
+          ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
+          'rascunho', ${req.body?.responsavel_user_id || null},
+          ${JSON.stringify(Array.isArray(req.body?.propostas) ? req.body.propostas : [])}::jsonb,
+          ${JSON.stringify(Array.isArray(req.body?.documentos) ? req.body.documentos : [])}::jsonb,
+          ${JSON.stringify(Array.isArray(req.body?.proximas_etapas) ? req.body.proximas_etapas : [])}::jsonb,
+          ${actor.userId}, ${actor.membroId}
+        )
+        RETURNING *
+      `);
+      const demanda = insert.rows?.[0];
+      await recordCarteiraEvent(req.params.id, actor, "demanda_criada", "Demanda criada", {
+        demanda_id: demanda?.id,
+        titulo,
+        tipo_resolucao: tipoResolucao,
+      });
+      res.status(201).json(demanda);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/imoveis/:id/demandas/:demandaId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const currentResult = await db.execute(sql`
+        SELECT *
+        FROM carteira_demandas
+        WHERE id = ${req.params.demandaId} AND imovel_id = ${req.params.id}
+        LIMIT 1
+      `);
+      const current = currentResult.rows?.[0];
+      if (!current) return res.status(404).json({ error: "Demanda não encontrada" });
+      const status = ["rascunho", "aberta", "em_andamento", "aguardando", "concluida", "cancelada"].includes(String(req.body?.status || ""))
+        ? String(req.body.status)
+        : String(current.status);
+      const updated = await db.execute(sql`
+        UPDATE carteira_demandas
+        SET titulo = ${String(req.body?.titulo ?? current.titulo)},
+            escopo = ${req.body?.escopo === undefined ? current.escopo : req.body.escopo || null},
+            urgencia = ${String(req.body?.urgencia ?? current.urgencia)},
+            status = ${status},
+            responsavel_user_id = ${req.body?.responsavel_user_id === undefined ? current.responsavel_user_id : req.body.responsavel_user_id || null},
+            propostas = ${JSON.stringify(req.body?.propostas === undefined ? current.propostas || [] : Array.isArray(req.body.propostas) ? req.body.propostas : [])}::jsonb,
+            documentos = ${JSON.stringify(req.body?.documentos === undefined ? current.documentos || [] : Array.isArray(req.body.documentos) ? req.body.documentos : [])}::jsonb,
+            proximas_etapas = ${JSON.stringify(req.body?.proximas_etapas === undefined ? current.proximas_etapas || [] : Array.isArray(req.body.proximas_etapas) ? req.body.proximas_etapas : [])}::jsonb,
+            resultado = ${req.body?.resultado === undefined ? current.resultado : req.body.resultado || null},
+            atualizado_em = now()
+        WHERE id = ${req.params.demandaId} AND imovel_id = ${req.params.id}
+        RETURNING *
+      `);
+      await recordCarteiraEvent(req.params.id, actor, "demanda_atualizada", "Demanda atualizada", {
+        demanda_id: req.params.demandaId,
+        status,
+      });
+      res.json(updated.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-opa", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const demandResult = await db.execute(sql`
+        SELECT *
+        FROM carteira_demandas
+        WHERE id = ${req.params.demandaId} AND imovel_id = ${req.params.id}
+        LIMIT 1
+      `);
+      const demanda: any = demandResult.rows?.[0];
+      if (!demanda) return res.status(404).json({ error: "Demanda não encontrada" });
+      if (demanda.opa_id) return res.status(409).json({ error: "Esta demanda já possui uma OBA vinculada.", opa_id: demanda.opa_id });
+      const localizacao = [
+        access.imovel.endereco,
+        access.imovel.bairro,
+        access.imovel.cidade,
+        access.imovel.estado,
+        access.imovel.pais,
+      ].filter(Boolean).join(", ");
+      const payload = prepareOpaPayload({
+        nome_oportunidade: demanda.titulo,
+        tipo: "Prestação de Serviço",
+        objetivo_alianca: demanda.escopo || `Resolver demanda patrimonial do imóvel ${access.imovel.nome}.`,
+        nucleo_alianca: Array.isArray(demanda.especialidades) ? demanda.especialidades[0] || null : null,
+        pais: access.imovel.pais || "Brasil",
+        localizacao,
+        descricao: `${demanda.escopo || ""}\n\nOrigem: Carteira Patrimonial — ${access.imovel.nome}.`.trim(),
+        status: "pausada",
+      });
+      payload.criado_por_user_id = actor.userId;
+      payload.criado_por_membro_id = actor.membroId;
+      let opa: any;
+      try {
+        opa = await directusCreate("tipos_oportunidades", payload);
+      } catch (error: any) {
+        if (!String(error?.message || "").includes("criado_por_")) throw error;
+        delete payload.criado_por_user_id;
+        delete payload.criado_por_membro_id;
+        opa = await directusCreate("tipos_oportunidades", payload);
+      }
+      await db.execute(sql`
+        UPDATE carteira_demandas
+        SET tipo_resolucao = 'opa', opa_id = ${opa.id}, status = 'aberta', atualizado_em = now()
+        WHERE id = ${req.params.demandaId}
+      `);
+      await recordCarteiraEvent(req.params.id, actor, "demanda_convertida_opa", "Rascunho de OBA criado", {
+        demanda_id: req.params.demandaId,
+        opa_id: opa.id,
+      });
+      res.status(201).json({ success: true, opa, opa_id: opa.id });
+    } catch (error: any) {
+      res.status(error.status || error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/acessos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const result = await db.execute(sql`
+        SELECT ca.*, u.nome, u.email, u.username, u.membro_directus_id
+        FROM carteira_acessos ca
+        LEFT JOIN users u ON u.id = ca.user_id
+        WHERE ca.imovel_id = ${req.params.id}
+        ORDER BY ca.criado_em ASC
+      `);
+      let owner: any = null;
+      if (access.imovel.owner_user_id) {
+        const ownerResult = await db.execute(sql`
+          SELECT id, nome, email, username, membro_directus_id
+          FROM users
+          WHERE id = ${access.imovel.owner_user_id}
+          LIMIT 1
+        `);
+        owner = ownerResult.rows?.[0] || { id: access.imovel.owner_user_id };
+      } else if (access.imovel.owner_membro_id) {
+        owner = { membro_id: access.imovel.owner_membro_id };
+      }
+      res.json({ owner, acessos: result.rows || [], current_level: access.nivel, is_owner: access.isOwner });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/acessos", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const nivel = String(req.body?.nivel || "");
+      if (!isCarteiraAccessLevel(nivel) || nivel === "proprietario") {
+        return res.status(400).json({ error: "Selecione leitura, colaboração ou administração." });
+      }
+      const identifier = String(req.body?.identificador || req.body?.user_id || "").trim();
+      const explicitMembroId = String(req.body?.membro_id || "").trim();
+      let target: any = null;
+      if (identifier) {
+        const targetResult = await db.execute(sql`
+          SELECT id, nome, email, username, membro_directus_id
+          FROM users
+          WHERE id = ${identifier}
+             OR lower(COALESCE(email, '')) = lower(${identifier})
+             OR lower(username) = lower(${identifier})
+             OR membro_directus_id = ${identifier}
+          LIMIT 1
+        `);
+        target = targetResult.rows?.[0] || null;
+      }
+      const targetUserId = target?.id || null;
+      const targetMembroId = target?.membro_directus_id || explicitMembroId || null;
+      if (!targetUserId && !targetMembroId) {
+        return res.status(404).json({ error: "Usuário não encontrado. Informe o e-mail ou usuário cadastrado na plataforma." });
+      }
+      if (
+        (targetUserId && String(targetUserId) === String(access.imovel.owner_user_id || ""))
+        || (targetMembroId && String(targetMembroId) === String(access.imovel.owner_membro_id || ""))
+      ) {
+        return res.status(400).json({ error: "O proprietário já possui acesso total." });
+      }
+      const existing = await db.execute(sql`
+        SELECT *
+        FROM carteira_acessos
+        WHERE imovel_id = ${req.params.id}
+          AND (
+            (${targetUserId} IS NOT NULL AND user_id = ${targetUserId})
+            OR (${targetMembroId} IS NOT NULL AND membro_id = ${targetMembroId})
+          )
+        LIMIT 1
+      `);
+      let saved: any;
+      if (existing.rows?.[0]) {
+        const updated = await db.execute(sql`
+          UPDATE carteira_acessos
+          SET nivel = ${nivel}, user_id = COALESCE(${targetUserId}, user_id),
+              membro_id = COALESCE(${targetMembroId}, membro_id), atualizado_em = now()
+          WHERE id = ${existing.rows[0].id}
+          RETURNING *
+        `);
+        saved = updated.rows?.[0];
+      } else {
+        const inserted = await db.execute(sql`
+          INSERT INTO carteira_acessos (
+            imovel_id, user_id, membro_id, nivel, concedido_por_user_id, concedido_por_membro_id
+          )
+          VALUES (
+            ${req.params.id}, ${targetUserId}, ${targetMembroId}, ${nivel}, ${actor.userId}, ${actor.membroId}
+          )
+          RETURNING *
+        `);
+        saved = inserted.rows?.[0];
+      }
+      await recordCarteiraEvent(req.params.id, actor, "acesso_concedido", "Acesso à Carteira atualizado", {
+        acesso_id: saved?.id,
+        user_id: targetUserId,
+        membro_id: targetMembroId,
+        nivel,
+      });
+      res.status(201).json({ ...saved, ...target });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/carteira/imoveis/:id/acessos/:acessoId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const currentResult = await db.execute(sql`
+        SELECT *
+        FROM carteira_acessos
+        WHERE id = ${req.params.acessoId} AND imovel_id = ${req.params.id}
+        LIMIT 1
+      `);
+      const current = currentResult.rows?.[0];
+      if (!current) return res.status(404).json({ error: "Acesso não encontrado" });
+      await db.execute(sql`DELETE FROM carteira_acessos WHERE id = ${req.params.acessoId}`);
+      await recordCarteiraEvent(req.params.id, actor, "acesso_revogado", "Acesso à Carteira revogado", { antes: current });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/transferir-proprietario", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "proprietario");
+      if (!access.isOwner) {
+        return res.status(403).json({ error: "Somente o proprietário pode transferir a administração principal." });
+      }
+      const identifier = String(req.body?.identificador || "").trim();
+      if (!identifier) return res.status(400).json({ error: "Informe o e-mail ou usuário do novo proprietário." });
+      const targetResult = await db.execute(sql`
+        SELECT id, nome, email, username, membro_directus_id
+        FROM users
+        WHERE id = ${identifier}
+           OR lower(COALESCE(email, '')) = lower(${identifier})
+           OR lower(username) = lower(${identifier})
+           OR membro_directus_id = ${identifier}
+        LIMIT 1
+      `);
+      const target: any = targetResult.rows?.[0];
+      if (!target) return res.status(404).json({ error: "Novo proprietário não encontrado na plataforma." });
+      const targetUserId = target.id || null;
+      const targetMembroId = target.membro_directus_id || null;
+      if (
+        (targetUserId && String(targetUserId) === String(access.imovel.owner_user_id || ""))
+        || (targetMembroId && String(targetMembroId) === String(access.imovel.owner_membro_id || ""))
+      ) {
+        return res.status(400).json({ error: "Esta pessoa já é a proprietária principal." });
+      }
+
+      const previousOwner = {
+        user_id: access.imovel.owner_user_id || null,
+        membro_id: access.imovel.owner_membro_id || null,
+      };
+      const updatedData = {
+        ...access.imovel,
+        owner_user_id: targetUserId,
+        owner_membro_id: targetMembroId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`
+          DELETE FROM carteira_acessos
+          WHERE imovel_id = ${req.params.id}
+            AND (
+              (${targetUserId} IS NOT NULL AND user_id = ${targetUserId})
+              OR (${targetMembroId} IS NOT NULL AND membro_id = ${targetMembroId})
+            )
+        `);
+        await tx.execute(sql`
+          UPDATE inventario_imoveis
+          SET owner_user_id = ${targetUserId},
+              owner_membro_id = ${targetMembroId},
+              data = ${JSON.stringify(updatedData)}::jsonb,
+              updated_at = now()
+          WHERE id = ${req.params.id}
+        `);
+        await tx.execute(sql`
+          UPDATE inventario_lancamentos
+          SET owner_user_id = ${targetUserId},
+              owner_membro_id = ${targetMembroId},
+              updated_at = now()
+          WHERE imovel_id = ${req.params.id}
+        `);
+        if (previousOwner.user_id || previousOwner.membro_id) {
+          await tx.execute(sql`
+            DELETE FROM carteira_acessos
+            WHERE imovel_id = ${req.params.id}
+              AND (
+                (${previousOwner.user_id} IS NOT NULL AND user_id = ${previousOwner.user_id})
+                OR (${previousOwner.membro_id} IS NOT NULL AND membro_id = ${previousOwner.membro_id})
+              )
+          `);
+          await tx.execute(sql`
+            INSERT INTO carteira_acessos (
+              imovel_id, user_id, membro_id, nivel, concedido_por_user_id, concedido_por_membro_id
+            )
+            VALUES (
+              ${req.params.id}, ${previousOwner.user_id}, ${previousOwner.membro_id},
+              'administracao', ${actor.userId}, ${actor.membroId}
+            )
+          `);
+        }
+      });
+      await recordCarteiraEvent(req.params.id, actor, "proprietario_transferido", "Administração principal transferida", {
+        anterior: previousOwner,
+        novo: { user_id: targetUserId, membro_id: targetMembroId },
+      });
+      res.json({
+        success: true,
+        novo_proprietario: target,
+        proprietario_anterior_nivel: "administracao",
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   async function parseInventarioLancamentosFromText(textContent: string, origem: string) {
     const today = new Date().toISOString().slice(0, 10);
     const prompt = `Extraia lançamentos financeiros de imóvel do texto abaixo.
@@ -11455,39 +12889,44 @@ ${textContent.slice(0, 16000)}`;
     };
   }
 
-  app.post("/api/inventario/importar-anexos", upload.single("file"), async (req, res) => {
+  async function extractInventarioFileText(file: any, imagePrompt = "Leia este comprovante/documento de imóvel e extraia o texto visível, incluindo datas, valores, categoria e descrição.") {
+    const ext = path.extname(file.originalname || "").toLowerCase().replace(".", "");
+    const mime = String(file.mimetype || "").toLowerCase();
+    if (mime.startsWith("image/") && ["png", "jpg", "jpeg", "webp"].includes(ext)) {
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-4o",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: imagePrompt },
+            { type: "image_url", image_url: { url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}` } },
+          ] as any,
+        }],
+        temperature: 0,
+        max_tokens: 1800,
+      });
+      return response.choices[0]?.message?.content || "";
+    }
+    if (["xlsx", "xls"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel")) {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(file.buffer, { type: "buffer" });
+      return wb.SheetNames.map((sheet) => XLSX.utils.sheet_to_csv(wb.Sheets[sheet])).join("\n\n");
+    }
+    if (ext === "pdf" || mime.includes("pdf")) {
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: file.buffer });
+      return (await parser.getText()).text;
+    }
+    return file.buffer.toString("utf-8");
+  }
+
+  app.post(["/api/inventario/importar-anexos", "/api/carteira/importar-anexos"], upload.single("file"), async (req, res) => {
     try {
       requireInventoryActor(req);
       const file = (req as any).file;
       if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
-      const ext = path.extname(file.originalname || "").toLowerCase().replace(".", "");
       const mime = String(file.mimetype || "").toLowerCase();
-      let textContent = "";
-      if (mime.startsWith("image/") && ["png", "jpg", "jpeg", "webp"].includes(ext)) {
-        const response = await getOpenAI().chat.completions.create({
-          model: "gpt-4o",
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: "Leia este comprovante/documento de imóvel e extraia texto financeiro visível: datas, valores, categoria e descrição." },
-              { type: "image_url", image_url: { url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}` } },
-            ] as any,
-          }],
-          temperature: 0,
-          max_tokens: 1200,
-        });
-        textContent = response.choices[0]?.message?.content || "";
-      } else if (["xlsx", "xls"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel")) {
-        const XLSX = await import("xlsx");
-        const wb = XLSX.read(file.buffer, { type: "buffer" });
-        textContent = wb.SheetNames.map((sheet) => XLSX.utils.sheet_to_csv(wb.Sheets[sheet])).join("\n\n");
-      } else if (ext === "pdf" || mime.includes("pdf")) {
-        const { PDFParse } = await import("pdf-parse");
-        const parser = new PDFParse({ data: file.buffer });
-        textContent = (await parser.getText()).text;
-      } else {
-        textContent = file.buffer.toString("utf-8");
-      }
+      const textContent = await extractInventarioFileText(file);
       if (!textContent.trim()) return res.status(422).json({ error: "Não foi possível ler o arquivo." });
       const parsed = await parseInventarioLancamentosFromText(textContent, mime.startsWith("image/") ? "ia_imagem" : "ia_arquivo");
       res.json({ success: true, arquivo: file.originalname, ...parsed });
@@ -11497,7 +12936,7 @@ ${textContent.slice(0, 16000)}`;
     }
   });
 
-  app.post("/api/inventario/transcrever-audio", auraAudioUpload.single("audio"), async (req, res) => {
+  app.post(["/api/inventario/transcrever-audio", "/api/carteira/transcrever-audio"], auraAudioUpload.single("audio"), async (req, res) => {
     try {
       requireInventoryActor(req);
       const file = (req as any).file;
@@ -11865,7 +13304,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const { prompt, type } = req.body;
 
       const systemPrompt = type === "oportunidades"
-        ? `VocÃª Ã© um consultor especialista em construÃ§Ã£o civil e investimentos imobiliÃ¡rios da Built Alliances. Analise as oportunidades de alianÃ§a (OPAs) e forneÃ§a insights estratÃ©gicos em portuguÃªs brasileiro. Seja conciso. MÃ¡ximo 3 parÃ¡grafos.`
+        ? `VocÃª Ã© um consultor especialista em construÃ§Ã£o civil e investimentos imobiliÃ¡rios da Built Alliances. Analise as oportunidades de alianÃ§a (OBAs) e forneÃ§a insights estratÃ©gicos em portuguÃªs brasileiro. Seja conciso. MÃ¡ximo 3 parÃ¡grafos.`
         : `VocÃª Ã© um consultor especialista da Built Alliances em BIAs. Analise os projetos de alianÃ§a e forneÃ§a insights. Seja conciso. MÃ¡ximo 3 parÃ¡grafos.`;
 
       const response = await getOpenAI().chat.completions.create({
@@ -12892,7 +14331,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         alliances: { label: "Alliances", weight: 1 },
         capital: { label: "Capital", weight: 1 },
         aura: { label: "Aura", weight: 4 },
-        opas: { label: "OPAs", weight: 4 },
+        opas: { label: "OBAs", weight: 4 },
         bias: { label: "BIAs", weight: 4 },
         agenda: { label: "Agenda", weight: 3 },
         documentos: { label: "Documentos/MOU", weight: 4 },
@@ -13943,7 +15382,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     };
   }
 
-  // POST /api/opa/solicitar-adesao â€” non-members request the Proud Member flow from an OPA
+  // POST /api/opa/solicitar-adesao â€” non-members request the Proud Member flow from an OBA
   app.post("/api/opa/solicitar-adesao", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {

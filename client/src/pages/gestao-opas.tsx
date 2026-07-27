@@ -118,7 +118,7 @@ const CRM_STATUSES: Array<{
   {
     value: "nao_selecionado",
     crm: "Não Selecionado",
-    membro: "Não selecionado nesta OPA",
+    membro: "Não selecionado nesta OBA",
     sentido: "A BIA não seguirá com ele nesta oportunidade específica.",
     icon: UserX,
     className: "border-red-500/30 bg-red-500/10 text-red-600",
@@ -386,10 +386,10 @@ export default function GestaoOpasPage() {
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#D7BB7D]/20 text-[#D7BB7D]">
               <ClipboardList className="w-5 h-5" />
             </span>
-            Gestão OPAs
+            Gestão OBAs
           </h1>
           <p className="text-sm text-muted-foreground">
-            CRM em colunas para gerir as manifestações de interesse recebidas em cada OPA.
+            CRM em colunas para gerir as manifestações de interesse recebidas em cada OBA.
           </p>
         </div>
         <Button
@@ -402,7 +402,7 @@ export default function GestaoOpasPage() {
           data-testid="btn-nova-opa-gestao"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Nova OPA
+          Nova OBA
         </Button>
       </div>
 
@@ -410,18 +410,18 @@ export default function GestaoOpasPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Target className="w-4 h-4 text-[#D7BB7D]" />
-            Selecionar OPA
+            Selecionar OBA
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Select value={selectedOpaId || undefined} onValueChange={setSelectedOpaId}>
             <SelectTrigger data-testid="select-opa-gestao-opas">
-              <SelectValue placeholder={loadingOpas ?"Carregando OPAs..." : "Selecione uma OPA para gerenciar as manifestações"} />
+              <SelectValue placeholder={loadingOpas ?"Carregando OBAs..." : "Selecione uma OBA para gerenciar as manifestações"} />
             </SelectTrigger>
             <SelectContent>
               {opas.map(opa => (
                 <SelectItem key={opa.id} value={opa.id}>
-                  {opa.nome_oportunidade || "OPA sem nome"}
+                  {opa.nome_oportunidade || "OBA sem nome"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -431,7 +431,7 @@ export default function GestaoOpasPage() {
             <div className="rounded-lg border border-border/60 p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{selectedOpa.nome_oportunidade || "OPA sem nome"}</p>
+                  <p className="text-sm font-semibold text-foreground">{selectedOpa.nome_oportunidade || "OBA sem nome"}</p>
                   <p className="text-xs text-muted-foreground mt-1">{biaMap.get(biaId) || "BIA não vinculada"}</p>
                 </div>
                 <div className="flex items-center gap-2 md:ml-auto">
@@ -446,11 +446,11 @@ export default function GestaoOpasPage() {
                       }}
                       data-testid={`btn-editar-opa-gestao-${selectedOpa.id}`}
                     >
-                      Editar OPA
+                      Editar OBA
                     </Button>
                   )}
                   <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => navigate(getOpaUrl(selectedOpa, selectedBia, opas))}>
-                    Abrir OPA
+                    Abrir OBA
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -472,14 +472,14 @@ export default function GestaoOpasPage() {
         <Card className="border border-dashed border-border/60">
           <CardContent className="p-10 text-center">
             <Target className="w-9 h-9 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">Selecione uma OPA para iniciar a gestão.</p>
+            <p className="text-sm font-medium text-foreground">Selecione uma OBA para iniciar a gestão.</p>
             <p className="text-xs text-muted-foreground mt-1">Depois da seleção, as manifestações dos usuários aparecem em colunas.</p>
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard label="Manifestações" value={interesses.length} hint="interesses registrados nesta OPA" />
+            <StatCard label="Manifestações" value={interesses.length} hint="interesses registrados nesta OBA" />
             <StatCard label="Em Tratativa" value={counts.em_tratativa} hint="conversas em andamento" />
             <StatCard label="Alianças Firmadas" value={counts.alianca_firmada} hint="membros integrados" />
             <StatCard label="Em Espera" value={counts.em_espera} hint="perfis mantidos no radar" />

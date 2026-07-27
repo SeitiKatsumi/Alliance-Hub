@@ -1,5 +1,5 @@
 ﻿import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,7 +22,7 @@ import {
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
   AlertTriangle, Clock, FileWarning, AlarmClock, BookOpen, UserCheck,
-  Crosshair,
+  Crosshair, Landmark,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -31,7 +31,7 @@ import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { getOpaUrl } from "@/lib/public-refs";
-import { InventarioPanel } from "@/pages/area-aliancas";
+import { CarteiraDashboardPanel } from "@/pages/carteira";
 import {
   Bar,
   BarChart,
@@ -546,10 +546,51 @@ function deriveRole(user: any): string | null {
 export default function PainelPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const validDashboardTabs = ["inicio", "carteira", "convergencias", "opas", "gestao"] as const;
+  const initialDashboardParams = new URLSearchParams(window.location.search);
+  const requestedDashboardTab = initialDashboardParams.get("tab");
+  const normalizedDashboardTab = requestedDashboardTab === "bias" ?"carteira" : requestedDashboardTab;
+  const [dashboardTab, setDashboardTab] = useState(
+    validDashboardTabs.includes(normalizedDashboardTab as (typeof validDashboardTabs)[number])
+      ?normalizedDashboardTab!
+      : "inicio",
+  );
+  const [carteiraView, setCarteiraView] = useState(
+    requestedDashboardTab === "bias" || initialDashboardParams.get("view") === "bias" ?"bias" : "imoveis",
+  );
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
   const [conviteTipo, setConviteTipo] = useState("vitrine");
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("tab");
+    const normalizedRequested = requested === "bias" ?"carteira" : requested;
+    const nextTab = validDashboardTabs.includes(normalizedRequested as (typeof validDashboardTabs)[number])
+      ?normalizedRequested!
+      : "inicio";
+    setDashboardTab(nextTab);
+    setCarteiraView(requested === "bias" || params.get("view") === "bias" ?"bias" : "imoveis");
+  }, [location]);
+
+  function handleDashboardTabChange(nextTab: string) {
+    setDashboardTab(nextTab);
+    if (nextTab === "carteira") {
+      setCarteiraView("imoveis");
+    }
+    const nextUrl = nextTab === "inicio"
+      ?"/"
+      : nextTab === "carteira"
+        ?"/?tab=carteira&view=imoveis"
+        : `/?tab=${nextTab}`;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
+
+  function handleCarteiraViewChange(nextView: string) {
+    setCarteiraView(nextView);
+    window.history.replaceState(window.history.state, "", `/?tab=carteira&view=${nextView}`);
+  }
 
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
@@ -796,7 +837,7 @@ export default function PainelPage() {
   const alocacaoPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
   const alocacaoPorObjetivo = useMemo(() => groupCurrencyBy(bias, "objetivo_alianca"), [bias]);
   const convergenciaMetricsData = useMemo(() => [
-    { name: "OPAs Convergentes", value: dashboardStats.convergencias_total },
+    { name: "OBAs Convergentes", value: dashboardStats.convergencias_total },
     { name: "Interesses Manifestados", value: dashboardStats.interesses_manifestados },
   ], [dashboardStats.convergencias_total, dashboardStats.interesses_manifestados]);
   const filteredConvergencias = useMemo(() => {
@@ -939,15 +980,15 @@ export default function PainelPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="inicio" className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-muted/40 p-1 sm:grid-cols-5">
+      <Tabs value={dashboardTab} onValueChange={handleDashboardTabChange} className="space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1 sm:grid-cols-3 xl:grid-cols-5">
           <TabsTrigger value="inicio" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-inicio">
             <LayoutDashboard className="w-4 h-4 text-blue-600" />
             Início
           </TabsTrigger>
-          <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-bias">
-            <Briefcase className="w-4 h-4 text-amber-500" />
-            Minhas BIAs
+          <TabsTrigger value="carteira" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-carteira">
+            <Landmark className="w-4 h-4 text-blue-600" />
+            Carteira
           </TabsTrigger>
           <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
             <Target className="w-4 h-4 text-emerald-600" />
@@ -955,7 +996,7 @@ export default function PainelPage() {
           </TabsTrigger>
           <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
             <Target className="w-4 h-4 text-cyan-600" />
-            OPAs de Interesse
+            OBAs de Interesse
           </TabsTrigger>
           <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
             <SlidersHorizontal className="w-4 h-4 text-violet-600" />
@@ -1269,7 +1310,24 @@ export default function PainelPage() {
 
         </TabsContent>
 
-        <TabsContent value="bias" className="space-y-4 mt-0">
+        <TabsContent value="carteira" className="space-y-4 mt-0">
+          <Tabs value={carteiraView} onValueChange={handleCarteiraViewChange} className="space-y-4">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1">
+              <TabsTrigger value="imoveis" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-imoveis">
+                <Landmark className="h-4 w-4 text-blue-600" />
+                Imóveis
+              </TabsTrigger>
+              <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-bias">
+                <Briefcase className="h-4 w-4 text-amber-500" />
+                Minhas BIAs
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="imoveis" className="mt-0">
+              <CarteiraDashboardPanel compact />
+            </TabsContent>
+
+            <TabsContent value="bias" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-amber-500" />
@@ -1409,6 +1467,8 @@ export default function PainelPage() {
             </div>
           )}
 
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="convergencias" className="space-y-4 mt-0">
@@ -1425,7 +1485,7 @@ export default function PainelPage() {
                 onClick={() => navigate("/area-aliancas?tab=opas")}
                 data-testid="link-ver-convergencias"
               >
-                Ver OPAs <ChevronRight className="w-3 h-3 ml-1" />
+                Ver OBAs <ChevronRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
 
@@ -1433,7 +1493,7 @@ export default function PainelPage() {
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <Card className="border border-border/60 lg:col-span-1">
                   <CardContent className="p-4">
-                    <p className="text-sm font-semibold text-foreground">Nº de OPAs Convergentes vs Nº de Interesses Manifestados</p>
+                    <p className="text-sm font-semibold text-foreground">Nº de OBAs Convergentes vs Nº de Interesses Manifestados</p>
                     <p className="text-[11px] text-muted-foreground">Comparativo dos últimos 12 meses</p>
                     <div className="mt-3 h-[180px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -1451,12 +1511,12 @@ export default function PainelPage() {
                 <MetricCard
                   title="Índice de Convergência"
                   value={fmtPercent(dashboardStats.indice_convergencia)}
-                  subtitle="OPAs convergentes / total de OPAs nos últimos 12 meses"
+                  subtitle="OBAs convergentes / total de OBAs nos últimos 12 meses"
                 />
                 <MetricCard
                   title="Taxa de interesse"
                   value={fmtPercent(dashboardStats.taxa_interesse)}
-                  subtitle="Interesses manifestados / OPAs convergentes"
+                  subtitle="Interesses manifestados / OBAs convergentes"
                 />
               </div>
             )}
@@ -1515,7 +1575,7 @@ export default function PainelPage() {
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-6 text-center space-y-2">
                   <Target className="w-7 h-7 text-muted-foreground/40 mx-auto" />
-                  <p className="text-sm text-muted-foreground">Nenhuma OPA convergente com suas áreas de contribuição.</p>
+                  <p className="text-sm text-muted-foreground">Nenhuma OBA convergente com suas áreas de contribuição.</p>
                   <p className="text-xs text-muted-foreground/70">Atualize suas áreas em Meu Perfil para melhorar as recomendações.</p>
                 </CardContent>
               </Card>
@@ -1538,7 +1598,7 @@ export default function PainelPage() {
                     <CardContent className="p-4 space-y-2.5">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-foreground leading-snug line-clamp-2 flex-1">
-                          {opa.nome_oportunidade || "OPA sem nome"}
+                          {opa.nome_oportunidade || "OBA sem nome"}
                         </p>
                         {opa.tipo && (
                           <Badge variant="outline" className="text-[10px] text-blue-700 border-blue-200 bg-blue-50">
@@ -1570,7 +1630,7 @@ export default function PainelPage() {
                       )}
                       <div className="pt-1 border-t border-border/40 grid grid-cols-2 gap-2">
                         <div>
-                          <p className="text-[10px] text-muted-foreground">Valor da OPA</p>
+                          <p className="text-[10px] text-muted-foreground">Valor da OBA</p>
                           <p className="text-xs font-medium tabular-nums">
                             {n(opa.valor_origem_opa) > 0 ?fmt(n(opa.valor_origem_opa)) : "-"}
                           </p>
@@ -1591,12 +1651,12 @@ export default function PainelPage() {
         </TabsContent>
 
         <TabsContent value="opas" className="space-y-4 mt-0">
-          {/* OPAs de Interesse */}
+          {/* OBAs de Interesse */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Target className="w-4 h-4 text-cyan-600" />
-                OPAs com Interesse Manifestado
+                OBAs com Interesse Manifestado
               </h2>
               <Button
                 variant="ghost"
@@ -1625,7 +1685,7 @@ export default function PainelPage() {
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-5 text-center">
                   <Target className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Nenhuma OPA de interesse registrada.</p>
+                  <p className="text-xs text-muted-foreground">Nenhuma OBA de interesse registrada.</p>
                 </CardContent>
               </Card>
             ) : (
@@ -1640,7 +1700,7 @@ export default function PainelPage() {
                     <Target className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">
-                        {o.nome_oportunidade || "OPA sem nome"}
+                        {o.nome_oportunidade || "OBA sem nome"}
                       </p>
                       <p className="text-[10px] text-muted-foreground truncate">
                         {[
@@ -1813,9 +1873,6 @@ export default function PainelPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <InventarioPanel />
-          </div>
         </TabsContent>
       </Tabs>
 

@@ -192,7 +192,7 @@ export default function OpaDetalhePage() {
   const { data: interesseData } = useQuery<InteresseResponse>({
     queryKey: ["/api/oportunidades", opa?.id, "interesse"],
     queryFn: async () => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       const res = await fetch(`/api/oportunidades/${opa.id}/interesse`);
       if (!res.ok) throw new Error("Erro ao buscar interesses");
       return res.json();
@@ -202,7 +202,7 @@ export default function OpaDetalhePage() {
 
   const interesseMutation = useMutation({
     mutationFn: async ({ msg, mult: multVal }: { msg: string; mult: string }) => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, {
         mensagem: msg || null,
         multiplicador: multVal ?parseFloat(multVal) || null : null,
@@ -229,12 +229,12 @@ export default function OpaDetalhePage() {
 
   const removerInteresseMutation = useMutation({
     mutationFn: async () => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       return apiRequest("DELETE", `/api/oportunidades/${opa.id}/interesse`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", opa?.id, "interesse"] });
-      toast({ title: "Interesse removido", description: "Seu interesse nesta OPA foi cancelado." });
+      toast({ title: "Interesse removido", description: "Seu interesse nesta OBA foi cancelado." });
     },
     onError: () => {
       toast({ title: "Erro", description: "Não foi possível remover o interesse.", variant: "destructive" });
@@ -309,8 +309,8 @@ export default function OpaDetalhePage() {
   if (!opa) {
     return (
       <div className="p-6 text-center">
-        <p className="text-muted-foreground">OPA não encontrada.</p>
-        <Button variant="link" onClick={() => navigate("/area-aliancas?tab=opas")}>Voltar para OPAs</Button>
+        <p className="text-muted-foreground">OBA não encontrada.</p>
+        <Button variant="link" onClick={() => navigate("/area-aliancas?tab=opas")}>Voltar para OBAs</Button>
       </div>
     );
   }
@@ -327,7 +327,7 @@ export default function OpaDetalhePage() {
           data-testid="btn-back-opas"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar para OPAs
+          Voltar para OBAs
         </Button>
         {canManageOpa && (
           <Button
@@ -371,7 +371,7 @@ export default function OpaDetalhePage() {
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-sm border"
               style={{ borderColor: "rgba(215,187,125,0.3)", color: "#D7BB7D99", background: "rgba(215,187,125,0.06)" }}>
-              <span style={{ color: "#D7BB7D60" }}>◆</span> OPA
+              <span style={{ color: "#D7BB7D60" }}>◆</span> OBA
             </span>
             {opa.tipo && <Badge variant="secondary" className="text-[10px]">{getTipoDisplayName(opa.tipo)}</Badge>}
             {isClosed && opa.status === "concluida" && (
@@ -419,7 +419,7 @@ export default function OpaDetalhePage() {
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
           {valor > 0 && (
             <div className="rounded-lg bg-muted/40 border border-border/50 p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Valor da OPA</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Valor da OBA</p>
               <p className={`text-xl font-bold ${opaCyanTextStrong} tabular-nums`}>{brl(valor, bia?.moeda || "BRL")}</p>
             </div>
           )}
@@ -553,7 +553,7 @@ export default function OpaDetalhePage() {
                   <Separator />
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Valor da OPA</span>
+                      <span className="text-sm text-muted-foreground">Valor da OBA</span>
                       <span className="text-sm font-bold text-brand-gold tabular-nums">{brl(valor, bia?.moeda || "BRL")}</span>
                     </div>
                     {mult > 0 && (
@@ -604,7 +604,7 @@ export default function OpaDetalhePage() {
                 ) : (
                   <div className="space-y-3">
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Tem interesse nesta oportunidade?Notifique o responsável pela OPA.
+                      Tem interesse nesta oportunidade?Notifique o responsável pela OBA.
                     </p>
                     {true ?(
                       <Button
@@ -664,7 +664,7 @@ export default function OpaDetalhePage() {
                 <CardContent className="pt-5 pb-4">
                   <SectionTitle icon={Target}>Status</SectionTitle>
                   <div className="space-y-3">
-                    <InfoRow label="Status da OPA" value={opa.status || "ativa"} />
+                    <InfoRow label="Status da OBA" value={opa.status || "ativa"} />
                     <InfoRow label="Tipo" value={getTipoDisplayName(opa.tipo || "")} />
                     <InfoRow label="Núcleo responsável" value={opa.nucleo_alianca} />
                   </div>
@@ -675,7 +675,7 @@ export default function OpaDetalhePage() {
                   <SectionTitle icon={TrendingUp}>Análise</SectionTitle>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor da OPA</p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor da OBA</p>
                       <p className="text-lg font-bold tabular-nums">{valor > 0 ?brl(valor, bia?.moeda || "BRL") : "-"}</p>
                     </div>
                     <div>
@@ -723,7 +723,7 @@ export default function OpaDetalhePage() {
                     data-testid="btn-opa-gestao-editar"
                   >
                     <Pencil className="mr-2 h-4 w-4" />
-                    Editar OPA
+                    Editar OBA
                   </Button>
                   {bia && (
                     <Button
@@ -785,7 +785,7 @@ export default function OpaDetalhePage() {
               </div>
               {mult > 0 && (
                 <p className="text-[10px] text-muted-foreground">
-                Mínimo esforço definido na OPA: <span className="font-semibold text-foreground">{mult}%</span>
+                Mínimo esforço definido na OBA: <span className="font-semibold text-foreground">{mult}%</span>
                 </p>
               )}
               {mult > 0 && multiplicadorInput !== "" && parseFloat(multiplicadorInput) < mult && (
@@ -813,7 +813,7 @@ export default function OpaDetalhePage() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Uma notificação será enviada por e-mail ao{" "}
                 <strong className="text-foreground">Diretor de Aliança</strong> e ao{" "}
-                <strong className="text-foreground">Aliado BUILT</strong> da BIA vinculada a esta OPA.
+                <strong className="text-foreground">Aliado BUILT</strong> da BIA vinculada a esta OBA.
               </p>
             </div>
           </div>
@@ -859,7 +859,7 @@ export default function OpaDetalhePage() {
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Para manifestar interesse em OPAs e participar alianças, é necessário acesso à área de alianças BUILT.
+              Para manifestar interesse em OBAs e participar alianças, é necessário acesso à área de alianças BUILT.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Ao acessar a Vitrine, seu perfil já foi aprovado por um Aliado licenciado, portanto, para desbloquear seu acesso à área de alianças, conclua o pagamento da adesão.

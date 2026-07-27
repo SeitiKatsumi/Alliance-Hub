@@ -2036,7 +2036,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
             {[
               { key: "aprovacoes", label: "Aprovações pendentes", count: totalAprovacoesPendentes },
               { key: "chamadas", label: "Chamadas para aliança", count: chamadasAlianca.length },
-              { key: "opas", label: "Novas Ofertas públicas", count: opasPublicasFiltradas.length },
+              { key: "opas", label: "Novas OBAs", count: opasPublicasFiltradas.length },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -2068,7 +2068,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <Input
                 value={aprovacoesSearch}
                 onChange={(event) => setAprovacoesSearch(event.target.value)}
-                placeholder={notificacoesTab === "opas" ?"Buscar por OPA, tipo, núcleo ou status..." : "Buscar por nome, e-mail, comunidade ou status..."}
+                placeholder={notificacoesTab === "opas" ?"Buscar por OBA, tipo, núcleo ou status..." : "Buscar por nome, e-mail, comunidade ou status..."}
                 className="h-10 pl-9 bg-white border-brand-gold/40 text-brand-navy placeholder:text-brand-navy/45 focus-visible:ring-brand-gold/40"
                 data-testid="input-busca-aprovacoes"
               />
@@ -2472,7 +2472,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                             }}
                             className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-mono text-blue-700 hover:bg-blue-50"
                           >
-                            Ver OPA
+                            Ver OBA
                           </button>
                         )}
                       </div>
@@ -2488,7 +2488,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
               <div className="flex items-center gap-2 px-5 py-3 border-b border-brand-gold/20 bg-brand-gold/5">
                 <Target className="w-4 h-4 text-brand-gold" />
                 <span className="text-xs font-mono text-brand-navy/80 uppercase tracking-widest">
-                  Novas Ofertas Públicas
+                  Novas OBAs
                 </span>
                 {opasPublicasFiltradas.length > 0 && (
                   <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-brand-gold/10 text-[#9B7A32] border border-brand-gold/30">
@@ -2500,7 +2500,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                 <div className="p-8 flex flex-col items-center text-center gap-2">
                   <Target className="w-8 h-8 text-brand-gold/30" />
                   <p className="text-slate-500 text-xs font-mono">
-                    Nenhuma nova oferta pública encontrada.
+                    Nenhuma nova OBA encontrada.
                   </p>
                 </div>
               ) : (
@@ -2518,10 +2518,10 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-brand-navy">
-                          {opa.nome_oportunidade || "OPA sem título"}
+                          {opa.nome_oportunidade || "OBA sem título"}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-slate-500">
-                          {[opa.tipo, opa.nucleo_alianca, opa.status].filter(Boolean).join(" · ") || "Oferta pública"}
+                          {[opa.tipo, opa.nucleo_alianca, opa.status].filter(Boolean).join(" · ") || "OBA"}
                         </p>
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />

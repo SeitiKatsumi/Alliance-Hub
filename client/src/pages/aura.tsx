@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -18,6 +24,7 @@ import {
   TrendingUp, Users, Zap, Bot, Tags, Paperclip, FileText,
   ShieldCheck, Target, Briefcase, CalendarDays, BarChart3,
   AlertTriangle, Lock, BookOpen, Handshake, Settings,
+  Info,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -860,11 +867,41 @@ export default function AuraPage() {
     : `${viewedName} apresenta ${faixaDescricao(score)}, com convergência predominante para o Núcleo ${convergenciaPrincipal?.nucleo || "em formação"}${convergenciaSecundaria ? ` e convergência secundária para ${convergenciaSecundaria.nucleo}` : ""}. Os termos recebidos indicam força em ${convergenciaPrincipal?.palavras.slice(0, 5).join(", ").toLowerCase() || "percepções ainda iniciais"}. Essa combinação sugere boa aplicabilidade em ${NUCLEOS_APLICABILIDADE.find((item) => item.nucleo === convergenciaPrincipal?.nucleo)?.foco || "contextos a serem validados pela aliança"}. As dimensões com baixa convergência não indicam ausência de capacidade, mas sim que as avaliações atuais ainda não trouxeram sinais suficientes para esses papéis. Para responsabilidades críticas, recomenda-se atuação acompanhada ou nova validação após entregas reais.`;
   const aplicacaoRecomendada = getAplicacaoRecomendada(convergenciaPrincipal, convergenciaSecundaria);
   const matrizAplicabilidade = [
-    { icon: CalendarDays, label: "Horizonte de Projeto", value: horizonteProjeto, color: "#22C55E" },
-    { icon: BarChart3, label: "Nível de Responsabilidade", value: nivelResponsabilidade, color: "#3B82F6" },
-    { icon: Handshake, label: "Tipo de Aliança Recomendada", value: nucleoMaisForte.dim === "T" ? "Técnica e liderança" : nucleoMaisForte.dim === "R" ? "Relacionamento e comunidade" : "Governança e liderança", color: "#D7BB7D" },
-    { icon: Users, label: "Compatibilidade Cultural", value: compatibilidadeCultural, color: "#22C55E" },
-    { icon: Target, label: "Cobertura Dimensional", value: `${coberturaDimensional}%`, color: "#005BFF" },
+    {
+      icon: CalendarDays,
+      label: "Horizonte de Projeto",
+      value: horizonteProjeto,
+      color: "#22C55E",
+      description: "Indica o prazo de projeto mais compatível com a Aura percebida, considerando o índice geral e as evidências disponíveis.",
+    },
+    {
+      icon: BarChart3,
+      label: "Nível de Responsabilidade",
+      value: nivelResponsabilidade,
+      color: "#3B82F6",
+      description: "Estima o grau de responsabilidade recomendado a partir da consistência e da força das percepções recebidas.",
+    },
+    {
+      icon: Handshake,
+      label: "Tipo de Aliança Recomendada",
+      value: nucleoMaisForte.dim === "T" ?"Técnica e liderança" : nucleoMaisForte.dim === "R" ?"Relacionamento e comunidade" : "Governança e liderança",
+      color: "#D7BB7D",
+      description: "Aponta o formato de colaboração mais aderente à dimensão predominante da Aura: Técnica, Relacional ou Comportamental.",
+    },
+    {
+      icon: Users,
+      label: "Compatibilidade Cultural",
+      value: compatibilidadeCultural,
+      color: "#22C55E",
+      description: "Mostra o nível de convergência entre as percepções recebidas e os valores de colaboração da rede BUILT.",
+    },
+    {
+      icon: Target,
+      label: "Cobertura Dimensional",
+      value: `${coberturaDimensional}%`,
+      color: "#005BFF",
+      description: "Percentual das dimensões Técnica, Relacional e Comportamental que possuem evidências nas avaliações recebidas.",
+    },
   ];
 
   return (
@@ -1228,18 +1265,37 @@ export default function AuraPage() {
                 Matriz de Aplicabilidade
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {matrizAplicabilidade.map(item => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="rounded-xl border border-border/50 p-3 bg-background/40">
-                    <Icon className="w-4 h-4 mb-2" style={{ color: item.color }} />
-                    <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                    <p className="text-sm font-semibold" style={{ color: item.color }}>{item.value}</p>
-                  </div>
-                );
-              })}
-            </CardContent>
+            <TooltipProvider delayDuration={150}>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {matrizAplicabilidade.map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="rounded-xl border border-border/50 p-3 bg-background/40">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <Icon className="h-4 w-4 shrink-0" style={{ color: item.color }} />
+                        <UiTooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              aria-label={`O que significa ${item.label}`}
+                              data-testid={`info-matriz-${item.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-")}`}
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
+                            {item.description}
+                          </TooltipContent>
+                        </UiTooltip>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                      <p className="text-sm font-semibold" style={{ color: item.color }}>{item.value}</p>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </TooltipProvider>
           </Card>
 
           <Card className="border border-border/60 xl:col-span-4">

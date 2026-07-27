@@ -214,7 +214,7 @@ OBJETIVO
 
 Estas Políticas definem as regras gerais de acesso, participação, permanência, conduta, proteção institucional e uso do ecossistema BUILT.
 
-Seu objetivo é proteger a BUILT, seus membros, comunidades, OPAs — Ofertas Públicas de Aliança, BIAs — BUILT Integrated Alliances, parceiros, ativos, registros, metodologia, plataforma, marca e reputação.
+Seu objetivo é proteger a BUILT, seus membros, comunidades, OBAs — Oportunidades BUILT de Aliança, BIAs — BUILT Integrated Alliances, parceiros, ativos, registros, metodologia, plataforma, marca e reputação.
 
 Estas Políticas se aplicam a usuários, parceiros, Membros, Membros Aliados, Aliados Licenciados, Diretores, participantes de BIAs, Parceiros de Capital e demais pessoas que acessem ou utilizem ambientes, oportunidades ou instrumentos vinculados à BUILT.
 
@@ -228,11 +228,11 @@ Confiança, reputação e capacidade de entrega são condições essenciais para
 
 CAMADAS DE ACESSO AO ECOSSISTEMA BUILT
 
-A BUILT Vitrine é o ambiente de acesso inicial, informativo e institucional, destinado à exposição controlada de perfis, categorias, empresas, profissionais, OPAs, conteúdos públicos ou informações expressamente autorizadas pela BUILT.
+A BUILT Vitrine é o ambiente de acesso inicial, informativo e institucional, destinado à exposição controlada de perfis, categorias, empresas, profissionais, OBAs, conteúdos públicos ou informações expressamente autorizadas pela BUILT.
 
 A BUILT Capital é o ambiente restrito destinado à identificação, qualificação, análise e eventual conexão de pessoas físicas ou jurídicas interessadas em investir, coinvestir, estruturar ou participar financeiramente de BIAs.
 
-A Área de Alianças é o ambiente restrito destinado a membros aprovados pela BUILT ou por Aliado Licenciado BUILT autorizado, com acesso a comunidades, funcionalidades, análises, manifestações de interesse em OPAs, registros, validações, interações e recursos compatíveis com seu perfil, plano, reputação, função e permissões.
+A Área de Alianças é o ambiente restrito destinado a membros aprovados pela BUILT ou por Aliado Licenciado BUILT autorizado, com acesso a comunidades, funcionalidades, análises, manifestações de interesse em OBAs, registros, validações, interações e recursos compatíveis com seu perfil, plano, reputação, função e permissões.
 
 ACEITES E INSTRUMENTOS APLICÁVEIS
 
@@ -258,11 +258,11 @@ CONFIDENCIALIDADE E NÃO CIRCUNVENÇÃO
 
 São confidenciais as informações estratégicas, comerciais, técnicas, financeiras, jurídicas, societárias, patrimoniais, reputacionais, operacionais, metodológicas, documentais ou negociais acessadas no ecossistema BUILT, salvo quando expressamente classificadas como públicas.
 
-É vedado copiar, compartilhar, encaminhar, publicar, vender, transferir, explorar ou utilizar informações da BUILT, de membros, parceiros, OPAs, BIAs, MAPs, ativos ou documentos fora dos fluxos autorizados.
+É vedado copiar, compartilhar, encaminhar, publicar, vender, transferir, explorar ou utilizar informações da BUILT, de membros, parceiros, OBAs, BIAs, MAPs, ativos ou documentos fora dos fluxos autorizados.
 
-OPAs E BIAs
+OBAs E BIAs
 
-A manifestação de interesse em OPA é ato preliminar e dependerá de análise, seleção, aprovação, aceite específico, registro na Plataforma BUILT e instrumentos aplicáveis da respectiva BIA.
+A manifestação de interesse em OBA é ato preliminar e dependerá de análise, seleção, aprovação, aceite específico, registro na Plataforma BUILT e instrumentos aplicáveis da respectiva BIA.
 
 A participação em BIA específica dependerá de aprovação da governança competente, aceite próprio, registro na Plataforma BUILT, definição de função, aporte, entrega ou responsabilidade, e vinculação aos instrumentos aplicáveis.
 
@@ -282,7 +282,7 @@ A BUILT poderá atualizar estas Políticas para aprimorar governança, seguranç
 
 DISPOSIÇÕES FINAIS
 
-Estas Políticas integram, por referência, os Termos de Acesso da Plataforma BUILT, fluxos de OPA, MOUs de BIA, MAPs, termos de adesão, atas, registros, anexos e demais instrumentos aplicáveis.
+Estas Políticas integram, por referência, os Termos de Acesso da Plataforma BUILT, fluxos de OBA, MOUs de BIA, MAPs, termos de adesão, atas, registros, anexos e demais instrumentos aplicáveis.
 `.trim();
 
 const TERMOS_VITRINE = `

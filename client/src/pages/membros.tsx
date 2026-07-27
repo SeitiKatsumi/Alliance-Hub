@@ -206,7 +206,7 @@ function usageModuleShortLabel(label: string): string {
     Alliances: "ALI",
     Capital: "CAP",
     Aura: "AUR",
-    OPAs: "OPA",
+    OBAs: "OBA",
     BIAs: "BIA",
     Agenda: "AGE",
     "Documentos/MOU": "DOC",

@@ -491,7 +491,7 @@ export default function ComunidadeDetalhePage() {
       {/* Indicadores da comunidade */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DarkPanel>
-          <SectionTitle icon={Globe}>OPAs da Comunidade</SectionTitle>
+          <SectionTitle icon={Globe}>OBAs da Comunidade</SectionTitle>
           <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={opaChartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
@@ -501,9 +501,9 @@ export default function ComunidadeDetalhePage() {
                 <Tooltip
                   cursor={{ fill: "rgba(215,187,125,0.08)" }}
                   contentStyle={{ background: "#071626", border: "1px solid rgba(215,187,125,0.25)", borderRadius: 8, color: "#fff" }}
-                  formatter={(value: number) => [Number(value), "OPAs"]}
+                  formatter={(value: number) => [Number(value), "OBAs"]}
                 />
-                <Bar dataKey="value" name="OPAs" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" name="OBAs" radius={[4, 4, 0, 0]}>
                   {opaChartData.map((entry, index) => (
                     <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
@@ -512,7 +512,7 @@ export default function ComunidadeDetalhePage() {
             </ResponsiveContainer>
           </div>
           <p className="text-[11px] text-white/35 font-mono">
-            Nº total de OPAs da comunidade vs OPAs Regional, Nacional e Global.
+            Nº total de OBAs da comunidade vs OBAs Regional, Nacional e Global.
           </p>
         </DarkPanel>
 

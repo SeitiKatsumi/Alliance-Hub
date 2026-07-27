@@ -86,8 +86,8 @@ estruturação, governança, viabilidade, organização de caixa, condução est
 continuidade, aportes financeiros, compromissos de custeio, recomposição de capital e
 demais obrigações previstas neste MOU, nos anexos ou nos instrumentos definitivos;
 2.4. Sócios Multiplicadores
-2.4.1. Sócios Multiplicadores são membros que ingressam na BIA, por meio de uma Oferta
-Pública de Aliança – OPA, publicada na Plataforma BUILT, com intuito de entrega
+2.4.1. Sócios Multiplicadores são membros que ingressam na BIA, por meio de uma Oportunidade
+BUILT de Aliança – OBA, publicada na Plataforma BUILT, com intuito de entrega
 específica de valor, incluindo trabalho, técnica, execução, fornecimento, inteligência,
 venda, relacionamento estratégico, articulação, gestão ou outra contribuição aprovada,
 registrada e validada pela governança da BIA, podendo tal entrega ser convertida, total
@@ -201,7 +201,7 @@ eventuais obrigações remanescentes.
 atuando como representante institucional da BIA perante a rede BUILT, sendo responsável
 pelo relacionamento com os Sócios Guardiões, pela articulação, constituição,
 coordenação e sustentação da aliança desde sua origem até sua ativação,
-desmobilização ou encerramento, registro de OPAs e Seleção de Diretores de Núcleo.
+desmobilização ou encerramento, registro de OBAs e Seleção de Diretores de Núcleo.
 5.1.2. É, em regra, o líder criador da BIA. Lidera os Diretores de Núcleo assegurando a
 aplicação do Método BUILT, zelando pela integridade da BIA, pela rastreabilidade das
 decisões e pela harmonia entre os aliados participantes.
@@ -209,7 +209,7 @@ decisões e pela harmonia entre os aliados participantes.
 5.2.1. O Diretor de Núcleo Técnico é o membro BUILT responsável pela liderança,
 condução, validação e integridade técnica das etapas de concepção, planejamento,
 engenharia, conformidade legal e inteligência do ativo ou da operação da BIA, registro de
-OPAs e Seleção de Membros Aliados e Terceiros associados às atividades do Núcleo
+OBAs e Seleção de Membros Aliados e Terceiros associados às atividades do Núcleo
 Técnico.
 5.2.2. Lidera os Membros Aliados e terceiros associados às atividades do
 
@@ -221,7 +221,7 @@ estratégia da BIA e aos padrões BUILT.
 operacional e pela realização da execução física da obra no âmbito da BIA,
 planejamento, coordenação, acompanhamento, fiscalização da execução conforme
 projeto, orçamento, cronograma, padrões de qualidade, segurança, eficiência e
-conformidade legal, registro de OPAs e Seleção de Membros Aliados e Terceiros associados
+conformidade legal, registro de OBAs e Seleção de Membros Aliados e Terceiros associados
 às atividades do Núcleo de Obra.
 5.3.2. Lidera os Membros Aliados e terceiros associados às atividades do Núcleo de Obra
 assegurando a materialização da obra com controle de prazo, custo, qualidade e
@@ -230,7 +230,7 @@ rastreabilidade.
 5.4.1. O Diretor de Núcleo Comercial é o membro BUILT responsável por estruturar, articular
 e liderar as frentes comerciais da BIA, incluindo relacionamento de mercado, captação de
 membros, investidores, clientes, compradores, locatários, parceiros e canais de venda,
-registro de OPAs e Seleção de Membros Aliados e Terceiros associados às atividades do
+registro de OBAs e Seleção de Membros Aliados e Terceiros associados às atividades do
 Núcleo Comercial.
 5.4.2. Lidera os Membros Aliados e terceiros associados às atividades do Núcleo
 Comercial, assegurando a ativação comercial do ativo sempre com foco em geração de
@@ -240,7 +240,7 @@ receita, reputação, liquidez e valorização patrimonial.
 econômica, financeira e patrimonial da BIA, responsável pela modelagem de viabilidade,
 captação de recursos, relacionamento com Sócios Multiplicadores e Parceiros de Capital,
 governança de caixa, controle de aportes, prestação de contas, distribuição de resultados,
-CPPs e sustentabilidade financeira da aliança, registro de OPAs e Seleção de Membros
+CPPs e sustentabilidade financeira da aliança, registro de OBAs e Seleção de Membros
 Aliados e Terceiros associados às atividades do Núcleo de Capital.
 5.5.2. Lidera os Membros Aliados e terceiros associados às atividades do Núcleo de
 Capital assegurando transparência, rastreabilidade, legalidade, previsibilidade financeira
@@ -253,13 +253,13 @@ operacional e financeira suficiente para transformar oportunidades em alianças
 patrimoniais sustentáveis.
 5.6.2. Lidera a comunidade BUILT sob sua atuação, fomenta novas BIAs, presta
 suporte a Membros, auxilia na formação de alianças integradas, promove Reuniões de
-Oportunidades, registra OPAs, orienta BIAs, observando os fluxos oficiais da Plataforma BUILT,
+Oportunidades, registra OBAs, orienta BIAs, observando os fluxos oficiais da Plataforma BUILT,
 as regras de validação reputacional, os limites de uso da marca, as políticas de
 participação e proteção da rede e os instrumentos contratuais aplicáveis.
 5.7. BUILT
 
 5.7.1. A BUILT é a titular e guardiã institucional do Método BUILT, da Plataforma BUILT, das
-regras de governança, dos fluxos de validação reputacional, dos registros de OPAs, CPPs,
+regras de governança, dos fluxos de validação reputacional, dos registros de OBAs, CPPs,
 direitos econômicos, indicadores e demais elementos estruturantes do ecossistema,
 atuando no âmbito da BIA com natureza metodológica, institucional, tecnológica,
 reputacional e de governança de rede.
@@ -327,7 +327,7 @@ II. deliberar sobre diretrizes de governança, continuidade, preservação e exp
 econômica da BIA;
 III. validar entregas economicamente mensuráveis realizadas por participantes da BIA;
 IV. deliberar sobre critérios de conversão de entregas em CPP;
-V. deliberar sobre a abertura de OPA para ingresso de Sócios Multiplicadores, quando
+V. deliberar sobre a abertura de OBA para ingresso de Sócios Multiplicadores, quando
 a BIA demandar recursos, entregas, competências ou contribuições superiores à
 capacidade, conveniência ou disponibilidade dos Sócios Guardiões;
 VI. aprovar a assunção desigual de aportes, despesas, recomposição de caixa ou
@@ -454,7 +454,7 @@ demais participantes.
 8.7. A ausência de pagamento, pagamento parcial ou atraso da remuneração
 institucional devida à BUILT poderá impedir, suspender ou restringir o reconhecimento
 institucional da BIA, o uso da marca BUILT, o acesso à Plataforma BUILT, o registro ou
-atualização de OPAs, CPPs e direitos econômicos, bem como outros benefícios, selos,
+atualização de OBAs, CPPs e direitos econômicos, bem como outros benefícios, selos,
 validações ou funcionalidades vinculadas ao ecossistema BUILT, sem prejuízo da cobrança
 dos valores devidos.
 9. DA PARTICIPAÇÃO ECONÔMICA
@@ -508,9 +508,9 @@ obrigação previamente assumida em instrumento próprio.
 adicional poderá impactar sua posição econômica futura.
 9.11. A deliberação do Conselho da BIA poderá autorizar a abertura da BIA à
 participação de Sócios Multiplicadores, mediante publicação, registro ou formalização de
-Oferta Pública de Aliança — OPA específica, destinada à captação da contribuição
+Oportunidade BUILT de Aliança — OBA específica, destinada à captação da contribuição
 necessária.
-9.12. A abertura de OPA para participação de Sócios Multiplicadores constitui
+9.12. A abertura de OBA para participação de Sócios Multiplicadores constitui
 autorização automática de diluição percentual.
 9.13. A participação econômica de Sócio Multiplicador poderá decorrer da entrega de
 
@@ -518,7 +518,7 @@ valor economicamente mensurável, incluindo dinheiro, trabalho, técnica, execu�
 fornecimento, inteligência, venda, relacionamento estratégico, articulação, gestão ou
 outra contribuição previamente aprovada, registrada e validada pela governança da BIA.
 9.14. A entrega do Sócio Multiplicador poderá ser combinada entre
-pagamento financeiro e conversão patrimonial, conforme previsto na OPA por meio do
+pagamento financeiro e conversão patrimonial, conforme previsto na OBA por meio do
 Mínimo Esforço Multiplicador. A participação do Sócio Multiplicador será proporcional ao
 valor reconhecido e registrado no Mapa de Alocação Patrimonial.
 9.15. Nenhum Sócio Multiplicador será considerado Sócio Guardião, garantidor,
@@ -551,7 +551,7 @@ afaste, suspenda ou invalide os efeitos do inadimplemento.
 10.4. A ausência de regularização poderá acarretar, conforme a natureza e
 gravidade do inadimplemento, suspensão de direitos econômicos futuros, restrição de
 acesso a deliberações, impedimento de novas conversões em CPP, diluição proporcional,
-recomposição por outros participantes, abertura de OPA, cobrança dos valores devidos,
+recomposição por outros participantes, abertura de OBA, cobrança dos valores devidos,
 substituição funcional, exclusão da BIA ou outras medidas previstas neste MOU, nos anexos
 ou nos instrumentos aplicáveis.
 10.5. A concessão de prazo de cura, renegociação, tolerância, parcelamento,
@@ -614,7 +614,7 @@ locação ou liquidação da BIA serão pagos prioritariamente com as receitas d
 própria BIA.
 11.4.2. Havendo receitas no período inferiores às despesas e obrigações exigíveis, a
 diferença será coberta por chamadas de capital, aportes ou recomposições realizadas
-pelos Sócios Guardiões ou por meio de OPAs, conforme aprovação da governança da BIA.
+pelos Sócios Guardiões ou por meio de OBAs, conforme aprovação da governança da BIA.
 11.4.3. Os valores aportados para cobertura de despesas, recomposição de caixa ou
 sustentação da BIA serão registrados no MAP como entradas patrimoniais em favor dos
 respectivos participantes, recalculando-se as CPPs vigentes.

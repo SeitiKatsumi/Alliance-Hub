@@ -76,20 +76,20 @@ function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () =
     >
       <div className="relative h-36 bg-gradient-to-br from-blue-50 to-slate-100">
         {image ? (
-          <img src={image} alt={opa.nome_oportunidade || "OPA"} className="h-full w-full object-cover" />
+          <img src={image} alt={opa.nome_oportunidade || "OBA"} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-blue-500/25">
             <Target className="h-10 w-10" />
           </div>
         )}
         <span className="absolute left-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">
-          Pública
+          OBA
         </span>
       </div>
       <CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-            {getTipoDisplayName(opa.tipo || "") || "OPA"}
+            {getTipoDisplayName(opa.tipo || "") || "OBA"}
           </Badge>
           {opa.status && (
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
@@ -98,7 +98,7 @@ function OpaPublicCard({ opa, onOpen }: { opa: OportunidadeVitrine; onOpen: () =
           )}
         </div>
         <h2 className="line-clamp-2 min-h-[42px] text-base font-semibold text-foreground">
-          {opa.nome_oportunidade || "OPA sem nome"}
+          {opa.nome_oportunidade || "OBA sem nome"}
         </h2>
         <p className="mt-2 line-clamp-1 text-sm text-muted-foreground">
           {opa.nucleo_alianca || opa.localizacao || "Oportunidade BUILT"}
@@ -153,7 +153,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
   const backLabel = isCapital ? "Voltar para BUILT Capital" : "Voltar para Vitrine";
   const description = isCapital
     ? "Explore chamadas de capital e oportunidades de investimento BUILT."
-    : "Explore OPAs publicas sem acessar o modulo BUILT Alliances.";
+    : "Explore OBAs publicas sem acessar o modulo BUILT Alliances.";
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadeVitrine[]>({
     queryKey: [endpoint],
   });

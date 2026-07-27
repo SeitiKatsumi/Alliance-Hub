@@ -128,7 +128,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const isCapital = mode === "capital";
   const listPath = isCapital ? "/built-capital/chamadas" : "/vitrine/oportunidades";
   const listLabel = isCapital ? "chamadas de capital" : "oportunidades";
-  const badgeLabel = isCapital ? "Chamada de capital" : "OPA publica";
+  const badgeLabel = isCapital ? "Chamada de capital" : "OBA publica";
   const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
 
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadePublica[]>({
@@ -160,7 +160,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const { data: interesseData } = useQuery<InteresseResponse>({
     queryKey: interesseQueryKey,
     queryFn: async () => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       const response = await apiRequest("GET", `/api/oportunidades/${opa.id}/interesse`);
       return response.json();
     },
@@ -169,7 +169,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
 
   const interesseMutation = useMutation({
     mutationFn: async () => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       return apiRequest("POST", `/api/oportunidades/${opa.id}/interesse`, { mensagem: mensagem || null });
     },
     onSuccess: () => {
@@ -189,7 +189,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
 
   const removerInteresseMutation = useMutation({
     mutationFn: async () => {
-      if (!opa?.id) throw new Error("OPA não encontrada");
+      if (!opa?.id) throw new Error("OBA não encontrada");
       return apiRequest("DELETE", `/api/oportunidades/${opa.id}/interesse`);
     },
     onSuccess: () => {
@@ -236,7 +236,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
       </Button>
 
       <div className="overflow-hidden rounded-2xl border border-blue-200 bg-card shadow-sm">
-        {image && <img src={image} alt={opa.nome_oportunidade || "OPA"} className="h-56 w-full object-cover" />}
+        {image && <img src={image} alt={opa.nome_oportunidade || "OBA"} className="h-56 w-full object-cover" />}
         <div
           className="relative p-6"
           style={{ background: "radial-gradient(ellipse at 0% 50%, #001d34 0%, #000c1f 60%, #000408 100%)" }}
@@ -253,7 +253,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
                 </Badge>
               )}
             </div>
-            <h1 className="text-2xl font-bold text-blue-300">{opa.nome_oportunidade || (isCapital ? "Chamada sem nome" : "OPA sem nome")}</h1>
+            <h1 className="text-2xl font-bold text-blue-300">{opa.nome_oportunidade || (isCapital ? "Chamada sem nome" : "OBA sem nome")}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-blue-100/65">
               {opa.nucleo_alianca && (
                 <span className="inline-flex items-center gap-1">
@@ -279,7 +279,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
         {valor > 0 && (
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{isCapital ? "Valor da chamada" : "Valor da OPA"}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{isCapital ? "Valor da chamada" : "Valor da OBA"}</p>
               <p className="mt-1 text-xl font-bold text-blue-600">{brl(valor, bia?.moeda || "BRL")}</p>
             </CardContent>
           </Card>

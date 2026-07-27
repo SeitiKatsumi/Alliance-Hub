@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { InviteQrCode } from "@/components/invite-qr-code";
+import { CompanyAccessPanel } from "@/components/company-access-panel";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import { isBuiltMemberForAura } from "@/lib/aura-access";
 import { Badge } from "@/components/ui/badge";
@@ -1825,6 +1826,8 @@ export default function PainelPage() {
               </div>
             )}
           </div>
+
+          <CompanyAccessPanel />
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

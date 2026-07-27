@@ -42,6 +42,19 @@ type CompanyEmployee = {
   created_at?: string | null;
 };
 
+type CompanyPlan = {
+  id: string;
+  plan_code: string;
+  status: string;
+  billing_mode: string;
+  price_cents: number;
+  currency: string;
+  is_free: boolean;
+  billing_required: boolean;
+  can_manage_employees: boolean;
+  activated_at?: string | null;
+};
+
 type EmployeeForm = {
   nome: string;
   email: string;
@@ -81,6 +94,16 @@ export function CompanyAccessPanel() {
   const [editing, setEditing] = useState<CompanyEmployee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(EMPTY_FORM);
 
+  const { data: companyPlan, isLoading: isLoadingPlan } = useQuery<CompanyPlan>({
+    queryKey: ["/api/empresa/plano"],
+    queryFn: async () => {
+      const response = await fetch("/api/empresa/plano", { credentials: "include" });
+      if (!response.ok) throw new Error("Não foi possível carregar a assinatura.");
+      return response.json();
+    },
+    enabled: Boolean(user?.id && !user.company_employee),
+  });
+
   const { data: employees = [], isLoading } = useQuery<CompanyEmployee[]>({
     queryKey: ["/api/empresa/funcionarios"],
     queryFn: async () => {
@@ -94,6 +117,21 @@ export function CompanyAccessPanel() {
       }));
     },
     enabled: Boolean(user?.id && !user.company_employee),
+  });
+
+  const activatePlanMutation = useMutation({
+    mutationFn: () => employeeRequest("/api/empresa/plano/ativar", "POST"),
+    onSuccess: (plan: CompanyPlan) => {
+      queryClient.setQueryData(["/api/empresa/plano"], plan);
+      queryClient.invalidateQueries({ queryKey: ["/api/empresa/funcionarios"] });
+      toast({
+        title: "Plano Empresa ativado",
+        description: "A assinatura gratuita está ativa e os acessos de funcionários foram liberados.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Não foi possível ativar", description: error.message, variant: "destructive" });
+    },
   });
 
   const saveMutation = useMutation({
@@ -141,6 +179,11 @@ export function CompanyAccessPanel() {
   });
 
   const activeCount = useMemo(() => employees.filter((employee) => employee.status === "ativo").length, [employees]);
+  const planIsActive = companyPlan?.status === "ativo" && companyPlan.can_manage_employees === true;
+  const monthlyPrice = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: companyPlan?.currency || "BRL",
+  }).format(Number(companyPlan?.price_cents || 0) / 100);
 
   function openCreate() {
     setEditing(null);
@@ -171,39 +214,84 @@ export function CompanyAccessPanel() {
 
   return (
     <>
-      <section className="profile-section overflow-hidden p-0" data-testid="company-access-panel">
+      <section className="profile-section overflow-hidden rounded-lg border border-slate-200 bg-white p-0 shadow-sm" data-testid="company-access-panel">
         <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Users className="h-4 w-4 text-blue-600" />
               <h2 className="text-sm font-bold text-[#001D34]">Acessos da empresa</h2>
               <span className="rounded-md bg-blue-50 px-2 py-1 text-[10px] font-semibold uppercase text-blue-700">Plano Empresa</span>
+              {companyPlan?.status === "ativo" && (
+                <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-700">
+                  Assinatura ativa
+                </span>
+              )}
+              {!isLoadingPlan && companyPlan?.status !== "ativo" && (
+                <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">
+                  Assinatura disponível
+                </span>
+              )}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
               Crie logins individuais e escolha o que cada funcionário pode visualizar ou editar.
             </p>
+            {companyPlan?.is_free && (
+              <p className={`mt-1 text-xs font-medium ${planIsActive ? "text-emerald-700" : "text-blue-700"}`}>
+                {planIsActive
+                  ? "Gratuito por enquanto. Nenhuma cobrança será realizada nesta fase."
+                  : "Ative gratuitamente para liberar os acessos de funcionários."}
+              </p>
+            )}
           </div>
           <Button
             type="button"
-            onClick={openCreate}
+            onClick={planIsActive ? openCreate : () => activatePlanMutation.mutate()}
+            disabled={isLoadingPlan || activatePlanMutation.isPending}
             className="shrink-0 gap-2 bg-blue-600 text-white hover:bg-blue-700"
-            data-testid="btn-add-company-employee"
+            data-testid={planIsActive ? "btn-add-company-employee" : "btn-activate-company-plan"}
           >
-            <UserPlus className="h-4 w-4" />
-            Adicionar funcionário
+            {isLoadingPlan || activatePlanMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : planIsActive ? (
+              <UserPlus className="h-4 w-4" />
+            ) : (
+              <Power className="h-4 w-4" />
+            )}
+            {isLoadingPlan
+              ? "Carregando plano..."
+              : activatePlanMutation.isPending
+                ? "Ativando..."
+                : planIsActive
+                  ? "Adicionar funcionário"
+                  : "Ativar assinatura grátis"}
           </Button>
         </div>
 
         <div className="p-4">
-          <div className="mb-3 flex items-center gap-2 text-xs text-slate-500">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span>{activeCount} {activeCount === 1 ? "acesso ativo" : "acessos ativos"}</span>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              <span>{activeCount} {activeCount === 1 ? "acesso ativo" : "acessos ativos"}</span>
+            </span>
+            {companyPlan && (
+              <span className="font-semibold text-[#001D34]">
+                {companyPlan.is_free ? `${monthlyPrice}/mês nesta fase` : `${monthlyPrice}/mês`}
+              </span>
+            )}
           </div>
 
-          {isLoading ? (
+          {isLoadingPlan || isLoading ? (
             <div className="flex h-28 items-center justify-center text-slate-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Carregando acessos...
+              Carregando Plano Empresa...
+            </div>
+          ) : !planIsActive ? (
+            <div className="rounded-md border border-dashed border-blue-200 bg-blue-50/40 px-5 py-8 text-center">
+              <Power className="mx-auto h-7 w-7 text-blue-500" />
+              <p className="mt-2 text-sm font-semibold text-[#001D34]">Assinatura ainda não ativada</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Ative o Plano Empresa gratuitamente para criar logins individuais e definir os acessos.
+              </p>
             </div>
           ) : employees.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-300 px-5 py-8 text-center">

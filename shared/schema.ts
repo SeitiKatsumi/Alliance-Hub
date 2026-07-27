@@ -131,6 +131,26 @@ export const companyEmployeeAccounts = pgTable("company_employee_accounts", {
 
 export type CompanyEmployeeAccount = typeof companyEmployeeAccounts.$inferSelect;
 
+export const companyPlanSubscriptions = pgTable("company_plan_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  owner_user_id: text("owner_user_id").notNull().unique(),
+  plan_code: text("plan_code").notNull().default("empresa"),
+  status: text("status").notNull().default("disponivel"),
+  billing_mode: text("billing_mode").notNull().default("gratuito"),
+  price_cents: integer("price_cents").notNull().default(0),
+  currency: text("currency").notNull().default("BRL"),
+  provider: text("provider"),
+  provider_subscription_id: text("provider_subscription_id"),
+  activated_at: timestamp("activated_at"),
+  current_period_start: timestamp("current_period_start").defaultNow().notNull(),
+  current_period_end: timestamp("current_period_end"),
+  free_until: timestamp("free_until"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type CompanyPlanSubscription = typeof companyPlanSubscriptions.$inferSelect;
+
 export const userUsageEvents = pgTable("user_usage_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   user_id: varchar("user_id"),

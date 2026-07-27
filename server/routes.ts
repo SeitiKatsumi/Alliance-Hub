@@ -1314,6 +1314,48 @@ async function ensureCompanyEmployeeAccountsTable() {
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_company_employee_accounts_employee ON company_employee_accounts (employee_user_id)`);
 }
 
+async function ensureCompanyPlanSubscriptionsTable() {
+  await ensureCompanyEmployeeAccountsTable();
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS company_plan_subscriptions (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_user_id text NOT NULL UNIQUE,
+      plan_code text NOT NULL DEFAULT 'empresa',
+      status text NOT NULL DEFAULT 'disponivel',
+      billing_mode text NOT NULL DEFAULT 'gratuito',
+      price_cents integer NOT NULL DEFAULT 0,
+      currency text NOT NULL DEFAULT 'BRL',
+      provider text,
+      provider_subscription_id text,
+      activated_at timestamp,
+      current_period_start timestamp DEFAULT now() NOT NULL,
+      current_period_end timestamp,
+      free_until timestamp,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS activated_at timestamp`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN status SET DEFAULT 'disponivel'`);
+  await db.execute(sql`
+    UPDATE company_plan_subscriptions plan
+    SET status = 'disponivel', updated_at = now()
+    WHERE plan.status = 'ativo'
+      AND plan.billing_mode = 'gratuito'
+      AND plan.price_cents = 0
+      AND plan.provider IS NULL
+      AND plan.provider_subscription_id IS NULL
+      AND plan.activated_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM company_employee_accounts account
+        WHERE account.owner_user_id = plan.owner_user_id
+      )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_company_plan_subscriptions_owner ON company_plan_subscriptions (owner_user_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_company_plan_subscriptions_status ON company_plan_subscriptions (status)`);
+}
+
 async function ensureBiaBancoTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bia_bank_accounts (
@@ -2715,6 +2757,7 @@ export async function registerRoutes(
   ensureBiaMouAceitesTable().catch((err: any) => console.warn("[bia-mou] Tabela nao sincronizada:", err?.message || err));
   ensureBiaUserPermissionsTable().catch((err: any) => console.warn("[bia-access] Tabela nao sincronizada:", err?.message || err));
   ensureCompanyEmployeeAccountsTable().catch((err: any) => console.warn("[company-access] Tabela nao sincronizada:", err?.message || err));
+  ensureCompanyPlanSubscriptionsTable().catch((err: any) => console.warn("[company-plan] Tabela nao sincronizada:", err?.message || err));
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
@@ -2775,6 +2818,41 @@ export async function registerRoutes(
 
   function resultRows(result: any): any[] {
     return Array.isArray(result?.rows) ? result.rows : Array.isArray(result) ? result : [];
+  }
+
+  async function ensureCompanyPlanForOwner(ownerUserId: string): Promise<any> {
+    await ensureCompanyPlanSubscriptionsTable();
+    await db.execute(sql`
+      INSERT INTO company_plan_subscriptions (
+        owner_user_id,
+        plan_code,
+        status,
+        billing_mode,
+        price_cents,
+        currency
+      )
+      VALUES (${ownerUserId}, 'empresa', 'disponivel', 'gratuito', 0, 'BRL')
+      ON CONFLICT (owner_user_id) DO NOTHING
+    `);
+    const result: any = await db.execute(sql`
+      SELECT *
+      FROM company_plan_subscriptions
+      WHERE owner_user_id = ${ownerUserId}
+      LIMIT 1
+    `);
+    return resultRows(result)[0] || null;
+  }
+
+  function serializeCompanyPlan(plan: any) {
+    const priceCents = Number(plan?.price_cents || 0);
+    const billingMode = String(plan?.billing_mode || "gratuito");
+    return {
+      ...plan,
+      price_cents: priceCents,
+      is_free: billingMode === "gratuito" || priceCents === 0,
+      billing_required: billingMode !== "gratuito" && priceCents > 0,
+      can_manage_employees: plan?.status === "ativo",
+    };
   }
 
   async function getCompanyEmployeeByUserId(employeeUserId: string): Promise<any | null> {
@@ -2864,6 +2942,13 @@ export async function registerRoutes(
           code: "COMPANY_ACCOUNT_SUSPENDED",
         });
       }
+      const companyPlan = await ensureCompanyPlanForOwner(String(account.owner_user_id));
+      if (!companyPlan || companyPlan.status !== "ativo") {
+        return res.status(403).json({
+          error: "A assinatura do Plano Empresa não está ativa.",
+          code: "COMPANY_PLAN_INACTIVE",
+        });
+      }
       applyCompanyEmployeeSession(req, account);
 
       if (pathname.startsWith("/api/empresa/funcionarios")) return next();
@@ -2909,11 +2994,50 @@ export async function registerRoutes(
     return ownerUserId;
   }
 
+  app.get("/api/empresa/plano", async (req: any, res) => {
+    const ownerUserId = requireCompanyOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      const plan = await ensureCompanyPlanForOwner(ownerUserId);
+      if (!plan) return res.status(500).json({ error: "Não foi possível carregar o Plano Empresa." });
+      res.json(serializeCompanyPlan(plan));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar a assinatura do Plano Empresa" });
+    }
+  });
+
+  app.post("/api/empresa/plano/ativar", async (req: any, res) => {
+    const ownerUserId = requireCompanyOwner(req, res);
+    if (!ownerUserId) return;
+    try {
+      await ensureCompanyPlanForOwner(ownerUserId);
+      const result: any = await db.execute(sql`
+        UPDATE company_plan_subscriptions
+        SET
+          status = 'ativo',
+          billing_mode = 'gratuito',
+          price_cents = 0,
+          currency = 'BRL',
+          activated_at = COALESCE(activated_at, now()),
+          current_period_start = now(),
+          updated_at = now()
+        WHERE owner_user_id = ${ownerUserId}
+        RETURNING *
+      `);
+      const plan = resultRows(result)[0] || null;
+      if (!plan) return res.status(500).json({ error: "Não foi possível ativar o Plano Empresa." });
+      res.json(serializeCompanyPlan(plan));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao ativar o Plano Empresa" });
+    }
+  });
+
   app.get("/api/empresa/funcionarios", async (req: any, res) => {
     const ownerUserId = requireCompanyOwner(req, res);
     if (!ownerUserId) return;
     try {
       await ensureCompanyEmployeeAccountsTable();
+      await ensureCompanyPlanForOwner(ownerUserId);
       const result: any = await db.execute(sql`
         SELECT
           account.*,
@@ -2953,6 +3077,10 @@ export async function registerRoutes(
     let employeeUser: any | null = null;
     try {
       await ensureCompanyEmployeeAccountsTable();
+      const companyPlan = await ensureCompanyPlanForOwner(ownerUserId);
+      if (!companyPlan || companyPlan.status !== "ativo") {
+        return res.status(403).json({ error: "A assinatura do Plano Empresa não está ativa." });
+      }
       const existing = await storage.getUsersByEmail(email);
       if (existing.length > 0) {
         return res.status(409).json({ error: "Já existe uma conta com este e-mail." });
@@ -3011,6 +3139,10 @@ export async function registerRoutes(
     const ownerUserId = requireCompanyOwner(req, res);
     if (!ownerUserId) return;
     try {
+      const companyPlan = await ensureCompanyPlanForOwner(ownerUserId);
+      if (!companyPlan || companyPlan.status !== "ativo") {
+        return res.status(403).json({ error: "A assinatura do Plano Empresa não está ativa." });
+      }
       const account = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
       if (!account) return res.status(404).json({ error: "Funcionário não encontrado." });
 
@@ -3069,6 +3201,10 @@ export async function registerRoutes(
     const ownerUserId = requireCompanyOwner(req, res);
     if (!ownerUserId) return;
     try {
+      const companyPlan = await ensureCompanyPlanForOwner(ownerUserId);
+      if (!companyPlan || companyPlan.status !== "ativo") {
+        return res.status(403).json({ error: "A assinatura do Plano Empresa não está ativa." });
+      }
       const account = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
       if (!account) return res.status(404).json({ error: "Funcionário não encontrado." });
       await db.execute(sql`

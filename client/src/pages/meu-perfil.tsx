@@ -33,7 +33,6 @@ import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position";
 import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamos, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseRamosValue, parseSegmentosValue } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode, normalizePhoneValue } from "@/components/phone-input";
-import { CompanyAccessPanel } from "@/components/company-access-panel";
 import { COMPANY_ACCESS_KEYS, COMPANY_ACCESS_LABELS, normalizeCompanyAccess } from "@shared/company-access";
 
 interface NominatimResult {
@@ -1402,8 +1401,6 @@ export default function MeuPerfilPage() {
           </div>
         ) : (
           <>
-            <CompanyAccessPanel />
-
             <div className="xl:hidden">
               {profileSummary}
             </div>

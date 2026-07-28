@@ -602,12 +602,53 @@ function PropertyFormDialog({
   );
 }
 
-function PropertyCard({ item, onOpen }: { item: CarteiraImovel; onOpen: () => void }) {
+function PropertyCard({
+  item,
+  onOpen,
+  onEdit,
+  onDelete,
+}: {
+  item: CarteiraImovel;
+  onOpen: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const diagnostic = item.diagnostico;
+  const hasActions = Boolean(onEdit || onDelete);
   return (
-    <Card className="overflow-hidden border-border/70 transition-colors hover:border-blue-300">
+    <Card className="relative overflow-hidden border-border/70 transition-colors hover:border-blue-300">
       <CardContent className="p-0">
-        <button type="button" onClick={onOpen} className="w-full p-4 text-left">
+        {hasActions && (
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+            {onEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 bg-white"
+                onClick={onEdit}
+                aria-label={`Editar ${item.nome}`}
+                title="Editar imóvel"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={onDelete}
+                aria-label={`Excluir ${item.nome}`}
+                title="Excluir imóvel"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+        <button type="button" onClick={onOpen} className={`w-full p-4 text-left ${hasActions ? "pr-24" : ""}`}>
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-600">
               <Building2 className="h-5 w-5" />
@@ -620,7 +661,7 @@ function PropertyCard({ item, onOpen }: { item: CarteiraImovel; onOpen: () => vo
                     {[item.bairro, item.cidade, item.estado].filter(Boolean).join(", ") || item.tipo}
                   </p>
                 </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                {!hasActions && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{diagnostic?.situacao || "Preliminar"}</Badge>
@@ -657,16 +698,42 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("todos");
   const [formOpen, setFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<CarteiraImovel | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CarteiraImovel | null>(null);
   const { data, isLoading } = useQuery<CarteiraResumo>({ queryKey: ["/api/carteira/resumo"] });
+  function invalidateDashboard() {
+    queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis"] });
+  }
   const createMutation = useMutation({
     mutationFn: async (payload: Omit<CarteiraImovel, "id">) => (await apiRequest("POST", "/api/carteira/imoveis", payload)).json(),
     onSuccess: (item: CarteiraImovel) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis"] });
+      invalidateDashboard();
       setFormOpen(false);
       navigate(`/carteira/${item.id}`);
     },
     onError: (error: any) => toast({ title: "Não foi possível adicionar o imóvel", description: error?.message, variant: "destructive" }),
+  });
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Omit<CarteiraImovel, "id"> }) =>
+      (await apiRequest("PATCH", `/api/carteira/imoveis/${id}`, payload)).json(),
+    onSuccess: () => {
+      invalidateDashboard();
+      setFormOpen(false);
+      setEditingItem(null);
+      toast({ title: "Imóvel atualizado" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível atualizar o imóvel", description: error?.message, variant: "destructive" }),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/carteira/imoveis/${id}`),
+    onSuccess: (_data, deletedId) => {
+      queryClient.removeQueries({ queryKey: ["/api/carteira/imoveis", deletedId] });
+      invalidateDashboard();
+      setDeleteTarget(null);
+      toast({ title: "Imóvel excluído da Carteira" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível excluir o imóvel", description: error?.message, variant: "destructive" }),
   });
   const imoveis = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -689,7 +756,13 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>Carteira Patrimonial</h2>
           <p className="mt-1 text-sm text-muted-foreground">Seus imóveis, histórico, decisões e próximas ações em um só lugar.</p>
         </div>
-        <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => setFormOpen(true)}>
+        <Button
+          className="bg-blue-600 text-white hover:bg-blue-700"
+          onClick={() => {
+            setEditingItem(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Novo imóvel
         </Button>
@@ -731,14 +804,71 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           <Home className="mx-auto h-8 w-8 text-muted-foreground/50" />
           <p className="mt-3 font-medium">{data?.imoveis?.length ? "Nenhum imóvel encontrado" : "Sua Carteira está pronta para começar"}</p>
           <p className="mt-1 text-sm text-muted-foreground">{data?.imoveis?.length ? "Ajuste os filtros da busca." : "Cadastre o primeiro imóvel com as informações que você já possui."}</p>
-          {!data?.imoveis?.length && <Button className="mt-4 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setFormOpen(true)}>Adicionar imóvel</Button>}
+          {!data?.imoveis?.length && (
+            <Button
+              className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => {
+                setEditingItem(null);
+                setFormOpen(true);
+              }}
+            >
+              Adicionar imóvel
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {imoveis.map((item) => <PropertyCard key={item.id} item={item} onOpen={() => navigate(`/carteira/${item.id}`)} />)}
+          {imoveis.map((item) => (
+            <PropertyCard
+              key={item.id}
+              item={item}
+              onOpen={() => navigate(`/carteira/${item.id}`)}
+              onEdit={canAccess(item.access_level, "administracao") ? () => {
+                setEditingItem(item);
+                setFormOpen(true);
+              } : undefined}
+              onDelete={item.is_owner ? () => setDeleteTarget(item) : undefined}
+            />
+          ))}
         </div>
       )}
-      <PropertyFormDialog open={formOpen} onOpenChange={setFormOpen} onSave={(payload) => createMutation.mutate(payload)} saving={createMutation.isPending} />
+      <PropertyFormDialog
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditingItem(null);
+        }}
+        initial={editingItem}
+        onSave={(payload) => {
+          if (editingItem) updateMutation.mutate({ id: editingItem.id, payload });
+          else createMutation.mutate(payload);
+        }}
+        saving={createMutation.isPending || updateMutation.isPending}
+      />
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {deleteTarget?.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e também removerá os lançamentos, documentos e o histórico vinculados a este imóvel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+              }}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir imóvel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -795,6 +925,7 @@ function DetailPage({ id }: { id: string }) {
   const [editOpen, setEditOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferIdentifier, setTransferIdentifier] = useState("");
   const [pulseForm, setPulseForm] = useState({ ocupacao: "", receita: "", despesa: "", acontecimento: "", objetivo: "", data_referencia: new Date().toISOString().slice(0, 10) });
@@ -831,6 +962,7 @@ function DetailPage({ id }: { id: string }) {
   const demandsQuery = useQuery<CarteiraDemanda[]>({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
   const canManage = canAccess(detailQuery.data?.access_level, "administracao");
   const canCollaborate = canAccess(detailQuery.data?.access_level, "colaboracao");
+  const isOwner = detailQuery.data?.is_owner === true;
   const accessQuery = useQuery<AccessResponse>({
     queryKey: ["/api/carteira/imoveis", id, "acessos"],
     enabled: canManage,
@@ -870,6 +1002,18 @@ function DetailPage({ id }: { id: string }) {
     mutationFn: async (payload: Omit<CarteiraImovel, "id">) => (await apiRequest("PATCH", `/api/carteira/imoveis/${id}`, payload)).json(),
     onSuccess: () => { setEditOpen(false); invalidateAll(); toast({ title: "Imóvel atualizado" }); },
     onError: (error: any) => toast({ title: "Erro ao atualizar", description: error?.message, variant: "destructive" }),
+  });
+  const deletePropertyMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/carteira/imoveis/${id}`),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["/api/carteira/imoveis", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis"] });
+      setDeleteConfirm(false);
+      toast({ title: "Imóvel excluído da Carteira" });
+      navigate("/?tab=carteira&view=imoveis");
+    },
+    onError: (error: any) => toast({ title: "Não foi possível excluir o imóvel", description: error?.message, variant: "destructive" }),
   });
   const deleteLaunchMutation = useMutation({
     mutationFn: (launchId: string) => apiRequest("DELETE", `/api/carteira/lancamentos/${launchId}`),
@@ -1090,9 +1234,19 @@ function DetailPage({ id }: { id: string }) {
         <Button variant="ghost" className="px-0 text-muted-foreground" onClick={() => navigate("/?tab=carteira")}>
           <ArrowLeft className="mr-2 h-4 w-4" />Voltar para a Carteira
         </Button>
-        <div className="flex gap-2">
-          {canManage && <Button variant="outline" size="icon" title="Editar imóvel" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /></Button>}
+        <div className="flex flex-wrap justify-end gap-2">
+          {canManage && <Button variant="outline" title="Editar imóvel" onClick={() => setEditOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>}
           {canManage && <Button variant="outline" onClick={() => setPublishConfirm(true)}><Upload className="mr-2 h-4 w-4" />Publicar no Banco de Ativos</Button>}
+          {isOwner && (
+            <Button
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setDeleteConfirm(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1546,6 +1700,30 @@ function DetailPage({ id }: { id: string }) {
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Publicar no Banco de Ativos?</AlertDialogTitle><AlertDialogDescription>Uma cópia das informações do imóvel será publicada no Banco de Ativos. O imóvel continuará privado e independente na sua Carteira.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => publishMutation.mutate()}>{publishMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar publicação</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {imovel.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e também removerá os lançamentos, documentos e o histórico vinculados a este imóvel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePropertyMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deletePropertyMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                deletePropertyMutation.mutate();
+              }}
+            >
+              {deletePropertyMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir imóvel
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={transferOpen} onOpenChange={setTransferOpen}>

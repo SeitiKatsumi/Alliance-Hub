@@ -15,7 +15,18 @@ import {
   Loader2,
   Ruler,
   Sparkles,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { landBankPhotoUrl } from "@/lib/land-bank-assets";
 import type { MarketM2Analysis } from "@/lib/market-analysis";
+import { useToast } from "@/hooks/use-toast";
 
 const landBankStorageKey = "built-land-bank-assets-v2";
 const landBankInterestStorageKey = "built-land-bank-interesses-v1";
@@ -76,6 +88,8 @@ interface LandBankAsset {
   complemento: string;
   foto?: string;
   createdAt: string;
+  can_edit?: boolean;
+  can_delete?: boolean;
 }
 
 interface LandBankInterest {
@@ -171,11 +185,13 @@ function formatFileSize(size?: number): string {
 }
 
 export default function LandBankDetalhePage() {
+  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const [assets, setAssets] = useState<LandBankAsset[]>(readAssets);
   const [interestDialogOpen, setInterestDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState<LandBankAsset | null>(null);
   const [marketAnalysis, setMarketAnalysis] = useState<MarketM2Analysis | null>(null);
   const marketAnalysisKeyRef = useRef("");
@@ -212,6 +228,33 @@ export default function LandBankDetalhePage() {
   const assetValue = parseMarketNumber(asset?.valor || "");
   const assetArea = parseMarketNumber(asset?.area || "");
   const assetPriceM2 = assetArea > 0 ? assetValue / assetArea : 0;
+
+  const deleteAssetMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/land-bank-assets/${encodeURIComponent(id)}`),
+    onSuccess: () => {
+      const nextAssets = assets.filter((item) => item.id !== id);
+      const nextInterests = interests.filter((interest) => interest.assetId !== id);
+      writeAssets(nextAssets);
+      writeInterests(nextInterests);
+      setAssets(nextAssets);
+      setInterests(nextInterests);
+      queryClient.setQueryData<LandBankAsset[]>(["/api/land-bank-assets"], (current = []) =>
+        current.filter((item) => item.id !== id)
+      );
+      queryClient.removeQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      setDeleteDialogOpen(false);
+      toast({ title: "Ativo excluído do Banco de Ativos" });
+      navigate(`/area-aliancas?tab=${categoryKey || "land-bank"}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Não foi possível excluir o ativo",
+        description: error?.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const marketAnalysisMutation = useMutation({
     mutationFn: async () => {
@@ -344,10 +387,25 @@ export default function LandBankDetalhePage() {
           <ArrowLeft className="h-4 w-4" />
           Voltar para {meta.title}
         </Button>
-        <Button variant="outline" onClick={openEditDialog} className="gap-2" data-testid="btn-editar-landbank">
-          <Pencil className="h-4 w-4" />
-          Editar ativo
-        </Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          {asset.can_edit && (
+            <Button variant="outline" onClick={openEditDialog} className="gap-2" data-testid="btn-editar-landbank">
+              <Pencil className="h-4 w-4" />
+              Editar ativo
+            </Button>
+          )}
+          {asset.can_delete && (
+            <Button
+              variant="outline"
+              className="gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setDeleteDialogOpen(true)}
+              data-testid="btn-excluir-landbank"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir ativo
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -742,6 +800,31 @@ export default function LandBankDetalhePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {asset.qualificacao}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e removerá o ativo do Banco de Ativos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAssetMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteAssetMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                deleteAssetMutation.mutate();
+              }}
+            >
+              {deleteAssetMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir ativo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

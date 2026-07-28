@@ -11660,6 +11660,31 @@ ${textContent}`;
     };
   }
 
+  function canManageLandBankAsset(req: Request, asset: any) {
+    const session = (req.session as any) || {};
+    const role = String(session.role || "").toLowerCase();
+    if (isAdminRequest(req) || role === "superadmin" || role === "master") return true;
+
+    const sessionUserId = session.directusUserId ? String(session.directusUserId) : "";
+    const sessionMembroId = session.membroId ? String(session.membroId) : "";
+    const creatorUserId = directusRelationId(asset?.created_by);
+    const creatorMembroId = directusRelationId(asset?.created_by_membro);
+
+    return Boolean(
+      (sessionUserId && creatorUserId && sessionUserId === String(creatorUserId)) ||
+      (sessionMembroId && creatorMembroId && sessionMembroId === String(creatorMembroId))
+    );
+  }
+
+  function withLandBankAssetPermissions(req: Request, asset: any) {
+    const canManage = canManageLandBankAsset(req, asset);
+    return {
+      ...asset,
+      can_edit: canManage,
+      can_delete: canManage,
+    };
+  }
+
   async function fetchLandBankAssetsFromDirectus(category = "") {
     try {
       const params = `${category ? `filter[category][_eq]=${encodeURIComponent(category)}&` : ""}fields=*&sort=-date_created`;
@@ -11717,7 +11742,11 @@ ${textContent}`;
       const byId = new Map<string, any>();
       (localResult.rows || []).map(normalizeLandBankAssetRow).forEach((asset: any) => byId.set(asset.id, asset));
       (await fetchLandBankAssetsFromDirectus(category)).forEach((asset: any) => byId.set(asset.id, asset));
-      res.json(Array.from(byId.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))));
+      res.json(
+        Array.from(byId.values())
+          .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+          .map((asset) => withLandBankAssetPermissions(req, asset))
+      );
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -11727,10 +11756,10 @@ ${textContent}`;
     try {
       const result = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
       const row = result.rows?.[0];
-      if (row) return res.json(normalizeLandBankAssetRow(row));
+      if (row) return res.json(withLandBankAssetPermissions(req, normalizeLandBankAssetRow(row)));
       const directusRow = await findDirectusLandBankByLocalId(req.params.id);
       if (!directusRow) return res.status(404).json({ error: "Ativo não encontrado" });
-      res.json(normalizeLandBankAssetRow(directusRow));
+      res.json(withLandBankAssetPermissions(req, normalizeLandBankAssetRow(directusRow)));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -11739,7 +11768,7 @@ ${textContent}`;
   app.post("/api/land-bank-assets", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
-      const body = req.body || {};
+      const { can_edit: _canEdit, can_delete: _canDelete, ...body } = req.body || {};
       const id = body.id || `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
       const category = body.category || "land-bank";
       const data = {
@@ -11768,7 +11797,11 @@ ${textContent}`;
           updated_at = now()
       `);
       await upsertLandBankAssetToDirectus(data, req);
-      res.json(data);
+      res.json(withLandBankAssetPermissions(req, {
+        ...data,
+        created_by: (req.session as any).directusUserId || null,
+        created_by_membro: (req.session as any).membroId || null,
+      }));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -11780,12 +11813,17 @@ ${textContent}`;
       const currentResult = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
       const current = currentResult.rows?.[0];
       if (!current) return res.status(404).json({ error: "Ativo não encontrado" });
+      const normalizedCurrent = normalizeLandBankAssetRow(current);
+      if (!canManageLandBankAsset(req, normalizedCurrent)) {
+        return res.status(403).json({ error: "Você não tem permissão para editar este ativo" });
+      }
+      const { can_edit: _canEdit, can_delete: _canDelete, ...incoming } = req.body || {};
       const currentData = current.data && typeof current.data === "object" ? current.data : {};
       const data = {
         ...currentData,
-        ...req.body,
+        ...incoming,
         id: req.params.id,
-        category: req.body.category || current.category,
+        category: incoming.category || current.category,
         updatedAt: new Date().toISOString(),
       };
       await db.execute(sql`
@@ -11798,7 +11836,11 @@ ${textContent}`;
         WHERE id = ${req.params.id}
       `);
       await upsertLandBankAssetToDirectus(data, req);
-      res.json(data);
+      res.json(withLandBankAssetPermissions(req, {
+        ...data,
+        created_by: current.created_by || null,
+        created_by_membro: current.created_by_membro || null,
+      }));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -11807,6 +11849,18 @@ ${textContent}`;
   app.delete("/api/land-bank-assets/:id", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Não autenticado" });
     try {
+      const localResult = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
+      const localRow = localResult.rows?.[0];
+      const directusRow = localRow ? null : await findDirectusLandBankByLocalId(req.params.id);
+      const asset = localRow
+        ? normalizeLandBankAssetRow(localRow)
+        : directusRow
+          ? normalizeLandBankAssetRow(directusRow)
+          : null;
+      if (!asset) return res.status(404).json({ error: "Ativo não encontrado" });
+      if (!canManageLandBankAsset(req, asset)) {
+        return res.status(403).json({ error: "Você não tem permissão para excluir este ativo" });
+      }
       await db.execute(sql`DELETE FROM land_bank_assets WHERE id = ${req.params.id}`);
       await deleteLandBankAssetFromDirectus(req.params.id);
       res.json({ success: true });

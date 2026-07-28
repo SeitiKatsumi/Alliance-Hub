@@ -286,9 +286,11 @@ interface LandBankAsset {
   latitude?: number | null;
   longitude?: number | null;
   createdAt: string;
+  can_edit?: boolean;
+  can_delete?: boolean;
 }
 
-type LandBankForm = Omit<LandBankAsset, "id" | "category" | "createdAt">;
+type LandBankForm = Omit<LandBankAsset, "id" | "category" | "createdAt" | "can_edit" | "can_delete">;
 
 const landBankStorageKey = "built-land-bank-assets-v2";
 
@@ -506,10 +508,12 @@ function LandBankPanel({
   category,
   assets,
   onCreate,
+  onDelete,
 }: {
   category: LandBankCategory;
   assets: LandBankAsset[];
   onCreate: (category: LandBankCategory["value"]) => void;
+  onDelete: (asset: LandBankAsset) => void;
 }) {
   const [, navigate] = useLocation();
   const Icon = category.icon;
@@ -610,10 +614,27 @@ function LandBankPanel({
           {filteredAssets.map((asset) => (
             <Card
               key={asset.id}
-              className="cursor-pointer overflow-hidden border-border/80 transition-colors hover:border-brand-gold/50"
+              className="relative cursor-pointer overflow-hidden border-border/80 transition-colors hover:border-brand-gold/50"
               onClick={() => navigate(`/land-bank/${asset.id}`)}
               data-testid={`card-landbank-${asset.id}`}
             >
+              {asset.can_delete && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="absolute right-3 top-3 z-10 h-9 w-9 border-red-200 bg-white text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete(asset);
+                  }}
+                  aria-label={`Excluir ${asset.qualificacao}`}
+                  title="Excluir ativo"
+                  data-testid={`btn-excluir-landbank-${asset.id}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
               <div className={`flex h-32 items-center justify-center overflow-hidden ${category.bg}`}>
                 {asset.foto ? (
                   <img src={landBankPhotoUrl(asset.foto) || ""} alt={asset.qualificacao} className="h-full w-full object-cover" />
@@ -1515,6 +1536,7 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
 }
 
 export default function AreaAliancasPage() {
+  const { toast } = useToast();
   const searchParams = useSearch();
   const getTabsFromSearch = () => {
     const tab = new URLSearchParams(searchParams).get("tab");
@@ -1542,6 +1564,7 @@ export default function AreaAliancasPage() {
   const [activeLandBankTab, setActiveLandBankTab] = useState(initialTabs.landBank);
   const [landBankAssets, setLandBankAssets] = useState<LandBankAsset[]>([]);
   const [landBankDialogOpen, setLandBankDialogOpen] = useState(false);
+  const [deleteLandBankTarget, setDeleteLandBankTarget] = useState<LandBankAsset | null>(null);
   const [landBankDialogCategory, setLandBankDialogCategory] = useState<LandBankCategory["value"]>(initialTabs.landBank as LandBankCategory["value"]);
   const [landBankForm, setLandBankForm] = useState<LandBankForm>(emptyLandBankForm);
 
@@ -1562,6 +1585,29 @@ export default function AreaAliancasPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+    },
+  });
+
+  const deleteLandBankMutation = useMutation({
+    mutationFn: (assetId: string) => apiRequest("DELETE", `/api/land-bank-assets/${encodeURIComponent(assetId)}`),
+    onSuccess: (_response, assetId) => {
+      const nextAssets = landBankAssets.filter((asset) => asset.id !== assetId);
+      setLandBankAssets(nextAssets);
+      window.localStorage.setItem(landBankStorageKey, JSON.stringify(nextAssets));
+      queryClient.setQueryData<LandBankAsset[]>(["/api/land-bank-assets"], (current = []) =>
+        current.filter((asset) => asset.id !== assetId)
+      );
+      queryClient.removeQueries({ queryKey: ["/api/land-bank-assets", assetId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      setDeleteLandBankTarget(null);
+      toast({ title: "Ativo excluído do Banco de Ativos" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Não foi possível excluir o ativo",
+        description: error?.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -1617,14 +1663,15 @@ export default function AreaAliancasPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result !== "string") return;
+      const dataUrl = reader.result;
+      if (typeof dataUrl !== "string") return;
       setLandBankForm((current) => ({
         ...current,
         basicInfoAttachment: {
           name: file.name,
           type: file.type || "application/octet-stream",
           size: file.size,
-          dataUrl: reader.result,
+          dataUrl,
         },
       }));
     };
@@ -1858,6 +1905,7 @@ export default function AreaAliancasPage() {
                       category={category}
                       assets={landBankAssets.filter((asset) => asset.category === category.value)}
                       onCreate={openLandBankDialog}
+                      onDelete={setDeleteLandBankTarget}
                     />
                   )}
                 </TabsContent>
@@ -2179,6 +2227,34 @@ export default function AreaAliancasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteLandBankTarget)}
+        onOpenChange={(open) => !open && setDeleteLandBankTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {deleteLandBankTarget?.qualificacao}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e removerá o ativo do Banco de Ativos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLandBankMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteLandBankMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteLandBankTarget) deleteLandBankMutation.mutate(deleteLandBankTarget.id);
+              }}
+            >
+              {deleteLandBankMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir ativo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

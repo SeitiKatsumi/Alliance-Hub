@@ -619,21 +619,23 @@ function LandBankPanel({
               data-testid={`card-landbank-${asset.id}`}
             >
               {asset.can_delete && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="absolute right-3 top-3 z-10 h-9 w-9 border-red-200 bg-white text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onDelete(asset);
-                  }}
-                  aria-label={`Excluir ${asset.qualificacao}`}
-                  title="Excluir ativo"
-                  data-testid={`btn-excluir-landbank-${asset.id}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="absolute right-3 top-3 z-10">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 border-red-200 bg-white text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDelete(asset);
+                    }}
+                    aria-label={`Excluir ${asset.qualificacao}`}
+                    title="Excluir ativo"
+                    data-testid={`btn-excluir-landbank-${asset.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
               <div className={`flex h-32 items-center justify-center overflow-hidden ${category.bg}`}>
                 {asset.foto ? (

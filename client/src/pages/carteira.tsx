@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import {
@@ -316,6 +316,13 @@ function metricTone(value: number) {
   return value >= 0 ? "text-emerald-700" : "text-red-700";
 }
 
+function carteiraPhotoUrl(value?: string | null) {
+  const photo = String(value || "").trim();
+  if (!photo) return null;
+  if (/^(https?:\/\/|data:image\/|blob:)/i.test(photo) || photo.startsWith("/api/assets/")) return photo;
+  return `/api/assets/${encodeURIComponent(photo)}`;
+}
+
 function Metric({ label, value, icon: Icon, tone = "text-slate-900", helper }: {
   label: string;
   value: string;
@@ -352,8 +359,12 @@ function PropertyFormDialog({
   onSave: (payload: Omit<CarteiraImovel, "id">) => void;
   saving?: boolean;
 }) {
+  const { toast } = useToast();
   const [form, setForm] = useState<Omit<CarteiraImovel, "id">>(EMPTY_PROPERTY);
   const [cepLoading, setCepLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoUrl = carteiraPhotoUrl(form.foto);
 
   useEffect(() => {
     if (!open) return;
@@ -393,11 +404,32 @@ function PropertyFormDialog({
 
   async function uploadPhoto(file?: File) {
     if (!file) return;
-    const body = new FormData();
-    body.append("files", file);
-    const response = await fetch("/api/upload", { method: "POST", credentials: "include", body });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok && data.fileIds?.[0]) setForm((current) => ({ ...current, foto: data.fileIds[0] }));
+    const extension = file.name.split(".").pop()?.toLowerCase() || "";
+    const allowedExtensions = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+    if (!(file.type.startsWith("image/") || allowedExtensions.includes(extension))) {
+      toast({ title: "Selecione uma imagem válida", description: "Use JPG, PNG, WebP, HEIC ou HEIF.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast({ title: "A foto é muito grande", description: "Escolha uma imagem de até 25 MB.", variant: "destructive" });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append("files", file);
+      const response = await fetch("/api/upload", { method: "POST", credentials: "include", body });
+      const data = await response.json().catch(() => ({}));
+      const fileId = data.fileIds?.[0];
+      if (!response.ok || !fileId) throw new Error(data.error || "O servidor não retornou a foto enviada.");
+      setForm((current) => ({ ...current, foto: fileId }));
+      toast({ title: "Foto adicionada", description: "Ela será salva junto com os dados do imóvel." });
+    } catch (error: any) {
+      toast({ title: "Não foi possível enviar a foto", description: error?.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   return (
@@ -410,13 +442,56 @@ function PropertyFormDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
             <Label>Foto do imóvel</Label>
-            <Button variant="outline" asChild>
-              <label className="cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" />
-                Selecionar foto
-                <input type="file" accept="image/*" className="hidden" onChange={(event) => void uploadPhoto(event.target.files?.[0])} />
-              </label>
-            </Button>
+            <div className="flex flex-col gap-3 rounded-md border border-dashed bg-slate-50 p-3 sm:flex-row sm:items-center">
+              <div className="relative flex aspect-[16/10] w-full shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white sm:w-44">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Prévia do imóvel" className="h-full w-full object-cover" />
+                ) : (
+                  <Building2 className="h-8 w-8 text-slate-300" />
+                )}
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  </div>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                  className="hidden"
+                  disabled={uploadingPhoto}
+                  onChange={(event) => {
+                    void uploadPhoto(event.target.files?.[0]);
+                    event.currentTarget.value = "";
+                  }}
+                  data-testid="input-carteira-foto"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploadingPhoto}
+                  onClick={() => photoInputRef.current?.click()}
+                  data-testid="btn-carteira-selecionar-foto"
+                >
+                  {uploadingPhoto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {uploadingPhoto ? "Enviando..." : form.foto ? "Trocar foto" : "Selecionar foto"}
+                </Button>
+                {form.foto && !uploadingPhoto && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => setForm((current) => ({ ...current, foto: "" }))}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remover
+                  </Button>
+                )}
+                <p className="basis-full text-xs text-muted-foreground">JPG, PNG, WebP ou foto do celular, com até 25 MB.</p>
+              </div>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Identificação *</Label>
@@ -590,7 +665,7 @@ function PropertyFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700"
-            disabled={saving || !form.nome || !form.tipo}
+            disabled={saving || uploadingPhoto || !form.nome || !form.tipo}
             onClick={() => onSave(form)}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -615,6 +690,7 @@ function PropertyCard({
 }) {
   const diagnostic = item.diagnostico;
   const hasActions = Boolean(onEdit || onDelete);
+  const photoUrl = carteiraPhotoUrl(item.foto);
   return (
     <Card className="relative overflow-hidden border-border/70 transition-colors hover:border-blue-300">
       <CardContent className="p-0">
@@ -650,8 +726,12 @@ function PropertyCard({
         )}
         <button type="button" onClick={onOpen} className={`w-full p-4 text-left ${hasActions ? "pr-24" : ""}`}>
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-600">
-              <Building2 className="h-5 w-5" />
+            <div className="flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-blue-50 text-blue-600">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="h-5 w-5" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
@@ -1227,6 +1307,7 @@ function DetailPage({ id }: { id: string }) {
   if (!imovel) return <div className="p-8 text-center text-muted-foreground">Imóvel não encontrado ou sem permissão de acesso.</div>;
 
   const alternatives = alternativesQuery.data?.alternativas || [];
+  const photoUrl = carteiraPhotoUrl(imovel.foto);
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
@@ -1252,28 +1333,37 @@ function DetailPage({ id }: { id: string }) {
 
       <section className="border-y bg-slate-50 py-6">
         <div className="px-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold text-foreground">{imovel.nome}</h1>
-                <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{diagnostic?.situacao || "Preliminar"}</Badge>
-                <Badge variant="outline">{imovel.access_level}</Badge>
-              </div>
-              <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 shrink-0" />
-                {[imovel.endereco, imovel.numero, imovel.bairro, imovel.cidade, imovel.estado, imovel.pais].filter(Boolean).join(", ") || "Localização ainda não informada"}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span>{imovel.tipo || "Tipo pendente"}</span><span>•</span>
-                <span>{parseNumber(imovel.area_m2).toLocaleString("pt-BR")} m²</span><span>•</span>
-                <span>Atualizado em {shortDate(imovel.ultima_atualizacao)}</span>
-              </div>
-            </div>
-            {pulseDue(imovel) && (
-              <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                <CalendarClock className="h-4 w-4" />Pulso Patrimonial pendente
-              </div>
+          <div className={photoUrl ? "grid items-start gap-5 md:grid-cols-[180px_minmax(0,1fr)]" : ""}>
+            {photoUrl && (
+              <img
+                src={photoUrl}
+                alt={`Foto de ${imovel.nome}`}
+                className="aspect-[4/3] w-full rounded-md border bg-white object-cover md:w-[180px]"
+              />
             )}
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold text-foreground">{imovel.nome}</h1>
+                  <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{diagnostic?.situacao || "Preliminar"}</Badge>
+                  <Badge variant="outline">{imovel.access_level}</Badge>
+                </div>
+                <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  {[imovel.endereco, imovel.numero, imovel.bairro, imovel.cidade, imovel.estado, imovel.pais].filter(Boolean).join(", ") || "Localização ainda não informada"}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>{imovel.tipo || "Tipo pendente"}</span><span>•</span>
+                  <span>{parseNumber(imovel.area_m2).toLocaleString("pt-BR")} m²</span><span>•</span>
+                  <span>Atualizado em {shortDate(imovel.ultima_atualizacao)}</span>
+                </div>
+              </div>
+              {pulseDue(imovel) && (
+                <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <CalendarClock className="h-4 w-4" />Pulso Patrimonial pendente
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>

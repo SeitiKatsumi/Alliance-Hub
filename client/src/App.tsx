@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { AppSidebar } from "@/components/app-sidebar";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
+import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 import { PhoneInput } from "@/components/phone-input";
 import NotFound from "@/pages/not-found";
 import BiasPage from "@/pages/bias";
@@ -467,6 +468,7 @@ function PerfilOnboardingModal({
   const [idiomaInput, setIdiomaInput] = useState("");
   const [completed, setCompleted] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [locationPermissionHelpOpen, setLocationPermissionHelpOpen] = useState(false);
   const [codigoEticaAceito, setCodigoEticaAceito] = useState(false);
   const [politicasParticipacaoAceitas, setPoliticasParticipacaoAceitas] = useState(false);
   const [termoVitrineAceito, setTermoVitrineAceito] = useState(false);
@@ -687,6 +689,7 @@ function PerfilOnboardingModal({
           description: error?.message || ACCEPTANCE_LOCATION_NOTICE,
           variant: "destructive",
         });
+        setLocationPermissionHelpOpen(true);
       }
       return;
     }
@@ -720,6 +723,7 @@ function PerfilOnboardingModal({
           description: error?.message || ACCEPTANCE_LOCATION_NOTICE,
           variant: "destructive",
         });
+        setLocationPermissionHelpOpen(true);
         return;
       }
     }
@@ -757,6 +761,7 @@ function PerfilOnboardingModal({
   }
 
   return (
+    <>
     <Dialog open={shouldOpen} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <DialogHeader>
@@ -1040,6 +1045,13 @@ function PerfilOnboardingModal({
         }))}
       />
     </Dialog>
+    <BrowserPermissionHelp
+      open={locationPermissionHelpOpen}
+      onOpenChange={setLocationPermissionHelpOpen}
+      permission="geolocation"
+      onRetry={handleSave}
+    />
+    </>
   );
 }
 

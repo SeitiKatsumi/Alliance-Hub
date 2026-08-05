@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, AlertCircle, Sparkles, X, CheckCircle2, Search, Bot, Paperclip, Mic, StopCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 import {
   createAuraMediaRecorder,
   formatAuraRecordingTime,
@@ -91,6 +92,7 @@ export default function AvaliarAuraCandidatoPage() {
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [micBlocked, setMicBlocked] = useState(false);
+  const [micPermissionHelpOpen, setMicPermissionHelpOpen] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
@@ -325,6 +327,7 @@ export default function AvaliarAuraCandidatoPage() {
   const startRecording = async () => {
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        setMicPermissionHelpOpen(true);
         setPageError("Este navegador não permite gravação de áudio aqui. Use Enviar áudio para selecionar uma gravação.");
         return;
       }
@@ -355,7 +358,10 @@ export default function AvaliarAuraCandidatoPage() {
       setPageError(null);
     } catch (err: any) {
       const permissionDenied = err?.name === "NotAllowedError" || /permission|denied|permiss/i.test(err?.message || "");
-      if (permissionDenied) setMicBlocked(true);
+      if (permissionDenied) {
+        setMicBlocked(true);
+        setMicPermissionHelpOpen(true);
+      }
       setPageError(
         permissionDenied
           ? "Microfone bloqueado. Permita o microfone nas configurações do navegador ou use Enviar áudio para selecionar uma gravação do celular."
@@ -369,6 +375,18 @@ export default function AvaliarAuraCandidatoPage() {
     if (recorder && recorder.state !== "inactive") {
       recorder.stop();
     }
+  };
+
+  const requestRecording = () => {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    if (micBlocked) {
+      setMicPermissionHelpOpen(true);
+      return;
+    }
+    void startRecording();
   };
 
   return (
@@ -460,7 +478,7 @@ export default function AvaliarAuraCandidatoPage() {
               </button>
               <button
                 type="button"
-                onClick={() => recording ?stopRecording() : startRecording()}
+                onClick={requestRecording}
                 disabled={transcreverAudioMutation.isPending}
                 className={`h-10 rounded-lg border text-xs font-mono flex items-center justify-center gap-2 ${
                   recording
@@ -620,6 +638,16 @@ export default function AvaliarAuraCandidatoPage() {
           <p className="text-red-300 text-xs font-mono text-center rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2">{pageError}</p>
         )}
       </div>
+      <BrowserPermissionHelp
+        open={micPermissionHelpOpen}
+        onOpenChange={setMicPermissionHelpOpen}
+        permission="microphone"
+        blocked={micBlocked}
+        dark
+        onRetry={startRecording}
+        fallbackLabel="Enviar áudio"
+        onFallback={() => audioFileInputRef.current?.click()}
+      />
     </div>
   );
 }

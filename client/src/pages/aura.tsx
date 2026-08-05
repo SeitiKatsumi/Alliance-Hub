@@ -37,6 +37,7 @@ import {
   getAuraAudioFilename,
 } from "@/lib/aura-audio";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
+import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 
 interface AuraResult {
   score: number | null;
@@ -456,6 +457,7 @@ export default function AuraPage() {
   const [audioRecording, setAudioRecording] = useState(false);
   const [audioRecordingSeconds, setAudioRecordingSeconds] = useState(0);
   const [micBlocked, setMicBlocked] = useState(false);
+  const [micPermissionHelpOpen, setMicPermissionHelpOpen] = useState(false);
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
@@ -793,7 +795,10 @@ export default function AuraPage() {
       const permissionDenied =
         error?.name === "NotAllowedError" ||
         /permission|denied|permiss/i.test(error?.message || "");
-      if (permissionDenied) setMicBlocked(true);
+      if (permissionDenied) {
+        setMicBlocked(true);
+        setMicPermissionHelpOpen(true);
+      }
       toast({
         title: permissionDenied ? "Microfone bloqueado" : "Não foi possível gravar",
         description: permissionDenied
@@ -812,6 +817,10 @@ export default function AuraPage() {
   function toggleAuraAudioRecording() {
     if (audioRecording) {
       stopAuraAudioRecording();
+      return;
+    }
+    if (micBlocked) {
+      setMicPermissionHelpOpen(true);
       return;
     }
     void startAuraAudioRecording();
@@ -2025,6 +2034,15 @@ export default function AuraPage() {
           </CardContent>
         </Card>
       )}
+      <BrowserPermissionHelp
+        open={micPermissionHelpOpen}
+        onOpenChange={setMicPermissionHelpOpen}
+        permission="microphone"
+        blocked={micBlocked}
+        onRetry={startAuraAudioRecording}
+        fallbackLabel="Enviar áudio"
+        onFallback={() => audioFileInputRef.current?.click()}
+      />
     </div>
   );
 }

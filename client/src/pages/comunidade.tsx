@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { PhoneInput } from "@/components/phone-input";
+import { BrowserPermissionHelp } from "@/components/browser-permission-help";
 import { getOpaUrl } from "@/lib/public-refs";
 import {
   createAuraMediaRecorder,
@@ -1019,6 +1020,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
   const [biasSearch, setBiasSearch] = useState("");
   const [codigoLoading, setCodigoLoading] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [locationPermissionHelpOpen, setLocationPermissionHelpOpen] = useState(false);
   const [selectedConvite, setSelectedConvite] = useState<any | null>(null);
 
   useEffect(() => {
@@ -1392,11 +1394,15 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       setMouDadosOpen(false);
       setMouDadosForm(EMPTY_MOU_DADOS);
     },
-    onError: (error: any) => toast({
-      title: "Erro ao aceitar MOU",
-      description: error?.message || "Tente novamente.",
-      variant: "destructive",
-    }),
+    onError: (error: any) => {
+      const isLocationError = /localiza|geolocation|location/i.test(error?.message || "");
+      toast({
+        title: isLocationError ? "Localização obrigatória" : "Erro ao aceitar MOU",
+        description: error?.message || (isLocationError ? ACCEPTANCE_LOCATION_NOTICE : "Tente novamente."),
+        variant: "destructive",
+      });
+      if (isLocationError) setLocationPermissionHelpOpen(true);
+    },
   });
 
   const lembretesMutation = useMutation({
@@ -3507,54 +3513,23 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={auraMicPromptOpen} onOpenChange={setAuraMicPromptOpen}>
-        <AlertDialogContent className="border-brand-gold/20 text-white" style={{ background: "#001428" }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-mono text-brand-gold flex items-center gap-2">
-              <Mic className="w-4 h-4" />
-              Ativar microfone?
-            </AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="space-y-3 text-sm text-white/65">
-            <p>
-              Para gravar a percepção de Aura por áudio, o navegador precisa liberar o microfone deste aparelho.
-            </p>
-            {auraMicBlocked && (
-              <p className="rounded-lg border border-red-400/25 bg-red-500/10 p-3 text-red-100">
-                O microfone parece bloqueado. Se o navegador não mostrar a permissão novamente, libere o microfone nas configurações do site ou use Enviar áudio.
-              </p>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">
-              Cancelar
-            </AlertDialogCancel>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-white/10 bg-transparent text-white/70 hover:text-white"
-              onClick={() => {
-                setAuraMicPromptOpen(false);
-                window.setTimeout(() => auraAudioFileInputRef.current?.click(), 50);
-              }}
-            >
-              <Paperclip className="w-4 h-4 mr-2" />
-              Enviar áudio
-            </Button>
-            <AlertDialogAction
-              className="font-mono font-bold"
-              style={{ background: "linear-gradient(135deg,#D7BB7D,#b89a50)", color: "#001D34" }}
-              onClick={() => {
-                setAuraMicPromptOpen(false);
-                startAuraRecording();
-              }}
-            >
-              <Mic className="w-4 h-4 mr-2" />
-              Ativar microfone
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <BrowserPermissionHelp
+        open={auraMicPromptOpen}
+        onOpenChange={setAuraMicPromptOpen}
+        permission="microphone"
+        blocked={auraMicBlocked}
+        dark
+        onRetry={startAuraRecording}
+        fallbackLabel="Enviar áudio"
+        onFallback={() => auraAudioFileInputRef.current?.click()}
+      />
+
+      <BrowserPermissionHelp
+        open={locationPermissionHelpOpen}
+        onOpenChange={setLocationPermissionHelpOpen}
+        permission="geolocation"
+        onRetry={handleSubmitMouDados}
+      />
     </div>
   );
 }

@@ -44,12 +44,17 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: async (creds: { email: string; password: string }) => {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(creds),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(creds),
+        });
+      } catch {
+        throw new Error("Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.");
+      }
       const contentType = res.headers.get("content-type") || "";
       const isJson = contentType.includes("application/json");
       const data = isJson ? await res.json().catch(() => null) : null;

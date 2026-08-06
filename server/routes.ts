@@ -14291,25 +14291,38 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         });
       };
 
-      // Authenticate against Directus
-      const authRes = await fetch(`${DIRECTUS_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const authText = await authRes.text();
-      const authContentType = authRes.headers.get("content-type") || "";
+      // Authenticate against Directus. A network failure must still allow local
+      // platform accounts to use the existing fallback below.
+      let authRes: Response | null = null;
       let authData: any = null;
-      if (authContentType.includes("application/json")) {
-        try {
-          authData = JSON.parse(authText);
-        } catch {
-          authData = null;
+      let directusUnavailable = false;
+      const authController = new AbortController();
+      const authTimeout = setTimeout(() => authController.abort(), 10_000);
+      try {
+        authRes = await fetch(`${DIRECTUS_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+          signal: authController.signal,
+        });
+
+        const authText = await authRes.text();
+        const authContentType = authRes.headers.get("content-type") || "";
+        if (authContentType.includes("application/json")) {
+          try {
+            authData = JSON.parse(authText);
+          } catch {
+            authData = null;
+          }
         }
+      } catch (error: any) {
+        directusUnavailable = true;
+        console.error("[login] Directus unavailable:", error?.message || error);
+      } finally {
+        clearTimeout(authTimeout);
       }
 
-      if (!authRes.ok || !authData) {
+      if (!authRes?.ok || !authData) {
         // Directus auth failed â€” try local-only user auth (for admin-created users)
         try {
           const { comparePasswords } = await import("./storage");
@@ -14373,6 +14386,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           }
         } catch (e: any) {
           console.error("[login] local auth error:", e.message);
+        }
+        if (directusUnavailable) {
+          return res.status(503).json({
+            error: "Serviço de login temporariamente indisponível. Tente novamente em alguns minutos.",
+            code: "AUTH_SERVICE_UNAVAILABLE",
+          });
         }
         return res.status(401).json({ error: "Credenciais invÃ¡lidas" });
       }

@@ -3908,11 +3908,12 @@ export async function registerRoutes(
     try {
       const m = await directusFetchOne("cadastro_geral", req.params.id, "fields=*,Especialidades.especialidades_id.id,Especialidades.especialidades_id.nome_especialidade");
       if (!m) return res.status(404).json({ error: "Membro nÃ£o encontrado" });
+      const memberWithLocalAcceptances = await mergeLatestTermAcceptances(req.params.id, m);
       // Extract first specialty id and name from M2M relation
       const espArr = Array.isArray(m.Especialidades) ? m.Especialidades : [];
       const firstEsp = espArr[0]?.especialidades_id;
       res.json({
-        ...m,
+        ...memberWithLocalAcceptances,
         cargo: m.cargo || m.responsavel_cargo || null,
         foto: m.foto_perfil || m.foto || null,
         especialidade_id: (typeof firstEsp === "object" ? firstEsp?.id : null) ?? null,
@@ -3923,17 +3924,18 @@ export async function registerRoutes(
       const item = cached?.find((m: any) => String(m.id) === String(req.params.id));
       if (item) {
         console.warn("[membros] Directus indisponivel; usando membro do ultimo snapshot local dos logs.");
-        return res.json(item);
+        return res.json(await mergeLatestTermAcceptances(req.params.id, item));
       }
       const sessionMembroId = (req.session as any).membroId;
       if (sessionMembroId && String(sessionMembroId) === String(req.params.id)) {
-        return res.json({
+        const sessionMember = await mergeLatestTermAcceptances(req.params.id, {
           id: sessionMembroId,
           nome: (req.session as any).nome || (req.session as any).email || "Membro BUILT",
           email: (req.session as any).email || null,
           foto: null,
           foto_perfil: null,
         });
+        return res.json(sessionMember);
       }
       res.status(500).json({ error: error.message });
     }
@@ -4091,13 +4093,6 @@ export async function registerRoutes(
         "conjuge_estado",
         "conjuge_pais",
       ];
-      if (Object.keys(payload).some(key => termFields.includes(key) || key === "foto_posicao_x" || key === "foto_posicao_y")) {
-        await ensureVitrineFields();
-      }
-
-      const directusPayload = await normalizeDirectusPatchPayload("cadastro_geral", payload);
-      console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(directusPayload));
-      const item = await directusUpdate("cadastro_geral", req.params.id, directusPayload);
       const termAuditConfig: Array<{ key: string; acceptedAt: string; version: string }> = [
         { key: "codigo_etica", acceptedAt: "codigo_etica_aceito_em", version: "codigo_etica_versao" },
         { key: "politicas_participacao_protecao", acceptedAt: "politicas_participacao_aceito_em", version: "politicas_participacao_versao" },
@@ -4105,17 +4100,38 @@ export async function registerRoutes(
         { key: "area_aliancas", acceptedAt: "area_aliancas_termo_aceito_em", version: "area_aliancas_termo_versao" },
         { key: "built_capital", acceptedAt: "built_capital_termo_aceito_em", version: "built_capital_termo_versao" },
       ];
-      for (const config of termAuditConfig) {
-        if ((payload as any)[config.acceptedAt]) {
-          await recordTermAcceptanceAudit({
+      const acceptedTerms = termAuditConfig.filter((config) => Boolean((payload as any)[config.acceptedAt]));
+      const auditResults = await Promise.all(acceptedTerms.map((config) =>
+        recordTermAcceptanceAudit({
             membroId: req.params.id,
             termoChave: config.key,
             termoVersao: String((payload as any)[config.version] || ""),
             origem: TERMOS_ACEITE_BUILT[config.key]?.origem || null,
             aceitoEm: String((payload as any)[config.acceptedAt]),
             aceiteLocalizacao,
+          })
+      ));
+
+      const acceptanceFields = new Set(termAuditConfig.flatMap((config) => [config.acceptedAt, config.version]));
+      const acceptanceOnly = acceptedTerms.length > 0 && Object.keys(payload).every((key) => acceptanceFields.has(key));
+      if (!acceptanceOnly && Object.keys(payload).some(key => termFields.includes(key) || key === "foto_posicao_x" || key === "foto_posicao_y")) {
+        await ensureVitrineFields();
+      }
+      const directusPayload = await normalizeDirectusPatchPayload("cadastro_geral", payload);
+      console.log(`[membros PATCH ${req.params.id}] fields:`, Object.keys(directusPayload));
+      let item: any;
+      try {
+        item = await directusUpdate("cadastro_geral", req.params.id, directusPayload);
+      } catch (error: any) {
+        if (acceptanceOnly && auditResults.length > 0 && auditResults.every(Boolean)) {
+          console.warn(`[membros PATCH ${req.params.id}] aceite salvo localmente; sincronizacao com Directus pendente:`, error?.message || error);
+          return res.json({
+            id: req.params.id,
+            ...directusPayload,
+            acceptance_sync_pending: true,
           });
         }
+        throw error;
       }
       res.json(item);
     } catch (error: any) {
@@ -7394,27 +7410,60 @@ export async function registerRoutes(
     aceitoEm?: string | Date | null;
     aceiteLocalizacao?: any;
   }) {
-    const loc = normalizeAcceptanceLocation(params.aceiteLocalizacao);
-    await ensureTermosAceiteAuditoriaTable().catch(() => {});
-    const locJson = loc ? JSON.stringify(loc) : null;
-    await db.execute(sql`
-      INSERT INTO termos_aceite_auditoria (membro_id, termo_chave, termo_versao, origem, aceito_em, aceite_localizacao)
-      VALUES (${params.membroId}, ${params.termoChave}, ${params.termoVersao || null}, ${params.origem || null}, ${params.aceitoEm ? new Date(params.aceitoEm) : new Date()}, ${locJson}::jsonb)
-    `).catch((err: any) => console.warn("[termos-aceite] falha ao registrar auditoria:", err?.message || err));
+    try {
+      const loc = normalizeAcceptanceLocation(params.aceiteLocalizacao);
+      await ensureTermosAceiteAuditoriaTable();
+      const locJson = loc ? JSON.stringify(loc) : null;
+      await db.execute(sql`
+        INSERT INTO termos_aceite_auditoria (membro_id, termo_chave, termo_versao, origem, aceito_em, aceite_localizacao)
+        VALUES (${params.membroId}, ${params.termoChave}, ${params.termoVersao || null}, ${params.origem || null}, ${params.aceitoEm ? new Date(params.aceitoEm) : new Date()}, ${locJson}::jsonb)
+      `);
+      return true;
+    } catch (err: any) {
+      console.warn("[termos-aceite] falha ao registrar auditoria:", err?.message || err);
+      return false;
+    }
   }
 
-  async function getLatestTermAcceptanceLocations(membroId: string) {
+  async function getLatestTermAcceptances(membroId: string) {
     await ensureTermosAceiteAuditoriaTable().catch(() => {});
     const result: any = await db.execute(sql`
-      SELECT DISTINCT ON (termo_chave) termo_chave, aceite_localizacao
+      SELECT DISTINCT ON (termo_chave)
+        termo_chave, termo_versao, origem, aceito_em, aceite_localizacao
       FROM termos_aceite_auditoria
       WHERE membro_id = ${membroId}
       ORDER BY termo_chave, aceito_em DESC
     `).catch(() => ({ rows: [] }));
     const rows = Array.isArray(result?.rows) ? result.rows : Array.isArray(result) ? result : [];
     const map = new Map<string, any>();
-    rows.forEach((row: any) => map.set(String(row.termo_chave), row.aceite_localizacao || null));
+    rows.forEach((row: any) => map.set(String(row.termo_chave), row));
     return map;
+  }
+
+  async function getLatestTermAcceptanceLocations(membroId: string) {
+    const acceptances = await getLatestTermAcceptances(membroId);
+    const locations = new Map<string, any>();
+    acceptances.forEach((acceptance, key) => locations.set(key, acceptance?.aceite_localizacao || null));
+    return locations;
+  }
+
+  async function mergeLatestTermAcceptances(membroId: string, member: Record<string, any>) {
+    const acceptances = await getLatestTermAcceptances(membroId);
+    const fields: Record<string, { acceptedAt: string; version: string }> = {
+      codigo_etica: { acceptedAt: "codigo_etica_aceito_em", version: "codigo_etica_versao" },
+      politicas_participacao_protecao: { acceptedAt: "politicas_participacao_aceito_em", version: "politicas_participacao_versao" },
+      vitrine: { acceptedAt: "vitrine_termo_aceito_em", version: "vitrine_termo_versao" },
+      area_aliancas: { acceptedAt: "area_aliancas_termo_aceito_em", version: "area_aliancas_termo_versao" },
+      built_capital: { acceptedAt: "built_capital_termo_aceito_em", version: "built_capital_termo_versao" },
+    };
+    const merged = { ...member };
+    acceptances.forEach((acceptance, key) => {
+      const config = fields[key];
+      if (!config || !acceptance?.aceito_em) return;
+      merged[config.acceptedAt] = acceptedDocDate(acceptance.aceito_em);
+      merged[config.version] = acceptance.termo_versao || merged[config.version] || null;
+    });
+    return merged;
   }
 
   async function listarDocumentosAceitosDoUsuario(req: any): Promise<DocumentoAceiteResumo[]> {
@@ -7422,7 +7471,9 @@ export async function registerRoutes(
     if (!membroId) return [];
 
     const docs = new Map<string, DocumentoAceiteResumo>();
-    const aceiteLocationByTerm = await getLatestTermAcceptanceLocations(membroId);
+    const latestTermAcceptances = await getLatestTermAcceptances(membroId);
+    const aceiteLocationByTerm = new Map<string, any>();
+    latestTermAcceptances.forEach((acceptance, key) => aceiteLocationByTerm.set(key, acceptance?.aceite_localizacao || null));
     const membro = await directusFetchOne(
       "cadastro_geral",
       membroId,
@@ -7445,6 +7496,10 @@ export async function registerRoutes(
         aceite_localizacao: aceiteLocalizacao ?? aceiteLocationByTerm.get(key) ?? null,
       });
     };
+
+    latestTermAcceptances.forEach((acceptance, key) => {
+      addTerm(key, acceptance?.aceito_em, acceptance?.termo_versao, acceptance?.origem, acceptance?.aceite_localizacao);
+    });
 
     if (membro) {
       addTerm("codigo_etica", membro.codigo_etica_aceito_em, membro.codigo_etica_versao);

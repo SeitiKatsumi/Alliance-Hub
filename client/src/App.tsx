@@ -652,7 +652,11 @@ function PerfilOnboardingModal({
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       toast({ title: "Perfil atualizado com sucesso!" });
     },
-    onError: () => toast({ title: "Erro ao salvar perfil", variant: "destructive" }),
+    onError: (error: any) => toast({
+      title: mostrarPerfilCompleto ? "Erro ao salvar perfil" : "Erro ao registrar aceite",
+      description: error?.message || "Não foi possível concluir a operação. Tente novamente.",
+      variant: "destructive",
+    }),
   });
 
   function setField(field: keyof OnboardingMembro, value: string | boolean | string[] | null) {

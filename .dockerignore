@@ -7,4 +7,3 @@ dist
 .local
 *.tar.gz
 vite.config.ts.*
-attached_assets

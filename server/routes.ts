@@ -17386,35 +17386,46 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      // Find the member's community in Directus
+      // Any active community association authorizes the member to invite. The
+      // mother community only defines the preferred origin for the invite.
       let comunidadeId: string | null = null;
       let comunidadeNome: string | null = null;
       if (membroId) {
         try {
-          const col = await getComunidadeCol();
-          const url = `${DIRECTUS_URL}/items/${col}?fields=id,nome&filter[membros][cadastro_geral_id][_eq]=${membroId}&limit=1`;
-          const r = await fetch(url, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-          if (r.ok) {
-            const data = await r.json();
-            if (data.data?.[0]) {
-              comunidadeId = data.data[0].id;
-              comunidadeNome = data.data[0].nome;
-            }
-          }
-          // Also check if they're an aliado
-          if (!comunidadeId) {
-            const url2 = `${DIRECTUS_URL}/items/${col}?fields=id,nome&filter[aliado][_eq]=${membroId}&limit=1`;
-            const r2 = await fetch(url2, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-            if (r2.ok) {
-              const data2 = await r2.json();
-              if (data2.data?.[0]) {
-                comunidadeId = data2.data[0].id;
-                comunidadeNome = data2.data[0].nome;
-              }
-            }
+          const comunidades = await getMembroComunidadesLinks(membroId);
+          const comunidadePreferidaId = req.body?.comunidade_id
+            ? String(req.body.comunidade_id)
+            : null;
+          const comunidade =
+            (comunidadePreferidaId
+              ? comunidades.find((item: any) => String(item.id) === comunidadePreferidaId)
+              : null)
+            || comunidades.find((item: any) => item.is_mae)
+            || comunidades[0]
+            || null;
+
+          if (comunidade?.id) {
+            comunidadeId = String(comunidade.id);
+            comunidadeNome = comunidade.nome || null;
           }
         } catch (e) {
           console.warn("[meu-convite] community lookup failed:", e);
+        }
+
+        // A previously persisted mother-community link is valid evidence of
+        // association if Directus is temporarily unavailable.
+        if (!comunidadeId) {
+          const comunidadeMae = await getStoredMembroComunidadeMae(membroId);
+          if (comunidadeMae?.comunidade_id) {
+            comunidadeId = String(comunidadeMae.comunidade_id);
+            try {
+              const col = await getComunidadeCol();
+              const comunidade = await directusFetchOne(col, comunidadeId, "fields=id,nome");
+              comunidadeNome = comunidade?.nome || null;
+            } catch (e) {
+              console.warn("[meu-convite] stored community name lookup failed:", e);
+            }
+          }
         }
       }
 

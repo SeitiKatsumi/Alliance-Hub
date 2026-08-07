@@ -1559,7 +1559,11 @@ function DetailPage({ id }: { id: string }) {
                   <FileText className="h-5 w-5 text-blue-600" />
                   <div className="min-w-0 flex-1"><p className="truncate font-medium">{doc.nome}</p><p className="text-xs text-muted-foreground">{doc.tipo === "Matrícula" ? "Registro" : doc.tipo} · versão {doc.versao} · origem {doc.origem}{doc.validade ? ` · válido até ${shortDate(doc.validade)}` : ""}</p></div>
                   <Badge variant="outline">{doc.status_validacao}</Badge>
-                  {doc.file_url && <Button variant="outline" size="sm" onClick={() => window.open(doc.file_url, "_blank", "noopener,noreferrer")}>Abrir</Button>}
+                  {doc.file_url && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">Abrir</a>
+                    </Button>
+                  )}
                   {canManage && <Button variant="ghost" size="icon" onClick={() => deleteDocumentMutation.mutate(doc.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>}
                 </div>
               ))}

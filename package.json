@@ -12,6 +12,7 @@
     "test:carteira": "node --import tsx --test server/carteira-domain.test.ts",
     "test:market-comparables": "node --import tsx --test server/market-comparables.test.ts",
     "test:aura": "node --import tsx --test server/aura-lexico.test.ts",
+    "test:profile-completion": "node --import tsx --test client/src/lib/profile-completion.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

@@ -32,6 +32,7 @@ import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { getOpaUrl } from "@/lib/public-refs";
+import { getProfileCompletion, type ProfileCompletionSource } from "@/lib/profile-completion";
 import { CarteiraDashboardPanel } from "@/pages/carteira";
 import {
   Bar,
@@ -533,6 +534,23 @@ function BiaCardSkeleton() {
   );
 }
 
+function ProfileCompletionRing({ percentage }: { percentage: number }) {
+  return (
+    <div
+      className="grid h-14 w-14 shrink-0 place-items-center rounded-full"
+      style={{
+        background: `conic-gradient(#2563eb ${percentage * 3.6}deg, #e2e8f0 0deg)`,
+      }}
+      role="img"
+      aria-label={`Perfil ${percentage}% completo`}
+    >
+      <div className="grid h-11 w-11 place-items-center rounded-full bg-background">
+        <span className="text-xs font-bold tabular-nums text-blue-700">{percentage}%</span>
+      </div>
+    </div>
+  );
+}
+
 function deriveRole(user: any): string | null {
   if (!user) return null;
   const redes: string[] = Array.isArray(user.Outras_redes_as_quais_pertenco) ?user.Outras_redes_as_quais_pertenco : [];
@@ -642,6 +660,22 @@ export default function PainelPage() {
     queryKey: ["/api/aura/score", user?.membro_directus_id],
     enabled: !!user?.membro_directus_id,
   });
+
+  const {
+    data: profileDetails,
+    isLoading: isLoadingProfileDetails,
+    isError: isProfileDetailsError,
+  } = useQuery<ProfileCompletionSource>({
+    queryKey: ["/api/membros", user?.membro_directus_id],
+    enabled: !!user?.membro_directus_id && !user?.company_employee,
+  });
+  const profileCompletion = useMemo(() => getProfileCompletion(profileDetails), [profileDetails]);
+  const canShowProfileCompletion = !!user?.membro_directus_id
+    && !user.company_employee
+    && !isProfileDetailsError;
+  const showProfileCompletion = canShowProfileCompletion
+    && !isLoadingProfileDetails
+    && profileCompletion.percentage < 100;
 
   const bias = data?.bias ?? [];
   const comunidades = data?.comunidades ?? [];
@@ -1126,19 +1160,55 @@ export default function PainelPage() {
 
         <div className="space-y-4">
         <Card
-          className="border border-border/60 cursor-pointer transition-colors hover:border-blue-500/40"
+          className="border border-border/60"
           style={{ borderColor: auraData?.score != null ?`${getFaixaColor(auraData.score)}30` : undefined }}
-          onClick={() => navigate("/aura")}
-          data-testid="dashboard-aura-panel"
+          data-testid="dashboard-profile-panel"
         >
           <CardContent className="p-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-foreground">Seu perfil</p>
-              <Button variant="ghost" className="h-auto p-0 text-xs text-blue-600 hover:bg-transparent hover:text-blue-700" onClick={(event) => { event.stopPropagation(); navigate("/meu-perfil"); }}>
+              <Button variant="ghost" className="h-auto p-0 text-xs text-blue-600 hover:bg-transparent hover:text-blue-700" onClick={() => navigate("/meu-perfil")}>
                 Ver perfil completo
               </Button>
             </div>
-            <div className="mt-3 flex items-center gap-3">
+
+            {canShowProfileCompletion && isLoadingProfileDetails && (
+              <div className="mt-3 flex items-center gap-3" data-testid="dashboard-profile-completion-loading">
+                <Skeleton className="h-14 w-14 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-36" />
+                </div>
+              </div>
+            )}
+
+            {showProfileCompletion && (
+              <button
+                type="button"
+                className="mt-3 flex w-full items-center gap-3 rounded-md border border-blue-100 bg-blue-50/60 p-2.5 text-left transition-colors hover:border-blue-200 hover:bg-blue-50"
+                onClick={() => navigate("/meu-perfil")}
+                data-testid="dashboard-profile-completion"
+              >
+                <ProfileCompletionRing percentage={profileCompletion.percentage} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">Complete seu perfil</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {profileCompletion.missing.length} campo{profileCompletion.missing.length === 1 ? "" : "s"} pendente{profileCompletion.missing.length === 1 ? "" : "s"}
+                  </p>
+                  <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+                    Completar cadastro
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={`flex w-full items-center gap-3 text-left ${showProfileCompletion ? "mt-3 border-t border-border/60 pt-3" : "mt-3"}`}
+              onClick={() => navigate("/aura")}
+              data-testid="dashboard-aura-panel"
+            >
               <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
               <div className="min-w-0">
                 <p className="text-sm font-bold text-foreground">Aura Percebida</p>
@@ -1149,7 +1219,7 @@ export default function PainelPage() {
                   {auraData?.score != null ?"resultado atual da rede" : "sem avaliações"}
                 </p>
               </div>
-            </div>
+            </button>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-center text-xs font-semibold text-emerald-700">
                 Perfil validado

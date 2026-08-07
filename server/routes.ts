@@ -1000,6 +1000,11 @@ function assetApiUrl(id: any) {
   return `/api/assets/${assetId}?v=${ASSET_CACHE_VERSION}`;
 }
 
+function carteiraDocumentApiUrl(imovelId: any, documentoId: any) {
+  if (!imovelId || !documentoId) return null;
+  return `/api/carteira/imoveis/${encodeURIComponent(String(imovelId))}/documentos/${encodeURIComponent(String(documentoId))}/arquivo`;
+}
+
 async function directusFetchOne(collection: string, id: string, params: string = "") {
   const url = `${DIRECTUS_URL}/items/${collection}/${id}?fields=*${params ? "&" + params : ""}`;
   try {
@@ -12609,8 +12614,53 @@ ${textContent}`;
       `);
       res.json((result.rows || []).map((row: any) => ({
         ...row,
-        file_url: assetApiUrl(row.file_id),
+        file_url: carteiraDocumentApiUrl(row.imovel_id, row.id),
       })));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/documentos/:documentoId/arquivo", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const result = await db.execute(sql`
+        SELECT id, imovel_id, file_id, nome
+        FROM carteira_documentos
+        WHERE id = ${req.params.documentoId} AND imovel_id = ${req.params.id}
+        LIMIT 1
+      `);
+      const documento = result.rows?.[0];
+      if (!documento) return res.status(404).json({ error: "Documento não encontrado" });
+
+      const fileId = directusAssetId(documento.file_id);
+      if (!fileId) return res.status(404).json({ error: "Arquivo do documento não encontrado" });
+
+      const upstream = await fetch(`${DIRECTUS_URL}/assets/${encodeURIComponent(fileId)}`, {
+        headers: DIRECTUS_TOKEN ? { Authorization: `Bearer ${DIRECTUS_TOKEN}` } : {},
+      });
+      if (!upstream.ok) {
+        return res.status(upstream.status === 404 ? 404 : 502).json({
+          error: upstream.status === 404 ? "Arquivo não encontrado" : "Não foi possível carregar o arquivo",
+        });
+      }
+
+      const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+      const upstreamDisposition = upstream.headers.get("content-disposition");
+      const canOpenInline = contentType.startsWith("image/")
+        || contentType.startsWith("text/")
+        || contentType.includes("application/pdf");
+      const fallbackDisposition = `${canOpenInline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(String(documento.nome || "documento"))}`;
+      const disposition = upstreamDisposition
+        ? (canOpenInline ? upstreamDisposition.replace(/^attachment/i, "inline") : upstreamDisposition)
+        : fallbackDisposition;
+
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", disposition);
+      res.setHeader("Cache-Control", "private, no-store");
+      const buffer = await upstream.arrayBuffer();
+      return res.send(Buffer.from(buffer));
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -12716,7 +12766,7 @@ ${textContent.slice(0, 16000)}`,
           `);
         }
       }
-      res.status(201).json({ ...documento, file_url: assetApiUrl(fileId) });
+      res.status(201).json({ ...documento, file_url: carteiraDocumentApiUrl(req.params.id, documento?.id) });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -12759,7 +12809,8 @@ ${textContent.slice(0, 16000)}`,
         antes: current,
         depois: next,
       });
-      res.json({ ...updated.rows?.[0], file_url: assetApiUrl(current.file_id) });
+      const documento = updated.rows?.[0];
+      res.json({ ...documento, file_url: carteiraDocumentApiUrl(req.params.id, documento?.id) });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }

@@ -1014,7 +1014,7 @@ function DetailPage({ id }: { id: string }) {
   const [documentForm, setDocumentForm] = useState({
     file: null as File | null,
     nome: "",
-    tipo: "Matrícula",
+    tipo: "Registro",
     emissao: "",
     validade: "",
     observacao: "",
@@ -1136,7 +1136,7 @@ function DetailPage({ id }: { id: string }) {
       })).json();
     },
     onSuccess: () => {
-      setDocumentForm({ file: null, nome: "", tipo: "Matrícula", emissao: "", validade: "", observacao: "", origem: "declarada", status_validacao: "declarado", dados_extraidos: {} });
+      setDocumentForm({ file: null, nome: "", tipo: "Registro", emissao: "", validade: "", observacao: "", origem: "declarada", status_validacao: "declarado", dados_extraidos: {} });
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "documentos"] });
       invalidateAll();
       toast({ title: "Documento organizado na Carteira" });
@@ -1537,7 +1537,7 @@ function DetailPage({ id }: { id: string }) {
                 />
               </div>
               <div className="space-y-2"><Label>Nome</Label><Input value={documentForm.nome} onChange={(event) => setDocumentForm({ ...documentForm, nome: event.target.value })} /></div>
-              <div className="space-y-2"><Label>Tipo</Label><Select value={documentForm.tipo} onValueChange={(value) => setDocumentForm({ ...documentForm, tipo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Matrícula", "IPTU / ITR", "Escritura", "Contrato de locação", "Laudo / inspeção", "Planta", "Fotos", "Orçamento", "Financiamento", "Planilha financeira", "Outro"].map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Tipo</Label><Select value={documentForm.tipo} onValueChange={(value) => setDocumentForm({ ...documentForm, tipo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Registro", "IPTU / ITR", "Escritura", "Contrato de locação", "Laudo / inspeção", "Planta", "Fotos", "Orçamento", "Financiamento", "Planilha financeira", "Outro"].map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
               <div className="grid grid-cols-2 gap-2"><div className="space-y-2"><Label>Emissão</Label><Input type="date" value={documentForm.emissao} onChange={(event) => setDocumentForm({ ...documentForm, emissao: event.target.value })} /></div><div className="space-y-2"><Label>Validade</Label><Input type="date" value={documentForm.validade} onChange={(event) => setDocumentForm({ ...documentForm, validade: event.target.value })} /></div></div>
               <div className="space-y-2 md:col-span-2"><Label>Observação</Label><Input value={documentForm.observacao} onChange={(event) => setDocumentForm({ ...documentForm, observacao: event.target.value })} /></div>
               <div className="flex flex-wrap items-center gap-2 md:col-span-2">
@@ -1557,7 +1557,7 @@ function DetailPage({ id }: { id: string }) {
               {(docsQuery.data || []).map((doc) => (
                 <div key={doc.id} className="flex flex-wrap items-center gap-3 py-3">
                   <FileText className="h-5 w-5 text-blue-600" />
-                  <div className="min-w-0 flex-1"><p className="truncate font-medium">{doc.nome}</p><p className="text-xs text-muted-foreground">{doc.tipo} · versão {doc.versao} · origem {doc.origem}{doc.validade ? ` · válido até ${shortDate(doc.validade)}` : ""}</p></div>
+                  <div className="min-w-0 flex-1"><p className="truncate font-medium">{doc.nome}</p><p className="text-xs text-muted-foreground">{doc.tipo === "Matrícula" ? "Registro" : doc.tipo} · versão {doc.versao} · origem {doc.origem}{doc.validade ? ` · válido até ${shortDate(doc.validade)}` : ""}</p></div>
                   <Badge variant="outline">{doc.status_validacao}</Badge>
                   {doc.file_url && <Button variant="outline" size="sm" onClick={() => window.open(doc.file_url, "_blank", "noopener,noreferrer")}>Abrir</Button>}
                   {canManage && <Button variant="ghost" size="icon" onClick={() => deleteDocumentMutation.mutate(doc.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>}

@@ -12630,7 +12630,7 @@ ${textContent}`;
           role: "user",
           content: `Extraia metadados do documento de imóvel abaixo. Não invente dados ausentes.
 Responda SOMENTE JSON válido no formato:
-{"nome":"título curto","tipo":"Matrícula|IPTU / ITR|Escritura|Contrato de locação|Laudo / inspeção|Planta|Fotos|Orçamento|Financiamento|Planilha financeira|Outro","emissao":"YYYY-MM-DD|null","validade":"YYYY-MM-DD|null","observacao":"resumo curto","dados_extraidos":{"campos relevantes":"valores"}}
+{"nome":"título curto","tipo":"Registro|IPTU / ITR|Escritura|Contrato de locação|Laudo / inspeção|Planta|Fotos|Orçamento|Financiamento|Planilha financeira|Outro","emissao":"YYYY-MM-DD|null","validade":"YYYY-MM-DD|null","observacao":"resumo curto","dados_extraidos":{"campos relevantes":"valores"}}
 
 DOCUMENTO:
 ${textContent.slice(0, 16000)}`,

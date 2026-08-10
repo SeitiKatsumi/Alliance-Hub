@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CalendarDays, Download, FileCheck2, FileText, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, ClipboardCheck, Download, FileCheck2, FileText, Loader2, ShieldCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,7 @@ export default function DocumentacaoPage() {
             Voltar
           </Button>
           <Badge variant="outline" className="border-[#d7bb7d]/60 bg-[#fcfaf5] text-[#001D34]">
-            Documentos aceitos
+            Gestão · Documentações
           </Badge>
         </div>
       </div>
@@ -76,17 +76,42 @@ export default function DocumentacaoPage() {
           />
           <div className="relative z-10 max-w-3xl">
             <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-[#6de6ff]">
-              // BUILT ALLIANCES · ACEITES
+              // BUILT ALLIANCES · DOCUMENTAÇÕES
             </p>
-            <h1 className="mt-3 text-2xl font-bold md:text-3xl">Documentações de aceite</h1>
+            <h1 className="mt-3 text-2xl font-bold md:text-3xl">Documentações</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/65">
-              Consulte os termos, políticas e MOUs que foram aceitos por você na plataforma.
-              Cada documento é aberto em PDF com o padrão visual institucional da BUILT.
+              Consulte os relatórios da plataforma e os termos, políticas e MOUs aceitos por você.
             </p>
           </div>
         </section>
 
         <section className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-slate-700">Relatórios da plataforma</h2>
+          <Card
+            className="cursor-pointer border-blue-200 bg-white transition-colors hover:border-blue-500/60"
+            onClick={() => navigate("/documentacao/relatorio-funcionalidades")}
+            data-testid="card-documentacao-relatorio-funcionalidades"
+          >
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <ClipboardCheck className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold">Relatório de funcionalidades da plataforma</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Inventário dos módulos e recursos disponíveis, em evolução ou em homologação.
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="mt-8">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-slate-700">Documentações de aceite</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Cada documento pode ser aberto em PDF no padrão institucional da BUILT.</p>
+          </div>
           {isLoading ? (
             <Card className="border-border/70">
               <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">

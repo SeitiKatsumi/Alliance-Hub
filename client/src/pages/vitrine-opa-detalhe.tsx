@@ -126,9 +126,9 @@ export function VitrineOpaDetalhePage(props: any = {}) {
   const [mensagem, setMensagem] = useState("");
   const mode = props.mode || "vitrine";
   const isCapital = mode === "capital";
-  const listPath = isCapital ? "/built-capital/chamadas" : "/vitrine/oportunidades";
-  const listLabel = isCapital ? "chamadas de capital" : "oportunidades";
-  const badgeLabel = isCapital ? "Chamada de capital" : "OBA publica";
+  const listPath = isCapital ? "/built-capital/chamadas" : "/vitrine/obas";
+  const listLabel = isCapital ? "chamadas de capital" : "OBAs";
+  const badgeLabel = isCapital ? "Chamada de capital" : "OBA pública";
   const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
 
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadePublica[]>({
@@ -151,7 +151,7 @@ export function VitrineOpaDetalhePage(props: any = {}) {
     if (!opa || !id) return;
     if (opa.bia_id && !bia) return;
     const publicRef = getOpaPublicRef(opa, bia, opasRaw as OportunidadePublica[]);
-    const targetPath = isCapital ? `/built-capital/chamadas/${publicRef}` : `/vitrine/opas/${publicRef}`;
+    const targetPath = isCapital ? `/built-capital/chamadas/${publicRef}` : `/vitrine/obas/${publicRef}`;
     if (publicRef && id !== publicRef) navigate(targetPath, { replace: true });
   }, [opa, bia, opasRaw, id, navigate, isCapital]);
 

@@ -13,6 +13,10 @@
     "test:market-comparables": "node --import tsx --test server/market-comparables.test.ts",
     "test:aura": "node --import tsx --test server/aura-lexico.test.ts",
     "test:profile-completion": "node --import tsx --test client/src/lib/profile-completion.test.ts",
+    "test:valor-origem-sync": "node --import tsx --test server/valor-origem-sync.test.ts",
+    "test:carteira-alertas": "node --import tsx --test server/carteira-alertas.test.ts",
+    "test:functional-report": "node --import tsx --test client/src/data/platform-functional-report.test.ts",
+    "test:network-opportunities": "node --import tsx --test server/network-opportunities.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

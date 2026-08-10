@@ -43,6 +43,12 @@ test("perfil recomendado preenchido alcança cem por cento", () => {
   assert.equal(result.missing.length, 0);
 });
 
+test("pendência informa o nome do campo que deve ser preenchido", () => {
+  const { link_site: _linkSite, ...profileWithoutSite } = completeProfile;
+  const result = getProfileCompletion(profileWithoutSite);
+  assert.deepEqual(result.missing.map((item) => item.label), ["Site ou portfólio"]);
+});
+
 test("empresa informada exige CNPJ e marca para completar o perfil", () => {
   const incomplete = getProfileCompletion({ ...completeProfile, empresa: "BUILT" });
   assert.ok(incomplete.percentage < 100);

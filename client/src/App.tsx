@@ -27,12 +27,15 @@ import AgendaPage from "@/pages/agenda";
 import AdminPage from "@/pages/admin";
 import MeuPerfilPage from "@/pages/meu-perfil";
 import DocumentacaoPage from "@/pages/documentacao";
+import RelatorioFuncionalidadesPage from "@/pages/relatorio-funcionalidades";
 import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
 import VitrineOportunidadesPage, { BuiltCapitalChamadasPage } from "@/pages/vitrine-oportunidades";
+import VitrineDemandasPage, { VitrineDemandaDetalhePage } from "@/pages/vitrine-demandas";
 import VitrineOpaDetalhePage, { BuiltCapitalChamadaDetalhePage } from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
 import LandBankDetalhePage from "@/pages/land-bank-detalhe";
+import OportunidadesImobiliariasPage, { NovaOportunidadeImobiliariaPage } from "@/pages/oportunidades-imobiliarias";
 import AreMembroPage from "@/pages/area-membros";
 import MembroDetalhePage from "@/pages/membro-detalhe";
 import ComunidadePage from "@/pages/comunidade";
@@ -115,6 +118,16 @@ function LegacyMembrosRedirect() {
     navigate("/admin", { replace: true });
   }, [navigate]);
 
+  return null;
+}
+
+function LegacyVitrineObasRedirect() {
+  useEffect(() => {
+    const target = window.location.pathname === "/vitrine/oportunidades"
+      ? "/vitrine/obas"
+      : window.location.pathname.replace("/vitrine/opas/", "/vitrine/obas/");
+    window.location.replace(`${target}${window.location.search}`);
+  }, []);
   return null;
 }
 
@@ -1292,6 +1305,9 @@ function ProtectedApp() {
               <Route path="/" component={PainelPage} />
               <Route path="/carteira/:id" component={CarteiraPage} />
               <Route path="/carteira" component={CarteiraPage} />
+              <Route path="/oportunidades/nova" component={NovaOportunidadeImobiliariaPage} />
+              <Route path="/oportunidades/:id" component={LandBankDetalhePage} />
+              <Route path="/oportunidades" component={OportunidadesImobiliariasPage} />
               <Route path="/agenda" component={AgendaPage} />
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />
@@ -1308,8 +1324,12 @@ function ProtectedApp() {
               <Route path="/gestao-opas" component={LegacyOpasRedirect} />
               <Route path="/gestao-bias" component={LegacyBiasRedirect} />
               <Route path="/movimentacao-cotas/:biaId" component={MovimentacaoCotasPage} />
-              <Route path="/vitrine/oportunidades" component={VitrineOportunidadesPage} />
-              <Route path="/vitrine/opas/:id" component={VitrineOpaDetalhePage} />
+              <Route path="/vitrine/demandas/:id" component={VitrineDemandaDetalhePage} />
+              <Route path="/vitrine/demandas" component={VitrineDemandasPage} />
+              <Route path="/vitrine/obas/:id" component={VitrineOpaDetalhePage} />
+              <Route path="/vitrine/obas" component={VitrineOportunidadesPage} />
+              <Route path="/vitrine/oportunidades" component={LegacyVitrineObasRedirect} />
+              <Route path="/vitrine/opas/:id" component={LegacyVitrineObasRedirect} />
               <Route path="/vitrine/parceiros" component={VitrinePage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
@@ -1329,6 +1349,7 @@ function ProtectedApp() {
               <Route path="/aura" component={AuraPage} />
               <Route path="/painel" component={PainelPage} />
               <Route path="/meu-perfil" component={MeuPerfilPage} />
+              <Route path="/documentacao/relatorio-funcionalidades" component={RelatorioFuncionalidadesPage} />
               <Route path="/documentacao" component={DocumentacaoPage} />
               <Route path="/admin" component={AdminPage} />
               <Route path="/aguardando-aprovacao" component={AguardandoAprovacaoPage} />

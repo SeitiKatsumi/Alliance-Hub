@@ -47,6 +47,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,6 +169,8 @@ interface CarteiraAlerta {
   descricao?: string | null;
   impacto?: string | null;
   acao_sugerida?: string | null;
+  acao_registrada?: string | null;
+  acao_registrada_em?: string | null;
   prazo?: string | null;
   status: string;
 }
@@ -216,8 +219,20 @@ interface CarteiraDemanda {
   documentos?: Array<{ file_id?: string; nome?: string; criado_em?: string }>;
   proximas_etapas?: Array<{ descricao?: string; status?: string; criado_em?: string }>;
   opa_id?: string | null;
+  oportunidade_id?: string | null;
+  visibilidade?: "privada" | "publicada" | "pausada";
+  resumo_publico?: string | null;
+  total_interesses?: number | string;
   resultado?: string | null;
   criado_em: string;
+}
+
+interface DemandaInteresse {
+  id: string;
+  membro_nome?: string | null;
+  mensagem?: string | null;
+  status: "interesse_recebido" | "em_analise" | "selecionado" | "nao_selecionado" | "retirado";
+  criado_em?: string;
 }
 
 interface CarteiraAcesso {
@@ -999,9 +1014,81 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
   );
 }
 
-function DetailPage({ id }: { id: string }) {
-  const [, navigate] = useLocation();
+function DemandInterestsManager({ imovelId, demand }: { imovelId: string; demand: CarteiraDemanda }) {
   const { toast } = useToast();
+  const queryKey = ["/api/carteira/imoveis", imovelId, "demandas", demand.id, "interesses"] as const;
+  const interestsQuery = useQuery<DemandaInteresse[]>({
+    queryKey,
+    enabled: demand.visibilidade === "publicada",
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({ interestId, status }: { interestId: string; status: DemandaInteresse["status"] }) =>
+      apiRequest("PATCH", `/api/carteira/imoveis/${imovelId}/demandas/${demand.id}/interesses/${interestId}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      toast({ title: "Interesse atualizado" });
+    },
+    onError: (error: any) => toast({ title: "Erro ao atualizar interesse", description: error?.message, variant: "destructive" }),
+  });
+
+  if (demand.visibilidade !== "publicada") return null;
+  const interests = interestsQuery.data || [];
+
+  return (
+    <div className="ml-8 border-t pt-3">
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+        <Users className="h-4 w-4 text-blue-600" />
+        Interessados na Vitrine
+        <Badge variant="outline">{interests.length}</Badge>
+      </div>
+      {interestsQuery.isLoading ? (
+        <p className="text-xs text-muted-foreground">Carregando interessados...</p>
+      ) : interests.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Ainda não há manifestações de interesse.</p>
+      ) : (
+        <div className="space-y-2">
+          {interests.map((interest) => (
+            <div key={interest.id} className="flex flex-wrap items-center justify-between gap-3 border-b py-2 last:border-b-0">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{interest.membro_nome || "Membro BUILT"}</p>
+                {interest.mensagem && <p className="mt-0.5 text-xs text-muted-foreground">{interest.mensagem}</p>}
+              </div>
+              <Select
+                value={interest.status}
+                onValueChange={(status) => statusMutation.mutate({ interestId: interest.id, status: status as DemandaInteresse["status"] })}
+              >
+                <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="interesse_recebido">Interesse recebido</SelectItem>
+                  <SelectItem value="em_analise">Em análise</SelectItem>
+                  <SelectItem value="selecionado">Selecionado</SelectItem>
+                  <SelectItem value="nao_selecionado">Não selecionado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const CARTEIRA_DETAIL_TABS = ["visao", "pulso", "documentos", "analise", "demandas", "acessos"] as const;
+type CarteiraDetailTab = (typeof CARTEIRA_DETAIL_TABS)[number];
+
+function carteiraDetailTabFromSearch(search: string): CarteiraDetailTab {
+  const requestedTab = new URLSearchParams(search).get("tab");
+  return CARTEIRA_DETAIL_TABS.includes(requestedTab as CarteiraDetailTab)
+    ? requestedTab as CarteiraDetailTab
+    : "visao";
+}
+
+function DetailPage({ id }: { id: string }) {
+  const [location, navigate] = useLocation();
+  const { toast } = useToast();
+  const [activeDetailTab, setActiveDetailTab] = useState<CarteiraDetailTab>(() =>
+    carteiraDetailTabFromSearch(window.location.search),
+  );
   const [editOpen, setEditOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
@@ -1025,7 +1112,9 @@ function DetailPage({ id }: { id: string }) {
   const [alternativeForm, setAlternativeForm] = useState({ capacidade_investimento: "", prazo: "12 meses", preferencia: "equilibrio" });
   const [demandOpen, setDemandOpen] = useState(false);
   const [selectedAlternative, setSelectedAlternative] = useState<CarteiraAlternativa | null>(null);
-  const [demandForm, setDemandForm] = useState({ titulo: "", escopo: "", urgencia: "normal", tipo_resolucao: "solicitacao", especialidades: "", responsavel_user_id: "" });
+  const [demandForm, setDemandForm] = useState({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false });
+  const [opportunityDemand, setOpportunityDemand] = useState<CarteiraDemanda | null>(null);
+  const [opportunityConsent, setOpportunityConsent] = useState(false);
   const [shareForm, setShareForm] = useState({ identificador: "", nivel: "leitura" as AccessLevel });
   const [demandNextSteps, setDemandNextSteps] = useState<Record<string, string>>({});
   const [demandProposals, setDemandProposals] = useState<Record<string, string>>({});
@@ -1049,6 +1138,28 @@ function DetailPage({ id }: { id: string }) {
   });
   const imovel = detailQuery.data;
   const diagnostic = imovel?.diagnostico;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nextTab = carteiraDetailTabFromSearch(window.location.search);
+
+    setActiveDetailTab((currentTab) => currentTab === nextTab ? currentTab : nextTab);
+
+    if (params.get("tab") !== nextTab) {
+      params.set("tab", nextTab);
+      navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+    }
+  }, [location, navigate]);
+
+  const updateDetailTab = (value: string) => {
+    if (!CARTEIRA_DETAIL_TABS.includes(value as CarteiraDetailTab)) return;
+
+    const nextTab = value as CarteiraDetailTab;
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", nextTab);
+    setActiveDetailTab(nextTab);
+    navigate(`${window.location.pathname}?${params.toString()}`);
+  };
 
   const marketQuery = useQuery<MarketM2Analysis>({
     queryKey: ["/api/ai/preco-m2", "carteira", id, imovel?.valor_atual, imovel?.area_m2, imovel?.bairro, imovel?.cidade],
@@ -1184,26 +1295,53 @@ function DetailPage({ id }: { id: string }) {
   });
   const demandMutation = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/carteira/imoveis/${id}/demandas`, {
-      ...demandForm,
+      titulo: demandForm.titulo,
+      escopo: demandForm.escopo,
+      urgencia: demandForm.urgencia,
+      responsavel_user_id: demandForm.responsavel_user_id || null,
+      publicar: demandForm.publicar,
+      consentimento_publicacao: demandForm.publicar,
       alternativa: selectedAlternative?.tipo || null,
-      especialidades: demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean),
+      especialidades: demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean).length
+        ? demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean)
+        : demandForm.ajuda === "ainda_nao_sei" ? [] : [demandForm.ajuda],
     })).json(),
     onSuccess: () => {
       setDemandOpen(false);
-      setDemandForm({ titulo: "", escopo: "", urgencia: "normal", tipo_resolucao: "solicitacao", especialidades: "", responsavel_user_id: "" });
+      setDemandForm({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false });
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       invalidateAll();
-      toast({ title: "Demanda criada" });
+      toast({ title: demandForm.publicar ? "Demanda criada e publicada" : "Demanda criada" });
     },
+    onError: (error: any) => toast({ title: "Erro ao criar demanda", description: error?.message, variant: "destructive" }),
   });
-  const convertOpaMutation = useMutation({
-    mutationFn: async (demandId: string) => (await apiRequest("POST", `/api/carteira/imoveis/${id}/demandas/${demandId}/converter-opa`, {})).json(),
+  const convertOpportunityMutation = useMutation({
+    mutationFn: async (demandId: string) => (await apiRequest("POST", `/api/carteira/imoveis/${id}/demandas/${demandId}/converter-oportunidade`, {
+      autorizacao_compartilhamento: opportunityConsent,
+    })).json(),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
-      toast({ title: "Rascunho de OBA criado", description: "A OBA foi criada pausada para revisão." });
-      if (data.opa_id) navigate(`/opas/${data.opa_id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      setOpportunityDemand(null);
+      setOpportunityConsent(false);
+      toast({ title: "Oportunidade identificada", description: "Ela agora pode seguir para análise preliminar." });
+      if (data.id) navigate(`/oportunidades/${data.id}`);
     },
-    onError: (error: any) => toast({ title: "Erro ao criar OBA", description: error?.message, variant: "destructive" }),
+    onError: (error: any) => toast({ title: "Erro ao criar oportunidade", description: error?.message, variant: "destructive" }),
+  });
+  const demandPublicationMutation = useMutation({
+    mutationFn: async ({ demandId, action }: { demandId: string; action: "publicar" | "pausar" | "retirar" }) =>
+      (await apiRequest("POST", `/api/carteira/imoveis/${id}/demandas/${demandId}/publicacao`, {
+        action,
+        consentimento_publicacao: action === "publicar",
+      })).json(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
+      toast({ title: "Publicação da demanda atualizada" });
+    },
+    onError: (error: any) => toast({ title: "Erro na publicação", description: error?.message, variant: "destructive" }),
   });
   const updateDemandMutation = useMutation({
     mutationFn: async ({ demandId, patch }: { demandId: string; patch: Record<string, unknown> }) =>
@@ -1243,9 +1381,12 @@ function DetailPage({ id }: { id: string }) {
   });
   const publishMutation = useMutation({
     mutationFn: async () => (await apiRequest("POST", "/api/land-bank-assets", {
-      category: "land-bank",
+      category: /(terreno|lote|gleba|área|area)/i.test(String(imovel?.tipo || "")) ? "land-bank" : "built-asset-bank",
       origem: "carteira",
+      origem_tipo: "ativo_proprio",
       origem_carteira_id: id,
+      visibilidade: "publicada",
+      autorizacao_compartilhamento: true,
       qualificacao: imovel?.nome,
       tipo: imovel?.tipo,
       descricao: imovel?.descricao,
@@ -1261,7 +1402,11 @@ function DetailPage({ id }: { id: string }) {
       pais: imovel?.pais,
       foto: imovel?.foto,
     })).json(),
-    onSuccess: () => { setPublishConfirm(false); toast({ title: "Imóvel publicado no Banco de Ativos" }); },
+    onSuccess: () => {
+      setPublishConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      toast({ title: "Imóvel enviado para análise de oportunidades" });
+    },
     onError: (error: any) => toast({ title: "Erro ao publicar", description: error?.message, variant: "destructive" }),
   });
 
@@ -1317,7 +1462,7 @@ function DetailPage({ id }: { id: string }) {
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
           {canManage && <Button variant="outline" title="Editar imóvel" onClick={() => setEditOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>}
-          {canManage && <Button variant="outline" onClick={() => setPublishConfirm(true)}><Upload className="mr-2 h-4 w-4" />Publicar no Banco de Ativos</Button>}
+          {canManage && <Button variant="outline" onClick={() => setPublishConfirm(true)}><Sparkles className="mr-2 h-4 w-4" />Explorar oportunidades</Button>}
           {isOwner && (
             <Button
               variant="outline"
@@ -1375,7 +1520,7 @@ function DetailPage({ id }: { id: string }) {
         <Metric label="Resultado líquido" value={money(diagnostic?.indicadores?.resultado_liquido || 0, imovel.moeda)} icon={Wallet} tone={metricTone(diagnostic?.indicadores?.resultado_liquido || 0)} />
       </div>
 
-      <Tabs defaultValue="visao" className="space-y-5">
+      <Tabs value={activeDetailTab} onValueChange={updateDetailTab} className="space-y-5">
         <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted/40 p-1 md:grid-cols-6">
           <TabsTrigger value="visao"><Home className="mr-2 h-4 w-4" />Visão</TabsTrigger>
           <TabsTrigger value="pulso"><RefreshCw className="mr-2 h-4 w-4" />Pulso</TabsTrigger>
@@ -1408,17 +1553,18 @@ function DetailPage({ id }: { id: string }) {
             <div className="mb-3 flex items-center justify-between">
               <div><h2 className="font-semibold">Alertas</h2><p className="text-sm text-muted-foreground">Pendências e mudanças que merecem atenção.</p></div>
             </div>
-            {(alertsQuery.data || []).filter((item) => item.status !== "resolvido").length === 0 ? (
+            {(alertsQuery.data || []).filter((item) => !["resolvido", "ignorado"].includes(item.status)).length === 0 ? (
               <div className="border-y py-8 text-center text-sm text-muted-foreground">Nenhum alerta aberto.</div>
             ) : (
               <div className="divide-y border-y">
-                {(alertsQuery.data || []).filter((item) => item.status !== "resolvido").map((alert) => (
+                {(alertsQuery.data || []).filter((item) => !["resolvido", "ignorado"].includes(item.status)).map((alert) => (
                   <div key={alert.id} className="flex flex-wrap items-start gap-3 py-3">
                     <AlertTriangle className={`mt-0.5 h-4 w-4 ${alert.severidade === "alta" || alert.severidade === "critica" ? "text-red-600" : "text-amber-600"}`} />
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">{alert.titulo}</p>
                       {alert.descricao && <p className="mt-1 text-sm text-muted-foreground">{alert.descricao}</p>}
                       {alert.acao_sugerida && <p className="mt-1 text-xs text-blue-700">Ação sugerida: {alert.acao_sugerida}</p>}
+                      {alert.acao_registrada && <p className="mt-1 text-xs font-medium text-emerald-700">Ação registrada: {alert.acao_registrada}</p>}
                     </div>
                     <Badge variant="outline">{alert.status}</Badge>
                   </div>
@@ -1625,7 +1771,10 @@ function DetailPage({ id }: { id: string }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{demand.titulo}</p>
-                        <Badge variant="outline">{demand.tipo_resolucao}</Badge>
+                        <Badge variant="outline">Demanda de serviço</Badge>
+                        <Badge variant="outline" className={demand.visibilidade === "publicada" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""}>
+                          {demand.visibilidade === "publicada" ? "Na Vitrine" : demand.visibilidade === "pausada" ? "Publicação pausada" : "Privada"}
+                        </Badge>
                       </div>
                       {demand.escopo && <p className="mt-1 text-sm text-muted-foreground">{demand.escopo}</p>}
                       <p className="mt-2 text-xs text-muted-foreground">Criada em {shortDate(demand.criado_em)} · urgência {demand.urgencia}</p>
@@ -1645,10 +1794,24 @@ function DetailPage({ id }: { id: string }) {
                     ) : <Badge variant="outline">{demand.status}</Badge>}
                     {demand.opa_id ? (
                       <Button variant="outline" onClick={() => navigate(`/opas/${demand.opa_id}`)}><Link2 className="mr-2 h-4 w-4" />Abrir OBA</Button>
+                    ) : demand.oportunidade_id ? (
+                      <Button variant="outline" onClick={() => navigate(`/oportunidades/${demand.oportunidade_id}`)}><Lightbulb className="mr-2 h-4 w-4" />Abrir oportunidade</Button>
                     ) : canManage && (
-                      <Button variant="outline" disabled={convertOpaMutation.isPending} onClick={() => convertOpaMutation.mutate(demand.id)}>Criar rascunho de OBA</Button>
+                      <Button variant="outline" onClick={() => { setOpportunityDemand(demand); setOpportunityConsent(false); }}><Lightbulb className="mr-2 h-4 w-4" />Identificar oportunidade</Button>
                     )}
                   </div>
+                  {canManage && (
+                    <div className="ml-8 flex flex-wrap gap-2">
+                      {demand.visibilidade === "publicada" ? (
+                        <Button variant="ghost" size="sm" onClick={() => demandPublicationMutation.mutate({ demandId: demand.id, action: "pausar" })}>Pausar na Vitrine</Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => demandPublicationMutation.mutate({ demandId: demand.id, action: "publicar" })}><Upload className="mr-2 h-3.5 w-3.5" />Publicar na Vitrine</Button>
+                      )}
+                      {demand.visibilidade === "pausada" && (
+                        <Button variant="ghost" size="sm" className="text-red-600" onClick={() => demandPublicationMutation.mutate({ demandId: demand.id, action: "retirar" })}>Retirar publicação</Button>
+                      )}
+                    </div>
+                  )}
                   {!!demand.proximas_etapas?.length && (
                     <div className="ml-8 flex flex-wrap gap-2">
                       {demand.proximas_etapas.map((step, index) => <Badge key={`${step.descricao}-${index}`} variant="outline"><Clock3 className="mr-1 h-3 w-3" />{step.descricao}</Badge>)}
@@ -1725,6 +1888,7 @@ function DetailPage({ id }: { id: string }) {
                   )}
                   {!!demand.documentos?.length && <p className="ml-8 text-xs text-muted-foreground">{demand.documentos.length} documento(s) vinculado(s)</p>}
                   {demand.resultado && <p className="ml-8 border-l-2 border-emerald-500 pl-3 text-sm text-muted-foreground">{demand.resultado}</p>}
+                  {canManage && <DemandInterestsManager imovelId={id} demand={demand} />}
                 </div>
               ))}
             </div>
@@ -1766,12 +1930,29 @@ function DetailPage({ id }: { id: string }) {
       <PropertyFormDialog open={editOpen} onOpenChange={setEditOpen} initial={imovel} onSave={(payload) => editMutation.mutate(payload)} saving={editMutation.isPending} />
       <NewLaunchDialog open={launchOpen} onOpenChange={setLaunchOpen} imovelId={id} onSaved={invalidateAll} />
       <Dialog open={demandOpen} onOpenChange={setDemandOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nova demanda</DialogTitle><DialogDescription>A demanda reutiliza as informações já registradas neste imóvel.</DialogDescription></DialogHeader>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader><DialogTitle>Nova demanda</DialogTitle><DialogDescription>Descreva o que precisa ser resolvido neste imóvel. A BUILT ajuda a encontrar os membros adequados.</DialogDescription></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2"><Label>Título</Label><Input value={demandForm.titulo} onChange={(event) => setDemandForm({ ...demandForm, titulo: event.target.value })} /></div>
-            <div className="space-y-2"><Label>Escopo preliminar</Label><Textarea value={demandForm.escopo} onChange={(event) => setDemandForm({ ...demandForm, escopo: event.target.value })} /></div>
-            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Tipo</Label><Select value={demandForm.tipo_resolucao} onValueChange={(value) => setDemandForm({ ...demandForm, tipo_resolucao: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="solicitacao">Solicitação simples</SelectItem><SelectItem value="opa">Preparar OBA</SelectItem><SelectItem value="bia_sugerida">Pode exigir futura BIA</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Urgência</Label><Select value={demandForm.urgencia} onValueChange={(value) => setDemandForm({ ...demandForm, urgencia: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div></div>
+            <div className="space-y-2"><Label>O que você precisa?</Label><Input value={demandForm.titulo} onChange={(event) => setDemandForm({ ...demandForm, titulo: event.target.value })} placeholder={`Ex.: Avaliar o valor de ${imovel.nome}`} /></div>
+            <div className="space-y-2"><Label>Conte um pouco mais</Label><Textarea value={demandForm.escopo} onChange={(event) => setDemandForm({ ...demandForm, escopo: event.target.value })} placeholder="Descreva o resultado esperado, o contexto e qualquer restrição importante." /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>De que tipo de ajuda você precisa?</Label>
+                <Select value={demandForm.ajuda} onValueChange={(value) => setDemandForm({ ...demandForm, ajuda: value })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ainda_nao_sei">Ainda não sei</SelectItem>
+                    <SelectItem value="Avaliação">Avaliação</SelectItem>
+                    <SelectItem value="Corretagem">Venda ou locação</SelectItem>
+                    <SelectItem value="Engenharia">Engenharia ou vistoria</SelectItem>
+                    <SelectItem value="Arquitetura">Arquitetura ou projeto</SelectItem>
+                    <SelectItem value="Jurídico">Jurídico ou regularização</SelectItem>
+                    <SelectItem value="Obras">Obras ou manutenção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Urgência</Label><Select value={demandForm.urgencia} onValueChange={(value) => setDemandForm({ ...demandForm, urgencia: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div>
+            </div>
             {!!(accessQuery.data?.owner?.id || accessQuery.data?.acessos?.some((access) => access.user_id)) && (
               <div className="space-y-2">
                 <Label>Responsável</Label>
@@ -1785,17 +1966,46 @@ function DetailPage({ id }: { id: string }) {
                 </Select>
               </div>
             )}
-            <div className="space-y-2"><Label>Especialidades, separadas por vírgula</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Avaliação, Regularização, Obras..." /></div>
+            <div className="space-y-2"><Label>Outras especialidades (opcional)</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Separe por vírgulas" /></div>
+            <label className="flex cursor-pointer items-start gap-3 border-t pt-4">
+              <Checkbox checked={demandForm.publicar} onCheckedChange={(checked) => setDemandForm({ ...demandForm, publicar: checked === true })} />
+              <span className="text-sm leading-relaxed"><strong>Publicar esta demanda na Vitrine</strong><br /><span className="text-muted-foreground">Autorizo a exibição do resumo, categoria, urgência e cidade/região. Endereço exato, documentos e contato permanecerão privados.</span></span>
+            </label>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setDemandOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandForm.titulo || demandMutation.isPending} onClick={() => demandMutation.mutate()}>{demandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar demanda</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       <AlertDialog open={publishConfirm} onOpenChange={setPublishConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Publicar no Banco de Ativos?</AlertDialogTitle><AlertDialogDescription>Uma cópia das informações do imóvel será publicada no Banco de Ativos. O imóvel continuará privado e independente na sua Carteira.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => publishMutation.mutate()}>{publishMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar publicação</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Explorar oportunidades para este imóvel?</AlertDialogTitle><AlertDialogDescription>A BUILT poderá analisar estratégias como venda, locação, reforma, desenvolvimento ou parceria. Você autoriza o compartilhamento das informações do ativo com a rede, mantendo endereço exato, documentos e contato protegidos até a seleção de interessados.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => publishMutation.mutate()}>{publishMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar para análise</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={Boolean(opportunityDemand)} onOpenChange={(open) => { if (!open) { setOpportunityDemand(null); setOpportunityConsent(false); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Transformar necessidade em oportunidade</DialogTitle>
+            <DialogDescription>Use este caminho quando a demanda revelou um potencial econômico maior para o imóvel. Isso não cria uma BIA nem uma OBA.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-l-2 border-blue-500 pl-3">
+              <p className="font-medium">{opportunityDemand?.titulo}</p>
+              {opportunityDemand?.escopo && <p className="mt-1 text-sm text-muted-foreground">{opportunityDemand.escopo}</p>}
+            </div>
+            <label className="flex cursor-pointer items-start gap-3">
+              <Checkbox checked={opportunityConsent} onCheckedChange={(checked) => setOpportunityConsent(checked === true)} />
+              <span className="text-sm leading-relaxed">Autorizo a BUILT a analisar esta oportunidade e compartilhar o resumo necessário com revisores e membros, preservando os dados privados.</span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpportunityDemand(null)}>Cancelar</Button>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!opportunityConsent || convertOpportunityMutation.isPending} onClick={() => opportunityDemand && convertOpportunityMutation.mutate(opportunityDemand.id)}>
+              {convertOpportunityMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Criar oportunidade
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

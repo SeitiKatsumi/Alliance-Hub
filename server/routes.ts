@@ -1,5 +1,6 @@
 ﻿import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
+import type { Response } from "express";
 import { storage } from "./storage";
 import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
 import OpenAI from "openai";
@@ -17,6 +18,18 @@ import { deflateSync } from "zlib";
 import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { resolveAuraAudioMetadata } from "./aura-audio";
+import { reconcileValorOrigemEntries } from "./valor-origem-sync";
+import { normalizeCarteiraAlertUpdate } from "./carteira-alertas";
+import {
+  canRequestBiaStructuring,
+  normalizeAssetOrigin,
+  normalizeAssetStage,
+  normalizeAssetVisibility,
+  normalizeInterestStatus,
+  privateAssetView,
+  publicAssetView,
+  publicDemandView,
+} from "./network-opportunities";
 import {
   buildCarteiraAlternativas,
   diagnosticarCarteira,
@@ -1056,7 +1069,10 @@ async function directusBulkPatch(collection: string, ids: (string | number)[], d
     },
     body: JSON.stringify({ keys: ids, data }),
   });
-  if (!res.ok) { /* best effort */ }
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Directus bulk patch error ${res.status}: ${body}`);
+  }
 }
 
 async function directusBulkDelete(collection: string, ids: (string | number)[]) {
@@ -1070,7 +1086,10 @@ async function directusBulkDelete(collection: string, ids: (string | number)[]) 
     },
     body: JSON.stringify(ids),
   });
-  if (!res.ok) { /* best effort */ }
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Directus bulk delete error ${res.status}: ${body}`);
+  }
 }
 
 async function directusCreate(collection: string, data: Record<string, any>) {
@@ -1536,6 +1555,11 @@ async function ensureInventarioTables() {
       prazo date,
       status text NOT NULL DEFAULT 'aberto',
       delegado_para_user_id text,
+      acao_registrada text,
+      acao_registrada_em timestamp,
+      acao_registrada_por_user_id text,
+      ignorado_em timestamp,
+      ignorado_por_user_id text,
       criado_por_user_id text,
       criado_em timestamp DEFAULT now() NOT NULL,
       atualizado_em timestamp DEFAULT now() NOT NULL
@@ -1585,11 +1609,123 @@ async function ensureInventarioTables() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_demandas_imovel ON carteira_demandas (imovel_id, criado_em DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_user ON carteira_acessos (user_id, imovel_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_membro ON carteira_acessos (membro_id, imovel_id)`);
+  await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS acao_registrada text`);
+  await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS acao_registrada_em timestamp`);
+  await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS acao_registrada_por_user_id text`);
+  await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS ignorado_em timestamp`);
+  await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS ignorado_por_user_id text`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS propostas jsonb NOT NULL DEFAULT '[]'::jsonb`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS documentos jsonb NOT NULL DEFAULT '[]'::jsonb`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS proximas_etapas jsonb NOT NULL DEFAULT '[]'::jsonb`);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_acessos_imovel_user_unique ON carteira_acessos (imovel_id, user_id) WHERE user_id IS NOT NULL`);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_acessos_imovel_membro_unique ON carteira_acessos (imovel_id, membro_id) WHERE membro_id IS NOT NULL`);
+}
+
+async function ensureBusinessOpportunityTables() {
+  await ensureLandBankAssetsTable();
+  await ensureInventarioTables();
+
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS visibilidade text NOT NULL DEFAULT 'privada'`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS consentimento_publicacao_at timestamp`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS publicada_em timestamp`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS resumo_publico text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS oportunidade_id text`);
+
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS origem_tipo text NOT NULL DEFAULT 'origem_nao_informada'`);
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS visibilidade text NOT NULL DEFAULT 'privada'`);
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS estagio text NOT NULL DEFAULT 'identificada'`);
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS autorizacao_compartilhamento_at timestamp`);
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS originador_user_id text`);
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS originador_membro_id text`);
+  await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS demanda_origem_id uuid`);
+
+  await db.execute(sql`
+    UPDATE land_bank_assets
+    SET origem_tipo = CASE
+      WHEN data->>'origem_tipo' IN ('ativo_proprio', 'terceiro_autorizado', 'oportunidade_externa') THEN data->>'origem_tipo'
+      WHEN data->>'origem' = 'carteira' THEN 'ativo_proprio'
+      ELSE 'origem_nao_informada'
+    END,
+    visibilidade = CASE
+      WHEN data->>'origem_tipo' IN ('ativo_proprio', 'terceiro_autorizado', 'oportunidade_externa')
+        OR data->>'origem' = 'carteira'
+      THEN CASE
+        WHEN data->>'visibilidade' IN ('privada', 'publicada', 'pausada') THEN data->>'visibilidade'
+        ELSE 'publicada'
+      END
+      ELSE 'privada'
+    END,
+    estagio = CASE
+      WHEN data->>'estagio' IN (
+        'identificada', 'em_analise', 'complementos_solicitados', 'pre_viabilidade_aprovada',
+        'estruturacao_solicitada', 'bia_em_formacao', 'convertida_bia', 'rejeitada', 'arquivada'
+      ) THEN data->>'estagio'
+      ELSE 'identificada'
+    END,
+    originador_user_id = COALESCE(originador_user_id, created_by),
+    originador_membro_id = COALESCE(originador_membro_id, created_by_membro)
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_demanda_interesses (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      demanda_id uuid NOT NULL REFERENCES carteira_demandas(id) ON DELETE CASCADE,
+      user_id text NOT NULL,
+      membro_id text,
+      membro_nome text,
+      mensagem text,
+      status text NOT NULL DEFAULT 'interesse_recebido',
+      selecionado_em timestamp,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (demanda_id, user_id)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS land_bank_asset_interesses (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      asset_id text NOT NULL REFERENCES land_bank_assets(id) ON DELETE CASCADE,
+      user_id text NOT NULL,
+      membro_id text,
+      membro_nome text,
+      mensagem text,
+      status text NOT NULL DEFAULT 'interesse_recebido',
+      selecionado_em timestamp,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (asset_id, user_id)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_estruturacao_solicitacoes (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      asset_id text NOT NULL REFERENCES land_bank_assets(id) ON DELETE CASCADE,
+      status text NOT NULL DEFAULT 'pendente',
+      solicitante_user_id text,
+      solicitante_membro_id text,
+      solicitante_nome text,
+      comunidade_id text,
+      comunidade_nome text,
+      aliado_built_membro_id text,
+      revisor_user_id text,
+      revisor_membro_id text,
+      revisor_nome text,
+      observacao text,
+      motivo_decisao text,
+      bia_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      revisado_em timestamp
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_demanda_interesses_demanda ON carteira_demanda_interesses (demanda_id, status, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_asset_interesses_asset ON land_bank_asset_interesses (asset_id, status, criado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_estruturacao_status ON bia_estruturacao_solicitacoes (status, criado_em DESC)`);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_bia_estruturacao_asset_aberta
+    ON bia_estruturacao_solicitacoes (asset_id)
+    WHERE status IN ('pendente', 'complementos_solicitados')
+  `);
 }
 
 async function ensureLandBankAssetsDirectusCollection() {
@@ -1820,6 +1956,7 @@ async function syncValorOrigemLancamento(
 
   // Fetch only this BIA's fluxo_caixa entries â€” server-side filtered, minimal fields
   let existing: any[] = [];
+  let existingFetched = false;
   try {
     const biaEntries = await directusFetchScoped(
       "fluxo_caixa",
@@ -1829,28 +1966,34 @@ async function syncValorOrigemLancamento(
       const desc = e.descricao || "";
       return desc.includes(MARCA_BASE) || (desc.includes(CPP_MARCA) && desc.includes(biaId)) || desc.startsWith(DIVISOR_MARCA) || desc.startsWith(APORTE_MARCA);
     });
+    existingFetched = true;
   } catch (fetchErr: any) {
-    console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} â€” skipping cleanup`);
+    console.error(`[sync fluxo_caixa] fetch failed: ${fetchErr.message} â€” sync aborted`);
   }
 
-  // Bulk-clear M2M relations then bulk-delete all existing entries (2 API calls regardless of count)
-  const existingIds = existing.map((e: any) => e.id);
-  if (existingIds.length > 0) {
-    for (const oldEntry of existing) {
-      await registrarFluxoHistorico({
-        fluxoId: String(oldEntry.id),
-        biaId,
-        acao: "excluido_por_sync",
-        origem: "sync_valor_origem",
-        antes: oldEntry,
-        payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
-      }).catch((err: any) => console.error("[fluxo_historico] excluido_por_sync:", err.message));
+  if (!existingFetched) {
+    throw new Error("Nao foi possivel consultar os lancamentos atuais. Nenhuma alteracao financeira foi realizada.");
+  }
+
+  if (valorOrigem <= 0) {
+    const { replaceable } = reconcileValorOrigemEntries(existing, []);
+    const replaceableIds = replaceable.map((entry: any) => entry.id);
+    if (replaceableIds.length > 0) {
+      for (const oldEntry of replaceable) {
+        await registrarFluxoHistorico({
+          fluxoId: String(oldEntry.id),
+          biaId,
+          acao: "excluido_por_sync",
+          origem: "sync_valor_origem",
+          antes: oldEntry,
+          payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
+        }).catch((err: any) => console.error("[fluxo_historico] excluido_por_sync:", err.message));
+      }
+      await directusBulkPatch("fluxo_caixa", replaceableIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
+      await directusBulkDelete("fluxo_caixa", replaceableIds);
     }
-    await directusBulkPatch("fluxo_caixa", existingIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
-    await directusBulkDelete("fluxo_caixa", existingIds);
+    return summary;
   }
-
-  if (valorOrigem <= 0) return summary;
 
   // Pre-resolve all category/tipo IDs before building the batch (avoids per-entry async calls)
   const catId = await findOrCreateValorOrigemCategoria();
@@ -2000,8 +2143,12 @@ async function syncValorOrigemLancamento(
     }
   }
 
-  // Single bulk create call for all entries
-  const createdEntries = await directusBulkCreate("fluxo_caixa", entriesToCreate);
+  const { replaceable, toCreate } = reconcileValorOrigemEntries(existing, entriesToCreate);
+
+  // Create the replacement batch before removing pending entries. Confirmed entries are never deleted.
+  const createdEntries = toCreate.length > 0
+    ? await directusBulkCreate("fluxo_caixa", toCreate)
+    : [];
   for (const created of createdEntries) {
     await registrarFluxoHistorico({
       fluxoId: String(created.id),
@@ -2011,6 +2158,22 @@ async function syncValorOrigemLancamento(
       depois: created,
       payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
     }).catch((err: any) => console.error("[fluxo_historico] criado_por_sync:", err.message));
+  }
+
+  const replaceableIds = replaceable.map((entry: any) => entry.id);
+  if (replaceableIds.length > 0) {
+    for (const oldEntry of replaceable) {
+      await registrarFluxoHistorico({
+        fluxoId: String(oldEntry.id),
+        biaId,
+        acao: "excluido_por_sync",
+        origem: "sync_valor_origem",
+        antes: oldEntry,
+        payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
+      }).catch((err: any) => console.error("[fluxo_historico] excluido_por_sync:", err.message));
+    }
+    await directusBulkPatch("fluxo_caixa", replaceableIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
+    await directusBulkDelete("fluxo_caixa", replaceableIds);
   }
 
   summary.contributorLabels = Array.from(activeContributorLabels);
@@ -2767,9 +2930,8 @@ export async function registerRoutes(
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
   ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
-  ensureLandBankAssetsTable().catch((err: any) => console.warn("[land-bank] Tabela nao sincronizada:", err?.message || err));
+  ensureBusinessOpportunityTables().catch((err: any) => console.warn("[network-opportunities] Tabelas nao sincronizadas:", err?.message || err));
   ensureLandBankAssetsDirectusCollection().catch((err: any) => console.warn("[land-bank-directus] Colecao nao sincronizada:", err?.message || err));
-  ensureInventarioTables().catch((err: any) => console.warn("[inventario] Tabelas nao sincronizadas:", err?.message || err));
   ensureMembroComunidadeMaeTable().catch((err: any) => console.warn("[membro-comunidade-mae] Tabela nao sincronizada:", err?.message || err));
   db.execute(sql`
     CREATE TABLE IF NOT EXISTS user_usage_events (
@@ -3344,7 +3506,11 @@ export async function registerRoutes(
   });
 
   // Single vitrine member â€” accessible to all authenticated users
-  app.get("/api/vitrine/:id", async (req, res) => {
+  app.get("/api/vitrine/:id", async (req, res, next) => {
+    // Keep feature namespaces from being consumed as member IDs. Express
+    // evaluates routes in declaration order, and the demand catalog is
+    // registered later in this file.
+    if (req.params.id === "demandas") return next();
     if (!(req.session as any).directusUserId) {
       return res.status(401).json({ error: "NÃ£o autenticado" });
     }
@@ -11461,6 +11627,10 @@ ${textContent}`;
       if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
+      const biaId = directusRelationId(payload.bia) || directusRelationId(payload.bia_id) || null;
+      if (!biaId) {
+        return res.status(400).json({ error: "Toda nova OBA deve estar vinculada a uma BIA." });
+      }
       await ensureCanLinkOpaToBia(req, payload);
       payload.criado_por_user_id = (req.session as any).directusUserId || null;
       payload.criado_por_membro_id = (req.session as any).membroId || null;
@@ -11505,6 +11675,13 @@ ${textContent}`;
       }
       await ensureOpaMediaFields();
       const payload = prepareOpaPayload(req.body);
+      const currentOpa = await directusFetchOne("tipos_oportunidades", req.params.id, "fields=id,bia,bia_id,status");
+      const mergedBiaId = directusRelationId(payload.bia) || directusRelationId(payload.bia_id)
+        || directusRelationId(currentOpa?.bia) || directusRelationId(currentOpa?.bia_id) || null;
+      const structuralFields = ["nome_oportunidade", "tipo", "status", "nucleo_alianca", "objetivo_alianca", "valor_origem_opa", "Minimo_esforco_multiplicador"];
+      if (!mergedBiaId && structuralFields.some((field) => Object.prototype.hasOwnProperty.call(req.body || {}, field))) {
+        return res.status(400).json({ error: "Esta OBA legada precisa ser vinculada a uma BIA antes de novas publicações ou alterações estruturais." });
+      }
       await ensureCanLinkOpaToBia(req, payload);
       const item = await directusUpdate("tipos_oportunidades", req.params.id, payload);
       res.json(item);
@@ -11704,14 +11881,29 @@ ${textContent}`;
   });
 
   // ========== LAND BANK ASSETS ==========
+  function requireLandBankSession(req: Request, res: Response) {
+    if ((req.session as any)?.directusUserId) return true;
+    res.status(401).json({ error: "Não autenticado" });
+    return false;
+  }
+
   function normalizeLandBankAssetRow(row: any) {
     const data = row.data && typeof row.data === "object" ? row.data : {};
+    const origin = normalizeAssetOrigin(row.origem_tipo || data.origem_tipo || (data.origem === "carteira" ? "ativo_proprio" : null));
+    const requestedVisibility = normalizeAssetVisibility(row.visibilidade || data.visibilidade || "publicada");
     return {
       ...data,
       id: row.local_id || row.id,
       category: row.category,
       bia_id: row.bia_id || data.bia_id || "",
       bia_nome: row.bia_nome || data.bia_nome || "",
+      origem_tipo: origin,
+      visibilidade: origin === "origem_nao_informada" ? "privada" : requestedVisibility,
+      estagio: normalizeAssetStage(row.estagio || data.estagio),
+      autorizacao_compartilhamento_at: row.autorizacao_compartilhamento_at || data.autorizacao_compartilhamento_at || null,
+      originador_user_id: row.originador_user_id || row.created_by || data.originador_user_id || null,
+      originador_membro_id: row.originador_membro_id || row.created_by_membro || data.originador_membro_id || null,
+      demanda_origem_id: row.demanda_origem_id || data.demanda_origem_id || null,
       createdAt: row.created_at || row.date_created ? new Date(row.created_at || row.date_created).toISOString() : data.createdAt,
       updatedAt: row.updated_at || row.date_updated ? new Date(row.updated_at || row.date_updated).toISOString() : data.updatedAt,
       created_by: row.created_by || null,
@@ -11736,12 +11928,36 @@ ${textContent}`;
     );
   }
 
-  function withLandBankAssetPermissions(req: Request, asset: any) {
+  async function canViewLandBankAssetPrivate(req: Request, asset: any, canReviewOverride?: boolean) {
+    if (canManageLandBankAsset(req, asset)) return true;
+    const canReview = canReviewOverride ?? await canReviewLandBankAsset(req, asset).catch(() => false);
+    if (canReview) return true;
+    const userId = (req.session as any)?.directusUserId as string | undefined;
+    if (!userId || !asset?.id) return false;
+    const selected = await db.execute(sql`
+      SELECT id FROM land_bank_asset_interesses
+      WHERE asset_id = ${String(asset.id)} AND user_id = ${userId} AND status = 'selecionado'
+      LIMIT 1
+    `).catch(() => ({ rows: [] } as any));
+    return Boolean(selected.rows?.[0]);
+  }
+
+  async function withLandBankAssetPermissions(req: Request, asset: any) {
     const canManage = canManageLandBankAsset(req, asset);
+    const canReview = await canReviewLandBankAsset(req, asset).catch(() => false);
+    const canViewPrivate = await canViewLandBankAssetPrivate(req, asset, canReview);
+    const visibleAsset = canViewPrivate ? privateAssetView(asset) : publicAssetView(asset);
+    const userId = (req.session as any)?.directusUserId as string | undefined;
+    const interest = userId && asset?.id
+      ? (await db.execute(sql`SELECT * FROM land_bank_asset_interesses WHERE asset_id = ${String(asset.id)} AND user_id = ${userId} LIMIT 1`).catch(() => ({ rows: [] } as any))).rows?.[0] || null
+      : null;
     return {
-      ...asset,
+      ...visibleAsset,
       can_edit: canManage,
       can_delete: canManage,
+      can_review: canReview,
+      can_request_bia: canManage && canRequestBiaStructuring(asset),
+      meu_interesse: interest,
     };
   }
 
@@ -11794,32 +12010,52 @@ ${textContent}`;
   }
 
   app.get("/api/land-bank-assets", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
     try {
       const category = typeof req.query.category === "string" ? req.query.category : "";
+      const mine = String(req.query.mine || "") === "1";
       const localResult = category
         ? await db.execute(sql`SELECT * FROM land_bank_assets WHERE category = ${category} ORDER BY created_at DESC`)
         : await db.execute(sql`SELECT * FROM land_bank_assets ORDER BY created_at DESC`);
       const byId = new Map<string, any>();
-      (localResult.rows || []).map(normalizeLandBankAssetRow).forEach((asset: any) => byId.set(asset.id, asset));
       (await fetchLandBankAssetsFromDirectus(category)).forEach((asset: any) => byId.set(asset.id, asset));
-      res.json(
-        Array.from(byId.values())
-          .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-          .map((asset) => withLandBankAssetPermissions(req, asset))
-      );
+      (localResult.rows || []).map(normalizeLandBankAssetRow).forEach((asset: any) => byId.set(asset.id, asset));
+      const canBrowsePublished = await canAccessProtectedOpaActions(req);
+      const candidates = Array.from(byId.values());
+      const reviewFlags = await Promise.all(candidates.map((asset: any) => canReviewLandBankAsset(req, asset).catch(() => false)));
+      const filtered = candidates.filter((asset: any, index: number) => {
+        const canManage = canManageLandBankAsset(req, asset);
+        if (mine) return canManage;
+        return canManage || reviewFlags[index] || (canBrowsePublished && asset.visibilidade === "publicada");
+      });
+      const items = await Promise.all(filtered
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+        .map((asset) => withLandBankAssetPermissions(req, asset)));
+      res.json(items);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
   app.get("/api/land-bank-assets/:id", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
     try {
       const result = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
       const row = result.rows?.[0];
-      if (row) return res.json(withLandBankAssetPermissions(req, normalizeLandBankAssetRow(row)));
+      if (row) {
+        const asset = normalizeLandBankAssetRow(row);
+        const canPrivate = await canViewLandBankAssetPrivate(req, asset);
+        const canBrowsePublished = await canAccessProtectedOpaActions(req);
+        if (!canPrivate && !(canBrowsePublished && asset.visibilidade === "publicada")) return res.status(404).json({ error: "Ativo não encontrado" });
+        return res.json(await withLandBankAssetPermissions(req, asset));
+      }
       const directusRow = await findDirectusLandBankByLocalId(req.params.id);
       if (!directusRow) return res.status(404).json({ error: "Ativo não encontrado" });
-      res.json(withLandBankAssetPermissions(req, normalizeLandBankAssetRow(directusRow)));
+      const asset = normalizeLandBankAssetRow(directusRow);
+      const canPrivate = await canViewLandBankAssetPrivate(req, asset);
+      const canBrowsePublished = await canAccessProtectedOpaActions(req);
+      if (!canPrivate && !(canBrowsePublished && asset.visibilidade === "publicada")) return res.status(404).json({ error: "Ativo não encontrado" });
+      res.json(await withLandBankAssetPermissions(req, asset));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -11831,15 +12067,31 @@ ${textContent}`;
       const { can_edit: _canEdit, can_delete: _canDelete, ...body } = req.body || {};
       const id = body.id || `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
       const category = body.category || "land-bank";
+      const origemTipo = normalizeAssetOrigin(body.origem_tipo || (body.origem === "carteira" ? "ativo_proprio" : null));
+      const visibilidade = normalizeAssetVisibility(body.visibilidade);
+      const estagio = "identificada";
+      const autorizado = body.autorizacao_compartilhamento === true;
+      if (visibilidade === "publicada" && (!autorizado || origemTipo === "origem_nao_informada")) {
+        return res.status(400).json({ error: "Classifique a origem e autorize o compartilhamento antes de publicar o ativo." });
+      }
       const data = {
         ...body,
         id,
         category,
+        origem_tipo: origemTipo,
+        visibilidade,
+        estagio,
+        autorizacao_compartilhamento: autorizado,
+        autorizacao_compartilhamento_at: autorizado ? new Date().toISOString() : null,
         createdAt: body.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       await db.execute(sql`
-        INSERT INTO land_bank_assets (id, category, bia_id, bia_nome, data, created_by, created_by_membro)
+        INSERT INTO land_bank_assets (
+          id, category, bia_id, bia_nome, data, created_by, created_by_membro,
+          origem_tipo, visibilidade, estagio, autorizacao_compartilhamento_at,
+          originador_user_id, originador_membro_id, demanda_origem_id
+        )
         VALUES (
           ${id},
           ${category},
@@ -11847,17 +12099,24 @@ ${textContent}`;
           ${body.bia_nome || null},
           ${JSON.stringify(data)}::jsonb,
           ${(req.session as any).directusUserId || null},
-          ${(req.session as any).membroId || null}
+          ${(req.session as any).membroId || null},
+          ${origemTipo}, ${visibilidade}, ${estagio}, ${autorizado ? new Date() : null},
+          ${(req.session as any).directusUserId || null}, ${(req.session as any).membroId || null},
+          ${body.demanda_origem_id || null}
         )
         ON CONFLICT (id) DO UPDATE SET
           category = EXCLUDED.category,
           bia_id = EXCLUDED.bia_id,
           bia_nome = EXCLUDED.bia_nome,
           data = EXCLUDED.data,
+          origem_tipo = EXCLUDED.origem_tipo,
+          visibilidade = EXCLUDED.visibilidade,
+          estagio = EXCLUDED.estagio,
+          autorizacao_compartilhamento_at = EXCLUDED.autorizacao_compartilhamento_at,
           updated_at = now()
       `);
       await upsertLandBankAssetToDirectus(data, req);
-      res.json(withLandBankAssetPermissions(req, {
+      res.json(await withLandBankAssetPermissions(req, {
         ...data,
         created_by: (req.session as any).directusUserId || null,
         created_by_membro: (req.session as any).membroId || null,
@@ -11879,11 +12138,24 @@ ${textContent}`;
       }
       const { can_edit: _canEdit, can_delete: _canDelete, ...incoming } = req.body || {};
       const currentData = current.data && typeof current.data === "object" ? current.data : {};
+      const origemTipo = normalizeAssetOrigin(incoming.origem_tipo === undefined ? current.origem_tipo : incoming.origem_tipo);
+      const visibilidade = normalizeAssetVisibility(incoming.visibilidade === undefined ? current.visibilidade : incoming.visibilidade);
+      const autorizado = incoming.autorizacao_compartilhamento === undefined
+        ? Boolean(current.autorizacao_compartilhamento_at)
+        : incoming.autorizacao_compartilhamento === true;
+      if (visibilidade === "publicada" && (!autorizado || origemTipo === "origem_nao_informada")) {
+        return res.status(400).json({ error: "Classifique a origem e autorize o compartilhamento antes de publicar o ativo." });
+      }
       const data = {
         ...currentData,
         ...incoming,
         id: req.params.id,
         category: incoming.category || current.category,
+        origem_tipo: origemTipo,
+        visibilidade,
+        estagio: normalizeAssetStage(current.estagio),
+        autorizacao_compartilhamento: autorizado,
+        autorizacao_compartilhamento_at: autorizado ? current.autorizacao_compartilhamento_at || new Date().toISOString() : null,
         updatedAt: new Date().toISOString(),
       };
       await db.execute(sql`
@@ -11891,12 +12163,15 @@ ${textContent}`;
         SET category = ${data.category},
             bia_id = ${data.bia_id || null},
             bia_nome = ${data.bia_nome || null},
+            origem_tipo = ${origemTipo},
+            visibilidade = ${visibilidade},
+            autorizacao_compartilhamento_at = ${autorizado ? current.autorizacao_compartilhamento_at || new Date() : null},
             data = ${JSON.stringify(data)}::jsonb,
             updated_at = now()
         WHERE id = ${req.params.id}
       `);
       await upsertLandBankAssetToDirectus(data, req);
-      res.json(withLandBankAssetPermissions(req, {
+      res.json(await withLandBankAssetPermissions(req, {
         ...data,
         created_by: current.created_by || null,
         created_by_membro: current.created_by_membro || null,
@@ -11925,6 +12200,362 @@ ${textContent}`;
       await deleteLandBankAssetFromDirectus(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  async function getLocalLandBankAsset(assetId: string) {
+    const result = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${assetId} LIMIT 1`);
+    return result.rows?.[0] ? normalizeLandBankAssetRow(result.rows[0]) : null;
+  }
+
+  async function getAssetReviewContext(asset: any) {
+    const originatorMemberId = asset?.originador_membro_id || asset?.created_by_membro || null;
+    if (!originatorMemberId) return { comunidadeId: null, comunidadeNome: null, aliadoId: null };
+    const links = await getMembroComunidadesLinks(String(originatorMemberId)).catch(() => []);
+    const community = links.find((item: any) => item.is_mae) || links[0] || null;
+    return {
+      comunidadeId: community?.id ? String(community.id) : null,
+      comunidadeNome: community?.nome || community?.sigla || null,
+      aliadoId: directusRelationId(community?.aliado) || null,
+    };
+  }
+
+  async function canReviewLandBankAsset(req: Request, asset: any, designatedAllyId?: string | null) {
+    if (isAdminRequest(req)) return true;
+    const sessionMemberId = (req.session as any)?.membroId as string | undefined;
+    if (!sessionMemberId) return false;
+    const allyId = designatedAllyId || (await getAssetReviewContext(asset)).aliadoId;
+    return Boolean(allyId && String(allyId) === String(sessionMemberId));
+  }
+
+  app.post("/api/land-bank-assets/:id/interesse", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(await canAccessProtectedOpaActions(req))) {
+        return res.status(403).json({ error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances." });
+      }
+      const asset = await getLocalLandBankAsset(req.params.id);
+      if (!asset || asset.visibilidade !== "publicada") return res.status(404).json({ error: "Ativo não encontrado" });
+      const result = await db.execute(sql`
+        INSERT INTO land_bank_asset_interesses (asset_id, user_id, membro_id, membro_nome, mensagem)
+        VALUES (${req.params.id}, ${userId}, ${(req.session as any).membroId || null}, ${(req.session as any).nome || null}, ${req.body?.mensagem || null})
+        ON CONFLICT (asset_id, user_id) DO UPDATE SET
+          mensagem = EXCLUDED.mensagem,
+          status = 'interesse_recebido',
+          atualizado_em = now()
+        RETURNING *
+      `);
+      res.status(201).json(result.rows?.[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/land-bank-assets/:id/interesse", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      await db.execute(sql`
+        UPDATE land_bank_asset_interesses
+        SET status = 'retirado', atualizado_em = now()
+        WHERE asset_id = ${req.params.id} AND user_id = ${userId}
+      `);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/land-bank-assets/:id/interesses", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    try {
+      const asset = await getLocalLandBankAsset(req.params.id);
+      if (!asset) return res.status(404).json({ error: "Ativo não encontrado" });
+      if (!canManageLandBankAsset(req, asset) && !(await canReviewLandBankAsset(req, asset))) {
+        return res.status(403).json({ error: "Sem permissão para consultar os interesses deste ativo" });
+      }
+      const result = await db.execute(sql`
+        SELECT * FROM land_bank_asset_interesses
+        WHERE asset_id = ${req.params.id} AND status <> 'retirado'
+        ORDER BY criado_em DESC
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/land-bank-assets/:id/interesses/:interesseId", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    try {
+      const asset = await getLocalLandBankAsset(req.params.id);
+      if (!asset) return res.status(404).json({ error: "Ativo não encontrado" });
+      if (!canManageLandBankAsset(req, asset) && !(await canReviewLandBankAsset(req, asset))) {
+        return res.status(403).json({ error: "Sem permissão para selecionar interessados" });
+      }
+      const status = normalizeInterestStatus(req.body?.status);
+      const result = await db.execute(sql`
+        UPDATE land_bank_asset_interesses
+        SET status = ${status},
+            selecionado_em = CASE WHEN ${status} = 'selecionado' THEN COALESCE(selecionado_em, now()) ELSE selecionado_em END,
+            atualizado_em = now()
+        WHERE id = ${req.params.interesseId} AND asset_id = ${req.params.id}
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Interesse não encontrado" });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/land-bank-assets/:id/analise", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    try {
+      const asset = await getLocalLandBankAsset(req.params.id);
+      if (!asset) return res.status(404).json({ error: "Ativo não encontrado" });
+      if (!(await canReviewLandBankAsset(req, asset))) {
+        return res.status(403).json({ error: "Apenas a Administração ou o Aliado da comunidade pode revisar esta oportunidade." });
+      }
+      const stage = normalizeAssetStage(req.body?.estagio);
+      const allowed = new Set(["em_analise", "complementos_solicitados", "pre_viabilidade_aprovada", "rejeitada", "arquivada"]);
+      if (!allowed.has(stage)) return res.status(400).json({ error: "Etapa de análise inválida." });
+      const data = { ...(asset || {}), estagio: stage, observacao_analise: req.body?.observacao || asset.observacao_analise || null, updatedAt: new Date().toISOString() };
+      const result = await db.execute(sql`
+        UPDATE land_bank_assets
+        SET estagio = ${stage}, data = ${JSON.stringify(data)}::jsonb, updated_at = now()
+        WHERE id = ${req.params.id}
+        RETURNING *
+      `);
+      await upsertLandBankAssetToDirectus(data, req);
+      res.json(await withLandBankAssetPermissions(req, normalizeLandBankAssetRow(result.rows[0])));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/land-bank-assets/:id/estruturacao-bia", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    try {
+      const asset = await getLocalLandBankAsset(req.params.id);
+      if (!asset) return res.status(404).json({ error: "Ativo não encontrado" });
+      if (!canManageLandBankAsset(req, asset)) return res.status(403).json({ error: "Somente o originador pode solicitar a estruturação." });
+      if (!canRequestBiaStructuring(asset)) {
+        return res.status(400).json({ error: "A oportunidade precisa estar classificada, autorizada e com a pré-viabilidade aprovada." });
+      }
+      const existing = (await db.execute(sql`
+        SELECT * FROM bia_estruturacao_solicitacoes
+        WHERE asset_id = ${req.params.id} AND status IN ('pendente', 'complementos_solicitados')
+        LIMIT 1
+      `)).rows?.[0];
+      const context = await getAssetReviewContext(asset);
+      if (existing) {
+        if (existing.status === "complementos_solicitados") {
+          const updated = await db.execute(sql`
+            UPDATE bia_estruturacao_solicitacoes
+            SET status = 'pendente', observacao = ${req.body?.observacao || existing.observacao || null}, atualizado_em = now()
+            WHERE id = ${existing.id}
+            RETURNING *
+          `);
+          return res.json(updated.rows?.[0]);
+        }
+        return res.status(409).json({ error: "Já existe uma solicitação de estruturação em análise.", solicitacao: existing });
+      }
+      const result = await db.execute(sql`
+        INSERT INTO bia_estruturacao_solicitacoes (
+          asset_id, solicitante_user_id, solicitante_membro_id, solicitante_nome,
+          comunidade_id, comunidade_nome, aliado_built_membro_id, observacao
+        ) VALUES (
+          ${req.params.id}, ${(req.session as any).directusUserId || null}, ${(req.session as any).membroId || null},
+          ${(req.session as any).nome || null}, ${context.comunidadeId}, ${context.comunidadeNome}, ${context.aliadoId},
+          ${req.body?.observacao || null}
+        ) RETURNING *
+      `);
+      const data = { ...asset, estagio: "estruturacao_solicitada", updatedAt: new Date().toISOString() };
+      await db.execute(sql`
+        UPDATE land_bank_assets SET estagio = 'estruturacao_solicitada', data = ${JSON.stringify(data)}::jsonb, updated_at = now()
+        WHERE id = ${req.params.id}
+      `);
+      await upsertLandBankAssetToDirectus(data, req);
+      res.status(201).json(result.rows?.[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bia-estruturacao-solicitacoes", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const memberId = (req.session as any)?.membroId as string | undefined;
+      const mine = String(req.query.mine || "") === "1";
+      const result = isAdminRequest(req)
+        ? await db.execute(sql`
+            SELECT bs.*, la.category, la.origem_tipo, la.estagio, la.data AS asset_data
+            FROM bia_estruturacao_solicitacoes bs INNER JOIN land_bank_assets la ON la.id = bs.asset_id
+            ${mine ? sql`WHERE bs.solicitante_user_id = ${userId}` : sql``}
+            ORDER BY bs.criado_em DESC
+          `)
+        : await db.execute(sql`
+            SELECT bs.*, la.category, la.origem_tipo, la.estagio, la.data AS asset_data
+            FROM bia_estruturacao_solicitacoes bs INNER JOIN land_bank_assets la ON la.id = bs.asset_id
+            WHERE ${mine
+              ? sql`bs.solicitante_user_id = ${userId}`
+              : sql`(bs.aliado_built_membro_id = ${memberId || ""} OR bs.solicitante_user_id = ${userId})`}
+            ORDER BY bs.criado_em DESC
+          `);
+      const items = await Promise.all((result.rows || []).map(async (row: any) => {
+        const asset = normalizeLandBankAssetRow({ ...row, id: row.asset_id, data: row.asset_data });
+        return {
+          ...row,
+          can_review: await canReviewLandBankAsset(req, asset, row.aliado_built_membro_id).catch(() => false),
+          can_complement: String(row.solicitante_user_id || "") === String(userId),
+        };
+      }));
+      res.json(items);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  async function getStructuringRequest(requestId: string) {
+    const result = await db.execute(sql`
+      SELECT bs.*, la.data AS asset_data, la.category, la.origem_tipo, la.visibilidade, la.estagio,
+        la.autorizacao_compartilhamento_at, la.originador_user_id, la.originador_membro_id,
+        la.created_by, la.created_by_membro, la.bia_id, la.bia_nome
+      FROM bia_estruturacao_solicitacoes bs
+      INNER JOIN land_bank_assets la ON la.id = bs.asset_id
+      WHERE bs.id = ${requestId}
+      LIMIT 1
+    `);
+    const row: any = result.rows?.[0];
+    if (!row) return null;
+    return { request: row, asset: normalizeLandBankAssetRow({ ...row, id: row.asset_id, data: row.asset_data }) };
+  }
+
+  app.patch("/api/bia-estruturacao-solicitacoes/:id/complementos", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    try {
+      const item = await getStructuringRequest(req.params.id);
+      if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
+      if (!(await canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
+      const result = await db.execute(sql`
+        UPDATE bia_estruturacao_solicitacoes
+        SET status = 'complementos_solicitados', motivo_decisao = ${req.body?.motivo || null},
+          revisor_user_id = ${(req.session as any).directusUserId || null}, revisor_membro_id = ${(req.session as any).membroId || null},
+          revisor_nome = ${(req.session as any).nome || null}, revisado_em = now(), atualizado_em = now()
+        WHERE id = ${req.params.id} AND status = 'pendente'
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(409).json({ error: "A solicitação já foi processada" });
+      await db.execute(sql`UPDATE land_bank_assets SET estagio = 'complementos_solicitados', data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', '"complementos_solicitados"'::jsonb, true), updated_at = now() WHERE id = ${item.request.asset_id}`);
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-estruturacao-solicitacoes/:id/complementar", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const item = await getStructuringRequest(req.params.id);
+      if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
+      if (String(item.request.solicitante_user_id || "") !== String(userId)) return res.status(403).json({ error: "Somente o solicitante pode enviar os complementos" });
+      const complemento = String(req.body?.complemento || "").trim();
+      if (!complemento) return res.status(400).json({ error: "Descreva os complementos enviados." });
+      const result = await db.execute(sql`
+        UPDATE bia_estruturacao_solicitacoes
+        SET status = 'pendente', observacao = concat_ws(E'\n\n', NULLIF(observacao, ''), ${complemento}),
+          motivo_decisao = NULL, revisado_em = NULL, atualizado_em = now()
+        WHERE id = ${req.params.id} AND status = 'complementos_solicitados'
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(409).json({ error: "A solicitação não está aguardando complementos." });
+      await db.execute(sql`UPDATE land_bank_assets SET estagio = 'estruturacao_solicitada', data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', '"estruturacao_solicitada"'::jsonb, true), updated_at = now() WHERE id = ${item.request.asset_id}`);
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-estruturacao-solicitacoes/:id/rejeitar", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    try {
+      const item = await getStructuringRequest(req.params.id);
+      if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
+      if (!(await canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
+      const result = await db.execute(sql`
+        UPDATE bia_estruturacao_solicitacoes
+        SET status = 'rejeitada', motivo_decisao = ${req.body?.motivo || null},
+          revisor_user_id = ${(req.session as any).directusUserId || null}, revisor_membro_id = ${(req.session as any).membroId || null},
+          revisor_nome = ${(req.session as any).nome || null}, revisado_em = now(), atualizado_em = now()
+        WHERE id = ${req.params.id} AND status = 'pendente'
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(409).json({ error: "A solicitação já foi processada" });
+      await db.execute(sql`UPDATE land_bank_assets SET estagio = 'rejeitada', data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', '"rejeitada"'::jsonb, true), updated_at = now() WHERE id = ${item.request.asset_id}`);
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/bia-estruturacao-solicitacoes/:id/aprovar", async (req, res) => {
+    if (!requireLandBankSession(req, res)) return;
+    let claimed = false;
+    try {
+      const item = await getStructuringRequest(req.params.id);
+      if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
+      if (item.request.status === "aprovada" && item.request.bia_id) return res.json({ success: true, bia_id: item.request.bia_id, idempotent: true });
+      if (!(await canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
+      const claim = await db.execute(sql`
+        UPDATE bia_estruturacao_solicitacoes
+        SET status = 'aprovada', motivo_decisao = ${req.body?.motivo || null},
+          revisor_user_id = ${(req.session as any).directusUserId || null}, revisor_membro_id = ${(req.session as any).membroId || null},
+          revisor_nome = ${(req.session as any).nome || null}, revisado_em = now(), atualizado_em = now()
+        WHERE id = ${req.params.id} AND status = 'pendente'
+        RETURNING *
+      `);
+      if (!claim.rows?.[0]) return res.status(409).json({ error: "A solicitação já foi processada" });
+      claimed = true;
+      const asset = item.asset;
+      const biaPayload = prepareBiaPayload({
+        nome_bia: asset.qualificacao || "BIA em formação",
+        situacao: "em_formacao",
+        bia_publica: false,
+        autor_bia: asset.originador_membro_id || null,
+        aliado_built: item.request.aliado_built_membro_id || null,
+        objetivo_alianca: asset.tese_inicial || asset.descricao || "Estruturar oportunidade imobiliária.",
+        observacoes: `BIA originada da oportunidade ${asset.id}.`,
+        localizacao: [asset.cidade, asset.estado, asset.pais].filter(Boolean).join(", "),
+      });
+      biaPayload.codigo_publico = await createUniqueBiaPublicCode();
+      const bia = await directusCreate("bias_projetos", biaPayload);
+      await db.execute(sql`
+        UPDATE bia_estruturacao_solicitacoes
+        SET bia_id = ${bia.id}, atualizado_em = now()
+        WHERE id = ${req.params.id}
+      `);
+      const data = { ...asset, bia_id: bia.id, bia_nome: bia.nome_bia || biaPayload.nome_bia, estagio: "bia_em_formacao", updatedAt: new Date().toISOString() };
+      await db.execute(sql`
+        UPDATE land_bank_assets
+        SET bia_id = ${bia.id}, bia_nome = ${bia.nome_bia || biaPayload.nome_bia}, estagio = 'bia_em_formacao',
+          data = ${JSON.stringify(data)}::jsonb, updated_at = now()
+        WHERE id = ${asset.id}
+      `);
+      await upsertLandBankAssetToDirectus(data, req);
+      res.json({ success: true, bia_id: bia.id, bia });
+    } catch (error: any) {
+      if (claimed) {
+        await db.execute(sql`
+          UPDATE bia_estruturacao_solicitacoes
+          SET status = 'pendente', revisado_em = NULL, atualizado_em = now()
+          WHERE id = ${req.params.id} AND bia_id IS NULL
+        `).catch(() => {});
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -12836,6 +13467,41 @@ ${textContent.slice(0, 16000)}`,
     }
   });
 
+  app.get("/api/carteira/alertas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const requestedLimit = Number(req.query.limit || 12);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(50, Math.max(1, Math.floor(requestedLimit))) : 12;
+      const result = await db.execute(sql`
+        SELECT
+          a.*,
+          COALESCE(NULLIF(i.data->>'nome', ''), 'Imóvel') AS imovel_nome,
+          i.data->>'cidade' AS imovel_cidade,
+          i.data->>'estado' AS imovel_estado
+        FROM carteira_alertas a
+        INNER JOIN inventario_imoveis i ON i.id = a.imovel_id
+        WHERE ${carteiraAccessibleWhere(actor)}
+          AND a.status IN ('aberto', 'em_andamento', 'adiado', 'delegado')
+        ORDER BY
+          CASE a.severidade WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END,
+          CASE a.status WHEN 'aberto' THEN 1 ELSE 2 END,
+          a.criado_em DESC
+        LIMIT ${limit}
+      `);
+      const alerts = await Promise.all((result.rows || []).map(async (alert: any) => {
+        const access = await resolveCarteiraAccess(String(alert.imovel_id), actor);
+        return {
+          ...alert,
+          access_level: access?.nivel || "leitura",
+          can_act: Boolean(access && hasCarteiraAccess(access.nivel, "colaboracao")),
+        };
+      }));
+      res.json(alerts);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/carteira/imoveis/:id/alertas", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -12857,14 +13523,32 @@ ${textContent.slice(0, 16000)}`,
     try {
       const actor = requireCarteiraActor(req);
       await requireCarteiraAccess(req.params.id, actor, "colaboracao");
-      const status = ["aberto", "adiado", "delegado", "resolvido"].includes(String(req.body?.status || ""))
-        ? String(req.body.status)
-        : "aberto";
+      const update = normalizeCarteiraAlertUpdate(req.body || {});
       const updated = await db.execute(sql`
         UPDATE carteira_alertas
-        SET status = ${status},
+        SET status = ${update.status},
             prazo = COALESCE(${req.body?.prazo || null}, prazo),
             delegado_para_user_id = ${req.body?.delegado_para_user_id || null},
+            acao_registrada = CASE
+              WHEN ${update.registrarAcao} THEN ${update.acaoRegistrada || null}
+              ELSE acao_registrada
+            END,
+            acao_registrada_em = CASE
+              WHEN ${update.registrarAcao} THEN now()
+              ELSE acao_registrada_em
+            END,
+            acao_registrada_por_user_id = CASE
+              WHEN ${update.registrarAcao} THEN ${actor.userId}
+              ELSE acao_registrada_por_user_id
+            END,
+            ignorado_em = CASE
+              WHEN ${update.ignorar} THEN now()
+              ELSE ignorado_em
+            END,
+            ignorado_por_user_id = CASE
+              WHEN ${update.ignorar} THEN ${actor.userId}
+              ELSE ignorado_por_user_id
+            END,
             atualizado_em = now()
         WHERE id = ${req.params.alertaId} AND imovel_id = ${req.params.id}
         RETURNING *
@@ -12872,7 +13556,8 @@ ${textContent.slice(0, 16000)}`,
       if (!updated.rows?.[0]) return res.status(404).json({ error: "Alerta não encontrado" });
       await recordCarteiraEvent(req.params.id, actor, "alerta_atualizado", "Alerta atualizado", {
         alerta_id: req.params.alertaId,
-        status,
+        status: update.status,
+        acao_registrada: update.acaoRegistrada || null,
       });
       res.json(updated.rows[0]);
     } catch (error: any) {
@@ -13169,23 +13854,29 @@ Deixe claro que premissas precisam de validação profissional.`,
       await requireCarteiraAccess(req.params.id, actor, "administracao");
       const titulo = String(req.body?.titulo || "").trim();
       if (!titulo) return res.status(400).json({ error: "Informe o título da demanda." });
-      const tipoResolucao = ["solicitacao", "opa", "bia_sugerida"].includes(String(req.body?.tipo_resolucao || ""))
-        ? String(req.body.tipo_resolucao)
-        : "solicitacao";
+      const publicar = req.body?.publicar === true;
+      if (publicar && req.body?.consentimento_publicacao !== true) {
+        return res.status(400).json({ error: "Confirme o consentimento para publicar a demanda na Vitrine." });
+      }
+      const visibilidade = publicar ? "publicada" : "privada";
+      const resumoPublico = String(req.body?.resumo_publico || req.body?.escopo || "").trim() || null;
       const insert = await db.execute(sql`
         INSERT INTO carteira_demandas (
           imovel_id, tipo_resolucao, alternativa, titulo, escopo, urgencia,
           especialidades, status, responsavel_user_id, propostas, documentos,
-          proximas_etapas, criado_por_user_id, criado_por_membro_id
+          proximas_etapas, visibilidade, consentimento_publicacao_at, publicada_em,
+          resumo_publico, criado_por_user_id, criado_por_membro_id
         )
         VALUES (
-          ${req.params.id}, ${tipoResolucao}, ${req.body?.alternativa || null}, ${titulo},
+          ${req.params.id}, 'solicitacao', ${req.body?.alternativa || null}, ${titulo},
           ${req.body?.escopo || null}, ${req.body?.urgencia || "normal"},
           ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
-          'rascunho', ${req.body?.responsavel_user_id || null},
+          ${publicar ? "aberta" : "rascunho"}, ${req.body?.responsavel_user_id || null},
           ${JSON.stringify(Array.isArray(req.body?.propostas) ? req.body.propostas : [])}::jsonb,
           ${JSON.stringify(Array.isArray(req.body?.documentos) ? req.body.documentos : [])}::jsonb,
           ${JSON.stringify(Array.isArray(req.body?.proximas_etapas) ? req.body.proximas_etapas : [])}::jsonb,
+          ${visibilidade}, ${publicar ? new Date() : null}, ${publicar ? new Date() : null},
+          ${resumoPublico},
           ${actor.userId}, ${actor.membroId}
         )
         RETURNING *
@@ -13194,7 +13885,8 @@ Deixe claro que premissas precisam de validação profissional.`,
       await recordCarteiraEvent(req.params.id, actor, "demanda_criada", "Demanda criada", {
         demanda_id: demanda?.id,
         titulo,
-        tipo_resolucao: tipoResolucao,
+        tipo_resolucao: "solicitacao",
+        visibilidade,
       });
       res.status(201).json(demanda);
     } catch (error: any) {
@@ -13222,6 +13914,8 @@ Deixe claro que premissas precisam de validação profissional.`,
         SET titulo = ${String(req.body?.titulo ?? current.titulo)},
             escopo = ${req.body?.escopo === undefined ? current.escopo : req.body.escopo || null},
             urgencia = ${String(req.body?.urgencia ?? current.urgencia)},
+            especialidades = ${JSON.stringify(req.body?.especialidades === undefined ? current.especialidades || [] : Array.isArray(req.body.especialidades) ? req.body.especialidades : [])}::jsonb,
+            resumo_publico = ${req.body?.resumo_publico === undefined ? current.resumo_publico : String(req.body.resumo_publico || "").trim() || null},
             status = ${status},
             responsavel_user_id = ${req.body?.responsavel_user_id === undefined ? current.responsavel_user_id : req.body.responsavel_user_id || null},
             propostas = ${JSON.stringify(req.body?.propostas === undefined ? current.propostas || [] : Array.isArray(req.body.propostas) ? req.body.propostas : [])}::jsonb,
@@ -13242,10 +13936,227 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
-  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-opa", async (req, res) => {
+  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/publicacao", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const action = String(req.body?.action || "");
+      if (!["publicar", "pausar", "retirar"].includes(action)) {
+        return res.status(400).json({ error: "Ação de publicação inválida." });
+      }
+      if (action === "publicar" && req.body?.consentimento_publicacao !== true) {
+        return res.status(400).json({ error: "Confirme o consentimento para publicar a demanda na Vitrine." });
+      }
+      const visibilidade = action === "publicar" ? "publicada" : action === "pausar" ? "pausada" : "privada";
+      const result = await db.execute(sql`
+        UPDATE carteira_demandas
+        SET visibilidade = ${visibilidade},
+            consentimento_publicacao_at = CASE WHEN ${action === "publicar"} THEN COALESCE(consentimento_publicacao_at, now()) ELSE consentimento_publicacao_at END,
+            publicada_em = CASE WHEN ${action === "publicar"} THEN COALESCE(publicada_em, now()) ELSE publicada_em END,
+            status = CASE WHEN ${action === "publicar"} AND status = 'rascunho' THEN 'aberta' ELSE status END,
+            atualizado_em = now()
+        WHERE id = ${req.params.demandaId} AND imovel_id = ${req.params.id}
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Demanda não encontrada" });
+      await recordCarteiraEvent(req.params.id, actor, "demanda_publicacao_atualizada", "Publicação da demanda atualizada", {
+        demanda_id: req.params.demandaId,
+        visibilidade,
+      });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  async function getDemandWithProperty(demandId: string) {
+    const result = await db.execute(sql`
+      SELECT d.*,
+        i.data AS imovel_data,
+        i.owner_user_id,
+        i.owner_membro_id,
+        u.nome AS proprietario_nome,
+        u.email AS proprietario_email,
+        (SELECT COUNT(*) FROM carteira_demanda_interesses ci WHERE ci.demanda_id = d.id AND ci.status <> 'retirado') AS total_interesses
+      FROM carteira_demandas d
+      INNER JOIN inventario_imoveis i ON i.id = d.imovel_id
+      LEFT JOIN users u ON u.id = i.owner_user_id
+      WHERE d.id = ${demandId}
+      LIMIT 1
+    `);
+    const row: any = result.rows?.[0];
+    if (!row) return null;
+    const imovel = row.imovel_data && typeof row.imovel_data === "object" ? row.imovel_data : {};
+    return {
+      ...row,
+      cidade: imovel.cidade || null,
+      estado: imovel.estado || null,
+      pais: imovel.pais || "Brasil",
+      tipo_imovel: imovel.tipo || null,
+      imovel,
+    };
+  }
+
+  app.get("/api/vitrine/demandas", async (req, res) => {
+    try {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      const search = String(req.query.q || "").trim().toLowerCase();
+      const result = await db.execute(sql`
+        SELECT d.*,
+          i.data->>'cidade' AS cidade,
+          i.data->>'estado' AS estado,
+          COALESCE(i.data->>'pais', 'Brasil') AS pais,
+          i.data->>'tipo' AS tipo_imovel,
+          (SELECT COUNT(*) FROM carteira_demanda_interesses ci WHERE ci.demanda_id = d.id AND ci.status <> 'retirado') AS total_interesses
+        FROM carteira_demandas d
+        INNER JOIN inventario_imoveis i ON i.id = d.imovel_id
+        WHERE d.visibilidade = 'publicada'
+          AND d.status NOT IN ('cancelada', 'concluida')
+          AND (${search} = '' OR lower(concat_ws(' ', d.titulo, d.resumo_publico, d.escopo, i.data->>'cidade', i.data->>'estado')) LIKE ${`%${search}%`})
+        ORDER BY COALESCE(d.publicada_em, d.criado_em) DESC
+      `);
+      res.json((result.rows || []).map(publicDemandView));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/vitrine/demandas/:id", async (req, res) => {
+    try {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      const demand = await getDemandWithProperty(req.params.id);
+      if (!demand || demand.visibilidade !== "publicada") return res.status(404).json({ error: "Demanda não encontrada" });
+      const userId = (req.session as any)?.directusUserId || null;
+      const interest = userId
+        ? (await db.execute(sql`SELECT * FROM carteira_demanda_interesses WHERE demanda_id = ${req.params.id} AND user_id = ${String(userId)} LIMIT 1`)).rows?.[0] || null
+        : null;
+      res.json({ ...publicDemandView(demand), meu_interesse: interest });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/vitrine/demandas/:id/interesse", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      if (!(await canAccessProtectedOpaActions(req))) {
+        return res.status(403).json({ error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances." });
+      }
+      const demand = await getDemandWithProperty(req.params.id);
+      if (!demand || demand.visibilidade !== "publicada") return res.status(404).json({ error: "Demanda não encontrada" });
+      const result = await db.execute(sql`
+        INSERT INTO carteira_demanda_interesses (demanda_id, user_id, membro_id, membro_nome, mensagem)
+        VALUES (${req.params.id}, ${userId}, ${(req.session as any).membroId || null}, ${(req.session as any).nome || null}, ${req.body?.mensagem || null})
+        ON CONFLICT (demanda_id, user_id) DO UPDATE SET
+          mensagem = EXCLUDED.mensagem,
+          status = 'interesse_recebido',
+          atualizado_em = now()
+        RETURNING *
+      `);
+      res.status(201).json(result.rows?.[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/vitrine/demandas/:id/interesse", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      await db.execute(sql`
+        UPDATE carteira_demanda_interesses
+        SET status = 'retirado', atualizado_em = now()
+        WHERE demanda_id = ${req.params.id} AND user_id = ${userId}
+      `);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/imoveis/:id/demandas/:demandaId/interesses", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const result = await db.execute(sql`
+        SELECT * FROM carteira_demanda_interesses
+        WHERE demanda_id = ${req.params.demandaId} AND status <> 'retirado'
+        ORDER BY criado_em DESC
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/imoveis/:id/demandas/:demandaId/interesses/:interesseId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const status = normalizeInterestStatus(req.body?.status);
+      const result = await db.execute(sql`
+        UPDATE carteira_demanda_interesses
+        SET status = ${status},
+            selecionado_em = CASE WHEN ${status} = 'selecionado' THEN COALESCE(selecionado_em, now()) ELSE selecionado_em END,
+            atualizado_em = now()
+        WHERE id = ${req.params.interesseId} AND demanda_id = ${req.params.demandaId}
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Interesse não encontrado" });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/vitrine/demandas/:id/dados-privados", async (req, res) => {
+    try {
+      const userId = (req.session as any)?.directusUserId as string | undefined;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const demand = await getDemandWithProperty(req.params.id);
+      if (!demand) return res.status(404).json({ error: "Demanda não encontrada" });
+      const actor = requireCarteiraActor(req);
+      const access = await resolveCarteiraAccess(String(demand.imovel_id), actor).catch(() => null);
+      const selected = (await db.execute(sql`
+        SELECT id FROM carteira_demanda_interesses
+        WHERE demanda_id = ${req.params.id} AND user_id = ${userId} AND status = 'selecionado'
+        LIMIT 1
+      `)).rows?.[0];
+      if (!access && !selected && !isAdminRequest(req)) {
+        return res.status(403).json({ error: "Os dados completos são liberados somente após a seleção do interessado." });
+      }
+      res.json({
+        id: demand.id,
+        titulo: demand.titulo,
+        escopo: demand.escopo,
+        documentos: demand.documentos || [],
+        imovel: demand.imovel,
+        contato: {
+          nome: demand.proprietario_nome || null,
+          email: demand.proprietario_email || null,
+          telefone: null,
+        },
+        dados_privados_liberados: true,
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-opa", (_req, res) => {
+    res.status(410).json({
+      error: "Demandas não geram OBAs diretamente. Identifique uma oportunidade e, após a formação da BIA, crie as OBAs necessárias.",
+    });
+  });
+
+  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-oportunidade", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
       const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (req.body?.autorizacao_compartilhamento !== true) {
+        return res.status(400).json({ error: "Confirme a autorização para analisar e compartilhar a oportunidade com a BUILT." });
+      }
       const demandResult = await db.execute(sql`
         SELECT *
         FROM carteira_demandas
@@ -13254,45 +14165,66 @@ Deixe claro que premissas precisam de validação profissional.`,
       `);
       const demanda: any = demandResult.rows?.[0];
       if (!demanda) return res.status(404).json({ error: "Demanda não encontrada" });
-      if (demanda.opa_id) return res.status(409).json({ error: "Esta demanda já possui uma OBA vinculada.", opa_id: demanda.opa_id });
-      const localizacao = [
-        access.imovel.endereco,
-        access.imovel.bairro,
-        access.imovel.cidade,
-        access.imovel.estado,
-        access.imovel.pais,
-      ].filter(Boolean).join(", ");
-      const payload = prepareOpaPayload({
-        nome_oportunidade: demanda.titulo,
-        tipo: "Prestação de Serviço",
-        objetivo_alianca: demanda.escopo || `Resolver demanda patrimonial do imóvel ${access.imovel.nome}.`,
-        nucleo_alianca: Array.isArray(demanda.especialidades) ? demanda.especialidades[0] || null : null,
-        pais: access.imovel.pais || "Brasil",
-        localizacao,
-        descricao: `${demanda.escopo || ""}\n\nOrigem: Carteira Patrimonial — ${access.imovel.nome}.`.trim(),
-        status: "pausada",
-      });
-      payload.criado_por_user_id = actor.userId;
-      payload.criado_por_membro_id = actor.membroId;
-      let opa: any;
-      try {
-        opa = await directusCreate("tipos_oportunidades", payload);
-      } catch (error: any) {
-        if (!String(error?.message || "").includes("criado_por_")) throw error;
-        delete payload.criado_por_user_id;
-        delete payload.criado_por_membro_id;
-        opa = await directusCreate("tipos_oportunidades", payload);
+      if (demanda.oportunidade_id) {
+        return res.status(409).json({ error: "Esta demanda já possui uma oportunidade vinculada.", oportunidade_id: demanda.oportunidade_id });
       }
+      const tipo = String(access.imovel.tipo || "").toLowerCase();
+      const category = /(terreno|lote|gleba|área|area)/i.test(tipo) ? "land-bank" : "built-asset-bank";
+      const assetId = `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const now = new Date();
+      const data = {
+        id: assetId,
+        category,
+        origem: "demanda",
+        origem_tipo: "ativo_proprio",
+        origem_carteira_id: req.params.id,
+        demanda_origem_id: demanda.id,
+        visibilidade: "privada",
+        estagio: "identificada",
+        qualificacao: demanda.titulo,
+        tipo: access.imovel.tipo || null,
+        descricao: demanda.escopo || `Oportunidade identificada a partir de uma demanda do imóvel ${access.imovel.nome}.`,
+        tese_inicial: demanda.escopo || null,
+        finalidade: req.body?.finalidade || "Ainda não definida",
+        urgencia: demanda.urgencia || "normal",
+        area: access.imovel.area_m2 || "",
+        area_m2: access.imovel.area_m2 || "",
+        valor: access.imovel.valor_atual || "",
+        moeda: access.imovel.moeda || "BRL",
+        cep: access.imovel.cep || "",
+        endereco: access.imovel.endereco || "",
+        numero: access.imovel.numero || "",
+        complemento: access.imovel.complemento || "",
+        bairro: access.imovel.bairro || "",
+        cidade: access.imovel.cidade || "",
+        estado: access.imovel.estado || "",
+        pais: access.imovel.pais || "Brasil",
+        foto: access.imovel.foto || null,
+        autorizacao_compartilhamento: true,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+      await db.execute(sql`
+        INSERT INTO land_bank_assets (
+          id, category, data, created_by, created_by_membro, origem_tipo, visibilidade,
+          estagio, autorizacao_compartilhamento_at, originador_user_id,
+          originador_membro_id, demanda_origem_id
+        ) VALUES (
+          ${assetId}, ${category}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId},
+          'ativo_proprio', 'privada', 'identificada', ${now}, ${actor.userId}, ${actor.membroId}, ${demanda.id}
+        )
+      `);
       await db.execute(sql`
         UPDATE carteira_demandas
-        SET tipo_resolucao = 'opa', opa_id = ${opa.id}, status = 'aberta', atualizado_em = now()
+        SET oportunidade_id = ${assetId}, atualizado_em = now()
         WHERE id = ${req.params.demandaId}
       `);
-      await recordCarteiraEvent(req.params.id, actor, "demanda_convertida_opa", "Rascunho de OBA criado", {
+      await upsertLandBankAssetToDirectus(data, req);
+      await recordCarteiraEvent(req.params.id, actor, "demanda_convertida_oportunidade", "Oportunidade patrimonial identificada", {
         demanda_id: req.params.demandaId,
-        opa_id: opa.id,
+        oportunidade_id: assetId,
       });
-      res.status(201).json({ success: true, opa, opa_id: opa.id });
+      res.status(201).json({ success: true, oportunidade: privateAssetView(data), oportunidade_id: assetId });
     } catch (error: any) {
       res.status(error.status || error.statusCode || 500).json({ error: error.message });
     }

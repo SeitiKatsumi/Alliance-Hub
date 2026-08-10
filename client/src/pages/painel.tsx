@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { InviteQrCode } from "@/components/invite-qr-code";
 import { CompanyAccessPanel } from "@/components/company-access-panel";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -23,7 +24,7 @@ import {
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
   AlertTriangle, Clock, FileWarning, AlarmClock, BookOpen, UserCheck,
-  Crosshair, Landmark,
+  Crosshair, Landmark, ClipboardCheck, EyeOff, Lightbulb,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -34,6 +35,7 @@ import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { getOpaUrl } from "@/lib/public-refs";
 import { getProfileCompletion, type ProfileCompletionSource } from "@/lib/profile-completion";
 import { CarteiraDashboardPanel } from "@/pages/carteira";
+import { OportunidadesImobiliariasPanel } from "@/pages/oportunidades-imobiliarias";
 import {
   Bar,
   BarChart,
@@ -150,6 +152,21 @@ interface ChamadaAlianca {
   escopo: string;
   data_hora: string;
   nucleo_alianca?: string | null;
+}
+
+interface CarteiraDashboardAlert {
+  id: string;
+  imovel_id: string;
+  imovel_nome: string;
+  imovel_cidade?: string | null;
+  imovel_estado?: string | null;
+  titulo: string;
+  descricao?: string | null;
+  acao_sugerida?: string | null;
+  acao_registrada?: string | null;
+  severidade: string;
+  status: string;
+  can_act: boolean;
 }
 
 interface DashboardOpa {
@@ -576,11 +593,15 @@ export default function PainelPage() {
       : "inicio",
   );
   const [carteiraView, setCarteiraView] = useState(
-    requestedDashboardTab === "bias" || initialDashboardParams.get("view") === "bias" ?"bias" : "imoveis",
+    requestedDashboardTab === "bias" || initialDashboardParams.get("view") === "bias"
+      ? "bias"
+      : initialDashboardParams.get("view") === "oportunidades" ? "oportunidades" : "imoveis",
   );
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
   const [conviteTipo, setConviteTipo] = useState("vitrine");
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
+  const [selectedCarteiraAlert, setSelectedCarteiraAlert] = useState<CarteiraDashboardAlert | null>(null);
+  const [carteiraAlertAction, setCarteiraAlertAction] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -590,7 +611,7 @@ export default function PainelPage() {
       ?normalizedRequested!
       : "inicio";
     setDashboardTab(nextTab);
-    setCarteiraView(requested === "bias" || params.get("view") === "bias" ?"bias" : "imoveis");
+    setCarteiraView(requested === "bias" || params.get("view") === "bias" ? "bias" : params.get("view") === "oportunidades" ? "oportunidades" : "imoveis");
   }, [location]);
 
   function handleDashboardTabChange(nextTab: string) {
@@ -676,6 +697,54 @@ export default function PainelPage() {
   const showProfileCompletion = canShowProfileCompletion
     && !isLoadingProfileDetails
     && profileCompletion.percentage < 100;
+  const visibleProfileMissing = profileCompletion.missing.slice(0, 2);
+  const remainingProfileMissing = Math.max(0, profileCompletion.missing.length - visibleProfileMissing.length);
+  const profileMissingText = visibleProfileMissing.map((item) => item.label).join(", ");
+  const allProfileMissingText = profileCompletion.missing.map((item) => item.label).join(", ");
+
+  const { data: carteiraAlerts = [], isLoading: isLoadingCarteiraAlerts } = useQuery<CarteiraDashboardAlert[]>({
+    queryKey: ["/api/carteira/alertas"],
+    queryFn: async () => {
+      const response = await fetch("/api/carteira/alertas?limit=12", { credentials: "include" });
+      if (!response.ok) return [];
+      const payload = await response.json();
+      return Array.isArray(payload) ? payload : [];
+    },
+    staleTime: 30000,
+  });
+
+  const registerCarteiraAlertAction = useMutation({
+    mutationFn: async ({ alert, action }: { alert: CarteiraDashboardAlert; action: string }) => (
+      await apiRequest("PATCH", `/api/carteira/imoveis/${alert.imovel_id}/alertas/${alert.id}`, {
+        status: "em_andamento",
+        acao_registrada: action,
+      })
+    ).json(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/alertas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
+      if (selectedCarteiraAlert) {
+        queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", selectedCarteiraAlert.imovel_id, "alertas"] });
+      }
+      setSelectedCarteiraAlert(null);
+      setCarteiraAlertAction("");
+      toast({ title: "Ação registrada", description: "O alerta continuará visível enquanto estiver em andamento." });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível registrar a ação", description: error?.message, variant: "destructive" }),
+  });
+
+  const ignoreCarteiraAlert = useMutation({
+    mutationFn: async (alert: CarteiraDashboardAlert) => (
+      await apiRequest("PATCH", `/api/carteira/imoveis/${alert.imovel_id}/alertas/${alert.id}`, { status: "ignorado" })
+    ).json(),
+    onSuccess: (_result, alert) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/alertas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", alert.imovel_id, "alertas"] });
+      toast({ title: "Alerta ignorado" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível ignorar o alerta", description: error?.message, variant: "destructive" }),
+  });
 
   const bias = data?.bias ?? [];
   const comunidades = data?.comunidades ?? [];
@@ -761,6 +830,17 @@ export default function PainelPage() {
   });
 
   const alertasPendencias = useMemo(() => {
+    const carteira = carteiraAlerts.slice(0, 4).map((alert) => ({
+      title: alert.titulo,
+      subtitle: alert.acao_registrada
+        ? `${alert.imovel_nome} · Ação em andamento`
+        : `${alert.imovel_nome}${alert.imovel_cidade ? ` · ${alert.imovel_cidade}` : ""}`,
+      icon: AlertTriangle,
+      tone: alert.severidade === "critica" || alert.severidade === "alta" ? "red" : "amber",
+      kind: "carteira" as const,
+      carteiraAlert: alert,
+    }));
+
     const diretorias = diretorSolicitacoes.slice(0, 4).map((solicitacao) => {
       const percentual = solicitacao.percentual !== null && solicitacao.percentual !== undefined && String(solicitacao.percentual) !== ""
         ? ` — ${solicitacao.percentual}%`
@@ -804,7 +884,7 @@ export default function PainelPage() {
       };
     });
 
-    const pendencias = [...chamadas, ...diretorias, ...socios, ...convites].slice(0, 4);
+    const pendencias = [...carteira, ...chamadas, ...diretorias, ...socios, ...convites].slice(0, 4);
     if (pendencias.length > 0) return pendencias;
 
     return [
@@ -815,7 +895,7 @@ export default function PainelPage() {
         tone: "blue",
       },
     ];
-  }, [aprovacoesPendentes, diretorSolicitacoes, socioSolicitacoes, chamadasAlianca]);
+  }, [aprovacoesPendentes, carteiraAlerts, diretorSolicitacoes, socioSolicitacoes, chamadasAlianca]);
 
   const biasAtivas = bias.filter(b => b.situacao === "ativa").length;
   const biaPapelOptions = useMemo(
@@ -1192,8 +1272,14 @@ export default function PainelPage() {
                 <ProfileCompletionRing percentage={profileCompletion.percentage} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground">Complete seu perfil</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {profileCompletion.missing.length} campo{profileCompletion.missing.length === 1 ? "" : "s"} pendente{profileCompletion.missing.length === 1 ? "" : "s"}
+                  <p
+                    className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground"
+                    title={`Falta preencher: ${allProfileMissingText}`}
+                    data-testid="dashboard-profile-missing-fields"
+                  >
+                    <span className="font-semibold text-slate-700">Falta:</span>{" "}
+                    {profileMissingText}
+                    {remainingProfileMissing > 0 ? ` +${remainingProfileMissing}` : ""}
                   </p>
                   <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
                     Completar cadastro
@@ -1296,7 +1382,7 @@ export default function PainelPage() {
                 </Button>
               </div>
               <div className="space-y-2">
-                {isLoadingAprovacoes || isLoadingDiretorSolicitacoes || isLoadingSocioSolicitacoes || isLoadingChamadasAlianca ?(
+                {isLoadingAprovacoes || isLoadingCarteiraAlerts || isLoadingDiretorSolicitacoes || isLoadingSocioSolicitacoes || isLoadingChamadasAlianca ?(
                   Array.from({ length: 3 }).map((_, index) => (
                     <div key={index} className="flex items-center gap-3">
                       <Skeleton className="h-8 w-8 rounded-lg" />
@@ -1309,6 +1395,9 @@ export default function PainelPage() {
                 ) : (
                   alertasPendencias.map((alerta, index) => {
                     const Icon = alerta.icon;
+                    const carteiraAlert = "carteiraAlert" in alerta
+                      ? alerta.carteiraAlert as CarteiraDashboardAlert
+                      : null;
                     const toneClass = alerta.tone === "red"
                       ? "bg-red-500/10 text-red-600"
                       : alerta.tone === "orange"
@@ -1317,7 +1406,15 @@ export default function PainelPage() {
                           ? "bg-amber-500/10 text-amber-600"
                           : "bg-blue-500/10 text-blue-600";
                     return (
-                      <div key={`${alerta.title}-${index}`} className="flex items-center gap-3 rounded-lg py-1.5">
+                      <div
+                        key={`${alerta.title}-${index}`}
+                        className={`flex items-center gap-3 rounded-lg py-1.5 ${carteiraAlert ? "cursor-pointer" : ""}`}
+                        onClick={(event) => {
+                          if (!carteiraAlert) return;
+                          event.stopPropagation();
+                          navigate(`/carteira/${carteiraAlert.imovel_id}`);
+                        }}
+                      >
                         <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>
                           <Icon className="h-4 w-4" />
                         </div>
@@ -1325,7 +1422,35 @@ export default function PainelPage() {
                           <p className="truncate text-xs font-semibold text-foreground">{alerta.title}</p>
                           <p className="truncate text-[11px] text-muted-foreground">{alerta.subtitle}</p>
                         </div>
-                        {aprovacoesPendentes.length + diretorSolicitacoes.length + socioSolicitacoes.length + chamadasAlianca.length > 0 && (
+                        {carteiraAlert?.can_act ? (
+                          <div className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 gap-1 px-2 text-[11px]"
+                              onClick={() => {
+                                setSelectedCarteiraAlert(carteiraAlert);
+                                setCarteiraAlertAction(carteiraAlert.acao_registrada || carteiraAlert.acao_sugerida || "");
+                              }}
+                            >
+                              <ClipboardCheck className="h-3.5 w-3.5" />
+                              Ação
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-red-600"
+                              aria-label="Ignorar alerta"
+                              title="Ignorar alerta"
+                              disabled={ignoreCarteiraAlert.isPending}
+                              onClick={() => ignoreCarteiraAlert.mutate(carteiraAlert)}
+                            >
+                              <EyeOff className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : aprovacoesPendentes.length + diretorSolicitacoes.length + socioSolicitacoes.length + chamadasAlianca.length + carteiraAlerts.length > 0 && (
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
                         )}
                       </div>
@@ -1383,10 +1508,14 @@ export default function PainelPage() {
 
         <TabsContent value="carteira" className="space-y-4 mt-0">
           <Tabs value={carteiraView} onValueChange={handleCarteiraViewChange} className="space-y-4">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1">
+            <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted/40 p-1">
               <TabsTrigger value="imoveis" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-imoveis">
                 <Landmark className="h-4 w-4 text-blue-600" />
                 Imóveis
+              </TabsTrigger>
+              <TabsTrigger value="oportunidades" className="gap-2 text-xs sm:text-sm">
+                <Lightbulb className="h-4 w-4 text-amber-500" />
+                Oportunidades
               </TabsTrigger>
               <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-bias">
                 <Briefcase className="h-4 w-4 text-amber-500" />
@@ -1396,6 +1525,10 @@ export default function PainelPage() {
 
             <TabsContent value="imoveis" className="mt-0">
               <CarteiraDashboardPanel compact />
+            </TabsContent>
+
+            <TabsContent value="oportunidades" className="mt-0">
+              <OportunidadesImobiliariasPanel embedded />
             </TabsContent>
 
             <TabsContent value="bias" className="space-y-4 mt-0">
@@ -1943,11 +2076,92 @@ export default function PainelPage() {
                   </div>
                 </CardContent>
               </Card>
+              <Card
+                className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
+                onClick={() => navigate("/documentacao/relatorio-funcionalidades")}
+                data-testid="card-gestao-relatorio-funcionalidades"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <ClipboardCheck className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">
+                            Relatório de funcionalidades
+                          </p>
+                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                            Consulte os módulos e recursos entregues na plataforma.
+                          </p>
+                        </div>
+                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
 
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={!!selectedCarteiraAlert}
+        onOpenChange={(open) => {
+          if (open) return;
+          setSelectedCarteiraAlert(null);
+          setCarteiraAlertAction("");
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-blue-600" />
+              Registrar ação
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCarteiraAlert?.titulo} · {selectedCarteiraAlert?.imovel_nome}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="carteira-alert-action" className="text-sm font-medium text-foreground">
+              O que será feito?
+            </label>
+            <Textarea
+              id="carteira-alert-action"
+              value={carteiraAlertAction}
+              onChange={(event) => setCarteiraAlertAction(event.target.value)}
+              rows={4}
+              maxLength={1000}
+              placeholder="Descreva a ação, o responsável ou a próxima etapa."
+            />
+            {selectedCarteiraAlert?.acao_sugerida && (
+              <p className="text-xs text-muted-foreground">
+                Sugestão: {selectedCarteiraAlert.acao_sugerida}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedCarteiraAlert(null)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              disabled={!carteiraAlertAction.trim() || registerCarteiraAlertAction.isPending}
+              onClick={() => {
+                if (!selectedCarteiraAlert || !carteiraAlertAction.trim()) return;
+                registerCarteiraAlertAction.mutate({ alert: selectedCarteiraAlert, action: carteiraAlertAction.trim() });
+              }}
+            >
+              {registerCarteiraAlertAction.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar ação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={conviteDialogOpen} onOpenChange={setConviteDialogOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-lg overflow-hidden">

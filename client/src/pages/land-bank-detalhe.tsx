@@ -30,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,9 +40,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { landBankPhotoUrl } from "@/lib/land-bank-assets";
 import type { MarketM2Analysis } from "@/lib/market-analysis";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 
 const landBankStorageKey = "built-land-bank-assets-v2";
-const landBankInterestStorageKey = "built-land-bank-interesses-v1";
 
 const categoryMeta = {
   "land-bank": {
@@ -62,6 +64,18 @@ const categoryMeta = {
 
 type LandBankCategoryValue = keyof typeof categoryMeta;
 
+const stageLabels: Record<string, string> = {
+  identificada: "Identificada",
+  em_analise: "Em análise",
+  complementos_solicitados: "Complementos solicitados",
+  pre_viabilidade_aprovada: "Pré-viabilidade aprovada",
+  estruturacao_solicitada: "Estruturação solicitada",
+  bia_em_formacao: "BIA em formação",
+  convertida_bia: "Convertida em BIA",
+  rejeitada: "Rejeitada",
+  arquivada: "Arquivada",
+};
+
 interface LandBankAsset {
   id: string;
   category: LandBankCategoryValue | "transformation-bank";
@@ -75,6 +89,7 @@ interface LandBankAsset {
   };
   qualificacao: string;
   area: string;
+  area_m2?: string;
   valor?: string;
   moeda?: string;
   descricao?: string;
@@ -90,12 +105,15 @@ interface LandBankAsset {
   createdAt: string;
   can_edit?: boolean;
   can_delete?: boolean;
-}
-
-interface LandBankInterest {
-  assetId: string;
-  mensagem: string;
-  createdAt: string;
+  can_review?: boolean;
+  can_request_bia?: boolean;
+  origem_tipo?: string;
+  visibilidade?: string;
+  estagio?: string;
+  autorizacao_compartilhamento_at?: string | null;
+  autorizacao_compartilhamento?: boolean;
+  dados_privados_liberados?: boolean;
+  meu_interesse?: { id: string; status: string; mensagem?: string | null } | null;
 }
 
 function readAssets(): LandBankAsset[] {
@@ -111,18 +129,6 @@ function writeAssets(assets: LandBankAsset[]) {
   window.localStorage.setItem(landBankStorageKey, JSON.stringify(assets));
 }
 
-function readInterests(): LandBankInterest[] {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(landBankInterestStorageKey) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeInterests(interests: LandBankInterest[]) {
-  window.localStorage.setItem(landBankInterestStorageKey, JSON.stringify(interests));
-}
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -184,19 +190,53 @@ function formatFileSize(size?: number): string {
   return `${(size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 }
 
+interface AssetInterest {
+  id: string;
+  membro_nome?: string | null;
+  mensagem?: string | null;
+  status: "interesse_recebido" | "em_analise" | "selecionado" | "nao_selecionado" | "retirado";
+}
+
+function AssetInterestsManager({ assetId }: { assetId: string }) {
+  const { toast } = useToast();
+  const queryKey = ["/api/land-bank-assets", assetId, "interesses"] as const;
+  const interestsQuery = useQuery<AssetInterest[]>({ queryKey });
+  const updateMutation = useMutation({
+    mutationFn: ({ interestId, status }: { interestId: string; status: AssetInterest["status"] }) =>
+      apiRequest("PATCH", `/api/land-bank-assets/${assetId}/interesses/${interestId}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      toast({ title: "Interesse atualizado" });
+    },
+    onError: (error: any) => toast({ title: "Erro ao atualizar interesse", description: error?.message, variant: "destructive" }),
+  });
+  const interests = interestsQuery.data || [];
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-center justify-between"><div><h2 className="font-semibold">Membros interessados</h2><p className="mt-1 text-xs text-muted-foreground">Selecione um ou vários membros para liberar os dados privados.</p></div><Badge variant="outline">{interests.length}</Badge></div>
+        {interestsQuery.isLoading ? <p className="text-sm text-muted-foreground">Carregando...</p> : interests.length === 0 ? <p className="text-sm text-muted-foreground">Ainda não há manifestações de interesse.</p> : <div className="divide-y">{interests.map((interest) => <div key={interest.id} className="space-y-2 py-3"><div><p className="text-sm font-medium">{interest.membro_nome || "Membro BUILT"}</p>{interest.mensagem && <p className="mt-1 text-xs text-muted-foreground">{interest.mensagem}</p>}</div><Select value={interest.status} onValueChange={(status) => updateMutation.mutate({ interestId: interest.id, status: status as AssetInterest["status"] })}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="interesse_recebido">Interesse recebido</SelectItem><SelectItem value="em_analise">Em análise</SelectItem><SelectItem value="selecionado">Selecionado</SelectItem><SelectItem value="nao_selecionado">Não selecionado</SelectItem></SelectContent></Select></div>)}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function LandBankDetalhePage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const isPersonalRoute = window.location.pathname.startsWith("/oportunidades/");
   const [assets, setAssets] = useState<LandBankAsset[]>(readAssets);
   const [interestDialogOpen, setInterestDialogOpen] = useState(false);
+  const [membershipDialogOpen, setMembershipDialogOpen] = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState<LandBankAsset | null>(null);
   const [marketAnalysis, setMarketAnalysis] = useState<MarketM2Analysis | null>(null);
   const marketAnalysisKeyRef = useRef("");
   const [mensagem, setMensagem] = useState("");
-  const [interests, setInterests] = useState<LandBankInterest[]>(readInterests);
 
   const { data: assetFromApi = null } = useQuery<LandBankAsset | null>({
     queryKey: ["/api/land-bank-assets", id],
@@ -221,23 +261,21 @@ export default function LandBankDetalhePage() {
   });
 
   const asset = useMemo(() => assetFromApi || assets.find((item) => item.id === id) || null, [assetFromApi, assets, id]);
-  const myInterest = interests.find((interest) => interest.assetId === id) || null;
+  const myInterest = asset?.meu_interesse && asset.meu_interesse.status !== "retirado" ? asset.meu_interesse : null;
+  const alliancesAccess = environmentAccessFor(user, "alliances");
   const categoryKey = asset?.category === "transformation-bank" ? "built-asset-bank" : asset?.category;
   const meta = categoryKey ? categoryMeta[categoryKey as LandBankCategoryValue] || categoryMeta["land-bank"] : categoryMeta["land-bank"];
   const Icon = meta.icon;
   const assetValue = parseMarketNumber(asset?.valor || "");
-  const assetArea = parseMarketNumber(asset?.area || "");
+  const assetArea = parseMarketNumber(asset?.area || asset?.area_m2 || "");
   const assetPriceM2 = assetArea > 0 ? assetValue / assetArea : 0;
 
   const deleteAssetMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/land-bank-assets/${encodeURIComponent(id)}`),
     onSuccess: () => {
       const nextAssets = assets.filter((item) => item.id !== id);
-      const nextInterests = interests.filter((interest) => interest.assetId !== id);
       writeAssets(nextAssets);
-      writeInterests(nextInterests);
       setAssets(nextAssets);
-      setInterests(nextInterests);
       queryClient.setQueryData<LandBankAsset[]>(["/api/land-bank-assets"], (current = []) =>
         current.filter((item) => item.id !== id)
       );
@@ -245,7 +283,7 @@ export default function LandBankDetalhePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
       setDeleteDialogOpen(false);
       toast({ title: "Ativo excluído do Banco de Ativos" });
-      navigate(`/area-aliancas?tab=${categoryKey || "land-bank"}`);
+      navigate(isPersonalRoute ? "/oportunidades" : `/area-aliancas?tab=${categoryKey || "land-bank"}`);
     },
     onError: (error: any) => {
       toast({
@@ -301,32 +339,86 @@ export default function LandBankDetalhePage() {
     marketAnalysisMutation.isPending,
   ]);
 
-  const registerInterest = () => {
-    if (!asset) return;
-    const next = [
-      { assetId: asset.id, mensagem: mensagem.trim(), createdAt: new Date().toISOString() },
-      ...interests.filter((interest) => interest.assetId !== asset.id),
-    ];
-    writeInterests(next);
-    setInterests(next);
-    setMensagem("");
-    setInterestDialogOpen(false);
+  const interestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/land-bank-assets/${id}/interesse`, { mensagem: mensagem.trim() || null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      setMensagem("");
+      setInterestDialogOpen(false);
+      toast({ title: "Interesse registrado" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível registrar interesse", description: error?.message, variant: "destructive" }),
+  });
+
+  const removeInterestMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/land-bank-assets/${id}/interesse`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      toast({ title: "Interesse retirado" });
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async (estagio: string) => {
+      const response = await apiRequest("PATCH", `/api/land-bank-assets/${id}/analise`, {
+        estagio,
+        observacao: reviewNote.trim() || null,
+      });
+      return response.json() as Promise<LandBankAsset>;
+    },
+    onSuccess: async (updatedAsset, estagio) => {
+      queryClient.setQueryData(["/api/land-bank-assets", id], updatedAsset);
+      await queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets"] });
+      setReviewNote("");
+      toast({
+        title: stageLabels[estagio] || "Análise atualizada",
+        description: estagio === "complementos_solicitados"
+          ? "A solicitação e o parecer foram registrados na oportunidade."
+          : estagio === "pre_viabilidade_aprovada"
+            ? "A oportunidade agora pode solicitar a estruturação de uma BIA."
+            : "A oportunidade entrou formalmente em análise preliminar.",
+      });
+    },
+    onError: (error: any) => toast({ title: "Erro ao atualizar análise", description: error?.message, variant: "destructive" }),
+  });
+
+  const submitReviewStage = (estagio: string) => {
+    if (estagio === "complementos_solicitados" && !reviewNote.trim()) {
+      toast({
+        title: "Descreva os complementos necessários",
+        description: "Informe no parecer quais dados ou documentos precisam ser enviados.",
+        variant: "destructive",
+      });
+      return;
+    }
+    reviewMutation.mutate(estagio);
   };
 
-  const removeInterest = () => {
-    if (!asset) return;
-    const next = interests.filter((interest) => interest.assetId !== asset.id);
-    writeInterests(next);
-    setInterests(next);
-  };
+  const requestBiaMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/land-bank-assets/${id}/estruturacao-bia`, { observacao: reviewNote || null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bia-estruturacao-solicitacoes"] });
+      setReviewNote("");
+      toast({ title: "Estruturação de BIA solicitada" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível solicitar a BIA", description: error?.message, variant: "destructive" }),
+  });
 
   const openEditDialog = () => {
     if (!asset) return;
-    setEditForm({ ...asset, category: asset.category === "transformation-bank" ? "built-asset-bank" : asset.category });
+    setEditForm({
+      ...asset,
+      category: asset.category === "transformation-bank" ? "built-asset-bank" : asset.category,
+      autorizacao_compartilhamento: Boolean(asset.autorizacao_compartilhamento_at || asset.autorizacao_compartilhamento),
+    });
     setEditDialogOpen(true);
   };
 
-  const setEditField = (field: keyof LandBankAsset, value: string) => {
+  const setEditField = (field: keyof LandBankAsset, value: any) => {
     setEditForm((current) => current ? { ...current, [field]: value } : current);
   };
 
@@ -366,9 +458,9 @@ export default function LandBankDetalhePage() {
   if (!asset) {
     return (
       <div className="mx-auto max-w-4xl space-y-4 p-6">
-        <Button variant="ghost" onClick={() => navigate("/area-aliancas?tab=landbank")} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate(isPersonalRoute ? "/oportunidades" : "/area-aliancas?tab=landbank")} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Voltar para Land bank
+          Voltar para {isPersonalRoute ? "Oportunidades" : "Land Bank"}
         </Button>
         <Card>
           <CardContent className="py-14 text-center">
@@ -383,9 +475,9 @@ export default function LandBankDetalhePage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" onClick={() => navigate(`/area-aliancas?tab=${asset.category}`)} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate(isPersonalRoute ? "/oportunidades" : `/area-aliancas?tab=${asset.category}`)} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Voltar para {meta.title}
+          Voltar para {isPersonalRoute ? "Oportunidades" : meta.title}
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
           {asset.can_edit && (
@@ -421,7 +513,8 @@ export default function LandBankDetalhePage() {
             <CardContent className="space-y-5 p-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-500">{meta.title}</Badge>
-                <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">ativo</Badge>
+                <Badge variant="outline">{asset.origem_tipo === "ativo_proprio" ? "Ativo próprio" : asset.origem_tipo === "terceiro_autorizado" ? "Terceiro autorizado" : asset.origem_tipo === "oportunidade_externa" ? "Oportunidade externa" : "Origem não informada"}</Badge>
+                <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{stageLabels[asset.estagio || "identificada"] || asset.estagio || "Identificada"}</Badge>
                 {myInterest && (
                   <Badge variant="outline" className="border-cyan-200 bg-cyan-50 text-cyan-700">
                     interesse manifestado
@@ -455,12 +548,12 @@ export default function LandBankDetalhePage() {
                 <h2 className="font-semibold text-foreground">Localização</h2>
               </div>
               <div className="grid gap-3">
-                <InfoRow label="Endereço" value={`${asset.endereco}, ${asset.numero}`} />
+                {asset.dados_privados_liberados && <InfoRow label="Endereço" value={[asset.endereco, asset.numero].filter(Boolean).join(", ")} />}
                 <InfoRow label="Complemento" value={asset.complemento} />
-                <InfoRow label="Bairro" value={asset.bairro} />
+                {asset.dados_privados_liberados && <InfoRow label="Bairro" value={asset.bairro} />}
                 <InfoRow label="Cidade" value={[asset.cidade, asset.estado].filter(Boolean).join(", ")} />
                 <InfoRow label="País" value={asset.pais} />
-                <InfoRow label="CEP" value={asset.cep} />
+                {asset.dados_privados_liberados && <InfoRow label="CEP" value={asset.cep} />}
               </div>
             </CardContent>
           </Card>
@@ -471,7 +564,7 @@ export default function LandBankDetalhePage() {
                 <Ruler className={`h-4 w-4 ${meta.accent}`} />
                 <h2 className="font-semibold text-foreground">Informações do ativo</h2>
               </div>
-              <InfoRow label="Área" value={`${asset.area} m²`} />
+              <InfoRow label="Área" value={(asset.area || asset.area_m2) ? `${asset.area || asset.area_m2} m²` : null} />
               <InfoRow label="Valor" value={formatCurrency(asset.valor, asset.moeda || "BRL")} />
               <InfoRow label="Moeda" value={asset.moeda || "BRL"} />
               <InfoRow label="Categoria" value={meta.title} />
@@ -614,7 +707,71 @@ export default function LandBankDetalhePage() {
             </Card>
           )}
 
-          <Card>
+          {asset.can_review && (
+            <Card className="border-blue-200">
+              <CardContent className="space-y-4 p-5">
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="font-semibold">Análise preliminar</h2>
+                    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+                      {stageLabels[asset.estagio || "identificada"] || asset.estagio || "Identificada"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Administração ou Aliado da comunidade pode conduzir a triagem.</p>
+                </div>
+                {asset.observacao_analise && (
+                  <div className="rounded-md border border-blue-100 bg-blue-50/60 p-3">
+                    <p className="text-xs font-semibold uppercase text-blue-700">Último parecer registrado</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{asset.observacao_analise}</p>
+                  </div>
+                )}
+                <Textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="Registre parecer ou complementos necessários..." />
+                <div className="grid gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={reviewMutation.isPending || asset.estagio === "em_analise"}
+                    onClick={() => submitReviewStage("em_analise")}
+                  >
+                    {reviewMutation.isPending && reviewMutation.variables === "em_analise" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : asset.estagio === "em_analise" ? <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> : null}
+                    {asset.estagio === "em_analise" ? "Análise em andamento" : "Iniciar análise"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={reviewMutation.isPending || asset.estagio === "complementos_solicitados"}
+                    onClick={() => submitReviewStage("complementos_solicitados")}
+                  >
+                    {reviewMutation.isPending && reviewMutation.variables === "complementos_solicitados" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : asset.estagio === "complementos_solicitados" ? <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> : null}
+                    {asset.estagio === "complementos_solicitados" ? "Complementos solicitados" : "Solicitar complementos"}
+                  </Button>
+                  <Button
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    disabled={reviewMutation.isPending || asset.estagio === "pre_viabilidade_aprovada"}
+                    onClick={() => submitReviewStage("pre_viabilidade_aprovada")}
+                  >
+                    {reviewMutation.isPending && reviewMutation.variables === "pre_viabilidade_aprovada" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    {asset.estagio === "pre_viabilidade_aprovada" ? "Pré-viabilidade aprovada" : "Aprovar pré-viabilidade"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {asset.can_edit && (
+            <Card>
+              <CardContent className="space-y-4 p-5">
+                <div><h2 className="font-semibold">Estruturação da oportunidade</h2><p className="mt-1 text-xs text-muted-foreground">A BIA só pode ser solicitada após aprovação da pré-viabilidade.</p></div>
+                {asset.can_request_bia ? (
+                  <Button className="w-full bg-blue-600 text-white hover:bg-blue-700" disabled={requestBiaMutation.isPending} onClick={() => requestBiaMutation.mutate()}>{requestBiaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Solicitar estruturação de BIA</Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Etapa atual: {stageLabels[asset.estagio || "identificada"] || asset.estagio}. Aguarde a análise ou complete os dados solicitados.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {asset.can_edit && asset.visibilidade === "publicada" && <AssetInterestsManager assetId={asset.id} />}
+
+          {!asset.can_edit && <Card>
             <CardContent className="space-y-4 p-5">
               {myInterest ? (
                 <>
@@ -622,18 +779,18 @@ export default function LandBankDetalhePage() {
                     <CheckCircle2 className="h-4 w-4" />
                     Interesse manifestado
                   </Button>
-                  <Button variant="ghost" className="w-full" onClick={removeInterest}>
+                  <Button variant="ghost" className="w-full" onClick={() => removeInterestMutation.mutate()} disabled={removeInterestMutation.isPending}>
                     Remover interesse
                   </Button>
                 </>
               ) : (
-                <Button className="w-full gap-2 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setInterestDialogOpen(true)}>
+                <Button className="w-full gap-2 bg-blue-500 text-white hover:bg-blue-600" onClick={() => alliancesAccess.canAccess ? setInterestDialogOpen(true) : setMembershipDialogOpen(true)}>
                   <HandHeart className="h-4 w-4" />
                   Manifestar interesse
                 </Button>
               )}
             </CardContent>
-          </Card>
+          </Card>}
         </div>
       </div>
 
@@ -658,10 +815,12 @@ export default function LandBankDetalhePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInterestDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={registerInterest}>Enviar interesse</Button>
+            <Button onClick={() => interestMutation.mutate()} disabled={interestMutation.isPending}>{interestMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar interesse</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EnvironmentAccessDialog access={alliancesAccess} open={membershipDialogOpen} onOpenChange={setMembershipDialogOpen} />
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
@@ -685,6 +844,32 @@ export default function LandBankDetalhePage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Origem</Label>
+                  <Select value={editForm.origem_tipo || "origem_nao_informada"} onValueChange={(value) => setEditField("origem_tipo", value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativo_proprio">Ativo próprio</SelectItem>
+                      <SelectItem value="terceiro_autorizado">Terceiro autorizado</SelectItem>
+                      <SelectItem value="oportunidade_externa">Oportunidade externa</SelectItem>
+                      <SelectItem value="origem_nao_informada">Origem não informada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Visibilidade</Label>
+                  <Select value={editForm.visibilidade || "privada"} onValueChange={(value) => setEditField("visibilidade", value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="privada">Privada</SelectItem><SelectItem value="publicada">Publicada</SelectItem><SelectItem value="pausada">Pausada</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <label className="flex cursor-pointer items-start gap-3">
+                <Checkbox checked={editForm.autorizacao_compartilhamento === true} onCheckedChange={(checked) => setEditField("autorizacao_compartilhamento", checked === true)} />
+                <span className="text-sm leading-relaxed">Autorizo a análise e o compartilhamento do resumo desta oportunidade, mantendo dados privados protegidos.</span>
+              </label>
 
               <div className="space-y-2">
                 <Label>Foto do ativo</Label>

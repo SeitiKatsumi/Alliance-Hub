@@ -146,14 +146,14 @@ export function VitrineOportunidadesPage(props: any = {}) {
   const detailPath = (opa: OportunidadeVitrine, bias: BiasVitrine[], opas: OportunidadeVitrine[]) => {
     const bia = bias.find((item) => item.id === opa.bia_id);
     const ref = getOpaPublicRef(opa, bia, opas);
-    return isCapital ? `/built-capital/chamadas/${ref}` : `/vitrine/opas/${ref}`;
+    return isCapital ? `/built-capital/chamadas/${ref}` : `/vitrine/obas/${ref}`;
   };
   const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
-  const title = isCapital ? "Chamadas de Capital" : "Oportunidades da Vitrine";
+  const title = isCapital ? "Chamadas de Capital" : "OBAs da Vitrine";
   const backLabel = isCapital ? "Voltar para BUILT Capital" : "Voltar para Vitrine";
   const description = isCapital
     ? "Explore chamadas de capital e oportunidades de investimento BUILT."
-    : "Explore OBAs publicas sem acessar o modulo BUILT Alliances.";
+    : "Chamadas de parceria criadas por BIAs para reunir competências, execução e capital.";
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadeVitrine[]>({
     queryKey: [endpoint],
   });
@@ -219,13 +219,20 @@ export function VitrineOportunidadesPage(props: any = {}) {
         )}
       </div>
 
+      {!isCapital && (
+        <div className="grid grid-cols-2 border-y bg-slate-50">
+          <button type="button" onClick={() => navigate("/vitrine/demandas")} className="flex h-12 items-center justify-center gap-2 text-sm text-muted-foreground"><Target className="h-4 w-4" />Demandas</button>
+          <button type="button" onClick={() => navigate("/vitrine/obas")} className="flex h-12 items-center justify-center gap-2 bg-white text-sm font-semibold text-blue-700 shadow-sm"><Navigation className="h-4 w-4" />OBAs</button>
+        </div>
+      )}
+
       <div className="relative max-w-xl">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="pl-9"
-          placeholder="Buscar oportunidade..."
+          placeholder={isCapital ? "Buscar chamada de capital..." : "Buscar OBA..."}
           data-testid="input-vitrine-oportunidades-search"
         />
       </div>
@@ -246,7 +253,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Target className="mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="font-medium text-foreground">{isCapital ? "Nenhuma chamada de capital cadastrada" : "Nenhuma oportunidade encontrada"}</p>
+            <p className="font-medium text-foreground">{isCapital ? "Nenhuma chamada de capital cadastrada" : "Nenhuma OBA encontrada"}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {isCapital ? "Crie a primeira chamada de capital para exibir aqui." : "Tente outra busca ou volte para a Vitrine."}
             </p>

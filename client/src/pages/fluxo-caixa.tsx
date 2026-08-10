@@ -1806,7 +1806,6 @@ export default function FluxoCaixaPage({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       toast({ title: "Transferência aceita!", description: "As cotas foram transferidas com sucesso." });
     },
     onError: (e: any) => toast({ title: "Erro ao aceitar", description: e.message, variant: "destructive" }),
@@ -1818,7 +1817,6 @@ export default function FluxoCaixaPage({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transferencia-cotas", selectedBiaId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/fluxo-caixa"] });
       setRejeicaoDialogId(null);
       setRejeicaoMotivo("");
       toast({ title: "Solicitação rejeitada" });

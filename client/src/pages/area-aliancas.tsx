@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton } from "@/components/rede-badge-viewer";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
+import { BiaStructuringQueue } from "@/components/bia-structuring-queue";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
@@ -288,6 +290,9 @@ interface LandBankAsset {
   createdAt: string;
   can_edit?: boolean;
   can_delete?: boolean;
+  origem_tipo: "ativo_proprio" | "terceiro_autorizado" | "oportunidade_externa" | "origem_nao_informada";
+  visibilidade: "privada" | "publicada" | "pausada";
+  autorizacao_compartilhamento: boolean;
 }
 
 type LandBankForm = Omit<LandBankAsset, "id" | "category" | "createdAt" | "can_edit" | "can_delete">;
@@ -346,6 +351,9 @@ const emptyLandBankForm: LandBankForm = {
   cartorio: "",
   comarca: "",
   foto: "",
+  origem_tipo: "terceiro_autorizado",
+  visibilidade: "publicada",
+  autorizacao_compartilhamento: false,
 };
 
 function estimateLandBankCoords(form: LandBankForm): { latitude: number | null; longitude: number | null } {
@@ -1641,7 +1649,7 @@ export default function AreaAliancasPage() {
 
   const selectedLandBankCategory = landBankCategories.find((category) => category.value === landBankDialogCategory) || landBankCategories[0];
   const SelectedLandBankIcon = selectedLandBankCategory.icon;
-  const setLandBankField = (field: keyof LandBankForm, value: string) => {
+  const setLandBankField = (field: keyof LandBankForm, value: any) => {
     setLandBankForm((current) => ({ ...current, [field]: value }));
   };
   const handleLandBankPhoto = async (file?: File) => {
@@ -1694,6 +1702,10 @@ export default function AreaAliancasPage() {
     window.history.replaceState(null, "", `/area-aliancas?tab=${encodeURIComponent(value)}`);
   };
   const createLandBankAsset = () => {
+    if (!landBankForm.autorizacao_compartilhamento || landBankForm.origem_tipo === "origem_nao_informada") {
+      toast({ title: "Confirme a origem e a autorização", description: "A publicação exige origem classificada e autorização de compartilhamento.", variant: "destructive" });
+      return;
+    }
     const requiredFields: Array<keyof LandBankForm> = [
       "qualificacao",
       "area",
@@ -1748,6 +1760,9 @@ export default function AreaAliancasPage() {
       bia_id: "",
       bia_nome: "",
       qualificacao: imovel.nome || imovel.tipo || "Imóvel do inventário",
+      origem_tipo: "ativo_proprio",
+      visibilidade: "publicada",
+      autorizacao_compartilhamento: true,
       area: String(imovel.area_m2 || ""),
       valor: String(imovel.valor_atual || imovel.valor_pago || ""),
       moeda: imovel.moeda || "BRL",
@@ -1883,6 +1898,7 @@ export default function AreaAliancasPage() {
         <TabsContent value="landbank" className="space-y-5">
           {activeTab === "landbank" && (
             <Tabs value={activeLandBankTab} onValueChange={updateLandBankTab} className="space-y-5">
+              <BiaStructuringQueue compact />
               <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/50 p-1">
                 {landBankCategories.map((category) => {
                   const Icon = category.icon;
@@ -1930,6 +1946,20 @@ export default function AreaAliancasPage() {
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Informações do ativo</p>
               <p className="mt-1 text-sm text-muted-foreground">{selectedLandBankCategory.shortDescription}</p>
+            </div>
+
+            <div className="space-y-4 border-y py-4">
+              <div className="space-y-2">
+                <Label>Origem do ativo</Label>
+                <Select value={landBankForm.origem_tipo} onValueChange={(value) => setLandBankField("origem_tipo", value)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="ativo_proprio">Ativo próprio</SelectItem><SelectItem value="terceiro_autorizado">Ativo de terceiro autorizado</SelectItem><SelectItem value="oportunidade_externa">Oportunidade externa</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <label className="flex cursor-pointer items-start gap-3">
+                <Checkbox checked={landBankForm.autorizacao_compartilhamento} onCheckedChange={(checked) => setLandBankField("autorizacao_compartilhamento", checked === true)} />
+                <span className="text-sm leading-relaxed"><strong>Autorizo a análise e publicação desta oportunidade.</strong><br /><span className="text-muted-foreground">Endereço exato, documentos e contato permanecerão privados até a seleção de interessados.</span></span>
+              </label>
             </div>
 
             <div className="space-y-2">
@@ -2221,6 +2251,7 @@ export default function AreaAliancasPage() {
             </Button>
             <Button
               onClick={createLandBankAsset}
+              disabled={!landBankForm.autorizacao_compartilhamento}
               className="bg-blue-600 text-white hover:bg-blue-700"
               data-testid="btn-salvar-landbank"
             >

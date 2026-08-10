@@ -619,6 +619,27 @@ interface OportunidadeVitrine {
   date_created: string | null;
 }
 
+interface DemandaVitrine {
+  id: string;
+  titulo: string;
+  resumo_publico: string | null;
+  urgencia: string;
+  especialidades: string[];
+  status: string | null;
+  publicada_em: string | null;
+  cidade: string | null;
+  estado: string | null;
+  pais: string | null;
+  tipo_imovel: string | null;
+  total_interesses: number;
+  dados_privados_liberados: boolean;
+  meu_interesse?: {
+    id: string;
+    mensagem: string | null;
+    status: string;
+  } | null;
+}
+
 function safeAdText(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
@@ -903,6 +924,9 @@ export default function VitrinePage() {
   const anuncioTermsAllAccepted = anuncioTerms.t1 && anuncioTerms.t2 && anuncioTerms.t3;
   const [anuncioEditTarget, setAnuncioEditTarget] = useState<AnuncioVitrine | null>(null);
   const [blockedAuraAccess, setBlockedAuraAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
+  const [demandaDialogOpen, setDemandaDialogOpen] = useState(false);
+  const [selectedDemandaId, setSelectedDemandaId] = useState<string | null>(null);
+  const [demandaMensagem, setDemandaMensagem] = useState("");
 
   const membroId = user?.membro_directus_id;
   const isSuperAdmin = user?.role === "admin";
@@ -992,6 +1016,80 @@ export default function VitrinePage() {
       return Array.isArray(data) ? fixMojibakeDeep(data) : [];
     },
   });
+
+  const [demandasPublicadas, setDemandasPublicadas] = useState<DemandaVitrine[]>([]);
+  const [demandasLoading, setDemandasLoading] = useState(true);
+  const [demandasRefreshKey, setDemandasRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setDemandasLoading(true);
+
+    fetch(`/api/vitrine/demandas?_=${Date.now()}`, {
+      credentials: "include",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Não foi possível carregar as demandas da Vitrine.");
+        return response.json();
+      })
+      .then((data) => {
+        setDemandasPublicadas(Array.isArray(data) ? fixMojibakeDeep(data) : []);
+      })
+      .catch((error) => {
+        if (error?.name !== "AbortError") setDemandasPublicadas([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDemandasLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [demandasRefreshKey]);
+
+  const { data: demandaSelecionada, isLoading: demandaSelecionadaLoading } = useQuery<DemandaVitrine>({
+    queryKey: ["/api/vitrine/demandas", selectedDemandaId],
+    queryFn: async () => {
+      const r = await fetch(`/api/vitrine/demandas/${selectedDemandaId}`, { credentials: "include", cache: "no-store" });
+      if (!r.ok) throw new Error("Não foi possível carregar a demanda.");
+      return fixMojibakeDeep(await r.json());
+    },
+    enabled: demandaDialogOpen && !!selectedDemandaId,
+  });
+
+  const registrarInteresseDemandaMutation = useMutation({
+    mutationFn: async ({ id, mensagem }: { id: string; mensagem: string }) => {
+      const response = await apiRequest("POST", `/api/vitrine/demandas/${id}/interesse`, {
+        mensagem: mensagem.trim() || null,
+      });
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas", variables.id] });
+      setDemandasRefreshKey((current) => current + 1);
+      toast({ title: "Interesse registrado", description: "O responsável pela demanda poderá analisar seu perfil e sua mensagem." });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível registrar o interesse", description: error?.message, variant: "destructive" }),
+  });
+
+  const retirarInteresseDemandaMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/vitrine/demandas/${id}/interesse`),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas", id] });
+      setDemandasRefreshKey((current) => current + 1);
+      setDemandaMensagem("");
+      toast({ title: "Interesse retirado" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível retirar o interesse", description: error?.message, variant: "destructive" }),
+  });
+
+  function abrirDemanda(demanda: DemandaVitrine) {
+    setSelectedDemandaId(demanda.id);
+    setDemandaMensagem("");
+    setDemandaDialogOpen(true);
+  }
   // Anúncio mutations
   const criarAnuncioMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1269,6 +1367,9 @@ export default function VitrinePage() {
   );
   const anuncioHero = anunciosAtivos.find(a => a.slot_tipo === "hero");
   const anunciosMenores = anunciosAtivos.filter(a => a.slot_tipo !== "hero").slice(0, 5);
+  const demandaEmExibicao = demandaSelecionada
+    || demandasPublicadas.find((demanda) => demanda.id === selectedDemandaId)
+    || null;
 
   function clearFilters() {
     setSearch("");
@@ -1289,6 +1390,126 @@ export default function VitrinePage() {
         open={!!blockedAuraAccess}
         onOpenChange={(open) => !open && setBlockedAuraAccess(null)}
       />
+
+      <Dialog
+        open={demandaDialogOpen}
+        onOpenChange={(open) => {
+          setDemandaDialogOpen(open);
+          if (!open) {
+            setSelectedDemandaId(null);
+            setDemandaMensagem("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          {demandaSelecionadaLoading && !demandaEmExibicao ? (
+            <div className="space-y-4 py-3">
+              <Skeleton className="h-7 w-3/4" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : demandaEmExibicao ? (
+            <>
+              <DialogHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase text-blue-700">
+                    Demanda
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                    demandaEmExibicao.urgencia === "alta" || demandaEmExibicao.urgencia === "urgente"
+                      ? "bg-red-50 text-red-700"
+                      : demandaEmExibicao.urgencia === "baixa"
+                        ? "bg-slate-100 text-slate-600"
+                        : "bg-amber-50 text-amber-700"
+                  }`}>
+                    Urgência {demandaEmExibicao.urgencia || "normal"}
+                  </span>
+                </div>
+                <DialogTitle className="pt-2 text-xl">{demandaEmExibicao.titulo}</DialogTitle>
+                <DialogDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {[demandaEmExibicao.cidade, demandaEmExibicao.estado, demandaEmExibicao.pais].filter(Boolean).join(", ") || "Localização não informada"}
+                  </span>
+                  {demandaEmExibicao.tipo_imovel && (
+                    <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{demandaEmExibicao.tipo_imovel}</span>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-5">
+                <div className="border-y border-border py-4">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {demandaEmExibicao.resumo_publico || "O responsável ainda não adicionou um resumo público."}
+                  </p>
+                  {demandaEmExibicao.especialidades.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {demandaEmExibicao.especialidades.map((especialidade) => (
+                        <span key={especialidade} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+                          {especialidade}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-3 rounded-md border border-blue-100 bg-blue-50/60 p-3 text-xs leading-relaxed text-slate-600">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                  O endereço exato, os documentos e os dados de contato permanecem protegidos. Eles são liberados somente após a seleção do interessado.
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mensagem-interesse-demanda">Mensagem ao responsável</Label>
+                  <Textarea
+                    id="mensagem-interesse-demanda"
+                    rows={3}
+                    value={demandaMensagem || demandaEmExibicao.meu_interesse?.mensagem || ""}
+                    onChange={(event) => setDemandaMensagem(event.target.value)}
+                    placeholder="Explique brevemente como você ou sua empresa podem atender esta demanda."
+                    data-testid="textarea-interesse-demanda"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{demandaEmExibicao.total_interesses} interesse(s) registrado(s)</span>
+                  {demandaEmExibicao.meu_interesse && (
+                    <span className="flex items-center gap-1.5 font-medium text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Seu interesse está registrado</span>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:justify-between">
+                {demandaEmExibicao.meu_interesse ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    disabled={retirarInteresseDemandaMutation.isPending}
+                    onClick={() => retirarInteresseDemandaMutation.mutate(demandaEmExibicao.id)}
+                  >
+                    Retirar interesse
+                  </Button>
+                ) : <span />}
+                <Button
+                  type="button"
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={registrarInteresseDemandaMutation.isPending}
+                  onClick={() => registrarInteresseDemandaMutation.mutate({
+                    id: demandaEmExibicao.id,
+                    mensagem: demandaMensagem || demandaEmExibicao.meu_interesse?.mensagem || "",
+                  })}
+                  data-testid="btn-registrar-interesse-demanda"
+                >
+                  {registrarInteresseDemandaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {demandaEmExibicao.meu_interesse ? "Atualizar interesse" : "Tenho interesse"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">Demanda não encontrada.</p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Header — BIA style */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1410,6 +1631,33 @@ export default function VitrinePage() {
       </div>
 
       {/* Meus agendamentos — só visível para o próprio membro */}
+      {/* ===== DEMANDAS DA REDE ===== */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-semibold text-foreground">Demandas da rede</h2>
+          </div>
+          <div className="flex-1 h-px bg-border" />
+          {demandasPublicadas.length > 0 && (
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">
+              {demandasPublicadas.length} {demandasPublicadas.length === 1 ? "demanda aberta" : "demandas abertas"}
+            </span>
+          )}
+        </div>
+        <HorizontalCarousel testId="carousel-demandas-vitrine">
+          {demandasLoading ? (
+            [...Array(3)].map((_, index) => <Skeleton key={index} className="h-[230px] min-w-[285px] rounded-xl" />)
+          ) : demandasPublicadas.length > 0 ? demandasPublicadas.map((demanda) => (
+            <DemandaVitrineCard key={demanda.id} demanda={demanda} onOpen={() => abrirDemanda(demanda)} />
+          )) : (
+            <div className="w-full rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Nenhuma demanda publicada na Vitrine no momento.
+            </div>
+          )}
+        </HorizontalCarousel>
+      </section>
+
       {/* ===== OPAS EM DESTAQUE ===== */}
       <section className="space-y-3">
         <div className="flex items-center gap-3">
@@ -1418,7 +1666,7 @@ export default function VitrinePage() {
             <h2 className="text-sm font-semibold text-foreground">OBAs em destaque</h2>
           </div>
           <div className="flex-1 h-px bg-border" />
-          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/vitrine/oportunidades")}>
+          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/vitrine/obas")}>
             Ver todas as oportunidades
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
@@ -2308,6 +2556,63 @@ function HorizontalCarousel({ children, testId }: { children: React.ReactNode; t
         </button>
       )}
     </div>
+  );
+}
+
+function DemandaVitrineCard({ demanda, onOpen }: { demanda: DemandaVitrine; onOpen: () => void }) {
+  const localizacao = [demanda.cidade, demanda.estado].filter(Boolean).join(", ");
+  const urgenciaClass = demanda.urgencia === "alta" || demanda.urgencia === "urgente"
+    ? "border-red-200 bg-red-50 text-red-700"
+    : demanda.urgencia === "baixa"
+      ? "border-slate-200 bg-slate-50 text-slate-600"
+      : "border-amber-200 bg-amber-50 text-amber-700";
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="min-w-[285px] max-w-[320px] snap-start overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+      data-testid={`card-vitrine-demanda-${demanda.id}`}
+    >
+      <div className="flex h-14 items-center justify-between border-b border-blue-100 bg-blue-50/70 px-4">
+        <div className="flex items-center gap-2 text-blue-700">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
+            <MessageSquare className="h-4 w-4" />
+          </div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider">Demanda da rede</span>
+        </div>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${urgenciaClass}`}>
+          {demanda.urgencia || "normal"}
+        </span>
+      </div>
+
+      <div className="p-4">
+        <div className="flex flex-wrap gap-2">
+          {demanda.tipo_imovel && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">{demanda.tipo_imovel}</span>
+          )}
+          {demanda.especialidades.slice(0, 1).map((especialidade) => (
+            <span key={especialidade} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">{especialidade}</span>
+          ))}
+        </div>
+        <h3 className="mt-3 line-clamp-2 min-h-[40px] text-sm font-semibold leading-5 text-foreground">
+          {demanda.titulo || "Demanda sem título"}
+        </h3>
+        <p className="mt-2 line-clamp-3 min-h-[54px] text-xs leading-[18px] text-muted-foreground">
+          {demanda.resumo_publico || "Consulte o resumo público e demonstre seu interesse."}
+        </p>
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{localizacao || demanda.pais || "Local não informado"}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            {demanda.total_interesses}
+          </span>
+        </div>
+      </div>
+    </button>
   );
 }
 

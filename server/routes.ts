@@ -20,6 +20,24 @@ import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { resolveAuraAudioMetadata } from "./aura-audio";
 import { reconcileValorOrigemEntries } from "./valor-origem-sync";
 import { normalizeCarteiraAlertUpdate } from "./carteira-alertas";
+import { scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
+import {
+  buildDistributionSchedule,
+  canReadRestrictedOpportunity,
+  createDemandCode,
+  createEconomicOpportunityCode,
+  createLegacyStableCode,
+  createMeetingCode,
+  createOpaCode,
+  isOpportunityEditable,
+  isOpportunityPublic,
+  normalizeEconomicOpportunityStage,
+  normalizeOpportunityStatus,
+  normalizeRoDecisionAction,
+  normalizeOpportunityVisibility,
+  opportunityExpiry,
+  publicOpportunityRegistryView,
+} from "./opportunity-platform";
 import {
   canRequestBiaStructuring,
   normalizeAssetOrigin,
@@ -836,6 +854,7 @@ async function directusFetch(collection: string, params: string = "") {
   try {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      signal: AbortSignal.timeout(12_000),
     });
     if (!res.ok) throw new Error(`Directus error: ${res.status}`);
     const contentType = res.headers.get("content-type") || "";
@@ -858,6 +877,7 @@ async function directusFetchScoped(collection: string, params: string) {
   try {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+      signal: AbortSignal.timeout(12_000),
     });
     if (!res.ok) throw new Error(`Directus error: ${res.status}`);
     const contentType = res.headers.get("content-type") || "";
@@ -1621,7 +1641,7 @@ async function ensureInventarioTables() {
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_acessos_imovel_membro_unique ON carteira_acessos (imovel_id, membro_id) WHERE membro_id IS NOT NULL`);
 }
 
-async function ensureBusinessOpportunityTables() {
+async function applyBusinessOpportunityTables() {
   await ensureLandBankAssetsTable();
   await ensureInventarioTables();
 
@@ -1630,6 +1650,11 @@ async function ensureBusinessOpportunityTables() {
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS publicada_em timestamp`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS resumo_publico text`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS oportunidade_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS contexto text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS cidade text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS estado text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS pais text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS economic_opportunity_id uuid`);
 
   await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS origem_tipo text NOT NULL DEFAULT 'origem_nao_informada'`);
   await db.execute(sql`ALTER TABLE land_bank_assets ADD COLUMN IF NOT EXISTS visibilidade text NOT NULL DEFAULT 'privada'`);
@@ -1726,6 +1751,299 @@ async function ensureBusinessOpportunityTables() {
     ON bia_estruturacao_solicitacoes (asset_id)
     WHERE status IN ('pendente', 'complementos_solicitados')
   `);
+  await db.execute(sql`ALTER TABLE bia_estruturacao_solicitacoes ALTER COLUMN asset_id DROP NOT NULL`);
+  await db.execute(sql`ALTER TABLE bia_estruturacao_solicitacoes ADD COLUMN IF NOT EXISTS economic_opportunity_id uuid`);
+
+  await db.execute(sql`ALTER TABLE carteira_demandas ALTER COLUMN imovel_id DROP NOT NULL`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS bia_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS codigo text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS autor_tipo text NOT NULL DEFAULT 'usuario'`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS autor_user_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS autor_membro_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS responsavel_membro_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS expira_em timestamp`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS fluxo_disparo text NOT NULL DEFAULT 'imediato'`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_demandas_codigo ON carteira_demandas (codigo) WHERE codigo IS NOT NULL`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_demandas_bia ON carteira_demandas (bia_id, criado_em DESC) WHERE bia_id IS NOT NULL`);
+  await db.execute(sql`
+    UPDATE carteira_demandas
+    SET autor_tipo = CASE WHEN bia_id IS NOT NULL THEN 'bia' ELSE 'usuario' END,
+        autor_user_id = COALESCE(autor_user_id, criado_por_user_id),
+        autor_membro_id = COALESCE(autor_membro_id, criado_por_membro_id),
+        expira_em = COALESCE(expira_em, publicada_em + interval '60 days')
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_registry (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      source_type text NOT NULL,
+      source_id text NOT NULL,
+      codigo text NOT NULL UNIQUE,
+      tipo text NOT NULL,
+      titulo text NOT NULL,
+      descricao text,
+      autor_tipo text NOT NULL,
+      autor_user_id text,
+      autor_membro_id text,
+      autor_bia_id text,
+      criador_user_id text,
+      criador_membro_id text,
+      responsavel_user_id text,
+      responsavel_membro_id text,
+      imovel_id text,
+      bia_id text,
+      status text NOT NULL DEFAULT 'rascunho',
+      visibilidade text NOT NULL DEFAULT 'privada',
+      urgencia text NOT NULL DEFAULT 'normal',
+      especialidades jsonb NOT NULL DEFAULT '[]'::jsonb,
+      cidade text,
+      estado text,
+      pais text,
+      publicada_em timestamp,
+      expira_em timestamp,
+      fluxo_disparo text NOT NULL DEFAULT 'imediato',
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (source_type, source_id)
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_opportunity_registry_catalog ON opportunity_registry (tipo, visibilidade, status, atualizado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_opportunity_registry_bia ON opportunity_registry (bia_id, atualizado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_opportunity_registry_location ON opportunity_registry (pais, estado, cidade)`);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS economic_opportunities (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      codigo text NOT NULL UNIQUE,
+      titulo text NOT NULL,
+      resumo_autorizado text,
+      tese text NOT NULL,
+      finalidade text,
+      parecer text,
+      estagio text NOT NULL DEFAULT 'identificada',
+      criador_user_id text,
+      criador_membro_id text,
+      originador_user_id text,
+      originador_membro_id text,
+      responsavel_user_id text,
+      responsavel_membro_id text,
+      comunidade_id text,
+      comunidade_nome text,
+      cidade text,
+      estado text,
+      pais text,
+      bia_id text,
+      visibilidade text NOT NULL DEFAULT 'contextual',
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_economic_opportunities_stage ON economic_opportunities (estagio, atualizado_em DESC)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_economic_opportunities_community ON economic_opportunities (comunidade_id, atualizado_em DESC)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS economic_opportunity_sources (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      economic_opportunity_id uuid NOT NULL REFERENCES economic_opportunities(id) ON DELETE CASCADE,
+      source_type text NOT NULL,
+      source_id text NOT NULL,
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (economic_opportunity_id, source_type, source_id)
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_economic_opportunity_sources_source ON economic_opportunity_sources (source_type, source_id)`);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_bia_estruturacao_economic_aberta
+    ON bia_estruturacao_solicitacoes (economic_opportunity_id)
+    WHERE economic_opportunity_id IS NOT NULL AND status IN ('pendente', 'complementos_solicitados')
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_relations (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      origem_registry_id uuid NOT NULL REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      destino_registry_id uuid NOT NULL REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      tipo text NOT NULL,
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (origem_registry_id, destino_registry_id, tipo)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_events (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      registry_id uuid NOT NULL REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      tipo text NOT NULL,
+      titulo text,
+      payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_opportunity_events_registry ON opportunity_events (registry_id, criado_em DESC)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_outcomes (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      registry_id uuid NOT NULL UNIQUE REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      resultado text NOT NULL,
+      participante_user_id text,
+      participante_membro_id text,
+      valor numeric(16,2),
+      moeda text,
+      sem_valor_financeiro boolean NOT NULL DEFAULT false,
+      contratado_em timestamp,
+      concluido_em timestamp,
+      observacoes text,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_distribution_flows (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      registry_id uuid NOT NULL UNIQUE REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      modo text NOT NULL DEFAULT 'imediato',
+      status text NOT NULL DEFAULT 'ativo',
+      comunidade_id text,
+      territorio text,
+      estado text,
+      pais text,
+      onda_atual integer NOT NULL DEFAULT 0,
+      proxima_execucao_em timestamp,
+      criado_por_user_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_distribution_waves (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      flow_id uuid NOT NULL REFERENCES opportunity_distribution_flows(id) ON DELETE CASCADE,
+      ordem integer NOT NULL,
+      audiencia text NOT NULL,
+      status text NOT NULL DEFAULT 'pendente',
+      agendada_em timestamp,
+      executada_em timestamp,
+      destinatarios integer NOT NULL DEFAULT 0,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (flow_id, ordem)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_distribution_deliveries (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      wave_id uuid NOT NULL REFERENCES opportunity_distribution_waves(id) ON DELETE CASCADE,
+      registry_id uuid NOT NULL REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      user_id text,
+      membro_id text,
+      canal text NOT NULL,
+      status text NOT NULL DEFAULT 'enviado',
+      enviado_em timestamp DEFAULT now() NOT NULL,
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_opportunity_delivery_dedupe ON opportunity_distribution_deliveries (registry_id, membro_id, canal) WHERE membro_id IS NOT NULL`);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_meetings (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      codigo text NOT NULL UNIQUE,
+      titulo text NOT NULL,
+      data date NOT NULL,
+      hora text,
+      link text,
+      pauta text,
+      publico text NOT NULL DEFAULT 'convidados',
+      ata text,
+      decisoes jsonb NOT NULL DEFAULT '[]'::jsonb,
+      proximos_passos jsonb NOT NULL DEFAULT '[]'::jsonb,
+      status text NOT NULL DEFAULT 'agendada',
+      organizador_user_id text,
+      organizador_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_meeting_items (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      meeting_id uuid NOT NULL REFERENCES opportunity_meetings(id) ON DELETE CASCADE,
+      registry_id uuid NOT NULL REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      papel text NOT NULL DEFAULT 'principal',
+      criado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (meeting_id, registry_id)
+    )
+  `);
+  await db.execute(sql`ALTER TABLE opportunity_meeting_items ADD COLUMN IF NOT EXISTS papel text NOT NULL DEFAULT 'principal'`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_meeting_participants (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      meeting_id uuid NOT NULL REFERENCES opportunity_meetings(id) ON DELETE CASCADE,
+      user_id text,
+      membro_id text,
+      nome text,
+      papel text,
+      confirmacao text NOT NULL DEFAULT 'pendente',
+      presenca text NOT NULL DEFAULT 'nao_informada',
+      decisao text,
+      criado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_meeting_decisions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      meeting_id uuid NOT NULL REFERENCES opportunity_meetings(id) ON DELETE CASCADE,
+      economic_opportunity_id uuid NOT NULL REFERENCES economic_opportunities(id) ON DELETE CASCADE,
+      acao text NOT NULL,
+      parecer text,
+      status text NOT NULL DEFAULT 'executada',
+      executado_por_user_id text,
+      executado_por_membro_id text,
+      demanda_gerada_id uuid,
+      bia_solicitacao_id uuid,
+      resultado jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (meeting_id, economic_opportunity_id)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS opportunity_feedback (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      registry_id uuid NOT NULL REFERENCES opportunity_registry(id) ON DELETE CASCADE,
+      avaliador_user_id text,
+      avaliador_membro_id text,
+      avaliado_membro_id text,
+      nota integer,
+      comentario text,
+      origem_externa boolean NOT NULL DEFAULT false,
+      status_validacao text NOT NULL DEFAULT 'pendente',
+      validado_por_user_id text,
+      validado_em timestamp,
+      criado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+}
+
+let businessOpportunityTablesPromise: Promise<void> | null = null;
+async function ensureBusinessOpportunityTables() {
+  if (!businessOpportunityTablesPromise) {
+    businessOpportunityTablesPromise = applyBusinessOpportunityTables().catch((error) => {
+      businessOpportunityTablesPromise = null;
+      throw error;
+    });
+  }
+  return businessOpportunityTablesPromise;
 }
 
 async function ensureLandBankAssetsDirectusCollection() {
@@ -7939,7 +8257,7 @@ export async function registerRoutes(
       );
 
       const userBiaIds = new Set(userBias.map((b: any) => b.id));
-      const CLOSED_STATUSES = new Set(["concluida", "desistencia"]);
+      const CLOSED_STATUSES = new Set(["concluida", "desistencia", "convertida", "encerrada_sem_acordo", "expirada", "cancelada", "cancelado", "arquivada"]);
       const relationId = (value: any): string | null => {
         if (!value) return null;
         if (typeof value === "object") return value.id ? String(value.id) : null;
@@ -7976,7 +8294,7 @@ export async function registerRoutes(
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
-      const membroPerfil = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,tipo_alianca,nucleos_alianca,nucleo_alianca,ramo_atuacao").catch(() => null);
+      const membroPerfil = await directusFetchOne("cadastro_geral", membroId, "fields=tipos_alianca,tipo_alianca,nucleos_alianca,nucleo_alianca,ramo_atuacao,cidade,estado,pais").catch(() => null);
       const areasContribuicao: string[] = [
         ...(Array.isArray(membroPerfil?.tipos_alianca) ? membroPerfil.tipos_alianca : []),
         membroPerfil?.tipo_alianca,
@@ -8012,7 +8330,36 @@ export async function registerRoutes(
       };
       const activeAreaKeywords = Array.from(new Set(areasContribuicao.flatMap((area) => keywordsForArea(String(area)))));
       const opasUltimosDozeMeses = (allOpas as any[]).filter(isWithinLastTwelveMonths);
-      const convergenciasFull = opasUltimosDozeMeses
+      const demandRows = await db.execute(sql`
+        SELECT d.*, i.data->>'cidade' AS cidade, i.data->>'estado' AS estado, COALESCE(i.data->>'pais', 'Brasil') AS pais
+        FROM carteira_demandas d
+        LEFT JOIN inventario_imoveis i ON i.id = d.imovel_id
+        WHERE d.visibilidade = 'publicada' AND d.criado_em >= ${twelveMonthsAgo}
+          AND d.status NOT IN ('concluida', 'convertida', 'encerrada_sem_acordo', 'expirada', 'cancelada', 'arquivada')
+      `).catch(() => ({ rows: [] } as any));
+      const demandOpportunities = (demandRows.rows || []).map((d: any) => ({
+        id: d.id,
+        codigo: d.codigo,
+        nome_oportunidade: d.titulo,
+        tipo: Array.isArray(d.especialidades) && d.especialidades[0] ? d.especialidades[0] : "Demanda",
+        ramo_atuacao: null,
+        nucleo_alianca: Array.isArray(d.especialidades) ? d.especialidades.join(", ") : null,
+        perfil_aliado: d.resumo_publico || d.escopo || null,
+        objetivo_alianca: d.escopo || null,
+        localizacao: [d.cidade, d.estado, d.pais].filter(Boolean).join(", "),
+        cidade: d.cidade,
+        estado: d.estado,
+        pais: d.pais,
+        status: d.status,
+        date_created: d.criado_em,
+        opportunity_kind: "demanda",
+        selo: "Demanda",
+      }));
+      const opportunityCandidates = [
+        ...opasUltimosDozeMeses.map((opa: any) => ({ ...opa, opportunity_kind: "oba", selo: "OBA" })),
+        ...demandOpportunities,
+      ];
+      const convergenciasFull = opportunityCandidates
         .filter((o: any) => !CLOSED_STATUSES.has(o.status))
         .map((o: any) => ({
           ...o,
@@ -8025,7 +8372,9 @@ export async function registerRoutes(
         .filter((o: any) => {
           const matchTipo = activeAreaKeywords.some((keyword) => o._tipoText.includes(keyword));
           const matchRamo = !!o._ramoText && userRamosAtuacao.some((ramo) => o._ramoText === ramo);
-          return matchTipo || matchRamo;
+          const matchCidade = Boolean(membroPerfil?.cidade && o.cidade && normalize(membroPerfil.cidade) === normalize(o.cidade));
+          const matchEstado = Boolean(membroPerfil?.estado && o.estado && normalize(membroPerfil.estado) === normalize(o.estado));
+          return matchTipo || matchRamo || matchCidade || matchEstado;
         });
       const convergencias = convergenciasFull
         .slice(0, 6)
@@ -8073,13 +8422,19 @@ export async function registerRoutes(
         name,
         value: opasComunidade.filter((opa: any) => classifyAbrangencia(opa) === name).length,
       }));
-      const opasTotalPeriodo = opasUltimosDozeMeses.length;
+      const demandInterestsResult = await db.execute(sql`
+        SELECT COUNT(*)::int AS total FROM carteira_demanda_interesses
+        WHERE status <> 'retirado' AND (user_id = ${directusUserId} OR membro_id = ${membroId})
+      `).catch(() => ({ rows: [{ total: 0 }] } as any));
+      const demandInterestsTotal = Number(demandInterestsResult.rows?.[0]?.total || 0);
+      const totalInterests = meusInteresses.length + demandInterestsTotal;
+      const opasTotalPeriodo = opportunityCandidates.length;
       const dashboardStats = {
         convergencias_total: convergenciasFull.length,
         opas_total_periodo: opasTotalPeriodo,
-        interesses_manifestados: meusInteresses.length,
+        interesses_manifestados: totalInterests,
         indice_convergencia: opasTotalPeriodo > 0 ? (convergenciasFull.length / opasTotalPeriodo) * 100 : 0,
-        taxa_interesse: convergenciasFull.length > 0 ? (meusInteresses.length / convergenciasFull.length) * 100 : 0,
+        taxa_interesse: convergenciasFull.length > 0 ? (totalInterests / convergenciasFull.length) * 100 : 0,
         opas_comunidade_total: opasComunidade.length,
         opas_por_abrangencia: opasPorAbrangencia,
       };
@@ -11643,6 +11998,8 @@ ${textContent}`;
         delete payload.criado_por_membro_id;
         item = await directusCreate("tipos_oportunidades", payload);
       }
+      const registry = await syncOpaRegistry(item);
+      if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "OBA criada", { bia_id: biaId });
       res.json(item);
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ error: error.message });
@@ -11684,6 +12041,8 @@ ${textContent}`;
       }
       await ensureCanLinkOpaToBia(req, payload);
       const item = await directusUpdate("tipos_oportunidades", req.params.id, payload);
+      const registry = await syncOpaRegistry({ ...currentOpa, ...payload, ...item, id: req.params.id });
+      if (registry) await recordOpportunityEvent(String(registry.id), req, "editada", "OBA atualizada", { campos: Object.keys(req.body || {}) });
       res.json(item);
     } catch (error: any) {
       res.status(error.statusCode || 500).json({ error: error.message });
@@ -11951,6 +12310,16 @@ ${textContent}`;
     const interest = userId && asset?.id
       ? (await db.execute(sql`SELECT * FROM land_bank_asset_interesses WHERE asset_id = ${String(asset.id)} AND user_id = ${userId} LIMIT 1`).catch(() => ({ rows: [] } as any))).rows?.[0] || null
       : null;
+    const economicOpportunity = asset?.id
+      ? (await db.execute(sql`
+          SELECT eo.id, eo.codigo, eo.titulo, eo.estagio
+          FROM economic_opportunity_sources source
+          JOIN economic_opportunities eo ON eo.id = source.economic_opportunity_id
+          WHERE source.source_type = 'land_bank_asset' AND source.source_id = ${String(asset.id)}
+          ORDER BY eo.criado_em ASC
+          LIMIT 1
+        `).catch(() => ({ rows: [] } as any))).rows?.[0] || null
+      : null;
     return {
       ...visibleAsset,
       can_edit: canManage,
@@ -11958,6 +12327,7 @@ ${textContent}`;
       can_review: canReview,
       can_request_bia: canManage && canRequestBiaStructuring(asset),
       meu_interesse: interest,
+      economic_opportunity: economicOpportunity,
     };
   }
 
@@ -12393,24 +12763,36 @@ ${textContent}`;
       const mine = String(req.query.mine || "") === "1";
       const result = isAdminRequest(req)
         ? await db.execute(sql`
-            SELECT bs.*, la.category, la.origem_tipo, la.estagio, la.data AS asset_data
-            FROM bia_estruturacao_solicitacoes bs INNER JOIN land_bank_assets la ON la.id = bs.asset_id
+            SELECT bs.*, la.category, la.origem_tipo, la.estagio AS asset_estagio, la.data AS asset_data,
+              eo.codigo AS opportunity_codigo, eo.titulo AS opportunity_titulo, eo.estagio AS opportunity_estagio,
+              eo.tese AS opportunity_tese
+            FROM bia_estruturacao_solicitacoes bs
+            LEFT JOIN land_bank_assets la ON la.id = bs.asset_id
+            LEFT JOIN economic_opportunities eo ON eo.id = bs.economic_opportunity_id
             ${mine ? sql`WHERE bs.solicitante_user_id = ${userId}` : sql``}
             ORDER BY bs.criado_em DESC
           `)
         : await db.execute(sql`
-            SELECT bs.*, la.category, la.origem_tipo, la.estagio, la.data AS asset_data
-            FROM bia_estruturacao_solicitacoes bs INNER JOIN land_bank_assets la ON la.id = bs.asset_id
+            SELECT bs.*, la.category, la.origem_tipo, la.estagio AS asset_estagio, la.data AS asset_data,
+              eo.codigo AS opportunity_codigo, eo.titulo AS opportunity_titulo, eo.estagio AS opportunity_estagio,
+              eo.tese AS opportunity_tese
+            FROM bia_estruturacao_solicitacoes bs
+            LEFT JOIN land_bank_assets la ON la.id = bs.asset_id
+            LEFT JOIN economic_opportunities eo ON eo.id = bs.economic_opportunity_id
             WHERE ${mine
               ? sql`bs.solicitante_user_id = ${userId}`
               : sql`(bs.aliado_built_membro_id = ${memberId || ""} OR bs.solicitante_user_id = ${userId})`}
             ORDER BY bs.criado_em DESC
           `);
       const items = await Promise.all((result.rows || []).map(async (row: any) => {
-        const asset = normalizeLandBankAssetRow({ ...row, id: row.asset_id, data: row.asset_data });
+        const asset = row.asset_id ? normalizeLandBankAssetRow({ ...row, id: row.asset_id, estagio: row.asset_estagio, data: row.asset_data }) : null;
+        const economic = row.economic_opportunity_id ? await getEconomicOpportunity(String(row.economic_opportunity_id)) : null;
         return {
           ...row,
-          can_review: await canReviewLandBankAsset(req, asset, row.aliado_built_membro_id).catch(() => false),
+          source_type: economic ? "oportunidade" : "ativo",
+          can_review: economic
+            ? (await economicOpportunityAccess(req, economic)).canReview
+            : await canReviewLandBankAsset(req, asset, row.aliado_built_membro_id).catch(() => false),
           can_complement: String(row.solicitante_user_id || "") === String(userId),
         };
       }));
@@ -12421,18 +12803,34 @@ ${textContent}`;
   });
 
   async function getStructuringRequest(requestId: string) {
-    const result = await db.execute(sql`
-      SELECT bs.*, la.data AS asset_data, la.category, la.origem_tipo, la.visibilidade, la.estagio,
-        la.autorizacao_compartilhamento_at, la.originador_user_id, la.originador_membro_id,
-        la.created_by, la.created_by_membro, la.bia_id, la.bia_nome
-      FROM bia_estruturacao_solicitacoes bs
-      INNER JOIN land_bank_assets la ON la.id = bs.asset_id
-      WHERE bs.id = ${requestId}
-      LIMIT 1
-    `);
-    const row: any = result.rows?.[0];
-    if (!row) return null;
-    return { request: row, asset: normalizeLandBankAssetRow({ ...row, id: row.asset_id, data: row.asset_data }) };
+    const request: any = (await db.execute(sql`
+      SELECT * FROM bia_estruturacao_solicitacoes WHERE id = ${requestId} LIMIT 1
+    `)).rows?.[0];
+    if (!request) return null;
+    const asset = request.asset_id ? await getLocalLandBankAsset(String(request.asset_id)) : null;
+    const economic = request.economic_opportunity_id ? await getEconomicOpportunity(String(request.economic_opportunity_id)) : null;
+    return { request, asset, economic };
+  }
+
+  async function canReviewStructuringRequest(req: Request, item: any) {
+    if (item.economic) return (await economicOpportunityAccess(req, item.economic)).canReview;
+    return item.asset ? canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id) : false;
+  }
+
+  async function updateStructuringSourceStage(item: any, stage: string) {
+    if (item.economic) {
+      const economicStage = stage === "complementos_solicitados" ? "em_amadurecimento" : stage === "rejeitada" ? "descartada" : stage;
+      await db.execute(sql`UPDATE economic_opportunities SET estagio = ${normalizeEconomicOpportunityStage(economicStage)}, atualizado_em = now() WHERE id = ${item.economic.id}`);
+      await syncEconomicOpportunityRegistry(String(item.economic.id));
+      return;
+    }
+    if (item.asset) {
+      await db.execute(sql`
+        UPDATE land_bank_assets SET estagio = ${stage},
+          data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', ${JSON.stringify(stage)}::jsonb, true), updated_at = now()
+        WHERE id = ${item.asset.id}
+      `);
+    }
   }
 
   app.patch("/api/bia-estruturacao-solicitacoes/:id/complementos", async (req, res) => {
@@ -12440,7 +12838,7 @@ ${textContent}`;
     try {
       const item = await getStructuringRequest(req.params.id);
       if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
-      if (!(await canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
+      if (!(await canReviewStructuringRequest(req, item))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
       const result = await db.execute(sql`
         UPDATE bia_estruturacao_solicitacoes
         SET status = 'complementos_solicitados', motivo_decisao = ${req.body?.motivo || null},
@@ -12450,7 +12848,7 @@ ${textContent}`;
         RETURNING *
       `);
       if (!result.rows?.[0]) return res.status(409).json({ error: "A solicitação já foi processada" });
-      await db.execute(sql`UPDATE land_bank_assets SET estagio = 'complementos_solicitados', data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', '"complementos_solicitados"'::jsonb, true), updated_at = now() WHERE id = ${item.request.asset_id}`);
+      await updateStructuringSourceStage(item, "complementos_solicitados");
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -12474,7 +12872,7 @@ ${textContent}`;
         RETURNING *
       `);
       if (!result.rows?.[0]) return res.status(409).json({ error: "A solicitação não está aguardando complementos." });
-      await db.execute(sql`UPDATE land_bank_assets SET estagio = 'estruturacao_solicitada', data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', '"estruturacao_solicitada"'::jsonb, true), updated_at = now() WHERE id = ${item.request.asset_id}`);
+      await updateStructuringSourceStage(item, "estruturacao_solicitada");
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -12486,7 +12884,7 @@ ${textContent}`;
     try {
       const item = await getStructuringRequest(req.params.id);
       if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
-      if (!(await canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
+      if (!(await canReviewStructuringRequest(req, item))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
       const result = await db.execute(sql`
         UPDATE bia_estruturacao_solicitacoes
         SET status = 'rejeitada', motivo_decisao = ${req.body?.motivo || null},
@@ -12496,7 +12894,7 @@ ${textContent}`;
         RETURNING *
       `);
       if (!result.rows?.[0]) return res.status(409).json({ error: "A solicitação já foi processada" });
-      await db.execute(sql`UPDATE land_bank_assets SET estagio = 'rejeitada', data = jsonb_set(COALESCE(data, '{}'::jsonb), '{estagio}', '"rejeitada"'::jsonb, true), updated_at = now() WHERE id = ${item.request.asset_id}`);
+      await updateStructuringSourceStage(item, "rejeitada");
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -12510,7 +12908,7 @@ ${textContent}`;
       const item = await getStructuringRequest(req.params.id);
       if (!item) return res.status(404).json({ error: "Solicitação não encontrada" });
       if (item.request.status === "aprovada" && item.request.bia_id) return res.json({ success: true, bia_id: item.request.bia_id, idempotent: true });
-      if (!(await canReviewLandBankAsset(req, item.asset, item.request.aliado_built_membro_id))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
+      if (!(await canReviewStructuringRequest(req, item))) return res.status(403).json({ error: "Sem permissão para revisar esta solicitação" });
       const claim = await db.execute(sql`
         UPDATE bia_estruturacao_solicitacoes
         SET status = 'aprovada', motivo_decisao = ${req.body?.motivo || null},
@@ -12522,15 +12920,16 @@ ${textContent}`;
       if (!claim.rows?.[0]) return res.status(409).json({ error: "A solicitação já foi processada" });
       claimed = true;
       const asset = item.asset;
+      const economic = item.economic;
       const biaPayload = prepareBiaPayload({
-        nome_bia: asset.qualificacao || "BIA em formação",
+        nome_bia: economic?.titulo || asset?.qualificacao || "BIA em formação",
         situacao: "em_formacao",
         bia_publica: false,
-        autor_bia: asset.originador_membro_id || null,
+        autor_bia: economic?.originador_membro_id || asset?.originador_membro_id || null,
         aliado_built: item.request.aliado_built_membro_id || null,
-        objetivo_alianca: asset.tese_inicial || asset.descricao || "Estruturar oportunidade imobiliária.",
-        observacoes: `BIA originada da oportunidade ${asset.id}.`,
-        localizacao: [asset.cidade, asset.estado, asset.pais].filter(Boolean).join(", "),
+        objetivo_alianca: economic?.tese || asset?.tese_inicial || asset?.descricao || "Estruturar oportunidade imobiliária.",
+        observacoes: `BIA originada da oportunidade ${economic?.codigo || asset?.id}.`,
+        localizacao: [economic?.cidade || asset?.cidade, economic?.estado || asset?.estado, economic?.pais || asset?.pais].filter(Boolean).join(", "),
       });
       biaPayload.codigo_publico = await createUniqueBiaPublicCode();
       const bia = await directusCreate("bias_projetos", biaPayload);
@@ -12539,14 +12938,19 @@ ${textContent}`;
         SET bia_id = ${bia.id}, atualizado_em = now()
         WHERE id = ${req.params.id}
       `);
-      const data = { ...asset, bia_id: bia.id, bia_nome: bia.nome_bia || biaPayload.nome_bia, estagio: "bia_em_formacao", updatedAt: new Date().toISOString() };
-      await db.execute(sql`
-        UPDATE land_bank_assets
-        SET bia_id = ${bia.id}, bia_nome = ${bia.nome_bia || biaPayload.nome_bia}, estagio = 'bia_em_formacao',
-          data = ${JSON.stringify(data)}::jsonb, updated_at = now()
-        WHERE id = ${asset.id}
-      `);
-      await upsertLandBankAssetToDirectus(data, req);
+      if (economic) {
+        await db.execute(sql`UPDATE economic_opportunities SET bia_id = ${bia.id}, estagio = 'bia_em_formacao', atualizado_em = now() WHERE id = ${economic.id}`);
+        await syncEconomicOpportunityRegistry(String(economic.id));
+      } else if (asset) {
+        const data = { ...asset, bia_id: bia.id, bia_nome: bia.nome_bia || biaPayload.nome_bia, estagio: "bia_em_formacao", updatedAt: new Date().toISOString() };
+        await db.execute(sql`
+          UPDATE land_bank_assets
+          SET bia_id = ${bia.id}, bia_nome = ${bia.nome_bia || biaPayload.nome_bia}, estagio = 'bia_em_formacao',
+            data = ${JSON.stringify(data)}::jsonb, updated_at = now()
+          WHERE id = ${asset.id}
+        `);
+        await upsertLandBankAssetToDirectus(data, req);
+      }
       res.json({ success: true, bia_id: bia.id, bia });
     } catch (error: any) {
       if (claimed) {
@@ -13832,6 +14236,1314 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
+  async function createUniqueDemandCode(): Promise<string> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const code = createDemandCode();
+      const existing = await db.execute(sql`SELECT 1 FROM opportunity_registry WHERE codigo = ${code} LIMIT 1`);
+      if (!existing.rows?.[0]) return code;
+    }
+    throw new Error("Não foi possível gerar um código único para a Demanda.");
+  }
+
+  async function recordOpportunityEvent(
+    registryId: string,
+    req: Request | null,
+    tipo: string,
+    titulo: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    const session = (req?.session as any) || {};
+    await db.execute(sql`
+      INSERT INTO opportunity_events (
+        registry_id, tipo, titulo, payload, criado_por_user_id, criado_por_membro_id
+      ) VALUES (
+        ${registryId}, ${tipo}, ${titulo}, ${JSON.stringify(payload)}::jsonb,
+        ${session.directusUserId || session.userId || null}, ${session.membroId || null}
+      )
+    `);
+  }
+
+  async function createUniqueEconomicOpportunityCode(): Promise<string> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const code = createEconomicOpportunityCode();
+      const existing = await db.execute(sql`SELECT 1 FROM opportunity_registry WHERE codigo = ${code} LIMIT 1`);
+      if (!existing.rows?.[0]) return code;
+    }
+    throw new Error("Não foi possível gerar um código único para a Oportunidade.");
+  }
+
+  async function syncEconomicOpportunityRegistry(opportunityId: string) {
+    const result = await db.execute(sql`SELECT * FROM economic_opportunities WHERE id = ${opportunityId} LIMIT 1`);
+    const item: any = result.rows?.[0];
+    if (!item) return null;
+    const upsert = await db.execute(sql`
+      INSERT INTO opportunity_registry (
+        source_type, source_id, codigo, tipo, titulo, descricao, autor_tipo,
+        autor_user_id, autor_membro_id, criador_user_id, criador_membro_id,
+        responsavel_user_id, responsavel_membro_id, bia_id, status, visibilidade,
+        cidade, estado, pais, metadata, criado_em, atualizado_em
+      ) VALUES (
+        'economic_opportunity', ${String(item.id)}, ${item.codigo}, 'oportunidade', ${item.titulo},
+        ${item.resumo_autorizado || item.tese}, 'usuario', ${item.originador_user_id || null},
+        ${item.originador_membro_id || null}, ${item.criador_user_id || null}, ${item.criador_membro_id || null},
+        ${item.responsavel_user_id || null}, ${item.responsavel_membro_id || null}, ${item.bia_id || null},
+        ${item.estagio}, 'restrita', ${item.cidade || null}, ${item.estado || null}, ${item.pais || null},
+        ${JSON.stringify({ comunidade_id: item.comunidade_id || null, comunidade_nome: item.comunidade_nome || null, finalidade: item.finalidade || null })}::jsonb,
+        ${item.criado_em || new Date()}, ${item.atualizado_em || new Date()}
+      )
+      ON CONFLICT (source_type, source_id) DO UPDATE SET
+        codigo = EXCLUDED.codigo, titulo = EXCLUDED.titulo, descricao = EXCLUDED.descricao,
+        autor_user_id = EXCLUDED.autor_user_id, autor_membro_id = EXCLUDED.autor_membro_id,
+        responsavel_user_id = EXCLUDED.responsavel_user_id, responsavel_membro_id = EXCLUDED.responsavel_membro_id,
+        bia_id = EXCLUDED.bia_id, status = EXCLUDED.status, cidade = EXCLUDED.cidade,
+        estado = EXCLUDED.estado, pais = EXCLUDED.pais,
+        metadata = opportunity_registry.metadata || EXCLUDED.metadata, atualizado_em = EXCLUDED.atualizado_em
+      RETURNING *
+    `);
+    return upsert.rows?.[0] || null;
+  }
+
+  async function getEconomicOpportunity(identifier: string) {
+    await ensureBusinessOpportunityTables();
+    const result = await db.execute(sql`
+      SELECT * FROM economic_opportunities
+      WHERE codigo = ${identifier} OR id::text = ${identifier}
+      LIMIT 1
+    `);
+    return result.rows?.[0] as any || null;
+  }
+
+  async function economicOpportunityAccess(req: Request, item: any) {
+    const session = (req.session as any) || {};
+    const userId = String(session.directusUserId || session.userId || "");
+    const memberId = String(session.membroId || "");
+    const isAdmin = isAdminRequest(req) || ["superadmin", "master"].includes(String(session.role || "").toLowerCase());
+    const isOwner = Boolean(
+      (userId && [item.criador_user_id, item.originador_user_id, item.responsavel_user_id].some((value) => String(value || "") === userId))
+      || (memberId && [item.criador_membro_id, item.originador_membro_id, item.responsavel_membro_id].some((value) => String(value || "") === memberId))
+    );
+    const allyId = String(item?.metadata?.aliado_built_membro_id || "");
+    const isCommunityReviewer = Boolean(memberId && allyId && memberId === allyId);
+    const registry = await getOpportunityRegistry(String(item.id));
+    const delivered = registry && (userId || memberId)
+      ? Boolean((await db.execute(sql`
+          SELECT 1 FROM opportunity_distribution_deliveries
+          WHERE registry_id = ${registry.id}
+            AND (user_id = ${userId || null} OR membro_id = ${memberId || null})
+          LIMIT 1
+        `)).rows?.[0])
+      : false;
+    const invitedToMeeting = registry && (userId || memberId)
+      ? Boolean((await db.execute(sql`
+          SELECT 1
+          FROM opportunity_meeting_items mi
+          JOIN opportunity_meeting_participants participant ON participant.meeting_id = mi.meeting_id
+          WHERE mi.registry_id = ${registry.id}
+            AND (
+              (participant.user_id IS NOT NULL AND participant.user_id = ${userId || null})
+              OR (participant.membro_id IS NOT NULL AND participant.membro_id = ${memberId || null})
+            )
+          LIMIT 1
+        `)).rows?.[0])
+      : false;
+    return {
+      registry,
+      canManage: isAdmin || isOwner,
+      canReview: isAdmin || isCommunityReviewer,
+      canViewFull: isAdmin || isOwner || isCommunityReviewer,
+      canViewSummary: isAdmin || isOwner || isCommunityReviewer || delivered || invitedToMeeting,
+    };
+  }
+
+  async function economicOpportunitySources(opportunityId: string) {
+    const result = await db.execute(sql`
+      SELECT * FROM economic_opportunity_sources
+      WHERE economic_opportunity_id = ${opportunityId}
+      ORDER BY criado_em ASC
+    `);
+    return result.rows || [];
+  }
+
+  async function assertEconomicOpportunitySourceAccess(req: Request, source: { type: string; id: string }) {
+    const actor = requireCarteiraActor(req);
+    if (source.type === "demanda") {
+      const registry = await getOpportunityRegistry(source.id);
+      if (!registry || registry.tipo !== "demanda") {
+        const error: any = new Error("Demanda de origem não encontrada.");
+        error.status = 404;
+        throw error;
+      }
+      if (!(await canManageOpportunity(req, registry))) {
+        const error: any = new Error("Sem permissão para usar esta Demanda como origem.");
+        error.status = 403;
+        throw error;
+      }
+      return;
+    }
+    if (source.type === "land_bank_asset" || source.type === "oportunidade_externa") {
+      const asset = await getLocalLandBankAsset(source.id);
+      if (!asset) {
+        const error: any = new Error("Ativo de origem não encontrado.");
+        error.status = 404;
+        throw error;
+      }
+      if (!canManageLandBankAsset(req, asset)) {
+        const error: any = new Error("Sem permissão para usar este ativo como origem.");
+        error.status = 403;
+        throw error;
+      }
+      return;
+    }
+    if (source.type === "imovel") {
+      await requireCarteiraAccess(source.id, actor, "administracao");
+      return;
+    }
+    if (source.type === "servico") {
+      if (!source.id.trim()) {
+        const error: any = new Error("Informe a referência da prestação de serviço.");
+        error.status = 400;
+        throw error;
+      }
+      return;
+    }
+    const error: any = new Error("Tipo de origem inválido.");
+    error.status = 400;
+    throw error;
+  }
+
+  async function createEconomicOpportunityRecord(req: Request, payload: any, source?: { type: string; id: string; metadata?: Record<string, unknown> } | null) {
+    const actor = requireCarteiraActor(req);
+    if (source?.type && source?.id) {
+      await assertEconomicOpportunitySourceAccess(req, source);
+      const existing = (await db.execute(sql`
+        SELECT eo.*
+        FROM economic_opportunity_sources relation
+        JOIN economic_opportunities eo ON eo.id = relation.economic_opportunity_id
+        WHERE relation.source_type = ${source.type} AND relation.source_id = ${source.id}
+        ORDER BY eo.criado_em ASC
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (existing) {
+        const access = await economicOpportunityAccess(req, existing);
+        if (!access.canViewSummary) {
+          const error: any = new Error("Esta origem já está vinculada a uma Oportunidade de acesso restrito.");
+          error.status = 403;
+          throw error;
+        }
+        return {
+          ...existing,
+          fontes: await economicOpportunitySources(String(existing.id)),
+          registry: access.registry,
+          idempotent: true,
+        };
+      }
+    }
+    const title = String(payload?.titulo || "").trim();
+    const thesis = String(payload?.tese || payload?.descricao || "").trim();
+    if (!title || !thesis) {
+      const error: any = new Error("Informe o título e a tese inicial da Oportunidade.");
+      error.status = 400;
+      throw error;
+    }
+    const context = actor.membroId
+      ? await getAssetReviewContext({ originador_membro_id: actor.membroId }).catch(() => ({ comunidadeId: null, comunidadeNome: null, aliadoId: null }))
+      : { comunidadeId: null, comunidadeNome: null, aliadoId: null };
+    const code = await createUniqueEconomicOpportunityCode();
+    const metadata = {
+      ...(payload?.metadata && typeof payload.metadata === "object" ? payload.metadata : {}),
+      aliado_built_membro_id: payload?.aliado_built_membro_id || context.aliadoId || null,
+    };
+    const inserted = await db.execute(sql`
+      INSERT INTO economic_opportunities (
+        codigo, titulo, resumo_autorizado, tese, finalidade, parecer, estagio,
+        criador_user_id, criador_membro_id, originador_user_id, originador_membro_id,
+        responsavel_user_id, responsavel_membro_id, comunidade_id, comunidade_nome,
+        cidade, estado, pais, metadata
+      ) VALUES (
+        ${code}, ${title}, ${String(payload?.resumo_autorizado || thesis).trim()}, ${thesis},
+        ${String(payload?.finalidade || "").trim() || null}, ${String(payload?.parecer || "").trim() || null},
+        ${normalizeEconomicOpportunityStage(payload?.estagio)}, ${actor.userId}, ${actor.membroId},
+        ${payload?.originador_user_id || actor.userId}, ${payload?.originador_membro_id || actor.membroId},
+        ${payload?.responsavel_user_id || actor.userId}, ${payload?.responsavel_membro_id || actor.membroId},
+        ${payload?.comunidade_id || context.comunidadeId || null}, ${payload?.comunidade_nome || context.comunidadeNome || null},
+        ${String(payload?.cidade || "").trim() || null}, ${String(payload?.estado || "").trim() || null},
+        ${String(payload?.pais || "").trim() || "Brasil"}, ${JSON.stringify(metadata)}::jsonb
+      ) RETURNING *
+    `);
+    const item: any = inserted.rows?.[0];
+    if (source?.type && source?.id) {
+      await db.execute(sql`
+        INSERT INTO economic_opportunity_sources (
+          economic_opportunity_id, source_type, source_id, metadata, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${item.id}, ${source.type}, ${source.id}, ${JSON.stringify(source.metadata || {})}::jsonb, ${actor.userId}, ${actor.membroId}
+        ) ON CONFLICT DO NOTHING
+      `);
+    }
+    const registry = await syncEconomicOpportunityRegistry(String(item.id));
+    if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "Oportunidade econômica criada", { source_type: source?.type || null, source_id: source?.id || null });
+    return { ...item, fontes: await economicOpportunitySources(String(item.id)), registry };
+  }
+
+  async function requestEconomicOpportunityBia(req: Request, item: any, observacao?: string | null) {
+    const access = await economicOpportunityAccess(req, item);
+    if (!access.canManage && !access.canReview) {
+      const error: any = new Error("Apenas o responsável, a Administração ou o Aliado da comunidade pode solicitar a estruturação.");
+      error.status = 403;
+      throw error;
+    }
+    if (!String(item.parecer || observacao || "").trim()) {
+      const error: any = new Error("Registre um parecer livre antes de solicitar a estruturação da BIA.");
+      error.status = 400;
+      throw error;
+    }
+    const existing: any = (await db.execute(sql`
+      SELECT * FROM bia_estruturacao_solicitacoes
+      WHERE economic_opportunity_id = ${item.id} AND status IN ('pendente', 'complementos_solicitados')
+      LIMIT 1
+    `)).rows?.[0];
+    if (existing) return { ...existing, idempotent: true };
+    const inserted = await db.execute(sql`
+      INSERT INTO bia_estruturacao_solicitacoes (
+        economic_opportunity_id, solicitante_user_id, solicitante_membro_id, solicitante_nome,
+        comunidade_id, comunidade_nome, aliado_built_membro_id, observacao
+      ) VALUES (
+        ${item.id}, ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null},
+        ${(req.session as any)?.nome || null}, ${item.comunidade_id || null}, ${item.comunidade_nome || null},
+        ${item.metadata?.aliado_built_membro_id || null}, ${observacao || item.parecer || null}
+      ) RETURNING *
+    `);
+    await db.execute(sql`
+      UPDATE economic_opportunities SET estagio = 'estruturacao_solicitada', atualizado_em = now()
+      WHERE id = ${item.id}
+    `);
+    const registry = await syncEconomicOpportunityRegistry(String(item.id));
+    if (registry) await recordOpportunityEvent(String(registry.id), req, "estrutura_bia_solicitada", "Estruturação de BIA solicitada", { solicitacao_id: inserted.rows?.[0]?.id });
+    return inserted.rows?.[0];
+  }
+
+  async function syncDemandRegistry(demandId: string) {
+    const result = await db.execute(sql`
+      SELECT d.*, i.data AS imovel_data
+      FROM carteira_demandas d
+      LEFT JOIN inventario_imoveis i ON i.id = d.imovel_id
+      WHERE d.id = ${demandId}
+      LIMIT 1
+    `);
+    const demand: any = result.rows?.[0];
+    if (!demand) return null;
+    let codigo = String(demand.codigo || "").trim();
+    if (!codigo) {
+      codigo = await createUniqueDemandCode();
+      await db.execute(sql`UPDATE carteira_demandas SET codigo = ${codigo} WHERE id = ${demandId}`);
+    }
+    const property = demand.imovel_data && typeof demand.imovel_data === "object" ? demand.imovel_data : {};
+    const authorType = demand.bia_id ? "bia" : "usuario";
+    const status = normalizeOpportunityStatus(demand.status, demand.publicada_em ? "aberta" : "rascunho");
+    const visibility = normalizeOpportunityVisibility(demand.visibilidade, "privada");
+    const expiresAt = demand.expira_em || (demand.publicada_em ? opportunityExpiry(new Date(demand.publicada_em)) : null);
+    if (expiresAt && !demand.expira_em) {
+      await db.execute(sql`UPDATE carteira_demandas SET expira_em = ${expiresAt} WHERE id = ${demandId}`);
+    }
+    const upsert = await db.execute(sql`
+      INSERT INTO opportunity_registry (
+        source_type, source_id, codigo, tipo, titulo, descricao, autor_tipo,
+        autor_user_id, autor_membro_id, autor_bia_id, criador_user_id,
+        criador_membro_id, responsavel_user_id, responsavel_membro_id,
+        imovel_id, bia_id, status, visibilidade, urgencia, especialidades,
+        cidade, estado, pais, publicada_em, expira_em, fluxo_disparo, metadata,
+        criado_em, atualizado_em
+      ) VALUES (
+        'demanda', ${String(demand.id)}, ${codigo}, 'demanda', ${demand.titulo},
+        ${demand.resumo_publico || demand.escopo || null}, ${authorType},
+        ${demand.autor_user_id || demand.criado_por_user_id || null},
+        ${demand.autor_membro_id || demand.criado_por_membro_id || null},
+        ${demand.bia_id || null}, ${demand.criado_por_user_id || null},
+        ${demand.criado_por_membro_id || null}, ${demand.responsavel_user_id || null},
+        ${demand.responsavel_membro_id || null}, ${demand.imovel_id || null},
+        ${demand.bia_id || null}, ${status}, ${visibility}, ${demand.urgencia || "normal"},
+        ${JSON.stringify(Array.isArray(demand.especialidades) ? demand.especialidades : [])}::jsonb,
+        ${demand.cidade || property.cidade || null}, ${demand.estado || property.estado || null}, ${demand.pais || property.pais || "Brasil"},
+        ${demand.publicada_em || null}, ${expiresAt}, ${demand.fluxo_disparo || "imediato"},
+        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null })}::jsonb,
+        ${demand.criado_em || new Date()}, ${demand.atualizado_em || new Date()}
+      )
+      ON CONFLICT (source_type, source_id) DO UPDATE SET
+        codigo = EXCLUDED.codigo,
+        titulo = EXCLUDED.titulo,
+        descricao = EXCLUDED.descricao,
+        autor_tipo = EXCLUDED.autor_tipo,
+        autor_user_id = EXCLUDED.autor_user_id,
+        autor_membro_id = EXCLUDED.autor_membro_id,
+        autor_bia_id = EXCLUDED.autor_bia_id,
+        responsavel_user_id = EXCLUDED.responsavel_user_id,
+        responsavel_membro_id = EXCLUDED.responsavel_membro_id,
+        imovel_id = EXCLUDED.imovel_id,
+        bia_id = EXCLUDED.bia_id,
+        status = EXCLUDED.status,
+        visibilidade = EXCLUDED.visibilidade,
+        urgencia = EXCLUDED.urgencia,
+        especialidades = EXCLUDED.especialidades,
+        cidade = EXCLUDED.cidade,
+        estado = EXCLUDED.estado,
+        pais = EXCLUDED.pais,
+        publicada_em = EXCLUDED.publicada_em,
+        expira_em = EXCLUDED.expira_em,
+        fluxo_disparo = EXCLUDED.fluxo_disparo,
+        metadata = opportunity_registry.metadata || EXCLUDED.metadata,
+        atualizado_em = EXCLUDED.atualizado_em
+      RETURNING *
+    `);
+    return upsert.rows?.[0] || null;
+  }
+
+  async function syncOpaRegistry(opaOrId: any) {
+    const opa = typeof opaOrId === "string"
+      ? await directusFetchOne("tipos_oportunidades", opaOrId, "fields=*")
+      : opaOrId;
+    if (!opa?.id) return null;
+    const existing = (await db.execute(sql`
+      SELECT * FROM opportunity_registry WHERE source_type = 'oba' AND source_id = ${String(opa.id)} LIMIT 1
+    `)).rows?.[0] as any;
+    const biaId = directusRelationId(opa.bia) || directusRelationId(opa.bia_id) || null;
+    let codigo = existing?.codigo || null;
+    let bia: any = null;
+    if (biaId) bia = await resolveBiaByIdOrPublicCode(String(biaId), "id,codigo_publico,nome_bia").catch(() => null);
+    if (!codigo) {
+      if (biaId) {
+        const count = await db.execute(sql`SELECT COUNT(*)::int AS total FROM opportunity_registry WHERE source_type = 'oba' AND bia_id = ${String(biaId)}`);
+        codigo = createOpaCode(bia?.codigo_publico || String(biaId), Number(count.rows?.[0]?.total || 0) + 1);
+      } else {
+        codigo = createLegacyStableCode("oba", String(opa.id));
+      }
+    }
+    const directusStatus = normalizeOpportunityStatus(opa.status, "aberta");
+    const status = existing && !isOpportunityEditable(existing.status) ? existing.status : directusStatus;
+    const isClosed = ["concluida", "convertida", "encerrada_sem_acordo", "cancelada", "arquivada"].includes(status);
+    const existingVisibility = normalizeOpportunityVisibility(existing?.visibilidade, "publicada");
+    const visibility = isClosed ? "privada" : ["restrita", "pausada"].includes(existingVisibility) ? existingVisibility : "publicada";
+    const createdAt = opa.date_created ? new Date(opa.date_created) : new Date();
+    const location = resolveOpaLocation(opa.localizacao) || "";
+    const upsert = await db.execute(sql`
+      INSERT INTO opportunity_registry (
+        source_type, source_id, codigo, tipo, titulo, descricao, autor_tipo,
+        autor_user_id, autor_membro_id, autor_bia_id, criador_user_id,
+        criador_membro_id, bia_id, status, visibilidade, urgencia, especialidades,
+        cidade, estado, pais, publicada_em, expira_em, fluxo_disparo, metadata,
+        criado_em, atualizado_em
+      ) VALUES (
+        'oba', ${String(opa.id)}, ${codigo}, 'oba', ${opa.nome_oportunidade || "OBA"},
+        ${opa.descricao || opa.objetivo_alianca || null}, 'bia',
+        ${opa.criado_por_user_id || directusRelationId(opa.user_created) || null},
+        ${opa.criado_por_membro_id || null}, ${biaId},
+        ${opa.criado_por_user_id || directusRelationId(opa.user_created) || null},
+        ${opa.criado_por_membro_id || null}, ${biaId}, ${status},
+        ${visibility}, 'normal',
+        ${JSON.stringify([opa.tipo, opa.nucleo_alianca, opa.ramo_atuacao].filter(Boolean))}::jsonb,
+        ${opa.cidade || location || null}, ${opa.estado || null}, ${opa.pais || "Brasil"},
+        ${createdAt}, ${opportunityExpiry(createdAt)}, 'imediato',
+        ${JSON.stringify({
+          bia_nome: bia?.nome_bia || null,
+          tipo: opa.tipo || null,
+          nucleo_alianca: opa.nucleo_alianca || null,
+          ramo_atuacao: opa.ramo_atuacao || null,
+          perfil_aliado: opa.perfil_aliado || null,
+          objetivo_alianca: opa.objetivo_alianca || null,
+          valor: opa.valor_origem_opa || null,
+          mem: opa.Minimo_esforco_multiplicador || null,
+        })}::jsonb,
+        ${createdAt}, now()
+      )
+      ON CONFLICT (source_type, source_id) DO UPDATE SET
+        titulo = EXCLUDED.titulo,
+        descricao = EXCLUDED.descricao,
+        autor_bia_id = EXCLUDED.autor_bia_id,
+        bia_id = EXCLUDED.bia_id,
+        status = EXCLUDED.status,
+        visibilidade = EXCLUDED.visibilidade,
+        especialidades = EXCLUDED.especialidades,
+        cidade = EXCLUDED.cidade,
+        estado = EXCLUDED.estado,
+        pais = EXCLUDED.pais,
+        metadata = opportunity_registry.metadata || EXCLUDED.metadata,
+        atualizado_em = now()
+      RETURNING *
+    `);
+    return upsert.rows?.[0] || null;
+  }
+
+  let registryBackfillAt = 0;
+  let registryBackfillPromise: Promise<void> | null = null;
+  async function backfillOpportunityRegistry(force = false) {
+    if (registryBackfillPromise) return registryBackfillPromise;
+    if (!force && Date.now() - registryBackfillAt < 30_000) return;
+    registryBackfillAt = Date.now();
+    registryBackfillPromise = (async () => {
+      await ensureBusinessOpportunityTables();
+      const demands = await db.execute(sql`SELECT id FROM carteira_demandas ORDER BY criado_em DESC LIMIT 1000`);
+      for (const row of demands.rows || []) await syncDemandRegistry(String((row as any).id));
+      const legacyAssets = await db.execute(sql`
+        SELECT la.*
+        FROM land_bank_assets la
+        WHERE (la.origem_tipo = 'oportunidade_externa' OR la.demanda_origem_id IS NOT NULL)
+          AND NOT EXISTS (
+            SELECT 1 FROM economic_opportunity_sources s
+            WHERE s.source_type = 'land_bank_asset' AND s.source_id = la.id
+          )
+        ORDER BY la.created_at ASC
+        LIMIT 500
+      `);
+      for (const row of legacyAssets.rows || []) {
+        const asset: any = normalizeLandBankAssetRow(row);
+        const reviewContext = await getAssetReviewContext({
+          originador_membro_id: asset.originador_membro_id || asset.created_by_membro || null,
+        }).catch(() => ({ comunidadeId: null, comunidadeNome: null, aliadoId: null }));
+        const code = await createUniqueEconomicOpportunityCode();
+        const title = String(asset.qualificacao || asset.titulo || "Oportunidade imobiliária").trim();
+        const thesis = String(asset.tese_inicial || asset.descricao || "Oportunidade imobiliária identificada para análise.").trim();
+        const inserted = await db.execute(sql`
+          INSERT INTO economic_opportunities (
+            codigo, titulo, resumo_autorizado, tese, finalidade, estagio,
+            criador_user_id, criador_membro_id, originador_user_id, originador_membro_id,
+            responsavel_user_id, responsavel_membro_id, comunidade_id, comunidade_nome,
+            cidade, estado, pais, metadata, criado_em, atualizado_em
+          ) VALUES (
+            ${code}, ${title}, ${thesis}, ${thesis}, ${asset.finalidade || null},
+            ${normalizeEconomicOpportunityStage(asset.estagio === "pre_viabilidade_aprovada" ? "pronta_decisao" : asset.estagio)},
+            ${asset.created_by || null}, ${asset.created_by_membro || null},
+            ${asset.originador_user_id || asset.created_by || null}, ${asset.originador_membro_id || asset.created_by_membro || null},
+            ${asset.created_by || null}, ${asset.created_by_membro || null},
+            ${reviewContext.comunidadeId || null}, ${reviewContext.comunidadeNome || null},
+            ${asset.cidade || null}, ${asset.estado || null}, ${asset.pais || "Brasil"},
+            ${JSON.stringify({
+              migrado: true,
+              legacy_asset_id: asset.id,
+              aliado_built_membro_id: reviewContext.aliadoId || null,
+            })}::jsonb,
+            ${asset.createdAt || new Date()}, ${asset.updatedAt || new Date()}
+          ) RETURNING *
+        `);
+        const economic: any = inserted.rows?.[0];
+        await db.execute(sql`
+          INSERT INTO economic_opportunity_sources (economic_opportunity_id, source_type, source_id, metadata)
+          VALUES (${economic.id}, 'land_bank_asset', ${String(asset.id)}, ${JSON.stringify({ migrado: true })}::jsonb)
+          ON CONFLICT DO NOTHING
+        `);
+        if (asset.demanda_origem_id) {
+          await db.execute(sql`
+            INSERT INTO economic_opportunity_sources (economic_opportunity_id, source_type, source_id, metadata)
+            VALUES (${economic.id}, 'demanda', ${String(asset.demanda_origem_id)}, ${JSON.stringify({ migrado: true })}::jsonb)
+            ON CONFLICT DO NOTHING
+          `);
+          await db.execute(sql`UPDATE carteira_demandas SET economic_opportunity_id = ${economic.id} WHERE id = ${String(asset.demanda_origem_id)}`);
+        }
+      }
+      const economics = await db.execute(sql`SELECT id FROM economic_opportunities ORDER BY criado_em DESC LIMIT 1000`);
+      for (const row of economics.rows || []) await syncEconomicOpportunityRegistry(String((row as any).id));
+      const opas = await directusFetchScoped(
+        "tipos_oportunidades",
+        "fields=id,nome_oportunidade,tipo,ramo_atuacao,bia,bia_id,localizacao,cidade,estado,pais,status,descricao,objetivo_alianca,nucleo_alianca,perfil_aliado,valor_origem_opa,Minimo_esforco_multiplicador,date_created,user_created,criado_por_user_id,criado_por_membro_id&limit=1000",
+      ).catch(() => []);
+      for (const opa of opas) await syncOpaRegistry(opa);
+    })().finally(() => {
+      registryBackfillPromise = null;
+    });
+    return registryBackfillPromise;
+  }
+
+  function scheduleOpportunityRegistryBackfill() {
+    void backfillOpportunityRegistry().catch((error) => {
+      console.warn("[opportunities] Falha ao atualizar o índice em segundo plano:", error?.message || error);
+    });
+  }
+
+  async function getOpportunityRegistry(identifier: string) {
+    await ensureBusinessOpportunityTables();
+    scheduleOpportunityRegistryBackfill();
+    const result = await db.execute(sql`
+      SELECT * FROM opportunity_registry
+      WHERE codigo = ${identifier} OR id::text = ${identifier} OR source_id = ${identifier}
+      ORDER BY CASE WHEN codigo = ${identifier} THEN 0 ELSE 1 END
+      LIMIT 1
+    `);
+    return result.rows?.[0] as any || null;
+  }
+
+  async function canManageOpportunity(req: Request, registry: any) {
+    const session = (req.session as any) || {};
+    if (["admin", "manager", "superadmin"].includes(String(session.role || ""))) return true;
+    if (registry.tipo === "oba") return canManageOpa(req, String(registry.source_id));
+    if (registry.tipo === "oportunidade") {
+      const economic = await getEconomicOpportunity(String(registry.source_id));
+      return economic ? (await economicOpportunityAccess(req, economic)).canManage : false;
+    }
+    if (registry.bia_id) {
+      const bia = await directusFetchOne("bias_projetos", String(registry.bia_id), "fields=*").catch(() => null);
+      return Boolean(bia && isUserLinkedToBia(bia, session.membroId));
+    }
+    if (registry.imovel_id) {
+      const actor = requireCarteiraActor(req);
+      return Boolean(await resolveCarteiraAccess(String(registry.imovel_id), actor).catch(() => null));
+    }
+    return String(registry.criador_user_id || "") === String(session.directusUserId || session.userId || "");
+  }
+
+  app.get("/api/rede/oportunidades", async (req, res) => {
+    try {
+      await ensureBusinessOpportunityTables();
+      if (req.query.refresh === "1") await backfillOpportunityRegistry(true);
+      else scheduleOpportunityRegistryBackfill();
+      const result = await db.execute(sql`
+        SELECT r.*,
+          o.resultado AS resultado_fechamento,
+          o.valor AS valor_fechamento,
+          o.moeda AS moeda_fechamento,
+          CASE WHEN r.tipo = 'demanda' THEN (
+            SELECT COUNT(*) FROM carteira_demanda_interesses i WHERE i.demanda_id::text = r.source_id AND i.status <> 'retirado'
+          ) WHEN r.tipo = 'oba' THEN (
+            SELECT COUNT(*) FROM opa_interesses i WHERE i.opa_id = r.source_id AND COALESCE(i.status_crm, '') <> 'retirado'
+          ) ELSE 0 END AS total_interesses
+        FROM opportunity_registry r
+        LEFT JOIN opportunity_outcomes o ON o.registry_id = r.id
+        ORDER BY COALESCE(r.publicada_em, r.criado_em) DESC
+        LIMIT 1000
+      `);
+      const tipo = String(req.query.tipo || "todos").toLowerCase();
+      const search = String(req.query.q || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const cidade = String(req.query.cidade || "").trim().toLowerCase();
+      const estado = String(req.query.estado || "").trim().toLowerCase();
+      const pais = String(req.query.pais || "").trim().toLowerCase();
+      const especialidade = String(req.query.especialidade || "").trim().toLowerCase();
+      const session = (req.session as any) || {};
+      const actorId = String(session.directusUserId || session.userId || "");
+      const membroId = String(session.membroId || "");
+      const isAdmin = ["admin", "manager", "superadmin"].includes(String(session.role || ""));
+      const publicOnly = req.query.publico === "1" || req.query.publico === "true" || (!actorId && !membroId && !isAdmin);
+      const items = (result.rows || []).filter((item: any) => {
+        if (tipo !== "todos" && item.tipo !== tipo) return false;
+        const expired = item.expira_em && new Date(item.expira_em).getTime() <= Date.now();
+        const closed = ["concluida", "convertida", "encerrada_sem_acordo", "expirada", "cancelada", "arquivada"].includes(String(item.status));
+        if (publicOnly && (item.visibilidade !== "publicada" || expired || closed)) return false;
+        if (!publicOnly && item.visibilidade !== "publicada" && !canReadRestrictedOpportunity({
+          isAdmin,
+          actorUserId: actorId,
+          actorMemberId: membroId,
+          creatorUserId: item.criador_user_id,
+          authorUserId: item.autor_user_id,
+          authorMemberId: item.autor_membro_id,
+          responsibleMemberId: item.responsavel_membro_id,
+          reviewerMemberId: item.tipo === "oportunidade" ? item.metadata?.aliado_built_membro_id : null,
+        })) return false;
+        const values = [item.codigo, item.titulo, item.descricao, item.cidade, item.estado, item.pais, ...(Array.isArray(item.especialidades) ? item.especialidades : [])]
+          .filter(Boolean).join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (search && !values.includes(search)) return false;
+        if (cidade && !String(item.cidade || "").toLowerCase().includes(cidade)) return false;
+        if (estado && !String(item.estado || "").toLowerCase().includes(estado)) return false;
+        if (pais && !String(item.pais || "").toLowerCase().includes(pais)) return false;
+        if (especialidade && !values.includes(especialidade)) return false;
+        return true;
+      });
+      const visibleItems = await Promise.all(items.map(async (item: any) => {
+        const canManage = await canManageOpportunity(req, item).catch(() => false);
+        const decorated = {
+          ...item,
+          can_manage: canManage,
+          selo: item.tipo === "demanda" ? "Demanda" : item.tipo === "oportunidade" ? "Oportunidade" : "OBA",
+          url: item.tipo === "oportunidade"
+          ? `/area-aliancas/oportunidades/${item.codigo}`
+          : item.tipo === "demanda"
+          ? `/vitrine/oportunidades/demandas/${item.source_id}`
+          : `/vitrine/oportunidades/obas/${item.source_id}`,
+        };
+        return canManage ? decorated : publicOpportunityRegistryView(decorated);
+      }));
+      res.set("Cache-Control", "no-store");
+      res.json(visibleItems);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rede/oportunidades/:codigo", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (registry.tipo === "oportunidade") {
+        const economic = await getEconomicOpportunity(String(registry.source_id));
+        if (!economic) return res.status(404).json({ error: "Oportunidade não encontrada" });
+        const access = await economicOpportunityAccess(req, economic);
+        if (!access.canViewSummary) return res.status(403).json({ error: "Esta Oportunidade possui acesso contextual." });
+      } else if (!isOpportunityPublic(registry.status, registry.visibilidade, registry.expira_em) && !(await canManageOpportunity(req, registry))) {
+        return res.status(403).json({ error: "Esta Oportunidade não está disponível para consulta pública." });
+      }
+      const [events, relations, outcome] = await Promise.all([
+        db.execute(sql`SELECT * FROM opportunity_events WHERE registry_id = ${registry.id} ORDER BY criado_em DESC`),
+        db.execute(sql`
+          SELECT rel.*, origem.codigo AS origem_codigo, destino.codigo AS destino_codigo
+          FROM opportunity_relations rel
+          JOIN opportunity_registry origem ON origem.id = rel.origem_registry_id
+          JOIN opportunity_registry destino ON destino.id = rel.destino_registry_id
+          WHERE rel.origem_registry_id = ${registry.id} OR rel.destino_registry_id = ${registry.id}
+          ORDER BY rel.criado_em DESC
+        `),
+        db.execute(sql`SELECT * FROM opportunity_outcomes WHERE registry_id = ${registry.id} LIMIT 1`),
+      ]);
+      res.json({ ...registry, eventos: events.rows || [], relacoes: relations.rows || [], resultado: outcome.rows?.[0] || null });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/oportunidades/indicadores", async (req, res) => {
+    try {
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+      await ensureBusinessOpportunityTables();
+      scheduleOpportunityRegistryBackfill();
+      const totals = await db.execute(sql`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE tipo = 'demanda')::int AS demandas,
+          COUNT(*) FILTER (WHERE tipo = 'oba')::int AS obas,
+          COUNT(*) FILTER (WHERE status = 'convertida')::int AS convertidas,
+          COUNT(*) FILTER (WHERE status IN ('contratada', 'em_execucao', 'concluida'))::int AS negocios_originados,
+          COALESCE(AVG(EXTRACT(EPOCH FROM (atualizado_em - criado_em)) / 86400) FILTER (WHERE status IN ('contratada', 'concluida')), 0)::numeric(10,2) AS dias_medio_fechamento
+        FROM opportunity_registry
+      `);
+      const outcomes = await db.execute(sql`
+        SELECT COUNT(*)::int AS fechamentos,
+          COALESCE(SUM(valor) FILTER (WHERE sem_valor_financeiro = false), 0)::numeric(16,2) AS valor_movimentado
+        FROM opportunity_outcomes
+      `);
+      const interests = await db.execute(sql`
+        SELECT
+          (SELECT COUNT(*) FROM carteira_demanda_interesses WHERE status <> 'retirado')
+          + (SELECT COUNT(*) FROM opa_interesses WHERE COALESCE(status_crm, '') <> 'retirado') AS total
+      `);
+      res.json({ ...(totals.rows?.[0] || {}), ...(outcomes.rows?.[0] || {}), interesses: Number(interests.rows?.[0]?.total || 0), cobranca_automatica: false });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/me/negocios", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await ensureBusinessOpportunityTables();
+      scheduleOpportunityRegistryBackfill();
+
+      const profile = actor.membroId
+        ? await directusFetchOne(
+          "cadastro_geral",
+          actor.membroId,
+          "fields=id,cidade,estado,pais,ramo_atuacao,segmento,area_atuacao,especialidade_livre,nucleo_alianca,nucleos_alianca,tipo_alianca,tipos_alianca,Especialidades.especialidades_id.nome_especialidade",
+        ).catch(() => null)
+        : null;
+      const relationNames = (items: any) => (Array.isArray(items) ? items : [])
+        .map((item: any) => item?.especialidades_id?.nome_especialidade || item?.nome_especialidade || item?.nome || null)
+        .filter(Boolean);
+      const listValue = (value: any) => Array.isArray(value)
+        ? value
+        : String(value || "").split(/[;,]/).map((item) => item.trim()).filter(Boolean);
+      const scoringProfile = {
+        specialties: [...relationNames(profile?.Especialidades), profile?.especialidade_livre].filter(Boolean),
+        contributionAreas: [...listValue(profile?.tipo_alianca), ...listValue(profile?.tipos_alianca), ...listValue(profile?.area_atuacao)],
+        branches: [...listValue(profile?.ramo_atuacao), ...listValue(profile?.segmento)],
+        nuclei: [...listValue(profile?.nucleo_alianca), ...listValue(profile?.nucleos_alianca)],
+        city: profile?.cidade,
+        state: profile?.estado,
+        country: profile?.pais,
+      };
+
+      const opportunityResult = await db.execute(sql`
+        SELECT r.*,
+          CASE WHEN r.tipo = 'demanda' THEN EXISTS (
+            SELECT 1 FROM carteira_demanda_interesses i
+            WHERE i.demanda_id::text = r.source_id AND i.status <> 'retirado'
+              AND (i.user_id = ${actor.userId} OR i.membro_id = ${actor.membroId})
+          ) ELSE EXISTS (
+            SELECT 1 FROM opa_interesses i
+            WHERE i.opa_id = r.source_id
+              AND (i.user_id = ${actor.userId} OR i.membro_id = ${actor.membroId})
+          ) END AS interessado,
+          EXISTS (
+            SELECT 1 FROM opportunity_distribution_deliveries delivery
+            WHERE delivery.registry_id = r.id
+              AND (delivery.user_id = ${actor.userId} OR delivery.membro_id = ${actor.membroId})
+          ) AS recebido_direto
+        FROM opportunity_registry r
+        WHERE r.tipo IN ('demanda', 'oba')
+          AND r.status NOT IN ('concluida', 'convertida', 'encerrada_sem_acordo', 'expirada', 'cancelada', 'arquivada')
+          AND (r.expira_em IS NULL OR r.expira_em > now())
+          AND (
+            r.visibilidade = 'publicada'
+            OR r.autor_user_id = ${actor.userId}
+            OR r.autor_membro_id = ${actor.membroId}
+            OR r.responsavel_user_id = ${actor.userId}
+            OR r.responsavel_membro_id = ${actor.membroId}
+            OR EXISTS (
+              SELECT 1 FROM opportunity_distribution_deliveries delivery
+              WHERE delivery.registry_id = r.id
+                AND (delivery.user_id = ${actor.userId} OR delivery.membro_id = ${actor.membroId})
+            )
+            OR (r.tipo = 'demanda' AND EXISTS (
+              SELECT 1 FROM carteira_demanda_interesses i
+              WHERE i.demanda_id::text = r.source_id
+                AND (i.user_id = ${actor.userId} OR i.membro_id = ${actor.membroId})
+            ))
+            OR (r.tipo = 'oba' AND EXISTS (
+              SELECT 1 FROM opa_interesses i
+              WHERE i.opa_id = r.source_id
+                AND (i.user_id = ${actor.userId} OR i.membro_id = ${actor.membroId})
+            ))
+          )
+        ORDER BY COALESCE(r.publicada_em, r.criado_em) DESC
+        LIMIT 250
+      `);
+
+      const feedItems: any[] = (opportunityResult.rows || []).map((item: any) => {
+        const scored = scoreBusinessFeedCandidate(scoringProfile, {
+          title: item.titulo,
+          description: item.descricao,
+          specialties: item.especialidades,
+          branch: item.metadata?.ramo_atuacao || item.metadata?.tipo,
+          nucleus: item.metadata?.nucleo_alianca,
+          city: item.cidade,
+          state: item.estado,
+          country: item.pais,
+          urgency: item.urgencia,
+          interested: item.interessado === true,
+          delivered: item.recebido_direto === true,
+          publishedAt: item.publicada_em || item.criado_em,
+        });
+        return {
+          id: `opportunity:${item.id}`,
+          tipo: item.tipo,
+          selo: item.tipo === "demanda" ? "Demanda" : "OBA",
+          codigo: item.codigo,
+          titulo: item.titulo,
+          resumo: item.descricao,
+          localizacao: [item.cidade, item.estado, item.pais].filter(Boolean).join(", "),
+          status: item.status,
+          data: item.publicada_em || item.criado_em,
+          aderencia: scored.score,
+          motivos: scored.reasons,
+          url: item.tipo === "demanda"
+            ? `/vitrine/oportunidades/demandas/${item.source_id}`
+            : `/vitrine/oportunidades/obas/${item.source_id}`,
+        };
+      });
+
+      const meetingsResult = await db.execute(sql`
+        SELECT meeting.*,
+          (SELECT COUNT(*) FROM opportunity_meeting_items item WHERE item.meeting_id = meeting.id)::int AS total_oportunidades
+        FROM opportunity_meetings meeting
+        WHERE meeting.status <> 'cancelada'
+          AND (
+            meeting.organizador_user_id = ${actor.userId}
+            OR meeting.organizador_membro_id = ${actor.membroId}
+            OR EXISTS (
+              SELECT 1 FROM opportunity_meeting_participants participant
+              WHERE participant.meeting_id = meeting.id
+                AND (participant.user_id = ${actor.userId} OR participant.membro_id = ${actor.membroId})
+            )
+          )
+        ORDER BY meeting.data DESC, meeting.hora DESC NULLS LAST
+        LIMIT 60
+      `);
+      for (const meeting of meetingsResult.rows || []) {
+        const item: any = meeting;
+        const scored = scoreBusinessFeedCandidate(scoringProfile, {
+          title: item.titulo,
+          description: item.pauta,
+          delivered: true,
+          publishedAt: item.criado_em,
+        });
+        feedItems.push({
+          id: `ro:${item.id}`,
+          tipo: "ro",
+          selo: "RO",
+          codigo: item.codigo,
+          titulo: item.titulo,
+          resumo: item.pauta || `${Number(item.total_oportunidades || 0)} oportunidades na pauta`,
+          localizacao: item.link ? "Reunião on-line" : null,
+          status: item.status,
+          data: item.data,
+          hora: item.hora,
+          aderencia: Math.min(100, scored.score + 15),
+          motivos: ["Você está entre os participantes", ...scored.reasons].slice(0, 2),
+          url: `/area-aliancas?tab=oportunidades&tipo=ros&ro=${item.codigo}`,
+        });
+      }
+
+      if (actor.membroId) {
+        const invitations = await db.execute(sql`
+          SELECT id::text, bia_id, bia_nome, papel, status, criado_em, 'diretor' AS origem
+          FROM bia_diretor_solicitacoes
+          WHERE diretor_membro_id = ${actor.membroId} AND status = 'pendente'
+          UNION ALL
+          SELECT id::text, bia_id, bia_nome, papel, status, criado_em, 'socio' AS origem
+          FROM bia_socio_solicitacoes
+          WHERE socio_membro_id = ${actor.membroId} AND status = 'pendente'
+          ORDER BY criado_em DESC
+        `);
+        for (const invitation of invitations.rows || []) {
+          const item: any = invitation;
+          feedItems.push({
+            id: `bia:${item.origem}:${item.id}`,
+            tipo: "bia",
+            selo: "BIA",
+            codigo: item.bia_id,
+            titulo: `Convite para integrar ${item.bia_nome || "uma BIA"}`,
+            resumo: item.papel,
+            status: "convite_pendente",
+            data: item.criado_em,
+            aderencia: 100,
+            motivos: ["Convite direto para você", item.papel].filter(Boolean),
+            url: `/bias/${item.bia_id}?tab=diretoria`,
+          });
+        }
+      }
+
+      const [demandProposalResult, obaProposalResult, outcomesResult, obaWinsResult] = await Promise.all([
+        db.execute(sql`
+          SELECT COUNT(*)::int AS total FROM carteira_demanda_interesses
+          WHERE status <> 'retirado' AND (user_id = ${actor.userId} OR membro_id = ${actor.membroId})
+        `),
+        db.execute(sql`
+          SELECT COUNT(*)::int AS total FROM opa_interesses
+          WHERE (user_id = ${actor.userId} OR membro_id = ${actor.membroId})
+        `),
+        db.execute(sql`
+          SELECT outcome.*, registry.tipo, registry.source_id
+          FROM opportunity_outcomes outcome
+          JOIN opportunity_registry registry ON registry.id = outcome.registry_id
+          WHERE outcome.participante_user_id = ${actor.userId} OR outcome.participante_membro_id = ${actor.membroId}
+        `),
+        db.execute(sql`
+          SELECT COUNT(DISTINCT opa_id)::int AS total FROM opa_interesses
+          WHERE status_crm = 'alianca_firmada'
+            AND (user_id = ${actor.userId} OR membro_id = ${actor.membroId})
+        `),
+      ]);
+      const outcomes: any[] = (outcomesResult.rows || []) as any[];
+      const valuesByCurrency = new Map<string, number>();
+      for (const outcome of outcomes) {
+        if (outcome.sem_valor_financeiro || outcome.valor == null) continue;
+        const currency = String(outcome.moeda || "BRL").toUpperCase();
+        valuesByCurrency.set(currency, (valuesByCurrency.get(currency) || 0) + Number(outcome.valor || 0));
+      }
+      const outcomeObaWins = new Set(outcomes.filter((item) => item.tipo === "oba").map((item) => String(item.source_id))).size;
+      const formalizedObaWins = Number(obaWinsResult.rows?.[0]?.total || 0);
+      const closedBusinesses = outcomes.length + Math.max(0, formalizedObaWins - outcomeObaWins);
+
+      let participatedBias: any[] = [];
+      if (actor.membroId) {
+        const allBias = await directusFetchScoped(
+          "bias_projetos",
+          "fields=id,codigo_publico,nome_bia,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros&limit=1000",
+        ).catch(() => []);
+        participatedBias = (allBias as any[]).filter((bia: any) => isUserLinkedToBia(bia, actor.membroId));
+      }
+
+      const networkOpportunities = feedItems.filter((item) => item.tipo === "demanda" || item.tipo === "oba");
+      res.set("Cache-Control", "private, no-store");
+      res.json({
+        feed: sortBusinessFeed(feedItems).slice(0, 100),
+        indicadores: {
+          negocios_recebidos: networkOpportunities.length,
+          propostas_apresentadas: Number(demandProposalResult.rows?.[0]?.total || 0) + Number(obaProposalResult.rows?.[0]?.total || 0),
+          negocios_fechados: closedBusinesses,
+          valores_contratados: Array.from(valuesByCurrency, ([moeda, valor]) => ({ moeda, valor })),
+          bias_participadas: participatedBias.length,
+          obas_conquistadas: Math.max(formalizedObaWins, outcomeObaWins),
+        },
+        criterio: "aderencia_profissional_e_territorial",
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/oportunidades-economicas", async (req, res) => {
+    try {
+      requireCarteiraActor(req);
+      await ensureBusinessOpportunityTables();
+      scheduleOpportunityRegistryBackfill();
+      const search = String(req.query.q || "").trim().toLowerCase();
+      const stage = String(req.query.estagio || "").trim();
+      const sourceType = String(req.query.source_type || "").trim();
+      const sourceId = String(req.query.source_id || "").trim();
+      const rows = await db.execute(sql`
+        SELECT eo.*,
+          (SELECT COUNT(*) FROM economic_opportunity_sources s WHERE s.economic_opportunity_id = eo.id) AS total_fontes,
+          (SELECT COUNT(*) FROM opportunity_meeting_items mi
+            JOIN opportunity_registry r ON r.id = mi.registry_id
+            WHERE r.source_type = 'economic_opportunity' AND r.source_id = eo.id::text) AS total_ros
+        FROM economic_opportunities eo
+        WHERE (${stage} = '' OR eo.estagio = ${stage})
+          AND (${search} = '' OR lower(concat_ws(' ', eo.codigo, eo.titulo, eo.tese, eo.finalidade, eo.parecer, eo.cidade, eo.estado, eo.pais)) LIKE ${`%${search}%`})
+          AND ((${sourceType} = '' AND ${sourceId} = '') OR EXISTS (
+            SELECT 1 FROM economic_opportunity_sources source
+            WHERE source.economic_opportunity_id = eo.id
+              AND (${sourceType} = '' OR source.source_type = ${sourceType})
+              AND (${sourceId} = '' OR source.source_id = ${sourceId})
+          ))
+        ORDER BY eo.atualizado_em DESC
+        LIMIT 500
+      `);
+      const visible: any[] = [];
+      for (const item of rows.rows || []) {
+        const access = await economicOpportunityAccess(req, item);
+        if (!access.canViewSummary) continue;
+        visible.push(access.canViewFull
+          ? { ...item, can_manage: access.canManage, can_review: access.canReview, dados_completos: true }
+          : {
+              id: item.id,
+              codigo: item.codigo,
+              titulo: item.titulo,
+              resumo_autorizado: item.resumo_autorizado,
+              estagio: item.estagio,
+              cidade: item.cidade,
+              estado: item.estado,
+              pais: item.pais,
+              dados_completos: false,
+              can_manage: false,
+              can_review: false,
+            });
+      }
+      res.json(visible);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oportunidades-economicas", async (req, res) => {
+    try {
+      if (!(await canAccessProtectedOpaActions(req))) {
+        return res.status(403).json({ error: "Somente membros BUILT podem criar Oportunidades econômicas." });
+      }
+      const source = req.body?.source_type && req.body?.source_id
+        ? { type: String(req.body.source_type), id: String(req.body.source_id), metadata: req.body?.source_metadata || {} }
+        : null;
+      const created = await createEconomicOpportunityRecord(req, req.body || {}, source);
+      res.status(201).json(created);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/land-bank-assets/:id/oportunidade-economica", async (req, res) => {
+    try {
+      if (!(await canAccessProtectedOpaActions(req))) {
+        return res.status(403).json({ error: "Somente membros BUILT podem criar Oportunidades econômicas." });
+      }
+      const result = await db.execute(sql`SELECT * FROM land_bank_assets WHERE id = ${req.params.id} LIMIT 1`);
+      const asset = result.rows?.[0] ? normalizeLandBankAssetRow(result.rows[0]) : null;
+      if (!asset) return res.status(404).json({ error: "Ativo não encontrado" });
+      if (!canManageLandBankAsset(req, asset)) {
+        return res.status(403).json({ error: "Somente o responsável pelo ativo pode preparar a Oportunidade." });
+      }
+      const opportunity = await createEconomicOpportunityRecord(req, {
+        titulo: asset.qualificacao || "Oportunidade imobiliária",
+        tese: asset.tese_inicial || asset.descricao || "Ativo identificado para análise de potencial econômico.",
+        resumo_autorizado: asset.descricao || asset.tese_inicial || null,
+        finalidade: asset.finalidade || null,
+        cidade: asset.cidade || null,
+        estado: asset.estado || null,
+        pais: asset.pais || "Brasil",
+        metadata: { origem_tipo: asset.origem_tipo || null, category: asset.category || null },
+      }, { type: "land_bank_asset", id: String(asset.id) });
+      res.status(opportunity.idempotent ? 200 : 201).json(opportunity);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/oportunidades-economicas/:codigo", async (req, res) => {
+    try {
+      requireCarteiraActor(req);
+      const item = await getEconomicOpportunity(req.params.codigo);
+      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const access = await economicOpportunityAccess(req, item);
+      if (!access.canViewSummary) return res.status(403).json({ error: "Esta Oportunidade possui acesso contextual." });
+      const sources = await economicOpportunitySources(String(item.id));
+      const [meetings, requests] = await Promise.all([
+        db.execute(sql`
+          SELECT m.*, mi.papel
+          FROM opportunity_meeting_items mi
+          JOIN opportunity_registry r ON r.id = mi.registry_id
+          JOIN opportunity_meetings m ON m.id = mi.meeting_id
+          WHERE r.source_type = 'economic_opportunity' AND r.source_id = ${String(item.id)}
+          ORDER BY m.data DESC, m.hora DESC NULLS LAST
+        `),
+        db.execute(sql`SELECT * FROM bia_estruturacao_solicitacoes WHERE economic_opportunity_id = ${item.id} ORDER BY criado_em DESC`),
+      ]);
+      const base = {
+        id: item.id,
+        codigo: item.codigo,
+        titulo: item.titulo,
+        resumo_autorizado: item.resumo_autorizado,
+        estagio: item.estagio,
+        cidade: item.cidade,
+        estado: item.estado,
+        pais: item.pais,
+        bia_id: item.bia_id,
+        reunioes: meetings.rows || [],
+        can_manage: access.canManage,
+        can_review: access.canReview,
+        dados_completos: access.canViewFull,
+      };
+      res.json(access.canViewFull
+        ? { ...base, ...item, fontes: sources, solicitacoes_bia: requests.rows || [] }
+        : base);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/oportunidades-economicas/:codigo", async (req, res) => {
+    try {
+      const item = await getEconomicOpportunity(req.params.codigo);
+      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const access = await economicOpportunityAccess(req, item);
+      if (!access.canManage && !access.canReview) return res.status(403).json({ error: "Sem permissão para atualizar esta Oportunidade." });
+      const nextStage = req.body?.estagio === undefined ? item.estagio : normalizeEconomicOpportunityStage(req.body.estagio, item.estagio);
+      const updated = await db.execute(sql`
+        UPDATE economic_opportunities SET
+          titulo = ${req.body?.titulo === undefined ? item.titulo : String(req.body.titulo || "").trim() || item.titulo},
+          resumo_autorizado = ${req.body?.resumo_autorizado === undefined ? item.resumo_autorizado : String(req.body.resumo_autorizado || "").trim() || null},
+          tese = ${req.body?.tese === undefined ? item.tese : String(req.body.tese || "").trim() || item.tese},
+          finalidade = ${req.body?.finalidade === undefined ? item.finalidade : String(req.body.finalidade || "").trim() || null},
+          parecer = ${req.body?.parecer === undefined ? item.parecer : String(req.body.parecer || "").trim() || null},
+          estagio = ${nextStage},
+          responsavel_user_id = ${req.body?.responsavel_user_id === undefined ? item.responsavel_user_id : req.body.responsavel_user_id || null},
+          responsavel_membro_id = ${req.body?.responsavel_membro_id === undefined ? item.responsavel_membro_id : req.body.responsavel_membro_id || null},
+          cidade = ${req.body?.cidade === undefined ? item.cidade : String(req.body.cidade || "").trim() || null},
+          estado = ${req.body?.estado === undefined ? item.estado : String(req.body.estado || "").trim() || null},
+          pais = ${req.body?.pais === undefined ? item.pais : String(req.body.pais || "").trim() || null},
+          atualizado_em = now()
+        WHERE id = ${item.id} RETURNING *
+      `);
+      const next: any = updated.rows?.[0];
+      const registry = await syncEconomicOpportunityRegistry(String(next.id));
+      if (registry) await recordOpportunityEvent(String(registry.id), req, "atualizada", "Oportunidade econômica atualizada", { campos: Object.keys(req.body || {}) });
+      res.json(next);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oportunidades-economicas/:codigo/fontes", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const item = await getEconomicOpportunity(req.params.codigo);
+      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const access = await economicOpportunityAccess(req, item);
+      if (!access.canManage) return res.status(403).json({ error: "Somente o responsável pode vincular fontes." });
+      const sourceType = String(req.body?.source_type || "").trim();
+      const sourceId = String(req.body?.source_id || "").trim();
+      const allowed = new Set(["demanda", "land_bank_asset", "imovel", "oportunidade_externa", "servico"]);
+      if (!allowed.has(sourceType) || !sourceId) return res.status(400).json({ error: "Informe uma fonte válida." });
+      await assertEconomicOpportunitySourceAccess(req, { type: sourceType, id: sourceId });
+      const inserted = await db.execute(sql`
+        INSERT INTO economic_opportunity_sources (
+          economic_opportunity_id, source_type, source_id, metadata, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${item.id}, ${sourceType}, ${sourceId}, ${JSON.stringify(req.body?.metadata || {})}::jsonb, ${actor.userId}, ${actor.membroId}
+        ) ON CONFLICT (economic_opportunity_id, source_type, source_id) DO UPDATE SET metadata = EXCLUDED.metadata
+        RETURNING *
+      `);
+      res.status(201).json(inserted.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oportunidades-economicas/:codigo/triagem-ia", async (req, res) => {
+    try {
+      const item = await getEconomicOpportunity(req.params.codigo);
+      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const access = await economicOpportunityAccess(req, item);
+      if (!access.canManage && !access.canReview) return res.status(403).json({ error: "Sem permissão para solicitar a triagem." });
+      const completion = await getOpenAI().chat.completions.create({
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 550,
+        messages: [{
+          role: "user",
+          content: `Atue como assistente de triagem imobiliária. Sugira, sem tomar decisões nem prometer viabilidade, um resumo, uma classificação, até 5 especialidades e perguntas que faltam para amadurecer a tese. Responda JSON com resumo, classificacao, especialidades e perguntas.\n\nTítulo: ${item.titulo}\nTese: ${item.tese}\nFinalidade: ${item.finalidade || "não informada"}\nParecer humano: ${item.parecer || "ainda não registrado"}\nLocal: ${[item.cidade, item.estado, item.pais].filter(Boolean).join(", ") || "não informado"}`,
+        }],
+      });
+      const raw = completion.choices[0]?.message?.content || "{}";
+      let suggestions: any = {};
+      try { suggestions = JSON.parse(raw); } catch { suggestions = { resumo: raw }; }
+      res.json({ sugestoes: suggestions, aplicado: false, aviso: "A IA apenas sugere. Confirme e salve manualmente qualquer alteração." });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oportunidades-economicas/:codigo/estruturacao-bia", async (req, res) => {
+    try {
+      const item = await getEconomicOpportunity(req.params.codigo);
+      if (!item) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const request = await requestEconomicOpportunityBia(req, item, String(req.body?.observacao || "").trim() || null);
+      res.status(request.idempotent ? 200 : 201).json(request);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/demandas/:id/gerar-oportunidade", async (req, res) => {
+    try {
+      if (!(await canAccessProtectedOpaActions(req))) {
+        return res.status(403).json({ error: "Somente membros BUILT podem criar Oportunidades econômicas." });
+      }
+      const registry = await getOpportunityRegistry(req.params.id);
+      if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para transformar esta Demanda." });
+      const demand: any = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0];
+      if (!demand) return res.status(404).json({ error: "Demanda não encontrada" });
+      if (demand.economic_opportunity_id) {
+        const existing = await getEconomicOpportunity(String(demand.economic_opportunity_id));
+        return res.json({ oportunidade: existing, idempotent: true });
+      }
+      const created = await createEconomicOpportunityRecord(req, {
+        titulo: req.body?.titulo || demand.titulo,
+        tese: req.body?.tese || demand.escopo || demand.contexto || `Potencial econômico identificado durante a Demanda ${demand.codigo || demand.id}.`,
+        resumo_autorizado: req.body?.resumo_autorizado || demand.resumo_publico || demand.escopo,
+        finalidade: req.body?.finalidade || null,
+        cidade: req.body?.cidade || demand.cidade || registry.cidade,
+        estado: req.body?.estado || demand.estado || registry.estado,
+        pais: req.body?.pais || demand.pais || registry.pais,
+        metadata: { demanda_codigo: demand.codigo || null },
+      }, { type: "demanda", id: String(demand.id) });
+      await db.execute(sql`UPDATE carteira_demandas SET economic_opportunity_id = ${created.id}, atualizado_em = now() WHERE id = ${demand.id}`);
+      if (created.registry) {
+        await db.execute(sql`
+          INSERT INTO opportunity_relations (origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id)
+          VALUES (${registry.id}, ${created.registry.id}, 'demanda_gerou_oportunidade', '{}'::jsonb,
+            ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null})
+          ON CONFLICT DO NOTHING
+        `);
+      }
+      await syncDemandRegistry(String(demand.id));
+      res.status(201).json({ oportunidade: created });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bias/:id/demandas", async (req, res) => {
+    try {
+      const authorization = await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "view");
+      if (!authorization) return;
+      const result = await db.execute(sql`SELECT * FROM carteira_demandas WHERE bia_id = ${String(authorization.bia.id)} ORDER BY criado_em DESC`);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/demandas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const titulo = String(req.body?.titulo || "").trim();
+      const biaId = req.body?.bia_id ? String(req.body.bia_id) : null;
+      const imovelId = req.body?.imovel_id ? String(req.body.imovel_id) : null;
+      if (!titulo) return res.status(400).json({ error: "Informe o título da Demanda." });
+      const context = String(req.body?.contexto || req.body?.descricao || req.body?.escopo || "").trim();
+      if (!biaId && !imovelId && !context) {
+        return res.status(400).json({ error: "Para uma Demanda sem imóvel, descreva o contexto e informe a localização quando souber." });
+      }
+      let authorType = "usuario";
+      if (biaId) {
+        const authorization = await requireBiaModuleAccess(req, res, biaId, "configuracao_bia", "edit");
+        if (!authorization) return;
+        authorType = "bia";
+      } else if (imovelId) {
+        await requireCarteiraAccess(imovelId, actor, "administracao");
+      }
+      const publicar = req.body?.publicar === true;
+      if (publicar && req.body?.consentimento_publicacao !== true) {
+        return res.status(400).json({ error: "Confirme o consentimento para publicar a Demanda na Vitrine." });
+      }
+      const code = await createUniqueDemandCode();
+      const publishedAt = publicar ? new Date() : null;
+      const expiryDays = Number(req.body?.validade_dias || 60);
+      const insert = await db.execute(sql`
+        INSERT INTO carteira_demandas (
+          imovel_id, bia_id, codigo, autor_tipo, autor_user_id, autor_membro_id,
+          tipo_resolucao, titulo, escopo, urgencia, especialidades, status,
+          responsavel_user_id, responsavel_membro_id, visibilidade,
+          consentimento_publicacao_at, publicada_em, expira_em, resumo_publico,
+          contexto, cidade, estado, pais,
+          fluxo_disparo, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${imovelId}, ${biaId}, ${code}, ${authorType},
+          ${authorType === "usuario" ? actor.userId : null}, ${authorType === "usuario" ? actor.membroId : null},
+          'solicitacao', ${titulo}, ${req.body?.descricao || req.body?.escopo || null},
+          ${req.body?.urgencia || "normal"},
+          ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
+          ${publicar ? "aberta" : "rascunho"}, ${req.body?.responsavel_user_id || actor.userId},
+          ${req.body?.responsavel_membro_id || actor.membroId}, ${publicar ? "publicada" : "privada"},
+          ${publishedAt}, ${publishedAt}, ${publishedAt ? opportunityExpiry(publishedAt, expiryDays) : null},
+          ${String(req.body?.resumo_publico || req.body?.descricao || req.body?.escopo || "").trim() || null},
+          ${context || null}, ${String(req.body?.cidade || "").trim() || null},
+          ${String(req.body?.estado || "").trim() || null}, ${String(req.body?.pais || "").trim() || "Brasil"},
+          ${req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato"}, ${actor.userId}, ${actor.membroId}
+        ) RETURNING *
+      `);
+      const demand = insert.rows?.[0] as any;
+      const registry = await syncDemandRegistry(String(demand.id));
+      if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "Demanda criada", { autor_tipo: authorType, bia_id: biaId, imovel_id: imovelId });
+      if (registry && publicar) {
+        await createDistributionFlow(registry, req, req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato");
+      }
+      res.status(201).json(demand);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/demandas/:id", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.id);
+      if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para editar esta Demanda." });
+      if (!isOpportunityEditable(registry.status) && !isAdminRequest(req)) {
+        return res.status(409).json({ error: "Oportunidades encerradas ficam disponíveis somente para consulta." });
+      }
+      const current = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Demanda não encontrada" });
+      const status = req.body?.status === undefined ? current.status : normalizeOpportunityStatus(req.body.status, normalizeOpportunityStatus(current.status));
+      const updated = await db.execute(sql`
+        UPDATE carteira_demandas SET
+          titulo = ${String(req.body?.titulo ?? current.titulo).trim()},
+          escopo = ${req.body?.descricao === undefined && req.body?.escopo === undefined ? current.escopo : req.body?.descricao || req.body?.escopo || null},
+          urgencia = ${String(req.body?.urgencia ?? current.urgencia)},
+          especialidades = ${JSON.stringify(req.body?.especialidades === undefined ? current.especialidades || [] : Array.isArray(req.body.especialidades) ? req.body.especialidades : [])}::jsonb,
+          responsavel_user_id = ${req.body?.responsavel_user_id === undefined ? current.responsavel_user_id : req.body.responsavel_user_id || null},
+          responsavel_membro_id = ${req.body?.responsavel_membro_id === undefined ? current.responsavel_membro_id : req.body.responsavel_membro_id || null},
+          resumo_publico = ${req.body?.resumo_publico === undefined ? current.resumo_publico : String(req.body.resumo_publico || "").trim() || null},
+          contexto = ${req.body?.contexto === undefined ? current.contexto : String(req.body.contexto || "").trim() || null},
+          cidade = ${req.body?.cidade === undefined ? current.cidade : String(req.body.cidade || "").trim() || null},
+          estado = ${req.body?.estado === undefined ? current.estado : String(req.body.estado || "").trim() || null},
+          pais = ${req.body?.pais === undefined ? current.pais : String(req.body.pais || "").trim() || null},
+          expira_em = ${req.body?.expira_em === undefined ? current.expira_em : req.body.expira_em || null},
+          fluxo_disparo = ${req.body?.fluxo_disparo === "gradual" ? "gradual" : req.body?.fluxo_disparo === "imediato" ? "imediato" : current.fluxo_disparo || "imediato"},
+          status = ${status}, atualizado_em = now()
+        WHERE id = ${registry.source_id} RETURNING *
+      `);
+      const nextRegistry = await syncDemandRegistry(String(registry.source_id));
+      if (nextRegistry) await recordOpportunityEvent(String(nextRegistry.id), req, "editada", "Demanda atualizada", { campos: Object.keys(req.body || {}) });
+      res.json(updated.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/carteira/imoveis/:id/demandas", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -13860,23 +15572,28 @@ Deixe claro que premissas precisam de validação profissional.`,
       }
       const visibilidade = publicar ? "publicada" : "privada";
       const resumoPublico = String(req.body?.resumo_publico || req.body?.escopo || "").trim() || null;
+      const codigo = await createUniqueDemandCode();
+      const publicadaEm = publicar ? new Date() : null;
       const insert = await db.execute(sql`
         INSERT INTO carteira_demandas (
-          imovel_id, tipo_resolucao, alternativa, titulo, escopo, urgencia,
+          imovel_id, codigo, autor_tipo, autor_user_id, autor_membro_id,
+          tipo_resolucao, alternativa, titulo, escopo, urgencia,
           especialidades, status, responsavel_user_id, propostas, documentos,
           proximas_etapas, visibilidade, consentimento_publicacao_at, publicada_em,
-          resumo_publico, criado_por_user_id, criado_por_membro_id
+          expira_em, resumo_publico, fluxo_disparo, criado_por_user_id, criado_por_membro_id
         )
         VALUES (
-          ${req.params.id}, 'solicitacao', ${req.body?.alternativa || null}, ${titulo},
+          ${req.params.id}, ${codigo}, 'usuario', ${actor.userId}, ${actor.membroId},
+          'solicitacao', ${req.body?.alternativa || null}, ${titulo},
           ${req.body?.escopo || null}, ${req.body?.urgencia || "normal"},
           ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
           ${publicar ? "aberta" : "rascunho"}, ${req.body?.responsavel_user_id || null},
           ${JSON.stringify(Array.isArray(req.body?.propostas) ? req.body.propostas : [])}::jsonb,
           ${JSON.stringify(Array.isArray(req.body?.documentos) ? req.body.documentos : [])}::jsonb,
           ${JSON.stringify(Array.isArray(req.body?.proximas_etapas) ? req.body.proximas_etapas : [])}::jsonb,
-          ${visibilidade}, ${publicar ? new Date() : null}, ${publicar ? new Date() : null},
-          ${resumoPublico},
+          ${visibilidade}, ${publicadaEm}, ${publicadaEm},
+          ${publicadaEm ? opportunityExpiry(publicadaEm, Number(req.body?.validade_dias || 60)) : null},
+          ${resumoPublico}, ${req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato"},
           ${actor.userId}, ${actor.membroId}
         )
         RETURNING *
@@ -13888,6 +15605,11 @@ Deixe claro que premissas precisam de validação profissional.`,
         tipo_resolucao: "solicitacao",
         visibilidade,
       });
+      const registry = await syncDemandRegistry(String(demanda?.id));
+      if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "Demanda criada", { imovel_id: req.params.id });
+      if (registry && publicar) {
+        await createDistributionFlow(registry, req, req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato");
+      }
       res.status(201).json(demanda);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -13906,9 +15628,12 @@ Deixe claro que premissas precisam de validação profissional.`,
       `);
       const current = currentResult.rows?.[0];
       if (!current) return res.status(404).json({ error: "Demanda não encontrada" });
-      const status = ["rascunho", "aberta", "em_andamento", "aguardando", "concluida", "cancelada"].includes(String(req.body?.status || ""))
-        ? String(req.body.status)
-        : String(current.status);
+      const status = req.body?.status === undefined
+        ? normalizeOpportunityStatus(current.status)
+        : normalizeOpportunityStatus(req.body.status, normalizeOpportunityStatus(current.status));
+      if (!isOpportunityEditable(current.status) && !actor.isPlatformAdmin) {
+        return res.status(409).json({ error: "Oportunidades encerradas ficam disponíveis somente para consulta." });
+      }
       const updated = await db.execute(sql`
         UPDATE carteira_demandas
         SET titulo = ${String(req.body?.titulo ?? current.titulo)},
@@ -13922,6 +15647,8 @@ Deixe claro que premissas precisam de validação profissional.`,
             documentos = ${JSON.stringify(req.body?.documentos === undefined ? current.documentos || [] : Array.isArray(req.body.documentos) ? req.body.documentos : [])}::jsonb,
             proximas_etapas = ${JSON.stringify(req.body?.proximas_etapas === undefined ? current.proximas_etapas || [] : Array.isArray(req.body.proximas_etapas) ? req.body.proximas_etapas : [])}::jsonb,
             resultado = ${req.body?.resultado === undefined ? current.resultado : req.body.resultado || null},
+            expira_em = ${req.body?.expira_em === undefined ? current.expira_em : req.body.expira_em || null},
+            fluxo_disparo = ${req.body?.fluxo_disparo === "gradual" ? "gradual" : req.body?.fluxo_disparo === "imediato" ? "imediato" : current.fluxo_disparo || "imediato"},
             atualizado_em = now()
         WHERE id = ${req.params.demandaId} AND imovel_id = ${req.params.id}
         RETURNING *
@@ -13930,6 +15657,8 @@ Deixe claro que premissas precisam de validação profissional.`,
         demanda_id: req.params.demandaId,
         status,
       });
+      const registry = await syncDemandRegistry(req.params.demandaId);
+      if (registry) await recordOpportunityEvent(String(registry.id), req, "editada", "Demanda atualizada", { campos: Object.keys(req.body || {}) });
       res.json(updated.rows?.[0]);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -13953,6 +15682,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         SET visibilidade = ${visibilidade},
             consentimento_publicacao_at = CASE WHEN ${action === "publicar"} THEN COALESCE(consentimento_publicacao_at, now()) ELSE consentimento_publicacao_at END,
             publicada_em = CASE WHEN ${action === "publicar"} THEN COALESCE(publicada_em, now()) ELSE publicada_em END,
+            expira_em = CASE WHEN ${action === "publicar"} THEN COALESCE(expira_em, now() + interval '60 days') ELSE expira_em END,
             status = CASE WHEN ${action === "publicar"} AND status = 'rascunho' THEN 'aberta' ELSE status END,
             atualizado_em = now()
         WHERE id = ${req.params.demandaId} AND imovel_id = ${req.params.id}
@@ -13963,6 +15693,8 @@ Deixe claro que premissas precisam de validação profissional.`,
         demanda_id: req.params.demandaId,
         visibilidade,
       });
+      const registry = await syncDemandRegistry(req.params.demandaId);
+      if (registry) await recordOpportunityEvent(String(registry.id), req, `publicacao_${action}`, "Publicação da Demanda atualizada", { visibilidade });
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -13979,7 +15711,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         u.email AS proprietario_email,
         (SELECT COUNT(*) FROM carteira_demanda_interesses ci WHERE ci.demanda_id = d.id AND ci.status <> 'retirado') AS total_interesses
       FROM carteira_demandas d
-      INNER JOIN inventario_imoveis i ON i.id = d.imovel_id
+      LEFT JOIN inventario_imoveis i ON i.id = d.imovel_id
       LEFT JOIN users u ON u.id = i.owner_user_id
       WHERE d.id = ${demandId}
       LIMIT 1
@@ -13997,6 +15729,23 @@ Deixe claro que premissas precisam de validação profissional.`,
     };
   }
 
+  async function hasRestrictedOpportunityDelivery(req: Request, sourceType: "demanda" | "oba", sourceId: string) {
+    const session = (req.session as any) || {};
+    const userId = session.directusUserId || session.userId || null;
+    const memberId = session.membroId || null;
+    if (!userId && !memberId) return false;
+    const delivered = await db.execute(sql`
+      SELECT 1
+      FROM opportunity_distribution_deliveries d
+      JOIN opportunity_registry r ON r.id = d.registry_id
+      WHERE r.source_type = ${sourceType} AND r.source_id = ${sourceId}
+        AND d.canal = 'interna' AND d.status IN ('enviado', 'lida')
+        AND (d.user_id = ${userId} OR d.membro_id = ${memberId})
+      LIMIT 1
+    `);
+    return Boolean(delivered.rows?.[0]);
+  }
+
   app.get("/api/vitrine/demandas", async (req, res) => {
     try {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -14009,9 +15758,10 @@ Deixe claro que premissas precisam de validação profissional.`,
           i.data->>'tipo' AS tipo_imovel,
           (SELECT COUNT(*) FROM carteira_demanda_interesses ci WHERE ci.demanda_id = d.id AND ci.status <> 'retirado') AS total_interesses
         FROM carteira_demandas d
-        INNER JOIN inventario_imoveis i ON i.id = d.imovel_id
+        LEFT JOIN inventario_imoveis i ON i.id = d.imovel_id
         WHERE d.visibilidade = 'publicada'
-          AND d.status NOT IN ('cancelada', 'concluida')
+          AND d.status NOT IN ('cancelada', 'concluida', 'convertida', 'encerrada_sem_acordo', 'expirada', 'arquivada')
+          AND (d.expira_em IS NULL OR d.expira_em > now())
           AND (${search} = '' OR lower(concat_ws(' ', d.titulo, d.resumo_publico, d.escopo, i.data->>'cidade', i.data->>'estado')) LIKE ${`%${search}%`})
         ORDER BY COALESCE(d.publicada_em, d.criado_em) DESC
       `);
@@ -14025,7 +15775,8 @@ Deixe claro que premissas precisam de validação profissional.`,
     try {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate");
       const demand = await getDemandWithProperty(req.params.id);
-      if (!demand || demand.visibilidade !== "publicada") return res.status(404).json({ error: "Demanda não encontrada" });
+      const restrictedAccess = demand?.visibilidade === "restrita" && await hasRestrictedOpportunityDelivery(req, "demanda", req.params.id);
+      if (!demand || (demand.visibilidade !== "publicada" && !restrictedAccess)) return res.status(404).json({ error: "Demanda não encontrada" });
       const userId = (req.session as any)?.directusUserId || null;
       const interest = userId
         ? (await db.execute(sql`SELECT * FROM carteira_demanda_interesses WHERE demanda_id = ${req.params.id} AND user_id = ${String(userId)} LIMIT 1`)).rows?.[0] || null
@@ -14044,7 +15795,8 @@ Deixe claro que premissas precisam de validação profissional.`,
         return res.status(403).json({ error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances." });
       }
       const demand = await getDemandWithProperty(req.params.id);
-      if (!demand || demand.visibilidade !== "publicada") return res.status(404).json({ error: "Demanda não encontrada" });
+      const restrictedAccess = demand?.visibilidade === "restrita" && await hasRestrictedOpportunityDelivery(req, "demanda", req.params.id);
+      if (!demand || (demand.visibilidade !== "publicada" && !restrictedAccess)) return res.status(404).json({ error: "Demanda não encontrada" });
       const result = await db.execute(sql`
         INSERT INTO carteira_demanda_interesses (demanda_id, user_id, membro_id, membro_nome, mensagem)
         VALUES (${req.params.id}, ${userId}, ${(req.session as any).membroId || null}, ${(req.session as any).nome || null}, ${req.body?.mensagem || null})
@@ -14144,10 +15896,943 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
-  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-opa", (_req, res) => {
-    res.status(410).json({
-      error: "Demandas não geram OBAs diretamente. Identifique uma oportunidade e, após a formação da BIA, crie as OBAs necessárias.",
-    });
+  async function updateOpportunityPublication(registry: any, visibility: string, expiresAt?: Date | null) {
+    const normalized = normalizeOpportunityVisibility(visibility);
+    const publishedAt = normalized === "publicada" ? new Date() : null;
+    if (registry.tipo === "demanda") {
+      await db.execute(sql`
+        UPDATE carteira_demandas SET
+          visibilidade = ${normalized === "restrita" ? "privada" : normalized},
+          publicada_em = CASE WHEN ${normalized === "publicada"} THEN COALESCE(publicada_em, now()) ELSE publicada_em END,
+          expira_em = CASE WHEN ${normalized === "publicada"} THEN ${expiresAt || opportunityExpiry()} ELSE expira_em END,
+          status = CASE WHEN ${normalized === "publicada"} AND status = 'rascunho' THEN 'aberta' ELSE status END,
+          atualizado_em = now()
+        WHERE id = ${registry.source_id}
+      `);
+      return syncDemandRegistry(String(registry.source_id));
+    }
+    await db.execute(sql`
+      UPDATE opportunity_registry SET
+        visibilidade = ${normalized},
+        publicada_em = CASE WHEN ${normalized === "publicada"} THEN COALESCE(publicada_em, now()) ELSE publicada_em END,
+        expira_em = CASE WHEN ${normalized === "publicada"} THEN ${expiresAt || opportunityExpiry()} ELSE expira_em END,
+        atualizado_em = now()
+      WHERE id = ${registry.id}
+    `);
+    return getOpportunityRegistry(String(registry.id));
+  }
+
+  app.post("/api/rede/oportunidades/:codigo/publicacao", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para publicar esta Oportunidade." });
+      const action = String(req.body?.action || "publicar");
+      if (!["publicar", "pausar", "retirar"].includes(action)) return res.status(400).json({ error: "Ação de publicação inválida." });
+      if (action === "publicar" && registry.tipo === "demanda" && req.body?.consentimento_publicacao !== true) {
+        return res.status(400).json({ error: "Confirme o consentimento para publicar a Demanda na Vitrine." });
+      }
+      const visibility = action === "publicar" ? "publicada" : action === "pausar" ? "pausada" : "privada";
+      const next = await updateOpportunityPublication(registry, visibility, action === "publicar" ? opportunityExpiry(new Date(), Number(req.body?.validade_dias || 60)) : null);
+      await recordOpportunityEvent(String(registry.id), req, `publicacao_${action}`, "Publicação atualizada", { visibilidade: visibility });
+      res.json(next);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/renovar", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para renovar esta Oportunidade." });
+      const expiresAt = opportunityExpiry(new Date(), Number(req.body?.validade_dias || 60));
+      if (registry.tipo === "demanda") {
+        await db.execute(sql`
+          UPDATE carteira_demandas SET status = 'aberta', visibilidade = 'publicada', publicada_em = now(), expira_em = ${expiresAt}, atualizado_em = now()
+          WHERE id = ${registry.source_id}
+        `);
+        await syncDemandRegistry(String(registry.source_id));
+      } else {
+        await directusUpdate("tipos_oportunidades", String(registry.source_id), { status: "ativa" }).catch(() => ({}));
+        await db.execute(sql`UPDATE opportunity_registry SET status = 'aberta', visibilidade = 'publicada', publicada_em = now(), expira_em = ${expiresAt}, atualizado_em = now() WHERE id = ${registry.id}`);
+      }
+      await recordOpportunityEvent(String(registry.id), req, "renovada", "Oportunidade renovada", { expira_em: expiresAt.toISOString() });
+      res.json(await getOpportunityRegistry(String(registry.id)));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/fechamento", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Somente o responsável pode encerrar esta Oportunidade." });
+      const status = normalizeOpportunityStatus(req.body?.status, "concluida");
+      if (!["contratada", "concluida", "encerrada_sem_acordo", "cancelada"].includes(status)) {
+        return res.status(400).json({ error: "Informe um resultado válido para o encerramento." });
+      }
+      const semValor = req.body?.sem_valor_financeiro === true;
+      const valor = semValor ? null : Number(req.body?.valor || 0);
+      if (!semValor && (valor === null || !Number.isFinite(valor) || valor < 0)) return res.status(400).json({ error: "Informe um valor financeiro válido ou marque sem valor financeiro." });
+      const session = (req.session as any) || {};
+      let participantUserId = req.body?.participante_user_id || null;
+      let participantMemberId = req.body?.participante_membro_id || null;
+      if (!participantUserId && !participantMemberId && registry.tipo === "demanda") {
+        const selected = (await db.execute(sql`
+          SELECT user_id, membro_id FROM carteira_demanda_interesses
+          WHERE demanda_id::text = ${registry.source_id} AND status = 'selecionado'
+          ORDER BY atualizado_em DESC NULLS LAST, criado_em DESC LIMIT 1
+        `)).rows?.[0] as any;
+        participantUserId = selected?.user_id || null;
+        participantMemberId = selected?.membro_id || null;
+      }
+      if (!participantUserId && !participantMemberId && registry.tipo === "oba") {
+        const selected = (await db.execute(sql`
+          SELECT user_id, membro_id FROM opa_interesses
+          WHERE opa_id = ${registry.source_id} AND status_crm = 'selecionado'
+          ORDER BY atualizado_em DESC NULLS LAST, criado_em DESC LIMIT 1
+        `)).rows?.[0] as any;
+        participantUserId = selected?.user_id || null;
+        participantMemberId = selected?.membro_id || null;
+      }
+      await db.execute(sql`
+        INSERT INTO opportunity_outcomes (
+          registry_id, resultado, participante_user_id, participante_membro_id,
+          valor, moeda, sem_valor_financeiro, contratado_em, concluido_em,
+          observacoes, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${registry.id}, ${req.body?.resultado || status}, ${participantUserId},
+          ${participantMemberId}, ${valor}, ${req.body?.moeda || (semValor ? null : "BRL")},
+          ${semValor}, ${req.body?.contratado_em || (status === "contratada" ? new Date() : null)},
+          ${req.body?.concluido_em || (["concluida", "encerrada_sem_acordo", "cancelada"].includes(status) ? new Date() : null)},
+          ${req.body?.observacoes || null}, ${session.directusUserId || session.userId || null}, ${session.membroId || null}
+        )
+        ON CONFLICT (registry_id) DO UPDATE SET
+          resultado = EXCLUDED.resultado,
+          participante_user_id = EXCLUDED.participante_user_id,
+          participante_membro_id = EXCLUDED.participante_membro_id,
+          valor = EXCLUDED.valor,
+          moeda = EXCLUDED.moeda,
+          sem_valor_financeiro = EXCLUDED.sem_valor_financeiro,
+          contratado_em = EXCLUDED.contratado_em,
+          concluido_em = EXCLUDED.concluido_em,
+          observacoes = EXCLUDED.observacoes,
+          atualizado_em = now()
+      `);
+      if (registry.tipo === "demanda") {
+        await db.execute(sql`UPDATE carteira_demandas SET status = ${status}, visibilidade = 'privada', resultado = ${req.body?.resultado || status}, atualizado_em = now() WHERE id = ${registry.source_id}`);
+        await syncDemandRegistry(String(registry.source_id));
+      } else {
+        const directusStatus = status === "cancelada" ? "cancelado" : "concluida";
+        await directusUpdate("tipos_oportunidades", String(registry.source_id), { status: directusStatus, motivo_encerramento: req.body?.resultado || status }).catch(() => ({}));
+        await db.execute(sql`UPDATE opportunity_registry SET status = ${status}, visibilidade = 'privada', atualizado_em = now() WHERE id = ${registry.id}`);
+      }
+      await recordOpportunityEvent(String(registry.id), req, "encerrada", "Oportunidade encerrada", { status, valor, moeda: req.body?.moeda || null });
+      res.json(await getOpportunityRegistry(String(registry.id)));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  async function createDistributionFlow(registry: any, req: Request, mode: "imediato" | "gradual") {
+    const session = (req.session as any) || {};
+    if (mode === "imediato") {
+      const updated = await updateOpportunityPublication(registry, "publicada", opportunityExpiry());
+      await db.execute(sql`
+        INSERT INTO opportunity_distribution_flows (registry_id, modo, status, onda_atual, criado_por_user_id)
+        VALUES (${registry.id}, 'imediato', 'concluido', 6, ${session.directusUserId || session.userId || null})
+        ON CONFLICT (registry_id) DO UPDATE SET modo = 'imediato', status = 'concluido', onda_atual = 6, proxima_execucao_em = NULL, atualizado_em = now()
+      `);
+      await recordOpportunityEvent(String(registry.id), req, "disparo_imediato", "Publicada imediatamente na Vitrine geral");
+      return updated;
+    }
+    let originCommunityId = req.body?.comunidade_id || null;
+    if (!originCommunityId && session.membroId) {
+      const storedMotherCommunity = await getStoredMembroComunidadeMae(String(session.membroId)).catch(() => null);
+      originCommunityId = storedMotherCommunity?.comunidade_id || null;
+    }
+    let originCommunity: any = null;
+    if (originCommunityId) {
+      const communityCollection = await getComunidadeCol();
+      originCommunity = await directusFetchOne(communityCollection, String(originCommunityId), "fields=id,territorio,pais").catch(() => null);
+    }
+    const flowResult = await db.execute(sql`
+      INSERT INTO opportunity_distribution_flows (
+        registry_id, modo, status, comunidade_id, territorio, estado, pais,
+        onda_atual, proxima_execucao_em, criado_por_user_id
+      ) VALUES (
+        ${registry.id}, 'gradual', 'ativo', ${originCommunityId},
+        ${req.body?.territorio || originCommunity?.territorio || null}, ${req.body?.estado || registry.estado || null},
+        ${req.body?.pais || originCommunity?.pais || registry.pais || "Brasil"}, 0, now(), ${session.directusUserId || session.userId || null}
+      )
+      ON CONFLICT (registry_id) DO UPDATE SET
+        modo = 'gradual', status = 'ativo', comunidade_id = EXCLUDED.comunidade_id,
+        territorio = EXCLUDED.territorio, estado = EXCLUDED.estado, pais = EXCLUDED.pais,
+        onda_atual = 0, proxima_execucao_em = now(), atualizado_em = now()
+      RETURNING *
+    `);
+    const flow = flowResult.rows?.[0] as any;
+    await db.execute(sql`DELETE FROM opportunity_distribution_waves WHERE flow_id = ${flow.id}`);
+    for (const wave of buildDistributionSchedule()) {
+      await db.execute(sql`
+        INSERT INTO opportunity_distribution_waves (flow_id, ordem, audiencia, agendada_em)
+        VALUES (${flow.id}, ${wave.ordem}, ${wave.audiencia}, ${wave.agendada_em})
+      `);
+    }
+    if (registry.tipo === "demanda") await db.execute(sql`UPDATE carteira_demandas SET visibilidade = 'restrita', fluxo_disparo = 'gradual', atualizado_em = now() WHERE id = ${registry.source_id}`);
+    await db.execute(sql`UPDATE opportunity_registry SET visibilidade = 'restrita', fluxo_disparo = 'gradual', atualizado_em = now() WHERE id = ${registry.id}`);
+    await recordOpportunityEvent(String(registry.id), req, "disparo_gradual_iniciado", "Fluxo gradual iniciado");
+    return getOpportunityRegistry(String(registry.id));
+  }
+
+  function communityMemberIds(community: any) {
+    const ids = new Set<string>();
+    const allyId = directusRelationId(community?.aliado);
+    if (allyId) ids.add(String(allyId));
+    for (const relation of Array.isArray(community?.membros) ? community.membros : []) {
+      const memberId = directusRelationId(relation?.cadastro_geral_id) || directusRelationId(relation);
+      if (memberId) ids.add(String(memberId));
+    }
+    return ids;
+  }
+
+  async function deliverDistributionWave(registry: any, flow: any, wave: any) {
+    if (wave.audiencia === "vitrine_geral") return 0;
+    const [membersRaw, communitiesRaw, userRows] = await Promise.all([
+      directusFetch("cadastro_geral", "fields=id,nome,Nome_de_usuario,email,cidade,estado,pais,em_membros_built&limit=-1").catch(() => []),
+      getComunidadeCol().then((collection) => directusFetch(collection, COMUNIDADE_FIELDS)).catch(() => []),
+      db.execute(sql`SELECT id, membro_directus_id FROM users WHERE membro_directus_id IS NOT NULL`),
+    ]);
+    const members = (membersRaw as any[]).filter((member) => member.em_membros_built === true || member.em_membros_built === 1);
+    const communities = communitiesRaw as any[];
+    const targetIds = new Set<string>();
+    if (wave.audiencia === "comunidade_origem" && flow.comunidade_id) {
+      const community = communities.find((item) => String(item.id) === String(flow.comunidade_id));
+      if (community) communityMemberIds(community).forEach((id) => targetIds.add(id));
+    } else if (wave.audiencia === "mesmo_territorio" && flow.territorio) {
+      communities.filter((item) => String(item.territorio || "").toLowerCase() === String(flow.territorio).toLowerCase()).forEach((community) => communityMemberIds(community).forEach((id) => targetIds.add(id)));
+    } else if (wave.audiencia === "mesmo_estado" && flow.estado) {
+      members.filter((member) => String(member.estado || "").toLowerCase() === String(flow.estado).toLowerCase()).forEach((member) => targetIds.add(String(member.id)));
+    } else if (wave.audiencia === "mesmo_pais" && flow.pais) {
+      members.filter((member) => String(member.pais || "").toLowerCase() === String(flow.pais).toLowerCase()).forEach((member) => targetIds.add(String(member.id)));
+    } else if (wave.audiencia === "membros_globais") {
+      members.forEach((member) => targetIds.add(String(member.id)));
+    }
+    const memberById = new Map(members.map((member) => [String(member.id), member]));
+    const userByMember = new Map((userRows.rows || []).map((row: any) => [String(row.membro_directus_id), String(row.id)]));
+    let delivered = 0;
+    for (const memberId of Array.from(targetIds)) {
+      const member: any = memberById.get(memberId);
+      if (!member) continue;
+      const userId = userByMember.get(memberId) || null;
+      const metadata = { audiencia: wave.audiencia, codigo: registry.codigo, titulo: registry.titulo, selo: registry.tipo === "demanda" ? "Demanda" : "OBA", url: registry.url || (registry.tipo === "demanda" ? `/vitrine/oportunidades/demandas/${registry.source_id}` : `/vitrine/oportunidades/obas/${registry.source_id}`) };
+      const internal = await db.execute(sql`
+        INSERT INTO opportunity_distribution_deliveries (wave_id, registry_id, user_id, membro_id, canal, metadata)
+        VALUES (${wave.id}, ${registry.id}, ${userId}, ${memberId}, 'interna', ${JSON.stringify(metadata)}::jsonb)
+        ON CONFLICT DO NOTHING RETURNING id
+      `);
+      if (internal.rows?.[0]) delivered += 1;
+      if (member.email) {
+        const emailDelivery = await db.execute(sql`
+          INSERT INTO opportunity_distribution_deliveries (wave_id, registry_id, user_id, membro_id, canal, metadata)
+          VALUES (${wave.id}, ${registry.id}, ${userId}, ${memberId}, 'email', ${JSON.stringify(metadata)}::jsonb)
+          ON CONFLICT DO NOTHING RETURNING id
+        `);
+        if (emailDelivery.rows?.[0]) {
+          const { notificarNovaOportunidade } = await import("./mailer");
+          const sent = await notificarNovaOportunidade({ email: String(member.email), nome: member.Nome_de_usuario || member.nome || "membro BUILT", codigo: registry.codigo, titulo: registry.titulo, selo: metadata.selo as "Demanda" | "OBA", url: metadata.url });
+          if (!sent.ok) await db.execute(sql`UPDATE opportunity_distribution_deliveries SET status = 'falhou', metadata = metadata || ${JSON.stringify({ error: sent.error || "Falha no envio" })}::jsonb WHERE id = ${(emailDelivery.rows[0] as any).id}`);
+        }
+      }
+    }
+    return delivered;
+  }
+
+  app.get("/api/rede/oportunidades/notificacoes/minhas", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        SELECT d.id, d.status, d.enviado_em, d.metadata, r.codigo, r.tipo, r.titulo
+        FROM opportunity_distribution_deliveries d
+        JOIN opportunity_registry r ON r.id = d.registry_id
+        WHERE d.canal = 'interna' AND (d.membro_id = ${actor.membroId} OR d.user_id = ${actor.userId})
+        ORDER BY d.enviado_em DESC LIMIT 30
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/rede/oportunidades/notificacoes/:id/lida", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        UPDATE opportunity_distribution_deliveries SET status = 'lida'
+        WHERE id = ${req.params.id} AND canal = 'interna' AND (membro_id = ${actor.membroId} OR user_id = ${actor.userId})
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Notificação não encontrada." });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rede/oportunidades/:codigo/disparo", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para consultar o disparo." });
+      const flow = (await db.execute(sql`SELECT * FROM opportunity_distribution_flows WHERE registry_id = ${registry.id} LIMIT 1`)).rows?.[0] as any;
+      if (!flow) return res.status(404).json({ error: "Fluxo de disparo não encontrado." });
+      const waves = await db.execute(sql`SELECT * FROM opportunity_distribution_waves WHERE flow_id = ${flow.id} ORDER BY ordem`);
+      res.json({ ...flow, ondas: waves.rows || [] });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/disparo", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para configurar o disparo." });
+      const mode = req.body?.modo === "gradual" ? "gradual" : "imediato";
+      res.json(await createDistributionFlow(registry, req, mode));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/rede/oportunidades/:codigo/disparo", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para controlar o disparo." });
+      const action = String(req.body?.action || "");
+      if (action === "publicar_agora") return res.json(await createDistributionFlow(registry, req, "imediato"));
+      if (!["pausar", "retomar", "avancar"].includes(action)) return res.status(400).json({ error: "Ação de disparo inválida." });
+      const flow = (await db.execute(sql`SELECT * FROM opportunity_distribution_flows WHERE registry_id = ${registry.id} LIMIT 1`)).rows?.[0] as any;
+      if (!flow) return res.status(404).json({ error: "Fluxo de disparo não encontrado." });
+      if (action === "pausar" || action === "retomar") {
+        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = ${action === "pausar" ? "pausado" : "ativo"}, atualizado_em = now() WHERE id = ${flow.id}`);
+      } else {
+        await db.execute(sql`UPDATE opportunity_distribution_waves SET agendada_em = now() WHERE flow_id = ${flow.id} AND status = 'pendente' AND ordem = ${Number(flow.onda_atual || 0) + 1}`);
+        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = 'ativo', proxima_execucao_em = now(), atualizado_em = now() WHERE id = ${flow.id}`);
+      }
+      await recordOpportunityEvent(String(registry.id), req, `disparo_${action}`, "Fluxo de disparo atualizado", { action });
+      res.json((await db.execute(sql`SELECT * FROM opportunity_distribution_flows WHERE id = ${flow.id}`)).rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  async function processOpportunityAutomation() {
+    await ensureBusinessOpportunityTables();
+    const expired = await db.execute(sql`
+      SELECT * FROM opportunity_registry
+      WHERE visibilidade = 'publicada' AND expira_em IS NOT NULL AND expira_em <= now()
+        AND status NOT IN ('concluida', 'convertida', 'encerrada_sem_acordo', 'expirada', 'cancelada', 'arquivada')
+    `);
+    for (const registry of expired.rows || []) {
+      const item: any = registry;
+      if (item.tipo === "demanda") {
+        await db.execute(sql`UPDATE carteira_demandas SET status = 'expirada', visibilidade = 'privada', atualizado_em = now() WHERE id = ${item.source_id}`);
+        await syncDemandRegistry(String(item.source_id));
+      } else {
+        await directusUpdate("tipos_oportunidades", String(item.source_id), { status: "pausada" }).catch(() => ({}));
+        await db.execute(sql`UPDATE opportunity_registry SET status = 'expirada', visibilidade = 'privada', atualizado_em = now() WHERE id = ${item.id}`);
+      }
+      await recordOpportunityEvent(String(item.id), null, "expirada", "Oportunidade expirada e arquivada da Vitrine");
+    }
+
+    const reminderWindows = [
+      { key: "lembrete_7_dias", minHours: 144, maxHours: 168 },
+      { key: "lembrete_24_horas", minHours: 0, maxHours: 24 },
+    ];
+    for (const window of reminderWindows) {
+      const reminders = await db.execute(sql`
+        SELECT r.* FROM opportunity_registry r
+        WHERE r.visibilidade = 'publicada' AND r.expira_em > now()
+          AND r.expira_em <= now() + (${window.maxHours} * interval '1 hour')
+          AND r.expira_em > now() + (${window.minHours} * interval '1 hour')
+          AND NOT EXISTS (
+            SELECT 1 FROM opportunity_events e WHERE e.registry_id = r.id AND e.tipo = ${window.key}
+          )
+      `);
+      for (const registry of reminders.rows || []) {
+        await recordOpportunityEvent(String((registry as any).id), null, window.key, "Lembrete de vencimento gerado", { expira_em: (registry as any).expira_em });
+      }
+    }
+
+    const dueWaves = await db.execute(sql`
+      SELECT w.*, f.registry_id, f.onda_atual
+      FROM opportunity_distribution_waves w
+      JOIN opportunity_distribution_flows f ON f.id = w.flow_id
+      WHERE f.status = 'ativo' AND w.status = 'pendente' AND w.agendada_em <= now()
+      ORDER BY w.agendada_em ASC
+      LIMIT 50
+    `);
+    for (const waveRow of dueWaves.rows || []) {
+      const wave: any = waveRow;
+      const registry = (await db.execute(sql`SELECT * FROM opportunity_registry WHERE id = ${wave.registry_id} LIMIT 1`)).rows?.[0] as any;
+      if (!registry) continue;
+      const flow = (await db.execute(sql`SELECT * FROM opportunity_distribution_flows WHERE id = ${wave.flow_id} LIMIT 1`)).rows?.[0] as any;
+      const delivered = await deliverDistributionWave({ ...registry, url: registry.tipo === "demanda" ? `/vitrine/oportunidades/demandas/${registry.source_id}` : `/vitrine/oportunidades/obas/${registry.source_id}` }, flow || {}, wave);
+      await db.execute(sql`UPDATE opportunity_distribution_waves SET status = 'executada', executada_em = now(), destinatarios = ${delivered} WHERE id = ${wave.id}`);
+      if (wave.audiencia === "vitrine_geral") {
+        await updateOpportunityPublication(registry, "publicada", opportunityExpiry());
+        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = 'concluido', onda_atual = 6, proxima_execucao_em = NULL, atualizado_em = now() WHERE id = ${wave.flow_id}`);
+      } else {
+        const nextOrder = Number(wave.ordem) + 1;
+        const nextWave = (await db.execute(sql`SELECT agendada_em FROM opportunity_distribution_waves WHERE flow_id = ${wave.flow_id} AND ordem = ${nextOrder} LIMIT 1`)).rows?.[0] as any;
+        await db.execute(sql`UPDATE opportunity_distribution_flows SET onda_atual = ${Number(wave.ordem)}, proxima_execucao_em = ${nextWave?.agendada_em || null}, atualizado_em = now() WHERE id = ${wave.flow_id}`);
+      }
+      await recordOpportunityEvent(String(registry.id), null, "onda_disparo_executada", "Onda de disparo executada", { ordem: wave.ordem, audiencia: wave.audiencia, destinatarios: delivered });
+    }
+  }
+
+  processOpportunityAutomation().catch((error: any) => console.warn("[opportunity-automation] execução inicial falhou:", error?.message || error));
+  const opportunityAutomationTimer = setInterval(() => {
+    processOpportunityAutomation().catch((error: any) => console.warn("[opportunity-automation] execução falhou:", error?.message || error));
+  }, 15 * 60 * 1000);
+  opportunityAutomationTimer.unref?.();
+
+  app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-opa", async (req, res) => {
+    req.body = { ...(req.body || {}), demanda_id: req.params.demandaId };
+    const registry = await getOpportunityRegistry(req.params.demandaId).catch(() => null);
+    if (!registry) return res.status(404).json({ error: "Demanda não encontrada" });
+    return convertDemandToOpa(req, res, registry);
+  });
+
+  async function convertDemandToOpa(req: Request, res: Response, loadedRegistry?: any) {
+    try {
+      const registry = loadedRegistry || await getOpportunityRegistry(String(req.params.codigo || req.body?.demanda_id || ""));
+      if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para converter esta Demanda." });
+      if (!isOpportunityEditable(registry.status)) return res.status(409).json({ error: "Esta Demanda já foi encerrada." });
+      const biaId = String(req.body?.bia_id || registry.bia_id || "").trim();
+      if (!biaId) return res.status(400).json({ error: "Selecione a BIA que será autora da OBA." });
+      const authorization = await requireBiaModuleAccess(req, res, biaId, "configuracao_bia", "edit");
+      if (!authorization) return;
+      const demand = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0] as any;
+      const payload = prepareOpaPayload({
+        nome_oportunidade: req.body?.titulo || demand.titulo,
+        descricao: req.body?.descricao || demand.escopo,
+        objetivo_alianca: req.body?.objetivo_alianca || demand.escopo,
+        tipo: req.body?.tipo || (Array.isArray(demand.especialidades) ? demand.especialidades[0] : null) || "Serviços",
+        nucleo_alianca: req.body?.nucleo_alianca || null,
+        perfil_aliado: req.body?.perfil_aliado || null,
+        bia: String(authorization.bia.id),
+        status: "ativa",
+        criado_por_user_id: (req.session as any)?.directusUserId || null,
+        criado_por_membro_id: (req.session as any)?.membroId || null,
+      });
+      await ensureCanLinkOpaToBia(req, payload);
+      let opa: any;
+      try {
+        opa = await directusCreate("tipos_oportunidades", payload);
+      } catch (error: any) {
+        if (!String(error?.message || "").includes("criado_por_")) throw error;
+        delete payload.criado_por_user_id;
+        delete payload.criado_por_membro_id;
+        opa = await directusCreate("tipos_oportunidades", payload);
+      }
+      const targetRegistry = await syncOpaRegistry(opa);
+      if (!targetRegistry) throw Object.assign(new Error("A OBA foi criada, mas não foi possível indexá-la."), { status: 500 });
+      await db.execute(sql`
+        UPDATE carteira_demandas SET status = 'convertida', visibilidade = 'privada', opa_id = ${String(opa.id)}, atualizado_em = now()
+        WHERE id = ${registry.source_id}
+      `);
+      await syncDemandRegistry(String(registry.source_id));
+      await db.execute(sql`
+        INSERT INTO opportunity_relations (
+          origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${registry.id}, ${targetRegistry.id}, 'demanda_gerou_oba', ${JSON.stringify({ bia_id: String(authorization.bia.id) })}::jsonb,
+          ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null}
+        ) ON CONFLICT (origem_registry_id, destino_registry_id, tipo) DO NOTHING
+      `);
+      await recordOpportunityEvent(String(registry.id), req, "convertida_oba", "Demanda convertida em OBA", { oba_codigo: targetRegistry.codigo });
+      await recordOpportunityEvent(String(targetRegistry.id), req, "originada_demanda", "OBA criada a partir de Demanda", { demanda_codigo: registry.codigo });
+      res.status(201).json({ oba: opa, oportunidade: targetRegistry, origem: registry });
+    } catch (error: any) {
+      res.status(error.statusCode || error.status || 500).json({ error: error.message });
+    }
+  }
+
+  app.post("/api/rede/oportunidades/:codigo/converter-oba", async (req, res) => {
+    const registry = await getOpportunityRegistry(req.params.codigo).catch(() => null);
+    if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+    return convertDemandToOpa(req, res, registry);
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/converter-demanda", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry || registry.tipo !== "oba") return res.status(404).json({ error: "OBA não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para converter esta OBA." });
+      if (!registry.bia_id) return res.status(400).json({ error: "A OBA precisa estar vinculada a uma BIA." });
+      const authorization = await requireBiaModuleAccess(req, res, String(registry.bia_id), "configuracao_bia", "edit");
+      if (!authorization) return;
+      const actor = requireCarteiraActor(req);
+      const code = await createUniqueDemandCode();
+      const publicar = req.body?.publicar === true;
+      const now = new Date();
+      const insert = await db.execute(sql`
+        INSERT INTO carteira_demandas (
+          bia_id, codigo, autor_tipo, tipo_resolucao, titulo, escopo, urgencia,
+          especialidades, status, responsavel_user_id, responsavel_membro_id,
+          visibilidade, consentimento_publicacao_at, publicada_em, expira_em,
+          resumo_publico, fluxo_disparo, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${String(authorization.bia.id)}, ${code}, 'bia', 'solicitacao',
+          ${req.body?.titulo || registry.titulo}, ${req.body?.descricao || registry.descricao || null},
+          ${req.body?.urgencia || "normal"},
+          ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : registry.especialidades || [])}::jsonb,
+          ${publicar ? "aberta" : "rascunho"}, ${actor.userId}, ${actor.membroId},
+          ${publicar ? "publicada" : "privada"}, ${publicar ? now : null}, ${publicar ? now : null},
+          ${publicar ? opportunityExpiry(now) : null}, ${req.body?.resumo_publico || registry.descricao || null},
+          ${req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato"}, ${actor.userId}, ${actor.membroId}
+        ) RETURNING *
+      `);
+      const demand = insert.rows?.[0] as any;
+      const targetRegistry = await syncDemandRegistry(String(demand.id));
+      if (!targetRegistry) throw Object.assign(new Error("A Demanda foi criada, mas não foi possível indexá-la."), { status: 500 });
+      await directusUpdate("tipos_oportunidades", String(registry.source_id), { status: "encerrada", motivo_encerramento: `Convertida na Demanda ${code}` }).catch(() => ({}));
+      await db.execute(sql`UPDATE opportunity_registry SET status = 'convertida', visibilidade = 'privada', atualizado_em = now() WHERE id = ${registry.id}`);
+      await db.execute(sql`
+        INSERT INTO opportunity_relations (
+          origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id
+        ) VALUES (
+          ${registry.id}, ${targetRegistry.id}, 'oba_gerou_demanda', '{}'::jsonb, ${actor.userId}, ${actor.membroId}
+        ) ON CONFLICT (origem_registry_id, destino_registry_id, tipo) DO NOTHING
+      `);
+      await recordOpportunityEvent(String(registry.id), req, "convertida_demanda", "OBA convertida em Demanda", { demanda_codigo: targetRegistry.codigo });
+      await recordOpportunityEvent(String(targetRegistry.id), req, "originada_oba", "Demanda criada a partir de OBA", { oba_codigo: registry.codigo });
+      res.status(201).json({ demanda: demand, oportunidade: targetRegistry, origem: registry });
+    } catch (error: any) {
+      res.status(error.statusCode || error.status || 500).json({ error: error.message });
+    }
+  });
+
+  async function createUniqueMeetingCode() {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const code = createMeetingCode();
+      const existing = await db.execute(sql`SELECT 1 FROM opportunity_meetings WHERE codigo = ${code} LIMIT 1`);
+      if (!existing.rows?.[0]) return code;
+    }
+    throw new Error("Não foi possível gerar um código único para a RO.");
+  }
+
+  async function opportunityMeetingAccess(req: Request, meeting: any) {
+    const actor = requireCarteiraActor(req);
+    const isOrganizer = actor.isPlatformAdmin
+      || String(meeting.organizador_user_id || "") === String(actor.userId || "")
+      || String(meeting.organizador_membro_id || "") === String(actor.membroId || "");
+    if (isOrganizer) return { canView: true, canOrganize: true };
+
+    const participant = (actor.userId || actor.membroId)
+      ? Boolean((await db.execute(sql`
+          SELECT 1 FROM opportunity_meeting_participants
+          WHERE meeting_id = ${meeting.id}
+            AND (
+              (user_id IS NOT NULL AND user_id = ${actor.userId})
+              OR (membro_id IS NOT NULL AND membro_id = ${actor.membroId})
+            )
+          LIMIT 1
+        `)).rows?.[0])
+      : false;
+
+    const principals = await db.execute(sql`
+      SELECT eo.*
+      FROM opportunity_meeting_items item
+      JOIN opportunity_registry registry ON registry.id = item.registry_id
+      JOIN economic_opportunities eo
+        ON registry.source_type = 'economic_opportunity' AND registry.source_id = eo.id::text
+      WHERE item.meeting_id = ${meeting.id} AND item.papel = 'principal'
+    `);
+    let canReview = false;
+    for (const opportunity of principals.rows || []) {
+      const access = await economicOpportunityAccess(req, opportunity);
+      if (access.canReview || access.canManage) {
+        canReview = true;
+        break;
+      }
+    }
+    return { canView: participant || canReview, canOrganize: canReview };
+  }
+
+  app.get("/api/reunioes-oportunidades", async (req, res) => {
+    try {
+      requireCarteiraActor(req);
+      const search = String(req.query.q || "").trim();
+      const result = await db.execute(sql`
+        SELECT m.*,
+          COALESCE((
+            SELECT jsonb_agg(jsonb_build_object('codigo', r.codigo, 'tipo', r.tipo, 'titulo', r.titulo, 'papel', mi.papel) ORDER BY mi.papel DESC, r.titulo)
+            FROM opportunity_meeting_items mi
+            JOIN opportunity_registry r ON r.id = mi.registry_id
+            WHERE mi.meeting_id = m.id
+          ), '[]'::jsonb) AS oportunidades,
+          (SELECT COUNT(*) FROM opportunity_meeting_participants p WHERE p.meeting_id = m.id) AS total_participantes
+        FROM opportunity_meetings m
+        WHERE ${search} = '' OR lower(concat_ws(' ', m.codigo, m.titulo, m.pauta)) LIKE ${`%${search.toLowerCase()}%`}
+        ORDER BY m.data DESC, m.hora DESC NULLS LAST
+      `);
+      const visible: any[] = [];
+      for (const meeting of result.rows || []) {
+        if ((await opportunityMeetingAccess(req, meeting)).canView) visible.push(meeting);
+      }
+      res.json(visible);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/reunioes-oportunidades/:id", async (req, res) => {
+    try {
+      requireCarteiraActor(req);
+      const meeting = (await db.execute(sql`SELECT * FROM opportunity_meetings WHERE id::text = ${req.params.id} OR codigo = ${req.params.id} LIMIT 1`)).rows?.[0] as any;
+      if (!meeting) return res.status(404).json({ error: "Reunião de Oportunidades não encontrada" });
+      const access = await opportunityMeetingAccess(req, meeting);
+      if (!access.canView) return res.status(403).json({ error: "Sem acesso a esta Reunião de Oportunidades." });
+      const [items, participants, decisions] = await Promise.all([
+        db.execute(sql`
+          SELECT r.*, mi.papel FROM opportunity_meeting_items mi
+          JOIN opportunity_registry r ON r.id = mi.registry_id
+          WHERE mi.meeting_id = ${meeting.id} ORDER BY r.tipo, r.titulo
+        `),
+        db.execute(sql`SELECT * FROM opportunity_meeting_participants WHERE meeting_id = ${meeting.id} ORDER BY nome`),
+        db.execute(sql`
+          SELECT d.*, eo.codigo AS opportunity_codigo, eo.titulo AS opportunity_titulo
+          FROM opportunity_meeting_decisions d
+          JOIN economic_opportunities eo ON eo.id = d.economic_opportunity_id
+          WHERE d.meeting_id = ${meeting.id}
+          ORDER BY d.criado_em DESC
+        `),
+      ]);
+      res.json({ ...meeting, oportunidades: items.rows || [], participantes: participants.rows || [], decisoes_estruturadas: decisions.rows || [], can_organize: access.canOrganize });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/reunioes-oportunidades", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const titulo = String(req.body?.titulo || "").trim();
+      const data = String(req.body?.data || "").trim();
+      const opportunityIds = Array.isArray(req.body?.oportunidades) ? req.body.oportunidades.map(String) : [];
+      const contextIds = Array.isArray(req.body?.contextos) ? req.body.contextos.map(String) : [];
+      if (!titulo || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return res.status(400).json({ error: "Informe título e data da RO." });
+      if (!opportunityIds.length) return res.status(400).json({ error: "Selecione pelo menos uma Oportunidade econômica." });
+      await ensureBusinessOpportunityTables();
+      scheduleOpportunityRegistryBackfill();
+      const registries: any[] = [];
+      for (const identifier of opportunityIds) {
+        const registry = await getOpportunityRegistry(identifier);
+        if (registry?.tipo === "oportunidade" && !registries.some((item) => String(item.id) === String(registry.id))) registries.push({ ...registry, papel: "principal" });
+      }
+      if (!registries.length) return res.status(400).json({ error: "Nenhuma Oportunidade econômica válida foi selecionada." });
+      for (const identifier of contextIds) {
+        const registry = await getOpportunityRegistry(identifier);
+        if (registry && ["demanda", "oba"].includes(registry.tipo) && !registries.some((item) => String(item.id) === String(registry.id))) {
+          registries.push({ ...registry, papel: "contexto" });
+        }
+      }
+      for (const registry of registries.filter((item) => item.papel === "principal")) {
+        const economic = await getEconomicOpportunity(String(registry.source_id));
+        if (!economic) return res.status(400).json({ error: `Oportunidade ${registry.codigo} não encontrada.` });
+        const access = await economicOpportunityAccess(req, economic);
+        if (!access.canManage && !access.canReview) return res.status(403).json({ error: `Sem permissão para organizar uma RO sobre ${registry.codigo}.` });
+      }
+      const code = await createUniqueMeetingCode();
+      const inserted = await db.execute(sql`
+        INSERT INTO opportunity_meetings (
+          codigo, titulo, data, hora, link, pauta, publico, organizador_user_id, organizador_membro_id
+        ) VALUES (
+          ${code}, ${titulo}, ${data}, ${req.body?.hora || null}, ${req.body?.link || null},
+          ${req.body?.pauta || null}, ${req.body?.publico || "convidados"}, ${actor.userId}, ${actor.membroId}
+        ) RETURNING *
+      `);
+      const meeting = inserted.rows?.[0] as any;
+      const participantMap = new Map<string, { user_id: string | null; membro_id: string | null; nome: string | null; papel: string }>();
+      const addParticipant = (userId: any, membroId: any, nome: any, papel: string) => {
+        const key = membroId ? `m:${membroId}` : userId ? `u:${userId}` : "";
+        if (key && !participantMap.has(key)) participantMap.set(key, { user_id: userId || null, membro_id: membroId || null, nome: nome || null, papel });
+      };
+      addParticipant(actor.userId, actor.membroId, (req.session as any)?.nome || null, "organizador");
+      for (const registry of registries) {
+        await db.execute(sql`INSERT INTO opportunity_meeting_items (meeting_id, registry_id, papel) VALUES (${meeting.id}, ${registry.id}, ${registry.papel || "contexto"}) ON CONFLICT DO NOTHING`);
+        addParticipant(registry.autor_user_id, registry.autor_membro_id, null, "autor");
+        addParticipant(registry.responsavel_user_id, registry.responsavel_membro_id, null, "responsavel");
+        if (registry.tipo === "demanda") {
+          const interests = await db.execute(sql`SELECT user_id, membro_id, membro_nome FROM carteira_demanda_interesses WHERE demanda_id::text = ${registry.source_id} AND status <> 'retirado'`);
+          for (const interest of interests.rows || []) addParticipant((interest as any).user_id, (interest as any).membro_id, (interest as any).membro_nome, "interessado");
+        } else if (registry.tipo === "oba") {
+          const interests = await db.execute(sql`SELECT user_id, membro_id, membro_nome FROM opa_interesses WHERE opa_id = ${registry.source_id} AND COALESCE(status_crm, '') <> 'retirado'`);
+          for (const interest of interests.rows || []) addParticipant((interest as any).user_id, (interest as any).membro_id, (interest as any).membro_nome, "interessado");
+        }
+      }
+      for (const participant of Array.isArray(req.body?.participantes) ? req.body.participantes : []) {
+        addParticipant(participant.user_id, participant.membro_id, participant.nome, participant.papel || "convidado");
+      }
+      for (const participant of Array.from(participantMap.values())) {
+        await db.execute(sql`
+          INSERT INTO opportunity_meeting_participants (meeting_id, user_id, membro_id, nome, papel)
+          VALUES (${meeting.id}, ${participant.user_id}, ${participant.membro_id}, ${participant.nome}, ${participant.papel})
+        `);
+        let agendaUserId = participant.user_id;
+        if (!agendaUserId && participant.membro_id) {
+          const linked = await db.execute(sql`SELECT id FROM users WHERE membro_directus_id = ${participant.membro_id} LIMIT 1`);
+          agendaUserId = (linked.rows?.[0] as any)?.id || null;
+        }
+        if (agendaUserId) {
+          await db.execute(sql`
+            INSERT INTO agenda_tarefas (
+              user_id, membro_id, titulo, descricao, data, hora, prioridade,
+              contexto_tipo, contexto_id, atribuido_por_user_id, atribuido_por_membro_id, atribuido_por_nome
+            ) VALUES (
+              ${agendaUserId}, ${participant.membro_id}, ${`RO ${code} · ${titulo}`}, ${req.body?.pauta || null},
+              ${data}, ${req.body?.hora || null}, 'media', 'reuniao_oportunidades', ${String(meeting.id)},
+              ${actor.userId}, ${actor.membroId}, ${(req.session as any)?.nome || null}
+            )
+          `);
+        }
+      }
+      for (const registry of registries) await recordOpportunityEvent(String(registry.id), req, "incluida_ro", "Incluída em Reunião de Oportunidades", { ro_codigo: code });
+      res.status(201).json({ ...meeting, oportunidades: registries, participantes: Array.from(participantMap.values()) });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/reunioes-oportunidades/:id", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const meeting = (await db.execute(sql`SELECT * FROM opportunity_meetings WHERE id::text = ${req.params.id} OR codigo = ${req.params.id} LIMIT 1`)).rows?.[0] as any;
+      if (!meeting) return res.status(404).json({ error: "RO não encontrada" });
+      if (!(await opportunityMeetingAccess(req, meeting)).canOrganize) return res.status(403).json({ error: "Somente um organizador autorizado pode editar esta RO." });
+      const updated = await db.execute(sql`
+        UPDATE opportunity_meetings SET
+          titulo = ${String(req.body?.titulo ?? meeting.titulo)},
+          data = ${req.body?.data ?? meeting.data}, hora = ${req.body?.hora === undefined ? meeting.hora : req.body.hora || null},
+          link = ${req.body?.link === undefined ? meeting.link : req.body.link || null},
+          pauta = ${req.body?.pauta === undefined ? meeting.pauta : req.body.pauta || null},
+          ata = ${req.body?.ata === undefined ? meeting.ata : req.body.ata || null},
+          decisoes = ${JSON.stringify(req.body?.decisoes === undefined ? meeting.decisoes || [] : Array.isArray(req.body.decisoes) ? req.body.decisoes : [])}::jsonb,
+          proximos_passos = ${JSON.stringify(req.body?.proximos_passos === undefined ? meeting.proximos_passos || [] : Array.isArray(req.body.proximos_passos) ? req.body.proximos_passos : [])}::jsonb,
+          status = ${req.body?.status || meeting.status}, atualizado_em = now()
+        WHERE id = ${meeting.id} RETURNING *
+      `);
+      res.json(updated.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/reunioes-oportunidades/:id/participantes/:participantId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const meeting = (await db.execute(sql`SELECT * FROM opportunity_meetings WHERE id::text = ${req.params.id} OR codigo = ${req.params.id} LIMIT 1`)).rows?.[0] as any;
+      if (!meeting) return res.status(404).json({ error: "RO não encontrada" });
+      const participant = (await db.execute(sql`SELECT * FROM opportunity_meeting_participants WHERE id = ${req.params.participantId} AND meeting_id = ${meeting.id} LIMIT 1`)).rows?.[0] as any;
+      if (!participant) return res.status(404).json({ error: "Participante não encontrado" });
+      const isOrganizer = actor.isPlatformAdmin || String(meeting.organizador_user_id || "") === String(actor.userId || "");
+      const isSelf = String(participant.user_id || "") === String(actor.userId || "") || String(participant.membro_id || "") === String(actor.membroId || "");
+      if (!isOrganizer && !isSelf) return res.status(403).json({ error: "Sem permissão para atualizar este participante." });
+      const updated = await db.execute(sql`
+        UPDATE opportunity_meeting_participants SET
+          confirmacao = ${req.body?.confirmacao || "pendente"},
+          presenca = ${req.body?.presenca || "nao_informada"},
+          decisao = ${req.body?.decisao || null}
+        WHERE id = ${req.params.participantId} AND meeting_id = ${meeting.id}
+        RETURNING *
+      `);
+      if (!updated.rows?.[0]) return res.status(404).json({ error: "Participante não encontrado" });
+      res.json(updated.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/reunioes-oportunidades/:id/decisoes", async (req, res) => {
+    let decisionId: string | null = null;
+    try {
+      const actor = requireCarteiraActor(req);
+      const meeting: any = (await db.execute(sql`
+        SELECT * FROM opportunity_meetings WHERE id::text = ${req.params.id} OR codigo = ${req.params.id} LIMIT 1
+      `)).rows?.[0];
+      if (!meeting) return res.status(404).json({ error: "RO não encontrada" });
+      if (!(await opportunityMeetingAccess(req, meeting)).canOrganize) return res.status(403).json({ error: "Somente um organizador autorizado pode executar as decisões desta RO." });
+      const action = normalizeRoDecisionAction(req.body?.acao);
+      if (!action) return res.status(400).json({ error: "Selecione descartar, amadurecer, gerar Demanda ou solicitar BIA." });
+      const decisionOpinion = String(req.body?.parecer || "").trim();
+      if (!decisionOpinion) return res.status(400).json({ error: "Registre o parecer que fundamenta a decisão." });
+      const opportunity = await getEconomicOpportunity(String(req.body?.oportunidade_id || req.body?.oportunidade_codigo || ""));
+      if (!opportunity) return res.status(404).json({ error: "Oportunidade econômica não encontrada" });
+      const itemLink = await db.execute(sql`
+        SELECT 1 FROM opportunity_meeting_items mi
+        JOIN opportunity_registry r ON r.id = mi.registry_id
+        WHERE mi.meeting_id = ${meeting.id} AND mi.papel = 'principal'
+          AND r.source_type = 'economic_opportunity' AND r.source_id = ${String(opportunity.id)}
+        LIMIT 1
+      `);
+      if (!itemLink.rows?.[0]) return res.status(400).json({ error: "Esta Oportunidade não faz parte da pauta principal da RO." });
+      let claim = await db.execute(sql`
+        INSERT INTO opportunity_meeting_decisions (
+          meeting_id, economic_opportunity_id, acao, parecer, status,
+          executado_por_user_id, executado_por_membro_id
+        ) VALUES (
+          ${meeting.id}, ${opportunity.id}, ${action}, ${String(req.body?.parecer || "").trim() || null},
+          'processando', ${actor.userId}, ${actor.membroId}
+        ) ON CONFLICT (meeting_id, economic_opportunity_id) DO NOTHING
+        RETURNING *
+      `);
+      if (!claim.rows?.[0]) {
+        const existing: any = (await db.execute(sql`
+          SELECT * FROM opportunity_meeting_decisions
+          WHERE meeting_id = ${meeting.id} AND economic_opportunity_id = ${opportunity.id}
+          LIMIT 1
+        `)).rows?.[0];
+        if (existing?.status !== "falhou") return res.json({ ...existing, idempotent: true });
+        if (existing?.acao !== action) {
+          return res.status(409).json({ error: "Esta decisão falhou durante a execução e só pode ser retomada com a mesma ação." });
+        }
+        claim = await db.execute(sql`
+          UPDATE opportunity_meeting_decisions SET parecer = ${decisionOpinion},
+            status = 'processando', resultado = '{}'::jsonb, atualizado_em = now()
+          WHERE id = ${existing.id} AND status = 'falhou' RETURNING *
+        `);
+      }
+      const decision: any = claim.rows?.[0];
+      if (!decision) return res.status(409).json({ error: "A decisão já está sendo executada." });
+      decisionId = String(decision.id);
+      let demand: any = null;
+      let structuringRequest: any = null;
+      let nextStage = opportunity.estagio;
+      if (action === "descartar") nextStage = "descartada";
+      if (action === "amadurecer") nextStage = "em_amadurecimento";
+      if (action === "gerar_demanda") {
+        if (decision.demand_gerada_id) {
+          demand = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${decision.demand_gerada_id} LIMIT 1`)).rows?.[0] || null;
+        }
+        if (!demand) {
+          const code = await createUniqueDemandCode();
+          const inserted = await db.execute(sql`
+            INSERT INTO carteira_demandas (
+              bia_id, codigo, autor_tipo, autor_user_id, autor_membro_id,
+              tipo_resolucao, titulo, escopo, urgencia, especialidades, status,
+              responsavel_user_id, responsavel_membro_id, visibilidade, contexto,
+              cidade, estado, pais, economic_opportunity_id, criado_por_user_id, criado_por_membro_id
+            ) VALUES (
+              ${opportunity.bia_id || null}, ${code}, ${opportunity.bia_id ? "bia" : "usuario"},
+              ${opportunity.bia_id ? null : opportunity.originador_user_id || actor.userId},
+              ${opportunity.bia_id ? null : opportunity.originador_membro_id || actor.membroId},
+              'solicitacao', ${`Demanda para ${opportunity.titulo}`},
+              ${String(req.body?.demanda_descricao || opportunity.parecer || opportunity.tese).trim()},
+              ${req.body?.urgencia || "normal"}, ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
+              'rascunho', ${opportunity.responsavel_user_id || actor.userId}, ${opportunity.responsavel_membro_id || actor.membroId},
+              'privada', ${opportunity.tese}, ${opportunity.cidade || null}, ${opportunity.estado || null}, ${opportunity.pais || "Brasil"},
+              ${opportunity.id}, ${actor.userId}, ${actor.membroId}
+            ) RETURNING *
+          `);
+          demand = inserted.rows?.[0];
+          await db.execute(sql`
+            UPDATE opportunity_meeting_decisions SET demanda_gerada_id = ${demand.id}, atualizado_em = now()
+            WHERE id = ${decision.id}
+          `);
+        }
+        const sourceRegistry = await syncEconomicOpportunityRegistry(String(opportunity.id));
+        const targetRegistry = await syncDemandRegistry(String(demand.id));
+        if (sourceRegistry && targetRegistry) {
+          await db.execute(sql`
+            INSERT INTO opportunity_relations (origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id)
+            VALUES (${sourceRegistry.id}, ${targetRegistry.id}, 'ro_gerou_demanda', ${JSON.stringify({ ro_codigo: meeting.codigo, decisao_id: decision.id })}::jsonb, ${actor.userId}, ${actor.membroId})
+            ON CONFLICT DO NOTHING
+          `);
+        }
+      }
+      if (action === "solicitar_bia") {
+        structuringRequest = await requestEconomicOpportunityBia(req, {
+          ...opportunity,
+          parecer: String(req.body?.parecer || opportunity.parecer || "").trim(),
+        }, String(req.body?.parecer || opportunity.parecer || "").trim() || null);
+        await db.execute(sql`
+          UPDATE opportunity_meeting_decisions SET bia_solicitacao_id = ${structuringRequest?.id || null}, atualizado_em = now()
+          WHERE id = ${decision.id}
+        `);
+        nextStage = "estruturacao_solicitada";
+      }
+      if (["descartar", "amadurecer"].includes(action)) {
+        await db.execute(sql`
+          UPDATE economic_opportunities SET estagio = ${nextStage},
+            parecer = COALESCE(${String(req.body?.parecer || "").trim() || null}, parecer), atualizado_em = now()
+          WHERE id = ${opportunity.id}
+        `);
+        await syncEconomicOpportunityRegistry(String(opportunity.id));
+      }
+      const resultPayload = { estagio: nextStage, demanda_codigo: demand?.codigo || null, solicitacao_bia_id: structuringRequest?.id || null };
+      const completed = await db.execute(sql`
+        UPDATE opportunity_meeting_decisions SET
+          status = 'executada', demanda_gerada_id = ${demand?.id || null},
+          bia_solicitacao_id = ${structuringRequest?.id || null}, resultado = ${JSON.stringify(resultPayload)}::jsonb,
+          atualizado_em = now()
+        WHERE id = ${decision.id} RETURNING *
+      `);
+      res.status(201).json({ ...completed.rows?.[0], demanda: demand, solicitacao_bia: structuringRequest });
+    } catch (error: any) {
+      if (decisionId) {
+        await db.execute(sql`
+          UPDATE opportunity_meeting_decisions SET status = 'falhou',
+            resultado = ${JSON.stringify({ error: error.message })}::jsonb, atualizado_em = now()
+          WHERE id = ${decisionId}
+        `).catch(() => {});
+      }
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rede/oportunidades/:codigo/feedback", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const registry = await getOpportunityRegistry(req.params.codigo);
+      if (!registry) return res.status(404).json({ error: "Oportunidade não encontrada" });
+      const note = Number(req.body?.nota || 0);
+      if (!Number.isInteger(note) || note < 1 || note > 5) return res.status(400).json({ error: "A nota deve estar entre 1 e 5." });
+      const isMember = await canAccessProtectedOpaActions(req);
+      const inserted = await db.execute(sql`
+        INSERT INTO opportunity_feedback (
+          registry_id, avaliador_user_id, avaliador_membro_id, avaliado_membro_id,
+          nota, comentario, origem_externa, status_validacao
+        ) VALUES (
+          ${registry.id}, ${actor.userId}, ${actor.membroId}, ${req.body?.avaliado_membro_id || null},
+          ${note}, ${req.body?.comentario || null}, ${!isMember}, ${isMember ? "registrado" : "pendente"}
+        ) RETURNING *
+      `);
+      res.status(201).json(inserted.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/oportunidades/feedback/:id", async (req, res) => {
+    try {
+      if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+      const status = req.body?.status === "validado" ? "validado" : "rejeitado";
+      const updated = await db.execute(sql`
+        UPDATE opportunity_feedback SET status_validacao = ${status}, validado_por_user_id = ${(req.session as any)?.directusUserId || null}, validado_em = now()
+        WHERE id = ${req.params.id} RETURNING *
+      `);
+      if (!updated.rows?.[0]) return res.status(404).json({ error: "Feedback não encontrado" });
+      res.json(updated.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   app.post("/api/carteira/imoveis/:id/demandas/:demandaId/converter-oportunidade", async (req, res) => {
@@ -14219,12 +16904,47 @@ Deixe claro que premissas precisam de validação profissional.`,
         SET oportunidade_id = ${assetId}, atualizado_em = now()
         WHERE id = ${req.params.demandaId}
       `);
+      const economic = await createEconomicOpportunityRecord(req, {
+        titulo: demanda.titulo,
+        tese: demanda.escopo || `Potencial econômico identificado a partir do imóvel ${access.imovel.nome}.`,
+        resumo_autorizado: demanda.resumo_publico || demanda.escopo,
+        finalidade: req.body?.finalidade || "Ainda não definida",
+        cidade: access.imovel.cidade || null,
+        estado: access.imovel.estado || null,
+        pais: access.imovel.pais || "Brasil",
+        metadata: { legacy_asset_id: assetId, demanda_codigo: demanda.codigo || null },
+      }, { type: "land_bank_asset", id: assetId, metadata: { demanda_id: demanda.id } });
+      await db.execute(sql`
+        INSERT INTO economic_opportunity_sources (economic_opportunity_id, source_type, source_id, metadata, criado_por_user_id, criado_por_membro_id)
+        VALUES (${economic.id}, 'demanda', ${String(demanda.id)}, '{}'::jsonb, ${actor.userId}, ${actor.membroId})
+        ON CONFLICT DO NOTHING
+      `);
+      await db.execute(sql`
+        UPDATE carteira_demandas
+        SET economic_opportunity_id = ${economic.id}, atualizado_em = now()
+        WHERE id = ${req.params.demandaId}
+      `);
+      const demandRegistry = await syncDemandRegistry(String(demanda.id));
+      if (demandRegistry && economic.registry) {
+        await db.execute(sql`
+          INSERT INTO opportunity_relations (origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id)
+          VALUES (${demandRegistry.id}, ${economic.registry.id}, 'demanda_gerou_oportunidade', ${JSON.stringify({ asset_id: assetId })}::jsonb, ${actor.userId}, ${actor.membroId})
+          ON CONFLICT DO NOTHING
+        `);
+      }
       await upsertLandBankAssetToDirectus(data, req);
       await recordCarteiraEvent(req.params.id, actor, "demanda_convertida_oportunidade", "Oportunidade patrimonial identificada", {
         demanda_id: req.params.demandaId,
         oportunidade_id: assetId,
       });
-      res.status(201).json({ success: true, oportunidade: privateAssetView(data), oportunidade_id: assetId });
+      res.status(201).json({
+        success: true,
+        oportunidade: economic,
+        oportunidade_id: economic.id,
+        oportunidade_codigo: economic.codigo,
+        asset: privateAssetView(data),
+        legacy_asset_id: assetId,
+      });
     } catch (error: any) {
       res.status(error.status || error.statusCode || 500).json({ error: error.message });
     }

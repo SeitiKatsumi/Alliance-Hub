@@ -56,6 +56,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
+import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
@@ -207,6 +209,7 @@ interface CarteiraAlternativasResult {
 
 interface CarteiraDemanda {
   id: string;
+  codigo?: string | null;
   tipo_resolucao: string;
   alternativa?: string | null;
   titulo: string;
@@ -220,8 +223,11 @@ interface CarteiraDemanda {
   proximas_etapas?: Array<{ descricao?: string; status?: string; criado_em?: string }>;
   opa_id?: string | null;
   oportunidade_id?: string | null;
-  visibilidade?: "privada" | "publicada" | "pausada";
+  economic_opportunity_id?: string | null;
+  visibilidade?: "privada" | "publicada" | "restrita" | "pausada";
   resumo_publico?: string | null;
+  expira_em?: string | null;
+  fluxo_disparo?: "imediato" | "gradual";
   total_interesses?: number | string;
   resultado?: string | null;
   criado_em: string;
@@ -1112,7 +1118,10 @@ function DetailPage({ id }: { id: string }) {
   const [alternativeForm, setAlternativeForm] = useState({ capacidade_investimento: "", prazo: "12 meses", preferencia: "equilibrio" });
   const [demandOpen, setDemandOpen] = useState(false);
   const [selectedAlternative, setSelectedAlternative] = useState<CarteiraAlternativa | null>(null);
-  const [demandForm, setDemandForm] = useState({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false });
+  const [demandForm, setDemandForm] = useState({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false, fluxo_disparo: "imediato" as "imediato" | "gradual", validade_dias: "60" });
+  const [editingDemand, setEditingDemand] = useState<CarteiraDemanda | null>(null);
+  const [closingDemand, setClosingDemand] = useState<CarteiraDemanda | null>(null);
+  const [demandEditForm, setDemandEditForm] = useState({ titulo: "", escopo: "", resumo_publico: "", urgencia: "normal", especialidades: "", responsavel_user_id: "", status: "aberta", expira_em: "", fluxo_disparo: "imediato" as "imediato" | "gradual" });
   const [opportunityDemand, setOpportunityDemand] = useState<CarteiraDemanda | null>(null);
   const [opportunityConsent, setOpportunityConsent] = useState(false);
   const [shareForm, setShareForm] = useState({ identificador: "", nivel: "leitura" as AccessLevel });
@@ -1301,6 +1310,8 @@ function DetailPage({ id }: { id: string }) {
       responsavel_user_id: demandForm.responsavel_user_id || null,
       publicar: demandForm.publicar,
       consentimento_publicacao: demandForm.publicar,
+      fluxo_disparo: demandForm.fluxo_disparo,
+      validade_dias: Math.max(1, Number(demandForm.validade_dias || 60)),
       alternativa: selectedAlternative?.tipo || null,
       especialidades: demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean).length
         ? demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean)
@@ -1308,7 +1319,7 @@ function DetailPage({ id }: { id: string }) {
     })).json(),
     onSuccess: () => {
       setDemandOpen(false);
-      setDemandForm({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false });
+      setDemandForm({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false, fluxo_disparo: "imediato", validade_dias: "60" });
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       invalidateAll();
@@ -1326,7 +1337,9 @@ function DetailPage({ id }: { id: string }) {
       setOpportunityDemand(null);
       setOpportunityConsent(false);
       toast({ title: "Oportunidade identificada", description: "Ela agora pode seguir para análise preliminar." });
-      if (data.id) navigate(`/oportunidades/${data.id}`);
+      if (data.oportunidade_codigo || data.oportunidade?.codigo) {
+        navigate(`/area-aliancas/oportunidades/${data.oportunidade_codigo || data.oportunidade.codigo}`);
+      }
     },
     onError: (error: any) => toast({ title: "Erro ao criar oportunidade", description: error?.message, variant: "destructive" }),
   });
@@ -1337,7 +1350,9 @@ function DetailPage({ id }: { id: string }) {
         consentimento_publicacao: action === "publicar",
       })).json(),
     onSuccess: () => {
+      setEditingDemand(null);
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       toast({ title: "Publicação da demanda atualizada" });
     },
@@ -1772,6 +1787,7 @@ function DetailPage({ id }: { id: string }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{demand.titulo}</p>
                         <Badge variant="outline">Demanda de serviço</Badge>
+                        {demand.codigo && <Badge variant="outline" className="font-mono text-[10px]">{demand.codigo}</Badge>}
                         <Badge variant="outline" className={demand.visibilidade === "publicada" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""}>
                           {demand.visibilidade === "publicada" ? "Na Vitrine" : demand.visibilidade === "pausada" ? "Publicação pausada" : "Privada"}
                         </Badge>
@@ -1792,10 +1808,31 @@ function DetailPage({ id }: { id: string }) {
                         </SelectContent>
                       </Select>
                     ) : <Badge variant="outline">{demand.status}</Badge>}
+                    {canManage && !["concluida", "convertida", "encerrada_sem_acordo", "expirada", "cancelada", "arquivada"].includes(demand.status) && (
+                      <Button variant="outline" onClick={() => {
+                        setEditingDemand(demand);
+                        setDemandEditForm({
+                          titulo: demand.titulo || "",
+                          escopo: demand.escopo || "",
+                          resumo_publico: demand.resumo_publico || "",
+                          urgencia: demand.urgencia || "normal",
+                          especialidades: (demand.especialidades || []).join(", "),
+                          responsavel_user_id: demand.responsavel_user_id || "",
+                          status: demand.status || "aberta",
+                          expira_em: demand.expira_em ? new Date(demand.expira_em).toISOString().slice(0, 10) : "",
+                          fluxo_disparo: demand.fluxo_disparo === "gradual" ? "gradual" : "imediato",
+                        });
+                      }}><Pencil className="mr-2 h-4 w-4" />Editar</Button>
+                    )}
+                    {canManage && !["concluida", "convertida", "encerrada_sem_acordo", "expirada", "cancelada", "arquivada"].includes(demand.status) && (
+                      <Button variant="outline" onClick={() => setClosingDemand(demand)}>Encerrar</Button>
+                    )}
                     {demand.opa_id ? (
                       <Button variant="outline" onClick={() => navigate(`/opas/${demand.opa_id}`)}><Link2 className="mr-2 h-4 w-4" />Abrir OBA</Button>
+                    ) : demand.economic_opportunity_id ? (
+                      <Button variant="outline" onClick={() => navigate(`/area-aliancas?tab=oportunidades&tipo=oportunidades`)}><Lightbulb className="mr-2 h-4 w-4" />Abrir oportunidade</Button>
                     ) : demand.oportunidade_id ? (
-                      <Button variant="outline" onClick={() => navigate(`/oportunidades/${demand.oportunidade_id}`)}><Lightbulb className="mr-2 h-4 w-4" />Abrir oportunidade</Button>
+                      <Button variant="outline" onClick={() => navigate(`/oportunidades/${demand.oportunidade_id}`)}><Lightbulb className="mr-2 h-4 w-4" />Abrir ativo relacionado</Button>
                     ) : canManage && (
                       <Button variant="outline" onClick={() => { setOpportunityDemand(demand); setOpportunityConsent(false); }}><Lightbulb className="mr-2 h-4 w-4" />Identificar oportunidade</Button>
                     )}
@@ -1804,14 +1841,15 @@ function DetailPage({ id }: { id: string }) {
                     <div className="ml-8 flex flex-wrap gap-2">
                       {demand.visibilidade === "publicada" ? (
                         <Button variant="ghost" size="sm" onClick={() => demandPublicationMutation.mutate({ demandId: demand.id, action: "pausar" })}>Pausar na Vitrine</Button>
-                      ) : (
+                      ) : demand.visibilidade !== "restrita" ? (
                         <Button variant="ghost" size="sm" onClick={() => demandPublicationMutation.mutate({ demandId: demand.id, action: "publicar" })}><Upload className="mr-2 h-3.5 w-3.5" />Publicar na Vitrine</Button>
-                      )}
+                      ) : null}
                       {demand.visibilidade === "pausada" && (
                         <Button variant="ghost" size="sm" className="text-red-600" onClick={() => demandPublicationMutation.mutate({ demandId: demand.id, action: "retirar" })}>Retirar publicação</Button>
                       )}
                     </div>
                   )}
+                  {canManage && demand.visibilidade === "restrita" && demand.codigo && <div className="ml-8"><OpportunityDistributionControls code={demand.codigo} onUpdated={() => demandsQuery.refetch()} /></div>}
                   {!!demand.proximas_etapas?.length && (
                     <div className="ml-8 flex flex-wrap gap-2">
                       {demand.proximas_etapas.map((step, index) => <Badge key={`${step.descricao}-${index}`} variant="outline"><Clock3 className="mr-1 h-3 w-3" />{step.descricao}</Badge>)}
@@ -1967,6 +2005,10 @@ function DetailPage({ id }: { id: string }) {
               </div>
             )}
             <div className="space-y-2"><Label>Outras especialidades (opcional)</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Separe por vírgulas" /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label>Distribuição</Label><Select value={demandForm.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setDemandForm({ ...demandForm, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Fluxo territorial a cada 12h</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Validade após publicar</Label><Input type="number" min="1" value={demandForm.validade_dias} onChange={(event) => setDemandForm({ ...demandForm, validade_dias: event.target.value })} /><p className="text-xs text-muted-foreground">Dias; o padrão é 60.</p></div>
+            </div>
             <label className="flex cursor-pointer items-start gap-3 border-t pt-4">
               <Checkbox checked={demandForm.publicar} onCheckedChange={(checked) => setDemandForm({ ...demandForm, publicar: checked === true })} />
               <span className="text-sm leading-relaxed"><strong>Publicar esta demanda na Vitrine</strong><br /><span className="text-muted-foreground">Autorizo a exibição do resumo, categoria, urgência e cidade/região. Endereço exato, documentos e contato permanecerão privados.</span></span>
@@ -1975,6 +2017,26 @@ function DetailPage({ id }: { id: string }) {
           <DialogFooter><Button variant="outline" onClick={() => setDemandOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandForm.titulo || demandMutation.isPending} onClick={() => demandMutation.mutate()}>{demandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar demanda</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={Boolean(editingDemand)} onOpenChange={(open) => { if (!open) setEditingDemand(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Editar Demanda</DialogTitle><DialogDescription>Atualizações em uma publicação ficam registradas no histórico da oportunidade.</DialogDescription></DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2"><Label>Título</Label><Input value={demandEditForm.titulo} onChange={(event) => setDemandEditForm({ ...demandEditForm, titulo: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Descrição</Label><Textarea value={demandEditForm.escopo} onChange={(event) => setDemandEditForm({ ...demandEditForm, escopo: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Resumo público</Label><Textarea value={demandEditForm.resumo_publico} onChange={(event) => setDemandEditForm({ ...demandEditForm, resumo_publico: event.target.value })} placeholder="Evite endereço exato, contatos e documentos privados." /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label>Urgência</Label><Select value={demandEditForm.urgencia} onValueChange={(value) => setDemandEditForm({ ...demandEditForm, urgencia: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Status</Label><Select value={demandEditForm.status} onValueChange={(value) => setDemandEditForm({ ...demandEditForm, status: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="rascunho">Rascunho</SelectItem><SelectItem value="aberta">Aberta</SelectItem><SelectItem value="em_negociacao">Em negociação</SelectItem><SelectItem value="contratada">Contratada</SelectItem><SelectItem value="em_execucao">Em execução</SelectItem><SelectItem value="concluida">Concluída</SelectItem><SelectItem value="encerrada_sem_acordo">Encerrada sem acordo</SelectItem><SelectItem value="cancelada">Cancelada</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Validade</Label><Input type="date" value={demandEditForm.expira_em} onChange={(event) => setDemandEditForm({ ...demandEditForm, expira_em: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Distribuição</Label><Select value={demandEditForm.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setDemandEditForm({ ...demandEditForm, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Fluxo territorial a cada 12h</SelectItem></SelectContent></Select></div>
+            </div>
+            <div className="space-y-2"><Label>Especialidades</Label><Input value={demandEditForm.especialidades} onChange={(event) => setDemandEditForm({ ...demandEditForm, especialidades: event.target.value })} placeholder="Separe por vírgulas" /></div>
+            {!!(accessQuery.data?.owner?.id || accessQuery.data?.acessos?.some((access) => access.user_id)) && <div className="space-y-2"><Label>Responsável</Label><Select value={demandEditForm.responsavel_user_id || "sem_responsavel"} onValueChange={(value) => setDemandEditForm({ ...demandEditForm, responsavel_user_id: value === "sem_responsavel" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sem_responsavel">Definir depois</SelectItem>{accessQuery.data?.owner?.id && <SelectItem value={accessQuery.data.owner.id}>{accessQuery.data.owner.nome || accessQuery.data.owner.email || "Proprietário"}</SelectItem>}{(accessQuery.data?.acessos || []).filter((access) => access.user_id).map((access) => <SelectItem key={access.id} value={access.user_id!}>{access.nome || access.email || access.username || "Colaborador"}</SelectItem>)}</SelectContent></Select></div>}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setEditingDemand(null)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandEditForm.titulo.trim() || updateDemandMutation.isPending} onClick={() => editingDemand && updateDemandMutation.mutate({ demandId: editingDemand.id, patch: { ...demandEditForm, especialidades: demandEditForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean), expira_em: demandEditForm.expira_em ? new Date(`${demandEditForm.expira_em}T23:59:59`).toISOString() : null } })}>{updateDemandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar alterações</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {closingDemand && <OpportunityCloseDialog open opportunityCode={closingDemand.codigo || closingDemand.id} onOpenChange={(open) => !open && setClosingDemand(null)} onSuccess={() => { setClosingDemand(null); demandsQuery.refetch(); queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades"] }); }} />}
       <AlertDialog open={publishConfirm} onOpenChange={setPublishConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Explorar oportunidades para este imóvel?</AlertDialogTitle><AlertDialogDescription>A BUILT poderá analisar estratégias como venda, locação, reforma, desenvolvimento ou parceria. Você autoriza o compartilhamento das informações do ativo com a rede, mantendo endereço exato, documentos e contato protegidos até a seleção de interessados.</AlertDialogDescription></AlertDialogHeader>

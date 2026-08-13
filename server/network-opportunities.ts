@@ -106,6 +106,9 @@ export function privateAssetView<T extends Record<string, any>>(
 export function publicDemandView(demand: Record<string, any>) {
   return {
     id: demand.id,
+    codigo: demand.codigo || null,
+    tipo: "demanda",
+    selo: "Demanda",
     titulo: demand.titulo,
     resumo_publico: demand.resumo_publico || demand.escopo || null,
     urgencia: demand.urgencia || "normal",
@@ -116,6 +119,9 @@ export function publicDemandView(demand: Record<string, any>) {
     estado: demand.estado || null,
     pais: demand.pais || "Brasil",
     tipo_imovel: demand.tipo_imovel || null,
+    autor_tipo: demand.autor_tipo || (demand.bia_id ? "bia" : "usuario"),
+    bia_id: demand.bia_id || null,
+    expira_em: demand.expira_em || null,
     total_interesses: Number(demand.total_interesses || 0),
     dados_privados_liberados: false,
   };

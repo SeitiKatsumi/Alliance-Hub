@@ -1666,7 +1666,7 @@ export default function VitrinePage() {
             <h2 className="text-sm font-semibold text-foreground">OBAs em destaque</h2>
           </div>
           <div className="flex-1 h-px bg-border" />
-          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/vitrine/obas")}>
+          <Button variant="ghost" size="sm" className="text-xs gap-1.5" onClick={() => navigate("/vitrine/oportunidades/obas")}>
             Ver todas as oportunidades
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>

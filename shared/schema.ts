@@ -252,7 +252,12 @@ export const carteiraAlertas = pgTable("carteira_alertas", {
 
 export const carteiraDemandas = pgTable("carteira_demandas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  imovel_id: text("imovel_id").references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  bia_id: text("bia_id"),
+  codigo: text("codigo").unique(),
+  autor_tipo: text("autor_tipo").notNull().default("usuario"),
+  autor_user_id: text("autor_user_id"),
+  autor_membro_id: text("autor_membro_id"),
   tipo_resolucao: text("tipo_resolucao").notNull().default("solicitacao"),
   alternativa: text("alternativa"),
   titulo: text("titulo").notNull(),
@@ -261,6 +266,18 @@ export const carteiraDemandas = pgTable("carteira_demandas", {
   especialidades: jsonb("especialidades").$type<string[]>().notNull().default([]),
   status: text("status").notNull().default("rascunho"),
   responsavel_user_id: text("responsavel_user_id"),
+  responsavel_membro_id: text("responsavel_membro_id"),
+  visibilidade: text("visibilidade").notNull().default("privada"),
+  consentimento_publicacao_at: timestamp("consentimento_publicacao_at"),
+  publicada_em: timestamp("publicada_em"),
+  expira_em: timestamp("expira_em"),
+  resumo_publico: text("resumo_publico"),
+  contexto: text("contexto"),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  pais: text("pais"),
+  economic_opportunity_id: text("economic_opportunity_id"),
+  fluxo_disparo: text("fluxo_disparo").notNull().default("imediato"),
   propostas: jsonb("propostas").$type<Array<Record<string, unknown>>>().notNull().default([]),
   documentos: jsonb("documentos").$type<Array<Record<string, unknown>>>().notNull().default([]),
   proximas_etapas: jsonb("proximas_etapas").$type<Array<Record<string, unknown>>>().notNull().default([]),
@@ -270,6 +287,238 @@ export const carteiraDemandas = pgTable("carteira_demandas", {
   criado_por_membro_id: text("criado_por_membro_id"),
   criado_em: timestamp("criado_em").defaultNow().notNull(),
   atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const opportunityRegistry = pgTable("opportunity_registry", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  source_type: text("source_type").notNull(),
+  source_id: text("source_id").notNull(),
+  codigo: text("codigo").notNull().unique(),
+  tipo: text("tipo").notNull(),
+  titulo: text("titulo").notNull(),
+  descricao: text("descricao"),
+  autor_tipo: text("autor_tipo").notNull(),
+  autor_user_id: text("autor_user_id"),
+  autor_membro_id: text("autor_membro_id"),
+  autor_bia_id: text("autor_bia_id"),
+  criador_user_id: text("criador_user_id"),
+  criador_membro_id: text("criador_membro_id"),
+  responsavel_user_id: text("responsavel_user_id"),
+  responsavel_membro_id: text("responsavel_membro_id"),
+  imovel_id: text("imovel_id"),
+  bia_id: text("bia_id"),
+  status: text("status").notNull().default("rascunho"),
+  visibilidade: text("visibilidade").notNull().default("privada"),
+  urgencia: text("urgencia").notNull().default("normal"),
+  especialidades: jsonb("especialidades").$type<string[]>().notNull().default([]),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  pais: text("pais"),
+  publicada_em: timestamp("publicada_em"),
+  expira_em: timestamp("expira_em"),
+  fluxo_disparo: text("fluxo_disparo").notNull().default("imediato"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+}, (t) => ({
+  sourceUniq: unique("opportunity_registry_source_uniq").on(t.source_type, t.source_id),
+}));
+
+export const economicOpportunities = pgTable("economic_opportunities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  codigo: text("codigo").notNull().unique(),
+  titulo: text("titulo").notNull(),
+  resumo_autorizado: text("resumo_autorizado"),
+  tese: text("tese").notNull(),
+  finalidade: text("finalidade"),
+  parecer: text("parecer"),
+  estagio: text("estagio").notNull().default("identificada"),
+  criador_user_id: text("criador_user_id"),
+  criador_membro_id: text("criador_membro_id"),
+  originador_user_id: text("originador_user_id"),
+  originador_membro_id: text("originador_membro_id"),
+  responsavel_user_id: text("responsavel_user_id"),
+  responsavel_membro_id: text("responsavel_membro_id"),
+  comunidade_id: text("comunidade_id"),
+  comunidade_nome: text("comunidade_nome"),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  pais: text("pais"),
+  bia_id: text("bia_id"),
+  visibilidade: text("visibilidade").notNull().default("contextual"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const economicOpportunitySources = pgTable("economic_opportunity_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  economic_opportunity_id: text("economic_opportunity_id").notNull(),
+  source_type: text("source_type").notNull(),
+  source_id: text("source_id").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+}, (t) => ({
+  sourceUniq: unique("economic_opportunity_sources_uniq").on(t.economic_opportunity_id, t.source_type, t.source_id),
+}));
+
+export const opportunityRelations = pgTable("opportunity_relations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  origem_registry_id: text("origem_registry_id").notNull(),
+  destino_registry_id: text("destino_registry_id").notNull(),
+  tipo: text("tipo").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const opportunityEvents = pgTable("opportunity_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  registry_id: text("registry_id").notNull(),
+  tipo: text("tipo").notNull(),
+  titulo: text("titulo"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const opportunityOutcomes = pgTable("opportunity_outcomes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  registry_id: text("registry_id").notNull().unique(),
+  resultado: text("resultado").notNull(),
+  participante_user_id: text("participante_user_id"),
+  participante_membro_id: text("participante_membro_id"),
+  valor: numeric("valor", { precision: 16, scale: 2 }),
+  moeda: text("moeda"),
+  sem_valor_financeiro: boolean("sem_valor_financeiro").notNull().default(false),
+  contratado_em: timestamp("contratado_em"),
+  concluido_em: timestamp("concluido_em"),
+  observacoes: text("observacoes"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const opportunityDistributionFlows = pgTable("opportunity_distribution_flows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  registry_id: text("registry_id").notNull().unique(),
+  modo: text("modo").notNull().default("imediato"),
+  status: text("status").notNull().default("ativo"),
+  comunidade_id: text("comunidade_id"),
+  territorio: text("territorio"),
+  estado: text("estado"),
+  pais: text("pais"),
+  onda_atual: integer("onda_atual").notNull().default(0),
+  proxima_execucao_em: timestamp("proxima_execucao_em"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const opportunityDistributionWaves = pgTable("opportunity_distribution_waves", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  flow_id: text("flow_id").notNull(),
+  ordem: integer("ordem").notNull(),
+  audiencia: text("audiencia").notNull(),
+  status: text("status").notNull().default("pendente"),
+  agendada_em: timestamp("agendada_em"),
+  executada_em: timestamp("executada_em"),
+  destinatarios: integer("destinatarios").notNull().default(0),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+}, (t) => ({
+  flowOrderUniq: unique("opportunity_distribution_waves_flow_order_uniq").on(t.flow_id, t.ordem),
+}));
+
+export const opportunityDistributionDeliveries = pgTable("opportunity_distribution_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  wave_id: text("wave_id").notNull(),
+  registry_id: text("registry_id").notNull(),
+  user_id: text("user_id"),
+  membro_id: text("membro_id"),
+  canal: text("canal").notNull(),
+  status: text("status").notNull().default("enviado"),
+  enviado_em: timestamp("enviado_em").defaultNow().notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+});
+
+export const opportunityMeetings = pgTable("opportunity_meetings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  codigo: text("codigo").notNull().unique(),
+  titulo: text("titulo").notNull(),
+  data: date("data").notNull(),
+  hora: text("hora"),
+  link: text("link"),
+  pauta: text("pauta"),
+  publico: text("publico").notNull().default("convidados"),
+  ata: text("ata"),
+  decisoes: jsonb("decisoes").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  proximos_passos: jsonb("proximos_passos").$type<Array<Record<string, unknown>>>().notNull().default([]),
+  status: text("status").notNull().default("agendada"),
+  organizador_user_id: text("organizador_user_id"),
+  organizador_membro_id: text("organizador_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const opportunityMeetingItems = pgTable("opportunity_meeting_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meeting_id: text("meeting_id").notNull(),
+  registry_id: text("registry_id").notNull(),
+  papel: text("papel").notNull().default("principal"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+}, (t) => ({
+  itemUniq: unique("opportunity_meeting_items_uniq").on(t.meeting_id, t.registry_id),
+}));
+
+export const opportunityMeetingDecisions = pgTable("opportunity_meeting_decisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meeting_id: text("meeting_id").notNull(),
+  economic_opportunity_id: text("economic_opportunity_id").notNull(),
+  acao: text("acao").notNull(),
+  parecer: text("parecer"),
+  status: text("status").notNull().default("executada"),
+  executado_por_user_id: text("executado_por_user_id"),
+  executado_por_membro_id: text("executado_por_membro_id"),
+  demanda_gerada_id: text("demanda_gerada_id"),
+  bia_solicitacao_id: text("bia_solicitacao_id"),
+  resultado: jsonb("resultado").$type<Record<string, unknown>>().notNull().default({}),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+}, (t) => ({
+  decisionUniq: unique("opportunity_meeting_decisions_uniq").on(t.meeting_id, t.economic_opportunity_id),
+}));
+
+export const opportunityMeetingParticipants = pgTable("opportunity_meeting_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meeting_id: text("meeting_id").notNull(),
+  user_id: text("user_id"),
+  membro_id: text("membro_id"),
+  nome: text("nome"),
+  papel: text("papel"),
+  confirmacao: text("confirmacao").notNull().default("pendente"),
+  presenca: text("presenca").notNull().default("nao_informada"),
+  decisao: text("decisao"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const opportunityFeedback = pgTable("opportunity_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  registry_id: text("registry_id").notNull(),
+  avaliador_user_id: text("avaliador_user_id"),
+  avaliador_membro_id: text("avaliador_membro_id"),
+  avaliado_membro_id: text("avaliado_membro_id"),
+  nota: integer("nota"),
+  comentario: text("comentario"),
+  origem_externa: boolean("origem_externa").notNull().default(false),
+  status_validacao: text("status_validacao").notNull().default("pendente"),
+  validado_por_user_id: text("validado_por_user_id"),
+  validado_em: timestamp("validado_em"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
 });
 
 export const carteiraAcessos = pgTable("carteira_acessos", {
@@ -294,6 +543,7 @@ export type CarteiraDocumento = typeof carteiraDocumentos.$inferSelect;
 export type CarteiraAnalise = typeof carteiraAnalises.$inferSelect;
 export type CarteiraAlerta = typeof carteiraAlertas.$inferSelect;
 export type CarteiraDemanda = typeof carteiraDemandas.$inferSelect;
+export type EconomicOpportunity = typeof economicOpportunities.$inferSelect;
 export type CarteiraAcesso = typeof carteiraAcessos.$inferSelect;
 
 export const membroComunidadeMae = pgTable("membro_comunidade_mae", {

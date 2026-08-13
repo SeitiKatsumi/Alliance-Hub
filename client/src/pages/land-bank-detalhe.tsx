@@ -9,6 +9,7 @@ import {
   Download,
   FileText,
   HandHeart,
+  Lightbulb,
   MapPin,
   Paperclip,
   Pencil,
@@ -114,6 +115,7 @@ interface LandBankAsset {
   autorizacao_compartilhamento?: boolean;
   dados_privados_liberados?: boolean;
   meu_interesse?: { id: string; status: string; mensagem?: string | null } | null;
+  economic_opportunity?: { id: string; codigo: string; titulo: string; estagio: string } | null;
 }
 
 function readAssets(): LandBankAsset[] {
@@ -360,6 +362,23 @@ export default function LandBankDetalhePage() {
     },
   });
 
+  const economicOpportunityMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/land-bank-assets/${id}/oportunidade-economica`, {});
+      return response.json() as Promise<{ codigo: string }>;
+    },
+    onSuccess: (opportunity) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/land-bank-assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades-economicas"] });
+      navigate(`/area-aliancas/oportunidades/${opportunity.codigo}`);
+    },
+    onError: (error: any) => toast({
+      title: "Não foi possível preparar a Oportunidade",
+      description: error?.message,
+      variant: "destructive",
+    }),
+  });
+
   const reviewMutation = useMutation({
     mutationFn: async (estagio: string) => {
       const response = await apiRequest("PATCH", `/api/land-bank-assets/${id}/analise`, {
@@ -480,6 +499,21 @@ export default function LandBankDetalhePage() {
           Voltar para {isPersonalRoute ? "Oportunidades" : meta.title}
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
+          {asset.can_edit && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={economicOpportunityMutation.isPending}
+              onClick={() => asset.economic_opportunity
+                ? navigate(`/area-aliancas/oportunidades/${asset.economic_opportunity.codigo}`)
+                : economicOpportunityMutation.mutate()}
+            >
+              {economicOpportunityMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Lightbulb className="h-4 w-4" />}
+              {asset.economic_opportunity ? "Abrir Oportunidade" : "Criar Oportunidade"}
+            </Button>
+          )}
           {asset.can_edit && (
             <Button variant="outline" onClick={openEditDialog} className="gap-2" data-testid="btn-editar-landbank">
               <Pencil className="h-4 w-4" />

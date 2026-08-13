@@ -36,7 +36,8 @@ import {
   Briefcase, Globe, Activity, Cpu, Wifi, X,
   Pencil, Camera, Loader2, Save, User, Plus, Shield, Eye, EyeOff, KeyRound, UserPlus, Lock, AlertCircle,
   CheckCircle2, FileText, Trash2, Settings, BarChart3, Flame, Clock3,
-  BadgeDollarSign, CreditCard, Megaphone, ReceiptText, CircleAlert, WalletCards
+  BadgeDollarSign, CreditCard, Megaphone, ReceiptText, CircleAlert, WalletCards,
+  ArrowRightLeft, HandCoins, Target, Timer
 } from "lucide-react";
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
@@ -208,6 +209,19 @@ interface AdminMonetizationData {
     created_at?: string | null;
     reference?: string | null;
   }>;
+}
+
+interface AdminOpportunityIndicators {
+  total: number;
+  demandas: number;
+  obas: number;
+  convertidas: number;
+  negocios_originados: number;
+  dias_medio_fechamento: number | string;
+  fechamentos: number;
+  valor_movimentado: number | string;
+  interesses: number;
+  cobranca_automatica: boolean;
 }
 
 function fotoUrl(foto?: string | null, size = 160): string | null {
@@ -2439,6 +2453,29 @@ function AdminMonetizationPanel({
   );
 }
 
+function AdminOpportunitiesPanel({ data, loading }: { data?: AdminOpportunityIndicators; loading: boolean }) {
+  if (loading) return <div className="flex min-h-40 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Carregando indicadores...</div>;
+  if (!data) return <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700">Não foi possível carregar os indicadores de Oportunidades.</div>;
+  return (
+    <section className="space-y-4" data-testid="admin-opportunity-dashboard">
+      <div><h2 className="flex items-center gap-2 text-lg font-bold text-brand-navy"><Target className="h-5 w-5 text-blue-600" />Negócios originados pela rede</h2><p className="mt-1 text-sm text-slate-500">Demandas e OBAs rastreadas do cadastro ao encerramento.</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <AdminMetric label="Oportunidades" value={Number(data.total || 0)} detail={`${Number(data.demandas || 0)} Demandas · ${Number(data.obas || 0)} OBAs`} icon={Target} tone="blue" />
+        <AdminMetric label="Negócios originados" value={Number(data.negocios_originados || 0)} detail="Contratados, em execução ou concluídos" icon={HandCoins} tone="green" />
+        <AdminMetric label="Conversões" value={Number(data.convertidas || 0)} detail="Demanda ↔ OBA com vínculo preservado" icon={ArrowRightLeft} tone="violet" />
+        <AdminMetric label="Interesses" value={Number(data.interesses || 0)} detail="Manifestações ativas na rede" icon={Users} tone="blue" />
+        <AdminMetric label="Valor movimentado" value={formatAdminMoney(Number(data.valor_movimentado || 0))} detail={`${Number(data.fechamentos || 0)} fechamento(s) registrado(s)`} icon={BadgeDollarSign} tone="green" />
+        <AdminMetric label="Tempo de fechamento" value={`${Number(data.dias_medio_fechamento || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias`} detail="Média das oportunidades fechadas" icon={Timer} tone="amber" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="border-y py-4"><p className="font-semibold text-brand-navy">Taxa de sucesso</p><p className="mt-1 text-sm text-slate-500">Os fechamentos já registram valor e participante para permitir uma futura taxa sobre Demandas contratadas.</p></div>
+        <div className="border-y py-4"><p className="font-semibold text-brand-navy">Distribuição acelerada</p><p className="mt-1 text-sm text-slate-500">Os fluxos imediato e gradual ficam auditados para medir alcance e preparar impulsionamento pago.</p></div>
+        <div className="border-y py-4"><p className="font-semibold text-brand-navy">Sem cobrança automática</p><p className="mt-1 text-sm text-slate-500">Esta versão coleta dados de conversão. Nenhuma comissão é aplicada às Demandas ou OBAs.</p></div>
+      </div>
+    </section>
+  );
+}
+
 export default function MembrosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -2449,7 +2486,7 @@ export default function MembrosPage() {
   const [editingMembro, setEditingMembro] = useState<Membro | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Membro | null>(null);
   const [adminTab, setAdminTab] = useState<"dashboard" | "cadastro" | "configuracoes">("cadastro");
-  const [dashboardView, setDashboardView] = useState<"monetization" | "usage">("monetization");
+  const [dashboardView, setDashboardView] = useState<"monetization" | "opportunities" | "usage">("monetization");
   const [financePeriod, setFinancePeriod] = useState("90");
 
   const { data: membrosRaw = [], isLoading } = useQuery<Membro[]>({
@@ -2466,6 +2503,10 @@ export default function MembrosPage() {
     queryKey: [`/api/admin/monetization?days=${financePeriod}`],
     enabled: !!user && user.role === "admin" && adminTab === "dashboard" && dashboardView === "monetization",
   });
+  const { data: opportunityIndicators, isLoading: loadingOpportunityIndicators } = useQuery<AdminOpportunityIndicators>({
+    queryKey: ["/api/admin/oportunidades/indicadores"],
+    enabled: !!user && user.role === "admin" && adminTab === "dashboard" && dashboardView === "opportunities",
+  });
 
   const membros = useMemo(
     () => membrosRaw.map(m => ({ ...m, _nome: getDisplayNome(m) })),
@@ -2478,21 +2519,21 @@ export default function MembrosPage() {
       if (Array.isArray(m.especialidades)) m.especialidades.forEach(e => e && all.add(e));
       else if (m.especialidade) all.add(m.especialidade);
     });
-    return [...all].sort();
+    return Array.from(all).sort();
   }, [membros]);
 
   const estados = useMemo(
-    () => [...new Set(membros.map(m => m.estado).filter(Boolean))].sort() as string[],
+    () => Array.from(new Set(membros.map(m => m.estado).filter(Boolean))).sort() as string[],
     [membros]
   );
 
   const empresas = useMemo(
-    () => [...new Set(membros.map(m => m.empresa).filter(Boolean))].sort() as string[],
+    () => Array.from(new Set(membros.map(m => m.empresa).filter(Boolean))).sort() as string[],
     [membros]
   );
 
   const tiposCadastro = useMemo(
-    () => [...new Set(membros.map(m => m.tipo_de_cadastro).filter(Boolean))].sort() as string[],
+    () => Array.from(new Set(membros.map(m => m.tipo_de_cadastro).filter(Boolean))).sort() as string[],
     [membros]
   );
 
@@ -2773,7 +2814,7 @@ export default function MembrosPage() {
       {adminTab === "dashboard" ? (
         <div className="space-y-5 p-6">
           <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Visão do dashboard">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Visão do dashboard">
               <button
                 type="button"
                 onClick={() => setDashboardView("monetization")}
@@ -2801,6 +2842,18 @@ export default function MembrosPage() {
                     Receitas, adesões, anúncios e cobranças
                   </span>
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDashboardView("opportunities")}
+                className={`flex min-h-16 items-center gap-3 rounded-md px-4 py-3 text-left transition-colors ${dashboardView === "opportunities" ? "bg-blue-600 text-white shadow-sm" : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-brand-navy"}`}
+                aria-pressed={dashboardView === "opportunities"}
+                data-dashboard-view
+                data-testid="tab-admin-opportunities"
+              >
+                <span className={`dashboard-view-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${dashboardView === "opportunities" ? "bg-white/15" : "bg-emerald-50 text-emerald-600"}`}><Target className="h-5 w-5" /></span>
+                <span className="min-w-0"><span className="dashboard-view-title block text-sm font-semibold">Oportunidades</span><span className="dashboard-view-description mt-0.5 block text-xs text-slate-500">Negócios, conversões e valor movimentado</span></span>
               </button>
 
               <button
@@ -2841,6 +2894,8 @@ export default function MembrosPage() {
               period={financePeriod}
               onPeriodChange={setFinancePeriod}
             />
+          ) : dashboardView === "opportunities" ? (
+            <AdminOpportunitiesPanel data={opportunityIndicators} loading={loadingOpportunityIndicators} />
           ) : loadingUsage ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
               Carregando mapa de uso...

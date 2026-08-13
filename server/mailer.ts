@@ -862,3 +862,28 @@ export async function enviarAprovacaoVitrineInvitador(opts: {
   `);
   await send(opts.invitadorEmail, `${opts.candidatoNome} foi aprovado na ${opts.comunidadeNome}!`, html);
 }
+
+export async function notificarNovaOportunidade(opts: {
+  email: string;
+  nome: string;
+  codigo: string;
+  titulo: string;
+  selo: "Demanda" | "OBA";
+  url: string;
+}) {
+  const link = `${BASE_URL}${opts.url}`;
+  return send(
+    opts.email,
+    `Nova ${opts.selo} para você avaliar: ${opts.titulo}`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Nova oportunidade na rede BUILT</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.nome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Uma <strong style="color:#D7BB7D">${opts.selo}</strong> compatível com a etapa atual de distribuição foi disponibilizada para você.</p>
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(215,187,125,0.2);border-radius:8px;padding:16px;margin:20px 0">
+        <p style="color:#D7BB7D;margin:0 0 6px;font-size:12px;font-weight:bold">${opts.codigo}</p>
+        <p style="color:#fff;margin:0;font-weight:bold">${opts.titulo}</p>
+      </div>
+      <div style="text-align:center;margin:32px 0"><a href="${link}" style="display:inline-block;background-color:#D7BB7D;color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver oportunidade</a></div>
+    `),
+  );
+}

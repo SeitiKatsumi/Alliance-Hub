@@ -24,7 +24,7 @@ import {
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
   AlertTriangle, Clock, FileWarning, AlarmClock, BookOpen, UserCheck,
-  Crosshair, Landmark, ClipboardCheck, EyeOff, Lightbulb,
+  Crosshair, Landmark, ClipboardCheck, EyeOff, Lightbulb, BriefcaseBusiness,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuraScore, getFaixaColor } from "@/components/aura-score";
@@ -36,6 +36,7 @@ import { getOpaUrl } from "@/lib/public-refs";
 import { getProfileCompletion, type ProfileCompletionSource } from "@/lib/profile-completion";
 import { CarteiraDashboardPanel } from "@/pages/carteira";
 import { OportunidadesImobiliariasPanel } from "@/pages/oportunidades-imobiliarias";
+import MemberBusinessFeed from "@/components/member-business-feed";
 import {
   Bar,
   BarChart,
@@ -171,6 +172,9 @@ interface CarteiraDashboardAlert {
 
 interface DashboardOpa {
   id: string;
+  codigo?: string | null;
+  opportunity_kind?: "demanda" | "oba";
+  selo?: "Demanda" | "OBA";
   nome_oportunidade?: string;
   tipo?: string;
   ramo_atuacao?: string | null;
@@ -583,10 +587,10 @@ export default function PainelPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [location, navigate] = useLocation();
-  const validDashboardTabs = ["inicio", "carteira", "convergencias", "opas", "gestao"] as const;
+  const validDashboardTabs = ["inicio", "carteira", "convergencias", "negocios", "gestao"] as const;
   const initialDashboardParams = new URLSearchParams(window.location.search);
   const requestedDashboardTab = initialDashboardParams.get("tab");
-  const normalizedDashboardTab = requestedDashboardTab === "bias" ?"carteira" : requestedDashboardTab;
+  const normalizedDashboardTab = requestedDashboardTab === "bias" ? "carteira" : requestedDashboardTab === "opas" ? "negocios" : requestedDashboardTab;
   const [dashboardTab, setDashboardTab] = useState(
     validDashboardTabs.includes(normalizedDashboardTab as (typeof validDashboardTabs)[number])
       ?normalizedDashboardTab!
@@ -606,7 +610,7 @@ export default function PainelPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requested = params.get("tab");
-    const normalizedRequested = requested === "bias" ?"carteira" : requested;
+    const normalizedRequested = requested === "bias" ? "carteira" : requested === "opas" ? "negocios" : requested;
     const nextTab = validDashboardTabs.includes(normalizedRequested as (typeof validDashboardTabs)[number])
       ?normalizedRequested!
       : "inicio";
@@ -768,6 +772,7 @@ export default function PainelPage() {
   const [biaPapel, setBiaPapel] = useState("__all__");
   const [convergenciaSearch, setConvergenciaSearch] = useState("");
   const [convergenciaTipo, setConvergenciaTipo] = useState("__all__");
+  const [convergenciaSelo, setConvergenciaSelo] = useState("__all__");
   const [convergenciaRamo, setConvergenciaRamo] = useState("__all__");
   const [convergenciaNucleo, setConvergenciaNucleo] = useState("__all__");
   const totals = data?.totals ?? { valor_origem: 0, custo_final_previsto: 0, resultado_liquido: 0 };
@@ -952,7 +957,7 @@ export default function PainelPage() {
   const alocacaoPorDestinacao = useMemo(() => groupCurrencyBy(bias, "destinacao"), [bias]);
   const alocacaoPorObjetivo = useMemo(() => groupCurrencyBy(bias, "objetivo_alianca"), [bias]);
   const convergenciaMetricsData = useMemo(() => [
-    { name: "OBAs Convergentes", value: dashboardStats.convergencias_total },
+    { name: "Oportunidades", value: dashboardStats.convergencias_total },
     { name: "Interesses Manifestados", value: dashboardStats.interesses_manifestados },
   ], [dashboardStats.convergencias_total, dashboardStats.interesses_manifestados]);
   const filteredConvergencias = useMemo(() => {
@@ -968,11 +973,12 @@ export default function PainelPage() {
       ].join(" "));
       const matchSearch = !q || haystack.includes(q);
       const matchTipo = convergenciaTipo === "__all__" || opa.tipo === convergenciaTipo;
+      const matchSelo = convergenciaSelo === "__all__" || opa.selo === convergenciaSelo;
       const matchRamo = convergenciaRamo === "__all__" || opa.ramo_atuacao === convergenciaRamo;
       const matchNucleo = convergenciaNucleo === "__all__" || opa.nucleo_alianca === convergenciaNucleo;
-      return matchSearch && matchTipo && matchRamo && matchNucleo;
+      return matchSearch && matchSelo && matchTipo && matchRamo && matchNucleo;
     });
-  }, [convergencias, convergenciaSearch, convergenciaTipo, convergenciaRamo, convergenciaNucleo]);
+  }, [convergencias, convergenciaSearch, convergenciaSelo, convergenciaTipo, convergenciaRamo, convergenciaNucleo]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -1109,9 +1115,9 @@ export default function PainelPage() {
             <Target className="w-4 h-4 text-emerald-600" />
             Painel de Convergência
           </TabsTrigger>
-          <TabsTrigger value="opas" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-opas">
-            <Target className="w-4 h-4 text-cyan-600" />
-            OBAs de Interesse
+          <TabsTrigger value="negocios" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-negocios">
+            <BriefcaseBusiness className="w-4 h-4 text-cyan-600" />
+            Negócios para você
           </TabsTrigger>
           <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
             <SlidersHorizontal className="w-4 h-4 text-violet-600" />
@@ -1173,7 +1179,7 @@ export default function PainelPage() {
                   title: "BUILT Alliances",
                   subtitle: "Estruture. Execute.",
                   action: "Entrar em Alliances",
-                  path: "/area-aliancas?tab=opas",
+                  path: "/area-aliancas?tab=oportunidades&tipo=demandas",
                   target: "alliances" as const,
                   icon: Users,
                   accent: "text-cyan-300 drop-shadow-[0_0_10px_rgba(103,232,249,0.9)]",
@@ -1686,10 +1692,10 @@ export default function PainelPage() {
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => navigate("/area-aliancas?tab=opas")}
+                onClick={() => navigate("/area-aliancas?tab=oportunidades")}
                 data-testid="link-ver-convergencias"
               >
-                Ver OBAs <ChevronRight className="w-3 h-3 ml-1" />
+                Ver Oportunidades <ChevronRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
 
@@ -1697,7 +1703,7 @@ export default function PainelPage() {
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <Card className="border border-border/60 lg:col-span-1">
                   <CardContent className="p-4">
-                    <p className="text-sm font-semibold text-foreground">Nº de OBAs Convergentes vs Nº de Interesses Manifestados</p>
+                    <p className="text-sm font-semibold text-foreground">Oportunidades convergentes vs interesses manifestados</p>
                     <p className="text-[11px] text-muted-foreground">Comparativo dos últimos 12 meses</p>
                     <div className="mt-3 h-[180px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -1715,17 +1721,17 @@ export default function PainelPage() {
                 <MetricCard
                   title="Índice de Convergência"
                   value={fmtPercent(dashboardStats.indice_convergencia)}
-                  subtitle="OBAs convergentes / total de OBAs nos últimos 12 meses"
+                  subtitle="Oportunidades convergentes / total publicado nos últimos 12 meses"
                 />
                 <MetricCard
                   title="Taxa de interesse"
                   value={fmtPercent(dashboardStats.taxa_interesse)}
-                  subtitle="Interesses manifestados / OBAs convergentes"
+                  subtitle="Interesses manifestados / Oportunidades convergentes"
                 />
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-[minmax(220px,1fr)_120px_170px_150px] gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_130px_120px_170px_150px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
@@ -1736,6 +1742,10 @@ export default function PainelPage() {
                   data-testid="input-filtro-convergencias-dashboard"
                 />
               </div>
+              <Select value={convergenciaSelo} onValueChange={setConvergenciaSelo}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent><SelectItem value="__all__">Demandas e OBAs</SelectItem><SelectItem value="Demanda">Demandas</SelectItem><SelectItem value="OBA">OBAs</SelectItem></SelectContent>
+              </Select>
               <Select value={convergenciaTipo} onValueChange={setConvergenciaTipo}>
                 <SelectTrigger className="h-9 text-xs" data-testid="select-filtro-convergencia-tipo">
                   <SelectValue placeholder="Tipo" />
@@ -1779,7 +1789,7 @@ export default function PainelPage() {
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-6 text-center space-y-2">
                   <Target className="w-7 h-7 text-muted-foreground/40 mx-auto" />
-                  <p className="text-sm text-muted-foreground">Nenhuma OBA convergente com suas áreas de contribuição.</p>
+                  <p className="text-sm text-muted-foreground">Nenhuma Oportunidade converge com suas áreas de contribuição.</p>
                   <p className="text-xs text-muted-foreground/70">Atualize suas áreas em Meu Perfil para melhorar as recomendações.</p>
                 </CardContent>
               </Card>
@@ -1796,14 +1806,15 @@ export default function PainelPage() {
                   <Card
                     key={opa.id}
                     className="border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
-                    onClick={() => navigate(getOpaUrl(opa, bias.find((item) => item.id === opa.bia_id), opas))}
+                    onClick={() => navigate(opa.opportunity_kind === "demanda" ? `/vitrine/oportunidades/demandas/${opa.id}` : getOpaUrl(opa, bias.find((item) => item.id === opa.bia_id), opas))}
                     data-testid={`card-convergencia-${opa.id}`}
                   >
                     <CardContent className="p-4 space-y-2.5">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-foreground leading-snug line-clamp-2 flex-1">
-                          {opa.nome_oportunidade || "OBA sem nome"}
+                          {opa.nome_oportunidade || "Oportunidade sem nome"}
                         </p>
+                        <Badge className={opa.selo === "Demanda" ? "bg-blue-50 text-blue-700 hover:bg-blue-50" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-50"}>{opa.selo || "OBA"}</Badge>
                         {opa.tipo && (
                           <Badge variant="outline" className="text-[10px] text-blue-700 border-blue-200 bg-blue-50">
                             {opa.tipo}
@@ -1834,7 +1845,7 @@ export default function PainelPage() {
                       )}
                       <div className="pt-1 border-t border-border/40 grid grid-cols-2 gap-2">
                         <div>
-                          <p className="text-[10px] text-muted-foreground">Valor da OBA</p>
+                          <p className="text-[10px] text-muted-foreground">{opa.selo === "Demanda" ? "Valor do fechamento" : "Valor da OBA"}</p>
                           <p className="text-xs font-medium tabular-nums">
                             {n(opa.valor_origem_opa) > 0 ?fmt(n(opa.valor_origem_opa)) : "-"}
                           </p>
@@ -1854,95 +1865,8 @@ export default function PainelPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="opas" className="space-y-4 mt-0">
-          {/* OBAs de Interesse */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Target className="w-4 h-4 text-cyan-600" />
-                OBAs com Interesse Manifestado
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => navigate("/area-aliancas?tab=opas")}
-                data-testid="link-ver-opas"
-              >
-                Ver todas <ChevronRight className="w-3 h-3 ml-1" />
-              </Button>
-            </div>
-
-            {isLoading ?(
-              <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/60">
-                    <Skeleton className="h-4 w-4 rounded" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : opas.length === 0 ?(
-              <Card className="border border-dashed border-border/60">
-                <CardContent className="p-5 text-center">
-                  <Target className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Nenhuma OBA de interesse registrada.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-1.5">
-                {opas.filter(o => o.status !== "concluida" && o.status !== "desistencia").slice(0, 5).map(o => (
-                  <div
-                    key={o.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border/60 hover:border-blue-500/40 cursor-pointer transition-colors"
-                    onClick={() => navigate(getOpaUrl(o, bias.find((item) => item.id === o.bia_id), opas))}
-                    data-testid={`item-opa-${o.id}`}
-                  >
-                    <Target className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {o.nome_oportunidade || "OBA sem nome"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground truncate">
-                        {[
-                          o.tipo,
-                          n(o.valor_origem_opa) > 0 ?fmt(n(o.valor_origem_opa)) : null,
-                          o.nome_bia_vinculada ?`BIA: ${o.nome_bia_vinculada}` : null,
-                        ].filter(Boolean).join(" · ")}
-                      </p>
-                    </div>
-                    {o.status && o.status !== "concluida" && o.status !== "desistencia" ?(
-                      <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[9px] shrink-0 h-4">
-                        Aberta
-                      </Badge>
-                    ) : o.status === "concluida" ?(
-                      <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[9px] shrink-0 h-4">
-                        Concluída
-                      </Badge>
-                    ) : o.status === "desistencia" ?(
-                      <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[9px] shrink-0 h-4">
-                        Desistência
-                      </Badge>
-                    ) : (
-                      <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-                    )}
-                  </div>
-                ))}
-                {opasAbertas > 5 && (
-                  <button
-                    className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
-                    onClick={() => navigate("/area-aliancas?tab=opas")}
-                    data-testid="btn-mais-opas"
-                  >
-                    +{opasAbertas - 5} mais
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+        <TabsContent value="negocios" className="space-y-4 mt-0">
+          <MemberBusinessFeed />
         </TabsContent>
 
         <TabsContent value="gestao" className="space-y-4 mt-0">

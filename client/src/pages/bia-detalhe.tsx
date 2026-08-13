@@ -20,6 +20,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import BiaDocumentosPage, { type DocumentoModulo } from "./bia-documentos";
 import NucleoCapitalPage from "./nucleo-capital";
+import BiaDemandas from "@/components/bia-demandas";
 import { BiaFormSheet } from "./bias";
 import {
   EMPTY_BIA_ACCESS,
@@ -674,6 +675,12 @@ export default function BiaDetalhePage() {
     if (!bia) return [];
     return [
       {
+        value: "demandas",
+        label: "Demandas",
+        testId: "tab-bia-demandas",
+        allowed: hasBiaAccess(accessMatrix, "configuracao_bia", "view"),
+      },
+      {
         value: "diretoria",
         label: "Diretoria",
         testId: "tab-bia-nucleo-diretoria",
@@ -1103,6 +1110,12 @@ export default function BiaDetalhePage() {
                   </CardContent>
                 </Card>
                 {accessData?.can_manage && <BiaAccessManager biaId={bia.id} data={accessData} />}
+              </TabsContent>
+              )}
+
+              {allowedNucleoTabs.some((tab) => tab.value === "demandas") && (
+              <TabsContent value="demandas" className="space-y-4">
+                <BiaDemandas biaId={bia.id} canEdit={hasBiaAccess(accessMatrix, "configuracao_bia", "edit")} />
               </TabsContent>
               )}
 

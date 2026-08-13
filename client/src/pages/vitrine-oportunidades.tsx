@@ -34,6 +34,10 @@ interface BiasVitrine {
   codigo_publico?: string | null;
 }
 
+interface PublicOpportunityRegistry {
+  source_id: string;
+}
+
 function num(value: string | number | null | undefined): number {
   if (value === null || value === undefined || value === "") return 0;
   return Number(String(value).replace(",", ".")) || 0;
@@ -138,6 +142,10 @@ export function VitrineOportunidadesPage(props: any = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [chamadaForm, setChamadaForm] = useState(emptyChamadaForm);
   const mode = props.mode || "vitrine";
@@ -146,7 +154,7 @@ export function VitrineOportunidadesPage(props: any = {}) {
   const detailPath = (opa: OportunidadeVitrine, bias: BiasVitrine[], opas: OportunidadeVitrine[]) => {
     const bia = bias.find((item) => item.id === opa.bia_id);
     const ref = getOpaPublicRef(opa, bia, opas);
-    return isCapital ? `/built-capital/chamadas/${ref}` : `/vitrine/obas/${ref}`;
+    return isCapital ? `/built-capital/chamadas/${ref}` : `/vitrine/oportunidades/obas/${ref}`;
   };
   const endpoint = isCapital ? "/api/chamadas-capital" : "/api/oportunidades";
   const title = isCapital ? "Chamadas de Capital" : "OBAs da Vitrine";
@@ -156,6 +164,15 @@ export function VitrineOportunidadesPage(props: any = {}) {
     : "Chamadas de parceria criadas por BIAs para reunir competências, execução e capital.";
   const { data: opasRaw = [], isLoading } = useQuery<OportunidadeVitrine[]>({
     queryKey: [endpoint],
+  });
+  const { data: publicRegistry = [], isLoading: isLoadingRegistry } = useQuery<PublicOpportunityRegistry[]>({
+    queryKey: ["/api/rede/oportunidades", "oba", "publico"],
+    queryFn: async () => {
+      const response = await fetch("/api/rede/oportunidades?tipo=oba&publico=1", { credentials: "include", cache: "no-store" });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !isCapital,
   });
   const { data: biasRaw = [] } = useQuery<BiasVitrine[]>({
     queryKey: ["/api/bias"],
@@ -183,8 +200,10 @@ export function VitrineOportunidadesPage(props: any = {}) {
 
   const opas = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const publicIds = new Set(publicRegistry.map((item) => String(item.source_id)));
     return (opasRaw as OportunidadeVitrine[])
       .filter(isActiveOpa)
+      .filter((opa) => isCapital || publicIds.has(String(opa.id)))
       .filter((opa) => {
         if (!q) return true;
         return [
@@ -194,8 +213,16 @@ export function VitrineOportunidadesPage(props: any = {}) {
           opa.localizacao,
           opa.perfil_aliado,
         ].filter(Boolean).join(" ").toLowerCase().includes(q);
+      })
+      .filter((opa) => {
+        const location = String(opa.localizacao || "").toLowerCase();
+        const skills = [opa.tipo, opa.nucleo_alianca, opa.perfil_aliado].filter(Boolean).join(" ").toLowerCase();
+        return (!city.trim() || location.includes(city.trim().toLowerCase()))
+          && (!state.trim() || location.includes(state.trim().toLowerCase()))
+          && (!country.trim() || location.includes(country.trim().toLowerCase()))
+          && (!specialty.trim() || skills.includes(specialty.trim().toLowerCase()));
       });
-  }, [opasRaw, search]);
+  }, [city, country, isCapital, opasRaw, publicRegistry, search, specialty, state]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6">
@@ -221,23 +248,17 @@ export function VitrineOportunidadesPage(props: any = {}) {
 
       {!isCapital && (
         <div className="grid grid-cols-2 border-y bg-slate-50">
-          <button type="button" onClick={() => navigate("/vitrine/demandas")} className="flex h-12 items-center justify-center gap-2 text-sm text-muted-foreground"><Target className="h-4 w-4" />Demandas</button>
-          <button type="button" onClick={() => navigate("/vitrine/obas")} className="flex h-12 items-center justify-center gap-2 bg-white text-sm font-semibold text-blue-700 shadow-sm"><Navigation className="h-4 w-4" />OBAs</button>
+          <button type="button" onClick={() => navigate("/vitrine/oportunidades/demandas")} className="flex h-12 items-center justify-center gap-2 text-sm text-muted-foreground"><Target className="h-4 w-4" />Demandas</button>
+          <button type="button" onClick={() => navigate("/vitrine/oportunidades/obas")} className="flex h-12 items-center justify-center gap-2 bg-white text-sm font-semibold text-blue-700 shadow-sm"><Navigation className="h-4 w-4" />OBAs</button>
         </div>
       )}
 
-      <div className="relative max-w-xl">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="pl-9"
-          placeholder={isCapital ? "Buscar chamada de capital..." : "Buscar OBA..."}
-          data-testid="input-vitrine-oportunidades-search"
-        />
+      <div className={isCapital ? "relative max-w-xl" : "grid gap-2 md:grid-cols-2 xl:grid-cols-5"}>
+        <div className="relative md:col-span-2 xl:col-span-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder={isCapital ? "Buscar chamada de capital..." : "Palavra-chave ou nome"} data-testid="input-vitrine-oportunidades-search" /></div>
+        {!isCapital && <><Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Cidade" /><Input value={state} onChange={(event) => setState(event.target.value)} placeholder="Estado" /><Input value={country} onChange={(event) => setCountry(event.target.value)} placeholder="País" /><Input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Especialidade" /></>}
       </div>
 
-      {isLoading ? (
+      {isLoading || (!isCapital && isLoadingRegistry) ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-72 rounded-xl" />

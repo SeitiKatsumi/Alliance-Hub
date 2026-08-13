@@ -4,7 +4,7 @@ import {
   ArrowLeft, MapPin, Target, Building2, Globe, Pencil,
   Layers, FileText, Paperclip, ExternalLink, CheckCircle2,
   XCircle, DollarSign, TrendingUp, ClipboardList, Users,
-  HandHeart, Loader2, Sparkles, UserCheck
+  HandHeart, Loader2, Sparkles, UserCheck, Repeat2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { getBiaUrl } from "@/lib/bia-url";
 import { getOpaPublicRef, resolveOpaByRef } from "@/lib/public-refs";
 import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { OpaFormDialog } from "@/pages/oportunidades";
+import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 
 const opaCyanText = "text-cyan-600";
 const opaCyanTextStrong = "text-cyan-700";
@@ -58,6 +59,7 @@ interface Oportunidade {
   user_created?: string | { id?: string } | null;
   criado_por_user_id?: string | null;
   criado_por_membro_id?: string | null;
+  codigo?: string | null;
 }
 
 interface BiasProjeto {
@@ -155,6 +157,7 @@ export default function OpaDetalhePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [interesseDialog, setInteresseDialog] = useState(false);
+  const [closeDialog, setCloseDialog] = useState(false);
   const [semSeloDialog, setSemSeloDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -239,6 +242,22 @@ export default function OpaDetalhePage() {
     onError: () => {
       toast({ title: "Erro", description: "Não foi possível remover o interesse.", variant: "destructive" });
     },
+  });
+
+  const converterDemandaMutation = useMutation({
+    mutationFn: async () => {
+      if (!opa?.id) throw new Error("OBA não encontrada");
+      const response = await apiRequest("POST", `/api/rede/oportunidades/${opa.codigo || opa.id}/converter-demanda`, {});
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oportunidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades"] });
+      toast({ title: "Demanda criada", description: "A OBA foi encerrada como convertida e o histórico foi preservado." });
+      if (bia?.id) navigate(`/bias/${bia.id}?tab=demandas`);
+      else if (data?.oportunidade?.source_id) navigate(`/vitrine/oportunidades/demandas/${data.oportunidade.source_id}`);
+    },
+    onError: (error: any) => toast({ title: "Não foi possível converter", description: error?.message, variant: "destructive" }),
   });
 
   const solicitarAdesaoMutation = useMutation({
@@ -734,6 +753,17 @@ export default function OpaDetalhePage() {
                       Abrir BIA
                     </Button>
                   )}
+                  {!isClosed && (
+                    <Button
+                      variant="outline"
+                      disabled={converterDemandaMutation.isPending}
+                      onClick={() => converterDemandaMutation.mutate()}
+                    >
+                      {converterDemandaMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Repeat2 className="mr-2 h-4 w-4" />}
+                      Converter em Demanda
+                    </Button>
+                  )}
+                  {!isClosed && <Button variant="outline" onClick={() => setCloseDialog(true)}>Encerrar Oportunidade</Button>}
                 </div>
               </CardContent>
             </Card>
@@ -748,6 +778,7 @@ export default function OpaDetalhePage() {
         opa={opa}
         bias={biasRaw as any}
       />
+      {opa?.id && <OpportunityCloseDialog open={closeDialog} onOpenChange={setCloseDialog} opportunityCode={opa.codigo || opa.id} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["/api/oportunidades", opa.id] }); queryClient.invalidateQueries({ queryKey: ["/api/rede/oportunidades"] }); }} />}
 
       {/* Manifestar Interesse Dialog */}
       <Dialog open={interesseDialog} onOpenChange={setInteresseDialog}>

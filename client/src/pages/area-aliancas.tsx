@@ -29,7 +29,7 @@ import { BiaStructuringQueue } from "@/components/bia-structuring-queue";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
-import OportunidadesPage from "@/pages/oportunidades";
+import NetworkOpportunitiesHub from "@/pages/network-opportunities";
 import {
   ComposableMap,
   Geographies,
@@ -1563,10 +1563,13 @@ export default function AreaAliancasPage() {
         landBank: tab === "landbank" ? "land-bank" : tab === "transformation-bank" ? "built-asset-bank" : tab!,
       };
     }
-    if (["opas", "bias"].includes(tab || "")) {
-      return { main: tab!, rede: "membros", landBank: "land-bank" };
+    if (tab === "opas" || tab === "oportunidades") {
+      return { main: "oportunidades", rede: "membros", landBank: "land-bank" };
     }
-    return { main: "opas", rede: "membros", landBank: "land-bank" };
+    if (tab === "bias") {
+      return { main: "bias", rede: "membros", landBank: "land-bank" };
+    }
+    return { main: "oportunidades", rede: "membros", landBank: "land-bank" };
   };
   const initialTabs = getTabsFromSearch();
   const [activeTab, setActiveTab] = useState(initialTabs.main);
@@ -1626,6 +1629,12 @@ export default function AreaAliancasPage() {
     setActiveTab(tabs.main);
     setActiveRedeTab(tabs.rede);
     setActiveLandBankTab(tabs.landBank);
+    const params = new URLSearchParams(searchParams);
+    if (params.get("tab") === "opas") {
+      params.set("tab", "oportunidades");
+      if (!params.get("tipo")) params.set("tipo", "obas");
+      window.history.replaceState(null, "", `/area-aliancas?${params.toString()}`);
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -1802,12 +1811,12 @@ export default function AreaAliancasPage() {
       <Tabs value={activeTab} onValueChange={updateAreaTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
           <TabsTrigger
-            value="opas"
+            value="oportunidades"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
-            data-testid="tab-area-opas"
+            data-testid="tab-area-oportunidades"
           >
             <Target className="h-4 w-4 shrink-0 text-cyan-500" />
-            OBAs
+            Oportunidades
           </TabsTrigger>
           <TabsTrigger
             value="bias"
@@ -1836,10 +1845,10 @@ export default function AreaAliancasPage() {
         </TabsList>
 
         <TabsContent
-          value="opas"
+          value="oportunidades"
           className="[&>div]:p-0 [&>div]:max-w-none"
         >
-          {activeTab === "opas" && <OportunidadesPage />}
+          {activeTab === "oportunidades" && <NetworkOpportunitiesHub />}
         </TabsContent>
         <TabsContent
           value="bias"

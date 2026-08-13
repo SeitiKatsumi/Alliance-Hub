@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { ArrowLeft, Building2, CheckCircle2, Clock3, HandHeart, Loader2, MapPin, Search, Target, Users } from "lucide-react";
@@ -51,10 +51,10 @@ function VitrineCatalogNav({ active }: { active: "demandas" | "obas" }) {
   const [, navigate] = useLocation();
   return (
     <div className="grid grid-cols-2 border-y bg-slate-50">
-      <button type="button" onClick={() => navigate("/vitrine/demandas")} className={`flex h-12 items-center justify-center gap-2 text-sm ${active === "demandas" ? "bg-white font-semibold text-blue-700 shadow-sm" : "text-muted-foreground"}`}>
+      <button type="button" onClick={() => navigate("/vitrine/oportunidades/demandas")} className={`flex h-12 items-center justify-center gap-2 text-sm ${active === "demandas" ? "bg-white font-semibold text-blue-700 shadow-sm" : "text-muted-foreground"}`}>
         <Target className="h-4 w-4" />Demandas
       </button>
-      <button type="button" onClick={() => navigate("/vitrine/obas")} className={`flex h-12 items-center justify-center gap-2 text-sm ${active === "obas" ? "bg-white font-semibold text-blue-700 shadow-sm" : "text-muted-foreground"}`}>
+      <button type="button" onClick={() => navigate("/vitrine/oportunidades/obas")} className={`flex h-12 items-center justify-center gap-2 text-sm ${active === "obas" ? "bg-white font-semibold text-blue-700 shadow-sm" : "text-muted-foreground"}`}>
         <Building2 className="h-4 w-4" />OBAs
       </button>
     </div>
@@ -64,6 +64,10 @@ function VitrineCatalogNav({ active }: { active: "demandas" | "obas" }) {
 export function VitrineDemandasPage() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const demandsQuery = useQuery<PublicDemand[]>({
     queryKey: ["/api/vitrine/demandas", search],
     queryFn: async () => {
@@ -72,29 +76,39 @@ export function VitrineDemandasPage() {
       return response.json();
     },
   });
+  const demands = useMemo(() => (demandsQuery.data || []).filter((demand) => {
+    const cityMatch = !city.trim() || String(demand.cidade || "").toLowerCase().includes(city.trim().toLowerCase());
+    const stateMatch = !state.trim() || String(demand.estado || "").toLowerCase().includes(state.trim().toLowerCase());
+    const countryMatch = !country.trim() || String(demand.pais || "").toLowerCase().includes(country.trim().toLowerCase());
+    const specialtyMatch = !specialty.trim() || (demand.especialidades || []).some((item) => item.toLowerCase().includes(specialty.trim().toLowerCase()));
+    return cityMatch && stateMatch && countryMatch && specialtyMatch;
+  }), [city, country, demandsQuery.data, specialty, state]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold"><Target className="h-6 w-6 text-blue-600" />Demandas da Vitrine</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold"><Target className="h-6 w-6 text-blue-600" />Oportunidades da Vitrine</h1>
         <p className="mt-1 text-sm text-muted-foreground">Necessidades reais de proprietários que procuram membros para resolver serviços imobiliários.</p>
       </div>
       <VitrineCatalogNav active="demandas" />
-      <div className="relative max-w-xl">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por serviço, cidade ou especialidade..." />
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        <div className="relative md:col-span-2 xl:col-span-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Palavra-chave ou nome" /></div>
+        <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Cidade" />
+        <Input value={state} onChange={(event) => setState(event.target.value)} placeholder="Estado" />
+        <Input value={country} onChange={(event) => setCountry(event.target.value)} placeholder="País" />
+        <Input value={specialty} onChange={(event) => setSpecialty(event.target.value)} placeholder="Especialidade" />
       </div>
       {demandsQuery.isLoading ? (
         <div className="flex min-h-56 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>
-      ) : (demandsQuery.data || []).length === 0 ? (
+      ) : demands.length === 0 ? (
         <div className="border-y py-16 text-center"><Target className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 font-medium">Nenhuma demanda publicada</p><p className="mt-1 text-sm text-muted-foreground">Novas necessidades aparecerão aqui após autorização do proprietário.</p></div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {(demandsQuery.data || []).map((demand) => (
+          {demands.map((demand) => (
             <Card key={demand.id} className="overflow-hidden rounded-md">
               <CardContent className="flex h-full flex-col p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <Badge variant="outline">{demand.tipo_imovel || "Imóvel"}</Badge>
+                  <div className="flex flex-wrap gap-2"><Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50">Demanda</Badge><Badge variant="outline">{demand.tipo_imovel || "Imóvel"}</Badge></div>
                   <Badge variant="outline" className={demand.urgencia === "alta" ? "border-amber-200 bg-amber-50 text-amber-700" : ""}>{urgencyLabel(demand.urgencia)}</Badge>
                 </div>
                 <h2 className="mt-4 text-lg font-semibold leading-snug">{demand.titulo}</h2>
@@ -102,7 +116,7 @@ export function VitrineDemandasPage() {
                 <div className="mt-4 flex flex-wrap gap-1.5">{(demand.especialidades || []).slice(0, 3).map((item) => <Badge key={item} variant="secondary">{item}</Badge>)}</div>
                 <div className="mt-auto flex items-end justify-between gap-3 border-t pt-4 text-xs text-muted-foreground">
                   <div><p className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{[demand.cidade, demand.estado].filter(Boolean).join(" / ") || demand.pais}</p><p className="mt-1">Publicada em {shortDate(demand.publicada_em)}</p></div>
-                  <Button size="sm" onClick={() => navigate(`/vitrine/demandas/${demand.id}`)}>Ver demanda</Button>
+                  <Button size="sm" onClick={() => navigate(`/vitrine/oportunidades/demandas/${demand.id}`)}>Ver demanda</Button>
                 </div>
               </CardContent>
             </Card>
@@ -160,7 +174,7 @@ export function VitrineDemandaDetalhePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6 lg:p-8">
-      <Button variant="ghost" className="px-0" onClick={() => navigate("/vitrine/demandas")}><ArrowLeft className="mr-2 h-4 w-4" />Voltar para Demandas</Button>
+      <Button variant="ghost" className="px-0" onClick={() => navigate("/vitrine/oportunidades/demandas")}><ArrowLeft className="mr-2 h-4 w-4" />Voltar para Demandas</Button>
       <VitrineCatalogNav active="demandas" />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <main className="space-y-5">

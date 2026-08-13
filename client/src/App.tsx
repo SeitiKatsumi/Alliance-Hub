@@ -34,6 +34,7 @@ import VitrineOportunidadesPage, { BuiltCapitalChamadasPage } from "@/pages/vitr
 import VitrineDemandasPage, { VitrineDemandaDetalhePage } from "@/pages/vitrine-demandas";
 import VitrineOpaDetalhePage, { BuiltCapitalChamadaDetalhePage } from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
+import EconomicOpportunityDetailPage from "@/pages/economic-opportunity-detail";
 import LandBankDetalhePage from "@/pages/land-bank-detalhe";
 import OportunidadesImobiliariasPage, { NovaOportunidadeImobiliariaPage } from "@/pages/oportunidades-imobiliarias";
 import AreMembroPage from "@/pages/area-membros";
@@ -97,7 +98,7 @@ interface OnboardingMembro {
 
 function LegacyOpasRedirect() {
   useEffect(() => {
-    window.location.replace("/area-aliancas?tab=opas");
+    window.location.replace("/area-aliancas?tab=oportunidades&tipo=obas");
   }, []);
 
   return null;
@@ -124,10 +125,19 @@ function LegacyMembrosRedirect() {
 function LegacyVitrineObasRedirect() {
   useEffect(() => {
     const target = window.location.pathname === "/vitrine/oportunidades"
-      ? "/vitrine/obas"
-      : window.location.pathname.replace("/vitrine/opas/", "/vitrine/obas/");
+      ? "/vitrine/oportunidades/demandas"
+      : window.location.pathname.replace("/vitrine/opas/", "/vitrine/oportunidades/obas/");
     window.location.replace(`${target}${window.location.search}`);
   }, []);
+  return null;
+}
+
+function LegacyVitrineCatalogRedirect({ type, detail = false }: { type: "demandas" | "obas"; detail?: boolean }) {
+  useEffect(() => {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const id = detail ? parts[parts.length - 1] : "";
+    window.location.replace(`/vitrine/oportunidades/${type}${id ? `/${id}` : ""}${window.location.search}`);
+  }, [detail, type]);
   return null;
 }
 
@@ -1122,6 +1132,41 @@ function ProtectedApp() {
     && !hasEmployeeModuleAccess(user, companyRouteModule, "view"),
   );
 
+  const { data: opportunityNotifications = [] } = useQuery<any[]>({
+    queryKey: ["/api/rede/oportunidades/notificacoes/minhas"],
+    queryFn: async () => {
+      const response = await fetch("/api/rede/oportunidades/notificacoes/minhas", { credentials: "include", cache: "no-store" });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: isAuthenticated && !!user?.id,
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const notification = opportunityNotifications.find((item) => item.status === "enviado");
+    if (!notification) return;
+    const key = `built-opportunity-notification:${user.id}:${notification.id}`;
+    if (window.localStorage.getItem(key)) return;
+    const metadata = notification.metadata || {};
+    toast({
+      title: `Nova ${metadata.selo || "oportunidade"}`,
+      description: metadata.titulo || notification.titulo,
+      action: metadata.url ? (
+        <ToastAction altText="Ver oportunidade" onClick={() => {
+          apiRequest("PATCH", `/api/rede/oportunidades/notificacoes/${notification.id}/lida`, {}).catch(() => undefined);
+          navigate(metadata.url);
+        }}>
+          Ver
+        </ToastAction>
+      ) : undefined,
+    });
+    window.localStorage.setItem(key, "1");
+  }, [navigate, opportunityNotifications, toast, user?.id]);
+
   useEffect(() => {
     if (!isAuthenticated || !user?.id || !location) return;
     const payload = JSON.stringify({
@@ -1324,21 +1369,26 @@ function ProtectedApp() {
               <Route path="/gestao-opas" component={LegacyOpasRedirect} />
               <Route path="/gestao-bias" component={LegacyBiasRedirect} />
               <Route path="/movimentacao-cotas/:biaId" component={MovimentacaoCotasPage} />
-              <Route path="/vitrine/demandas/:id" component={VitrineDemandaDetalhePage} />
-              <Route path="/vitrine/demandas" component={VitrineDemandasPage} />
-              <Route path="/vitrine/obas/:id" component={VitrineOpaDetalhePage} />
-              <Route path="/vitrine/obas" component={VitrineOportunidadesPage} />
+              <Route path="/vitrine/oportunidades/demandas/:id" component={VitrineDemandaDetalhePage} />
+              <Route path="/vitrine/oportunidades/demandas" component={VitrineDemandasPage} />
+              <Route path="/vitrine/oportunidades/obas/:id" component={VitrineOpaDetalhePage} />
+              <Route path="/vitrine/oportunidades/obas" component={VitrineOportunidadesPage} />
+              <Route path="/vitrine/demandas/:id">{() => <LegacyVitrineCatalogRedirect type="demandas" detail />}</Route>
+              <Route path="/vitrine/demandas">{() => <LegacyVitrineCatalogRedirect type="demandas" />}</Route>
+              <Route path="/vitrine/obas/:id">{() => <LegacyVitrineCatalogRedirect type="obas" detail />}</Route>
+              <Route path="/vitrine/obas">{() => <LegacyVitrineCatalogRedirect type="obas" />}</Route>
               <Route path="/vitrine/oportunidades" component={LegacyVitrineObasRedirect} />
               <Route path="/vitrine/opas/:id" component={LegacyVitrineObasRedirect} />
               <Route path="/vitrine/parceiros" component={VitrinePage} />
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
+              <Route path="/area-aliancas/oportunidades/:codigo" component={EconomicOpportunityDetailPage} />
               <Route path="/area-aliancas" component={AlliancesRouteGuard} />
               <Route path="/land-bank/:id" component={LandBankDetalhePage} />
               <Route path="/area-membros" component={AreMembroPage} />
               <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />
-              <Route path="/comunidade" component={ComunidadePage} />
+              <Route path="/comunidade">{() => <ComunidadePage />}</Route>
               <Route path="/notificacoes" component={ConvitesPage} />
               <Route path="/convites" component={ConvitesPage} />
               <Route path="/built-capital/chamadas/:id" component={BuiltCapitalChamadaDetalhePage} />

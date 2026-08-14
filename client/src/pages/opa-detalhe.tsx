@@ -23,6 +23,7 @@ import { getOpaPublicRef, resolveOpaByRef } from "@/lib/public-refs";
 import { getTipoDisplayName } from "@/lib/ramos-segmentos";
 import { OpaFormDialog } from "@/pages/oportunidades";
 import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
+import TraceabilitySummary from "@/components/traceability-summary";
 
 const opaCyanText = "text-cyan-600";
 const opaCyanTextStrong = "text-cyan-700";
@@ -368,6 +369,8 @@ export default function OpaDetalhePage() {
             <TabsTrigger value="gestao" data-testid="tab-opa-gestao">Gestão</TabsTrigger>
           )}
         </TabsList>
+
+      <TraceabilitySummary objectType="oba" objectId={opa.id} compact />
 
       {/* Hero header */}
       <div

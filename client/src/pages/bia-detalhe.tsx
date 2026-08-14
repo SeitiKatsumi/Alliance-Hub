@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import BiaDocumentosPage, { type DocumentoModulo } from "./bia-documentos";
 import NucleoCapitalPage from "./nucleo-capital";
 import BiaDemandas from "@/components/bia-demandas";
+import TraceabilitySummary from "@/components/traceability-summary";
 import { BiaFormSheet } from "./bias";
 import {
   EMPTY_BIA_ACCESS,
@@ -894,6 +895,7 @@ export default function BiaDetalhePage() {
       </div>
 
         <TabsContent value="visao" className="space-y-6">
+          <TraceabilitySummary objectType="bia" objectId={bia.id} />
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">

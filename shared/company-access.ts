@@ -14,7 +14,7 @@ export type CompanyAccessMatrix = Record<CompanyAccessKey, CompanyAccessLevel>;
 
 export const COMPANY_ACCESS_LABELS: Record<CompanyAccessKey, string> = {
   inicio: "Início",
-  agenda: "Agenda",
+  agenda: "Agenda e Alertas",
   carteira: "Carteira",
   vitrine: "BUILT Vitrine",
   alliances: "BUILT Alliances",

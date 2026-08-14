@@ -2,7 +2,7 @@
 import { createServer, type Server } from "http";
 import type { Response } from "express";
 import { storage } from "./storage";
-import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
+import { createUserSchema, updateUserSchema, insertAgendaTarefaSchema, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS, permissionsForRole, nucleoTecnicoDocs, aliancaDocs, biaMouAceites, biaUserPermissions, membroComunidadeMae, userUsageEvents, users as usersTable, opaInteresses, agendaTarefas, convitesComunidade, biaAprovacoes, biaDiretorSolicitacoes, biaSocioSolicitacoes, chamadasAlianca, auraAvaliacoes, anuncios } from "@shared/schema";
 import OpenAI from "openai";
 import multer from "multer";
 import path from "path";
@@ -18,9 +18,38 @@ import { deflateSync } from "zlib";
 import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { resolveAuraAudioMetadata } from "./aura-audio";
-import { reconcileValorOrigemEntries } from "./valor-origem-sync";
+import {
+  assertProtectedValorOrigemEntriesUnchanged,
+  isProtectedValorOrigemEntry,
+  protectedValorOrigemSnapshot,
+  reconcileValorOrigemEntries,
+} from "./valor-origem-sync";
 import { normalizeCarteiraAlertUpdate } from "./carteira-alertas";
-import { scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
+import {
+  activeAgendaAlertCount,
+  agendaAlertBadge,
+  dedupeAgendaAlertItems,
+  sortAgendaAlertItems,
+  type AgendaAlertGroup,
+  type AgendaAlertItem,
+} from "./agenda-alerts";
+import { acceptQuotaTransfer } from "./quota-transfer";
+import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
+import {
+  attachObjectToRegistryTraces,
+  attachObjectToObjectTraces,
+  attachOriginObjectToRegistryTraces,
+  attachRegistryToObjectTraces,
+  backfillBusinessTraces,
+  ensureBusinessTraceTables,
+  getOrCreateTraceForRegistry,
+  inheritTraceBetweenRegistries,
+  recordTraceEventForRegistry,
+  syncTraceResultForRegistry,
+  traceObjectTypeForRegistry,
+  traceStageLabel,
+  type TraceActor,
+} from "./business-trace";
 import {
   buildDistributionSchedule,
   canReadRestrictedOpportunity,
@@ -2156,6 +2185,13 @@ async function registrarFluxoHistorico(params: {
 }) {
   const actor = params.req ? getAuditActor(params.req) : { userId: null, membroId: null, nome: null };
   const anexosSource = params.depois || params.antes || params.payload || null;
+  const auditPayload = {
+    ...(params.payload && typeof params.payload === "object" ? params.payload : {}),
+    _audit: {
+      method: params.req?.method || null,
+      route: params.req?.originalUrl || params.req?.url || null,
+    },
+  };
   await db.execute(sql`
     INSERT INTO fluxo_caixa_historico (
       fluxo_caixa_id, bia_id, acao, ator_user_id, ator_membro_id, ator_nome,
@@ -2171,7 +2207,7 @@ async function registrarFluxoHistorico(params: {
       ${params.origem || "app"},
       ${params.antes ? JSON.stringify(params.antes) : null}::jsonb,
       ${params.depois ? JSON.stringify(params.depois) : null}::jsonb,
-      ${params.payload ? JSON.stringify(params.payload) : null}::jsonb,
+      ${JSON.stringify(auditPayload)}::jsonb,
       ${anexosSource ? JSON.stringify(extractFluxoAnexosSnapshot(anexosSource)) : null}::jsonb
     )
   `);
@@ -2261,9 +2297,11 @@ async function syncValorOrigemLancamento(
   numeroParcelas?: number | null,
   vencimentosParcelas?: string[],
   valoresParcelas?: number[],
-  contributors?: CppContributor[]
+  contributors?: CppContributor[],
+  auditRequest?: any,
 ): Promise<SyncCppSummary> {
   const summary: SyncCppSummary = { cppCount: 0, contributorLabels: [], parcelas: 0 };
+  const syncId = randomUUID();
   const today = new Date().toISOString().split("T")[0];
   const MARCA_BASE = "Valor de Origem da BIA";
   const CPP_MARCA = "CPP";
@@ -2293,23 +2331,69 @@ async function syncValorOrigemLancamento(
     throw new Error("Nao foi possivel consultar os lancamentos atuais. Nenhuma alteracao financeira foi realizada.");
   }
 
+  const protectedBefore = protectedValorOrigemSnapshot(existing);
+  const syncPayload = {
+    syncId,
+    biaId,
+    valorOrigem,
+    numeroParcelas,
+    vencimentosParcelas,
+    valoresParcelas,
+    route: auditRequest?.originalUrl || auditRequest?.url || null,
+  };
+
+  const fetchCurrentSyncEntries = async () => {
+    const biaEntries = await directusFetchScoped(
+      "fluxo_caixa",
+      `fields=*,Categoria.categorias_id.*,tipo_de_cpp.tipos_cpp_id.*,Anexos.directus_files_id.*,favorecido_id.*,membro_responsavel.*&filter[bia][_eq]=${encodeURIComponent(biaId)}`,
+    );
+    return biaEntries.filter((entry: any) => {
+      const description = String(entry.descricao || "");
+      return description.includes(MARCA_BASE)
+        || (description.includes(CPP_MARCA) && description.includes(biaId))
+        || description.startsWith(DIVISOR_MARCA)
+        || description.startsWith(APORTE_MARCA);
+    });
+  };
+
+  const assertProtectedEntriesStillExist = async () => {
+    const after = await fetchCurrentSyncEntries();
+    assertProtectedValorOrigemEntriesUnchanged(protectedBefore, after);
+  };
+
+  const cancelPendingEntries = async (entries: any[], action = "cancelado_por_sync") => {
+    if (entries.length === 0) return;
+    const ids = entries.map((entry) => entry.id);
+    for (const entry of entries) {
+      await registrarFluxoHistorico({
+        fluxoId: String(entry.id),
+        biaId,
+        acao: "substituicao_planejada",
+        req: auditRequest,
+        origem: "sync_valor_origem",
+        antes: entry,
+        payload: syncPayload,
+      });
+    }
+    await directusBulkPatch("fluxo_caixa", ids, { status: "cancelado" });
+    for (const entry of entries) {
+      await registrarFluxoHistorico({
+        fluxoId: String(entry.id),
+        biaId,
+        acao: action,
+        req: auditRequest,
+        origem: "sync_valor_origem",
+        antes: entry,
+        depois: { ...entry, status: "cancelado" },
+        payload: syncPayload,
+      });
+    }
+  };
+
   if (valorOrigem <= 0) {
     const { replaceable } = reconcileValorOrigemEntries(existing, []);
-    const replaceableIds = replaceable.map((entry: any) => entry.id);
-    if (replaceableIds.length > 0) {
-      for (const oldEntry of replaceable) {
-        await registrarFluxoHistorico({
-          fluxoId: String(oldEntry.id),
-          biaId,
-          acao: "excluido_por_sync",
-          origem: "sync_valor_origem",
-          antes: oldEntry,
-          payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
-        }).catch((err: any) => console.error("[fluxo_historico] excluido_por_sync:", err.message));
-      }
-      await directusBulkPatch("fluxo_caixa", replaceableIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
-      await directusBulkDelete("fluxo_caixa", replaceableIds);
-    }
+    await cancelPendingEntries(replaceable);
+    await assertProtectedEntriesStillExist();
     return summary;
   }
 
@@ -2463,7 +2547,7 @@ async function syncValorOrigemLancamento(
 
   const { replaceable, toCreate } = reconcileValorOrigemEntries(existing, entriesToCreate);
 
-  // Create the replacement batch before removing pending entries. Confirmed entries are never deleted.
+  // Create replacements before archiving pending entries. Existing records are never physically deleted.
   const createdEntries = toCreate.length > 0
     ? await directusBulkCreate("fluxo_caixa", toCreate)
     : [];
@@ -2472,27 +2556,27 @@ async function syncValorOrigemLancamento(
       fluxoId: String(created.id),
       biaId,
       acao: "criado_por_sync",
+      req: auditRequest,
       origem: "sync_valor_origem",
       depois: created,
-      payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
+      payload: syncPayload,
     }).catch((err: any) => console.error("[fluxo_historico] criado_por_sync:", err.message));
   }
 
-  const replaceableIds = replaceable.map((entry: any) => entry.id);
-  if (replaceableIds.length > 0) {
-    for (const oldEntry of replaceable) {
-      await registrarFluxoHistorico({
-        fluxoId: String(oldEntry.id),
-        biaId,
-        acao: "excluido_por_sync",
-        origem: "sync_valor_origem",
-        antes: oldEntry,
-        payload: { biaId, valorOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas },
-      }).catch((err: any) => console.error("[fluxo_historico] excluido_por_sync:", err.message));
+  try {
+    await cancelPendingEntries(replaceable);
+  } catch (error) {
+    // A failed replacement must leave the previous schedule active. Newly created pending
+    // entries are archived as compensation instead of being physically removed.
+    if (createdEntries.length > 0) {
+      await cancelPendingEntries(createdEntries, "cancelado_por_compensacao").catch((compensationError: any) => {
+        console.error("[sync fluxo_caixa] compensation failed:", compensationError.message);
+      });
     }
-    await directusBulkPatch("fluxo_caixa", replaceableIds, { Categoria: [], tipo_de_cpp: [], Favorecido: [], Anexos: [] });
-    await directusBulkDelete("fluxo_caixa", replaceableIds);
+    throw error;
   }
+
+  await assertProtectedEntriesStillExist();
 
   summary.contributorLabels = Array.from(activeContributorLabels);
   return summary;
@@ -3388,6 +3472,7 @@ export async function registerRoutes(
 
   function companyModuleForApiPath(pathname: string): CompanyAccessKey | null {
     const path = pathname.toLowerCase();
+    if (path.startsWith("/api/agenda-alertas")) return null;
     if (path.startsWith("/api/agenda")) return "agenda";
     if (path.startsWith("/api/carteira") || path.startsWith("/api/inventario")) return "carteira";
     if (path.startsWith("/api/vitrine") || path.startsWith("/api/anuncios")) return "vitrine";
@@ -8821,7 +8906,7 @@ export async function registerRoutes(
       });
       const valorOrigem = parseFloat(createBody.valor_origem) || 0;
       if (valorOrigem > 0) {
-        syncValorOrigemLancamento(item.id, valorOrigem).catch(console.error);
+        syncValorOrigemLancamento(item.id, valorOrigem, null, null, [], [], undefined, req).catch(console.error);
       }
 
       // If Diretor de AlianÃ§a (not Aliado BUILT), create pending approval record
@@ -9075,7 +9160,16 @@ export async function registerRoutes(
               { label: "Dir. NÃºcleo de Capital", memberId: savedMemberId("diretor_capital"), percentual: savedMemberPercent("diretor_capital", "perc_dir_capital"), isAporte: true },
             ];
             try {
-              const cppSummary = await syncValorOrigemLancamento(biaUpdateId, valorOrigem, vencimentoOrigem, numeroParcelas, vencimentosParcelas, valoresParcelas, contributors);
+              const cppSummary = await syncValorOrigemLancamento(
+                biaUpdateId,
+                valorOrigem,
+                vencimentoOrigem,
+                numeroParcelas,
+                vencimentosParcelas,
+                valoresParcelas,
+                contributors,
+                req,
+              );
               return res.json({ ...item, _cppSummary: cppSummary, _diretor_solicitacoes: diretorSolicitacoes.length, _diretor_flow_error: diretorFlowError, _socio_solicitacoes: socioSolicitacoes.length });
             } catch (syncErr: any) {
               console.error("[sync fluxo_caixa] error:", syncErr.message);
@@ -11503,6 +11597,18 @@ ${textContent}`;
       const flowAccess = await requireFluxoAccess(req, res, req.params.id, "edit");
       if (!flowAccess) return;
       const antes = flowAccess.snapshot;
+      if (isProtectedValorOrigemEntry(antes)) {
+        await registrarFluxoHistorico({
+          fluxoId: req.params.id,
+          acao: "exclusao_bloqueada",
+          req,
+          antes,
+          payload: { id: req.params.id, motivo: "lancamento_financeiro_protegido" },
+        });
+        return res.status(409).json({
+          error: "Este lancamento possui pagamento, validacao ou evidencia financeira. Registre um estorno em vez de exclui-lo.",
+        });
+      }
       await registrarFluxoHistorico({
         fluxoId: req.params.id,
         acao: "excluido",
@@ -12940,7 +13046,29 @@ ${textContent}`;
       `);
       if (economic) {
         await db.execute(sql`UPDATE economic_opportunities SET bia_id = ${bia.id}, estagio = 'bia_em_formacao', atualizado_em = now() WHERE id = ${economic.id}`);
-        await syncEconomicOpportunityRegistry(String(economic.id));
+        const registry = await syncEconomicOpportunityRegistry(String(economic.id));
+        if (registry) {
+          await attachObjectToRegistryTraces(registry as any, {
+            type: "bia",
+            id: String(bia.id),
+            code: String(bia.codigo_publico || bia.id),
+            title: String(bia.nome_bia || biaPayload.nome_bia),
+            status: "em_formacao",
+            metadata: { solicitacao_id: req.params.id },
+          }, "oportunidade_gerou_bia", {
+            userId: (req.session as any)?.directusUserId || null,
+            memberId: (req.session as any)?.membroId || null,
+          }, req.body?.motivo || null);
+          await recordTraceEventForRegistry(String(registry.id), "bia_aprovada", "BIA aprovada pela governança", {
+            bia_id: bia.id,
+            bia_codigo: bia.codigo_publico || null,
+            solicitacao_id: req.params.id,
+            justificativa: req.body?.motivo || null,
+          }, {
+            userId: (req.session as any)?.directusUserId || null,
+            memberId: (req.session as any)?.membroId || null,
+          });
+        }
       } else if (asset) {
         const data = { ...asset, bia_id: bia.id, bia_nome: bia.nome_bia || biaPayload.nome_bia, estagio: "bia_em_formacao", updatedAt: new Date().toISOString() };
         await db.execute(sql`
@@ -12950,6 +13078,22 @@ ${textContent}`;
           WHERE id = ${asset.id}
         `);
         await upsertLandBankAssetToDirectus(data, req);
+        await attachObjectToObjectTraces({
+          type: "land_bank_asset",
+          id: String(asset.id),
+          code: String(asset.id),
+          title: asset.qualificacao || "Ativo do Banco de Ativos",
+        }, {
+          type: "bia",
+          id: String(bia.id),
+          code: String(bia.codigo_publico || bia.id),
+          title: String(bia.nome_bia || biaPayload.nome_bia),
+          status: "em_formacao",
+          metadata: { solicitacao_id: req.params.id },
+        }, "ativo_gerou_bia", {
+          userId: (req.session as any)?.directusUserId || null,
+          memberId: (req.session as any)?.membroId || null,
+        }, req.body?.motivo || null);
       }
       res.json({ success: true, bia_id: bia.id, bia });
     } catch (error: any) {
@@ -14253,14 +14397,25 @@ Deixe claro que premissas precisam de validação profissional.`,
     payload: Record<string, unknown> = {},
   ) {
     const session = (req?.session as any) || {};
-    await db.execute(sql`
+    const actor: TraceActor = {
+      userId: session.directusUserId || session.userId || null,
+      memberId: session.membroId || null,
+    };
+    const eventResult = await db.execute(sql`
       INSERT INTO opportunity_events (
         registry_id, tipo, titulo, payload, criado_por_user_id, criado_por_membro_id
       ) VALUES (
         ${registryId}, ${tipo}, ${titulo}, ${JSON.stringify(payload)}::jsonb,
         ${session.directusUserId || session.userId || null}, ${session.membroId || null}
-      )
+      ) RETURNING id
     `);
+    const registry = (await db.execute(sql`
+      SELECT * FROM opportunity_registry WHERE id = ${registryId} LIMIT 1
+    `)).rows?.[0] as any;
+    if (registry) {
+      await getOrCreateTraceForRegistry(registry, actor);
+      await recordTraceEventForRegistry(registryId, tipo, titulo, payload, actor, String(eventResult.rows?.[0]?.id || "") || null);
+    }
   }
 
   async function createUniqueEconomicOpportunityCode(): Promise<string> {
@@ -14481,7 +14636,24 @@ Deixe claro que premissas precisam de validação profissional.`,
       `);
     }
     const registry = await syncEconomicOpportunityRegistry(String(item.id));
-    if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "Oportunidade econômica criada", { source_type: source?.type || null, source_id: source?.id || null });
+    if (registry) {
+      await recordOpportunityEvent(String(registry.id), req, "criada", "Oportunidade econômica criada", { source_type: source?.type || null, source_id: source?.id || null });
+      if (source?.type && source?.id && source.type !== "demanda") {
+        const originLabels: Record<string, string> = {
+          land_bank_asset: "Ativo do Banco de Ativos",
+          oportunidade_externa: "Oportunidade externa",
+          imovel: "Imóvel da Carteira",
+          servico: "Prestação de serviço",
+        };
+        await attachOriginObjectToRegistryTraces(registry as any, {
+          type: source.type,
+          id: source.id,
+          code: source.id,
+          title: originLabels[source.type] || "Origem",
+          metadata: source.metadata || {},
+        }, `${source.type}_gerou_oportunidade`, { userId: actor.userId, memberId: actor.membroId });
+      }
+    }
     return { ...item, fontes: await economicOpportunitySources(String(item.id)), registry };
   }
 
@@ -14757,6 +14929,196 @@ Deixe claro que premissas precisam de validação profissional.`,
     });
   }
 
+  let traceBackfillScheduled = false;
+  function scheduleBusinessTraceBackfill() {
+    if (traceBackfillScheduled) return;
+    traceBackfillScheduled = true;
+    setTimeout(() => {
+      void backfillBusinessTraces().catch((error) => {
+        console.warn("[business-trace] Falha ao reconstruir jornadas:", error?.message || error);
+      }).finally(() => { traceBackfillScheduled = false; });
+    }, 50).unref?.();
+  }
+
+  async function canViewBusinessTrace(req: Request, journeyId: string) {
+    const session = (req.session as any) || {};
+    const userId = String(session.directusUserId || session.userId || "");
+    const memberId = String(session.membroId || "");
+    if (!userId && !memberId) return false;
+    if (isAdminRequest(req) || ["admin", "manager", "superadmin", "master"].includes(String(session.role || "").toLowerCase())) return true;
+
+    const directAccess = await db.execute(sql`
+      SELECT 1
+      FROM business_trace_journeys journey
+      LEFT JOIN business_trace_nodes node ON node.journey_id = journey.id
+      LEFT JOIN opportunity_registry registry ON registry.id = node.registry_id
+      WHERE journey.id = ${journeyId}
+        AND (
+          journey.criado_por_user_id = ${userId || null}
+          OR journey.criado_por_membro_id = ${memberId || null}
+          OR registry.autor_user_id = ${userId || null}
+          OR registry.criador_user_id = ${userId || null}
+          OR registry.responsavel_user_id = ${userId || null}
+          OR registry.autor_membro_id = ${memberId || null}
+          OR registry.criador_membro_id = ${memberId || null}
+          OR registry.responsavel_membro_id = ${memberId || null}
+          OR registry.metadata->>'aliado_built_membro_id' = ${memberId || null}
+        )
+      LIMIT 1
+    `);
+    if (directAccess.rows?.[0]) return true;
+
+    const networkAccess = await db.execute(sql`
+      SELECT 1 FROM business_trace_nodes node
+      WHERE node.journey_id = ${journeyId} AND (
+        (node.object_type = 'demanda' AND EXISTS (
+          SELECT 1 FROM carteira_demanda_interesses interest
+          WHERE interest.demanda_id::text = node.object_id AND interest.status = 'selecionado'
+            AND (interest.user_id = ${userId || null} OR interest.membro_id = ${memberId || null})
+        )) OR
+        (node.object_type = 'oba' AND EXISTS (
+          SELECT 1 FROM opa_interesses interest
+          WHERE interest.opa_id = node.object_id AND interest.status_crm = 'selecionado'
+            AND (interest.user_id = ${userId || null} OR interest.membro_id = ${memberId || null})
+        )) OR
+        (node.object_type = 'ro' AND EXISTS (
+          SELECT 1 FROM opportunity_meeting_participants participant
+          WHERE participant.meeting_id::text = node.object_id
+            AND (participant.user_id = ${userId || null} OR participant.membro_id = ${memberId || null})
+        ))
+      ) LIMIT 1
+    `);
+    if (networkAccess.rows?.[0]) return true;
+
+    const biaNodes = await db.execute(sql`
+      SELECT object_id FROM business_trace_nodes WHERE journey_id = ${journeyId} AND object_type = 'bia'
+    `);
+    for (const node of biaNodes.rows || []) {
+      const bia = await resolveBiaByIdOrPublicCode(String((node as any).object_id), "*").catch(() => null);
+      if (bia && isUserLinkedToBia(bia, memberId)) return true;
+    }
+    return false;
+  }
+
+  function traceNodeUrl(node: any) {
+    if (node.object_type === "demanda") return `/vitrine/oportunidades/demandas/${node.object_id}`;
+    if (node.object_type === "oportunidade") return `/area-aliancas/oportunidades/${node.object_code || node.object_id}`;
+    if (node.object_type === "ro") return `/area-aliancas?tab=oportunidades&tipo=ros&ro=${node.object_code || node.object_id}`;
+    if (node.object_type === "bia") return `/bias/${node.object_code || node.object_id}`;
+    if (node.object_type === "oba") return `/opas/${node.object_id}`;
+    if (node.object_type === "imovel") return `/carteira/${node.object_id}`;
+    if (["land_bank_asset", "oportunidade_externa"].includes(node.object_type)) return `/oportunidades/${node.object_id}`;
+    return null;
+  }
+
+  async function businessTracePayload(journey: any) {
+    const [nodesResult, linksResult, eventsResult, resultsResult] = await Promise.all([
+      db.execute(sql`
+        SELECT node.*,
+          COALESCE(registry.titulo, node.titulo) AS current_title,
+          COALESCE(registry.status, node.status) AS current_status,
+          COALESCE(registry.codigo, node.object_code) AS current_code
+        FROM business_trace_nodes node
+        LEFT JOIN opportunity_registry registry ON registry.id = node.registry_id
+        WHERE node.journey_id = ${journey.id}
+        ORDER BY CASE WHEN node.papel = 'origem' THEN 0 ELSE 1 END, node.criado_em ASC
+      `),
+      db.execute(sql`SELECT * FROM business_trace_links WHERE journey_id = ${journey.id} ORDER BY criado_em ASC`),
+      db.execute(sql`
+        SELECT event.*,
+          COALESCE(actor_user.nome, actor_member.nome,
+            CASE WHEN event.criado_por_user_id IS NULL AND event.criado_por_membro_id IS NULL
+              THEN 'Sistema' ELSE 'Participante BUILT' END) AS autor_nome
+        FROM business_trace_events event
+        LEFT JOIN users actor_user ON actor_user.id::text = event.criado_por_user_id
+        LEFT JOIN users actor_member ON actor_member.membro_directus_id = event.criado_por_membro_id
+        WHERE event.journey_id = ${journey.id}
+        ORDER BY event.criado_em ASC
+      `),
+      db.execute(sql`
+        SELECT result.* FROM business_trace_result_links link
+        JOIN business_trace_results result ON result.id = link.result_id
+        WHERE link.journey_id = ${journey.id}
+        ORDER BY result.criado_em ASC
+      `),
+    ]);
+    const nodes = (nodesResult.rows || []).map((node: any) => ({
+      ...node,
+      titulo: node.current_title || node.titulo || traceStageLabel(node.object_type, node.current_status),
+      status: node.current_status || node.status,
+      object_code: node.current_code || node.object_code,
+      etapa_nome: traceStageLabel(node.object_type, node.current_status || node.status),
+      url: traceNodeUrl({ ...node, object_code: node.current_code || node.object_code }),
+    }));
+    const results = resultsResult.rows || [];
+    const origin = nodes.find((node: any) => node.papel === "origem") || nodes[0] || null;
+    const current = [...nodes].reverse().find((node: any) => !["imovel", "land_bank_asset", "oportunidade_externa", "servico"].includes(node.object_type)) || nodes.at(-1) || null;
+    return {
+      ...journey,
+      origem: origin,
+      etapa_atual: current,
+      resultado: results.at(-1) || null,
+      nodes,
+      links: linksResult.rows || [],
+      events: eventsResult.rows || [],
+      results,
+    };
+  }
+
+  app.get("/api/rastreabilidade/:codigo", async (req, res) => {
+    try {
+      await ensureBusinessOpportunityTables();
+      await ensureBusinessTraceTables();
+      await backfillBusinessTraces();
+      const journey = (await db.execute(sql`
+        SELECT * FROM business_trace_journeys WHERE codigo = ${req.params.codigo} LIMIT 1
+      `)).rows?.[0] as any;
+      if (!journey) return res.status(404).json({ error: "Jornada não encontrada." });
+      if (!(await canViewBusinessTrace(req, String(journey.id)))) return res.status(403).json({ error: "Você não participa desta jornada." });
+      res.set("Cache-Control", "no-store");
+      res.json(await businessTracePayload(journey));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rastreabilidade/objeto/:tipo/:id", async (req, res) => {
+    try {
+      await ensureBusinessOpportunityTables();
+      await ensureBusinessTraceTables();
+      await backfillBusinessTraces();
+      const result = await db.execute(sql`
+        SELECT DISTINCT journey.*
+        FROM business_trace_journeys journey
+        JOIN business_trace_nodes node ON node.journey_id = journey.id
+        LEFT JOIN opportunity_registry registry ON registry.id = node.registry_id
+        WHERE node.object_type = ${req.params.tipo}
+          AND (node.object_id = ${req.params.id} OR node.object_code = ${req.params.id} OR registry.codigo = ${req.params.id})
+        ORDER BY journey.criado_em ASC
+      `);
+      const visible: any[] = [];
+      for (const journey of result.rows || []) {
+        if (await canViewBusinessTrace(req, String((journey as any).id))) {
+          const payload = await businessTracePayload(journey);
+          visible.push({
+            id: payload.id,
+            codigo: payload.codigo,
+            status: payload.status,
+            origem: payload.origem,
+            etapa_atual: payload.etapa_atual,
+            resultado: payload.resultado,
+            total_etapas: payload.nodes.length,
+          });
+        }
+      }
+      if ((result.rows || []).length && !visible.length) return res.status(403).json({ error: "Você não participa desta jornada." });
+      res.set("Cache-Control", "no-store");
+      res.json(visible);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   async function getOpportunityRegistry(identifier: string) {
     await ensureBusinessOpportunityTables();
     scheduleOpportunityRegistryBackfill();
@@ -15001,6 +15363,17 @@ Deixe claro que premissas precisam de validação profissional.`,
       `);
 
       const feedItems: any[] = (opportunityResult.rows || []).map((item: any) => {
+        const interested = item.interessado === true;
+        const delivered = item.recebido_direto === true;
+        const managed = [
+          item.autor_user_id,
+          item.criador_user_id,
+          item.responsavel_user_id,
+        ].filter(Boolean).some((id) => String(id) === String(actor.userId)) || [
+          item.autor_membro_id,
+          item.criador_membro_id,
+          item.responsavel_membro_id,
+        ].filter(Boolean).some((id) => String(id) === String(actor.membroId));
         const scored = scoreBusinessFeedCandidate(scoringProfile, {
           title: item.titulo,
           description: item.descricao,
@@ -15011,18 +15384,24 @@ Deixe claro que premissas precisam de validação profissional.`,
           state: item.estado,
           country: item.pais,
           urgency: item.urgencia,
-          interested: item.interessado === true,
-          delivered: item.recebido_direto === true,
+          interested,
+          delivered,
           publishedAt: item.publicada_em || item.criado_em,
         });
         return {
           id: `opportunity:${item.id}`,
           tipo: item.tipo,
+          contexto: classifyBusinessFeedContext({ type: item.tipo, interested, delivered, managed }),
           selo: item.tipo === "demanda" ? "Demanda" : "OBA",
           codigo: item.codigo,
           titulo: item.titulo,
           resumo: item.descricao,
           localizacao: [item.cidade, item.estado, item.pais].filter(Boolean).join(", "),
+          categoria: item.metadata?.tipo || item.especialidades?.[0] || null,
+          ramo_atuacao: item.metadata?.ramo_atuacao || null,
+          nucleo_alianca: item.metadata?.nucleo_alianca || null,
+          interessado: interested,
+          recebido_direto: delivered,
           status: item.status,
           data: item.publicada_em || item.criado_em,
           aderencia: scored.score,
@@ -15061,6 +15440,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         feedItems.push({
           id: `ro:${item.id}`,
           tipo: "ro",
+          contexto: classifyBusinessFeedContext({ type: "ro" }),
           selo: "RO",
           codigo: item.codigo,
           titulo: item.titulo,
@@ -15091,6 +15471,7 @@ Deixe claro que premissas precisam de validação profissional.`,
           feedItems.push({
             id: `bia:${item.origem}:${item.id}`,
             tipo: "bia",
+            contexto: classifyBusinessFeedContext({ type: "bia" }),
             selo: "BIA",
             codigo: item.bia_id,
             titulo: `Convite para integrar ${item.bia_nome || "uma BIA"}`,
@@ -15146,11 +15527,15 @@ Deixe claro que premissas precisam de validação profissional.`,
       }
 
       const networkOpportunities = feedItems.filter((item) => item.tipo === "demanda" || item.tipo === "oba");
+      const recommendedOpportunities = networkOpportunities.filter((item) => item.contexto === "recomendado");
+      const activeOpportunities = networkOpportunities.filter((item) => item.contexto === "em_andamento");
       res.set("Cache-Control", "private, no-store");
       res.json({
         feed: sortBusinessFeed(feedItems).slice(0, 100),
         indicadores: {
           negocios_recebidos: networkOpportunities.length,
+          recomendados: recommendedOpportunities.length,
+          em_andamento: activeOpportunities.length,
           propostas_apresentadas: Number(demandProposalResult.rows?.[0]?.total || 0) + Number(obaProposalResult.rows?.[0]?.total || 0),
           negocios_fechados: closedBusinesses,
           valores_contratados: Array.from(valuesByCurrency, ([moeda, valor]) => ({ moeda, valor })),
@@ -15353,6 +15738,41 @@ Deixe claro que premissas precisam de validação profissional.`,
         ) ON CONFLICT (economic_opportunity_id, source_type, source_id) DO UPDATE SET metadata = EXCLUDED.metadata
         RETURNING *
       `);
+      const registry = await syncEconomicOpportunityRegistry(String(item.id));
+      if (registry) {
+        const traceActor = { userId: actor.userId, memberId: actor.membroId };
+        if (sourceType === "demanda") {
+          const sourceRegistry = await syncDemandRegistry(sourceId);
+          if (sourceRegistry) {
+            await inheritTraceBetweenRegistries(
+              sourceRegistry,
+              registry,
+              "demanda_gerou_oportunidade",
+              traceActor,
+              String(req.body?.justificativa || "").trim() || null,
+              req.body?.metadata || {},
+            );
+          }
+        } else {
+          const labels: Record<string, string> = {
+            land_bank_asset: "Ativo do Banco de Ativos",
+            oportunidade_externa: "Oportunidade externa",
+            imovel: "Imóvel da Carteira",
+            servico: "Prestação de serviço",
+          };
+          await attachOriginObjectToRegistryTraces(registry, {
+            type: sourceType,
+            id: sourceId,
+            code: sourceId,
+            title: labels[sourceType] || "Fonte relacionada",
+            metadata: req.body?.metadata || {},
+          }, `${sourceType}_vinculado_a_oportunidade`, traceActor);
+        }
+        await recordOpportunityEvent(String(registry.id), req, "fonte_vinculada", "Fonte vinculada à Oportunidade", {
+          source_type: sourceType,
+          source_id: sourceId,
+        });
+      }
       res.status(201).json(inserted.rows?.[0]);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -15427,6 +15847,16 @@ Deixe claro que premissas precisam de validação profissional.`,
             ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null})
           ON CONFLICT DO NOTHING
         `);
+        await inheritTraceBetweenRegistries(
+          registry,
+          created.registry,
+          "demanda_gerou_oportunidade",
+          {
+            userId: (req.session as any)?.directusUserId || null,
+            memberId: (req.session as any)?.membroId || null,
+          },
+          String(req.body?.justificativa || "").trim() || null,
+        );
       }
       await syncDemandRegistry(String(demand.id));
       res.status(201).json({ oportunidade: created });
@@ -16021,6 +16451,7 @@ Deixe claro que premissas precisam de validação profissional.`,
           observacoes = EXCLUDED.observacoes,
           atualizado_em = now()
       `);
+      await syncTraceResultForRegistry(String(registry.id));
       if (registry.tipo === "demanda") {
         await db.execute(sql`UPDATE carteira_demandas SET status = ${status}, visibilidade = 'privada', resultado = ${req.body?.resultado || status}, atualizado_em = now() WHERE id = ${registry.source_id}`);
         await syncDemandRegistry(String(registry.source_id));
@@ -16604,7 +17035,17 @@ Deixe claro que premissas precisam de validação profissional.`,
           `);
         }
       }
-      for (const registry of registries) await recordOpportunityEvent(String(registry.id), req, "incluida_ro", "Incluída em Reunião de Oportunidades", { ro_codigo: code });
+      for (const registry of registries) {
+        await attachObjectToRegistryTraces(registry, {
+          type: "ro",
+          id: String(meeting.id),
+          code,
+          title: titulo,
+          status: "agendada",
+          metadata: { papel: registry.papel || "contexto" },
+        }, "discutida_em_ro", { userId: actor.userId, memberId: actor.membroId });
+        await recordOpportunityEvent(String(registry.id), req, "incluida_ro", "Incluída em Reunião de Oportunidades", { ro_codigo: code });
+      }
       res.status(201).json({ ...meeting, oportunidades: registries, participantes: Array.from(participantMap.values()) });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -16755,6 +17196,24 @@ Deixe claro que premissas precisam de validação profissional.`,
             VALUES (${sourceRegistry.id}, ${targetRegistry.id}, 'ro_gerou_demanda', ${JSON.stringify({ ro_codigo: meeting.codigo, decisao_id: decision.id })}::jsonb, ${actor.userId}, ${actor.membroId})
             ON CONFLICT DO NOTHING
           `);
+          await inheritTraceBetweenRegistries(
+            sourceRegistry,
+            targetRegistry,
+            "ro_gerou_demanda",
+            { userId: actor.userId, memberId: actor.membroId },
+            String(req.body?.parecer || "").trim() || null,
+            { ro_codigo: meeting.codigo, decisao_id: decision.id },
+          );
+          await recordOpportunityEvent(String(sourceRegistry.id), req, "ro_gerou_demanda", "RO decidiu gerar uma Demanda", {
+            ro_codigo: meeting.codigo,
+            decisao_id: decision.id,
+            demanda_codigo: targetRegistry.codigo,
+          });
+          await recordOpportunityEvent(String(targetRegistry.id), req, "originada_em_ro", "Demanda gerada por decisão de RO", {
+            ro_codigo: meeting.codigo,
+            decisao_id: decision.id,
+            oportunidade_codigo: sourceRegistry.codigo,
+          });
         }
       }
       if (action === "solicitar_bia") {
@@ -16784,6 +17243,19 @@ Deixe claro que premissas precisam de validação profissional.`,
           atualizado_em = now()
         WHERE id = ${decision.id} RETURNING *
       `);
+      const decisionRegistry = await syncEconomicOpportunityRegistry(String(opportunity.id));
+      if (decisionRegistry) {
+        await recordOpportunityEvent(String(decisionRegistry.id), req, `ro_decisao_${action}`, "Decisão da RO registrada", {
+          ro_codigo: meeting.codigo,
+          decisao_id: decision.id,
+          acao: action,
+          justificativa: String(req.body?.parecer || "").trim() || null,
+          origem_codigo: decisionRegistry.codigo,
+          destino_codigo: demand?.codigo || structuringRequest?.id || null,
+          demanda_id: demand?.id || null,
+          solicitacao_bia_id: structuringRequest?.id || null,
+        });
+      }
       res.status(201).json({ ...completed.rows?.[0], demanda: demand, solicitacao_bia: structuringRequest });
     } catch (error: any) {
       if (decisionId) {
@@ -16913,10 +17385,10 @@ Deixe claro que premissas precisam de validação profissional.`,
         estado: access.imovel.estado || null,
         pais: access.imovel.pais || "Brasil",
         metadata: { legacy_asset_id: assetId, demanda_codigo: demanda.codigo || null },
-      }, { type: "land_bank_asset", id: assetId, metadata: { demanda_id: demanda.id } });
+      }, { type: "demanda", id: String(demanda.id), metadata: { asset_id: assetId } });
       await db.execute(sql`
         INSERT INTO economic_opportunity_sources (economic_opportunity_id, source_type, source_id, metadata, criado_por_user_id, criado_por_membro_id)
-        VALUES (${economic.id}, 'demanda', ${String(demanda.id)}, '{}'::jsonb, ${actor.userId}, ${actor.membroId})
+        VALUES (${economic.id}, 'land_bank_asset', ${assetId}, ${JSON.stringify({ demanda_id: demanda.id })}::jsonb, ${actor.userId}, ${actor.membroId})
         ON CONFLICT DO NOTHING
       `);
       await db.execute(sql`
@@ -16931,6 +17403,33 @@ Deixe claro que premissas precisam de validação profissional.`,
           VALUES (${demandRegistry.id}, ${economic.registry.id}, 'demanda_gerou_oportunidade', ${JSON.stringify({ asset_id: assetId })}::jsonb, ${actor.userId}, ${actor.membroId})
           ON CONFLICT DO NOTHING
         `);
+        await inheritTraceBetweenRegistries(
+          demandRegistry,
+          economic.registry,
+          "demanda_gerou_oportunidade",
+          { userId: actor.userId, memberId: actor.membroId },
+          null,
+          { asset_id: assetId },
+        );
+        await attachOriginObjectToRegistryTraces(economic.registry, {
+          type: "land_bank_asset",
+          id: assetId,
+          code: assetId,
+          title: access.imovel.nome || "Ativo do Banco de Ativos",
+          metadata: { demanda_id: demanda.id },
+        }, "ativo_vinculado_a_oportunidade", { userId: actor.userId, memberId: actor.membroId });
+        await attachObjectToObjectTraces({
+          type: "demanda",
+          id: String(demanda.id),
+          code: demanda.codigo || null,
+          title: demanda.titulo,
+        }, {
+          type: "land_bank_asset",
+          id: assetId,
+          code: assetId,
+          title: access.imovel.nome || "Ativo do Banco de Ativos",
+          metadata: { oportunidade_id: economic.id },
+        }, "demanda_gerou_ativo", { userId: actor.userId, memberId: actor.membroId });
       }
       await upsertLandBankAssetToDirectus(data, req);
       await recordCarteiraEvent(req.params.id, actor, "demanda_convertida_oportunidade", "Oportunidade patrimonial identificada", {
@@ -18479,6 +18978,325 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     );
   }
 
+  const agendaAlertHref = (view: "agenda" | "alertas" = "alertas") => `/agenda-alertas?view=${view}`;
+
+  const agendaAlertDate = (value: unknown): string | null => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(String(value));
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
+
+  const listAgendaAlertItems = async (req: any): Promise<AgendaAlertItem[]> => {
+    const session = req.session || {};
+    const userId = session.directusUserId || session.userId || null;
+    const membroId = session.membroId || null;
+    if (!userId) {
+      const error: any = new Error("Não autenticado");
+      error.status = 401;
+      throw error;
+    }
+
+    const role = await getEffectiveRole(req);
+    const isAdmin = ["admin", "manager", "superadmin", "master"].includes(String(role || "").toLowerCase());
+    const allItems: AgendaAlertItem[] = [];
+
+    const [directorRequests, partnerRequests, approvals, allInvites, communities, portfolioAlerts, deliveries] = await Promise.all([
+      membroId
+        ? db.select().from(biaDiretorSolicitacoes)
+          .where(eq(biaDiretorSolicitacoes.diretor_membro_id, String(membroId)))
+          .orderBy(desc(biaDiretorSolicitacoes.criado_em)).limit(100).catch(() => [])
+        : Promise.resolve([]),
+      membroId
+        ? db.select().from(biaSocioSolicitacoes)
+          .where(eq(biaSocioSolicitacoes.socio_membro_id, String(membroId)))
+          .orderBy(desc(biaSocioSolicitacoes.criado_em)).limit(100).catch(() => [])
+        : Promise.resolve([]),
+      isAdmin
+        ? storage.getAllBiaAprovacoes().catch(() => [])
+        : membroId
+          ? db.select().from(biaAprovacoes)
+            .where(eq(biaAprovacoes.aliado_built_membro_id, String(membroId)))
+            .orderBy(desc(biaAprovacoes.criado_em)).limit(100).catch(() => [])
+          : Promise.resolve([]),
+      db.select().from(convitesComunidade).orderBy(desc(convitesComunidade.criado_em)).catch(() => []),
+      membroId
+        ? getComunidadeCol().then((collection) => directusFetch(collection, COMUNIDADE_FIELDS)).catch(() => [])
+        : Promise.resolve([]),
+      db.execute(sql`
+        SELECT
+          a.*,
+          COALESCE(NULLIF(i.data->>'nome', ''), 'Imóvel') AS imovel_nome
+        FROM carteira_alertas a
+        INNER JOIN inventario_imoveis i ON i.id = a.imovel_id
+        WHERE ${carteiraAccessibleWhere(requireCarteiraActor(req))}
+        ORDER BY CASE a.severidade WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END,
+                 a.criado_em DESC
+        LIMIT 100
+      `).then((result: any) => result.rows || []).catch(() => []),
+      db.execute(sql`
+        SELECT d.*, r.codigo, r.tipo, r.titulo, r.source_type, r.source_id
+        FROM opportunity_distribution_deliveries d
+        INNER JOIN opportunity_registry r ON r.id = d.registry_id
+        WHERE d.canal = 'interna'
+          AND d.status IN ('enviado', 'lida')
+          AND (d.user_id = ${String(userId)} OR d.membro_id = ${membroId ? String(membroId) : null})
+        ORDER BY d.enviado_em DESC
+        LIMIT 100
+      `).then((result: any) => result.rows || []).catch(() => []),
+    ]);
+
+    for (const request of directorRequests as any[]) {
+      const active = String(request.status || "pendente") === "pendente";
+      allItems.push({
+        id: `diretor:${request.id}`,
+        source_type: "bia_diretor_solicitacao",
+        source_id: String(request.id),
+        group: active ? "pendencias" : "historico",
+        category: "convite_bia",
+        title: `Convite para ${request.papel || "diretoria"}`,
+        description: request.bia_nome || request.bia_id,
+        priority: "alta",
+        status: String(request.status || "pendente"),
+        created_at: agendaAlertDate(request.criado_em),
+        action_required: active,
+        active,
+        href: agendaAlertHref(),
+        actions: ["aceitar", "recusar"],
+        metadata: { bia_id: request.bia_id },
+      });
+    }
+
+    for (const request of partnerRequests as any[]) {
+      const active = String(request.status || "pendente") === "pendente";
+      allItems.push({
+        id: `socio:${request.id}`,
+        source_type: "bia_socio_solicitacao",
+        source_id: String(request.id),
+        group: active ? "pendencias" : "historico",
+        category: "convite_bia",
+        title: `Convite para ${request.papel || "participar da BIA"}`,
+        description: request.bia_nome || request.bia_id,
+        priority: "alta",
+        status: String(request.status || "pendente"),
+        created_at: agendaAlertDate(request.criado_em),
+        action_required: active,
+        active,
+        href: agendaAlertHref(),
+        actions: ["aceitar", "recusar"],
+        metadata: { bia_id: request.bia_id },
+      });
+    }
+
+    for (const approval of approvals as any[]) {
+      const active = String(approval.status || "pendente") === "pendente";
+      allItems.push({
+        id: `bia-aprovacao:${approval.id}`,
+        source_type: "bia_aprovacao",
+        source_id: String(approval.id),
+        group: active ? "pendencias" : "historico",
+        category: "aprovacao_bia",
+        title: "Aprovação de BIA pendente",
+        description: approval.bia_nome || approval.bia_id,
+        priority: "alta",
+        status: String(approval.status || "pendente"),
+        created_at: agendaAlertDate(approval.criado_em),
+        action_required: active,
+        active,
+        href: `/bias/${encodeURIComponent(String(approval.bia_id))}`,
+        actions: ["aprovar", "rejeitar"],
+        metadata: { bia_id: approval.bia_id },
+      });
+    }
+
+    const managedCommunityIds = new Set<string>();
+    for (const community of communities as any[]) {
+      if (isAdmin || String(directusRelationId(community?.aliado) || "") === String(membroId || "")) {
+        managedCommunityIds.add(String(community.id));
+      }
+    }
+    for (const invite of allInvites as any[]) {
+      const status = String(invite.status || "");
+      const isCandidateDecision = status === "candidato" && (isAdmin || managedCommunityIds.has(String(invite.comunidade_id)));
+      const isAuraEvaluation = status === "aguardando_avaliacao_aura"
+        && Boolean(membroId && String(invite.invitador_membro_id || "") === String(membroId));
+      const isRelatedHistory = !["candidato", "aguardando_avaliacao_aura"].includes(status)
+        && Boolean(
+          isAdmin
+          || managedCommunityIds.has(String(invite.comunidade_id))
+          || (membroId && String(invite.invitador_membro_id || "") === String(membroId))
+          || (membroId && String(invite.candidato_membro_id || "") === String(membroId))
+        );
+      if (!isCandidateDecision && !isAuraEvaluation && !isRelatedHistory) continue;
+      const active = isCandidateDecision || isAuraEvaluation;
+      allItems.push({
+        id: `convite:${invite.id}`,
+        source_type: "convite_comunidade",
+        source_id: String(invite.id),
+        group: active ? "pendencias" : "historico",
+        category: isAuraEvaluation ? "avaliacao_aura" : "candidatura",
+        title: isAuraEvaluation ? "Avaliação de Aura pendente" : active ? "Candidatura aguardando decisão" : "Histórico de candidatura",
+        description: invite.candidato_nome || invite.candidato_email || "Candidato BUILT",
+        priority: active ? "alta" : "baixa",
+        status,
+        created_at: agendaAlertDate(invite.criado_em),
+        action_required: active,
+        active,
+        href: agendaAlertHref(),
+        actions: isAuraEvaluation ? ["avaliar"] : isCandidateDecision ? ["aprovar", "rejeitar"] : [],
+        metadata: { comunidade_id: invite.comunidade_id, token: invite.token },
+      });
+    }
+
+    for (const alert of portfolioAlerts as any[]) {
+      const access = await resolveCarteiraAccess(String(alert.imovel_id), requireCarteiraActor(req)).catch(() => null);
+      if (!access || !hasCarteiraAccess(access.nivel, "colaboracao")) continue;
+      const active = ["aberto", "em_andamento", "adiado", "delegado"].includes(String(alert.status || "aberto"));
+      allItems.push({
+        id: `carteira:${alert.id}`,
+        source_type: "carteira_alerta",
+        source_id: String(alert.id),
+        group: active ? "pendencias" : "historico",
+        category: "patrimonio",
+        title: alert.titulo || "Alerta patrimonial",
+        description: [alert.imovel_nome, alert.acao_sugerida].filter(Boolean).join(" · ") || null,
+        priority: ["critica", "alta", "media", "baixa"].includes(String(alert.severidade)) ? alert.severidade : "media",
+        status: String(alert.status || "aberto"),
+        created_at: agendaAlertDate(alert.criado_em),
+        due_at: agendaAlertDate(alert.prazo),
+        action_required: active,
+        active,
+        href: `/carteira/${encodeURIComponent(String(alert.imovel_id))}?tab=pulso`,
+        actions: ["consultar", "registrar_acao"],
+        metadata: { imovel_id: alert.imovel_id },
+      });
+    }
+
+    for (const delivery of deliveries as any[]) {
+      const metadata = delivery.metadata && typeof delivery.metadata === "object" ? delivery.metadata : {};
+      const href = String((metadata as any).url || (
+        delivery.source_type === "demanda"
+          ? `/vitrine/oportunidades/demandas/${delivery.source_id}`
+          : `/vitrine/oportunidades/obas/${delivery.source_id}`
+      ));
+      allItems.push({
+        id: `atualizacao:${delivery.id}`,
+        source_type: "opportunity_delivery",
+        source_id: String(delivery.id),
+        group: "atualizacoes",
+        category: "oportunidade",
+        title: String((metadata as any).titulo || delivery.titulo || "Nova oportunidade na rede"),
+        description: delivery.codigo || delivery.tipo || null,
+        priority: "baixa",
+        status: String(delivery.status || "enviado"),
+        created_at: agendaAlertDate(delivery.enviado_em),
+        action_required: false,
+        active: true,
+        href,
+        actions: ["consultar"],
+        metadata: { ...metadata, codigo: delivery.codigo },
+      });
+    }
+
+    return sortAgendaAlertItems(dedupeAgendaAlertItems(allItems));
+  };
+
+  const canViewAgendaForSession = (req: any): boolean => {
+    if (!req.session?.companyEmployeeId) return true;
+    return hasCompanyAccess(req.session.companyEmployeePermissions, "agenda", "view");
+  };
+
+  app.get("/api/agenda-alertas/contador", async (req, res) => {
+    try {
+      const items = await listAgendaAlertItems(req);
+      const total = activeAgendaAlertCount(items);
+      res.set("Cache-Control", "no-store");
+      res.json({ pendencias_ativas: total, display: agendaAlertBadge(total) });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message || "Erro ao contar alertas" });
+    }
+  });
+
+  app.get("/api/agenda-alertas/alertas", async (req, res) => {
+    try {
+      const requestedGroup = String(req.query.grupo || "pendencias") as AgendaAlertGroup;
+      if (!["pendencias", "atualizacoes", "historico"].includes(requestedGroup)) {
+        return res.status(400).json({ error: "Grupo de alertas inválido" });
+      }
+      const items = await listAgendaAlertItems(req);
+      res.set("Cache-Control", "no-store");
+      res.json(items.filter((item) => item.group === requestedGroup && (requestedGroup !== "pendencias" || item.active)));
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message || "Erro ao carregar alertas" });
+    }
+  });
+
+  app.get("/api/agenda-alertas/resumo", async (req, res) => {
+    try {
+      const userId = (req.session as any).directusUserId || (req.session as any).userId;
+      if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const canViewAgenda = canViewAgendaForSession(req);
+      const [items, tasks, calls] = await Promise.all([
+        listAgendaAlertItems(req),
+        canViewAgenda ? storage.getAgendaTarefasByUser(String(userId)).catch(() => []) : Promise.resolve([]),
+        canViewAgenda && (req.session as any).membroId
+          ? storage.getChamadasAliancaByDestinatario(String((req.session as any).membroId)).catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      const today = new Date().toISOString().slice(0, 10);
+      const activeTasks = (tasks as any[]).filter((task) => ["pendente", "em_andamento"].includes(String(task.status || "")));
+      const agendaPreview = [
+        ...activeTasks.map((task) => ({
+          id: `agenda:${task.id}`,
+          type: "tarefa",
+          title: task.titulo,
+          description: task.descricao || null,
+          date: task.data,
+          time: task.hora || null,
+          priority: task.prioridade || "media",
+          overdue: Boolean(task.data && task.data < today),
+          href: agendaAlertHref("agenda"),
+        })),
+        ...(calls as any[])
+          .filter((call) => {
+            const startsAt = call.data_hora ? new Date(call.data_hora).getTime() : Number.NaN;
+            return Number.isFinite(startsAt)
+              && startsAt >= Date.now()
+              && !["cancelada", "cancelado"].includes(String(call.status || "").toLowerCase());
+          })
+          .map((call) => ({
+          id: `chamada:${call.id}`,
+          type: "reuniao",
+          title: call.titulo,
+          description: call.bia_nome || call.bia_id || null,
+          date: call.data_hora ? new Date(call.data_hora).toISOString().slice(0, 10) : null,
+          time: call.data_hora ? new Date(call.data_hora).toTimeString().slice(0, 5) : null,
+          priority: "media",
+          overdue: false,
+          href: call.link_reuniao || agendaAlertHref("agenda"),
+          external: Boolean(call.link_reuniao),
+        })),
+      ].sort((a, b) => `${a.date || "9999"}${a.time || ""}`.localeCompare(`${b.date || "9999"}${b.time || ""}`));
+      const pending = items.filter((item) => item.group === "pendencias" && item.active);
+      const updates = items.filter((item) => item.group === "atualizacoes");
+      const total = activeAgendaAlertCount(items);
+      res.set("Cache-Control", "no-store");
+      res.json({
+        can_view_agenda: canViewAgenda,
+        pending_count: total,
+        pending_display: agendaAlertBadge(total),
+        agenda: {
+          overdue_count: activeTasks.filter((task) => task.data && task.data < today).length,
+          today_count: activeTasks.filter((task) => task.data === today).length,
+          preview: agendaPreview.slice(0, 5),
+        },
+        alerts: { preview: pending.slice(0, 5) },
+        updates: { preview: updates.slice(0, 5) },
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message || "Erro ao carregar resumo" });
+    }
+  });
+
   app.get("/api/agenda/membros-disponiveis", async (req, res) => {
     if (!(req.session as any).directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
     try {
@@ -19655,9 +20473,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       // action === "aceitar": a transferÃªncia Ã© parcial e deve ser aplicada no MAP,
       // sem alterar os lanÃ§amentos financeiros originais do Directus.
-      const updated = await storage.updateTransferenciaCotas(req.params.id, {
-        status: "aceita",
-      });
+      const updated = await acceptQuotaTransfer(
+        req.params.id,
+        (id, patch) => storage.updateTransferenciaCotas(id, patch),
+      );
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

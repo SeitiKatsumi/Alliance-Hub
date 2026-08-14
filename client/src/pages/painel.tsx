@@ -34,8 +34,14 @@ import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { getOpaUrl } from "@/lib/public-refs";
 import { getProfileCompletion, type ProfileCompletionSource } from "@/lib/profile-completion";
+import {
+  dashboardNavigationUrl,
+  resolveDashboardNavigation,
+  type BusinessSection,
+  type CarteiraView,
+  type DashboardTab,
+} from "@/lib/dashboard-navigation";
 import { CarteiraDashboardPanel } from "@/pages/carteira";
-import { OportunidadesImobiliariasPanel } from "@/pages/oportunidades-imobiliarias";
 import MemberBusinessFeed from "@/components/member-business-feed";
 import {
   Bar,
@@ -587,20 +593,10 @@ export default function PainelPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [location, navigate] = useLocation();
-  const validDashboardTabs = ["inicio", "carteira", "convergencias", "negocios", "gestao"] as const;
-  const initialDashboardParams = new URLSearchParams(window.location.search);
-  const requestedDashboardTab = initialDashboardParams.get("tab");
-  const normalizedDashboardTab = requestedDashboardTab === "bias" ? "carteira" : requestedDashboardTab === "opas" ? "negocios" : requestedDashboardTab;
-  const [dashboardTab, setDashboardTab] = useState(
-    validDashboardTabs.includes(normalizedDashboardTab as (typeof validDashboardTabs)[number])
-      ?normalizedDashboardTab!
-      : "inicio",
-  );
-  const [carteiraView, setCarteiraView] = useState(
-    requestedDashboardTab === "bias" || initialDashboardParams.get("view") === "bias"
-      ? "bias"
-      : initialDashboardParams.get("view") === "oportunidades" ? "oportunidades" : "imoveis",
-  );
+  const initialNavigation = resolveDashboardNavigation(window.location.search);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>(initialNavigation.tab);
+  const [carteiraView, setCarteiraView] = useState<CarteiraView>(initialNavigation.carteiraView);
+  const [businessSection, setBusinessSection] = useState<BusinessSection>(initialNavigation.businessSection);
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
   const [conviteTipo, setConviteTipo] = useState("vitrine");
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
@@ -608,32 +604,31 @@ export default function PainelPage() {
   const [carteiraAlertAction, setCarteiraAlertAction] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requested = params.get("tab");
-    const normalizedRequested = requested === "bias" ? "carteira" : requested === "opas" ? "negocios" : requested;
-    const nextTab = validDashboardTabs.includes(normalizedRequested as (typeof validDashboardTabs)[number])
-      ?normalizedRequested!
-      : "inicio";
-    setDashboardTab(nextTab);
-    setCarteiraView(requested === "bias" || params.get("view") === "bias" ? "bias" : params.get("view") === "oportunidades" ? "oportunidades" : "imoveis");
+    const nextNavigation = resolveDashboardNavigation(window.location.search);
+    setDashboardTab(nextNavigation.tab);
+    setCarteiraView(nextNavigation.carteiraView);
+    setBusinessSection(nextNavigation.businessSection);
   }, [location]);
 
   function handleDashboardTabChange(nextTab: string) {
-    setDashboardTab(nextTab);
-    if (nextTab === "carteira") {
-      setCarteiraView("imoveis");
-    }
-    const nextUrl = nextTab === "inicio"
-      ?"/"
-      : nextTab === "carteira"
-        ?"/?tab=carteira&view=imoveis"
-        : `/?tab=${nextTab}`;
-    window.history.replaceState(window.history.state, "", nextUrl);
+    const tab = nextTab as DashboardTab;
+    const nextCarteiraView = tab === "carteira" ? "imoveis" : carteiraView;
+    const nextBusinessSection = tab === "negocios" ? "recomendados" : businessSection;
+    setDashboardTab(tab);
+    setCarteiraView(nextCarteiraView);
+    setBusinessSection(nextBusinessSection);
+    window.history.replaceState(window.history.state, "", dashboardNavigationUrl({ tab, carteiraView: nextCarteiraView, businessSection: nextBusinessSection }));
   }
 
   function handleCarteiraViewChange(nextView: string) {
-    setCarteiraView(nextView);
-    window.history.replaceState(window.history.state, "", `/?tab=carteira&view=${nextView}`);
+    const view = nextView as CarteiraView;
+    setCarteiraView(view);
+    window.history.replaceState(window.history.state, "", dashboardNavigationUrl({ tab: "carteira", carteiraView: view, businessSection }));
+  }
+
+  function handleBusinessSectionChange(section: BusinessSection) {
+    setBusinessSection(section);
+    window.history.replaceState(window.history.state, "", dashboardNavigationUrl({ tab: "negocios", carteiraView, businessSection: section }));
   }
 
   const { data, isLoading } = useQuery<DashboardData>({
@@ -1102,7 +1097,7 @@ export default function PainelPage() {
       </div>
 
       <Tabs value={dashboardTab} onValueChange={handleDashboardTabChange} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1 sm:grid-cols-3 xl:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1 lg:grid-cols-4">
           <TabsTrigger value="inicio" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-inicio">
             <LayoutDashboard className="w-4 h-4 text-blue-600" />
             Início
@@ -1110,10 +1105,6 @@ export default function PainelPage() {
           <TabsTrigger value="carteira" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-carteira">
             <Landmark className="w-4 h-4 text-blue-600" />
             Carteira
-          </TabsTrigger>
-          <TabsTrigger value="convergencias" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-convergencias">
-            <Target className="w-4 h-4 text-emerald-600" />
-            Painel de Convergência
           </TabsTrigger>
           <TabsTrigger value="negocios" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-negocios">
             <BriefcaseBusiness className="w-4 h-4 text-cyan-600" />
@@ -1514,14 +1505,10 @@ export default function PainelPage() {
 
         <TabsContent value="carteira" className="space-y-4 mt-0">
           <Tabs value={carteiraView} onValueChange={handleCarteiraViewChange} className="space-y-4">
-            <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted/40 p-1">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1">
               <TabsTrigger value="imoveis" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-imoveis">
                 <Landmark className="h-4 w-4 text-blue-600" />
                 Imóveis
-              </TabsTrigger>
-              <TabsTrigger value="oportunidades" className="gap-2 text-xs sm:text-sm">
-                <Lightbulb className="h-4 w-4 text-amber-500" />
-                Oportunidades
               </TabsTrigger>
               <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-bias">
                 <Briefcase className="h-4 w-4 text-amber-500" />
@@ -1531,10 +1518,6 @@ export default function PainelPage() {
 
             <TabsContent value="imoveis" className="mt-0">
               <CarteiraDashboardPanel compact />
-            </TabsContent>
-
-            <TabsContent value="oportunidades" className="mt-0">
-              <OportunidadesImobiliariasPanel embedded />
             </TabsContent>
 
             <TabsContent value="bias" className="space-y-4 mt-0">
@@ -1866,7 +1849,11 @@ export default function PainelPage() {
         </TabsContent>
 
         <TabsContent value="negocios" className="space-y-4 mt-0">
-          <MemberBusinessFeed />
+          <MemberBusinessFeed
+            initialSection={businessSection}
+            onSectionChange={handleBusinessSectionChange}
+            convergenceStats={dashboardStats}
+          />
         </TabsContent>
 
         <TabsContent value="gestao" className="space-y-4 mt-0">

@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import OportunidadesPage from "@/pages/oportunidades";
+import TraceabilitySummary from "@/components/traceability-summary";
 
 type OpportunityType = "demandas" | "oportunidades" | "obas" | "ros";
 
@@ -464,10 +465,13 @@ export default function NetworkOpportunitiesHub() {
           {(meetingsQuery.data || []).length === 0 ? (
             <div className="border-y py-12 text-center"><CalendarDays className="mx-auto h-7 w-7 text-muted-foreground" /><p className="mt-3 font-medium">Nenhuma RO cadastrada</p><p className="mt-1 text-sm text-muted-foreground">Crie uma reunião quando uma ou mais teses precisarem de decisão conjunta.</p></div>
           ) : (meetingsQuery.data || []).map((meeting) => (
-            <div key={meeting.id} className="flex flex-wrap items-start gap-3 border-b py-4">
-              <div className="grid h-9 w-9 place-items-center rounded-md bg-violet-50 text-violet-700"><CalendarDays className="h-4 w-4" /></div>
-              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{meeting.titulo}</p><Badge variant="outline" className="font-mono">{meeting.codigo}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{new Date(`${meeting.data}T12:00:00`).toLocaleDateString("pt-BR")}{meeting.hora ? ` às ${meeting.hora}` : ""} · {Number(meeting.total_participantes || 0)} participantes</p><div className="mt-2 flex flex-wrap gap-1">{(meeting.oportunidades || []).map((item) => <Badge key={`${item.codigo}-${item.papel}`} variant="outline" className="text-[10px]">{item.papel === "principal" ? "Tese" : item.tipo === "demanda" ? "Demanda" : "OBA"} · {item.codigo}</Badge>)}</div></div>
-              <Button variant="outline" onClick={() => openMeeting(meeting.codigo || meeting.id)}>Gerenciar</Button>
+            <div key={meeting.id} className="border-b py-4">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-md bg-violet-50 text-violet-700"><CalendarDays className="h-4 w-4" /></div>
+                <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{meeting.titulo}</p><Badge variant="outline" className="font-mono">{meeting.codigo}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{new Date(`${meeting.data}T12:00:00`).toLocaleDateString("pt-BR")}{meeting.hora ? ` às ${meeting.hora}` : ""} · {Number(meeting.total_participantes || 0)} participantes</p><div className="mt-2 flex flex-wrap gap-1">{(meeting.oportunidades || []).map((item) => <Badge key={`${item.codigo}-${item.papel}`} variant="outline" className="text-[10px]">{item.papel === "principal" ? "Tese" : item.tipo === "demanda" ? "Demanda" : "OBA"} · {item.codigo}</Badge>)}</div></div>
+                <Button variant="outline" onClick={() => openMeeting(meeting.codigo || meeting.id)}>Gerenciar</Button>
+              </div>
+              <TraceabilitySummary objectType="ro" objectId={meeting.id} compact />
             </div>
           ))}
         </div>

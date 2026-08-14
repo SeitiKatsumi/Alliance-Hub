@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
 
 type AgendaStatus = "pendente" | "em_andamento" | "concluida" | "cancelada";
 type AgendaPrioridade = "baixa" | "media" | "alta";
@@ -160,7 +161,7 @@ function membroSearchText(membro: MembroOption) {
   ].filter(Boolean).join(" ");
 }
 
-export default function AgendaPage() {
+export default function AgendaPage({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaTarefa | null>(null);
@@ -316,6 +317,7 @@ export default function AgendaPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agenda"] });
+      invalidateAgendaAlertQueries(queryClient);
       setDialogOpen(false);
       setEditing(null);
       setForm(emptyForm);
@@ -332,7 +334,10 @@ export default function AgendaPage() {
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: AgendaStatus }) =>
       apiRequest("PATCH", `/api/agenda/${id}`, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/agenda"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agenda"] });
+      invalidateAgendaAlertQueries(queryClient);
+    },
     onError: (error: any) => toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" }),
   });
 
@@ -340,6 +345,7 @@ export default function AgendaPage() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/agenda/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agenda"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "Ação removida" });
     },
     onError: (error: any) => toast({ title: "Erro ao remover ação", description: error.message, variant: "destructive" }),
@@ -383,8 +389,8 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6"}>
+      {!embedded && <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs text-muted-foreground">Início / Agenda</p>
           <h1 className="mt-2 flex items-center gap-3 text-2xl font-bold text-foreground">
@@ -401,7 +407,7 @@ export default function AgendaPage() {
           <Plus className="h-4 w-4" />
           Nova ação
         </Button>
-      </div>
+      </div>}
 
       <div className="grid gap-3 sm:grid-cols-4">
         {(["pendente", "em_andamento", "concluida", "cancelada"] as AgendaStatus[]).map(status => (

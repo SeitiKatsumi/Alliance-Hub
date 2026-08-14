@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
+import TraceabilitySummary from "@/components/traceability-summary";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -188,6 +189,7 @@ export function VitrineDemandaDetalhePage() {
             <h2 className="text-lg font-semibold">Tipo de ajuda</h2>
             <div className="mt-3 flex flex-wrap gap-2">{(demand.especialidades || []).length ? demand.especialidades!.map((item) => <Badge key={item} variant="secondary">{item}</Badge>) : <p className="text-sm text-muted-foreground">O proprietário ainda não definiu a especialidade necessária.</p>}</div>
           </section>
+          <TraceabilitySummary objectType="demanda" objectId={demand.id} compact />
           {selected && privateQuery.data && (
             <section className="border-t pt-5">
               <div className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-600" /><h2 className="text-lg font-semibold">Dados liberados após seleção</h2></div>

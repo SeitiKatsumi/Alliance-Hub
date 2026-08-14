@@ -73,7 +73,7 @@ function money(value?: string | number, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(amount);
 }
 
-export function OportunidadesImobiliariasPanel({ embedded = false }: { embedded?: boolean }) {
+export function OportunidadesImobiliariasPanel({ embedded = false, hideHeader = false }: { embedded?: boolean; hideHeader?: boolean }) {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const opportunitiesQuery = useQuery<PropertyOpportunity[]>({
@@ -84,8 +84,8 @@ export function OportunidadesImobiliariasPanel({ embedded = false }: { embedded?
 
   return (
     <div className={embedded ? "space-y-5" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8"}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Lightbulb className="h-6 w-6 text-amber-500" />Oportunidades</h1><p className="mt-1 text-sm text-muted-foreground">Imóveis ou negócios imobiliários identificados para análise, sem incluí-los no seu patrimônio.</p></div>
+      <div className={`flex flex-wrap items-center gap-4 ${hideHeader ? "justify-end" : "justify-between"}`}>
+        {!hideHeader && <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Lightbulb className="h-6 w-6 text-amber-500" />Oportunidades</h1><p className="mt-1 text-sm text-muted-foreground">Imóveis ou negócios imobiliários identificados para análise, sem incluí-los no seu patrimônio.</p></div>}
         <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/oportunidades/nova")}><Plus className="mr-2 h-4 w-4" />Cadastrar oportunidade</Button>
       </div>
       {!embedded && (
@@ -95,7 +95,9 @@ export function OportunidadesImobiliariasPanel({ embedded = false }: { embedded?
         </div>
       )}
       <div className="relative max-w-xl"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar oportunidade..." /></div>
-      {opportunitiesQuery.isLoading ? <div className="flex min-h-60 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : opportunities.length === 0 ? (
+      {opportunitiesQuery.isLoading ? <div className="flex min-h-60 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : opportunitiesQuery.isError ? (
+        <div className="border-y py-12 text-center text-sm text-red-600">Não foi possível carregar suas oportunidades.</div>
+      ) : opportunities.length === 0 ? (
         <div className="border-y py-16 text-center"><Lightbulb className="mx-auto h-9 w-9 text-muted-foreground" /><p className="mt-3 font-medium">Nenhuma oportunidade cadastrada</p><p className="mt-1 text-sm text-muted-foreground">Cadastre um imóvel externo ou explore o potencial de um imóvel da sua carteira.</p><Button className="mt-5" onClick={() => navigate("/oportunidades/nova")}><Plus className="mr-2 h-4 w-4" />Cadastrar oportunidade</Button></div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{opportunities.map((item) => <Card key={item.id} className="rounded-md"><CardContent className="p-5"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{item.category === "land-bank" ? "Land Bank" : "Ativo Edificado"}</Badge><Badge variant="outline">{stageLabels[item.estagio] || item.estagio}</Badge></div><h2 className="mt-4 text-lg font-semibold">{item.qualificacao}</h2><p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{item.tese_inicial || item.descricao || "Tese inicial ainda não informada."}</p><div className="mt-4 border-t pt-4 text-sm"><p className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="h-4 w-4" />{[item.cidade, item.estado, item.pais].filter(Boolean).join(" / ") || "Localização em análise"}</p><p className="mt-2 font-medium">{money(item.valor, item.moeda)}</p></div><Button variant="outline" className="mt-4 w-full" onClick={() => navigate(`/oportunidades/${item.id}`)}>Acompanhar oportunidade</Button></CardContent></Card>)}</div>

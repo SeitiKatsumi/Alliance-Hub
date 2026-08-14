@@ -2,6 +2,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -998,9 +999,10 @@ function CandidateInfoPanel({
 
 interface ComunidadePageProps {
   convitesOnly?: boolean;
+  embedded?: boolean;
 }
 
-export default function ComunidadePage({ convitesOnly = false }: ComunidadePageProps) {
+export default function ComunidadePage({ convitesOnly = false, embedded = false }: ComunidadePageProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -1310,6 +1312,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       apiRequest("PATCH", `/api/convites/${token}/decisao`, { decisao }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "Decisão registrada com sucesso!" });
     },
     onError: () => toast({ title: "Erro ao processar decisão", variant: "destructive" }),
@@ -1328,6 +1331,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       queryClient.invalidateQueries({ queryKey: ["/api/bia-diretor-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({
         title: variables.decisao === "aceitar" ? "Diretoria aceita" : "Diretoria recusada",
       });
@@ -1352,6 +1356,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       queryClient.invalidateQueries({ queryKey: ["/api/bia-socio-solicitacoes/minhas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({
         title: variables.decisao === "aceitar" ? "Convite de sócio aceito" : "Convite de sócio recusado",
       });
@@ -1388,6 +1393,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
         queryClient.invalidateQueries({ queryKey: ["/api/membros", currentMembro.id] });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "MOU aceito", description: "Sua participação na BIA foi confirmada." });
       setMouPendente(null);
       setMouAceito(false);
@@ -1435,6 +1441,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       apiRequest("PATCH", `/api/convites/${token}/aprovar-vitrine`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "Acesso à vitrine aprovado! Candidato receberá e-mail." });
     },
     onError: () => toast({ title: "Erro ao aprovar acesso", variant: "destructive" }),
@@ -1445,6 +1452,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       apiRequest("PATCH", `/api/convites/${token}/rejeitar-vitrine`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "Candidato rejeitado. E-mails enviados." });
     },
     onError: () => toast({ title: "Erro ao rejeitar", variant: "destructive" }),
@@ -1456,6 +1464,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
       queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "Alerta removido" });
     },
     onError: (error: any) => toast({
@@ -1511,6 +1520,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       queryClient.invalidateQueries({ queryKey: ["/api/convites/aliado"] });
       queryClient.invalidateQueries({ queryKey: ["/api/convites/vitrine"] });
       queryClient.invalidateQueries({ queryKey: ["/api/convites/conector"] });
+      invalidateAgendaAlertQueries(queryClient);
       toast({ title: "Percepção de Aura registrada!" });
       resetAuraDialog();
     },
@@ -1933,9 +1943,9 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
       .filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length;
 
   return (
-    <div className={`p-6 space-y-6 max-w-7xl mx-auto ${convitesOnly ?"notifications-page" : ""}`}>
+    <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"} ${convitesOnly ?"notifications-page" : ""}`}>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {!embedded && <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div
             className="p-2 rounded-lg bg-gradient-to-br from-brand-gold to-brand-gold/70 text-brand-navy"
@@ -1962,7 +1972,7 @@ export default function ComunidadePage({ convitesOnly = false }: ComunidadePageP
             Nova Comunidade
           </Button>
         )}
-      </div>
+      </div>}
 
       {/* Tab switcher */}
       {showConvitesTab && (

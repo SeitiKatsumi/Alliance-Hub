@@ -23,6 +23,15 @@ export type BusinessFeedCandidate = {
   publishedAt?: Date | string | null;
 };
 
+export type BusinessFeedContext = "recomendado" | "em_andamento" | "agenda" | "convite";
+
+export type BusinessFeedContextCandidate = {
+  type?: unknown;
+  interested?: boolean;
+  delivered?: boolean;
+  managed?: boolean;
+};
+
 function normalize(value: unknown) {
   return String(value || "")
     .normalize("NFD")
@@ -109,6 +118,14 @@ export function scoreBusinessFeedCandidate(profile: BusinessFeedProfile, candida
 
   if (reasons.length === 0) reasons.push("Disponível para membros BUILT");
   return { score: Math.min(100, Math.round(score)), reasons: reasons.slice(0, 2) };
+}
+
+export function classifyBusinessFeedContext(candidate: BusinessFeedContextCandidate): BusinessFeedContext {
+  const type = normalize(candidate.type);
+  if (type === "ro") return "agenda";
+  if (type === "bia") return "convite";
+  if (candidate.interested || candidate.delivered || candidate.managed) return "em_andamento";
+  return "recomendado";
 }
 
 export function sortBusinessFeed<T extends { aderencia: number; data?: string | null }>(items: T[]) {

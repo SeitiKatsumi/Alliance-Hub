@@ -8,6 +8,7 @@ import type { AppUser } from "@/hooks/use-auth";
 export function companyModuleForLocation(location: string): CompanyAccessKey | null {
   const path = String(location || "/").split("?")[0].toLowerCase();
   if (path === "/" || path === "/painel") return "inicio";
+  if (path.startsWith("/agenda-alertas")) return null;
   if (path.startsWith("/agenda")) return "agenda";
   if (path.startsWith("/carteira")) return "carteira";
   if (path.startsWith("/vitrine")) return "vitrine";

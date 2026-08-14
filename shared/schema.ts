@@ -404,6 +404,94 @@ export const opportunityOutcomes = pgTable("opportunity_outcomes", {
   atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
 });
 
+export const businessTraceJourneys = pgTable("business_trace_journeys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  codigo: text("codigo").notNull().unique(),
+  titulo: text("titulo"),
+  root_type: text("root_type").notNull(),
+  root_id: text("root_id").notNull(),
+  root_registry_id: text("root_registry_id"),
+  status: text("status").notNull().default("ativa"),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+}, (t) => ({
+  rootUniq: unique("business_trace_journeys_root_uniq").on(t.root_type, t.root_id),
+}));
+
+export const businessTraceNodes = pgTable("business_trace_nodes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  journey_id: text("journey_id").notNull(),
+  registry_id: text("registry_id"),
+  object_type: text("object_type").notNull(),
+  object_id: text("object_id").notNull(),
+  object_code: text("object_code"),
+  titulo: text("titulo"),
+  status: text("status"),
+  papel: text("papel").notNull().default("etapa"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+}, (t) => ({
+  objectUniq: unique("business_trace_nodes_object_uniq").on(t.journey_id, t.object_type, t.object_id),
+}));
+
+export const businessTraceLinks = pgTable("business_trace_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  journey_id: text("journey_id").notNull(),
+  source_node_id: text("source_node_id"),
+  destination_node_id: text("destination_node_id").notNull(),
+  relation_type: text("relation_type").notNull(),
+  justificativa: text("justificativa"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const businessTraceEvents = pgTable("business_trace_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  journey_id: text("journey_id").notNull(),
+  node_id: text("node_id"),
+  source_event_id: text("source_event_id"),
+  event_type: text("event_type").notNull(),
+  titulo: text("titulo").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+});
+
+export const businessTraceResults = pgTable("business_trace_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  economic_key: text("economic_key").notNull().unique(),
+  source_registry_id: text("source_registry_id"),
+  resultado: text("resultado").notNull(),
+  participante_user_id: text("participante_user_id"),
+  participante_membro_id: text("participante_membro_id"),
+  valor: numeric("valor", { precision: 16, scale: 2 }),
+  moeda: text("moeda"),
+  sem_valor_financeiro: boolean("sem_valor_financeiro").notNull().default(false),
+  contratado_em: timestamp("contratado_em"),
+  concluido_em: timestamp("concluido_em"),
+  observacoes: text("observacoes"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const businessTraceResultLinks = pgTable("business_trace_result_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  result_id: text("result_id").notNull(),
+  journey_id: text("journey_id").notNull(),
+  node_id: text("node_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+}, (t) => ({
+  resultJourneyUniq: unique("business_trace_result_links_result_journey_uniq").on(t.result_id, t.journey_id),
+}));
+
 export const opportunityDistributionFlows = pgTable("opportunity_distribution_flows", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   registry_id: text("registry_id").notNull().unique(),

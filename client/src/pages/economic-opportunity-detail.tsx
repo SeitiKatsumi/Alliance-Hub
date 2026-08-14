@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import TraceabilitySummary from "@/components/traceability-summary";
 
 interface EconomicOpportunityDetail {
   id: string;
@@ -193,6 +194,8 @@ export default function EconomicOpportunityDetailPage() {
         <h1 className="mt-4 text-3xl font-bold">{opportunity.titulo}</h1>
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground"><span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{[opportunity.cidade, opportunity.estado, opportunity.pais].filter(Boolean).join(", ") || "Localização não informada"}</span>{opportunity.comunidade_nome && <span>{opportunity.comunidade_nome}</span>}</div>
       </div>
+
+      {opportunity.dados_completos && <TraceabilitySummary objectType="oportunidade" objectId={opportunity.id} />}
 
       {!opportunity.dados_completos ? (
         <Card><CardContent className="p-6"><h2 className="font-semibold">Resumo autorizado</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{opportunity.resumo_autorizado || "Resumo em preparação."}</p><p className="mt-5 border-t pt-4 text-xs text-muted-foreground">Os dados completos permanecem protegidos e são liberados apenas conforme a participação no fluxo.</p></CardContent></Card>

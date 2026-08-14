@@ -23,7 +23,7 @@ import OpaDetalhePage from "@/pages/opa-detalhe";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
 import CarteiraPage from "@/pages/carteira";
-import AgendaPage from "@/pages/agenda";
+import AgendaAlertasPage from "@/pages/agenda-alertas";
 import AdminPage from "@/pages/admin";
 import MeuPerfilPage from "@/pages/meu-perfil";
 import DocumentacaoPage from "@/pages/documentacao";
@@ -35,6 +35,7 @@ import VitrineDemandasPage, { VitrineDemandaDetalhePage } from "@/pages/vitrine-
 import VitrineOpaDetalhePage, { BuiltCapitalChamadaDetalhePage } from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
 import EconomicOpportunityDetailPage from "@/pages/economic-opportunity-detail";
+import BusinessTraceDetailPage from "@/pages/business-trace-detail";
 import LandBankDetalhePage from "@/pages/land-bank-detalhe";
 import OportunidadesImobiliariasPage, { NovaOportunidadeImobiliariaPage } from "@/pages/oportunidades-imobiliarias";
 import AreMembroPage from "@/pages/area-membros";
@@ -118,6 +119,16 @@ function LegacyMembrosRedirect() {
   useEffect(() => {
     navigate("/admin", { replace: true });
   }, [navigate]);
+
+  return null;
+}
+
+function LegacyAgendaAlertsRedirect({ view }: { view: "agenda" | "alertas" }) {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    navigate(`/agenda-alertas?view=${view}`, { replace: true });
+  }, [navigate, view]);
 
   return null;
 }
@@ -1262,7 +1273,7 @@ function ProtectedApp() {
       title: "Nova pendência",
       description: pendentes.length === 1 ? "Você tem uma nova notificação para revisar." : `Você tem ${pendentes.length} notificações para revisar.`,
       action: (
-        <ToastAction altText="Ver notificações" onClick={() => navigate("/notificacoes")}>
+        <ToastAction altText="Ver alertas" onClick={() => navigate("/agenda-alertas?view=alertas")}>
           Ver
         </ToastAction>
       ),
@@ -1353,7 +1364,8 @@ function ProtectedApp() {
               <Route path="/oportunidades/nova" component={NovaOportunidadeImobiliariaPage} />
               <Route path="/oportunidades/:id" component={LandBankDetalhePage} />
               <Route path="/oportunidades" component={OportunidadesImobiliariasPage} />
-              <Route path="/agenda" component={AgendaPage} />
+              <Route path="/agenda-alertas" component={AgendaAlertasPage} />
+              <Route path="/agenda">{() => <LegacyAgendaAlertsRedirect view="agenda" />}</Route>
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias" component={BiasPage} />
               <Route path="/opas/:id" component={OpaDetalhePage} />
@@ -1383,14 +1395,15 @@ function ProtectedApp() {
               <Route path="/vitrine/:id" component={VitrineDetalhePage} />
               <Route path="/vitrine" component={VitrinePage} />
               <Route path="/area-aliancas/oportunidades/:codigo" component={EconomicOpportunityDetailPage} />
+              <Route path="/rastreabilidade/:codigo" component={BusinessTraceDetailPage} />
               <Route path="/area-aliancas" component={AlliancesRouteGuard} />
               <Route path="/land-bank/:id" component={LandBankDetalhePage} />
               <Route path="/area-membros" component={AreMembroPage} />
               <Route path="/membro/:id" component={MembroDetalhePage} />
               <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />
               <Route path="/comunidade">{() => <ComunidadePage />}</Route>
-              <Route path="/notificacoes" component={ConvitesPage} />
-              <Route path="/convites" component={ConvitesPage} />
+              <Route path="/notificacoes">{() => <LegacyAgendaAlertsRedirect view="alertas" />}</Route>
+              <Route path="/convites">{() => <LegacyAgendaAlertsRedirect view="alertas" />}</Route>
               <Route path="/built-capital/chamadas/:id" component={BuiltCapitalChamadaDetalhePage} />
               <Route path="/built-capital/chamadas" component={BuiltCapitalChamadasPage} />
               <Route path="/built-capital" component={BuiltCapitalPage} />

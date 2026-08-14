@@ -1581,7 +1581,7 @@ export default function AreaAliancasPage() {
   const [landBankDialogCategory, setLandBankDialogCategory] = useState<LandBankCategory["value"]>(initialTabs.landBank as LandBankCategory["value"]);
   const [landBankForm, setLandBankForm] = useState<LandBankForm>(emptyLandBankForm);
 
-  const { data: landBankAssetsFromApi = [] } = useQuery<LandBankAsset[]>({
+  const { data: landBankAssetsFromApi, isSuccess: landBankAssetsLoaded } = useQuery<LandBankAsset[]>({
     queryKey: ["/api/land-bank-assets"],
     queryFn: async () => {
       const r = await fetch("/api/land-bank-assets", { credentials: "include" });
@@ -1638,12 +1638,14 @@ export default function AreaAliancasPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    setLandBankAssets(landBankAssetsFromApi);
-    window.localStorage.setItem(landBankStorageKey, JSON.stringify(landBankAssetsFromApi));
-  }, [landBankAssetsFromApi]);
+    if (!landBankAssetsLoaded) return;
+    const nextAssets = landBankAssetsFromApi || [];
+    setLandBankAssets(nextAssets);
+    window.localStorage.setItem(landBankStorageKey, JSON.stringify(nextAssets));
+  }, [landBankAssetsFromApi, landBankAssetsLoaded]);
 
   useEffect(() => {
-    if (landBankAssetsFromApi.length > 0) return;
+    if (!landBankAssetsLoaded || (landBankAssetsFromApi || []).length > 0) return;
     try {
       const stored = window.localStorage.getItem(landBankStorageKey);
       const parsed = stored ? JSON.parse(stored) : [];
@@ -1654,7 +1656,7 @@ export default function AreaAliancasPage() {
     } catch {
       // Ignore legacy local storage migration failures.
     }
-  }, [landBankAssetsFromApi.length]);
+  }, [landBankAssetsLoaded, landBankAssetsFromApi]);
 
   const selectedLandBankCategory = landBankCategories.find((category) => category.value === landBankDialogCategory) || landBankCategories[0];
   const SelectedLandBankIcon = selectedLandBankCategory.icon;

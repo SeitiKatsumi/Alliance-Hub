@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
+import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 
 test("business feed prioritizes competence and location matches", () => {
   const profile = {
@@ -39,4 +39,16 @@ test("business feed sorting uses relevance before recency", () => {
     { id: "relevant", aderencia: 90, data: "2026-08-01" },
   ]);
   assert.equal(sorted[0].id, "relevant");
+});
+
+test("network opportunities move to activity only after engagement", () => {
+  assert.equal(classifyBusinessFeedContext({ type: "demanda" }), "recomendado");
+  assert.equal(classifyBusinessFeedContext({ type: "oba", interested: true }), "em_andamento");
+  assert.equal(classifyBusinessFeedContext({ type: "demanda", delivered: true }), "em_andamento");
+  assert.equal(classifyBusinessFeedContext({ type: "oba", managed: true }), "em_andamento");
+});
+
+test("meetings and invitations have dedicated activity contexts", () => {
+  assert.equal(classifyBusinessFeedContext({ type: "ro" }), "agenda");
+  assert.equal(classifyBusinessFeedContext({ type: "bia" }), "convite");
 });

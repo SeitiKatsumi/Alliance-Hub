@@ -158,6 +158,18 @@ export default function CarteiraAssistentePage() {
     navigate(`/carteira/novo?${query.toString()}`);
   }
 
+  async function leaveJourney() {
+    if (sessionId) {
+      window.sessionStorage.setItem(`built-property-journey-dismissed:${sessionId}`, "1");
+      await fetch(`/api/carteira/assistente/sessoes/${sessionId}/pausar`, {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => undefined);
+      queryClient.invalidateQueries({ queryKey: ["/api/carteira/onboarding-status"] });
+    }
+    navigate("/?tab=carteira&view=imoveis");
+  }
+
   const startMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch("/api/carteira/assistente/sessoes", {
@@ -287,7 +299,7 @@ export default function CarteiraAssistentePage() {
   if (!sessionId) {
     return (
       <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 md:px-8">
-        <button type="button" onClick={() => navigate("/carteira")} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-950">
+        <button type="button" onClick={() => void leaveJourney()} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-950">
           <ArrowLeft className="h-4 w-4" /> Voltar para Meus Imóveis
         </button>
         <header>
@@ -342,7 +354,7 @@ export default function CarteiraAssistentePage() {
     <main className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 md:px-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <button type="button" onClick={() => navigate("/carteira")} className="mb-3 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-950"><ArrowLeft className="h-4 w-4" /> Sair do cadastro</button>
+          <button type="button" onClick={() => void leaveJourney()} className="mb-3 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-950"><ArrowLeft className="h-4 w-4" /> Sair do cadastro</button>
           <h1 className="text-2xl font-bold text-[#001D34]">{title}</h1>
           <p className="mt-1 text-sm text-slate-600">Seu progresso fica salvo. Toda sugestão da IA pode ser revisada.</p>
         </div>

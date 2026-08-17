@@ -66,6 +66,7 @@ type PropertyOnboardingStatus = {
   required?: boolean;
   reason?: string;
   next_url?: string | null;
+  session?: { id?: string } | null;
 };
 
 interface OnboardingMembro {
@@ -1162,15 +1163,20 @@ function ProtectedApp() {
   });
 
   useEffect(() => {
+    const sessionId = propertyOnboardingStatus?.session?.id;
+    const dismissed = sessionId
+      ? window.sessionStorage.getItem(`built-property-journey-dismissed:${sessionId}`) === "1"
+      : false;
     if (
       location === "/"
       && propertyOnboardingStatus?.required
       && propertyOnboardingStatus.reason === "resume"
       && propertyOnboardingStatus.next_url
+      && !dismissed
     ) {
       navigate(propertyOnboardingStatus.next_url);
     }
-  }, [location, navigate, propertyOnboardingStatus?.next_url, propertyOnboardingStatus?.reason, propertyOnboardingStatus?.required]);
+  }, [location, navigate, propertyOnboardingStatus?.next_url, propertyOnboardingStatus?.reason, propertyOnboardingStatus?.required, propertyOnboardingStatus?.session?.id]);
 
   const { data: opportunityNotifications = [] } = useQuery<any[]>({
     queryKey: ["/api/rede/oportunidades/notificacoes/minhas"],

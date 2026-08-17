@@ -13842,7 +13842,7 @@ ${textContent}`;
       const activeSession = (await db.execute(sql`
         SELECT id, path, step, status
         FROM property_assistant_sessions
-        WHERE owner_user_id = ${actor.userId} AND status <> 'concluido'
+        WHERE owner_user_id = ${actor.userId} AND status = 'em_andamento'
         ORDER BY updated_at DESC
         LIMIT 1
       `)).rows?.[0] as any;
@@ -13920,6 +13920,22 @@ ${textContent}`;
     }
   });
 
+  app.post("/api/carteira/assistente/sessoes/:sessionId/pausar", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        UPDATE property_assistant_sessions
+        SET status = 'pausado', updated_at = now()
+        WHERE id = ${req.params.sessionId} AND owner_user_id = ${actor.userId}
+        RETURNING *
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Jornada não encontrada." });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/carteira/assistente/sessoes/:sessionId", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -13955,6 +13971,7 @@ ${textContent}`;
           suggestions = ${JSON.stringify(suggestions)}::jsonb,
           confirmations = ${JSON.stringify(confirmations)}::jsonb,
           sources = ${JSON.stringify(sources)}::jsonb,
+          status = 'em_andamento',
           updated_at = now()
         WHERE id = ${current.id} RETURNING *
       `);

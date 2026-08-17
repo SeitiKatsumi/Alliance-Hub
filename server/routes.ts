@@ -25,6 +25,7 @@ import {
   reconcileValorOrigemEntries,
 } from "./valor-origem-sync";
 import { normalizeCarteiraAlertUpdate } from "./carteira-alertas";
+import { biaActivationRequirements, biaFormalParticipantIds, canCreateObaForBia } from "./bia-lifecycle";
 import {
   activeAgendaAlertCount,
   agendaAlertBadge,
@@ -44,6 +45,7 @@ import {
   ensureBusinessTraceTables,
   getOrCreateTraceForRegistry,
   inheritTraceBetweenRegistries,
+  recordTraceEventForObject,
   recordTraceEventForRegistry,
   syncTraceResultForRegistry,
   traceObjectTypeForRegistry,
@@ -52,6 +54,7 @@ import {
 } from "./business-trace";
 import {
   buildDistributionSchedule,
+  buildPulseV2Schedule,
   canReadRestrictedOpportunity,
   createDemandCode,
   createEconomicOpportunityCode,
@@ -67,6 +70,22 @@ import {
   opportunityExpiry,
   publicOpportunityRegistryView,
 } from "./opportunity-platform";
+import {
+  isProfessionalPurpose,
+  mergePropertyExtraction,
+  nextPropertyAssistantStep,
+  normalizeAccountPurposes,
+  normalizeDemandClosureReason,
+  normalizeDemandDistributionMode,
+  normalizeDemandKind,
+  normalizeJourneySearchText,
+  normalizeInitialPropertyJourney,
+  normalizePropertyAssistantStep,
+  normalizePropertyIntent,
+  normalizePropertyMethod,
+  resolveAccountPurposesForInvite,
+  scorePropertyProfessionalMatch,
+} from "./property-journey";
 import {
   canRequestBiaStructuring,
   normalizeAssetOrigin,
@@ -1651,6 +1670,70 @@ async function ensureInventarioTables() {
       CONSTRAINT carteira_acessos_destinatario_check CHECK (user_id IS NOT NULL OR membro_id IS NOT NULL)
     )
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS user_account_purposes (
+      user_id text NOT NULL,
+      membro_id text,
+      purpose text NOT NULL,
+      comunidade_id text,
+      source text NOT NULL DEFAULT 'profile',
+      active boolean NOT NULL DEFAULT true,
+      selected_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL,
+      PRIMARY KEY (user_id, purpose),
+      CONSTRAINT user_account_purpose_check CHECK (purpose IN ('imoveis', 'profissional', 'capital'))
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS property_assistant_sessions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_user_id text NOT NULL,
+      owner_membro_id text,
+      path text NOT NULL DEFAULT 'imovel',
+      method text,
+      step text NOT NULL DEFAULT 'cadastro',
+      status text NOT NULL DEFAULT 'em_andamento',
+      draft jsonb NOT NULL DEFAULT '{}'::jsonb,
+      suggestions jsonb NOT NULL DEFAULT '{}'::jsonb,
+      confirmations jsonb NOT NULL DEFAULT '{}'::jsonb,
+      sources jsonb NOT NULL DEFAULT '[]'::jsonb,
+      property_id text,
+      opportunity_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_demanda_destinatarios (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      demanda_id uuid NOT NULL REFERENCES carteira_demandas(id) ON DELETE CASCADE,
+      user_id text,
+      membro_id text NOT NULL,
+      status text NOT NULL DEFAULT 'convidado',
+      origem text NOT NULL DEFAULT 'direcionada',
+      acesso_completo boolean NOT NULL DEFAULT true,
+      convidado_em timestamp DEFAULT now() NOT NULL,
+      selecionado_em timestamp,
+      encerrado_em timestamp,
+      UNIQUE (demanda_id, membro_id)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_acessos_temporarios (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      demanda_id uuid NOT NULL REFERENCES carteira_demandas(id) ON DELETE CASCADE,
+      user_id text,
+      membro_id text NOT NULL,
+      nivel text NOT NULL DEFAULT 'leitura',
+      motivo text NOT NULL DEFAULT 'demanda_direcionada',
+      concedido_por_user_id text,
+      concedido_em timestamp DEFAULT now() NOT NULL,
+      expira_em timestamp,
+      revogado_em timestamp,
+      UNIQUE (demanda_id, membro_id)
+    )
+  `);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_eventos_imovel ON carteira_eventos (imovel_id, criado_em DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_documentos_imovel ON carteira_documentos (imovel_id, criado_em DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_analises_imovel ON carteira_analises (imovel_id, tipo, criado_em DESC)`);
@@ -1658,6 +1741,12 @@ async function ensureInventarioTables() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_demandas_imovel ON carteira_demandas (imovel_id, criado_em DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_user ON carteira_acessos (user_id, imovel_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_membro ON carteira_acessos (membro_id, imovel_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_property_assistant_owner ON property_assistant_sessions (owner_user_id, updated_at DESC)`);
+  await db.execute(sql`ALTER TABLE property_assistant_sessions ALTER COLUMN method DROP NOT NULL`);
+  await db.execute(sql`ALTER TABLE property_assistant_sessions ALTER COLUMN method DROP DEFAULT`);
+  await db.execute(sql`ALTER TABLE property_assistant_sessions ADD COLUMN IF NOT EXISTS sources jsonb NOT NULL DEFAULT '[]'::jsonb`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_demanda_destinatarios_demanda ON carteira_demanda_destinatarios (demanda_id, status)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_temporarios_imovel ON carteira_acessos_temporarios (imovel_id, revogado_em)`);
   await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS acao_registrada text`);
   await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS acao_registrada_em timestamp`);
   await db.execute(sql`ALTER TABLE carteira_alertas ADD COLUMN IF NOT EXISTS acao_registrada_por_user_id text`);
@@ -1792,6 +1881,20 @@ async function applyBusinessOpportunityTables() {
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS responsavel_membro_id text`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS expira_em timestamp`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS fluxo_disparo text NOT NULL DEFAULT 'imediato'`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS tipo_demanda text NOT NULL DEFAULT 'servico_fornecimento'`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS modalidade_distribuicao text NOT NULL DEFAULT 'pulso'`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS estimativa_min numeric(16,2)`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS estimativa_max numeric(16,2)`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS estimativa_moeda text DEFAULT 'BRL'`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS motivo_encerramento text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS contratado_dentro_built boolean`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS profissional_escolhido_user_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS profissional_escolhido_membro_id text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS valor_fechamento numeric(16,2)`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS moeda_fechamento text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS prazo_fechamento text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS experiencia_fechamento text`);
+  await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS encerrada_em timestamp`);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_demandas_codigo ON carteira_demandas (codigo) WHERE codigo IS NOT NULL`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_demandas_bia ON carteira_demandas (bia_id, criado_em DESC) WHERE bia_id IS NOT NULL`);
   await db.execute(sql`
@@ -1947,6 +2050,9 @@ async function applyBusinessOpportunityTables() {
       territorio text,
       estado text,
       pais text,
+      versao text NOT NULL DEFAULT 'legacy-v1',
+      intervalo_horas integer NOT NULL DEFAULT 12,
+      pausa_motivo text,
       onda_atual integer NOT NULL DEFAULT 0,
       proxima_execucao_em timestamp,
       criado_por_user_id text,
@@ -1954,6 +2060,9 @@ async function applyBusinessOpportunityTables() {
       atualizado_em timestamp DEFAULT now() NOT NULL
     )
   `);
+  await db.execute(sql`ALTER TABLE opportunity_distribution_flows ADD COLUMN IF NOT EXISTS versao text NOT NULL DEFAULT 'legacy-v1'`);
+  await db.execute(sql`ALTER TABLE opportunity_distribution_flows ADD COLUMN IF NOT EXISTS intervalo_horas integer NOT NULL DEFAULT 12`);
+  await db.execute(sql`ALTER TABLE opportunity_distribution_flows ADD COLUMN IF NOT EXISTS pausa_motivo text`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS opportunity_distribution_waves (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -8852,6 +8961,8 @@ export async function registerRoutes(
 
       // Create the BIA in Directus
       const createBody = { ...req.body };
+      createBody.situacao = "em_formacao";
+      createBody.bia_publica = false;
       if (sessionMembroId && !createBody.autor_bia) createBody.autor_bia = sessionMembroId;
       if (sessionMembroId && !createBody.diretor_alianca) createBody.diretor_alianca = sessionMembroId;
       if (sessionMembroId && (!isSuperAdminRole || !createBody.aliado_built)) {
@@ -8990,9 +9101,20 @@ export async function registerRoutes(
       let payload = prepareBiaPayload(req.body);
       const currentBia = await resolveBiaByIdOrPublicCode(
         req.params.id,
-        "id,codigo_publico,nome_bia,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_autor_opa,perc_aliado_built,perc_built,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,terceiros,valor_origem,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
+        "id,codigo_publico,nome_bia,situacao,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,perc_autor_opa,perc_aliado_built,perc_built,perc_dir_alianca,perc_dir_tecnico,perc_dir_obras,perc_dir_comercial,perc_dir_capital,socios_guardioes,socios_multiplicadores,terceiros,valor_origem,valor_realizado_venda,custo_final_previsto,comissao_prevista_corretor,ir_previsto,inss_previsto,manutencao_pos_obra_prevista,comissao_realizada,ir_realizado,inss_realizado,manutencao_realizada,total_receita,resultado_liquido,lucro_previsto"
       ).catch(() => null);
       if (!currentBia?.id) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
+      if (Object.prototype.hasOwnProperty.call(payload, "situacao") && payload.situacao !== currentBia.situacao) {
+        return res.status(409).json({
+          error: currentBia.situacao === "em_formacao"
+            ? "Use a ação Ativar BIA para validar os requisitos antes da ativação."
+            : "O status de uma BIA ativa não pode ser alterado diretamente.",
+          code: "BIA_STATUS_TRANSITION_REQUIRES_ACTION",
+        });
+      }
+      if (String(currentBia.situacao || "em_formacao") !== "ativa") {
+        payload.bia_publica = false;
+      }
       const biaUpdateId = String(currentBia.id);
       const originPatch = normalizeBiaOriginPatch(req.body);
       if (originPatch.error) return res.status(400).json({ error: originPatch.error });
@@ -9223,6 +9345,80 @@ export async function registerRoutes(
       res.status(500).json({ error: lastError?.message || "Unknown error" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bias/:id/ativar", async (req, res) => {
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(
+        req.params.id,
+        "id,codigo_publico,nome_bia,situacao,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores",
+      ).catch(() => null);
+      if (!bia?.id) return res.status(404).json({ error: "BIA não encontrada." });
+      if (String(bia.situacao || "ativa") === "ativa") {
+        return res.json({ ...bia, idempotent: true });
+      }
+
+      const sessionRole = String((req.session as any).role || "").toLowerCase();
+      const sessionMembroId = String((req.session as any).membroId || "");
+      const isPlatformAdmin = ["admin", "manager", "superadmin", "master"].includes(sessionRole)
+        || isBootstrapSuperAdmin((req.session as any).email);
+      const aliadoId = directusRelationId(bia.aliado_built);
+      const diretorAliancaId = directusRelationId(bia.diretor_alianca);
+      if (!isPlatformAdmin && sessionMembroId !== aliadoId && sessionMembroId !== diretorAliancaId) {
+        return res.status(403).json({ error: "Somente o Diretor da Aliança, o Aliado BUILT ou a administração podem ativar esta BIA." });
+      }
+
+      const pendencias = (await db.execute(sql`
+        SELECT
+          (SELECT count(*)::int FROM bia_diretor_solicitacoes WHERE bia_id = ${String(bia.id)} AND status = 'pendente') AS diretores,
+          (SELECT count(*)::int FROM bia_socio_solicitacoes WHERE bia_id = ${String(bia.id)} AND status = 'pendente') AS socios
+      `)).rows?.[0] as any;
+      const formalParticipantIds = biaFormalParticipantIds(bia);
+      let acceptedIds = new Set<string>();
+      if (formalParticipantIds.length > 0) {
+        const accepted = await db.execute(sql`
+          SELECT DISTINCT membro_id FROM bia_mou_aceites
+          WHERE bia_id = ${String(bia.id)}
+            AND membro_id IN (${sql.join(formalParticipantIds.map((participantId) => sql`${participantId}`), sql`, `)})
+        `);
+        acceptedIds = new Set((accepted.rows || []).map((row: any) => String(row.membro_id)));
+      }
+
+      const requirements = biaActivationRequirements({
+        bia,
+        pendingDirectorInvites: Number(pendencias?.diretores || 0),
+        pendingPartnerInvites: Number(pendencias?.socios || 0),
+        acceptedMouMemberIds: acceptedIds,
+      });
+
+      if (!requirements.canActivate) {
+        return res.status(409).json({
+          error: "A BIA ainda não atende aos requisitos de ativação.",
+          code: "BIA_ACTIVATION_REQUIREMENTS_PENDING",
+          pendencias: requirements.missing,
+        });
+      }
+
+      const activated = await directusUpdate("bias_projetos", String(bia.id), {
+        situacao: "ativa",
+        bia_publica: true,
+      });
+      await recordTraceEventForObject({
+        type: "bia",
+        id: String(bia.id),
+        code: String(bia.codigo_publico || bia.id),
+        title: String(bia.nome_bia || "BIA"),
+        status: "ativa",
+      }, "bia_ativada", "BIA ativada", {
+        codigo_bia: bia.codigo_publico || null,
+      }, {
+        userId: (req.session as any).directusUserId || null,
+        memberId: (req.session as any).membroId || null,
+      }).catch(() => undefined);
+      res.json(activated);
+    } catch (error: any) {
+      res.status(error.status || error.statusCode || 500).json({ error: error.message });
     }
   });
 
@@ -12069,15 +12265,21 @@ ${textContent}`;
     const bia = await directusFetchOne(
       "bias_projetos",
       String(biaId),
-      "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
+      "fields=id,situacao,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
     );
     if (!bia) {
       const error: any = new Error("BIA vinculada nÃ£o encontrada.");
       error.statusCode = 404;
       throw error;
     }
-    if (!isUserLinkedToBia(bia, sessionMembroId)) {
-      const error: any = new Error("VocÃª sÃ³ pode vincular OBAs a BIAs em que estÃ¡ associado.");
+    if (String(bia.situacao || "ativa") !== "ativa") {
+      const error: any = new Error("A BIA precisa estar ativa antes de criar OBAs.");
+      error.statusCode = 409;
+      throw error;
+    }
+    const isPlatformAdmin = ["admin", "superadmin"].includes(String((req.session as any).role || "").toLowerCase());
+    if (!canCreateObaForBia(bia, sessionMembroId, isPlatformAdmin)) {
+      const error: any = new Error("Somente os Diretores desta BIA podem criar uma OBA.");
       error.statusCode = 403;
       throw error;
     }
@@ -13411,6 +13613,16 @@ ${textContent}`;
             OR (ca.membro_id IS NOT NULL AND ca.membro_id = ${actor.membroId})
           )
       )
+      OR EXISTS (
+        SELECT 1
+        FROM carteira_acessos_temporarios cat
+        WHERE cat.imovel_id = i.id AND cat.revogado_em IS NULL
+          AND (cat.expira_em IS NULL OR cat.expira_em > now())
+          AND (
+            (cat.user_id IS NOT NULL AND cat.user_id = ${actor.userId})
+            OR (cat.membro_id IS NOT NULL AND cat.membro_id = ${actor.membroId})
+          )
+      )
     )`;
   }
 
@@ -13454,8 +13666,22 @@ ${textContent}`;
       LIMIT 1
     `);
     const nivel = String(accessResult.rows?.[0]?.nivel || "");
-    if (!isCarteiraAccessLevel(nivel) || nivel === "proprietario") return null;
-    return { imovel, nivel, isOwner: false };
+    if (isCarteiraAccessLevel(nivel) && nivel !== "proprietario") return { imovel, nivel, isOwner: false };
+
+    const temporaryResult = await db.execute(sql`
+      SELECT nivel
+      FROM carteira_acessos_temporarios
+      WHERE imovel_id = ${imovelId} AND revogado_em IS NULL
+        AND (expira_em IS NULL OR expira_em > now())
+        AND (
+          (user_id IS NOT NULL AND user_id = ${actor.userId})
+          OR (membro_id IS NOT NULL AND membro_id = ${actor.membroId})
+        )
+      ORDER BY concedido_em DESC LIMIT 1
+    `);
+    const temporaryLevel = String(temporaryResult.rows?.[0]?.nivel || "");
+    if (!isCarteiraAccessLevel(temporaryLevel) || temporaryLevel === "proprietario") return null;
+    return { imovel, nivel: temporaryLevel, isOwner: false };
   }
 
   async function requireCarteiraAccess(
@@ -13550,6 +13776,406 @@ ${textContent}`;
       diagnostico,
     };
   }
+
+  async function replaceAccountPurposes(actor: CarteiraActor, purposes: unknown, source = "profile", comunidadeId?: string | null) {
+    if (!actor.userId) throw Object.assign(new Error("Usuário não identificado."), { status: 400 });
+    const normalized = normalizeAccountPurposes(purposes);
+    if (!normalized.length) throw Object.assign(new Error("Selecione ao menos uma finalidade para a conta."), { status: 400 });
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`UPDATE user_account_purposes SET active = false, updated_at = now() WHERE user_id = ${actor.userId}`);
+      for (const purpose of normalized) {
+        await tx.execute(sql`
+          INSERT INTO user_account_purposes (user_id, membro_id, purpose, comunidade_id, source, active)
+          VALUES (${actor.userId}, ${actor.membroId}, ${purpose}, ${comunidadeId || null}, ${source}, true)
+          ON CONFLICT (user_id, purpose) DO UPDATE SET
+            membro_id = EXCLUDED.membro_id,
+            comunidade_id = COALESCE(EXCLUDED.comunidade_id, user_account_purposes.comunidade_id),
+            source = EXCLUDED.source,
+            active = true,
+            updated_at = now()
+        `);
+      }
+    });
+    return normalized;
+  }
+
+  app.get("/api/minha-conta/finalidades", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        SELECT purpose, comunidade_id, source, selected_at, updated_at
+        FROM user_account_purposes
+        WHERE user_id = ${actor.userId} AND active = true
+        ORDER BY selected_at
+      `);
+      res.json({ finalidades: (result.rows || []).map((row: any) => row.purpose), detalhes: result.rows || [] });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/minha-conta/finalidades", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const finalidades = await replaceAccountPurposes(actor, req.body?.finalidades, "profile");
+      res.json({ finalidades });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/onboarding-status", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const purposesResult = await db.execute(sql`
+        SELECT purpose
+        FROM user_account_purposes
+        WHERE user_id = ${actor.userId} AND active = true
+      `);
+      const purposes = (purposesResult.rows || []).map((row: any) => String(row.purpose));
+      const hasPropertyPurpose = purposes.includes("imoveis");
+
+      if (!hasPropertyPurpose) {
+        return res.json({ required: false, reason: "no_property_purpose", purposes });
+      }
+
+      const activeSession = (await db.execute(sql`
+        SELECT id, path, step, status
+        FROM property_assistant_sessions
+        WHERE owner_user_id = ${actor.userId} AND status <> 'concluido'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `)).rows?.[0] as any;
+
+      if (activeSession) {
+        const nextStep = normalizePropertyAssistantStep(activeSession.step);
+        const nextUrl = `/carteira/novo?path=${activeSession.path === "oportunidade" ? "oportunidade" : "imovel"}&session=${encodeURIComponent(String(activeSession.id))}&step=${nextStep}&onboarding=1`;
+        return res.json({ required: true, reason: "resume", next_url: nextUrl, session: activeSession });
+      }
+
+      const progress = (await db.execute(sql`
+        SELECT
+          EXISTS(
+            SELECT 1 FROM inventario_imoveis
+            WHERE owner_user_id = ${actor.userId}
+          ) AS has_property,
+          EXISTS(
+            SELECT 1 FROM property_assistant_sessions
+            WHERE owner_user_id = ${actor.userId} AND status = 'concluido'
+          ) AS has_completed_journey
+      `)).rows?.[0] as any;
+
+      if (progress?.has_property === true || progress?.has_completed_journey === true) {
+        return res.json({ required: false, reason: "completed", purposes });
+      }
+
+      return res.json({
+        required: false,
+        reason: "not_started",
+        next_url: null,
+        purposes,
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/assistente/sessoes", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const pathValue = req.body?.path === "oportunidade" ? "oportunidade" : "imovel";
+      const method = normalizePropertyMethod(req.body?.method);
+      const requestedIntent = String(req.body?.intencao ?? req.body?.draft?.intencao ?? "").trim();
+      const normalizedIntent = requestedIntent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ -]+/g, "_");
+      if (!["gerir", "vender", "alugar", "reformar", "construir", "regularizar", "estruturar_alianca"].includes(normalizedIntent)) {
+        return res.status(400).json({ error: "Selecione um objetivo inicial válido para o imóvel." });
+      }
+      const initialDraft = {
+        ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}),
+        intencao: normalizePropertyIntent(normalizedIntent),
+      };
+      const result = await db.execute(sql`
+        INSERT INTO property_assistant_sessions (owner_user_id, owner_membro_id, path, method, draft)
+        VALUES (${actor.userId}, ${actor.membroId}, ${pathValue}, ${method}, ${JSON.stringify(initialDraft)}::jsonb)
+        RETURNING *
+      `);
+      res.status(201).json(result.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/carteira/assistente/sessoes/:sessionId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const result = await db.execute(sql`
+        SELECT * FROM property_assistant_sessions
+        WHERE id = ${req.params.sessionId} AND owner_user_id = ${actor.userId}
+        LIMIT 1
+      `);
+      if (!result.rows?.[0]) return res.status(404).json({ error: "Jornada não encontrada." });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/carteira/assistente/sessoes/:sessionId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const current = (await db.execute(sql`
+        SELECT * FROM property_assistant_sessions
+        WHERE id = ${req.params.sessionId} AND owner_user_id = ${actor.userId}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Jornada não encontrada." });
+      const step = req.body?.advance === true
+        ? nextPropertyAssistantStep(current.step)
+        : normalizePropertyAssistantStep(req.body?.step ?? current.step);
+      const draft = { ...(current.draft || {}), ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}) };
+      if (req.body?.intencao) draft.intencao = normalizePropertyIntent(req.body.intencao);
+      const suggestions = { ...(current.suggestions || {}), ...(req.body?.suggestions && typeof req.body.suggestions === "object" ? req.body.suggestions : {}) };
+      const confirmations = { ...(current.confirmations || {}), ...(req.body?.confirmations && typeof req.body.confirmations === "object" ? req.body.confirmations : {}) };
+      const sourceType = normalizePropertyMethod(req.body?.source_type);
+      const sources = Array.isArray(current.sources) ? [...current.sources] : [];
+      if (sourceType && !sources.some((source: any) => source?.tipo === sourceType)) {
+        const sourceLabels = {
+          conversa: "Conversa com a IA",
+          cartorio: "Matrícula",
+          documentos: "Fotos e documentos",
+          manual: "Preenchimento manual",
+        } as const;
+        sources.push({ tipo: sourceType, nome: sourceLabels[sourceType], adicionado_em: new Date().toISOString() });
+      }
+      const requestedMethod = normalizePropertyMethod(req.body?.method);
+      const result = await db.execute(sql`
+        UPDATE property_assistant_sessions SET
+          method = ${requestedMethod ?? current.method},
+          step = ${step}, draft = ${JSON.stringify(draft)}::jsonb,
+          suggestions = ${JSON.stringify(suggestions)}::jsonb,
+          confirmations = ${JSON.stringify(confirmations)}::jsonb,
+          sources = ${JSON.stringify(sources)}::jsonb,
+          updated_at = now()
+        WHERE id = ${current.id} RETURNING *
+      `);
+      res.json(result.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/assistente/sessoes/:sessionId/analisar", auraAudioUpload.single("file"), async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const current = (await db.execute(sql`
+        SELECT * FROM property_assistant_sessions
+        WHERE id = ${req.params.sessionId} AND owner_user_id = ${actor.userId}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Jornada não encontrada." });
+      const file = (req as any).file;
+      const sourceType = normalizePropertyMethod(req.body?.source_type) || (file ? "documentos" : "conversa");
+      const sourceName = file?.originalname || (sourceType === "conversa" ? "Conversa com a IA" : sourceType);
+      let submittedDraft: Record<string, unknown> = {};
+      if (req.body?.draft) {
+        try {
+          const parsedDraft = JSON.parse(String(req.body.draft));
+          if (parsedDraft && typeof parsedDraft === "object" && !Array.isArray(parsedDraft)) submittedDraft = parsedDraft;
+        } catch {
+          return res.status(400).json({ error: "Os dados atuais do cadastro são inválidos." });
+        }
+      }
+      const inputText = file
+        ? String(file.mimetype || "").toLowerCase().startsWith("audio/")
+          ? await transcribeAuraAudioFile(file)
+          : await extractInventarioFileText(file, "Leia este documento ou imagem de imóvel e extraia somente informações visíveis sobre o ativo, endereço, área, registro, valores e características.")
+        : String(req.body?.texto || "").trim();
+      if (!inputText) return res.status(400).json({ error: "Envie um texto, imagem ou documento para análise." });
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: `Você auxilia o cadastro de imóveis da BUILT. Extraia apenas o que estiver informado e nunca invente dados. Sugira intenção e próximos passos. Responda SOMENTE JSON válido no formato:
+{"draft":{"nome":null,"tipo":null,"area_m2":null,"valor_atual":null,"cep":null,"endereco":null,"numero":null,"bairro":null,"cidade":null,"estado":null,"pais":"Brasil","matricula":null,"cartorio":null,"descricao":null},"intencao":"gerir|vender|alugar|reformar|construir|regularizar|estruturar_alianca","resumo":"texto curto","especialidades":["..."],"estimativa":{"min":null,"max":null,"moeda":"BRL","aviso":"Referência preliminar, não é proposta comercial."}}
+
+CONTEÚDO:
+${inputText.slice(0, 18000)}`,
+        }],
+        temperature: 0,
+        max_tokens: 1600,
+        response_format: { type: "json_object" },
+      });
+      const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+      const cleanDraft = Object.fromEntries(Object.entries(parsed.draft || {}).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+      const baseDraft = { ...(current.draft || {}), ...submittedDraft };
+      const mergedExtraction = mergePropertyExtraction(baseDraft, cleanDraft, sourceName);
+      const previousConflicts = { ...(current.suggestions?.conflitos || {}) };
+      for (const field of Object.keys(cleanDraft)) delete previousConflicts[field];
+      const suggestions = {
+        ...(current.suggestions || {}),
+        resumo: parsed.resumo || null,
+        intencao: normalizePropertyIntent(parsed.intencao),
+        especialidades: Array.isArray(parsed.especialidades) ? parsed.especialidades.slice(0, 12) : [],
+        estimativa: parsed.estimativa || null,
+        fonte: sourceName,
+        conflitos: { ...previousConflicts, ...mergedExtraction.conflicts },
+      };
+      const sources = Array.isArray(current.sources) ? [...current.sources] : [];
+      if (!sources.some((source: any) => source?.tipo === sourceType && source?.nome === sourceName)) {
+        sources.push({ tipo: sourceType, nome: sourceName, adicionado_em: new Date().toISOString() });
+      }
+      const result = await db.execute(sql`
+        UPDATE property_assistant_sessions
+        SET method = ${sourceType},
+            draft = ${JSON.stringify(mergedExtraction.draft)}::jsonb,
+            suggestions = ${JSON.stringify(suggestions)}::jsonb,
+            sources = ${JSON.stringify(sources)}::jsonb,
+            updated_at = now()
+        WHERE id = ${current.id} RETURNING *
+      `);
+      res.json(result.rows?.[0]);
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: "Não foi possível analisar este conteúdo: " + error.message });
+    }
+  });
+
+  app.get("/api/carteira/assistente/sessoes/:sessionId/recomendacoes", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const current = (await db.execute(sql`
+        SELECT * FROM property_assistant_sessions
+        WHERE id = ${req.params.sessionId} AND owner_user_id = ${actor.userId}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Jornada não encontrada." });
+
+      const fields = [
+        "id", "nome", "Nome_de_usuario", "cargo", "empresa", "cidade", "estado", "pais",
+        "foto_perfil", "especialidade_livre", "ramo_atuacao", "segmento", "area_atuacao",
+        "nucleo_alianca", "nucleos_alianca", "tipo_alianca", "tipos_alianca", "na_vitrine",
+        "em_membros_built", "Especialidades.especialidades_id.nome_especialidade",
+      ].join(",");
+      const members = await directusFetchScoped("cadastro_geral", `fields=${fields}&limit=250&sort=nome`).catch(() => []);
+      const linkedUsers = await db.execute(sql`SELECT id, membro_directus_id FROM users WHERE membro_directus_id IS NOT NULL`);
+      const userByMember = new Map((linkedUsers.rows || []).map((row: any) => [String(row.membro_directus_id), String(row.id)]));
+      const suggestedSpecialties = Array.isArray(current.suggestions?.especialidades)
+        ? current.suggestions.especialidades
+        : [];
+
+      const recommendations = (members || [])
+        .filter((member: any) => String(member.id) !== String(actor.membroId || ""))
+        .filter((member: any) => member.na_vitrine === true || member.em_membros_built === true)
+        .map((member: any) => {
+          const relationSpecialties = (Array.isArray(member.Especialidades) ? member.Especialidades : [])
+            .map((item: any) => item?.especialidades_id?.nome_especialidade)
+            .filter(Boolean);
+          const specialties = [
+            ...relationSpecialties,
+            member.especialidade_livre,
+            member.ramo_atuacao,
+            member.segmento,
+            member.area_atuacao,
+            member.tipo_alianca,
+            ...(Array.isArray(member.tipos_alianca) ? member.tipos_alianca : []),
+          ].filter(Boolean).map(String);
+          const match = scorePropertyProfessionalMatch({
+            intent: current.draft?.intencao,
+            suggestedSpecialties,
+            professionalSpecialties: specialties,
+            propertyCity: current.draft?.cidade,
+            propertyState: current.draft?.estado,
+            professionalCity: member.cidade,
+            professionalState: member.estado,
+            isBuiltMember: member.em_membros_built === true,
+            hasProfessionalProfile: Boolean(member.cargo || member.empresa || specialties.length),
+          });
+          return {
+            id: String(member.id),
+            user_id: userByMember.get(String(member.id)) || null,
+            nome: member.nome || member.Nome_de_usuario || "Profissional BUILT",
+            cargo: member.cargo || null,
+            empresa: member.empresa || null,
+            cidade: member.cidade || null,
+            estado: member.estado || null,
+            foto: member.foto_perfil || null,
+            especialidades: specialties.slice(0, 8),
+            aura_disponivel: null,
+            aderencia: match.score,
+            nivel_aderencia: match.score >= 80 ? "alta" : match.score >= 60 ? "boa" : "parcial",
+            especialidades_aderentes: match.matchedSpecialties,
+            motivos: match.reasons,
+            elegivel: match.eligible,
+          };
+        })
+        .filter((item: any) => item.elegivel)
+        .sort((a: any, b: any) => b.aderencia - a.aderencia || a.nome.localeCompare(b.nome))
+        .slice(0, 12);
+      res.json({
+        recomendacoes: recommendations,
+        sugestoes_usadas: suggestedSpecialties,
+        calculo: {
+          descricao: "Compatibilidade estimada entre a necessidade do imóvel e o perfil profissional.",
+          criterios: [
+            { nome: "Especialidades", peso_maximo: 70 },
+            { nome: "Localização", peso_maximo: 20 },
+            { nome: "Vínculo e perfil BUILT", peso_maximo: 10 },
+          ],
+        },
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/assistente/sessoes/:sessionId/concluir", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const current = (await db.execute(sql`
+        SELECT * FROM property_assistant_sessions
+        WHERE id = ${req.params.sessionId} AND owner_user_id = ${actor.userId}
+        LIMIT 1
+      `)).rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Jornada não encontrada." });
+      if (current.status === "concluido") {
+        return res.json({ success: true, path: current.path, property_id: current.property_id, opportunity_id: current.opportunity_id, idempotent: true });
+      }
+      const confirmed = req.body?.confirmado === true;
+      if (!confirmed) return res.status(400).json({ error: "Revise e confirme os dados antes de salvar." });
+      const draft = { ...(current.draft || {}), ...(req.body?.draft && typeof req.body.draft === "object" ? req.body.draft : {}) };
+      if (!String(draft.nome || draft.qualificacao || "").trim()) return res.status(400).json({ error: "Informe um nome ou qualificação para continuar." });
+      if (current.path === "oportunidade") {
+        const id = `land-${Date.now()}-${randomUUID().slice(0, 8)}`;
+        const category = String(draft.category || "land-bank");
+        const data = {
+          ...draft,
+          id,
+          category,
+          origem_tipo: "oportunidade_externa",
+          visibilidade: "privada",
+          estagio: "identificada",
+          originador_user_id: actor.userId,
+          originador_membro_id: actor.membroId,
+          status: "ativo",
+        };
+        await db.execute(sql`
+          INSERT INTO land_bank_assets (id, category, data, created_by, created_by_membro, origem_tipo, visibilidade, estagio, originador_user_id, originador_membro_id)
+          VALUES (${id}, ${category}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId}, 'oportunidade_externa', 'privada', 'identificada', ${actor.userId}, ${actor.membroId})
+        `);
+        await db.execute(sql`UPDATE property_assistant_sessions SET status = 'concluido', step = 'concluido', opportunity_id = ${id}, draft = ${JSON.stringify(draft)}::jsonb, confirmations = confirmations || ${JSON.stringify({ cadastro: true })}::jsonb, updated_at = now() WHERE id = ${current.id}`);
+        return res.status(201).json({ success: true, path: "oportunidade", opportunity_id: id, url: `/oportunidades/${id}` });
+      }
+      const id = `inv-${Date.now()}-${randomUUID().slice(0, 8)}`;
+      const data = sanitizeInventarioImovel({ ...draft, id }, actor, id);
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`INSERT INTO inventario_imoveis (id, data, owner_user_id, owner_membro_id) VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})`);
+        await tx.execute(sql`UPDATE property_assistant_sessions SET status = 'concluido', step = 'concluido', property_id = ${id}, draft = ${JSON.stringify(draft)}::jsonb, confirmations = confirmations || ${JSON.stringify({ cadastro: true })}::jsonb, updated_at = now() WHERE id = ${current.id}`);
+      });
+      await recordCarteiraEvent(id, actor, "imovel_criado_assistente", "Imóvel cadastrado com o assistente", { session_id: current.id, method: current.method });
+      res.status(201).json({ success: true, path: "imovel", property_id: id, url: `/carteira/${id}` });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
 
   app.get("/api/carteira/resumo", async (req, res) => {
     try {
@@ -14737,7 +15363,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         ${JSON.stringify(Array.isArray(demand.especialidades) ? demand.especialidades : [])}::jsonb,
         ${demand.cidade || property.cidade || null}, ${demand.estado || property.estado || null}, ${demand.pais || property.pais || "Brasil"},
         ${demand.publicada_em || null}, ${expiresAt}, ${demand.fluxo_disparo || "imediato"},
-        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null })}::jsonb,
+        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null, tipo_demanda: normalizeDemandKind(demand.tipo_demanda), modalidade_distribuicao: normalizeDemandDistributionMode(demand.modalidade_distribuicao) })}::jsonb,
         ${demand.criado_em || new Date()}, ${demand.atualizado_em || new Date()}
       )
       ON CONFLICT (source_type, source_id) DO UPDATE SET
@@ -15865,6 +16491,105 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
+  async function saveDirectedDemandRecipients(
+    demand: any,
+    recipientsInput: unknown[],
+    actor: CarteiraActor,
+  ) {
+    const memberIds = Array.from(new Set(recipientsInput
+      .map((item: any) => String(typeof item === "string" ? item : item?.membro_id || item?.id || "").trim())
+      .filter(Boolean)));
+    if (memberIds.length === 0) return [];
+    const saved: any[] = [];
+    for (const memberId of memberIds) {
+      const member = await directusFetchOne(
+        "cadastro_geral",
+        memberId,
+        "fields=id,nome,Nome_de_usuario,email,em_membros_built",
+      ).catch(() => null) as any;
+      if (!member || !(member.em_membros_built === true || member.em_membros_built === 1)) continue;
+      const linkedUser = (await db.execute(sql`
+        SELECT id FROM users WHERE membro_directus_id = ${memberId} LIMIT 1
+      `)).rows?.[0] as any;
+      const userId = linkedUser?.id ? String(linkedUser.id) : null;
+      const recipient = (await db.execute(sql`
+        INSERT INTO carteira_demanda_destinatarios (
+          demanda_id, user_id, membro_id, status, origem, acesso_completo
+        ) VALUES (
+          ${demand.id}, ${userId}, ${memberId}, 'convidado', 'direcionada', true
+        )
+        ON CONFLICT (demanda_id, membro_id) DO UPDATE SET
+          user_id = EXCLUDED.user_id,
+          status = 'convidado',
+          acesso_completo = true,
+          encerrado_em = NULL
+        RETURNING *
+      `)).rows?.[0] as any;
+      if (demand.imovel_id) {
+        await db.execute(sql`
+          INSERT INTO carteira_acessos_temporarios (
+            imovel_id, demanda_id, user_id, membro_id, nivel, motivo,
+            concedido_por_user_id, expira_em
+          ) VALUES (
+            ${demand.imovel_id}, ${demand.id}, ${userId}, ${memberId}, 'leitura',
+            'demanda_direcionada', ${actor.userId}, ${demand.expira_em || null}
+          )
+          ON CONFLICT (demanda_id, membro_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            nivel = 'leitura',
+            motivo = 'demanda_direcionada',
+            expira_em = EXCLUDED.expira_em,
+            revogado_em = NULL,
+            concedido_em = now()
+        `);
+      }
+      saved.push({ ...recipient, membro_nome: member.nome || member.Nome_de_usuario || null, email: member.email || null });
+    }
+    if (saved.length === 0) {
+      const error: any = new Error("Nenhum destinatário selecionado possui membresia BUILT ativa.");
+      error.status = 400;
+      throw error;
+    }
+    return saved;
+  }
+
+  async function grantSelectedDemandAccess(demandId: string, interest: any, actor: CarteiraActor) {
+    const demand = (await db.execute(sql`
+      SELECT id, imovel_id, expira_em FROM carteira_demandas WHERE id = ${demandId} LIMIT 1
+    `)).rows?.[0] as any;
+    if (!demand?.imovel_id || !interest?.membro_id) return;
+    await db.execute(sql`
+      INSERT INTO carteira_acessos_temporarios (
+        imovel_id, demanda_id, user_id, membro_id, nivel, motivo,
+        concedido_por_user_id, expira_em
+      ) VALUES (
+        ${demand.imovel_id}, ${demand.id}, ${interest.user_id || null}, ${interest.membro_id},
+        'leitura', 'profissional_selecionado', ${actor.userId}, ${demand.expira_em || null}
+      )
+      ON CONFLICT (demanda_id, membro_id) DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        nivel = 'leitura',
+        motivo = 'profissional_selecionado',
+        expira_em = EXCLUDED.expira_em,
+        revogado_em = NULL,
+        concedido_em = now()
+    `);
+  }
+
+  async function revokeDemandTemporaryAccess(demandId: string) {
+    await db.execute(sql`
+      UPDATE carteira_acessos_temporarios
+      SET revogado_em = COALESCE(revogado_em, now())
+      WHERE demanda_id = ${demandId} AND revogado_em IS NULL
+    `);
+    await db.execute(sql`
+      UPDATE carteira_demanda_destinatarios
+      SET status = CASE WHEN status = 'selecionado' THEN status ELSE 'encerrado' END,
+          encerrado_em = COALESCE(encerrado_em, now())
+      WHERE demanda_id = ${demandId} AND encerrado_em IS NULL
+    `);
+  }
+
   app.get("/api/bias/:id/demandas", async (req, res) => {
     try {
       const authorization = await requireBiaModuleAccess(req, res, req.params.id, "configuracao_bia", "view");
@@ -15895,12 +16620,20 @@ Deixe claro que premissas precisam de validação profissional.`,
       } else if (imovelId) {
         await requireCarteiraAccess(imovelId, actor, "administracao");
       }
-      const publicar = req.body?.publicar === true;
+      const tipoDemanda = normalizeDemandKind(req.body?.tipo_demanda);
+      const modalidadeDistribuicao = normalizeDemandDistributionMode(req.body?.modalidade_distribuicao);
+      const destinatarios = Array.isArray(req.body?.destinatarios) ? req.body.destinatarios : [];
+      if (modalidadeDistribuicao === "direcionada" && destinatarios.length === 0) {
+        return res.status(400).json({ error: "Selecione pelo menos um profissional para a Demanda direcionada." });
+      }
+      const publicar = modalidadeDistribuicao === "pulso" && req.body?.publicar === true;
       if (publicar && req.body?.consentimento_publicacao !== true) {
         return res.status(400).json({ error: "Confirme o consentimento para publicar a Demanda na Vitrine." });
       }
       const code = await createUniqueDemandCode();
       const publishedAt = publicar ? new Date() : null;
+      const demandStatus = modalidadeDistribuicao === "direcionada" || publicar ? "aberta" : "rascunho";
+      const demandVisibility = modalidadeDistribuicao === "direcionada" || publicar ? "restrita" : "privada";
       const expiryDays = Number(req.body?.validade_dias || 60);
       const insert = await db.execute(sql`
         INSERT INTO carteira_demandas (
@@ -15909,27 +16642,37 @@ Deixe claro que premissas precisam de validação profissional.`,
           responsavel_user_id, responsavel_membro_id, visibilidade,
           consentimento_publicacao_at, publicada_em, expira_em, resumo_publico,
           contexto, cidade, estado, pais,
-          fluxo_disparo, criado_por_user_id, criado_por_membro_id
+          fluxo_disparo, tipo_demanda, modalidade_distribuicao,
+          criado_por_user_id, criado_por_membro_id
         ) VALUES (
           ${imovelId}, ${biaId}, ${code}, ${authorType},
           ${authorType === "usuario" ? actor.userId : null}, ${authorType === "usuario" ? actor.membroId : null},
           'solicitacao', ${titulo}, ${req.body?.descricao || req.body?.escopo || null},
           ${req.body?.urgencia || "normal"},
           ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
-          ${publicar ? "aberta" : "rascunho"}, ${req.body?.responsavel_user_id || actor.userId},
-          ${req.body?.responsavel_membro_id || actor.membroId}, ${publicar ? "publicada" : "privada"},
+          ${demandStatus}, ${req.body?.responsavel_user_id || actor.userId},
+          ${req.body?.responsavel_membro_id || actor.membroId}, ${demandVisibility},
           ${publishedAt}, ${publishedAt}, ${publishedAt ? opportunityExpiry(publishedAt, expiryDays) : null},
           ${String(req.body?.resumo_publico || req.body?.descricao || req.body?.escopo || "").trim() || null},
           ${context || null}, ${String(req.body?.cidade || "").trim() || null},
           ${String(req.body?.estado || "").trim() || null}, ${String(req.body?.pais || "").trim() || "Brasil"},
-          ${req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato"}, ${actor.userId}, ${actor.membroId}
+          ${publicar ? "gradual" : "imediato"}, ${tipoDemanda}, ${modalidadeDistribuicao},
+          ${actor.userId}, ${actor.membroId}
         ) RETURNING *
       `);
       const demand = insert.rows?.[0] as any;
+      if (modalidadeDistribuicao === "direcionada") {
+        try {
+          await saveDirectedDemandRecipients(demand, destinatarios, actor);
+        } catch (error) {
+          await db.execute(sql`DELETE FROM carteira_demandas WHERE id = ${demand.id}`);
+          throw error;
+        }
+      }
       const registry = await syncDemandRegistry(String(demand.id));
       if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "Demanda criada", { autor_tipo: authorType, bia_id: biaId, imovel_id: imovelId });
       if (registry && publicar) {
-        await createDistributionFlow(registry, req, req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato");
+        await createDistributionFlow(registry, req, "gradual");
       }
       res.status(201).json(demand);
     } catch (error: any) {
@@ -15990,17 +16733,120 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
+  app.get("/api/carteira/imoveis/:id/profissionais-recomendados", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "leitura");
+      const property: any = access.imovel || {};
+      const wanted = String(req.query.especialidades || "")
+        .split(",")
+        .map(normalizeJourneySearchText)
+        .filter(Boolean);
+      const kind = normalizeDemandKind(req.query.tipo_demanda);
+      const kindTerms = kind === "venda"
+        ? ["venda", "corretagem", "comercial"]
+        : kind === "locacao"
+          ? ["locacao", "administracao", "comercial"]
+          : ["servico", "fornecimento", "obra", "projeto"];
+      const searchTerms = Array.from(new Set([...wanted, ...kindTerms]));
+      const nameSearch = normalizeJourneySearchText(req.query.q);
+      const fields = [
+        "id", "nome", "Nome_de_usuario", "cargo", "empresa", "cidade", "estado", "pais",
+        "foto_perfil", "especialidade_livre", "ramo_atuacao", "segmento", "area_atuacao",
+        "tipo_alianca", "tipos_alianca", "em_membros_built",
+        "Especialidades.especialidades_id.nome_especialidade",
+      ].join(",");
+      const [members, linkedUsers, auraRows] = await Promise.all([
+        directusFetchScoped("cadastro_geral", `fields=${fields}&limit=300&sort=nome`).catch(() => []),
+        db.execute(sql`SELECT id, membro_directus_id FROM users WHERE membro_directus_id IS NOT NULL`),
+        db.execute(sql`SELECT avaliador_membro_id, avaliado_membro_id, palavras FROM aura_avaliacoes`),
+      ]);
+      const userByMember = new Map((linkedUsers.rows || []).map((row: any) => [String(row.membro_directus_id), String(row.id)]));
+      const auraByMember = new Map<string, any[]>();
+      for (const row of auraRows.rows || []) {
+        const key = String((row as any).avaliado_membro_id);
+        auraByMember.set(key, [...(auraByMember.get(key) || []), row]);
+      }
+      const { calcularAura } = await import("./aura-lexico.js");
+      const city = normalizeJourneySearchText(property.cidade);
+      const state = normalizeJourneySearchText(property.estado);
+      const recommendations = (members as any[])
+        .filter((member: any) => String(member.id) !== String(actor.membroId || ""))
+        .filter((member: any) => member.em_membros_built === true || member.em_membros_built === 1)
+        .filter((member: any) => !nameSearch || normalizeJourneySearchText([
+          member.nome,
+          member.Nome_de_usuario,
+          member.empresa,
+          member.cargo,
+        ].filter(Boolean).join(" ")).includes(nameSearch))
+        .map((member: any) => {
+          const relationSpecialties = (Array.isArray(member.Especialidades) ? member.Especialidades : [])
+            .map((item: any) => item?.especialidades_id?.nome_especialidade)
+            .filter(Boolean);
+          const specialties = [
+            ...relationSpecialties,
+            member.especialidade_livre,
+            member.ramo_atuacao,
+            member.segmento,
+            member.area_atuacao,
+            member.tipo_alianca,
+            ...(Array.isArray(member.tipos_alianca) ? member.tipos_alianca : []),
+          ].filter(Boolean).map(String);
+          const haystack = normalizeJourneySearchText(specialties.join(" "));
+          const matched = searchTerms.filter((term) => haystack.includes(term));
+          let score = matched.length * 18;
+          const reasons: string[] = [];
+          if (matched.length) reasons.push(`Aderência a ${matched.slice(0, 3).join(", ")}`);
+          if (city && normalizeJourneySearchText(member.cidade) === city) {
+            score += 25;
+            reasons.push("Atua na mesma cidade");
+          } else if (state && normalizeJourneySearchText(member.estado) === state) {
+            score += 14;
+            reasons.push("Atua no mesmo estado");
+          }
+          const evaluations = auraByMember.get(String(member.id)) || [];
+          const aura = evaluations.length ? calcularAura(evaluations as any) : null;
+          return {
+            id: String(member.id),
+            user_id: userByMember.get(String(member.id)) || null,
+            nome: member.nome || member.Nome_de_usuario || "Profissional BUILT",
+            cargo: member.cargo || null,
+            empresa: member.empresa || null,
+            cidade: member.cidade || null,
+            estado: member.estado || null,
+            foto: member.foto_perfil || null,
+            especialidades: specialties.slice(0, 8),
+            aura: aura ? { score: aura.score, faixa: aura.faixa, avaliacoes: aura.n } : null,
+            aderencia: Math.min(100, score),
+            motivos: reasons,
+          };
+        })
+        .sort((a: any, b: any) => b.aderencia - a.aderencia || a.nome.localeCompare(b.nome))
+        .slice(0, 16);
+      res.json({ recomendacoes: recommendations });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/carteira/imoveis/:id/demandas", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
       await requireCarteiraAccess(req.params.id, actor, "administracao");
       const titulo = String(req.body?.titulo || "").trim();
       if (!titulo) return res.status(400).json({ error: "Informe o título da demanda." });
-      const publicar = req.body?.publicar === true;
+      const tipoDemanda = normalizeDemandKind(req.body?.tipo_demanda);
+      const modalidadeDistribuicao = normalizeDemandDistributionMode(req.body?.modalidade_distribuicao);
+      const destinatarios = Array.isArray(req.body?.destinatarios) ? req.body.destinatarios : [];
+      if (modalidadeDistribuicao === "direcionada" && destinatarios.length === 0) {
+        return res.status(400).json({ error: "Selecione pelo menos um profissional para a Demanda direcionada." });
+      }
+      const publicar = modalidadeDistribuicao === "pulso" && req.body?.publicar === true;
       if (publicar && req.body?.consentimento_publicacao !== true) {
         return res.status(400).json({ error: "Confirme o consentimento para publicar a demanda na Vitrine." });
       }
-      const visibilidade = publicar ? "publicada" : "privada";
+      const visibilidade = modalidadeDistribuicao === "direcionada" || publicar ? "restrita" : "privada";
+      const demandStatus = modalidadeDistribuicao === "direcionada" || publicar ? "aberta" : "rascunho";
       const resumoPublico = String(req.body?.resumo_publico || req.body?.escopo || "").trim() || null;
       const codigo = await createUniqueDemandCode();
       const publicadaEm = publicar ? new Date() : null;
@@ -16010,25 +16856,35 @@ Deixe claro que premissas precisam de validação profissional.`,
           tipo_resolucao, alternativa, titulo, escopo, urgencia,
           especialidades, status, responsavel_user_id, propostas, documentos,
           proximas_etapas, visibilidade, consentimento_publicacao_at, publicada_em,
-          expira_em, resumo_publico, fluxo_disparo, criado_por_user_id, criado_por_membro_id
+          expira_em, resumo_publico, fluxo_disparo, tipo_demanda,
+          modalidade_distribuicao, criado_por_user_id, criado_por_membro_id
         )
         VALUES (
           ${req.params.id}, ${codigo}, 'usuario', ${actor.userId}, ${actor.membroId},
           'solicitacao', ${req.body?.alternativa || null}, ${titulo},
           ${req.body?.escopo || null}, ${req.body?.urgencia || "normal"},
           ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
-          ${publicar ? "aberta" : "rascunho"}, ${req.body?.responsavel_user_id || null},
+          ${demandStatus}, ${req.body?.responsavel_user_id || null},
           ${JSON.stringify(Array.isArray(req.body?.propostas) ? req.body.propostas : [])}::jsonb,
           ${JSON.stringify(Array.isArray(req.body?.documentos) ? req.body.documentos : [])}::jsonb,
           ${JSON.stringify(Array.isArray(req.body?.proximas_etapas) ? req.body.proximas_etapas : [])}::jsonb,
           ${visibilidade}, ${publicadaEm}, ${publicadaEm},
           ${publicadaEm ? opportunityExpiry(publicadaEm, Number(req.body?.validade_dias || 60)) : null},
-          ${resumoPublico}, ${req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato"},
+          ${resumoPublico}, ${publicar ? "gradual" : "imediato"}, ${tipoDemanda},
+          ${modalidadeDistribuicao},
           ${actor.userId}, ${actor.membroId}
         )
         RETURNING *
       `);
       const demanda = insert.rows?.[0];
+      if (modalidadeDistribuicao === "direcionada") {
+        try {
+          await saveDirectedDemandRecipients(demanda, destinatarios, actor);
+        } catch (error) {
+          await db.execute(sql`DELETE FROM carteira_demandas WHERE id = ${demanda?.id}`);
+          throw error;
+        }
+      }
       await recordCarteiraEvent(req.params.id, actor, "demanda_criada", "Demanda criada", {
         demanda_id: demanda?.id,
         titulo,
@@ -16038,7 +16894,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       const registry = await syncDemandRegistry(String(demanda?.id));
       if (registry) await recordOpportunityEvent(String(registry.id), req, "criada", "Demanda criada", { imovel_id: req.params.id });
       if (registry && publicar) {
-        await createDistributionFlow(registry, req, req.body?.fluxo_disparo === "gradual" ? "gradual" : "imediato");
+        await createDistributionFlow(registry, req, "gradual");
       }
       res.status(201).json(demanda);
     } catch (error: any) {
@@ -16124,7 +16980,10 @@ Deixe claro que premissas precisam de validação profissional.`,
         visibilidade,
       });
       const registry = await syncDemandRegistry(req.params.demandaId);
-      if (registry) await recordOpportunityEvent(String(registry.id), req, `publicacao_${action}`, "Publicação da Demanda atualizada", { visibilidade });
+      if (registry) {
+        await recordOpportunityEvent(String(registry.id), req, `publicacao_${action}`, "Publicação da Demanda atualizada", { visibilidade });
+        if (action === "publicar") await createDistributionFlow(registry, req, "gradual");
+      }
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -16236,6 +17095,22 @@ Deixe claro que premissas precisam de validação profissional.`,
           atualizado_em = now()
         RETURNING *
       `);
+      const registry = await getOpportunityRegistry(req.params.id).catch(() => null);
+      if (registry) {
+        const flow = (await db.execute(sql`
+          SELECT * FROM opportunity_distribution_flows
+          WHERE registry_id = ${registry.id} AND versao = 'pulse-v2' AND status = 'ativo'
+          LIMIT 1
+        `)).rows?.[0] as any;
+        if (flow) {
+          await db.execute(sql`
+            UPDATE opportunity_distribution_flows
+            SET status = 'pausado', pausa_motivo = 'interesse_recebido', atualizado_em = now()
+            WHERE id = ${flow.id}
+          `);
+          await recordOpportunityEvent(String(registry.id), req, "pulso_pausado_interesse", "Pulso pausado após manifestação de interesse", { interesse_id: result.rows?.[0]?.id || null });
+        }
+      }
       res.status(201).json(result.rows?.[0]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -16286,6 +17161,18 @@ Deixe claro que premissas precisam de validação profissional.`,
         RETURNING *
       `);
       if (!result.rows?.[0]) return res.status(404).json({ error: "Interesse não encontrado" });
+      if (status === "selecionado") {
+        await grantSelectedDemandAccess(req.params.demandaId, result.rows[0], actor);
+        const registry = await getOpportunityRegistry(req.params.demandaId).catch(() => null);
+        if (registry) {
+          await db.execute(sql`
+            UPDATE opportunity_distribution_flows
+            SET status = 'concluido', pausa_motivo = 'profissional_selecionado', proxima_execucao_em = NULL, atualizado_em = now()
+            WHERE registry_id = ${registry.id} AND versao = 'pulse-v2'
+          `);
+          await recordOpportunityEvent(String(registry.id), req, "profissional_selecionado", "Profissional selecionado e acesso temporário concedido", { interesse_id: req.params.interesseId });
+        }
+      }
       res.json(result.rows[0]);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -16407,6 +17294,12 @@ Deixe claro que premissas precisam de validação profissional.`,
       const valor = semValor ? null : Number(req.body?.valor || 0);
       if (!semValor && (valor === null || !Number.isFinite(valor) || valor < 0)) return res.status(400).json({ error: "Informe um valor financeiro válido ou marque sem valor financeiro." });
       const session = (req.session as any) || {};
+      const demandClosureReason = registry.tipo === "demanda"
+        ? normalizeDemandClosureReason(req.body?.motivo_encerramento || req.body?.resultado)
+        : null;
+      if (registry.tipo === "demanda" && !demandClosureReason) {
+        return res.status(400).json({ error: "Informe o motivo do encerramento da Demanda." });
+      }
       let participantUserId = req.body?.participante_user_id || null;
       let participantMemberId = req.body?.participante_membro_id || null;
       if (!participantUserId && !participantMemberId && registry.tipo === "demanda") {
@@ -16453,7 +17346,29 @@ Deixe claro que premissas precisam de validação profissional.`,
       `);
       await syncTraceResultForRegistry(String(registry.id));
       if (registry.tipo === "demanda") {
-        await db.execute(sql`UPDATE carteira_demandas SET status = ${status}, visibilidade = 'privada', resultado = ${req.body?.resultado || status}, atualizado_em = now() WHERE id = ${registry.source_id}`);
+        await db.execute(sql`
+          UPDATE carteira_demandas SET
+            status = ${status},
+            visibilidade = 'privada',
+            resultado = ${req.body?.resultado || status},
+            motivo_encerramento = ${demandClosureReason},
+            contratado_dentro_built = ${req.body?.contratado_dentro_built === true},
+            profissional_escolhido_user_id = ${participantUserId},
+            profissional_escolhido_membro_id = ${participantMemberId},
+            valor_fechamento = ${valor},
+            moeda_fechamento = ${req.body?.moeda || (semValor ? null : "BRL")},
+            prazo_fechamento = ${String(req.body?.prazo || "").trim() || null},
+            experiencia_fechamento = ${String(req.body?.experiencia || req.body?.observacoes || "").trim() || null},
+            encerrada_em = now(),
+            atualizado_em = now()
+          WHERE id = ${registry.source_id}
+        `);
+        await revokeDemandTemporaryAccess(String(registry.source_id));
+        await db.execute(sql`
+          UPDATE opportunity_distribution_flows
+          SET status = 'concluido', pausa_motivo = 'demanda_encerrada', proxima_execucao_em = NULL, atualizado_em = now()
+          WHERE registry_id = ${registry.id}
+        `);
         await syncDemandRegistry(String(registry.source_id));
       } else {
         const directusStatus = status === "cancelada" ? "cancelado" : "concluida";
@@ -16472,13 +17387,21 @@ Deixe claro que premissas precisam de validação profissional.`,
     if (mode === "imediato") {
       const updated = await updateOpportunityPublication(registry, "publicada", opportunityExpiry());
       await db.execute(sql`
-        INSERT INTO opportunity_distribution_flows (registry_id, modo, status, onda_atual, criado_por_user_id)
-        VALUES (${registry.id}, 'imediato', 'concluido', 6, ${session.directusUserId || session.userId || null})
-        ON CONFLICT (registry_id) DO UPDATE SET modo = 'imediato', status = 'concluido', onda_atual = 6, proxima_execucao_em = NULL, atualizado_em = now()
+        INSERT INTO opportunity_distribution_flows (registry_id, modo, status, versao, intervalo_horas, onda_atual, criado_por_user_id)
+        VALUES (${registry.id}, 'imediato', 'concluido', 'pulse-v2', 4, 5, ${session.directusUserId || session.userId || null})
+        ON CONFLICT (registry_id) DO UPDATE SET modo = 'imediato', status = 'concluido', versao = 'pulse-v2',
+          intervalo_horas = 4, pausa_motivo = NULL, onda_atual = 5, proxima_execucao_em = NULL, atualizado_em = now()
       `);
       await recordOpportunityEvent(String(registry.id), req, "disparo_imediato", "Publicada imediatamente na Vitrine geral");
       return updated;
     }
+    const existingFlow = (await db.execute(sql`
+      SELECT * FROM opportunity_distribution_flows WHERE registry_id = ${registry.id} LIMIT 1
+    `)).rows?.[0] as any;
+    if (existingFlow && existingFlow.versao === "legacy-v1" && ["ativo", "pausado"].includes(String(existingFlow.status))) {
+      return getOpportunityRegistry(String(registry.id));
+    }
+
     let originCommunityId = req.body?.comunidade_id || null;
     if (!originCommunityId && session.membroId) {
       const storedMotherCommunity = await getStoredMembroComunidadeMae(String(session.membroId)).catch(() => null);
@@ -16492,21 +17415,23 @@ Deixe claro que premissas precisam de validação profissional.`,
     const flowResult = await db.execute(sql`
       INSERT INTO opportunity_distribution_flows (
         registry_id, modo, status, comunidade_id, territorio, estado, pais,
-        onda_atual, proxima_execucao_em, criado_por_user_id
+        versao, intervalo_horas, pausa_motivo, onda_atual, proxima_execucao_em, criado_por_user_id
       ) VALUES (
         ${registry.id}, 'gradual', 'ativo', ${originCommunityId},
         ${req.body?.territorio || originCommunity?.territorio || null}, ${req.body?.estado || registry.estado || null},
-        ${req.body?.pais || originCommunity?.pais || registry.pais || "Brasil"}, 0, now(), ${session.directusUserId || session.userId || null}
+        ${req.body?.pais || originCommunity?.pais || registry.pais || "Brasil"},
+        'pulse-v2', 4, NULL, 0, now(), ${session.directusUserId || session.userId || null}
       )
       ON CONFLICT (registry_id) DO UPDATE SET
         modo = 'gradual', status = 'ativo', comunidade_id = EXCLUDED.comunidade_id,
         territorio = EXCLUDED.territorio, estado = EXCLUDED.estado, pais = EXCLUDED.pais,
+        versao = 'pulse-v2', intervalo_horas = 4, pausa_motivo = NULL,
         onda_atual = 0, proxima_execucao_em = now(), atualizado_em = now()
       RETURNING *
     `);
     const flow = flowResult.rows?.[0] as any;
     await db.execute(sql`DELETE FROM opportunity_distribution_waves WHERE flow_id = ${flow.id}`);
-    for (const wave of buildDistributionSchedule()) {
+    for (const wave of buildPulseV2Schedule()) {
       await db.execute(sql`
         INSERT INTO opportunity_distribution_waves (flow_id, ordem, audiencia, agendada_em)
         VALUES (${flow.id}, ${wave.ordem}, ${wave.audiencia}, ${wave.agendada_em})
@@ -16542,13 +17467,11 @@ Deixe claro que premissas precisam de validação profissional.`,
     if (wave.audiencia === "comunidade_origem" && flow.comunidade_id) {
       const community = communities.find((item) => String(item.id) === String(flow.comunidade_id));
       if (community) communityMemberIds(community).forEach((id) => targetIds.add(id));
-    } else if (wave.audiencia === "mesmo_territorio" && flow.territorio) {
+    } else if (["regional", "mesmo_territorio"].includes(wave.audiencia) && flow.territorio) {
       communities.filter((item) => String(item.territorio || "").toLowerCase() === String(flow.territorio).toLowerCase()).forEach((community) => communityMemberIds(community).forEach((id) => targetIds.add(id)));
-    } else if (wave.audiencia === "mesmo_estado" && flow.estado) {
-      members.filter((member) => String(member.estado || "").toLowerCase() === String(flow.estado).toLowerCase()).forEach((member) => targetIds.add(String(member.id)));
-    } else if (wave.audiencia === "mesmo_pais" && flow.pais) {
+    } else if (["nacional", "mesmo_pais", "mesmo_estado"].includes(wave.audiencia) && flow.pais) {
       members.filter((member) => String(member.pais || "").toLowerCase() === String(flow.pais).toLowerCase()).forEach((member) => targetIds.add(String(member.id)));
-    } else if (wave.audiencia === "membros_globais") {
+    } else if (["global", "membros_globais"].includes(wave.audiencia)) {
       members.forEach((member) => targetIds.add(String(member.id)));
     }
     const memberById = new Map(members.map((member) => [String(member.id), member]));
@@ -16649,7 +17572,13 @@ Deixe claro que premissas precisam de validação profissional.`,
       const flow = (await db.execute(sql`SELECT * FROM opportunity_distribution_flows WHERE registry_id = ${registry.id} LIMIT 1`)).rows?.[0] as any;
       if (!flow) return res.status(404).json({ error: "Fluxo de disparo não encontrado." });
       if (action === "pausar" || action === "retomar") {
-        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = ${action === "pausar" ? "pausado" : "ativo"}, atualizado_em = now() WHERE id = ${flow.id}`);
+        if (action === "retomar" && flow.versao === "pulse-v2") {
+          const activeInterest = registry.tipo === "demanda"
+            ? (await db.execute(sql`SELECT 1 FROM carteira_demanda_interesses WHERE demanda_id::text = ${registry.source_id} AND status NOT IN ('retirado', 'nao_selecionado') LIMIT 1`)).rows?.[0]
+            : (await db.execute(sql`SELECT 1 FROM opa_interesses WHERE opa_id = ${registry.source_id} AND status_crm NOT IN ('rejeitado', 'retirado') LIMIT 1`)).rows?.[0];
+          if (activeInterest) return res.status(409).json({ error: "Decida sobre os interessados atuais antes de retomar a próxima onda." });
+        }
+        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = ${action === "pausar" ? "pausado" : "ativo"}, pausa_motivo = ${action === "pausar" ? "manual" : null}, atualizado_em = now() WHERE id = ${flow.id}`);
       } else {
         await db.execute(sql`UPDATE opportunity_distribution_waves SET agendada_em = now() WHERE flow_id = ${flow.id} AND status = 'pendente' AND ordem = ${Number(flow.onda_atual || 0) + 1}`);
         await db.execute(sql`UPDATE opportunity_distribution_flows SET status = 'ativo', proxima_execucao_em = now(), atualizado_em = now() WHERE id = ${flow.id}`);
@@ -16716,7 +17645,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       await db.execute(sql`UPDATE opportunity_distribution_waves SET status = 'executada', executada_em = now(), destinatarios = ${delivered} WHERE id = ${wave.id}`);
       if (wave.audiencia === "vitrine_geral") {
         await updateOpportunityPublication(registry, "publicada", opportunityExpiry());
-        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = 'concluido', onda_atual = 6, proxima_execucao_em = NULL, atualizado_em = now() WHERE id = ${wave.flow_id}`);
+        await db.execute(sql`UPDATE opportunity_distribution_flows SET status = 'concluido', onda_atual = ${Number(wave.ordem)}, pausa_motivo = NULL, proxima_execucao_em = NULL, atualizado_em = now() WHERE id = ${wave.flow_id}`);
       } else {
         const nextOrder = Number(wave.ordem) + 1;
         const nextWave = (await db.execute(sql`SELECT agendada_em FROM opportunity_distribution_waves WHERE flow_id = ${wave.flow_id} AND ordem = ${nextOrder} LIMIT 1`)).rows?.[0] as any;
@@ -17460,6 +18389,30 @@ Deixe claro que premissas precisam de validação profissional.`,
         WHERE ca.imovel_id = ${req.params.id}
         ORDER BY ca.criado_em ASC
       `);
+      const temporaryResult = await db.execute(sql`
+        SELECT cat.*, u.nome, u.email, u.username, u.membro_directus_id,
+          d.titulo AS demanda_titulo, d.codigo AS demanda_codigo, d.status AS demanda_status
+        FROM carteira_acessos_temporarios cat
+        LEFT JOIN users u ON u.id = cat.user_id
+        LEFT JOIN carteira_demandas d ON d.id = cat.demanda_id
+        WHERE cat.imovel_id = ${req.params.id}
+          AND cat.revogado_em IS NULL
+          AND (cat.expira_em IS NULL OR cat.expira_em > now())
+        ORDER BY cat.concedido_em DESC
+      `);
+      const temporaryAccesses = await Promise.all((temporaryResult.rows || []).map(async (row: any) => {
+        if (row.nome || !row.membro_id) return row;
+        const member = await directusFetchOne(
+          await getMembrosCol(),
+          String(row.membro_id),
+          "fields=id,nome,Nome_de_usuario,email",
+        ).catch(() => null);
+        return {
+          ...row,
+          nome: member?.nome || member?.Nome_de_usuario || null,
+          email: row.email || member?.email || null,
+        };
+      }));
       let owner: any = null;
       if (access.imovel.owner_user_id) {
         const ownerResult = await db.execute(sql`
@@ -17472,7 +18425,13 @@ Deixe claro que premissas precisam de validação profissional.`,
       } else if (access.imovel.owner_membro_id) {
         owner = { membro_id: access.imovel.owner_membro_id };
       }
-      res.json({ owner, acessos: result.rows || [], current_level: access.nivel, is_owner: access.isOwner });
+      res.json({
+        owner,
+        acessos: result.rows || [],
+        acessos_temporarios: temporaryAccesses,
+        current_level: access.nivel,
+        is_owner: access.isOwner,
+      });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -18156,6 +19115,55 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   // ========== AUTH (Directus-based) ==========
 
   // â”€â”€ Self-registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  app.post("/api/register/validate", async (req, res) => {
+    try {
+      const conviteToken = String(req.body?.convite_token || "").trim();
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      const username = String(req.body?.username || "").trim().toLowerCase();
+
+      if (!conviteToken) {
+        return res.status(400).json({ error: "Informe o código de convite.", field: "convite" });
+      }
+
+      const conviteLink = await storage.getConviteLinkByToken(conviteToken);
+      if (!conviteLink || conviteLink.status !== "ativo") {
+        return res.status(403).json({ error: "Código de convite inválido ou já utilizado.", field: "convite" });
+      }
+      if (conviteLink.expires_at && new Date() > new Date(conviteLink.expires_at)) {
+        return res.status(403).json({ error: "Este código de convite expirou. Solicite um novo convite.", field: "convite" });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: "Informe um e-mail válido.", field: "email" });
+      }
+      if (username.length < 3) {
+        return res.status(400).json({ error: "O nome de usuário deve ter pelo menos 3 caracteres.", field: "username" });
+      }
+
+      const [existingByEmail] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(sql`lower(${usersTable.email}) = ${email}`)
+        .limit(1);
+      if (existingByEmail) {
+        return res.status(409).json({ error: "E-mail já cadastrado", field: "email" });
+      }
+
+      const [existingByUsername] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(sql`lower(${usersTable.username}) = ${username}`)
+        .limit(1);
+      if (existingByUsername) {
+        return res.status(409).json({ error: "Nome de usuário já em uso", field: "username" });
+      }
+
+      return res.json({ valid: true, username });
+    } catch (error: any) {
+      console.error("Registration preflight validation error:", error);
+      return res.status(500).json({ error: "Não foi possível validar o cadastro agora." });
+    }
+  });
+
   app.post("/api/register", async (req, res) => {
     try {
       const {
@@ -18185,15 +19193,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         especialidade_livre,
         tipos_alianca,
         nucleos_alianca,
+        jornada_imovel,
       } = req.body;
       if (!nome || !email || !password)
         return res.status(400).json({ error: "Nome, e-mail e senha sÃ£o obrigatÃ³rios" });
       if (password.length < 4)
         return res.status(400).json({ error: "Senha deve ter pelo menos 4 caracteres" });
-      if (!String(cpf || "").trim()) {
-        return res.status(400).json({ error: "CPF Ã© obrigatÃ³rio para concluir o cadastro." });
-      }
-
       // Require a convite_token to register
       if (!convite_token) {
         return res.status(403).json({ error: "Ã‰ necessÃ¡rio um cÃ³digo de convite para se cadastrar. Solicite um convite a um membro da rede BUILT." });
@@ -18208,30 +19213,42 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       const finalUsername = username || email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
 
-      const existingByUsername = await storage.getUserByUsername(finalUsername);
+      const [existingByUsername] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(sql`lower(${usersTable.username}) = ${String(finalUsername).trim().toLowerCase()}`)
+        .limit(1);
       if (existingByUsername) return res.status(409).json({ error: "Nome de usuÃ¡rio jÃ¡ em uso" });
-      const existingByEmail = await storage.getUserByEmail(email);
+      const [existingByEmail] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(sql`lower(${usersTable.email}) = ${String(email).trim().toLowerCase()}`)
+        .limit(1);
       if (existingByEmail) return res.status(409).json({ error: "E-mail jÃ¡ cadastrado" });
 
-      // The inviter chooses the destination when generating the invite link.
-      const INTERESSES_VALIDOS = ["vitrine", "capital", "membros"];
-      const conviteLinkTipo = INTERESSES_VALIDOS.includes(String((conviteLink as any).tipo || ""))
-        ? String((conviteLink as any).tipo)
-        : "";
-      const fallbackInteresses: string[] = Array.isArray(interesses)
-        ? interesses.filter((v: any) => typeof v === "string" && INTERESSES_VALIDOS.includes(v))
-        : [];
-      const conviteDestino = conviteLinkTipo || fallbackInteresses[0] || "vitrine";
-      const interessesArr: string[] = [conviteDestino];
-      const naVitrine = interessesArr.includes("vitrine");
-      const emBuiltCapital = interessesArr.includes("capital");
-      const emMembrosBuilt = interessesArr.includes("membros");
-      const rolePorConvite: Record<string, "user" | "investidor" | "membro"> = {
-        vitrine: "user",
-        capital: "investidor",
-        membros: "membro",
-      };
-      const roleInicial = rolePorConvite[conviteDestino] || "user";
+      // Every invite lets the invited person choose independent purposes. Legacy
+      // invite types are kept only as a compatible default selection.
+      const rawInviteType = String((conviteLink as any).tipo || "vitrine");
+      const accountPurposes = resolveAccountPurposesForInvite(interesses, rawInviteType);
+      const professionalJourney = isProfessionalPurpose(accountPurposes);
+      const propertyOnlyJourney = accountPurposes.includes("imoveis") && !professionalJourney;
+      const propertyJourney = accountPurposes.includes("imoveis")
+        ? normalizeInitialPropertyJourney(jornada_imovel)
+        : null;
+
+      if (accountPurposes.includes("imoveis") && (!propertyJourney?.path || !propertyJourney.intencao)) {
+        return res.status(400).json({ error: "Responda como deseja iniciar sua jornada de imóvel ou oportunidade." });
+      }
+
+      if (professionalJourney && !String(cpf || "").trim()) {
+        return res.status(400).json({ error: "CPF é obrigatório para os perfis profissional e de capital." });
+      }
+
+      const interessesArr = accountPurposes;
+      const naVitrine = accountPurposes.includes("profissional");
+      const emBuiltCapital = accountPurposes.includes("capital");
+      const emMembrosBuilt = false;
+      const roleInicial: "user" | "investidor" = emBuiltCapital && !naVitrine ? "investidor" : "user";
       const selosPorRole: Record<string, string[]> = {
         membro: ["BUILT_PROUD_MEMBER"],
         investidor: ["BUILT_CAPITAL_PARTNER"],
@@ -18361,8 +19378,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      // 2. Associate member with the inviter's community in Directus immediately (as candidato)
-      if (conviteLink.comunidade_id) {
+      // 2. Professional/capital journeys keep the existing community candidate flow.
+      // Property-only accounts retain community origin in PostgreSQL without appearing as BUILT members.
+      if (conviteLink.comunidade_id && professionalJourney) {
         const col = await getComunidadeCol();
         const comunidadeUrl = `${DIRECTUS_URL}/items/${col}/${conviteLink.comunidade_id}?fields=id,membros.cadastro_geral_id`;
         const comunidadeRes = await fetch(comunidadeUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
@@ -18404,12 +19422,36 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         ativo: true,
       });
 
+      await replaceAccountPurposes(
+        { userId: String(user.id), membroId: membroDirectusId },
+        accountPurposes,
+        "convite",
+        conviteLink.comunidade_id ? String(conviteLink.comunidade_id) : null,
+      );
+
       // 4. Mark convite_link as used and create the destination-specific onboarding invite.
       // These steps are mandatory â€” if they fail we roll back both the user creation
       // AND the token consumption so the invite can still be used on retry.
       let tokenConsumed = false;
       let onboardingToken: string | null = null;
+      let propertyJourneySessionId: string | null = null;
       try {
+        if (propertyJourney?.path && propertyJourney.intencao) {
+          const sessionResult = await db.execute(sql`
+            INSERT INTO property_assistant_sessions (owner_user_id, owner_membro_id, path, method, draft)
+            VALUES (
+              ${String(user.id)},
+              ${membroDirectusId},
+              ${propertyJourney.path},
+              ${propertyJourney.method || null},
+              ${JSON.stringify({ pais: "Brasil", moeda: "BRL", intencao: propertyJourney.intencao, origem: "primeiro_acesso" })}::jsonb
+            )
+            RETURNING id
+          `);
+          propertyJourneySessionId = String(sessionResult.rows?.[0]?.id || "") || null;
+          if (!propertyJourneySessionId) throw new Error("Não foi possível preparar a jornada do imóvel.");
+        }
+
         await storage.updateConviteLink(conviteLink.id, {
           status: "usado",
           usado_por_user_id: user.id,
@@ -18417,7 +19459,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         });
         tokenConsumed = true;
 
-        const conviteTipo = conviteDestino === "membros" ? "associacao_completa" : conviteDestino;
+        const conviteTipo = propertyOnlyJourney
+          ? "jornada_imoveis"
+          : rawInviteType === "membros"
+            ? "associacao_completa"
+            : rawInviteType === "unificado"
+              ? (emBuiltCapital && !naVitrine ? "capital" : "vitrine")
+              : rawInviteType;
         const conviteCriado = await storage.createConvite({
           comunidade_id: conviteLink.comunidade_id!,
           candidato_membro_id: membroDirectusId,
@@ -18441,7 +19489,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
             pais: pais || null,
             interesses: interessesArr,
             origem: "cadastro_inicial",
-            convite_link_tipo: conviteDestino,
+            convite_link_tipo: rawInviteType,
+            finalidades_conta: accountPurposes,
+            acesso_imoveis_gratuito: accountPurposes.includes("imoveis"),
+            jornada_imovel: propertyJourney ? {
+              ...propertyJourney,
+              session_id: propertyJourneySessionId,
+            } : null,
             termos_aceitos: {},
             termos_versoes: {},
           },
@@ -18454,6 +19508,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         // in an unapproved state, and restore the token to "ativo" if it was already consumed.
         console.error("[register] Post-user creation steps failed, rolling back:", postUserErr.message);
         await storage.deleteUser(user.id).catch((e) => console.error("[register] Rollback deleteUser failed:", e.message));
+        if (propertyJourneySessionId) {
+          await db.execute(sql`DELETE FROM property_assistant_sessions WHERE id = ${propertyJourneySessionId}`)
+            .catch((e: any) => console.error("[register] Rollback property journey failed:", e.message));
+        }
         if (tokenConsumed) {
           await storage.updateConviteLink(conviteLink.id, { status: "ativo", usado_por_user_id: null, usado_em: null })
             .catch((e) => console.error("[register] Rollback updateConviteLink failed:", e.message));
@@ -18473,6 +19531,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       res.json({
         success: true,
         user: safe,
+        finalidades: accountPurposes,
+        jornada_imoveis: propertyOnlyJourney,
+        jornada_imovel_url: propertyJourneySessionId && propertyJourney
+          ? `/carteira/novo?path=${propertyJourney.path}&session=${encodeURIComponent(propertyJourneySessionId)}&step=cadastro&onboarding=1`
+          : null,
         ...(onboardingToken ? { onboarding_token: onboardingToken, vitrine_token: onboardingToken } : {}),
       });
     } catch (error: any) {
@@ -21429,8 +22492,15 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         aceito_em: body.aceito_em || now.toISOString(),
         aceite_localizacao: acceptanceLocation,
       };
+      const propertyOnlyJourney = convite.tipo === "jornada_imoveis";
+      const propertyJourney = currentDados.jornada_imovel && typeof currentDados.jornada_imovel === "object"
+        ? currentDados.jornada_imovel as Record<string, any>
+        : null;
+      const propertyJourneyRedirect = propertyJourney?.session_id
+        ? `/carteira/novo?path=${propertyJourney.path === "oportunidade" ? "oportunidade" : "imovel"}&session=${encodeURIComponent(String(propertyJourney.session_id))}&step=cadastro&onboarding=1`
+        : "/";
       const updated = await storage.updateConvite(convite.id, {
-        status: "termos_aceitos",
+        status: propertyOnlyJourney ? "acesso_imoveis_ativo" : "termos_aceitos",
         termos_aceitos_em: now,
         dados_contratuais: dadosContratuais as any,
       });
@@ -21454,7 +22524,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         }
       }
 
-      res.json(updated);
+      res.json({
+        ...updated,
+        jornada_imoveis_concluida: propertyOnlyJourney,
+        redirect_url: propertyOnlyJourney ? propertyJourneyRedirect : null,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -21894,10 +22968,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       // Any authenticated member may generate a personal invite link (requires community membership)
 
       const forceNew = req.body?.force === true;
-      const tiposConviteValidos = ["vitrine", "capital"];
+      const tiposConviteValidos = ["unificado", "vitrine", "capital"];
       const tipoConvite = tiposConviteValidos.includes(String(req.body?.tipo || ""))
         ? String(req.body.tipo)
-        : "vitrine";
+        : "unificado";
 
       // Check if there's already an active invite (skip if force=true)
       if (!forceNew) {

@@ -23,6 +23,7 @@ import OpaDetalhePage from "@/pages/opa-detalhe";
 import AuraPage from "@/pages/aura";
 import PainelPage from "@/pages/painel";
 import CarteiraPage from "@/pages/carteira";
+import CarteiraAssistentePage from "@/pages/carteira-assistente";
 import AgendaAlertasPage from "@/pages/agenda-alertas";
 import AdminPage from "@/pages/admin";
 import MeuPerfilPage from "@/pages/meu-perfil";
@@ -60,6 +61,12 @@ import { useToast } from "@/hooks/use-toast";
 import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { companyModuleForLocation, hasEmployeeModuleAccess } from "@/lib/company-access";
+
+type PropertyOnboardingStatus = {
+  required?: boolean;
+  reason?: string;
+  next_url?: string | null;
+};
 
 interface OnboardingMembro {
   id: string;
@@ -1143,6 +1150,28 @@ function ProtectedApp() {
     && !hasEmployeeModuleAccess(user, companyRouteModule, "view"),
   );
 
+  const { data: propertyOnboardingStatus } = useQuery<PropertyOnboardingStatus>({
+    queryKey: ["/api/carteira/onboarding-status", user?.id],
+    queryFn: async () => {
+      const response = await fetch("/api/carteira/onboarding-status", { credentials: "include", cache: "no-store" });
+      if (!response.ok) return { required: false };
+      return response.json();
+    },
+    enabled: isAuthenticated && !!user?.id && !user?.pending_vitrine,
+    staleTime: 10000,
+  });
+
+  useEffect(() => {
+    if (
+      location === "/"
+      && propertyOnboardingStatus?.required
+      && propertyOnboardingStatus.reason === "resume"
+      && propertyOnboardingStatus.next_url
+    ) {
+      navigate(propertyOnboardingStatus.next_url);
+    }
+  }, [location, navigate, propertyOnboardingStatus?.next_url, propertyOnboardingStatus?.reason, propertyOnboardingStatus?.required]);
+
   const { data: opportunityNotifications = [] } = useQuery<any[]>({
     queryKey: ["/api/rede/oportunidades/notificacoes/minhas"],
     queryFn: async () => {
@@ -1359,6 +1388,7 @@ function ProtectedApp() {
               </div>
             ) : <Switch>
               <Route path="/" component={PainelPage} />
+              <Route path="/carteira/novo" component={CarteiraAssistentePage} />
               <Route path="/carteira/:id" component={CarteiraPage} />
               <Route path="/carteira" component={CarteiraPage} />
               <Route path="/oportunidades/nova" component={NovaOportunidadeImobiliariaPage} />

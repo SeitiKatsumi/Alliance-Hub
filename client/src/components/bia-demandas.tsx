@@ -243,7 +243,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Demanda" : "Nova Demanda da BIA"}</DialogTitle>
             <DialogDescription>Defina o serviço necessário. A BIA será registrada como autora e a pessoa logada como criadora.</DialogDescription>

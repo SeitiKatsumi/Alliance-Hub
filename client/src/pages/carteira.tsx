@@ -241,6 +241,20 @@ interface DemandaInteresse {
   criado_em?: string;
 }
 
+interface DemandProfessionalRecommendation {
+  id: string;
+  user_id?: string | null;
+  nome: string;
+  cargo?: string | null;
+  empresa?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  especialidades?: string[];
+  aderencia: number;
+  motivos?: string[];
+  aura?: { score?: number | null; faixa?: string | null; avaliacoes?: number } | null;
+}
+
 interface CarteiraAcesso {
   id: string;
   user_id?: string | null;
@@ -251,9 +265,19 @@ interface CarteiraAcesso {
   username?: string | null;
 }
 
+interface CarteiraAcessoTemporario extends CarteiraAcesso {
+  demanda_id: string;
+  demanda_titulo?: string | null;
+  demanda_codigo?: string | null;
+  motivo?: string | null;
+  concedido_em?: string | null;
+  expira_em?: string | null;
+}
+
 interface AccessResponse {
   owner?: { id?: string; membro_id?: string; nome?: string; email?: string; username?: string } | null;
   acessos: CarteiraAcesso[];
+  acessos_temporarios?: CarteiraAcessoTemporario[];
   current_level: AccessLevel;
   is_owner: boolean;
 }
@@ -857,16 +881,16 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>Carteira Patrimonial</h2>
           <p className="mt-1 text-sm text-muted-foreground">Seus imóveis, histórico, decisões e próximas ações em um só lugar.</p>
         </div>
-        <Button
-          className="bg-blue-600 text-white hover:bg-blue-700"
-          onClick={() => {
-            setEditingItem(null);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo imóvel
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => navigate("/carteira/novo?path=oportunidade&step=cadastro")}>
+            <Lightbulb className="mr-2 h-4 w-4" />
+            Identifiquei uma oportunidade
+          </Button>
+          <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/carteira/novo?path=imovel&step=cadastro")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Cadastrar meu imóvel
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -908,12 +932,9 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           {!data?.imoveis?.length && (
             <Button
               className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => {
-                setEditingItem(null);
-                setFormOpen(true);
-              }}
+              onClick={() => navigate("/carteira/novo?path=imovel&step=cadastro")}
             >
-              Adicionar imóvel
+              Cadastrar meu imóvel
             </Button>
           )}
         </div>
@@ -1118,7 +1139,21 @@ function DetailPage({ id }: { id: string }) {
   const [alternativeForm, setAlternativeForm] = useState({ capacidade_investimento: "", prazo: "12 meses", preferencia: "equilibrio" });
   const [demandOpen, setDemandOpen] = useState(false);
   const [selectedAlternative, setSelectedAlternative] = useState<CarteiraAlternativa | null>(null);
-  const [demandForm, setDemandForm] = useState({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false, fluxo_disparo: "imediato" as "imediato" | "gradual", validade_dias: "60" });
+  const [demandForm, setDemandForm] = useState({
+    titulo: "",
+    escopo: "",
+    tipo_demanda: "servico_fornecimento" as "venda" | "locacao" | "servico_fornecimento",
+    urgencia: "normal",
+    ajuda: "ainda_nao_sei",
+    especialidades: "",
+    responsavel_user_id: "",
+    modalidade_distribuicao: "pulso" as "direcionada" | "pulso",
+    destinatarios: [] as string[],
+    publicar: false,
+    fluxo_disparo: "gradual" as "imediato" | "gradual",
+    validade_dias: "60",
+  });
+  const [demandProfessionalSearch, setDemandProfessionalSearch] = useState("");
   const [editingDemand, setEditingDemand] = useState<CarteiraDemanda | null>(null);
   const [closingDemand, setClosingDemand] = useState<CarteiraDemanda | null>(null);
   const [demandEditForm, setDemandEditForm] = useState({ titulo: "", escopo: "", resumo_publico: "", urgencia: "normal", especialidades: "", responsavel_user_id: "", status: "aberta", expira_em: "", fluxo_disparo: "imediato" as "imediato" | "gradual" });
@@ -1138,6 +1173,14 @@ function DetailPage({ id }: { id: string }) {
   const eventsQuery = useQuery<CarteiraEvento[]>({ queryKey: ["/api/carteira/imoveis", id, "eventos"] });
   const alternativesQuery = useQuery<CarteiraAlternativasResult | null>({ queryKey: ["/api/carteira/imoveis", id, "alternativas"] });
   const demandsQuery = useQuery<CarteiraDemanda[]>({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
+  const demandRecommendationsQuery = useQuery<{ recomendacoes: DemandProfessionalRecommendation[] }>({
+    queryKey: ["/api/carteira/imoveis", id, "profissionais-recomendados", demandForm.tipo_demanda, demandForm.especialidades, demandProfessionalSearch],
+    enabled: demandOpen && demandForm.modalidade_distribuicao === "direcionada",
+    queryFn: async () => (await apiRequest(
+      "GET",
+      `/api/carteira/imoveis/${id}/profissionais-recomendados?tipo_demanda=${encodeURIComponent(demandForm.tipo_demanda)}&especialidades=${encodeURIComponent(demandForm.especialidades)}&q=${encodeURIComponent(demandProfessionalSearch)}`,
+    )).json(),
+  });
   const canManage = canAccess(detailQuery.data?.access_level, "administracao");
   const canCollaborate = canAccess(detailQuery.data?.access_level, "colaboracao");
   const isOwner = detailQuery.data?.is_owner === true;
@@ -1307,10 +1350,13 @@ function DetailPage({ id }: { id: string }) {
       titulo: demandForm.titulo,
       escopo: demandForm.escopo,
       urgencia: demandForm.urgencia,
+      tipo_demanda: demandForm.tipo_demanda,
+      modalidade_distribuicao: demandForm.modalidade_distribuicao,
+      destinatarios: demandForm.destinatarios,
       responsavel_user_id: demandForm.responsavel_user_id || null,
       publicar: demandForm.publicar,
       consentimento_publicacao: demandForm.publicar,
-      fluxo_disparo: demandForm.fluxo_disparo,
+      fluxo_disparo: demandForm.modalidade_distribuicao === "pulso" ? "gradual" : "imediato",
       validade_dias: Math.max(1, Number(demandForm.validade_dias || 60)),
       alternativa: selectedAlternative?.tipo || null,
       especialidades: demandForm.especialidades.split(",").map((item) => item.trim()).filter(Boolean).length
@@ -1319,7 +1365,8 @@ function DetailPage({ id }: { id: string }) {
     })).json(),
     onSuccess: () => {
       setDemandOpen(false);
-      setDemandForm({ titulo: "", escopo: "", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", publicar: false, fluxo_disparo: "imediato", validade_dias: "60" });
+      setDemandProfessionalSearch("");
+      setDemandForm({ titulo: "", escopo: "", tipo_demanda: "servico_fornecimento", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", modalidade_distribuicao: "pulso", destinatarios: [], publicar: false, fluxo_disparo: "gradual", validade_dias: "60" });
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       invalidateAll();
@@ -1945,6 +1992,20 @@ function DetailPage({ id }: { id: string }) {
               <div className="divide-y border-y">
                 <div className="flex items-center gap-3 py-3"><ShieldCheck className="h-5 w-5 text-blue-600" /><div className="flex-1"><p className="font-medium">{accessQuery.data?.owner?.nome || accessQuery.data?.owner?.email || "Proprietário principal"}</p><p className="text-xs text-muted-foreground">Proprietário · acesso permanente</p></div><Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">proprietário</Badge></div>
                 {(accessQuery.data?.acessos || []).map((access) => <div key={access.id} className="flex items-center gap-3 py-3"><Users className="h-5 w-5 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="truncate font-medium">{access.nome || access.email || access.username || access.membro_id || "Usuário autorizado"}</p><p className="text-xs text-muted-foreground">{access.email || access.username || access.user_id}</p></div><Badge variant="outline">{access.nivel}</Badge><Button variant="ghost" size="icon" onClick={() => revokeMutation.mutate(access.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button></div>)}
+                {(accessQuery.data?.acessos_temporarios || []).map((access) => (
+                  <div key={`temporary-${access.id}`} className="flex items-center gap-3 py-3">
+                    <Clock3 className="h-5 w-5 text-amber-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{access.nome || access.email || access.username || access.membro_id || "Profissional selecionado"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {access.demanda_titulo || access.demanda_codigo || "Demanda direcionada"}
+                        {access.expira_em ? ` · até ${shortDate(access.expira_em)}` : " · até o encerramento"}
+                      </p>
+                    </div>
+                    <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">temporário</Badge>
+                    <Badge variant="outline">{access.nivel}</Badge>
+                  </div>
+                ))}
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="border-y py-4"><KeyRound className="h-4 w-4 text-blue-600" /><p className="mt-2 font-medium">Leitura</p><p className="mt-1 text-xs text-muted-foreground">Consulta dados, documentos, alertas e análises.</p></div>
@@ -1968,12 +2029,23 @@ function DetailPage({ id }: { id: string }) {
       <PropertyFormDialog open={editOpen} onOpenChange={setEditOpen} initial={imovel} onSave={(payload) => editMutation.mutate(payload)} saving={editMutation.isPending} />
       <NewLaunchDialog open={launchOpen} onOpenChange={setLaunchOpen} imovelId={id} onSaved={invalidateAll} />
       <Dialog open={demandOpen} onOpenChange={setDemandOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] sm:max-w-xl">
           <DialogHeader><DialogTitle>Nova demanda</DialogTitle><DialogDescription>Descreva o que precisa ser resolvido neste imóvel. A BUILT ajuda a encontrar os membros adequados.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>O que você precisa?</Label><Input value={demandForm.titulo} onChange={(event) => setDemandForm({ ...demandForm, titulo: event.target.value })} placeholder={`Ex.: Avaliar o valor de ${imovel.nome}`} /></div>
             <div className="space-y-2"><Label>Conte um pouco mais</Label><Textarea value={demandForm.escopo} onChange={(event) => setDemandForm({ ...demandForm, escopo: event.target.value })} placeholder="Descreva o resultado esperado, o contexto e qualquer restrição importante." /></div>
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Tipo da demanda</Label>
+                <Select value={demandForm.tipo_demanda} onValueChange={(value: "venda" | "locacao" | "servico_fornecimento") => setDemandForm({ ...demandForm, tipo_demanda: value, destinatarios: [] })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="venda">Venda</SelectItem>
+                    <SelectItem value="locacao">Locação</SelectItem>
+                    <SelectItem value="servico_fornecimento">Serviço ou fornecimento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>De que tipo de ajuda você precisa?</Label>
                 <Select value={demandForm.ajuda} onValueChange={(value) => setDemandForm({ ...demandForm, ajuda: value })}>
@@ -2005,20 +2077,64 @@ function DetailPage({ id }: { id: string }) {
               </div>
             )}
             <div className="space-y-2"><Label>Outras especialidades (opcional)</Label><Input value={demandForm.especialidades} onChange={(event) => setDemandForm({ ...demandForm, especialidades: event.target.value })} placeholder="Separe por vírgulas" /></div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2"><Label>Distribuição</Label><Select value={demandForm.fluxo_disparo} onValueChange={(value: "imediato" | "gradual") => setDemandForm({ ...demandForm, fluxo_disparo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="imediato">Vitrine geral imediatamente</SelectItem><SelectItem value="gradual">Fluxo territorial a cada 12h</SelectItem></SelectContent></Select></div>
-              <div className="space-y-2"><Label>Validade após publicar</Label><Input type="number" min="1" value={demandForm.validade_dias} onChange={(event) => setDemandForm({ ...demandForm, validade_dias: event.target.value })} /><p className="text-xs text-muted-foreground">Dias; o padrão é 60.</p></div>
+            <div className="space-y-2">
+              <Label>Como deseja encontrar profissionais?</Label>
+              <div className="grid grid-cols-2 overflow-hidden rounded-md border p-1">
+                <Button type="button" variant={demandForm.modalidade_distribuicao === "direcionada" ? "default" : "ghost"} className="rounded" onClick={() => setDemandForm({ ...demandForm, modalidade_distribuicao: "direcionada", publicar: false })}>Escolher profissionais</Button>
+                <Button type="button" variant={demandForm.modalidade_distribuicao === "pulso" ? "default" : "ghost"} className="rounded" onClick={() => setDemandForm({ ...demandForm, modalidade_distribuicao: "pulso", destinatarios: [] })}>Pulso BUILT</Button>
+              </div>
             </div>
-            <label className="flex cursor-pointer items-start gap-3 border-t pt-4">
+            {demandForm.modalidade_distribuicao === "direcionada" ? (
+              <div className="space-y-3 rounded-md border p-3">
+                <div>
+                  <p className="text-sm font-medium">Profissionais recomendados</p>
+                  <p className="text-xs text-muted-foreground">Os escolhidos receberão a Demanda e acesso temporário de leitura ao imóvel.</p>
+                </div>
+                <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={demandProfessionalSearch} onChange={(event) => setDemandProfessionalSearch(event.target.value)} placeholder="Buscar por nome, empresa ou cargo" /></div>
+                <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                  {demandRecommendationsQuery.isLoading && <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Buscando profissionais aderentes...</div>}
+                  {(demandRecommendationsQuery.data?.recomendacoes || []).map((professional) => {
+                    const selected = demandForm.destinatarios.includes(professional.id);
+                    return (
+                      <button
+                        type="button"
+                        key={professional.id}
+                        className={`flex w-full items-start gap-3 rounded-md border p-3 text-left ${selected ? "border-blue-500 bg-blue-50" : "hover:bg-muted/50"}`}
+                        onClick={() => setDemandForm({
+                          ...demandForm,
+                          destinatarios: selected
+                            ? demandForm.destinatarios.filter((memberId) => memberId !== professional.id)
+                            : [...demandForm.destinatarios, professional.id],
+                        })}
+                      >
+                        <Checkbox checked={selected} className="mt-0.5" />
+                        <span className="min-w-0 flex-1"><span className="block font-medium">{professional.nome}</span><span className="block text-xs text-muted-foreground">{[professional.empresa, professional.cidade, professional.estado].filter(Boolean).join(" · ") || "Membro BUILT"}</span><span className="mt-1 block text-xs text-blue-700">{professional.aderencia}% de aderência{professional.aura?.score != null ? ` · Aura ${professional.aura.score}` : ""}</span></span>
+                      </button>
+                    );
+                  })}
+                  {!demandRecommendationsQuery.isLoading && !(demandRecommendationsQuery.data?.recomendacoes || []).length && <p className="py-4 text-sm text-muted-foreground">Nenhum profissional encontrado com estes filtros.</p>}
+                </div>
+                <p className="text-xs font-medium text-blue-700">{demandForm.destinatarios.length} profissional(is) selecionado(s)</p>
+              </div>
+            ) : (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+                <p className="font-medium">Distribuição progressiva</p>
+                <p className="mt-1 text-xs leading-relaxed text-blue-800">Comunidade → Regional → Nacional → Global → Vitrine Geral, com quatro horas entre as etapas. O Pulso pausa quando um membro manifesta interesse.</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Validade</Label><Input type="number" min="1" value={demandForm.validade_dias} onChange={(event) => setDemandForm({ ...demandForm, validade_dias: event.target.value })} /><p className="text-xs text-muted-foreground">Dias; o padrão é 60.</p>
+            </div>
+            {demandForm.modalidade_distribuicao === "pulso" && <label className="flex cursor-pointer items-start gap-3 border-t pt-4">
               <Checkbox checked={demandForm.publicar} onCheckedChange={(checked) => setDemandForm({ ...demandForm, publicar: checked === true })} />
-              <span className="text-sm leading-relaxed"><strong>Publicar esta demanda na Vitrine</strong><br /><span className="text-muted-foreground">Autorizo a exibição do resumo, categoria, urgência e cidade/região. Endereço exato, documentos e contato permanecerão privados.</span></span>
-            </label>
+              <span className="text-sm leading-relaxed"><strong>Iniciar o Pulso BUILT ao criar</strong><br /><span className="text-muted-foreground">Autorizo a distribuição do resumo. Endereço exato, documentos e contato permanecem privados até eu selecionar um profissional.</span></span>
+            </label>}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setDemandOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandForm.titulo || demandMutation.isPending} onClick={() => demandMutation.mutate()}>{demandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar demanda</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setDemandOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!demandForm.titulo || (demandForm.modalidade_distribuicao === "direcionada" && demandForm.destinatarios.length === 0) || demandMutation.isPending} onClick={() => demandMutation.mutate()}>{demandMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar demanda</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(editingDemand)} onOpenChange={(open) => { if (!open) setEditingDemand(null); }}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] sm:max-w-2xl">
           <DialogHeader><DialogTitle>Editar Demanda</DialogTitle><DialogDescription>Atualizações em uma publicação ficam registradas no histórico da oportunidade.</DialogDescription></DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-2"><Label>Título</Label><Input value={demandEditForm.titulo} onChange={(event) => setDemandEditForm({ ...demandEditForm, titulo: event.target.value })} /></div>

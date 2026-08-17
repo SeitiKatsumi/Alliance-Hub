@@ -54,16 +54,7 @@ interface NominatimResult {
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const FOTO_CROP_BOX = 320;
 const FOTO_CROP_OUTPUT = 640;
-const INVITE_TYPE_OPTIONS = [
-  { value: "vitrine", label: "Parceiro de Mercado" },
-  { value: "capital", label: "Parceiro de Capital" },
-];
 const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
-const INVITE_TYPE_LABELS: Record<string, string> = {
-  ...Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label])),
-  membros: "BUILT Alliances",
-  associacao_completa: "BUILT Alliances",
-};
 const ESTADO_CIVIL_OPTIONS = [
   { value: "solteiro", label: "Solteiro(a)" },
   { value: "casado", label: "Casado(a)" },
@@ -300,6 +291,34 @@ function ContributionAreaInfo({ label }: { label: string }) {
     </Popover>
   );
 }
+
+type AccountPurpose = "imoveis" | "profissional" | "capital";
+
+const ACCOUNT_PURPOSE_OPTIONS: Array<{
+  id: AccountPurpose;
+  title: string;
+  description: string;
+  icon: typeof Building2;
+}> = [
+  {
+    id: "imoveis",
+    title: "Tenho um imóvel ou identifiquei uma oportunidade",
+    description: "Quero cadastrar, analisar e administrar imóveis.",
+    icon: Building2,
+  },
+  {
+    id: "profissional",
+    title: "Sou profissional, fornecedor ou empresa",
+    description: "Atuo oferecendo serviços, insumos ou experiência profissional.",
+    icon: Store,
+  },
+  {
+    id: "capital",
+    title: "Sou investidor ou parceiro de capital",
+    description: "Atuo como investidor ou parceiro de capital.",
+    icon: TrendingUp,
+  },
+];
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -678,9 +697,22 @@ export default function MeuPerfilPage() {
   const isSuperAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const [saved, setSaved] = useState(false);
-  const [conviteTipo, setConviteTipo] = useState("vitrine");
 
   const membroId = user?.membro_directus_id;
+
+  const [accountPurposes, setAccountPurposes] = useState<AccountPurpose[]>([]);
+
+  const { data: accountPurposesData, isLoading: loadingAccountPurposes } = useQuery<{
+    finalidades: AccountPurpose[];
+  }>({
+    queryKey: ["/api/minha-conta/finalidades"],
+    queryFn: async () => {
+      const response = await fetch("/api/minha-conta/finalidades", { credentials: "include" });
+      if (!response.ok) throw new Error("Não foi possível carregar as finalidades da conta.");
+      return response.json();
+    },
+    enabled: !!user,
+  });
 
   const { data: membro, isLoading } = useQuery<Membro>({
     queryKey: ["/api/membros", membroId],
@@ -722,6 +754,21 @@ export default function MeuPerfilPage() {
   const [fotoCropNatural, setFotoCropNatural] = useState({ width: 1, height: 1 });
   const [fotoCropZoom, setFotoCropZoom] = useState(1);
   const [fotoCropOffset, setFotoCropOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!accountPurposesData) return;
+    if (accountPurposesData.finalidades?.length) {
+      setAccountPurposes(accountPurposesData.finalidades);
+      return;
+    }
+    if (!membroId) {
+      setAccountPurposes(["imoveis"]);
+      return;
+    }
+    const legacyPurposes: AccountPurpose[] = ["profissional"];
+    if (membro?.em_built_capital) legacyPurposes.push("capital");
+    setAccountPurposes(legacyPurposes);
+  }, [accountPurposesData, membro, membroId]);
 
   function handleLocationSelect(cidade: string, estado: string, pais: string, lat: number, lng: number) {
     setForm(f => ({ ...f, cidade, estado, pais, latitude: String(lat), longitude: String(lng) }));
@@ -774,12 +821,12 @@ export default function MeuPerfilPage() {
   const meuConviteLink = normalizeInviteLink(meuConvite?.link);
 
   const gerarConviteMutation = useMutation({
-    mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
+    mutationFn: async ({ force = false }: { force?: boolean } = {}) => {
       const res = await fetch("/api/meu-convite", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: !!force, tipo }),
+        body: JSON.stringify({ force: !!force, tipo: "unificado" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao gerar convite");
@@ -790,11 +837,6 @@ export default function MeuPerfilPage() {
     },
     onError: (err: any) => toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" }),
   });
-
-  function handleConviteTipoChange(tipo: string) {
-    setConviteTipo(tipo);
-    gerarConviteMutation.mutate({ force: true, tipo });
-  }
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Membro>) =>
@@ -816,6 +858,34 @@ export default function MeuPerfilPage() {
       });
     },
   });
+
+  const updateAccountPurposesMutation = useMutation({
+    mutationFn: async (finalidades: AccountPurpose[]) => {
+      const response = await fetch("/api/minha-conta/finalidades", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finalidades }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível atualizar as finalidades.");
+      return data as { finalidades: AccountPurpose[] };
+    },
+    onSuccess: (data) => {
+      setAccountPurposes(data.finalidades);
+      queryClient.invalidateQueries({ queryKey: ["/api/minha-conta/finalidades"] });
+      toast({ title: "Finalidades da conta atualizadas" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao atualizar finalidades", description: error.message, variant: "destructive" });
+    },
+  });
+
+  function toggleAccountPurpose(purpose: AccountPurpose) {
+    setAccountPurposes((current) => current.includes(purpose)
+      ? current.filter((item) => item !== purpose)
+      : [...current, purpose]);
+  }
 
   const changePasswordMutation = useMutation({
     mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
@@ -1003,18 +1073,17 @@ export default function MeuPerfilPage() {
   }
 
   function togglePapelBuilt(roleId: "prestador" | "capital") {
+    toggleAccountPurpose(roleId === "prestador" ? "profissional" : "capital");
     setForm((current) => {
       const prestadorSelecionado = current.em_membros_built !== false;
       const capitalSelecionado = !!current.em_built_capital;
 
       if (roleId === "prestador") {
         const nextPrestador = !prestadorSelecionado;
-        if (!nextPrestador && !capitalSelecionado) return current;
         return { ...current, em_membros_built: nextPrestador };
       }
 
       const nextCapital = !capitalSelecionado;
-      if (!prestadorSelecionado && !nextCapital) return current;
       return { ...current, em_built_capital: nextCapital };
     });
   }
@@ -1054,6 +1123,11 @@ export default function MeuPerfilPage() {
     payload.Especialidades = form.especialidade_id
       ?[{ especialidades_id: form.especialidade_id }]
       : [];
+    if (!accountPurposes.length) {
+      toast({ title: "Escolha uma finalidade", description: "Selecione ao menos uma finalidade para a sua conta.", variant: "destructive" });
+      return;
+    }
+    updateAccountPurposesMutation.mutate(accountPurposes);
     updateMutation.mutate(payload as any);
   }
 
@@ -1173,13 +1247,54 @@ export default function MeuPerfilPage() {
 
   if (!membroId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center space-y-3">
-          <User className="w-16 h-16 text-slate-300 mx-auto" />
-          <p className="text-slate-500 font-mono text-sm">
-            // seu usuário não está vinculado a um cadastro
-          </p>
-          <p className="text-slate-400 text-xs">Peça ao administrador para vincular seu perfil.</p>
+      <div className="min-h-full bg-slate-50 px-4 py-6 text-[#001D34] sm:px-6">
+        <div className="mx-auto max-w-4xl space-y-5">
+          <div>
+            <h1 className="text-2xl font-bold">Minha conta</h1>
+            <p className="mt-1 text-sm text-slate-600">Escolha como deseja usar a BUILT. Você pode alterar essas opções quando quiser.</p>
+          </div>
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2 className="text-sm font-bold">Finalidades da conta</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {ACCOUNT_PURPOSE_OPTIONS.map((purpose) => {
+                const Icon = purpose.icon;
+                const selected = accountPurposes.includes(purpose.id);
+                return (
+                  <button
+                    key={purpose.id}
+                    type="button"
+                    onClick={() => toggleAccountPurpose(purpose.id)}
+                    className={`min-h-36 border p-4 text-left transition-colors ${selected ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-blue-600"><Icon className="h-5 w-5" /></span>
+                      {selected && <CheckCircle2 className="h-5 w-5 text-blue-600" />}
+                    </div>
+                    <p className="mt-3 text-sm font-semibold">{purpose.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">{purpose.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button
+                type="button"
+                disabled={loadingAccountPurposes || updateAccountPurposesMutation.isPending || !accountPurposes.length}
+                onClick={() => updateAccountPurposesMutation.mutate(accountPurposes)}
+                className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {updateAccountPurposesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar finalidades
+              </Button>
+            </div>
+          </section>
+          <section className="rounded-lg border border-blue-100 bg-blue-50 p-5">
+            <p className="font-semibold">Gestão gratuita de imóveis liberada</p>
+            <p className="mt-1 text-sm text-slate-600">Cadastre e administre seus imóveis pela Carteira, sem limite de quantidade.</p>
+            <Button type="button" className="mt-4 bg-[#001D34] text-white hover:bg-[#003052]" onClick={() => { window.location.href = "/?tab=carteira"; }}>
+              Abrir Meus Imóveis
+            </Button>
+          </section>
         </div>
       </div>
     );
@@ -1407,9 +1522,15 @@ export default function MeuPerfilPage() {
             <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,330px)]">
               <div className="min-w-0 space-y-4">
                 <section className="profile-section p-4">
-                  <h3 className="text-sm font-bold text-[#001D34]">1. Qual o seu papel na BUILT?</h3>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <h3 className="text-sm font-bold text-[#001D34]">1. Como você quer usar a BUILT?</h3>
+                  <div className="mt-3 grid gap-3 md:grid-cols-3">
                     {[
+                      {
+                        id: "imoveis" as const,
+                        title: "Tenho um imóvel ou identifiquei uma oportunidade",
+                        desc: "Quero cadastrar, analisar e administrar imóveis.",
+                        selected: accountPurposes.includes("imoveis"),
+                      },
                       {
                         id: "prestador" as const,
                         title: "Prestador de serviços, fornecedor ou profissional independente",
@@ -1426,7 +1547,7 @@ export default function MeuPerfilPage() {
                       <button
                         key={role.id}
                         type="button"
-                        onClick={() => togglePapelBuilt(role.id)}
+                        onClick={() => role.id === "imoveis" ? toggleAccountPurpose("imoveis") : togglePapelBuilt(role.id)}
                         className={`flex min-h-24 gap-3 rounded-lg border p-3 text-left transition-colors ${
                           role.selected ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-blue-300"
                         }`}
@@ -2186,26 +2307,8 @@ export default function MeuPerfilPage() {
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Escolha o tipo de acesso e compartilhe seu link de convite. O link é válido por 1 dia.
+                  Compartilhe seu link para convidar uma pessoa para a jornada BUILT. O link é válido por 1 dia.
                 </p>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-mono uppercase tracking-widest text-white/30">Tipo de convite</Label>
-                  <Select value={conviteTipo} onValueChange={handleConviteTipoChange}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white/70" data-testid="select-perfil-tipo-convite">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INVITE_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {meuConvite?.tipo && (
-                    <p className="text-[10px] font-mono text-white/25">
-                      Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "Parceiro de Mercado"}
-                    </p>
-                  )}
-                </div>
                 {meuConviteLink ?(
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
@@ -2233,7 +2336,7 @@ export default function MeuPerfilPage() {
                       </p>
                     )}
                     <button
-                      onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
+                      onClick={() => gerarConviteMutation.mutate({ force: true })}
                       disabled={gerarConviteMutation.isPending}
                       className="flex items-center gap-1.5 text-xs font-mono text-white/30 hover:text-white/50 transition-colors"
                       data-testid="btn-renovar-convite"
@@ -2245,7 +2348,7 @@ export default function MeuPerfilPage() {
                   </div>
                 ) : (
                   <Button
-                    onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
+                    onClick={() => gerarConviteMutation.mutate({ force: false })}
                     disabled={gerarConviteMutation.isPending}
                     size="sm"
                     className="gap-2 font-mono text-xs"

@@ -58,6 +58,14 @@ export const DISTRIBUTION_AUDIENCES = [
   "vitrine_geral",
 ] as const;
 
+export const PULSE_V2_AUDIENCES = [
+  "comunidade_origem",
+  "regional",
+  "nacional",
+  "global",
+  "vitrine_geral",
+] as const;
+
 export function normalizeOpportunityStatus(value: unknown, fallback: OpportunityStatus = "rascunho"): OpportunityStatus {
   const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
   const aliases: Record<string, OpportunityStatus> = {
@@ -143,6 +151,15 @@ export function createOpaCode(biaCode: string | null | undefined, sequence: numb
 export function buildDistributionSchedule(start: Date = new Date(), intervalHours = 12) {
   const safeInterval = Math.max(1, Math.floor(intervalHours));
   return DISTRIBUTION_AUDIENCES.map((audiencia, index) => ({
+    ordem: index + 1,
+    audiencia,
+    agendada_em: new Date(start.getTime() + index * safeInterval * 60 * 60 * 1000),
+  }));
+}
+
+export function buildPulseV2Schedule(start: Date = new Date(), intervalHours = 4) {
+  const safeInterval = Math.max(1, Math.floor(intervalHours));
+  return PULSE_V2_AUDIENCES.map((audiencia, index) => ({
     ordem: index + 1,
     audiencia,
     agendada_em: new Date(start.getTime() + index * safeInterval * 60 * 60 * 1000),

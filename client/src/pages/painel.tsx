@@ -256,15 +256,6 @@ const CHART_COLORS = ["#0B4EA2", "#0B63F6", "#12B981", "#38BDF8", "#22C55E", "#1
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const INVITE_TYPE_OPTIONS = [
-  { value: "vitrine", label: "Parceiro de Mercado" },
-  { value: "capital", label: "Parceiro de Capital" },
-];
-const INVITE_TYPE_LABELS: Record<string, string> = {
-  ...Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label])),
-  membros: "BUILT Alliances",
-  associacao_completa: "BUILT Alliances",
-};
 const DASHBOARD_ENV_IMAGES = Array.from({ length: 10 }, (_, index) => `/dashboard-env/built-env-${String(index + 1).padStart(2, "0")}.png`);
 
 function normalizeInviteLink(link?: string | null) {
@@ -598,7 +589,6 @@ export default function PainelPage() {
   const [carteiraView, setCarteiraView] = useState<CarteiraView>(initialNavigation.carteiraView);
   const [businessSection, setBusinessSection] = useState<BusinessSection>(initialNavigation.businessSection);
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
-  const [conviteTipo, setConviteTipo] = useState("vitrine");
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const [selectedCarteiraAlert, setSelectedCarteiraAlert] = useState<CarteiraDashboardAlert | null>(null);
   const [carteiraAlertAction, setCarteiraAlertAction] = useState("");
@@ -652,12 +642,12 @@ export default function PainelPage() {
   });
 
   const gerarConviteMutation = useMutation({
-    mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
+    mutationFn: async ({ force = false }: { force?: boolean } = {}) => {
       const res = await fetch("/api/meu-convite", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: !!force, tipo }),
+        body: JSON.stringify({ force: !!force, tipo: "unificado" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao gerar convite");
@@ -670,11 +660,6 @@ export default function PainelPage() {
       toast({ title: "Erro ao gerar convite", description: err.message, variant: "destructive" });
     },
   });
-
-  function handleConviteTipoChange(tipo: string) {
-    setConviteTipo(tipo);
-    gerarConviteMutation.mutate({ force: true, tipo });
-  }
 
   const { data: auraData } = useQuery<{ score: number | null; T: number | null; R: number | null; C: number | null; n: number; faixa: string | null }>({
     queryKey: ["/api/aura/score", user?.membro_directus_id],
@@ -2086,25 +2071,6 @@ export default function PainelPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Tipo de convite</p>
-            <Select value={conviteTipo} onValueChange={handleConviteTipoChange}>
-              <SelectTrigger data-testid="select-dashboard-tipo-convite">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INVITE_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {meuConvite?.tipo && (
-              <p className="text-[11px] text-muted-foreground">
-                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "Parceiro de Mercado"}
-              </p>
-            )}
-          </div>
-
           {meuConviteLink ?(
             <div className="w-full min-w-0 space-y-3">
               <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
@@ -2135,7 +2101,7 @@ export default function PainelPage() {
               )}
               <button
                 type="button"
-                onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
+                onClick={() => gerarConviteMutation.mutate({ force: true })}
                 disabled={gerarConviteMutation.isPending}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 data-testid="btn-dashboard-renovar-convite"
@@ -2150,7 +2116,7 @@ export default function PainelPage() {
               <Ticket className="w-7 h-7 text-blue-600/70 mx-auto" />
               <p className="text-sm text-muted-foreground">Nenhum link ativo no momento.</p>
               <Button
-                onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
+                onClick={() => gerarConviteMutation.mutate({ force: false })}
                 disabled={gerarConviteMutation.isPending}
                 className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
                 data-testid="btn-dashboard-gerar-convite"

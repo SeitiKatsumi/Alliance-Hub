@@ -516,6 +516,31 @@ export async function recordTraceEventForRegistry(
   `);
 }
 
+export async function recordTraceEventForObject(
+  object: { type: string; id: string; code?: string | null; title?: string | null; status?: string | null },
+  eventType: string,
+  title: string,
+  payload: Record<string, unknown> = {},
+  actor: TraceActor = {},
+) {
+  await ensureBusinessTraceTables();
+  const existing = await db.execute(sql`
+    SELECT node.journey_id, node.id AS node_id
+    FROM business_trace_nodes node
+    WHERE node.object_type = ${object.type} AND node.object_id = ${object.id}
+  `);
+  if (!existing.rows?.length) await getOrCreateTraceForObject(object, actor);
+  await db.execute(sql`
+    INSERT INTO business_trace_events (
+      journey_id, node_id, event_type, titulo, payload, criado_por_user_id, criado_por_membro_id
+    )
+    SELECT node.journey_id, node.id, ${eventType}, ${title}, ${JSON.stringify(payload)}::jsonb,
+      ${actor.userId || null}, ${actor.memberId || null}
+    FROM business_trace_nodes node
+    WHERE node.object_type = ${object.type} AND node.object_id = ${object.id}
+  `);
+}
+
 export async function syncTraceResultForRegistry(registryId: string) {
   await ensureBusinessTraceTables();
   const outcome = (await db.execute(sql`

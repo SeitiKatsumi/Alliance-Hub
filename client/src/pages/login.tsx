@@ -14,7 +14,7 @@ import {
   Eye, EyeOff, LogIn, UserPlus, Ticket, CheckCircle, XCircle, KeyRound, ArrowLeft, ArrowRight, Mail,
   Store, TrendingUp, Handshake, Shield, Send, Crown, FolderKanban, Scale, Lightbulb,
   ShieldCheck, CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Building2, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info, Search, ChevronDown, X, MapPin,
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, Camera, Info, Search, ChevronDown, X, MapPin, House,
 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
@@ -28,22 +28,16 @@ import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@
 interface ConviteInfo {
   gerador_nome: string | null;
   comunidade_nome: string | null;
-  tipo?: "vitrine" | "capital" | "membros" | "associacao_completa" | null;
+  tipo?: "unificado" | "vitrine" | "capital" | "membros" | "associacao_completa" | null;
   expires_at: string | null;
 }
 
 const CONVITE_INTERESSES: Record<string, string[]> = {
-  vitrine: ["vitrine"],
+  unificado: [],
+  vitrine: ["profissional"],
   capital: ["capital"],
-  membros: ["membros"],
-  associacao_completa: ["membros"],
-};
-
-const CONVITE_TIPO_LABEL: Record<string, string> = {
-  vitrine: "Parceiro de Mercado",
-  capital: "Parceiro de Capital",
-  membros: "BUILT Alliances",
-  associacao_completa: "BUILT Alliances",
+  membros: ["profissional"],
+  associacao_completa: ["profissional"],
 };
 
 const BUILT_CAPITAL_TIPO = "Alianças de Aporte Financeiro";
@@ -52,6 +46,15 @@ const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
 const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
 const DEFAULT_AREAS: string[] = [];
+const PROPERTY_INTENT_OPTIONS = [
+  ["gerir", "Apenas cadastrar e gerir"],
+  ["vender", "Vender"],
+  ["alugar", "Alugar"],
+  ["reformar", "Reformar"],
+  ["construir", "Construir"],
+  ["regularizar", "Regularizar"],
+  ["estruturar_alianca", "Estruturar uma Aliança BUILT"],
+] as const;
 const CONTRIBUTION_AREA_ORDER = [
   "lideranca tecnica",
   "projeto",
@@ -230,7 +233,7 @@ const IDIOMA_OPTIONS = [
 ];
 
 function getInteressesFromConvite(info?: ConviteInfo | null): string[] {
-  return CONVITE_INTERESSES[info?.tipo || "vitrine"] || ["vitrine"];
+  return CONVITE_INTERESSES[info?.tipo || "unificado"] || [];
 }
 
 export default function LoginPage() {
@@ -282,11 +285,6 @@ export default function LoginPage() {
     }
   }, []);
 
-  // After Google OAuth redirect, session is set server-side — just refresh
-  useEffect(() => {
-    if (isAuthenticated) navigate("/");
-  }, [isAuthenticated]);
-
   // Register state
   const [regNome, setRegNome] = useState("");
   const [regEmail, setRegEmail] = useState("");
@@ -295,7 +293,9 @@ export default function LoginPage() {
   const [regPassword2, setRegPassword2] = useState("");
   const [showRegPass, setShowRegPass] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
+  const [regPreflightLoading, setRegPreflightLoading] = useState(false);
   const [regError, setRegError] = useState("");
+  const [regInvalidField, setRegInvalidField] = useState("");
   const [regConviteToken, setRegConviteToken] = useState(() => new URLSearchParams(window.location.search).get("convite") || "");
   const [conviteInfo, setConviteInfo] = useState<ConviteInfo | null>(null);
   const [conviteStatus, setConviteStatus] = useState<"idle" | "valid" | "invalid">("idle");
@@ -305,6 +305,9 @@ export default function LoginPage() {
   const [showInteressesModal, setShowInteressesModal] = useState(false);
   const [primeiroAcessoStep, setPrimeiroAcessoStep] = useState<"perfil" | "perfil_antigo" | "termos" | "solicitacao" | "final">("perfil");
   const [interessesSelecionados, setInteressesSelecionados] = useState<string[]>([]);
+  const [propertyPath, setPropertyPath] = useState<"imovel" | "oportunidade" | "">("");
+  const [propertyIntent, setPropertyIntent] = useState("");
+  const propertyQuestionsRef = useRef<HTMLElement | null>(null);
   const [regEmpresa, setRegEmpresa] = useState("");
   const [regCargo, setRegCargo] = useState("");
   const [regCpf, setRegCpf] = useState("");
@@ -337,6 +340,19 @@ export default function LoginPage() {
   const [checkedTerms, setCheckedTerms] = useState<Record<string, boolean>>({});
   const [activeTerm, setActiveTerm] = useState<TermKey>("codigo_etica");
   const [aceiteLoading, setAceiteLoading] = useState(false);
+  const temFinalidadeImoveis = interessesSelecionados.includes("imoveis");
+  const temFinalidadeProfissional = interessesSelecionados.includes("profissional");
+  const temFinalidadeCapital = interessesSelecionados.includes("capital");
+  const temPerfilProfissional = temFinalidadeProfissional || temFinalidadeCapital;
+  const somenteFinalidadeCapital = temFinalidadeCapital && !temFinalidadeProfissional;
+  const finalidadesProfissionaisLabel = [
+    temFinalidadeProfissional ? "Profissional, fornecedor ou empresa" : "",
+    temFinalidadeCapital ? "Parceiro de Capital" : "",
+  ].filter(Boolean).join(" + ");
+  const finalidadesSelecionadasLabel = [
+    interessesSelecionados.includes("imoveis") ? "Imóveis e oportunidades" : "",
+    finalidadesProfissionaisLabel,
+  ].filter(Boolean).join(" + ");
 
   // Validate convite token when it changes
   useEffect(() => {
@@ -368,11 +384,13 @@ export default function LoginPage() {
   }, [regConviteToken]);
 
   useEffect(() => {
-    if (!interessesSelecionados.includes("capital")) return;
+    if (!temFinalidadeCapital) return;
     setRegRamoAtuacao(current => current || BUILT_CAPITAL_RAMO);
     setRegSegmento(current => current || BUILT_CAPITAL_SEGMENTO);
-    setRegTiposAlianca([BUILT_CAPITAL_TIPO]);
-  }, [interessesSelecionados]);
+    setRegTiposAlianca(current => somenteFinalidadeCapital
+      ? [BUILT_CAPITAL_TIPO]
+      : current.includes(BUILT_CAPITAL_TIPO) ? current : [...current, BUILT_CAPITAL_TIPO]);
+  }, [temFinalidadeCapital, somenteFinalidadeCapital]);
 
   const selectedRegRamos = parseRamosValue(regRamoAtuacao);
   const selectedRegSegmentos = parseSegmentosValue(regSegmento);
@@ -432,25 +450,74 @@ export default function LoginPage() {
     }
   }
 
-  function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setRegError("");
+    setRegInvalidField("");
     if (!regConviteToken) {
       setRegError("Informe o código de convite para se cadastrar.");
+      setRegInvalidField("convite");
       return;
     }
-    if (conviteStatus === "invalid") {
+    if (conviteStatus === "invalid" || conviteChecking) {
       setRegError("Código de convite inválido ou expirado.");
+      setRegInvalidField("convite");
+      return;
+    }
+    if (!regNome.trim() || regNome.trim().length < 2) {
+      setRegError("Informe seu nome completo.");
+      setRegInvalidField("nome");
+      return;
+    }
+    const normalizedEmail = regEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setRegError("Informe um e-mail válido.");
+      setRegInvalidField("email");
       return;
     }
     if (regPassword !== regPassword2) {
       setRegError("As senhas não coincidem");
+      setRegInvalidField("password2");
       return;
     }
     if (regPassword.length < 4) {
       setRegError("Senha deve ter pelo menos 4 caracteres");
+      setRegInvalidField("password");
       return;
     }
+    const normalizedUsername = (regUsername || normalizedEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_")).trim().toLowerCase();
+    if (normalizedUsername.length < 3) {
+      setRegError("O nome de usuário deve ter pelo menos 3 caracteres.");
+      setRegInvalidField("username");
+      return;
+    }
+
+    setRegPreflightLoading(true);
+    try {
+      const response = await fetch("/api/register/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          convite_token: regConviteToken,
+          email: normalizedEmail,
+          username: normalizedUsername,
+        }),
+      });
+      const validation = await response.json().catch(() => ({}));
+      if (!response.ok || !validation.valid) {
+        setRegError(validation.error || "Revise os dados informados.");
+        setRegInvalidField(validation.field || "");
+        return;
+      }
+      setRegEmail(normalizedEmail);
+      setRegUsername(validation.username || normalizedUsername);
+    } catch {
+      setRegError("Não foi possível validar seus dados agora. Tente novamente.");
+      return;
+    } finally {
+      setRegPreflightLoading(false);
+    }
+
     const interessesDoConvite = getInteressesFromConvite(conviteInfo);
     setInteressesSelecionados(interessesDoConvite);
     if (interessesDoConvite.includes("capital")) {
@@ -458,6 +525,8 @@ export default function LoginPage() {
       setRegRamoAtuacao(BUILT_CAPITAL_RAMO);
       setRegSegmento(BUILT_CAPITAL_SEGMENTO);
     }
+    // A escolha das finalidades acontece junto com o perfil, na mesma tela.
+    // O tipo antigo do convite serve apenas como pre-selecao.
     setPrimeiroAcessoStep("perfil");
     setAdesaoToken("");
     setAdesaoConvite(null);
@@ -467,13 +536,14 @@ export default function LoginPage() {
   }
 
   function toggleInteresse(valor: string) {
+    setRegError("");
     setInteressesSelecionados(prev =>
       prev.includes(valor) ?prev.filter(v => v !== valor) : [...prev, valor]
     );
   }
 
   function toggleAreaContribuicao(tipo: string) {
-    if (interessesSelecionados.includes("capital")) return;
+    if (somenteFinalidadeCapital || (temFinalidadeCapital && tipo === BUILT_CAPITAL_TIPO)) return;
     setRegTiposAlianca(prev => prev.includes(tipo) ? prev.filter(item => item !== tipo) : [...prev, tipo]);
   }
 
@@ -544,38 +614,45 @@ export default function LoginPage() {
   async function handleConfirmarCadastro(interessesOverride?: string[]) {
     const selectedInteresses = interessesOverride && interessesOverride.length > 0 ? interessesOverride : interessesSelecionados;
     if (selectedInteresses.length === 0) return;
+    setRegError("");
     const isInvestidor = selectedInteresses.includes("capital");
-    if (!regCpf.trim()) {
+    const isProfessional = selectedInteresses.some((item) => ["profissional", "vitrine", "membros", "capital"].includes(item));
+    if (selectedInteresses.includes("imoveis") && (!propertyPath || !propertyIntent)) {
+      setRegError("Responda como deseja iniciar sua jornada de imóvel ou oportunidade.");
+      propertyQuestionsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (isProfessional && !regCpf.trim()) {
       setRegError("Informe seu CPF para continuar.");
       regCpfInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       window.setTimeout(() => regCpfInputRef.current?.focus(), 250);
       return;
     }
-    if (!hasInternationalDialCode(regTelefone)) {
+    if (isProfessional && !hasInternationalDialCode(regTelefone)) {
       setRegError("Informe seu telefone com código internacional.");
       return;
     }
-    if (!regCidade.trim()) {
+    if (isProfessional && !regCidade.trim()) {
       setRegError("Informe sua cidade para continuar.");
       return;
     }
-    if (!regEstado.trim()) {
+    if (isProfessional && !regEstado.trim()) {
       setRegError("Informe seu estado para continuar.");
       return;
     }
-    if (!regPais.trim()) {
+    if (isProfessional && !regPais.trim()) {
       setRegError("Informe seu país para continuar.");
       return;
     }
-    if (!regRamoAtuacao.trim()) {
+    if (isProfessional && !regRamoAtuacao.trim()) {
       setRegError("Selecione seu ramo de atuação.");
       return;
     }
-    if (!regSegmento.trim()) {
+    if (isProfessional && !regSegmento.trim()) {
       setRegError("Selecione seu segmento.");
       return;
     }
-    if (regTiposAlianca.length === 0) {
+    if (isProfessional && regTiposAlianca.length === 0) {
       setRegError("Selecione pelo menos uma área de contribuição.");
       return;
     }
@@ -607,14 +684,17 @@ export default function LoginPage() {
           ramo_atuacao: regRamoAtuacao,
           segmento: regSegmento,
           especialidade_livre: regPerfilAliado,
-          tipos_alianca: regTiposAlianca,
-          nucleos_alianca: getNucleosForTipos(regTiposAlianca),
+          tipos_alianca: isProfessional ? regTiposAlianca : [],
+          nucleos_alianca: isProfessional ? getNucleosForTipos(regTiposAlianca) : [],
+          jornada_imovel: selectedInteresses.includes("imoveis") ? {
+            path: propertyPath,
+            intencao: propertyIntent,
+          } : null,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
       if (data.onboarding_token || data.vitrine_token) {
-        await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
         const token = data.onboarding_token || data.vitrine_token;
         setAdesaoToken(token);
         const conviteRes = await fetch(`/api/convites/${token}`);
@@ -666,6 +746,13 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao aceitar termos");
       setAdesaoConvite(data);
+      if (data.jornada_imoveis_concluida) {
+        const redirectUrl = data.redirect_url || "/";
+        setShowInteressesModal(false);
+        navigate(redirectUrl);
+        await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+        return;
+      }
       setPrimeiroAcessoStep("solicitacao");
     } catch (err: any) {
       setRegError(err.message);
@@ -944,7 +1031,7 @@ export default function LoginPage() {
                       <div className="space-y-1.5">
                         <Label className="flex items-center gap-1.5 text-sm text-white/75"><Ticket className="h-3.5 w-3.5 text-[#D7BB7D]" />Codigo de convite <span className="text-red-400">*</span></Label>
                         <div className="relative">
-                          <Input value={regConviteToken} onChange={e => setRegConviteToken(e.target.value.trim())} placeholder="Cole o codigo do seu convite" className={`${inputCls} pr-8 ${conviteStatus === "valid" ? "border-green-500/50" : conviteStatus === "invalid" ? "border-red-500/50" : ""}`} data-testid="input-reg-convite" />
+                          <Input value={regConviteToken} onChange={e => { setRegConviteToken(e.target.value.trim()); if (regInvalidField === "convite") setRegInvalidField(""); }} placeholder="Cole o codigo do seu convite" className={`${inputCls} pr-8 ${conviteStatus === "valid" ? "border-green-500/50" : conviteStatus === "invalid" || regInvalidField === "convite" ? "border-red-500/70" : ""}`} data-testid="input-reg-convite" />
                           {conviteChecking && <span className="absolute right-2.5 top-2.5"><span className="block h-3.5 w-3.5 animate-spin rounded-full border border-white/30 border-t-white/70" /></span>}
                           {!conviteChecking && conviteStatus === "valid" && <CheckCircle className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-green-400" />}
                           {!conviteChecking && conviteStatus === "invalid" && <XCircle className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-red-400" />}
@@ -952,16 +1039,16 @@ export default function LoginPage() {
                         {conviteStatus === "valid" && conviteInfo && <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs text-green-300">Convite de <strong>{conviteInfo.gerador_nome || "membro BUILT"}</strong>{conviteInfo.comunidade_nome ? ` - ${conviteInfo.comunidade_nome}` : ""}</div>}
                         {conviteStatus === "invalid" && <p className="text-xs text-red-400">Codigo invalido ou ja utilizado.</p>}
                       </div>
-                      <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome completo</Label><Input value={regNome} onChange={e => setRegNome(e.target.value)} placeholder="Seu nome" className={inputCls} data-testid="input-reg-nome" required /></div>
-                      <div className="space-y-1.5"><Label className="text-sm text-white/75">E-mail</Label><Input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="seu@email.com" className={inputCls} data-testid="input-reg-email" required /></div>
-                      <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome de usuario</Label><Input value={regUsername} onChange={e => setRegUsername(e.target.value)} placeholder={regEmail ? regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"} className={inputCls} data-testid="input-reg-username" /></div>
+                      <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome completo</Label><Input value={regNome} onChange={e => { setRegNome(e.target.value); if (regInvalidField === "nome") setRegInvalidField(""); }} placeholder="Seu nome" className={`${inputCls} ${regInvalidField === "nome" ? "border-red-500/70" : ""}`} data-testid="input-reg-nome" required /></div>
+                      <div className="space-y-1.5"><Label className="text-sm text-white/75">E-mail</Label><Input type="email" value={regEmail} onChange={e => { setRegEmail(e.target.value); if (regInvalidField === "email") setRegInvalidField(""); }} placeholder="seu@email.com" className={`${inputCls} ${regInvalidField === "email" ? "border-red-500/70" : ""}`} data-testid="input-reg-email" required /></div>
+                      <div className="space-y-1.5"><Label className="text-sm text-white/75">Nome de usuario</Label><Input value={regUsername} onChange={e => { setRegUsername(e.target.value); if (regInvalidField === "username") setRegInvalidField(""); }} placeholder={regEmail ? regEmail.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() : "seu_usuario"} className={`${inputCls} ${regInvalidField === "username" ? "border-red-500/70" : ""}`} data-testid="input-reg-username" /></div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Senha</Label><div className="relative"><Input type={showRegPass ? "text" : "password"} value={regPassword} onChange={e => setRegPassword(e.target.value)} placeholder="Min. 4 chars" className={`${inputCls} pr-8`} data-testid="input-reg-password" required /><button type="button" onClick={() => setShowRegPass(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showRegPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button></div></div>
-                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Confirmar</Label><Input type="password" value={regPassword2} onChange={e => setRegPassword2(e.target.value)} placeholder="Repita" className={`${inputCls} ${regPassword2 && regPassword !== regPassword2 ? "border-red-500/40" : ""}`} data-testid="input-reg-password2" required /></div>
+                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Senha</Label><div className="relative"><Input type={showRegPass ? "text" : "password"} value={regPassword} onChange={e => { setRegPassword(e.target.value); if (regInvalidField === "password") setRegInvalidField(""); }} placeholder="Min. 4 chars" className={`${inputCls} pr-8 ${regInvalidField === "password" ? "border-red-500/70" : ""}`} data-testid="input-reg-password" required /><button type="button" onClick={() => setShowRegPass(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showRegPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button></div></div>
+                        <div className="space-y-1.5"><Label className="text-sm text-white/75">Confirmar</Label><Input type="password" value={regPassword2} onChange={e => { setRegPassword2(e.target.value); if (regInvalidField === "password2") setRegInvalidField(""); }} placeholder="Repita" className={`${inputCls} ${((regPassword2 && regPassword !== regPassword2) || regInvalidField === "password2") ? "border-red-500/70" : ""}`} data-testid="input-reg-password2" required /></div>
                       </div>
                       {regError && <p className="text-center text-sm text-red-400">{regError}</p>}
-                      <Button type="submit" data-testid="button-register" disabled={regLoading || conviteStatus === "invalid"} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]">
-                        {regLoading ? "Criando conta..." : <span className="flex items-center gap-2"><UserPlus className="h-4 w-4" /> Criar conta</span>}
+                      <Button type="submit" data-testid="button-register" disabled={regLoading || regPreflightLoading || conviteChecking || conviteStatus === "invalid"} className="h-12 w-full bg-[#E2B652] font-bold text-[#07111E] hover:bg-[#F0C762]">
+                        {regPreflightLoading ? "Validando dados..." : regLoading ? "Criando conta..." : <span className="flex items-center gap-2"><UserPlus className="h-4 w-4" /> Criar conta</span>}
                       </Button>
                     </form>
                   </CardContent>
@@ -991,15 +1078,25 @@ export default function LoginPage() {
                 <img src={builtLogo} alt="BUILT" className="w-28" />
                 <div className="mt-12 space-y-3">
                   <p className="text-xs text-white/70">Primeiro acesso</p>
-                  <p className="text-sm font-semibold">Aceites do convite</p>
+                  <p className="text-sm font-semibold">
+                    {primeiroAcessoStep === "perfil_antigo"
+                      ? "Escolha suas finalidades"
+                      : primeiroAcessoStep === "perfil"
+                        ? "Complete seu perfil"
+                        : primeiroAcessoStep === "termos"
+                          ? "Aceites do convite"
+                          : primeiroAcessoStep === "solicitacao"
+                            ? "Solicitação de acesso"
+                            : "Acesso concluído"}
+                  </p>
                   <div className="flex items-center gap-2 pt-1">
-                    {primeiroAcessoStep === "perfil" ? (
+                    {primeiroAcessoStep === "perfil_antigo" ? (
                       <span className="h-3 w-3 rounded-full bg-[#D7BB7D]" />
                     ) : (
                       <span className="grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs">1</span>
                     )}
                     <span className="h-px flex-1 bg-[#D7BB7D]" />
-                    {primeiroAcessoStep === "perfil" ? (
+                    {primeiroAcessoStep === "perfil_antigo" ? (
                       <span className="grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs">2</span>
                     ) : (
                       <span className="grid h-6 w-6 place-items-center rounded-full bg-[#D7BB7D] text-xs font-bold text-[#001D34]">2</span>
@@ -1036,20 +1133,30 @@ export default function LoginPage() {
                 <div className="grid gap-3 md:gap-4 lg:grid-cols-[1fr_330px]">
                   <div className="space-y-3 md:space-y-4">
                     <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
-                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">1. Qual o seu papel na BUILT?</h3>
-                      <div className="mt-3 grid gap-2.5 sm:grid-cols-2 md:gap-3">
+                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">1. Como você quer usar a BUILT?</h3>
+                      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">
+                        Marque uma ou mais opções. Você poderá alterar essas finalidades depois.
+                      </p>
+                      <div className="mt-3 grid gap-2.5 sm:grid-cols-2 md:gap-3 lg:grid-cols-3">
                         {[
-                          { id: "prestador", titulo: "Prestador de serviços, fornecedor ou profissional independente", desc: "Atuo oferecendo serviços, insumos ou experiência profissional.", icon: <Store className="h-5 w-5" />, color: "blue" },
+                          { id: "imoveis", titulo: "Tenho um imóvel ou identifiquei uma oportunidade", desc: "Quero cadastrar, analisar e administrar imóveis.", icon: <House className="h-5 w-5" />, color: "blue" },
+                          { id: "profissional", titulo: "Prestador de serviços, fornecedor ou profissional independente", desc: "Atuo oferecendo serviços, insumos ou experiência profissional.", icon: <Store className="h-5 w-5" />, color: "blue" },
                           { id: "capital", titulo: "Parceiro de Capital", desc: "Atuo como investidor ou parceiro de capital.", icon: <TrendingUp className="h-5 w-5" />, color: "green" },
                         ].map((papel) => {
-                          const selected = interessesSelecionados.includes("capital") ? papel.id === "capital" : papel.id === "prestador";
+                          const selected = interessesSelecionados.includes(papel.id);
                           const selectedCardClass = papel.color === "green" ? "border-emerald-500 bg-emerald-50/50" : "border-blue-500 bg-blue-50/50";
                           const iconClass = papel.color === "green"
                             ? selected ? "bg-emerald-100 text-emerald-700" : "bg-emerald-50 text-emerald-700"
                             : selected ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-700";
                           const checkClass = papel.color === "green" ? "text-emerald-600" : "text-blue-600";
                           return (
-                            <div key={papel.id} className={`rounded-lg border p-3 transition-colors md:p-3 ${selected ? selectedCardClass : "border-slate-200"}`}>
+                            <button
+                              key={papel.id}
+                              type="button"
+                              data-testid={`interesse-${papel.id}`}
+                              onClick={() => toggleInteresse(papel.id)}
+                              className={`rounded-lg border p-3 text-left transition-colors md:p-3 ${selected ? selectedCardClass : "border-slate-200 hover:border-blue-300"}`}
+                            >
                               <div className="flex items-start gap-3">
                                 <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full md:h-10 md:w-10 ${iconClass}`}>{papel.icon}</span>
                                 <div className="min-w-0 flex-1">
@@ -1058,18 +1165,76 @@ export default function LoginPage() {
                                 </div>
                                 {selected && <CheckCircle className={`ml-auto h-4 w-4 shrink-0 ${checkClass}`} />}
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
                     </section>
 
-                    <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
-                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">2. Áreas de Contribuição</h3>
-                      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{interessesSelecionados.includes("capital") ? "Para BUILT Capital, Aporte Financeiro é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
+                    {temFinalidadeImoveis && (
+                      <section ref={propertyQuestionsRef} className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
+                        <div>
+                          <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">2. Sobre o imóvel ou oportunidade</h3>
+                          <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">
+                            Estas respostas preparam seu primeiro cadastro. Nada será publicado sem sua confirmação.
+                          </p>
+                        </div>
+
+                        <div className="mt-4 border-t border-slate-100 pt-4">
+                          <p className="text-sm font-bold text-[#001D34]">O imóvel é seu?</p>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            {[
+                              ["imovel", "Tenho um imóvel", "O imóvel ficará na sua área privada de gestão."],
+                              ["oportunidade", "Identifiquei uma oportunidade", "Você será registrado como originador, não como proprietário."],
+                            ].map(([value, title, description]) => {
+                              const selected = propertyPath === value;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setPropertyPath(value as "imovel" | "oportunidade")}
+                                  className={`min-h-20 rounded-md border p-3 text-left transition-colors ${selected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-300"}`}
+                                >
+                                  <span className="flex items-center justify-between gap-3 text-sm font-bold text-[#001D34]">
+                                    {title}
+                                    {selected && <CheckCircle className="h-4 w-4 shrink-0 text-blue-600" />}
+                                  </span>
+                                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">{description}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 border-t border-slate-100 pt-4">
+                          <p className="text-sm font-bold text-[#001D34]">O que você deseja fazer?</p>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            {PROPERTY_INTENT_OPTIONS.map(([value, label]) => {
+                              const selected = propertyIntent === value;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setPropertyIntent(value)}
+                                  className={`min-h-11 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${selected ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 text-slate-700 hover:border-blue-300"}`}
+                                >
+                                  {selected && <CheckCircle className="mr-1.5 inline h-3.5 w-3.5" />}
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                      </section>
+                    )}
+
+                    <section className={`${temPerfilProfissional ? "" : "hidden"} rounded-xl border border-slate-200 bg-white p-3.5 md:p-4`}>
+                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">{temFinalidadeImoveis ? "3" : "2"}. Áreas de Contribuição</h3>
+                      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{somenteFinalidadeCapital ? "Para BUILT Capital, Aporte Financeiro é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
                       <div className="mt-3 grid max-h-[18rem] gap-2 overflow-y-auto pr-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
-                        {sortContributionAreas(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {
-                          const selected = interessesSelecionados.includes("capital") || regTiposAlianca.includes(tipo);
+                        {sortContributionAreas(somenteFinalidadeCapital ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {
+                          const selected = regTiposAlianca.includes(tipo);
                           const label = getTipoDisplayName(tipo);
                           const iconConfig = AREA_ICON_CONFIG[label] || { icon: FolderKanban, color: "text-slate-600", bg: "bg-slate-50" };
                           const AreaIcon = iconConfig.icon;
@@ -1100,12 +1265,12 @@ export default function LoginPage() {
                           );
                         })}
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length}</p>
+                      <p className="mt-2 text-xs text-slate-500">Áreas selecionadas: {regTiposAlianca.length}</p>
                     </section>
 
-                    <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
+                    <div className={`${temPerfilProfissional ? "grid" : "hidden"} gap-3 md:gap-4 lg:grid-cols-2`}>
                       <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
-                        <h3 className="text-sm font-bold text-[#001D34]">3. Ramo de atuação</h3>
+                        <h3 className="text-sm font-bold text-[#001D34]">{temFinalidadeImoveis ? "4" : "3"}. Ramo de atuação</h3>
                         <div className="mt-2 space-y-2">
                           <Popover open={regRamoOpen} onOpenChange={(open) => {
                             setRegRamoOpen(open);
@@ -1184,7 +1349,7 @@ export default function LoginPage() {
                             </div>
                           )}
                         </div>
-                        <h3 className="mt-4 text-sm font-bold text-[#001D34]">4. Segmento</h3>
+                        <h3 className="mt-4 text-sm font-bold text-[#001D34]">{temFinalidadeImoveis ? "5" : "4"}. Segmento</h3>
                         <div className="mt-2 space-y-2">
                           <Popover open={regSegmentoOpen} onOpenChange={(open) => {
                             setRegSegmentoOpen(open);
@@ -1274,7 +1439,7 @@ export default function LoginPage() {
                       </section>
                     </div>
 
-                    <section className="rounded-xl border border-slate-200 bg-white p-4">
+                    <section className={`${temPerfilProfissional ? "" : "hidden"} rounded-xl border border-slate-200 bg-white p-4`}>
                       <h3 className="text-sm font-bold text-[#001D34]">Dados complementares</h3>
                       <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-blue-100 text-sm font-bold text-[#001D34]">
@@ -1393,22 +1558,25 @@ export default function LoginPage() {
                               <span className="truncate text-xs font-semibold text-slate-700">{regEmpresa || "Empresa"}</span>
                             </div>
                           )}
-                          <p className="mt-1 text-xs text-slate-500">{regCargo || CONVITE_TIPO_LABEL[conviteInfo?.tipo || interessesSelecionados[0] || "vitrine"]}</p>
+                          <p className="mt-1 text-xs text-slate-500">{regCargo || finalidadesSelecionadasLabel || "Escolha como quer usar a BUILT"}</p>
                         </div>
                       </div>
                       <div className="mt-4 space-y-3 text-xs">
-                        <div className="grid grid-cols-2 gap-2">
+                        {temPerfilProfissional && <div className="grid grid-cols-2 gap-2">
                           <p className="font-bold text-slate-700">CPF</p>
                           <p className={regCpf ? "text-slate-600" : "font-semibold text-red-600"}>{regCpf || "Pendente"}</p>
-                        </div>
-                        <div><p className="font-bold text-slate-700">Papel na BUILT</p><p className="mt-1 text-slate-600">{interessesSelecionados.includes("capital") ? "Parceiro de Capital" : "Prestador de serviços, fornecedor ou profissional independente"}</p></div>
-                        <div><p className="font-bold text-slate-700">Áreas de contribuição ({interessesSelecionados.includes("capital") ? 1 : regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{(interessesSelecionados.includes("capital") ? [BUILT_CAPITAL_TIPO] : regTiposAlianca).map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>
-                        <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{formatRamosDisplay(regRamoAtuacao) || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>
+                        </div>}
+                        <div><p className="font-bold text-slate-700">Como quero usar a BUILT</p><p className="mt-1 text-slate-600">{finalidadesSelecionadasLabel || "Nenhuma opção selecionada"}</p></div>
+                        {temPerfilProfissional && <div><p className="font-bold text-slate-700">Áreas de contribuição ({regTiposAlianca.length})</p><div className="mt-2 flex flex-wrap gap-1.5">{regTiposAlianca.map(tipo => <span key={tipo} className="rounded bg-blue-50 px-2 py-1 font-semibold text-blue-700">{getTipoDisplayName(tipo)}</span>)}</div></div>}
+                        {temPerfilProfissional && <div className="grid grid-cols-2 gap-2"><p className="font-bold text-slate-700">Ramo</p><p className="text-slate-600">{formatRamosDisplay(regRamoAtuacao) || "-"}</p><p className="font-bold text-slate-700">Segmento</p><p className="text-slate-600">{formatSegmentosDisplay(regSegmento) || "-"}</p><p className="font-bold text-slate-700">Localização</p><p className="text-slate-600">{[regCidade, regEstado].filter(Boolean).join(", ") || "-"}</p></div>}
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
                       <p className="text-sm font-bold text-[#001D34]">Permissões iniciais</p>
-                      <div className="mt-3 space-y-2 text-xs text-slate-600">{["Receber recomendações personalizadas", "Acessar oportunidades e BIAs compatíveis", "Conectar-se com aliados recomendados", "Receber comunicações da BUILT"].map(item => <p key={item} className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600" />{item}</p>)}</div>
+                      <div className="mt-3 space-y-2 text-xs text-slate-600">{(temFinalidadeImoveis && !temPerfilProfissional
+                        ? ["Cadastrar e administrar imóveis", "Criar demandas a partir dos imóveis", "Explorar oportunidades imobiliárias", "Receber comunicações da BUILT"]
+                        : ["Receber recomendações personalizadas", "Acessar oportunidades e BIAs compatíveis", "Conectar-se com aliados recomendados", "Receber comunicações da BUILT"]
+                      ).map(item => <p key={item} className="flex items-center gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600" />{item}</p>)}</div>
                     </div>
                   </aside>
                 </div>
@@ -1419,7 +1587,7 @@ export default function LoginPage() {
               </div>
               <div className="sticky bottom-0 z-10 mt-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-3 py-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row md:static md:mt-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0">
                 <Button type="button" variant="ghost" onClick={() => setShowInteressesModal(false)} disabled={regLoading} className="h-11 flex-1 border border-slate-200 text-slate-600 hover:bg-slate-50 md:h-10"><ArrowLeft className="w-4 h-4 mr-1.5" />Voltar</Button>
-                <Button type="button" onClick={() => handleConfirmarCadastro()} disabled={regLoading || regFotoUploading || regLogoUploading} className="h-12 flex-1 bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 md:h-10">{regFotoUploading ? "Enviando foto..." : regLogoUploading ? "Enviando marca..." : regLoading ? "Criando..." : "Concluir e acessar a BUILT"}</Button>
+                <Button type="button" onClick={() => handleConfirmarCadastro()} disabled={regLoading || regFotoUploading || regLogoUploading || interessesSelecionados.length === 0} className="h-12 flex-1 bg-blue-600 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 md:h-10">{regFotoUploading ? "Enviando foto..." : regLogoUploading ? "Enviando marca..." : regLoading ? "Criando..." : "Concluir e acessar a BUILT"}</Button>
               </div>
             </>
           ) : primeiroAcessoStep === "perfil_antigo" ? (
@@ -1427,34 +1595,34 @@ export default function LoginPage() {
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 pb-6 md:px-8 md:py-8">
               <div className="mb-4 space-y-2 md:mb-6">
                 <p className="text-xs text-slate-500">Inicio / Primeiro acesso</p>
-                <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Ola, {regNome || "bem-vindo(a)"}!</h2>
+                <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Como você quer usar a BUILT?</h2>
                 <p className="max-w-2xl text-sm text-slate-600">
-                  Escolha a area que mais combina com seu objetivo atual. Voce podera acessar outras areas depois.
+                  Marque uma ou mais opções. Você poderá alterar essas finalidades depois.
                 </p>
               </div>
 
           <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
             {[
               {
-                valor: "vitrine",
+                valor: "imoveis",
+                icone: <House className="w-5 h-5" />,
+                titulo: "Tenho um imóvel ou identifiquei uma oportunidade",
+                descricao: "Quero cadastrar, analisar e administrar imóveis.",
+                gratuito: true,
+              },
+              {
+                valor: "profissional",
                 icone: <Store className="w-5 h-5" />,
-                titulo: "Vitrine BUILT",
-                descricao: "Quero oferecer ou prestar serviços",
+                titulo: "Sou profissional, fornecedor ou empresa",
+                descricao: "Quero oferecer serviços, produtos ou experiência profissional.",
                 gratuito: true,
               },
               {
                 valor: "capital",
                 icone: <TrendingUp className="w-5 h-5" />,
-                titulo: "BUILT Capital",
-                descricao: "Tenho interesse em investir",
+                titulo: "Sou investidor ou parceiro de capital",
+                descricao: "Quero avaliar negócios e contribuir com capital.",
                 gratuito: true,
-              },
-              {
-                valor: "membros",
-                icone: <Handshake className="w-5 h-5" />,
-                titulo: "Área de Alianças",
-                descricao: "Quero acessar oportunidades e alianças",
-                gratuito: false,
               },
             ].map(({ valor, icone, titulo, descricao, gratuito }) => {
               const selecionado = interessesSelecionados.includes(valor);
@@ -1498,7 +1666,7 @@ export default function LoginPage() {
                   <span className={`shrink-0 w-full rounded-md border px-3 py-2 text-center text-sm font-semibold transition-all ${
                     selecionado ?"border-blue-600 bg-blue-600 text-white" : "border-[#001D34] text-[#001D34]"
                   }`}>
-                    {selecionado ? "Selecionado" : `Escolher ${titulo.replace("BUILT ", "")}`}
+                    {selecionado ? "Selecionado" : "Selecionar"}
                   </span>
                 </button>
               );
@@ -1524,7 +1692,15 @@ export default function LoginPage() {
             <Button
               type="button"
               data-testid="button-confirmar-cadastro"
-              onClick={() => handleConfirmarCadastro()}
+              onClick={() => {
+                const professional = interessesSelecionados.some((item) => item === "profissional" || item === "capital");
+                if (professional) {
+                  setRegError("");
+                  setPrimeiroAcessoStep("perfil");
+                  return;
+                }
+                handleConfirmarCadastro();
+              }}
               disabled={regLoading || interessesSelecionados.length === 0}
               className="flex-1 bg-[#D7BB7D] hover:bg-[#C4A96A] text-[#001D34] font-semibold disabled:opacity-50"
             >
@@ -1534,7 +1710,9 @@ export default function LoginPage() {
                   Criando...
                 </span>
               ) : (
-                "Continuar para aceites"
+                interessesSelecionados.some((item) => item === "profissional" || item === "capital")
+                  ? "Continuar e completar perfil"
+                  : "Continuar para os aceites"
               )}
             </Button>
           </div>
@@ -1546,7 +1724,7 @@ export default function LoginPage() {
                 <p className="text-xs text-slate-500">Inicio / Primeiro acesso / Aceites</p>
                 <h2 className="text-xl font-bold text-[#001D34] md:text-2xl">Termos de Acesso BUILT</h2>
                 <p className="max-w-2xl text-sm text-slate-600">
-                  Seu convite foi definido para {CONVITE_TIPO_LABEL[conviteInfo?.tipo || interessesSelecionados[0] || "vitrine"] || "Parceiro de Mercado"}. Leia e confirme os termos aplicaveis para continuar.
+                  Leia e confirme os termos aplicáveis às finalidades escolhidas: {finalidadesSelecionadasLabel}.
                 </p>
               </div>
 

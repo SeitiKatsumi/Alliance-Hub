@@ -1,0 +1,58 @@
+# Pagamentos e Integracoes Externas
+
+## Objetivo e usuarios
+
+Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus e armazenamento. Integracoes sao adaptadores; regras de negocio permanecem no dominio da plataforma.
+
+## Telas e URLs
+
+- `/pagamento/:token` e `/pagamento/sucesso`.
+- Banco/Capital dentro de `/bias/:id?tab=capital`.
+- Configuracoes e monetizacao em `/admin`.
+- Fluxos de IA aparecem em Aura, Carteira e Financeiro.
+
+## APIs e provedores
+
+- Stripe/checkout e webhooks de adesao.
+- Pinbank em `server/pinbank-client.ts`: onboarding, documentos, conta, saldo, extrato e cobrancas.
+- OpenAI em rotas de audio, texto, arquivo e analise.
+- Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
+
+## Dados e fontes de verdade
+
+- Evento validado do provedor e fonte para estado externo de pagamento.
+- Segredo/token existe somente no servidor/ambiente.
+- IDs externos sao persistidos junto ao recurso interno para reconciliacao e idempotencia.
+- Resultado de IA e proposta ate confirmacao humana.
+
+## Papeis e permissoes
+
+- Endpoint de webhook e publico apenas no transporte: assinatura/origem devem ser validadas.
+- Conta, extrato, cobranca e documento bancario exigem acesso a BIA.
+- Chaves, payloads integrais e respostas com PII nao sao enviados ao cliente nem registrados em log.
+
+## Estados e transicoes
+
+- Pagamento/cobranca: criado, pendente, pago, falhou, cancelado/estornado.
+- Integracao: nao configurada, configurada, degradada ou indisponivel.
+- IA: recebida, processando, proposta, confirmada ou falhou.
+
+## Invariantes
+
+- Webhook e reprocessamento sao idempotentes.
+- Timeout/falha externa nao vira sucesso local silencioso.
+- Retentativa usa o mesmo identificador quando a operacao for a mesma.
+- Upload valida autenticacao, autorizacao, tamanho, MIME e propriedade.
+- A plataforma continua com mensagem acionavel quando servico opcional esta indisponivel.
+
+## Efeitos e dependencias
+
+- Afeta Acesso, Capital, Carteira, Aura, Documentos, Agenda e Administracao.
+- Mudanca de contrato externo exige versao, compatibilidade e teste de erro/timeout.
+
+## Testes e impacto
+
+- `server/aura-audio.test.ts`
+- `server/valor-origem-sync.test.ts`
+- Testes de webhook/idempotencia devem ser adicionados antes de alterar cobrancas.
+- Ao alterar: testar sucesso, timeout, resposta invalida, repeticao, assinatura ausente, arquivo malformado e provedor indisponivel.

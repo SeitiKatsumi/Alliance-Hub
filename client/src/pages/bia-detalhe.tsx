@@ -4,7 +4,7 @@ import {
   ArrowLeft, MapPin, Crosshair, Briefcase, Crown, Shield, Hammer,
   Wallet, TrendingDown, Target, Building2, Globe,
   Pencil, Layers, FileText, Users, Paperclip, ExternalLink, Loader2,
-  Settings2, RotateCcw, Save, LockKeyhole
+  Settings2, RotateCcw, Save, LockKeyhole, PlayCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +43,7 @@ interface AnexoFile {
 
 interface BiasProjeto {
   id: string;
+  situacao?: "ativa" | "em_formacao" | null;
   codigo_publico?: string | null;
   nome_bia: string;
   objetivo_alianca?: string;
@@ -586,6 +587,30 @@ export default function BiaDetalhePage() {
     },
   });
 
+  const ativarBiaMutation = useMutation({
+    mutationFn: async () => {
+      if (!bia?.id) throw new Error("BIA não encontrada.");
+      const response = await apiRequest("POST", `/api/bias/${bia.id}/ativar`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bias", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      toast({ title: "BIA ativada", description: "A operação da BIA e a criação de OBAs foram liberadas." });
+    },
+    onError: async (error: any) => {
+      const raw = String(error?.message || "");
+      let description = raw;
+      try {
+        const payload = JSON.parse(raw.replace(/^\d+:\s*/, ""));
+        description = Array.isArray(payload?.pendencias)
+          ? payload.pendencias.join(" · ")
+          : payload?.error || raw;
+      } catch {}
+      toast({ title: "Não foi possível ativar a BIA", description, variant: "destructive" });
+    },
+  });
+
   useEffect(() => {
     const publicRef = getBiaPublicRef(bia);
     if (id && publicRef && publicRef !== id) {
@@ -815,17 +840,31 @@ export default function BiaDetalhePage() {
           <ArrowLeft className="w-4 h-4" />
           Voltar para BIAs
         </Button>
-        {canViewBiaConfiguration && (
-          <Button
-            size="sm"
-            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-            onClick={() => setEditOpen(true)}
-            data-testid="btn-edit-bia-detail"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {canEditBia ? "Editar" : "Visualizar"}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canEditBia && bia.situacao === "em_formacao" && (
+            <Button
+              size="sm"
+              className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+              disabled={ativarBiaMutation.isPending}
+              onClick={() => ativarBiaMutation.mutate()}
+              data-testid="btn-ativar-bia"
+            >
+              {ativarBiaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+              Ativar BIA
+            </Button>
+          )}
+          {canViewBiaConfiguration && (
+            <Button
+              size="sm"
+              className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+              onClick={() => setEditOpen(true)}
+              data-testid="btn-edit-bia-detail"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              {canEditBia ? "Editar" : "Visualizar"}
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeDetailTab} onValueChange={updateDetailTab} className="space-y-5">
@@ -863,6 +902,9 @@ export default function BiaDetalhePage() {
         <div className="relative z-10">
           <p className="text-[10px] text-cyan-300/60 tracking-[0.35em] uppercase font-mono mb-1">// BUILT Alliances · BIA</p>
           <h1 className="text-2xl font-bold text-cyan-300 font-mono tracking-wide">{bia.nome_bia}</h1>
+          <Badge className={`mt-2 ${bia.situacao === "em_formacao" ? "bg-amber-400/15 text-amber-200" : "bg-emerald-400/15 text-emerald-200"}`}>
+            {bia.situacao === "em_formacao" ? "BIA em formação" : "BIA ativa"}
+          </Badge>
           <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-mono text-cyan-100/80">
             <span className="uppercase tracking-[0.22em] text-cyan-300/55">Código da BIA</span>
             <span className="truncate text-cyan-100">{getBiaPublicRef(bia).toUpperCase()}</span>

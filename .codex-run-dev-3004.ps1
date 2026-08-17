@@ -9,4 +9,5 @@
 $env:NODE_ENV = 'development'
 $env:PORT = '3004'
 . "$PSScriptRoot\scripts\ensure-local-db-tunnel.ps1"
+. "$PSScriptRoot\scripts\ensure-local-directus-tunnel.ps1"
 npx.cmd tsx server/index.ts

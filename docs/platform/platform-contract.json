@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "updatedAt": "2026-08-17",
+  "description": "Matriz de impacto entre funcionalidades, interface, API, persistencia, invariantes e testes.",
+  "modules": [
+    {
+      "id": "acesso-onboarding",
+      "name": "Acesso, cadastro e onboarding",
+      "doc": "docs/platform/modules/acesso-onboarding.md",
+      "keywords": ["login", "cadastro", "onboarding", "convite", "adesao", "sessao", "senha", "aceite", "localizacao", "pdf"],
+      "routes": ["/login", "/convite/:token", "/adesao/:token", "/pagamento/:token", "/aguardando-aprovacao", "/meu-perfil"],
+      "frontendFiles": ["client/src/App.tsx", "client/src/pages/login.tsx", "client/src/pages/convite.tsx", "client/src/pages/adesao.tsx", "client/src/pages/meu-perfil.tsx", "client/src/lib/profile-completion.ts"],
+      "backendFiles": ["server/routes.ts", "server/auth-google.ts", "server/storage.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/login", "/api/register", "/api/me", "/api/convites", "/api/meu-convite"],
+      "dataStores": ["PostgreSQL users", "PostgreSQL convites_link", "PostgreSQL password_reset_tokens", "Directus cadastro_geral", "sessao Express"],
+      "roles": ["visitante", "candidato", "membro", "funcionario", "admin", "superadmin"],
+      "invariants": ["Usuario autenticavel e membro nao sao o mesmo identificador.", "Aceite preserva versao, identidade, horario e evidencia capturada.", "Repetir callback, cadastro ou webhook nao duplica efeito."],
+      "tests": ["client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts"]
+    },
+    {
+      "id": "inicio-gestao",
+      "name": "Inicio e gestao",
+      "doc": "docs/platform/modules/inicio-gestao.md",
+      "keywords": ["inicio", "painel", "dashboard", "contador", "pendencia", "proxima acao", "atalho", "resumo"],
+      "routes": ["/", "/painel", "/agenda-alertas"],
+      "frontendFiles": ["client/src/App.tsx", "client/src/pages/painel.tsx", "client/src/pages/agenda-alertas.tsx", "client/src/components/app-sidebar.tsx", "client/src/lib/dashboard-navigation.ts"],
+      "backendFiles": ["server/routes.ts", "server/agenda-alerts.ts", "server/member-business-feed.ts"],
+      "apiPrefixes": ["/api/me", "/api/me/negocios", "/api/agenda-alertas", "/api/agenda"],
+      "dataStores": ["agregacoes dos modulos de origem", "PostgreSQL agenda_tarefas", "cache React Query"],
+      "roles": ["membro", "funcionario", "aliado", "diretor", "admin"],
+      "invariants": ["Contador e lista usam o mesmo escopo.", "Painel nao concede acesso ao recurso de destino.", "Pendencia resolvida sai da lista sem apagar historico."],
+      "tests": ["client/src/lib/dashboard-navigation.test.ts", "server/agenda-alerts.test.ts", "client/src/lib/agenda-alerts.test.ts"]
+    },
+    {
+      "id": "perfil-rede-empresa",
+      "name": "Perfis, rede, empresas e comunidades",
+      "doc": "docs/platform/modules/perfil-rede-empresa.md",
+      "keywords": ["perfil", "membro", "empresa", "funcionario", "comunidade", "comunidade mae", "rede", "avatar", "permissao empresarial"],
+      "routes": ["/meu-perfil", "/area-membros", "/membro/:id", "/comunidade", "/comunidade/:id", "/admin?tab=membros"],
+      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx"],
+      "backendFiles": ["server/routes.ts", "shared/company-access.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/membros", "/api/membros-built", "/api/comunidades"],
+      "dataStores": ["Directus cadastro_geral", "PostgreSQL users", "PostgreSQL membros", "PostgreSQL membro_comunidade_mae", "Directus relacoes de comunidade"],
+      "roles": ["membro", "funcionario", "gestor de empresa", "aliado", "admin", "superadmin"],
+      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "Funcionario possui identidade e auditoria proprias."],
+      "tests": ["shared/company-access.test.ts", "server/member-business-feed.test.ts"]
+    },
+    {
+      "id": "built-vitrine",
+      "name": "BUILT Vitrine",
+      "doc": "docs/platform/modules/built-vitrine.md",
+      "keywords": ["vitrine", "publicacao", "parceiro", "anuncio", "demanda publica", "oba publica", "ativo publicado", "interesse"],
+      "routes": ["/vitrine", "/vitrine/:id", "/vitrine/oportunidades/obas", "/vitrine/oportunidades/demandas"],
+      "frontendFiles": ["client/src/pages/vitrine.tsx", "client/src/pages/vitrine-detalhe.tsx", "client/src/pages/vitrine-oportunidades.tsx", "client/src/pages/vitrine-opa-detalhe.tsx", "client/src/pages/vitrine-demandas.tsx"],
+      "backendFiles": ["server/routes.ts", "server/opportunity-platform.ts", "server/property-journey.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/vitrine", "/api/vitrine/demandas", "/api/assets"],
+      "dataStores": ["Directus cadastro_geral", "PostgreSQL anuncios", "PostgreSQL opportunity_registry", "projecoes publicas"],
+      "roles": ["visitante", "membro", "publicador", "moderador", "admin"],
+      "invariants": ["Publicacao e opt-in e reversivel.", "Projecao publica omite dados privados.", "Interesse repetido e idempotente."],
+      "tests": ["server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/property-journey.test.ts"]
+    },
+    {
+      "id": "built-alliances",
+      "name": "BUILT Alliances, oportunidades e BIAs",
+      "doc": "docs/platform/modules/built-alliances.md",
+      "keywords": ["alliances", "bia", "oba", "opa", "land bank", "banco de ativos", "estruturacao", "diretoria", "socio", "mou", "rastreabilidade"],
+      "routes": ["/area-aliancas", "/area-aliancas/oportunidades/:codigo", "/opas/:id", "/bias", "/bias/:id", "/land-bank/:id", "/rastreabilidade/:codigo"],
+      "frontendFiles": ["client/src/pages/area-aliancas.tsx", "client/src/pages/opa-detalhe.tsx", "client/src/pages/bias.tsx", "client/src/pages/bia-detalhe.tsx", "client/src/pages/land-bank-detalhe.tsx", "client/src/components/bia-structuring-queue.tsx", "client/src/components/opportunity-distribution-controls.tsx"],
+      "backendFiles": ["server/routes.ts", "server/bia-lifecycle.ts", "server/opportunity-platform.ts", "server/business-trace.ts", "shared/bia-access.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/bias", "/api/land-bank-assets", "/api/bia-estruturacao-solicitacoes", "/api/bia-aprovacoes", "/api/bia-diretor-solicitacoes", "/api/bia-socio-solicitacoes"],
+      "dataStores": ["Directus bias_projetos", "Directus land_bank_assets", "PostgreSQL opportunity_registry", "PostgreSQL business_trace_*", "PostgreSQL bia_*"],
+      "roles": ["autor", "aliado BUILT", "diretor de alianca", "diretor de nucleo", "socio", "admin", "superadmin"],
+      "invariants": ["Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Aliado ou diretor responsavel nao depende do painel admin para agir."],
+      "tests": ["shared/bia-access.test.ts", "server/bia-lifecycle.test.ts", "server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/business-trace.test.ts"]
+    },
+    {
+      "id": "capital-financeiro",
+      "name": "Capital e financeiro da BIA",
+      "doc": "docs/platform/modules/capital-financeiro.md",
+      "keywords": ["capital", "financeiro", "fluxo de caixa", "lancamento", "valor de origem", "dm", "cpp", "divisor multiplicador", "cota", "pagamento", "analise financeira", "metro quadrado"],
+      "routes": ["/bias/:id?tab=capital", "/movimentacao-cotas/:biaId", "/fluxo-caixa", "/resultados", "/bias-calculadora"],
+      "frontendFiles": ["client/src/pages/bia-detalhe.tsx", "client/src/pages/fluxo-caixa.tsx", "client/src/pages/resultados.tsx", "client/src/pages/bias-calculadora.tsx", "client/src/pages/nucleo-capital.tsx", "client/src/pages/movimentacao-cotas.tsx"],
+      "backendFiles": ["server/routes.ts", "server/valor-origem-sync.ts", "server/quota-transfer.ts", "server/market-comparables.ts", "server/pinbank-client.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/fluxo-caixa", "/api/bias", "/api/transferencia-cotas"],
+      "dataStores": ["Directus fluxo_caixa", "Directus bias_projetos", "Directus Categorias", "Directus Tipos_CPP", "PostgreSQL transferencias_cotas", "PostgreSQL bia_info_comercial"],
+      "roles": ["participante da BIA", "diretor de capital", "diretor de alianca", "aliado", "admin", "superadmin"],
+      "invariants": ["Zero explicito no DM nao usa fallback.", "Formula DM/CPP e unica em todas as telas.", "Valor de origem preserva parcelas pagas ou com evidencia.", "Transferencia totaliza 100 por cento com precisao definida."],
+      "tests": ["server/valor-origem-sync.test.ts", "server/bia-origin-value.test.ts", "server/quota-transfer.test.ts", "server/market-comparables.test.ts"]
+    },
+    {
+      "id": "carteira",
+      "name": "Carteira Patrimonial",
+      "doc": "docs/platform/modules/carteira.md",
+      "keywords": ["carteira", "patrimonio", "imovel", "pulso", "documento do imovel", "alerta patrimonial", "diagnostico", "demanda", "compartilhamento"],
+      "routes": ["/carteira", "/carteira/:id", "/carteira/novo", "/oportunidades", "/oportunidades/:id"],
+      "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx"],
+      "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/carteira", "/api/oportunidades"],
+      "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL property_assistant_sessions"],
+      "roles": ["proprietario", "leitor convidado", "colaborador", "administrador do imovel"],
+      "invariants": ["Carteira privada nao se mistura ao financeiro de BIA.", "Edicao relevante gera evento.", "Publicacao e compartilhamento sao opt-in e por imovel."],
+      "tests": ["server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
+    },
+    {
+      "id": "aura",
+      "name": "Aura Percebida",
+      "doc": "docs/platform/modules/aura.md",
+      "keywords": ["aura", "percepcao", "avaliacao", "palavra", "expressao", "lexico", "score", "audio", "microfone", "reputacao"],
+      "routes": ["/aura", "/aura/:membroId", "/avaliar-aura/:token"],
+      "frontendFiles": ["client/src/pages/aura.tsx", "client/src/pages/avaliar-aura-candidato.tsx", "client/src/components/aura-score.tsx", "client/src/lib/aura-access.ts", "client/src/lib/aura-audio.ts"],
+      "backendFiles": ["server/routes.ts", "server/aura-lexico.ts", "server/aura-audio.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/aura"],
+      "dataStores": ["PostgreSQL aura_avaliacoes", "lexico canonico", "relacoes de comunidades e BIAs"],
+      "roles": ["avaliador", "avaliado", "candidato por token", "superadmin"],
+      "invariants": ["Vinculo considera todas as comunidades e BIAs.", "Frontend e backend usam a mesma regra de autorizacao.", "Somente termos ou expressoes confirmados entram no score."],
+      "tests": ["server/aura-lexico.test.ts", "server/aura-audio.test.ts"]
+    },
+    {
+      "id": "agenda-notificacoes",
+      "name": "Agenda, alertas e notificacoes",
+      "doc": "docs/platform/modules/agenda-notificacoes.md",
+      "keywords": ["agenda", "alerta", "notificacao", "pendencia", "chamada", "convite de diretoria", "lembrete", "contador"],
+      "routes": ["/agenda-alertas", "/agenda", "/notificacoes", "/convites", "/built-capital/chamadas"],
+      "frontendFiles": ["client/src/pages/agenda-alertas.tsx", "client/src/lib/agenda-alerts.ts", "client/src/components/app-sidebar.tsx"],
+      "backendFiles": ["server/routes.ts", "server/agenda-alerts.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/agenda", "/api/agenda-alertas"],
+      "dataStores": ["PostgreSQL agenda_tarefas", "estados dos objetos de origem", "cache React Query"],
+      "roles": ["destinatario", "aliado", "diretor", "membro", "admin"],
+      "invariants": ["Contador e lista usam a mesma regra.", "Uma origem gera no maximo uma pendencia equivalente.", "Notificacao nao substitui autorizacao no destino."],
+      "tests": ["server/agenda-alerts.test.ts", "client/src/lib/agenda-alerts.test.ts", "client/src/lib/dashboard-navigation.test.ts"]
+    },
+    {
+      "id": "administracao",
+      "name": "Administracao",
+      "doc": "docs/platform/modules/administracao.md",
+      "keywords": ["admin", "administracao", "superadmin", "mapa de calor", "monetizacao", "configuracao", "cadastro geral", "auditoria", "estruturacao de bia"],
+      "routes": ["/admin"],
+      "frontendFiles": ["client/src/pages/admin.tsx", "client/src/components/bia-structuring-queue.tsx", "client/src/data/platform-functional-report.ts"],
+      "backendFiles": ["server/routes.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/admin", "/api/bia-estruturacao-solicitacoes"],
+      "dataStores": ["PostgreSQL user_usage_events", "PostgreSQL company_plan_subscriptions", "PostgreSQL anuncios", "Directus cadastro_geral", "agregacoes de pagamentos"],
+      "roles": ["admin", "superadmin", "aliado ou diretor com tarefa operacional"],
+      "invariants": ["Painel administrativo nao e requisito para papel operacional agir.", "Toda mutacao registra executor.", "Metricas informam fonte, criterio e janela."],
+      "tests": ["client/src/data/platform-functional-report.test.ts", "server/agenda-alerts.test.ts"]
+    },
+    {
+      "id": "pagamentos-integracoes",
+      "name": "Pagamentos e integracoes",
+      "doc": "docs/platform/modules/pagamentos-integracoes.md",
+      "keywords": ["pagamento", "assinatura", "stripe", "pinbank", "openai", "directus", "webhook", "arquivo", "upload", "mapa", "geocodificacao", "email"],
+      "routes": ["/pagamento/:token", "/pagamento/sucesso", "/bias/:id?tab=capital", "/admin"],
+      "frontendFiles": ["client/src/pages/pagamento.tsx", "client/src/pages/pagamento-sucesso.tsx", "client/src/components/PagamentoModal.tsx", "client/src/components/browser-permission-help.tsx"],
+      "backendFiles": ["server/routes.ts", "server/pinbank-client.ts", "server/mailer.ts", "server/stripe.ts"],
+      "apiPrefixes": ["/api/convites", "/api/upload", "/api/files"],
+      "dataStores": ["IDs externos persistidos", "eventos validados de provedor", "arquivos Directus", "variaveis de ambiente"],
+      "roles": ["pagador", "participante autorizado", "operador financeiro", "admin"],
+      "invariants": ["Webhook e retentativa sao idempotentes.", "Falha externa nao vira sucesso silencioso.", "Segredos e PII nao chegam ao cliente ou logs."],
+      "tests": ["server/aura-audio.test.ts", "server/valor-origem-sync.test.ts"]
+    }
+  ],
+  "crossCutting": [
+    {
+      "id": "multi-comunidade",
+      "keywords": ["comunidade", "comunidade mae", "vinculo", "associado", "aliado"],
+      "modules": ["perfil-rede-empresa", "acesso-onboarding", "built-alliances", "aura", "agenda-notificacoes"],
+      "invariant": "Autorizacao considera todos os vinculos validos do usuario, nunca somente a primeira comunidade."
+    },
+    {
+      "id": "dinheiro-e-percentuais",
+      "keywords": ["dinheiro", "valor", "percentual", "dm", "cpp", "custo", "receita", "saldo", "pagamento", "cota"],
+      "modules": ["capital-financeiro", "pagamentos-integracoes", "administracao", "built-alliances"],
+      "invariant": "Calculo vive em helper unico, zero explicito e preservado e arredondamento e definido no dominio."
+    },
+    {
+      "id": "documentos-e-evidencias",
+      "keywords": ["documento", "arquivo", "upload", "pdf", "mou", "aceite", "localizacao", "anexo"],
+      "modules": ["acesso-onboarding", "built-alliances", "capital-financeiro", "carteira", "pagamentos-integracoes"],
+      "invariant": "Documento e evidencia possuem dono, versao, autorizacao e metadados do momento da acao."
+    },
+    {
+      "id": "status-e-notificacoes",
+      "keywords": ["status", "estado", "pendencia", "notificacao", "contador", "convite", "aprovacao"],
+      "modules": ["inicio-gestao", "built-alliances", "capital-financeiro", "carteira", "agenda-notificacoes", "administracao"],
+      "invariant": "Toda mudanca de estado revisa origem, historico, contador, lista, notificacao e links de acao."
+    }
+  ]
+}

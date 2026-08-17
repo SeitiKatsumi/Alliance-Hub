@@ -278,6 +278,20 @@ export const carteiraDemandas = pgTable("carteira_demandas", {
   pais: text("pais"),
   economic_opportunity_id: text("economic_opportunity_id"),
   fluxo_disparo: text("fluxo_disparo").notNull().default("imediato"),
+  tipo_demanda: text("tipo_demanda").notNull().default("servico_fornecimento"),
+  modalidade_distribuicao: text("modalidade_distribuicao").notNull().default("pulso"),
+  estimativa_min: numeric("estimativa_min"),
+  estimativa_max: numeric("estimativa_max"),
+  estimativa_moeda: text("estimativa_moeda").default("BRL"),
+  motivo_encerramento: text("motivo_encerramento"),
+  contratado_dentro_built: boolean("contratado_dentro_built"),
+  profissional_escolhido_user_id: text("profissional_escolhido_user_id"),
+  profissional_escolhido_membro_id: text("profissional_escolhido_membro_id"),
+  valor_fechamento: numeric("valor_fechamento"),
+  moeda_fechamento: text("moeda_fechamento"),
+  prazo_fechamento: text("prazo_fechamento"),
+  experiencia_fechamento: text("experiencia_fechamento"),
+  encerrada_em: timestamp("encerrada_em"),
   propostas: jsonb("propostas").$type<Array<Record<string, unknown>>>().notNull().default([]),
   documentos: jsonb("documentos").$type<Array<Record<string, unknown>>>().notNull().default([]),
   proximas_etapas: jsonb("proximas_etapas").$type<Array<Record<string, unknown>>>().notNull().default([]),
@@ -288,6 +302,61 @@ export const carteiraDemandas = pgTable("carteira_demandas", {
   criado_em: timestamp("criado_em").defaultNow().notNull(),
   atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
 });
+
+export const userAccountPurposes = pgTable("user_account_purposes", {
+  user_id: text("user_id").notNull(),
+  membro_id: text("membro_id"),
+  purpose: text("purpose").notNull(),
+  comunidade_id: text("comunidade_id"),
+  source: text("source").notNull().default("profile"),
+  active: boolean("active").notNull().default(true),
+  selected_at: timestamp("selected_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [unique().on(table.user_id, table.purpose)]);
+
+export const propertyAssistantSessions = pgTable("property_assistant_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  owner_user_id: text("owner_user_id").notNull(),
+  owner_membro_id: text("owner_membro_id"),
+  path: text("path").notNull().default("imovel"),
+  method: text("method").notNull().default("manual"),
+  step: text("step").notNull().default("cadastro"),
+  status: text("status").notNull().default("em_andamento"),
+  draft: jsonb("draft").$type<Record<string, unknown>>().notNull().default({}),
+  suggestions: jsonb("suggestions").$type<Record<string, unknown>>().notNull().default({}),
+  confirmations: jsonb("confirmations").$type<Record<string, unknown>>().notNull().default({}),
+  property_id: text("property_id"),
+  opportunity_id: text("opportunity_id"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const carteiraDemandaDestinatarios = pgTable("carteira_demanda_destinatarios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  demanda_id: text("demanda_id").notNull(),
+  user_id: text("user_id"),
+  membro_id: text("membro_id").notNull(),
+  status: text("status").notNull().default("convidado"),
+  origem: text("origem").notNull().default("direcionada"),
+  acesso_completo: boolean("acesso_completo").notNull().default(true),
+  convidado_em: timestamp("convidado_em").defaultNow().notNull(),
+  selecionado_em: timestamp("selecionado_em"),
+  encerrado_em: timestamp("encerrado_em"),
+}, (table) => [unique().on(table.demanda_id, table.membro_id)]);
+
+export const carteiraAcessosTemporarios = pgTable("carteira_acessos_temporarios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull(),
+  demanda_id: text("demanda_id").notNull(),
+  user_id: text("user_id"),
+  membro_id: text("membro_id").notNull(),
+  nivel: text("nivel").notNull().default("leitura"),
+  motivo: text("motivo").notNull().default("demanda_direcionada"),
+  concedido_por_user_id: text("concedido_por_user_id"),
+  concedido_em: timestamp("concedido_em").defaultNow().notNull(),
+  expira_em: timestamp("expira_em"),
+  revogado_em: timestamp("revogado_em"),
+}, (table) => [unique().on(table.demanda_id, table.membro_id)]);
 
 export const opportunityRegistry = pgTable("opportunity_registry", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

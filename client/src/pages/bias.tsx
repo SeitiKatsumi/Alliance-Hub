@@ -53,15 +53,6 @@ import {
 const BRAZIL_GEO = "/brazil-states.json";
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
-const INVITE_TYPE_OPTIONS = [
-  { value: "vitrine", label: "Parceiro de Mercado" },
-  { value: "capital", label: "Parceiro de Capital" },
-];
-const INVITE_TYPE_LABELS: Record<string, string> = {
-  ...Object.fromEntries(INVITE_TYPE_OPTIONS.map((option) => [option.value, option.label])),
-  membros: "BUILT Alliances",
-  associacao_completa: "BUILT Alliances",
-};
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -488,7 +479,7 @@ function BRLInput({ label, field, form, setForm, testId, required }: {
 const EMPTY_FORM = {
   nome_bia: "",
   situacao: "em_formacao" as "ativa" | "em_formacao",
-  bia_publica: true,
+  bia_publica: false,
   destinacao: "",
   selo_certified_alliance: false,
   localizacao: "",
@@ -1845,7 +1836,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const [quickMemberName, setQuickMemberName] = useState("");
   const [quickMemberCompany, setQuickMemberCompany] = useState("");
   const [conviteDialogOpen, setConviteDialogOpen] = useState(false);
-  const [conviteTipo, setConviteTipo] = useState("vitrine");
   const [chamadaDialogOpen, setChamadaDialogOpen] = useState(false);
   const [chamadaDiretorCampo, setChamadaDiretorCampo] = useState<ChamadaAlvoCampo | null>(null);
   const [chamadaDataHora, setChamadaDataHora] = useState("");
@@ -1903,12 +1893,12 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
   const meuConviteLink = normalizeInviteLink(meuConvite?.link);
 
   const gerarConviteMutation = useMutation({
-    mutationFn: async ({ force = false, tipo = conviteTipo }: { force?: boolean; tipo?: string } = {}) => {
+    mutationFn: async ({ force = false }: { force?: boolean } = {}) => {
       const res = await fetch("/api/meu-convite", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: !!force, tipo }),
+        body: JSON.stringify({ force: !!force, tipo: "unificado" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao gerar convite");
@@ -1938,11 +1928,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
     if (!Array.isArray(minhasComunidades) || minhasComunidades.length === 0) return null;
     return minhasComunidades.find((comunidade) => comunidade.is_mae) || minhasComunidades[0] || null;
   }, [minhasComunidades]);
-
-  function handleConviteTipoChange(tipo: string) {
-    setConviteTipo(tipo);
-    gerarConviteMutation.mutate({ force: true, tipo });
-  }
 
   const dispararAliancaMutation = useMutation({
     mutationFn: async () => {
@@ -2776,28 +2761,15 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               {/* Status da BIA */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Status da BIA</Label>
-                <ToggleGroup
-                  type="single"
-                  value={form.situacao}
-                  onValueChange={(v) => { if (v) setForm({ ...form, situacao: v as "ativa" | "em_formacao" }); }}
-                  className="justify-start"
-                  data-testid="toggle-situacao"
-                >
-                  <ToggleGroupItem
-                    value="em_formacao"
-                    className="data-[state=on]:bg-amber-500/15 data-[state=on]:text-amber-600 data-[state=on]:border-amber-500/40 border"
-                    data-testid="toggle-em-formacao"
-                  >
-                    Em Formação
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="ativa"
-                    className="data-[state=on]:bg-green-500/15 data-[state=on]:text-green-600 data-[state=on]:border-green-500/40 border"
-                    data-testid="toggle-ativa"
-                  >
-                    Ativa
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${form.situacao === "ativa" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                    <span className="text-sm font-medium">{form.situacao === "ativa" ? "Ativa" : "Em formação"}</span>
+                  </div>
+                  {form.situacao !== "ativa" && (
+                    <p className="mt-1 text-xs text-muted-foreground">A ativação é feita na página da BIA, após a validação dos convites e aceites obrigatórios.</p>
+                  )}
+                </div>
               </div>
 
               {/* Destinação */}
@@ -2834,6 +2806,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                   }}
                   className="justify-start"
                   data-testid="toggle-visibilidade-bia"
+                  disabled={form.situacao !== "ativa"}
                 >
                   <ToggleGroupItem
                     value="publica"
@@ -2850,6 +2823,9 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
                     BIA Privada
                   </ToggleGroupItem>
                 </ToggleGroup>
+                {form.situacao !== "ativa" && (
+                  <p className="text-xs text-muted-foreground">A BIA permanece privada enquanto estiver em formação.</p>
+                )}
               </div>
 
               {/* Moeda */}
@@ -3723,25 +3699,6 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Tipo de convite</p>
-            <Select value={conviteTipo} onValueChange={handleConviteTipoChange}>
-              <SelectTrigger data-testid="select-bia-tipo-convite">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INVITE_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {meuConvite?.tipo && (
-              <p className="text-[11px] text-muted-foreground">
-                Link ativo: {INVITE_TYPE_LABELS[meuConvite.tipo] || "Parceiro de Mercado"}
-              </p>
-            )}
-          </div>
-
           {meuConviteLink ? (
             <div className="w-full min-w-0 space-y-3">
               <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
@@ -3772,7 +3729,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               )}
               <button
                 type="button"
-                onClick={() => gerarConviteMutation.mutate({ force: true, tipo: conviteTipo })}
+                onClick={() => gerarConviteMutation.mutate({ force: true })}
                 disabled={gerarConviteMutation.isPending}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 data-testid="btn-bia-renovar-convite"
@@ -3787,7 +3744,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
               <Ticket className="w-7 h-7 text-blue-600/70 mx-auto" />
               <p className="text-sm text-muted-foreground">Nenhum link ativo no momento.</p>
               <Button
-                onClick={() => gerarConviteMutation.mutate({ force: false, tipo: conviteTipo })}
+                onClick={() => gerarConviteMutation.mutate({ force: false })}
                 disabled={gerarConviteMutation.isPending}
                 className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
                 data-testid="btn-bia-gerar-convite"

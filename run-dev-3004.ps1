@@ -11,4 +11,5 @@ if (Test-Path .env) {
 $env:NODE_ENV='development'
 $env:PORT='3004'
 . "$PSScriptRoot\scripts\ensure-local-db-tunnel.ps1"
+. "$PSScriptRoot\scripts\ensure-local-directus-tunnel.ps1"
 & .\node_modules\.bin\tsx.cmd server/index.ts *> dev-server-3004.log

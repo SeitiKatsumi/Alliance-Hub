@@ -23,6 +23,13 @@
     "test:business-feed": "node --import tsx --test server/member-business-feed.test.ts",
     "test:agenda-alerts": "node --import tsx --test server/agenda-alerts.test.ts",
     "test:agenda-alerts-ui": "node --import tsx --test client/src/lib/agenda-alerts.test.ts",
+    "test:property-journey": "node --import tsx --test server/property-journey.test.ts",
+    "test:bia-lifecycle": "node --import tsx --test server/bia-lifecycle.test.ts",
+    "test:all": "tsx scripts/run-platform-tests.ts",
+    "platform:impact": "tsx scripts/platform-impact.ts",
+    "platform:inventory": "tsx scripts/generate-platform-inventory.ts",
+    "platform:contract": "tsx scripts/platform-verify.ts",
+    "platform:verify": "npm run platform:contract && npm run check && npm run test:all && npm run build",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

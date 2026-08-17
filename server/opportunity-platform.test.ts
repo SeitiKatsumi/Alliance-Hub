@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildDistributionSchedule,
+  buildPulseV2Schedule,
   canReadRestrictedOpportunity,
   createDemandCode,
   createEconomicOpportunityCode,
@@ -46,6 +47,16 @@ test("gradual distribution advances every twelve hours", () => {
   assert.equal(waves[0].audiencia, "comunidade_origem");
   assert.equal(waves[1].agendada_em.toISOString(), "2026-08-11T12:00:00.000Z");
   assert.equal(waves[5].audiencia, "vitrine_geral");
+});
+
+test("new Pulse flows use five waves every four hours", () => {
+  const start = new Date("2026-08-17T00:00:00.000Z");
+  const waves = buildPulseV2Schedule(start);
+  assert.equal(waves.length, 5);
+  assert.equal(waves[0].audiencia, "comunidade_origem");
+  assert.equal(waves[1].audiencia, "regional");
+  assert.equal(waves[1].agendada_em.toISOString(), "2026-08-17T04:00:00.000Z");
+  assert.equal(waves[4].audiencia, "vitrine_geral");
 });
 
 test("public opportunities exclude expired and terminal records", () => {

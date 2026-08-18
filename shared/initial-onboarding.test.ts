@@ -9,12 +9,14 @@ import {
   getInitialOnboardingVisibleStepNumber,
   isInitialOnboardingApiAllowed,
   INITIAL_ONBOARDING_OBJECTIVE_COPY,
+  INITIAL_ONBOARDING_OBJECTIVES,
   INITIAL_ONBOARDING_NOTIFICATION_PREFERENCES,
   INITIAL_ONBOARDING_LOCATION_NOTICE,
   INITIAL_ONBOARDING_PURPOSE_TONES,
   INITIAL_ONBOARDING_READY_ACTION_TONES,
   INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
   nextOnboardingStep,
+  normalizeAccountPurposeObjectives,
   normalizeOnboardingPurposes,
   shouldOfferOnboardingCpf,
   validateOnboardingStepPayload,
@@ -34,6 +36,44 @@ test("mantém os títulos e perguntas oficiais dos blocos de intenção", () => 
       title: "Parceiro de capital",
       question: "Como você quer atuar com capital?",
     },
+  });
+});
+
+test("mantém uma única taxonomia de intenções para onboarding e edição do perfil", () => {
+  assert.deepEqual(INITIAL_ONBOARDING_OBJECTIVES.imoveis, [
+    "Vender",
+    "Alugar",
+    "Reformar",
+    "Construir",
+    "Regularizar",
+    "Buscar orçamento",
+    "Buscar aliados",
+    "Buscar investidores",
+    "Estruturar uma Aliança BUILT",
+    "Apenas cadastrar por enquanto",
+  ]);
+  assert.deepEqual(INITIAL_ONBOARDING_OBJECTIVES.profissional, [
+    "Oferecer serviços ou soluções",
+    "Participar de demandas",
+    "Participar de alianças",
+    "Apenas configurar meu perfil por enquanto",
+  ]);
+  assert.deepEqual(INITIAL_ONBOARDING_OBJECTIVES.capital, [
+    "Avaliar oportunidades",
+    "Participar de chamadas de capital",
+    "Coinvestir em alianças",
+    "Apenas configurar meu perfil por enquanto",
+  ]);
+});
+
+test("normaliza intenções apenas para finalidades ativas e opções oficiais", () => {
+  assert.deepEqual(normalizeAccountPurposeObjectives({
+    imoveis: ["Vender", " Vender ", "Opção inventada"],
+    profissional: ["Participar de demandas"],
+    capital: "Avaliar oportunidades",
+  }, ["imoveis", "capital"]), {
+    imoveis: ["Vender"],
+    capital: [],
   });
 });
 

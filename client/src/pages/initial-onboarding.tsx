@@ -30,6 +30,7 @@ import {
   INITIAL_ONBOARDING_NOTIFICATION_PREFERENCES,
   INITIAL_ONBOARDING_LOCATION_NOTICE,
   INITIAL_ONBOARDING_OBJECTIVE_COPY,
+  INITIAL_ONBOARDING_OBJECTIVES,
   INITIAL_ONBOARDING_PURPOSE_TONES,
   INITIAL_ONBOARDING_READY_ACTION_TONES,
   INITIAL_ONBOARDING_STEPS,
@@ -114,11 +115,7 @@ const READY_ACTION_TONE_STYLES = {
   },
 } as const;
 
-const OBJECTIVES: Record<string, string[]> = {
-  imoveis: ["Vender", "Alugar", "Reformar", "Construir", "Regularizar", "Buscar orçamento", "Buscar aliados", "Buscar investidores", "Estruturar uma Aliança BUILT", "Apenas cadastrar por enquanto"],
-  profissional: ["Oferecer serviços ou soluções", "Participar de demandas", "Participar de alianças", "Apenas configurar meu perfil por enquanto"],
-  capital: ["Avaliar oportunidades", "Participar de chamadas de capital", "Coinvestir em alianças", "Apenas configurar meu perfil por enquanto"],
-};
+const OBJECTIVES: Record<string, readonly string[]> = INITIAL_ONBOARDING_OBJECTIVES;
 
 function pathStep(path: string): InitialOnboardingStep {
   const value = path.split("/onboarding/")[1]?.split(/[?#]/)[0];

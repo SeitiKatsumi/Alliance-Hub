@@ -65,6 +65,35 @@ export const INITIAL_ONBOARDING_OBJECTIVE_COPY: Record<AccountPurpose, { title: 
   },
 };
 
+export const INITIAL_ONBOARDING_OBJECTIVES: Record<AccountPurpose, readonly string[]> = {
+  imoveis: [
+    "Vender",
+    "Alugar",
+    "Reformar",
+    "Construir",
+    "Regularizar",
+    "Buscar orçamento",
+    "Buscar aliados",
+    "Buscar investidores",
+    "Estruturar uma Aliança BUILT",
+    "Apenas cadastrar por enquanto",
+  ],
+  profissional: [
+    "Oferecer serviços ou soluções",
+    "Participar de demandas",
+    "Participar de alianças",
+    "Apenas configurar meu perfil por enquanto",
+  ],
+  capital: [
+    "Avaliar oportunidades",
+    "Participar de chamadas de capital",
+    "Coinvestir em alianças",
+    "Apenas configurar meu perfil por enquanto",
+  ],
+};
+
+export type AccountPurposeObjectives = Partial<Record<AccountPurpose, string[]>>;
+
 export const INITIAL_ONBOARDING_PURPOSE_TONES: Record<AccountPurpose, "blue" | "emerald" | "violet"> = {
   imoveis: "blue",
   profissional: "emerald",
@@ -137,6 +166,25 @@ export function normalizeOnboardingPurposes(value: unknown): AccountPurpose[] {
   return Array.from(new Set(value.map(String).filter((item): item is AccountPurpose =>
     ACCOUNT_PURPOSES.includes(item as AccountPurpose),
   )));
+}
+
+export function normalizeAccountPurposeObjectives(
+  value: unknown,
+  purposes: unknown = ACCOUNT_PURPOSES,
+): AccountPurposeObjectives {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const selectedPurposes = new Set(normalizeOnboardingPurposes(purposes));
+  const source = value as Record<string, unknown>;
+
+  return ACCOUNT_PURPOSES.reduce<AccountPurposeObjectives>((normalized, purpose) => {
+    if (!selectedPurposes.has(purpose)) return normalized;
+    const allowed = new Set(INITIAL_ONBOARDING_OBJECTIVES[purpose]);
+    const selected = Array.isArray(source[purpose])
+      ? Array.from(new Set(source[purpose].map((item) => String(item || "").trim()).filter((item) => allowed.has(item))))
+      : [];
+    normalized[purpose] = selected;
+    return normalized;
+  }, {});
 }
 
 export function shouldOfferOnboardingCpf(purposes: unknown): boolean {

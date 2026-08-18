@@ -105,6 +105,7 @@ import {
   isInitialOnboardingApiAllowed,
   isInitialOnboardingStep,
   nextOnboardingStep,
+  normalizeAccountPurposeObjectives,
   normalizeOnboardingPurposes,
   validateOnboardingStepPayload,
   INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
@@ -1689,6 +1690,7 @@ async function ensureInventarioTables() {
       user_id text NOT NULL,
       membro_id text,
       purpose text NOT NULL,
+      objectives jsonb NOT NULL DEFAULT '[]'::jsonb,
       comunidade_id text,
       source text NOT NULL DEFAULT 'profile',
       active boolean NOT NULL DEFAULT true,
@@ -1697,6 +1699,10 @@ async function ensureInventarioTables() {
       PRIMARY KEY (user_id, purpose),
       CONSTRAINT user_account_purpose_check CHECK (purpose IN ('imoveis', 'profissional', 'capital'))
     )
+  `);
+  await db.execute(sql`
+    ALTER TABLE user_account_purposes
+    ADD COLUMN IF NOT EXISTS objectives jsonb NOT NULL DEFAULT '[]'::jsonb
   `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS property_assistant_sessions (
@@ -13873,18 +13879,26 @@ ${textContent}`;
     };
   }
 
-  async function replaceAccountPurposes(actor: CarteiraActor, purposes: unknown, source = "profile", comunidadeId?: string | null) {
+  async function replaceAccountPurposes(
+    actor: CarteiraActor,
+    purposes: unknown,
+    source = "profile",
+    comunidadeId?: string | null,
+    objectives?: unknown,
+  ) {
     if (!actor.userId) throw Object.assign(new Error("Usuário não identificado."), { status: 400 });
     const normalized = normalizeAccountPurposes(purposes);
+    const normalizedObjectives = normalizeAccountPurposeObjectives(objectives, normalized);
     if (!normalized.length) throw Object.assign(new Error("Selecione ao menos uma finalidade para a conta."), { status: 400 });
     await db.transaction(async (tx) => {
       await tx.execute(sql`UPDATE user_account_purposes SET active = false, updated_at = now() WHERE user_id = ${actor.userId}`);
       for (const purpose of normalized) {
         await tx.execute(sql`
-          INSERT INTO user_account_purposes (user_id, membro_id, purpose, comunidade_id, source, active)
-          VALUES (${actor.userId}, ${actor.membroId}, ${purpose}, ${comunidadeId || null}, ${source}, true)
+          INSERT INTO user_account_purposes (user_id, membro_id, purpose, objectives, comunidade_id, source, active)
+          VALUES (${actor.userId}, ${actor.membroId}, ${purpose}, ${JSON.stringify(normalizedObjectives[purpose] || [])}::jsonb, ${comunidadeId || null}, ${source}, true)
           ON CONFLICT (user_id, purpose) DO UPDATE SET
             membro_id = EXCLUDED.membro_id,
+            objectives = EXCLUDED.objectives,
             comunidade_id = COALESCE(EXCLUDED.comunidade_id, user_account_purposes.comunidade_id),
             source = EXCLUDED.source,
             active = true,
@@ -13899,12 +13913,17 @@ ${textContent}`;
     try {
       const actor = requireCarteiraActor(req);
       const result = await db.execute(sql`
-        SELECT purpose, comunidade_id, source, selected_at, updated_at
+        SELECT purpose, objectives, comunidade_id, source, selected_at, updated_at
         FROM user_account_purposes
         WHERE user_id = ${actor.userId} AND active = true
         ORDER BY selected_at
       `);
-      res.json({ finalidades: (result.rows || []).map((row: any) => row.purpose), detalhes: result.rows || [] });
+      const finalidades = (result.rows || []).map((row: any) => row.purpose);
+      const intencoes = normalizeAccountPurposeObjectives(
+        Object.fromEntries((result.rows || []).map((row: any) => [row.purpose, row.objectives])),
+        finalidades,
+      );
+      res.json({ finalidades, intencoes, detalhes: result.rows || [] });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -13913,8 +13932,9 @@ ${textContent}`;
   app.put("/api/minha-conta/finalidades", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
-      const finalidades = await replaceAccountPurposes(actor, req.body?.finalidades, "profile");
-      res.json({ finalidades });
+      const finalidades = await replaceAccountPurposes(actor, req.body?.finalidades, "profile", null, req.body?.intencoes);
+      const intencoes = normalizeAccountPurposeObjectives(req.body?.intencoes, finalidades);
+      res.json({ finalidades, intencoes });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -19471,7 +19491,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       WHERE user_id = ${String(userId)}
     `);
     if (step === "personalizacao") {
-      await replaceAccountPurposes({ userId: String(userId), membroId: journey.membro_id ? String(journey.membro_id) : null, role: null, isPlatformAdmin: false }, payload.purposes, "initial_onboarding");
+      await replaceAccountPurposes(
+        { userId: String(userId), membroId: journey.membro_id ? String(journey.membro_id) : null, role: null, isPlatformAdmin: false },
+        payload.purposes,
+        "initial_onboarding",
+        null,
+        payload.objectives,
+      );
     }
     if (step === "pronto" && journey.convite_id) {
       const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
@@ -20394,12 +20420,17 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
     const initialOnboarding = await getInitialOnboardingJourney(String(directusUserId)).catch(() => null);
     const onboardingRequired = Boolean(initialOnboarding && initialOnboarding.status !== "concluido");
-    const accountPurposes = await db.execute(sql`
-      SELECT purpose
+    const accountPurposeRows = await db.execute(sql`
+      SELECT purpose, objectives
       FROM user_account_purposes
       WHERE user_id = ${String(directusUserId)} AND active = true
       ORDER BY selected_at
-    `).then((result: any) => normalizeAccountPurposes((result.rows || []).map((row: any) => row.purpose))).catch(() => []);
+    `).then((result: any) => result.rows || []).catch(() => []);
+    const accountPurposes = normalizeAccountPurposes(accountPurposeRows.map((row: any) => row.purpose));
+    const accountObjectives = normalizeAccountPurposeObjectives(
+      Object.fromEntries(accountPurposeRows.map((row: any) => [row.purpose, row.objectives])),
+      accountPurposes,
+    );
 
     res.json({
       id: directusUserId,
@@ -20410,6 +20441,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       permissions,
       tipos_alianca,
       account_purposes: accountPurposes,
+      account_objectives: accountObjectives,
       Outras_redes_as_quais_pertenco,
       na_vitrine: naVitrine,
       em_membros_built: emMembrosBuilt,

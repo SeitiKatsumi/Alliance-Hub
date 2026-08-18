@@ -19,6 +19,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 - `/api/login`, `/api/logout`, `/api/me`, `/api/register` e `/api/register/validate`.
 - `/api/register/start`, `/api/onboarding`, `/api/onboarding/etapas/:etapa`, `/api/onboarding/upload`, `/api/onboarding/concluir` e `/api/onboarding/finalizar-aceites`.
 - `/api/auth/google/*`, recuperacao e alteracao de senha.
+- `/api/minha-conta/finalidades`: leitura e gravacao atomica das finalidades e respectivas intencoes.
 - `/api/convites/*`, `/api/meu-convite`, `/api/convite-publico/*`.
 - `/api/me/documentos-aceitos/*` e endpoints de aceite associados ao cadastro ou convite.
 - Sessao persistida pelo Express; polling de `/api/me` mantem identidade e permissoes atualizadas.
@@ -30,7 +31,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 - A etapa Configuracao grava a classificacao profissional nos campos oficiais `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas` de `cadastro_geral`.
 - Areas de contribuicao usam valores canonicos de `shared/contribution-areas.ts`; ramo e segmento usam `client/src/lib/ramos-segmentos.ts`; abrangencia e idiomas usam `shared/profile-taxonomy.ts`.
 - Usuario autenticavel e membro da rede sao identidades relacionadas, mas nao intercambiaveis. IDs devem ser normalizados por helper.
-- As finalidades ativas da conta em `user_account_purposes` sao devolvidas por `/api/me` para que menu, cards e guardas usem a mesma regra de acesso.
+- As finalidades e intencoes ativas da conta em `user_account_purposes` sao devolvidas por `/api/me`; a taxonomia canonica de intencoes fica em `shared/initial-onboarding.ts` e e reutilizada pelo onboarding e pelo Meu Perfil.
 
 ## Papeis e permissoes
 
@@ -55,6 +56,8 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Perfil exclusivo de imovel ou oportunidade nao exige CPF.
 - O campo de CPF permanece disponivel para preenchimento opcional em qualquer finalidade, inclusive no perfil exclusivo de imovel ou oportunidade.
 - Os blocos de intencao usam os titulos `Imovel ou oportunidade`, `Profissional, fornecedor ou empresa` e `Parceiro de capital`, cada um acompanhado de sua pergunta contextual oficial definida em `shared/initial-onboarding.ts`.
+- No Meu Perfil, selecionar um card ainda inativo ou configurar um card ativo abre o mesmo conjunto canonico de intencoes do onboarding e salva finalidade e intencoes na mesma operacao.
+- Finalidade escolhida descreve uso pretendido da plataforma e nao concede nem revoga, por si so, vinculo de membro, papel no BUILT Alliances ou acesso administrativo.
 - Os perfis da personalizacao preservam identidade visual consistente: imovel em azul, profissional em verde e capital em roxo.
 - As acoes recomendadas da etapa Pronto reutilizam essa identidade visual e distinguem a rede em ciano, incluindo card, icone e botao.
 - Recomendacoes da etapa Conexoes normalizam fotos vindas de arquivo Directus ou URL externa e exibem fallback quando a imagem falha.

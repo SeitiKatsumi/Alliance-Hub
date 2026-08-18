@@ -12,6 +12,7 @@ export interface AppUser {
   ativo: boolean;
   tipos_alianca?: string[];
   account_purposes?: string[];
+  account_objectives?: Record<string, string[]>;
   Outras_redes_as_quais_pertenco?: string[];
   na_vitrine?: boolean | null;
   em_membros_built?: boolean | null;

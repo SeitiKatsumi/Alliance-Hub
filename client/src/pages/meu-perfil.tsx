@@ -26,7 +26,8 @@ import {
   ImageIcon, X, Languages, Lock, Ticket, Copy, RefreshCw, ChevronDown,
   Store, TrendingUp, Flag, FolderKanban, Scale, Lightbulb, ShieldCheck,
   CircleCheck, Truck, BriefcaseBusiness, Tags, Megaphone, Users,
-  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info, Eye, EyeOff
+  ChartNoAxesCombined, ReceiptText, CircleDollarSign, KeyRound, Info, Eye, EyeOff,
+  Home, Landmark, Settings2, Circle
 } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
@@ -35,6 +36,13 @@ import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosD
 import { PhoneInput, hasInternationalDialCode, normalizePhoneValue } from "@/components/phone-input";
 import { COMPANY_ACCESS_KEYS, COMPANY_ACCESS_LABELS, normalizeCompanyAccess } from "@shared/company-access";
 import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
+import {
+  INITIAL_ONBOARDING_OBJECTIVE_COPY,
+  INITIAL_ONBOARDING_OBJECTIVES,
+  normalizeAccountPurposeObjectives,
+  type AccountPurpose,
+  type AccountPurposeObjectives,
+} from "@shared/initial-onboarding";
 
 interface NominatimResult {
   place_id: number;
@@ -292,8 +300,6 @@ function ContributionAreaInfo({ label }: { label: string }) {
   );
 }
 
-type AccountPurpose = "imoveis" | "profissional" | "capital";
-
 const ACCOUNT_PURPOSE_OPTIONS: Array<{
   id: AccountPurpose;
   title: string;
@@ -304,21 +310,47 @@ const ACCOUNT_PURPOSE_OPTIONS: Array<{
     id: "imoveis",
     title: "Tenho um imóvel ou identifiquei uma oportunidade",
     description: "Quero cadastrar, analisar e administrar imóveis.",
-    icon: Building2,
+    icon: Home,
   },
   {
     id: "profissional",
     title: "Sou profissional, fornecedor ou empresa",
     description: "Atuo oferecendo serviços, insumos ou experiência profissional.",
-    icon: Store,
+    icon: BriefcaseBusiness,
   },
   {
     id: "capital",
     title: "Sou investidor ou parceiro de capital",
     description: "Atuo como investidor ou parceiro de capital.",
-    icon: TrendingUp,
+    icon: Landmark,
   },
 ];
+
+const ACCOUNT_PURPOSE_STYLES: Record<AccountPurpose, {
+  selected: string;
+  icon: string;
+  option: string;
+  action: string;
+}> = {
+  imoveis: {
+    selected: "border-blue-500 bg-blue-50/70",
+    icon: "bg-blue-100 text-blue-700",
+    option: "border-blue-500 bg-blue-50 text-blue-700",
+    action: "bg-blue-600 text-white hover:bg-blue-700",
+  },
+  profissional: {
+    selected: "border-emerald-500 bg-emerald-50/70",
+    icon: "bg-emerald-100 text-emerald-700",
+    option: "border-emerald-500 bg-emerald-50 text-emerald-700",
+    action: "bg-emerald-600 text-white hover:bg-emerald-700",
+  },
+  capital: {
+    selected: "border-violet-500 bg-violet-50/70",
+    icon: "bg-violet-100 text-violet-700",
+    option: "border-violet-500 bg-violet-50 text-violet-700",
+    action: "bg-violet-600 text-white hover:bg-violet-700",
+  },
+};
 
 function normalizeInviteLink(link?: string | null) {
   if (!link) return "";
@@ -690,9 +722,13 @@ export default function MeuPerfilPage() {
   const membroId = user?.membro_directus_id;
 
   const [accountPurposes, setAccountPurposes] = useState<AccountPurpose[]>([]);
+  const [accountObjectives, setAccountObjectives] = useState<AccountPurposeObjectives>({});
+  const [configuringPurpose, setConfiguringPurpose] = useState<AccountPurpose | null>(null);
+  const [purposeObjectiveDraft, setPurposeObjectiveDraft] = useState<string[]>([]);
 
   const { data: accountPurposesData, isLoading: loadingAccountPurposes } = useQuery<{
     finalidades: AccountPurpose[];
+    intencoes?: AccountPurposeObjectives;
   }>({
     queryKey: ["/api/minha-conta/finalidades"],
     queryFn: async () => {
@@ -748,15 +784,18 @@ export default function MeuPerfilPage() {
     if (!accountPurposesData) return;
     if (accountPurposesData.finalidades?.length) {
       setAccountPurposes(accountPurposesData.finalidades);
+      setAccountObjectives(normalizeAccountPurposeObjectives(accountPurposesData.intencoes, accountPurposesData.finalidades));
       return;
     }
     if (!membroId) {
       setAccountPurposes(["imoveis"]);
+      setAccountObjectives({ imoveis: [] });
       return;
     }
     const legacyPurposes: AccountPurpose[] = ["profissional"];
     if (membro?.em_built_capital) legacyPurposes.push("capital");
     setAccountPurposes(legacyPurposes);
+    setAccountObjectives(normalizeAccountPurposeObjectives({}, legacyPurposes));
   }, [accountPurposesData, membro, membroId]);
 
   function handleLocationSelect(cidade: string, estado: string, pais: string, lat: number, lng: number) {
@@ -849,19 +888,22 @@ export default function MeuPerfilPage() {
   });
 
   const updateAccountPurposesMutation = useMutation({
-    mutationFn: async (finalidades: AccountPurpose[]) => {
+    mutationFn: async ({ finalidades, intencoes }: { finalidades: AccountPurpose[]; intencoes: AccountPurposeObjectives }) => {
       const response = await fetch("/api/minha-conta/finalidades", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ finalidades }),
+        body: JSON.stringify({ finalidades, intencoes }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Não foi possível atualizar as finalidades.");
-      return data as { finalidades: AccountPurpose[] };
+      return data as { finalidades: AccountPurpose[]; intencoes: AccountPurposeObjectives };
     },
     onSuccess: (data) => {
       setAccountPurposes(data.finalidades);
+      setAccountObjectives(normalizeAccountPurposeObjectives(data.intencoes, data.finalidades));
+      setConfiguringPurpose(null);
+      setPurposeObjectiveDraft([]);
       queryClient.invalidateQueries({ queryKey: ["/api/minha-conta/finalidades"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       toast({ title: "Finalidades da conta atualizadas" });
@@ -871,10 +913,46 @@ export default function MeuPerfilPage() {
     },
   });
 
-  function toggleAccountPurpose(purpose: AccountPurpose) {
-    setAccountPurposes((current) => current.includes(purpose)
-      ? current.filter((item) => item !== purpose)
-      : [...current, purpose]);
+  function openPurposeConfiguration(purpose: AccountPurpose) {
+    setConfiguringPurpose(purpose);
+    setPurposeObjectiveDraft(accountObjectives[purpose] || []);
+  }
+
+  function togglePurposeObjective(objective: string) {
+    setPurposeObjectiveDraft((current) => current.includes(objective)
+      ? current.filter((item) => item !== objective)
+      : [...current, objective]);
+  }
+
+  function savePurposeConfiguration() {
+    if (!configuringPurpose) return;
+    if (!purposeObjectiveDraft.length) {
+      toast({
+        title: "Selecione ao menos uma intenção",
+        description: INITIAL_ONBOARDING_OBJECTIVE_COPY[configuringPurpose].question,
+        variant: "destructive",
+      });
+      return;
+    }
+    const finalidades = accountPurposes.includes(configuringPurpose)
+      ? accountPurposes
+      : [...accountPurposes, configuringPurpose];
+    const intencoes = normalizeAccountPurposeObjectives({
+      ...accountObjectives,
+      [configuringPurpose]: purposeObjectiveDraft,
+    }, finalidades);
+    updateAccountPurposesMutation.mutate({ finalidades, intencoes });
+  }
+
+  function removeConfiguredPurpose() {
+    if (!configuringPurpose || !accountPurposes.includes(configuringPurpose)) return;
+    if (accountPurposes.length <= 1) {
+      toast({ title: "Mantenha uma finalidade", description: "Sua conta precisa ter ao menos uma finalidade ativa.", variant: "destructive" });
+      return;
+    }
+    const finalidades = accountPurposes.filter((purpose) => purpose !== configuringPurpose);
+    const intencoes = normalizeAccountPurposeObjectives(accountObjectives, finalidades);
+    updateAccountPurposesMutation.mutate({ finalidades, intencoes });
   }
 
   const changePasswordMutation = useMutation({
@@ -1062,22 +1140,6 @@ export default function MeuPerfilPage() {
     setSegmentoSearch("");
   }
 
-  function togglePapelBuilt(roleId: "prestador" | "capital") {
-    toggleAccountPurpose(roleId === "prestador" ? "profissional" : "capital");
-    setForm((current) => {
-      const prestadorSelecionado = current.em_membros_built !== false;
-      const capitalSelecionado = !!current.em_built_capital;
-
-      if (roleId === "prestador") {
-        const nextPrestador = !prestadorSelecionado;
-        return { ...current, em_membros_built: nextPrestador };
-      }
-
-      const nextCapital = !capitalSelecionado;
-      return { ...current, em_built_capital: nextCapital };
-    });
-  }
-
   function handleSave() {
     const normalizedTelefone = normalizePhoneValue(form.telefone);
     const normalizedWhatsapp = normalizePhoneValue(form.whatsapp);
@@ -1117,7 +1179,7 @@ export default function MeuPerfilPage() {
       toast({ title: "Escolha uma finalidade", description: "Selecione ao menos uma finalidade para a sua conta.", variant: "destructive" });
       return;
     }
-    updateAccountPurposesMutation.mutate(accountPurposes);
+    updateAccountPurposesMutation.mutate({ finalidades: accountPurposes, intencoes: accountObjectives });
     updateMutation.mutate(payload as any);
   }
 
@@ -1139,6 +1201,95 @@ export default function MeuPerfilPage() {
     }
     changePasswordMutation.mutate({ currentPassword, newPassword });
   }
+
+  const purposeDialog = configuringPurpose ? (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !updateAccountPurposesMutation.isPending) {
+          setConfiguringPurpose(null);
+          setPurposeObjectiveDraft([]);
+        }
+      }}
+    >
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3 text-[#001D34]">
+            {(() => {
+              const PurposeIcon = ACCOUNT_PURPOSE_OPTIONS.find((item) => item.id === configuringPurpose)?.icon || BriefcaseBusiness;
+              return (
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${ACCOUNT_PURPOSE_STYLES[configuringPurpose].icon}`}>
+                  <PurposeIcon className="h-5 w-5" />
+                </span>
+              );
+            })()}
+            <span>{INITIAL_ONBOARDING_OBJECTIVE_COPY[configuringPurpose].title}</span>
+          </DialogTitle>
+          <DialogDescription className="text-sm text-slate-600">
+            {INITIAL_ONBOARDING_OBJECTIVE_COPY[configuringPurpose].question}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid max-h-[52vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+          {INITIAL_ONBOARDING_OBJECTIVES[configuringPurpose].map((objective) => {
+            const selected = purposeObjectiveDraft.includes(objective);
+            return (
+              <button
+                key={objective}
+                type="button"
+                onClick={() => togglePurposeObjective(objective)}
+                className={`flex min-h-12 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                  selected ? ACCOUNT_PURPOSE_STYLES[configuringPurpose].option : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
+                }`}
+              >
+                {selected ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <Circle className="h-4 w-4 shrink-0" />}
+                <span>{objective}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <DialogFooter className="gap-2 sm:justify-between">
+          <div>
+            {accountPurposes.includes(configuringPurpose) && accountPurposes.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={removeConfiguredPurpose}
+                disabled={updateAccountPurposesMutation.isPending}
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                Remover finalidade
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfiguringPurpose(null);
+                setPurposeObjectiveDraft([]);
+              }}
+              disabled={updateAccountPurposesMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={savePurposeConfiguration}
+              disabled={updateAccountPurposesMutation.isPending || !purposeObjectiveDraft.length}
+              className={`gap-2 ${ACCOUNT_PURPOSE_STYLES[configuringPurpose].action}`}
+              data-testid="btn-salvar-intencoes"
+            >
+              {updateAccountPurposesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Salvar intenções
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null;
 
   if (user?.company_employee) {
     const companyPermissions = normalizeCompanyAccess(user.company_permissions);
@@ -1250,11 +1401,18 @@ export default function MeuPerfilPage() {
                 const Icon = purpose.icon;
                 const selected = accountPurposes.includes(purpose.id);
                 return (
-                  <button
+                  <div
                     key={purpose.id}
-                    type="button"
-                    onClick={() => toggleAccountPurpose(purpose.id)}
-                    className={`min-h-36 border p-4 text-left transition-colors ${selected ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openPurposeConfiguration(purpose.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openPurposeConfiguration(purpose.id);
+                      }
+                    }}
+                    className={`min-h-36 cursor-pointer rounded-lg border p-4 text-left transition-colors ${selected ? ACCOUNT_PURPOSE_STYLES[purpose.id].selected : "border-slate-200 bg-white hover:border-slate-300"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-blue-600"><Icon className="h-5 w-5" /></span>
@@ -1262,7 +1420,27 @@ export default function MeuPerfilPage() {
                     </div>
                     <p className="mt-3 text-sm font-semibold">{purpose.title}</p>
                     <p className="mt-1 text-xs leading-relaxed text-slate-500">{purpose.description}</p>
-                  </button>
+                    {selected ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openPurposeConfiguration(purpose.id);
+                        }}
+                        className="mt-3 h-8 gap-1 text-xs text-blue-700"
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Configurar intenções
+                      </Button>
+                    ) : (
+                      <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Selecionar e configurar
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1270,7 +1448,7 @@ export default function MeuPerfilPage() {
               <Button
                 type="button"
                 disabled={loadingAccountPurposes || updateAccountPurposesMutation.isPending || !accountPurposes.length}
-                onClick={() => updateAccountPurposesMutation.mutate(accountPurposes)}
+                onClick={() => updateAccountPurposesMutation.mutate({ finalidades: accountPurposes, intencoes: accountObjectives })}
                 className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
               >
                 {updateAccountPurposesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -1285,6 +1463,7 @@ export default function MeuPerfilPage() {
               Abrir Meus Imóveis
             </Button>
           </section>
+          {purposeDialog}
         </div>
       </div>
     );
@@ -1294,10 +1473,11 @@ export default function MeuPerfilPage() {
   const nome = form.nome || membro?.nome || user?.nome || "";
   const fotoPosition = getPhotoObjectPosition(form);
   const fotoCropDraw = getCropDrawSize();
-  const prestadorSelecionado = form.em_membros_built !== false;
-  const capitalSelecionado = !!form.em_built_capital;
+  const prestadorSelecionado = accountPurposes.includes("profissional");
+  const capitalSelecionado = accountPurposes.includes("capital");
   const tiposAliancaSelecionados = uniqueContributionAreas(form.tipos_alianca);
   const papeisBuilt = [
+    accountPurposes.includes("imoveis") ? "Imóvel ou oportunidade" : "",
     prestadorSelecionado ? "Prestador de serviços, fornecedor ou profissional independente" : "",
     capitalSelecionado ? "Parceiro de Capital" : "",
   ].filter(Boolean);
@@ -1513,47 +1693,58 @@ export default function MeuPerfilPage() {
               <div className="min-w-0 space-y-4">
                 <section className="profile-section p-4">
                   <h3 className="text-sm font-bold text-[#001D34]">1. Como você quer usar a BUILT?</h3>
+                  <p className="mt-1 text-xs text-slate-500">Selecione um perfil e configure o que deseja fazer na plataforma.</p>
                   <div className="mt-3 grid gap-3 md:grid-cols-3">
-                    {[
-                      {
-                        id: "imoveis" as const,
-                        title: "Tenho um imóvel ou identifiquei uma oportunidade",
-                        desc: "Quero cadastrar, analisar e administrar imóveis.",
-                        selected: accountPurposes.includes("imoveis"),
-                      },
-                      {
-                        id: "prestador" as const,
-                        title: "Prestador de serviços, fornecedor ou profissional independente",
-                        desc: "Atuo oferecendo serviços, insumos ou experiência profissional.",
-                        selected: prestadorSelecionado,
-                      },
-                      {
-                        id: "capital" as const,
-                        title: "Parceiro de Capital",
-                        desc: "Atuo como investidor ou parceiro de capital.",
-                        selected: capitalSelecionado,
-                      },
-                    ].map((role) => (
-                      <button
-                        key={role.id}
-                        type="button"
-                        onClick={() => role.id === "imoveis" ? toggleAccountPurpose("imoveis") : togglePapelBuilt(role.id)}
-                        className={`flex min-h-24 gap-3 rounded-lg border p-3 text-left transition-colors ${
-                          role.selected ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-blue-300"
-                        }`}
-                      >
-                        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
-                          role.id === "capital" ? "bg-emerald-50 text-emerald-700" : "bg-blue-100 text-blue-700"
-                        }`}>
-                          {role.id === "capital" ? <TrendingUp className="h-5 w-5" /> : <Store className="h-5 w-5" />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block break-words text-sm font-bold text-[#001D34]">{role.title}</span>
-                          <span className="mt-1 block text-xs leading-relaxed text-slate-600">{role.desc}</span>
-                        </span>
-                        {role.selected && <CheckCircle className="h-4 w-4 shrink-0 text-blue-600" />}
-                      </button>
-                    ))}
+                    {ACCOUNT_PURPOSE_OPTIONS.map((purpose) => {
+                      const PurposeIcon = purpose.icon;
+                      const selected = accountPurposes.includes(purpose.id);
+                      return (
+                        <div
+                          key={purpose.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openPurposeConfiguration(purpose.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openPurposeConfiguration(purpose.id);
+                            }
+                          }}
+                          className={`flex min-h-40 cursor-pointer flex-col rounded-lg border p-3 text-left transition-colors ${
+                            selected ? ACCOUNT_PURPOSE_STYLES[purpose.id].selected : "border-slate-200 bg-white hover:border-blue-300"
+                          }`}
+                        >
+                          <span className="flex items-start justify-between gap-3">
+                            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${ACCOUNT_PURPOSE_STYLES[purpose.id].icon}`}>
+                              <PurposeIcon className="h-5 w-5" />
+                            </span>
+                            {selected && <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-600" />}
+                          </span>
+                          <span className="mt-3 block break-words text-sm font-bold text-[#001D34]">{purpose.title}</span>
+                          <span className="mt-1 block text-xs leading-relaxed text-slate-600">{purpose.description}</span>
+                          {selected ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openPurposeConfiguration(purpose.id);
+                              }}
+                              className="mt-auto h-8 gap-1 pt-0 text-xs text-blue-700"
+                            >
+                              <Settings2 className="h-3.5 w-3.5" />
+                              Configurar intenções
+                            </Button>
+                          ) : (
+                            <span className="mt-auto inline-flex items-center gap-1 pt-3 text-xs font-semibold text-blue-700">
+                              <Settings2 className="h-3.5 w-3.5" />
+                              Selecionar e configurar
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
 
@@ -2500,6 +2691,8 @@ export default function MeuPerfilPage() {
         onClose={() => setLocationPickerOpen(false)}
         onSelect={handleLocationSelect}
       />
+
+      {purposeDialog}
 
       <Dialog open={fotoCropOpen} onOpenChange={(open) => { if (!open && !uploadingFoto) closeFotoCropModal(); }}>
         <DialogContent className="max-w-xl">

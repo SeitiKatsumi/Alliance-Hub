@@ -10,7 +10,7 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 
 ## Tocando Agora
 - Evitar reabrir acesso global aos nucleos da BIA. Se alterar `bia-detalhe.tsx`, preservar a lista filtrada `allowedNucleoTabs`.
-- Este chat altera somente o resolvedor de comunidade da adesao em `server/routes.ts`, preservando rotas, sidebar e estruturas de BIA/OPA/Alliances.
+- Este chat altera o resolvedor de comunidade da adesao e a configuracao de finalidades/intencoes no Meu Perfil, preservando rotas, sidebar e estruturas de BIA/OPA/Alliances.
 
 ## Cuidado
 - Antes de editar arquivos ja modificados, rode `git status --short` e leia o trecho atual.

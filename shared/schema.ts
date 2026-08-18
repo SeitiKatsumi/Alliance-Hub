@@ -307,6 +307,7 @@ export const userAccountPurposes = pgTable("user_account_purposes", {
   user_id: text("user_id").notNull(),
   membro_id: text("membro_id"),
   purpose: text("purpose").notNull(),
+  objectives: jsonb("objectives").$type<string[]>().notNull().default([]),
   comunidade_id: text("comunidade_id"),
   source: text("source").notNull().default("profile"),
   active: boolean("active").notNull().default(true),

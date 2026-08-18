@@ -20396,6 +20396,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
     const initialOnboarding = await getInitialOnboardingJourney(String(directusUserId)).catch(() => null);
     const onboardingRequired = Boolean(initialOnboarding && initialOnboarding.status !== "concluido");
+    const accountPurposes = await db.execute(sql`
+      SELECT purpose
+      FROM user_account_purposes
+      WHERE user_id = ${String(directusUserId)} AND active = true
+      ORDER BY selected_at
+    `).then((result: any) => normalizeAccountPurposes((result.rows || []).map((row: any) => row.purpose))).catch(() => []);
 
     res.json({
       id: directusUserId,
@@ -20405,6 +20411,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       role,
       permissions,
       tipos_alianca,
+      account_purposes: accountPurposes,
       Outras_redes_as_quais_pertenco,
       na_vitrine: naVitrine,
       em_membros_built: emMembrosBuilt,

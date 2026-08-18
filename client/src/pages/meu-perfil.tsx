@@ -863,6 +863,7 @@ export default function MeuPerfilPage() {
     onSuccess: (data) => {
       setAccountPurposes(data.finalidades);
       queryClient.invalidateQueries({ queryKey: ["/api/minha-conta/finalidades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       toast({ title: "Finalidades da conta atualizadas" });
     },
     onError: (error: any) => {

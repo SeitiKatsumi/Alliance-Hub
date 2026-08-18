@@ -11,6 +11,7 @@ export interface AppUser {
   permissions: Record<string, string>;
   ativo: boolean;
   tipos_alianca?: string[];
+  account_purposes?: string[];
   Outras_redes_as_quais_pertenco?: string[];
   na_vitrine?: boolean | null;
   em_membros_built?: boolean | null;

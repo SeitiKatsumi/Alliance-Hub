@@ -30,6 +30,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 - A etapa Configuracao grava a classificacao profissional nos campos oficiais `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas` de `cadastro_geral`.
 - Areas de contribuicao usam valores canonicos de `shared/contribution-areas.ts`; ramo e segmento usam `client/src/lib/ramos-segmentos.ts`; abrangencia e idiomas usam `shared/profile-taxonomy.ts`.
 - Usuario autenticavel e membro da rede sao identidades relacionadas, mas nao intercambiaveis. IDs devem ser normalizados por helper.
+- As finalidades ativas da conta em `user_account_purposes` sao devolvidas por `/api/me` para que menu, cards e guardas usem a mesma regra de acesso.
 
 ## Papeis e permissoes
 
@@ -68,6 +69,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Cada acao recomendada da etapa Pronto conclui a jornada e redireciona ao destino interno escolhido; jornadas legadas ainda preservam seus aceites finais.
 - Status cadastral so pode ser `informado`, `enviado` ou `pendente` sem evidencia externa.
 - Selecao de finalidade nao publica perfil, imovel ou oportunidade.
+- A finalidade `imoveis` libera a entrada na BUILT Vitrine sem ativar a publicacao do perfil; BUILT Alliances continua condicionada ao vinculo de membro.
 - Aceite registra versao, identidade, data/hora e evidencia do momento.
 - Localizacao do aceite e capturada pelo helper compartilhado com `status = capturada`, coordenadas validas, precisao e horario; perfil/endereco nao a substituem.
 - Falha de sincronizacao com Directus nao pode ser apresentada como cadastro concluido sem pendencia explicita.

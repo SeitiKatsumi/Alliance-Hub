@@ -13,8 +13,12 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { AppUser } from "@/hooks/use-auth";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
+import {
+  canAccessBuiltEnvironment,
+  type BuiltEnvironmentTarget,
+} from "@shared/environment-access";
 
-export type EnvironmentTarget = "vitrine" | "alliances" | "capital";
+export type EnvironmentTarget = BuiltEnvironmentTarget;
 
 type AccessState = {
   canAccess: boolean;
@@ -23,10 +27,6 @@ type AccessState = {
   description: string;
   actionLabel: string;
 };
-
-function userRedes(user?: AppUser | null): string[] {
-  return Array.isArray(user?.Outras_redes_as_quais_pertenco) ? user!.Outras_redes_as_quais_pertenco! : [];
-}
 
 export function environmentAccessFor(user: AppUser | null | undefined, target: EnvironmentTarget): AccessState {
   if (user?.company_employee && !hasEmployeeModuleAccess(user, target, "view")) {
@@ -38,30 +38,21 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
       actionLabel: "Ver meu acesso",
     };
   }
-  const role = user?.role || "";
-  const redes = userRedes(user);
-  const isAdmin = role === "admin" || role === "manager" || role === "superadmin";
-  const isLicensedAlly = role === "aliado";
-  const hasCapitalSeal = redes.includes("BUILT_CAPITAL_PARTNER");
-
-  const isEmployee = user?.company_employee === true;
-  const hasVitrineAccess = isEmployee || isAdmin || user?.na_vitrine === true;
-  const hasCapitalAccess = isEmployee || isAdmin || user?.em_built_capital === true || role === "investidor" || hasCapitalSeal;
-  const hasAlliancesAccess = isEmployee || isAdmin || isLicensedAlly || role === "membro" || user?.em_membros_built === true;
+  const canAccess = canAccessBuiltEnvironment(user, target);
 
   if (target === "vitrine") {
     return {
-      canAccess: hasVitrineAccess,
+      canAccess,
       target,
       title: "Acesso à BUILT Vitrine",
-      description: "Para acessar a BUILT Vitrine, seu perfil precisa estar habilitado como Parceiro de Mercado.",
+      description: "Para acessar a BUILT Vitrine, selecione Imóvel ou oportunidade nas finalidades da conta ou habilite seu perfil público de mercado.",
       actionLabel: "Atualizar perfil",
     };
   }
 
   if (target === "capital") {
     return {
-      canAccess: hasCapitalAccess,
+      canAccess,
       target,
       title: "Acesso ao BUILT Capital",
       description: "Para acessar o BUILT Capital, seu perfil precisa estar habilitado como Parceiro de Capital.",
@@ -70,7 +61,7 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
   }
 
   return {
-    canAccess: hasAlliancesAccess,
+    canAccess,
     target,
     title: "Torne-se membro BUILT Alliances",
     description: "A BUILT Alliances é restrita a membros da rede. Para acessar esse ambiente, conclua sua adesão como membro.",

@@ -8,6 +8,8 @@ Uma informação deve ter uma fonte oficial. Espelhos servem para leitura, desem
 | --- | --- | --- | --- |
 | Sessão e usuário de login | PostgreSQL `users` + sessão | Directus `cadastro_geral` | normalizar `directusUserId`, `membroId` e e-mail |
 | Perfil do membro | Directus `cadastro_geral` | tipos locais e cards | não confundir usuário de login com membro |
+| Classificacao de atuacao profissional | Directus `cadastro_geral.ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas` | onboarding, cadastro, Meu Perfil, Membros e Vitrine | ramos/segmentos usam `client/src/lib/ramos-segmentos.ts`; abrangencia e idiomas usam `shared/profile-taxonomy.ts`; nao criar campos ou listas paralelas |
+| Areas de contribuicao | Directus `cadastro_geral.tipos_alianca` e `nucleos_alianca` | cadastro, onboarding, perfil, filtros e cards | valores, nomes visuais, nucleos e metadados usam `shared/contribution-areas.ts` |
 | Comunidades do membro | relações de comunidade + `membro_comunidade_mae` | sessão e perfil | associação é muitos-para-muitos; comunidade mãe não é lista completa |
 | BIA | Directus `bias_projetos` | tabelas operacionais locais | IDs podem chegar como string ou objeto de relação |
 | Acesso por BIA | papéis da BIA + `bia_user_permissions` | matriz no frontend | backend decide; múltiplos papéis usam maior acesso |

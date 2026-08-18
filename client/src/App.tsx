@@ -47,6 +47,7 @@ import ConvitesPage from "@/pages/convites";
 import BuiltCapitalPage from "@/pages/built-capital";
 import MovimentacaoCotasPage from "@/pages/movimentacao-cotas";
 import LoginPage from "@/pages/login";
+import InitialOnboardingPage from "@/pages/initial-onboarding";
 import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
 import ConvitePage from "@/pages/convite";
 import AdesaoPage from "@/pages/adesao";
@@ -1326,6 +1327,14 @@ function ProtectedApp() {
 
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  if (user?.onboarding_required) {
+    const isOnboardingPath = location.startsWith("/onboarding/");
+    if (!isOnboardingPath && user.onboarding_next_url) {
+      window.history.replaceState(null, "", user.onboarding_next_url);
+    }
+    return <InitialOnboardingPage />;
   }
 
   // Block pending vitrine users — route based on their current stage

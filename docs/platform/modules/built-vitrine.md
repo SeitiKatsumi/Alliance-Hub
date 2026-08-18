@@ -36,6 +36,7 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 
 ## Invariantes
 
+- O termo da BUILT Vitrine nao integra o aceite inicial do onboarding; ele e exibido e registrado, com versao e evidencia de localizacao, no primeiro acesso ao modulo.
 - Publicacao e opt-in e reversivel.
 - Projecao publica nunca retorna objeto interno completo.
 - Interesse duplicado do mesmo usuario/recurso e idempotente.

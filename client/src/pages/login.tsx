@@ -24,6 +24,7 @@ import { formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSeg
 import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
+import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -43,7 +44,6 @@ const CONVITE_INTERESSES: Record<string, string[]> = {
 const BUILT_CAPITAL_TIPO = "Alianças de Aporte Financeiro";
 const BUILT_CAPITAL_RAMO = "Desenvolvimento Imobiliário & Negócios Aplicados";
 const BUILT_CAPITAL_SEGMENTO = "Análise de viabilidade financeira e técnica";
-const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const AREA_OPTIONS = getAllTipos().map(tipo => tipo.nome);
 const DEFAULT_AREAS: string[] = [];
 const PROPERTY_INTENT_OPTIONS = [
@@ -226,10 +226,6 @@ const CIDADE_OPTIONS = [
   "São Paulo", "Rio de Janeiro", "Belo Horizonte", "Brasília", "Curitiba", "Porto Alegre", "Florianópolis", "Salvador",
   "Recife", "Fortaleza", "Goiânia", "Manaus", "Belém", "Vitória", "Campinas", "Santos", "Ribeirão Preto", "Sorocaba",
   "São José dos Campos", "Joinville", "Londrina", "Maringá", "Cuiabá", "Campo Grande", "Natal", "João Pessoa",
-];
-
-const IDIOMA_OPTIONS = [
-  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano", "Mandarim", "Japonês", "Russo", "Árabe",
 ];
 
 function getInteressesFromConvite(info?: ConviteInfo | null): string[] {
@@ -518,21 +514,33 @@ export default function LoginPage() {
       setRegPreflightLoading(false);
     }
 
-    const interessesDoConvite = getInteressesFromConvite(conviteInfo);
-    setInteressesSelecionados(interessesDoConvite);
-    if (interessesDoConvite.includes("capital")) {
-      setRegTiposAlianca([BUILT_CAPITAL_TIPO]);
-      setRegRamoAtuacao(BUILT_CAPITAL_RAMO);
-      setRegSegmento(BUILT_CAPITAL_SEGMENTO);
+    setRegLoading(true);
+    try {
+      const response = await fetch("/api/register/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          convite_token: regConviteToken,
+          nome: regNome.trim(),
+          email: normalizedEmail,
+          username: normalizedUsername,
+          password: regPassword,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setRegError(result.error || "Não foi possível iniciar seu cadastro.");
+        setRegInvalidField(result.field || "");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      navigate(result.next_url || "/onboarding/personalizacao");
+    } catch {
+      setRegError("Não foi possível iniciar seu cadastro agora. Tente novamente.");
+    } finally {
+      setRegLoading(false);
     }
-    // A escolha das finalidades acontece junto com o perfil, na mesma tela.
-    // O tipo antigo do convite serve apenas como pre-selecao.
-    setPrimeiroAcessoStep("perfil");
-    setAdesaoToken("");
-    setAdesaoConvite(null);
-    setCheckedTerms({});
-    setActiveTerm("codigo_etica");
-    setShowInteressesModal(true);
   }
 
   function toggleInteresse(valor: string) {
@@ -1499,7 +1507,7 @@ export default function LoginPage() {
                             <SelectValue placeholder="Área de atuação" />
                           </SelectTrigger>
                           <SelectContent>
-                            {AREA_ATUACAO_OPTIONS.map(option => (
+                            {PROFILE_AREA_SCOPE_OPTIONS.map(option => (
                               <SelectItem key={option} value={option}>{option}</SelectItem>
                             ))}
                           </SelectContent>
@@ -1536,7 +1544,7 @@ export default function LoginPage() {
                       <datalist id="cadastro-cidades">{CIDADE_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
                       <datalist id="cadastro-estados">{ESTADO_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
                       <datalist id="cadastro-paises">{PAIS_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
-                      <datalist id="cadastro-idiomas">{IDIOMA_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
+                      <datalist id="cadastro-idiomas">{PROFILE_LANGUAGE_OPTIONS.map(option => <option key={option} value={option} />)}</datalist>
                     </section>
                   </div>
                   <aside className="space-y-4">

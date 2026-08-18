@@ -20,6 +20,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 ## Dados e fontes de verdade
 
 - Directus `cadastro_geral`: perfil de pessoa/empresa.
+- Classificacao profissional oficial: `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas`; onboarding e edicao de perfil escrevem nesses mesmos campos.
+- Taxonomias compartilhadas: `client/src/lib/ramos-segmentos.ts`, `shared/profile-taxonomy.ts` e `shared/contribution-areas.ts`.
 - PostgreSQL `users`: login; `membros`: espelho/apoio operacional; `membro_comunidade_mae`: ancora preferencial.
 - Relacoes de comunidade sao muitos-para-muitos. A lista integral de vinculos e a fonte para regras de associacao.
 
@@ -42,6 +44,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - Nunca selecionar apenas a primeira comunidade para autorizar Aura, convite ou estruturacao de BIA.
 - Vinculo deve comparar IDs normalizados de usuario, membro Directus e registros relacionais.
 - Funcionario possui login proprio; auditoria registra quem executou, nao somente a empresa.
+- Cadastro, onboarding, Meu Perfil e administracao de membros nao podem manter listas paralelas para ramo, segmento, abrangencia, idiomas ou areas de contribuicao.
+- Cards de recomendacao aceitam foto Directus ou URL externa e sempre preservam fallback visual quando a imagem estiver indisponivel.
 
 ## Efeitos e dependencias
 

@@ -34,6 +34,7 @@ import { clampPhotoPosition, getPhotoObjectPosition } from "@/lib/photo-position
 import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosDisplay, formatSegmentosValue, getSegmentosForRamos, getAllTipos, getNucleosForTipos, getTipoDisplayName, parseRamosValue, parseSegmentosValue } from "@/lib/ramos-segmentos";
 import { PhoneInput, hasInternationalDialCode, normalizePhoneValue } from "@/components/phone-input";
 import { COMPANY_ACCESS_KEYS, COMPANY_ACCESS_LABELS, normalizeCompanyAccess } from "@shared/company-access";
+import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
 
 interface NominatimResult {
   place_id: number;
@@ -54,7 +55,6 @@ interface NominatimResult {
 const INVITE_APP_URL = "https://app.builtalliances.com";
 const FOTO_CROP_BOX = 320;
 const FOTO_CROP_OUTPUT = 640;
-const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
 const ESTADO_CIVIL_OPTIONS = [
   { value: "solteiro", label: "Solteiro(a)" },
   { value: "casado", label: "Casado(a)" },
@@ -453,17 +453,6 @@ const REDES_DISPONIVEIS = [
   { value: "BUILT_CAPITAL_PARTNER", label: "BUILT Capital Partner", badge: "/built-capital-partner.png" },
   { value: "BNI", label: "BNI", badge: "/bni-badge.png" },
 ];
-
-const IDIOMAS_DISPONIVEIS = [
-  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
-  "Mandarim", "Japonês", "Árabe", "Russo", "Hindi", "Coreano",
-  "Holandês", "Sueco", "Norueguês", "Dinamarquês", "Finlandês",
-  "Polonês", "Turco", "Hebraico", "Grego", "Tailandês", "Vietnamita",
-  "Indonésio", "Malaio", "Húngaro", "Tcheco", "Romeno", "Búlgaro",
-  "Ucraniano", "Croata", "Sérvio", "Eslovaco", "Catalão", "Persa",
-];
-
-
 
 interface Membro {
   id: string;
@@ -2053,7 +2042,7 @@ export default function MeuPerfilPage() {
                         <SelectValue placeholder="Selecione a área" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#001428] border-white/10 text-white">
-                        {AREA_ATUACAO_OPTIONS.map(option => (
+                        {PROFILE_AREA_SCOPE_OPTIONS.map(option => (
                           <SelectItem
                             key={option}
                             value={option}
@@ -2133,10 +2122,10 @@ export default function MeuPerfilPage() {
                         style={{ background: "#001428", maxHeight: "180px", overflowY: "auto" }}
                       >
                         {[
-                          ...IDIOMAS_DISPONIVEIS.filter(i =>
+                          ...PROFILE_LANGUAGE_OPTIONS.filter(i =>
                             i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
                           ),
-                          ...(IDIOMAS_DISPONIVEIS.some(i => i.toLowerCase() === idiomaInput.trim().toLowerCase()) || (form.idiomas || []).includes(idiomaInput.trim())
+                          ...(PROFILE_LANGUAGE_OPTIONS.some(i => i.toLowerCase() === idiomaInput.trim().toLowerCase()) || (form.idiomas || []).includes(idiomaInput.trim())
                             ?[]
                             : [idiomaInput.trim()]
                           ),
@@ -2153,12 +2142,12 @@ export default function MeuPerfilPage() {
                             className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-brand-gold/10 hover:text-white transition-colors font-mono"
                             data-testid={`opt-idioma-${sugestao}`}
                           >
-                            {sugestao === idiomaInput.trim() && !IDIOMAS_DISPONIVEIS.some(i => i.toLowerCase() === sugestao.toLowerCase())
+                            {sugestao === idiomaInput.trim() && !PROFILE_LANGUAGE_OPTIONS.some(i => i.toLowerCase() === sugestao.toLowerCase())
                               ?`+ Adicionar "${sugestao}"`
                               : sugestao}
                           </button>
                         ))}
-                        {IDIOMAS_DISPONIVEIS.filter(i =>
+                        {PROFILE_LANGUAGE_OPTIONS.filter(i =>
                           i.toLowerCase().includes(idiomaInput.toLowerCase()) && !(form.idiomas || []).includes(i)
                         ).length === 0 && (form.idiomas || []).includes(idiomaInput.trim()) && (
                           <p className="px-3 py-2 text-xs text-white/30 font-mono">Idioma já adicionado</p>
@@ -2168,7 +2157,7 @@ export default function MeuPerfilPage() {
                   </div>
                   {/* Atalhos rápidos */}
                   <div className="flex flex-wrap gap-1.5">
-                    {IDIOMAS_DISPONIVEIS.slice(0, 6).filter(i => !(form.idiomas || []).includes(i)).map(i => (
+                    {PROFILE_LANGUAGE_OPTIONS.slice(0, 6).filter(i => !(form.idiomas || []).includes(i)).map(i => (
                       <button
                         key={i}
                         type="button"

@@ -24,6 +24,7 @@
     "test:agenda-alerts": "node --import tsx --test server/agenda-alerts.test.ts",
     "test:agenda-alerts-ui": "node --import tsx --test client/src/lib/agenda-alerts.test.ts",
     "test:property-journey": "node --import tsx --test server/property-journey.test.ts",
+    "test:initial-onboarding": "node --import tsx --test shared/initial-onboarding.test.ts",
     "test:bia-lifecycle": "node --import tsx --test server/bia-lifecycle.test.ts",
     "test:all": "tsx scripts/run-platform-tests.ts",
     "platform:impact": "tsx scripts/platform-impact.ts",

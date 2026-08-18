@@ -42,6 +42,7 @@ import {
 import { AuraBadge } from "@/components/aura-score";
 import { getPhotoObjectPosition } from "@/lib/photo-position";
 import { PhoneInput } from "@/components/phone-input";
+import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
 
 const DIRECTUS_URL = "https://databases.builtalliances.com";
 
@@ -324,16 +325,6 @@ const ROLE_MANAGED_SELOS = new Set(
 );
 
 const ROLE_PRIORITY = ["admin", "aliado", "membro", "investidor", "user"];
-const AREA_ATUACAO_OPTIONS = ["Local", "Regional", "Nacional", "Global"];
-const IDIOMAS_DISPONIVEIS = [
-  "Português", "Inglês", "Espanhol", "Francês", "Alemão", "Italiano",
-  "Mandarim", "Japonês", "Árabe", "Russo", "Hindi", "Coreano",
-  "Holandês", "Sueco", "Norueguês", "Dinamarquês", "Finlandês",
-  "Polonês", "Turco", "Hebraico", "Grego", "Tailandês", "Vietnamita",
-  "Indonésio", "Malaio", "Húngaro", "Tcheco", "Romeno", "Búlgaro",
-  "Ucraniano", "Croata", "Sérvio", "Eslovaco", "Catalão", "Persa",
-];
-
 const TERM_ACCEPTANCE_FIELDS = [
   {
     key: "codigo_etica",
@@ -1488,7 +1479,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                         <SelectValue placeholder="Selecione a área" />
                       </SelectTrigger>
                       <SelectContent>
-                        {AREA_ATUACAO_OPTIONS.map(option => (
+                      {PROFILE_AREA_SCOPE_OPTIONS.map(option => (
                           <SelectItem key={option} value={option}>{option}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1538,7 +1529,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                     data-testid="input-edit-idioma"
                   />
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {IDIOMAS_DISPONIVEIS
+                    {PROFILE_LANGUAGE_OPTIONS
                       .filter(idioma => !(form.idiomas || []).includes(idioma))
                       .filter(idioma => !idiomaInput || idioma.toLowerCase().includes(idiomaInput.toLowerCase()))
                       .slice(0, 8)
@@ -1552,7 +1543,7 @@ function MembroEditSheet({ membro, onClose }: { membro: Membro; onClose: () => v
                           {idioma}
                         </button>
                       ))}
-                    {idiomaInput.trim() && !IDIOMAS_DISPONIVEIS.some(idioma => idioma.toLowerCase() === idiomaInput.trim().toLowerCase()) && (
+                    {idiomaInput.trim() && !PROFILE_LANGUAGE_OPTIONS.some(idioma => idioma.toLowerCase() === idiomaInput.trim().toLowerCase()) && (
                       <button
                         type="button"
                         onClick={() => addIdioma(idiomaInput)}

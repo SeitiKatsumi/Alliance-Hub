@@ -1,3 +1,8 @@
+import {
+  CONTRIBUTION_AREA_GROUPS,
+  getContributionAreaDisplayName,
+} from "@shared/contribution-areas";
+
 export interface SegmentoItem {
   codigo: string;
   nome: string;
@@ -1074,38 +1079,12 @@ export interface NucleoTiposItem {
   tipos: TipoAliancaItem[];
 }
 
-export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = {
-  "Diretoria da Aliança": [
-    { nome: "Alianças de Liderança Técnica", descricao: "Coordenação técnica, integração das alianças técnicas, viabilidade, conformidade e prevenção de riscos" },
-    { nome: "Alianças de Liderança de Obras", descricao: "Coordenação da execução, integração de equipes, fornecedores, cronograma, qualidade e aderência aos projetos" },
-    { nome: "Alianças de Liderança Comercial", descricao: "Coordenação comercial, integração de vendas, locação, marketing, relacionamento e geração de receita" },
-    { nome: "Alianças de Liderança de Capital", descricao: "Coordenação econômica e financeira, integração de investimentos, captação, controle, prestação de contas e resultados" },
-  ],
-  "Núcleo Técnico": [
-    { nome: "Alianças de Projeto", descricao: "Arquitetos, engenheiros, projetistas, designers urbanistas" },
-    { nome: "Alianças Jurídicas", descricao: "Especialistas em direito imobiliário, societário, contratual e compliance" },
-    { nome: "Alianças de Inteligência", descricao: "Inteligência de mercado, viabilidade de produto, marketing" },
-    { nome: "Alianças de Integridade e sustentabilidade", descricao: "Compliance, segurança, qualidade, rastreamento, auditoria, ambiental, ESG" },
-  ],
-  "Núcleo de Obra": [
-    { nome: "Alianças de Execução", descricao: "Profissionais independentes, engenheiros de obra, supervisores, construtoras, empreiteiras" },
-    { nome: "Alianças de Fornecimento", descricao: "Materiais, equipamentos e logística" },
-    { nome: "Alianças de Construção", descricao: "Construtoras, empreiteiras, obra civil e execução construtiva" },
-  ],
-  "Núcleo Comercial": [
-    { nome: "Alianças Comerciais", descricao: "Captadores, executivos de negócios, articuladores" },
-    { nome: "Alianças de Vendas e Locação", descricao: "Corretores, consultores e administradores de imóveis" },
-    { nome: "Alianças de Marketing", descricao: "Marketing estratégico, conteúdo e criação, performance e relacionamento" },
-    { nome: "Alianças de Operações e Facilities", descricao: "Manutenção, terceirização" },
-    { nome: "Alianças de Gestão de Relacionamento com Cliente", descricao: "Pós-venda, SAC, garantias, suporte técnico" },
-  ],
-  "Núcleo de Capital": [
-    { nome: "Alianças de Aporte Financeiro", descricao: "Aporte de recursos financeiros, relacionamento com investidores, cotistas e parceiros de capital" },
-    { nome: "Alianças de Crédito e Captação", descricao: "Crédito, financiamento, funding, captação de investidores, recursos e parceiros financeiros" },
-    { nome: "Alianças Contábeis e Tributárias", descricao: "Contabilidade, tributos e conciliação" },
-    { nome: "Alianças de Gestão Financeira", descricao: "Orçamento, caixa, controle" },
-  ],
-};
+export const NUCLEOS_TIPOS: Record<string, TipoAliancaItem[]> = Object.fromEntries(
+  CONTRIBUTION_AREA_GROUPS.map((group) => [
+    group.nucleus,
+    group.areas.map((area) => ({ nome: area.value, descricao: area.description })),
+  ]),
+);
 
 export function getTiposForNucleos(nucleos: string[]): TipoAliancaItem[] {
   const seen = new Set<string>();
@@ -1157,14 +1136,7 @@ export function getNucleoForTipo(tipoNome: string): string | null {
 }
 
 export function getTipoDisplayName(nome: string): string {
-  const display = nome
-    .replace(/^Aliança de /i, "")
-    .replace(/^Alianças de /i, "")
-    .replace(/^Alianças /i, "");
-  if (display === "Governança") return "Integridade e sustentabilidade";
-  if (display === "Crédito" || display === "Captação") return "Crédito e Captação";
-  if (display === "Investimento") return "Aporte Financeiro";
-  return display;
+  return getContributionAreaDisplayName(nome);
 }
 
 export function getNucleosForTipos(tiposNomes: string[]): string[] {

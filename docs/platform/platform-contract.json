@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-17",
+  "updatedAt": "2026-08-18",
   "description": "Matriz de impacto entre funcionalidades, interface, API, persistencia, invariantes e testes.",
   "modules": [
     {
@@ -8,14 +8,14 @@
       "name": "Acesso, cadastro e onboarding",
       "doc": "docs/platform/modules/acesso-onboarding.md",
       "keywords": ["login", "cadastro", "onboarding", "convite", "adesao", "sessao", "senha", "aceite", "localizacao", "pdf"],
-      "routes": ["/login", "/convite/:token", "/adesao/:token", "/pagamento/:token", "/aguardando-aprovacao", "/meu-perfil"],
-      "frontendFiles": ["client/src/App.tsx", "client/src/pages/login.tsx", "client/src/pages/convite.tsx", "client/src/pages/adesao.tsx", "client/src/pages/meu-perfil.tsx", "client/src/lib/profile-completion.ts"],
-      "backendFiles": ["server/routes.ts", "server/auth-google.ts", "server/storage.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/login", "/api/register", "/api/me", "/api/convites", "/api/meu-convite"],
-      "dataStores": ["PostgreSQL users", "PostgreSQL convites_link", "PostgreSQL password_reset_tokens", "Directus cadastro_geral", "sessao Express"],
+      "routes": ["/login", "/convite/:token", "/adesao/:token", "/pagamento/:token", "/aguardando-aprovacao", "/onboarding/:etapa", "/meu-perfil"],
+      "frontendFiles": ["client/src/App.tsx", "client/src/pages/login.tsx", "client/src/pages/initial-onboarding.tsx", "client/src/pages/convite.tsx", "client/src/pages/adesao.tsx", "client/src/pages/meu-perfil.tsx", "client/src/components/contribution-area-selector.tsx", "client/src/components/profile-activity-fields.tsx", "client/src/lib/acceptanceLocation.ts", "client/src/lib/ramos-segmentos.ts", "client/src/lib/profile-completion.ts"],
+      "backendFiles": ["server/routes.ts", "server/auth-google.ts", "server/storage.ts", "shared/schema.ts", "shared/initial-onboarding.ts", "shared/contribution-areas.ts", "shared/profile-taxonomy.ts"],
+      "apiPrefixes": ["/api/login", "/api/register", "/api/onboarding", "/api/me", "/api/convites", "/api/meu-convite"],
+      "dataStores": ["PostgreSQL users", "PostgreSQL convites_link", "PostgreSQL initial_onboarding_journeys", "PostgreSQL user_account_purposes", "PostgreSQL password_reset_tokens", "Directus cadastro_geral", "Directus files", "sessao Express"],
       "roles": ["visitante", "candidato", "membro", "funcionario", "admin", "superadmin"],
-      "invariants": ["Usuario autenticavel e membro nao sao o mesmo identificador.", "Aceite preserva versao, identidade, horario e evidencia capturada.", "Repetir callback, cadastro ou webhook nao duplica efeito."],
-      "tests": ["client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts"]
+      "invariants": ["Usuario autenticavel e membro nao sao o mesmo identificador.", "Contas novas aceitam Codigo de Etica e Politicas de Participacao antes das cinco etapas; Vitrine e Capital exigem seus termos no primeiro acesso ao modulo.", "Aceites iniciais aparecem antes da numeracao e nao destacam a etapa 5.", "A tela informa que a localizacao do dispositivo e obrigatoria e orienta o usuario quando a permissao nao e concedida.", "A evidencia de localizacao enviada ao backend inclui status capturada, coordenadas validas, precisao e horario.", "Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites ao final.", "Etapas futuras nao podem ser acessadas antes da primeira pendencia.", "Perfil exclusivo de imovel nao exige CPF.", "CPF permanece disponivel para preenchimento opcional em qualquer finalidade, inclusive no perfil exclusivo de imovel.", "Blocos de intencao exibem titulo curto e pergunta contextual oficial para imovel, profissional e capital.", "Perfis da personalizacao preservam identidade visual: imovel azul, profissional verde e capital roxo.", "Acoes recomendadas da conclusao reutilizam as cores dos perfis e distinguem a rede em ciano.", "Recomendacoes do onboarding normalizam foto Directus ou URL externa e preservam fallback visual.", "Leitura de assets necessarios aos avatares permanece disponivel durante o onboarding sem liberar APIs vizinhas.", "Preferencias de atualizacao ficam no onboarding e nao criam conexoes nem publicam perfil.", "Onboarding reutiliza campos e taxonomias oficiais de ramo, segmento, area de atuacao, especialidade, idiomas e areas de contribuicao.", "Escolhas nao publicam recursos automaticamente.", "Aceite preserva versao, identidade, horario e evidencia capturada.", "Repetir callback, cadastro ou finalizacao nao duplica efeito."],
+      "tests": ["client/src/lib/acceptanceLocation.test.ts", "client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts", "shared/initial-onboarding.test.ts"]
     },
     {
       "id": "inicio-gestao",
@@ -37,12 +37,12 @@
       "doc": "docs/platform/modules/perfil-rede-empresa.md",
       "keywords": ["perfil", "membro", "empresa", "funcionario", "comunidade", "comunidade mae", "rede", "avatar", "permissao empresarial"],
       "routes": ["/meu-perfil", "/area-membros", "/membro/:id", "/comunidade", "/comunidade/:id", "/admin?tab=membros"],
-      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx"],
-      "backendFiles": ["server/routes.ts", "shared/company-access.ts", "shared/schema.ts"],
+      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/membros.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx", "client/src/lib/ramos-segmentos.ts"],
+      "backendFiles": ["server/routes.ts", "shared/company-access.ts", "shared/contribution-areas.ts", "shared/profile-taxonomy.ts", "shared/schema.ts"],
       "apiPrefixes": ["/api/membros", "/api/membros-built", "/api/comunidades"],
       "dataStores": ["Directus cadastro_geral", "PostgreSQL users", "PostgreSQL membros", "PostgreSQL membro_comunidade_mae", "Directus relacoes de comunidade"],
       "roles": ["membro", "funcionario", "gestor de empresa", "aliado", "admin", "superadmin"],
-      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "Funcionario possui identidade e auditoria proprias."],
+      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "Funcionario possui identidade e auditoria proprias.", "Cadastro, onboarding e edicao de perfil usam os mesmos campos e taxonomias de atuacao profissional e contribuicao.", "Cards de recomendacao aceitam foto Directus ou URL externa e preservam fallback visual."],
       "tests": ["shared/company-access.test.ts", "server/member-business-feed.test.ts"]
     },
     {
@@ -56,7 +56,7 @@
       "apiPrefixes": ["/api/vitrine", "/api/vitrine/demandas", "/api/assets"],
       "dataStores": ["Directus cadastro_geral", "PostgreSQL anuncios", "PostgreSQL opportunity_registry", "projecoes publicas"],
       "roles": ["visitante", "membro", "publicador", "moderador", "admin"],
-      "invariants": ["Publicacao e opt-in e reversivel.", "Projecao publica omite dados privados.", "Interesse repetido e idempotente."],
+      "invariants": ["O termo da Vitrine e exigido no primeiro acesso ao modulo, nao no onboarding inicial.", "Publicacao e opt-in e reversivel.", "Projecao publica omite dados privados.", "Interesse repetido e idempotente."],
       "tests": ["server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/property-journey.test.ts"]
     },
     {

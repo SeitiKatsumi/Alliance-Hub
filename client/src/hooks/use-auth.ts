@@ -17,6 +17,9 @@ export interface AppUser {
   em_built_capital?: boolean | null;
   foto_perfil?: string | null;
   pending_vitrine?: boolean;
+  onboarding_required?: boolean;
+  onboarding_step?: string | null;
+  onboarding_next_url?: string | null;
   convite_pendente?: { token: string; status: string } | null;
   adesao_pendente?: { token: string; status: string } | null;
   company_employee?: boolean;

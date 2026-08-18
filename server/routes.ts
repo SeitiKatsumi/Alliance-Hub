@@ -97,6 +97,19 @@ import {
   publicDemandView,
 } from "./network-opportunities";
 import {
+  buildOnboardingRecommendationPhotoUrl,
+  buildInitialOnboardingProfileFields,
+  canAccessOnboardingStep,
+  firstPendingOnboardingStep,
+  isInitialOnboardingApiAllowed,
+  isInitialOnboardingStep,
+  nextOnboardingStep,
+  normalizeOnboardingPurposes,
+  validateOnboardingStepPayload,
+  INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
+  type InitialOnboardingStep,
+} from "@shared/initial-onboarding";
+import {
   buildCarteiraAlternativas,
   diagnosticarCarteira,
   hasCarteiraAccess,
@@ -2729,6 +2742,39 @@ const auraAudioUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+const onboardingUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedByExtension: Record<string, string[]> = {
+      ".pdf": ["application/pdf"],
+      ".png": ["image/png"],
+      ".jpg": ["image/jpeg"],
+      ".jpeg": ["image/jpeg"],
+      ".webp": ["image/webp"],
+      ".doc": ["application/msword", "application/octet-stream"],
+      ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip"],
+    };
+    if (!allowedByExtension[ext]?.includes(file.mimetype)) {
+      return cb(new Error("Envie um arquivo PDF, imagem, DOC ou DOCX válido."));
+    }
+    cb(null, true);
+  },
+});
+
+function hasValidOnboardingFileSignature(file: Express.Multer.File) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const bytes = file.buffer;
+  if (ext === ".pdf") return bytes.subarray(0, 5).toString("ascii") === "%PDF-";
+  if ([".jpg", ".jpeg"].includes(ext)) return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (ext === ".png") return bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (ext === ".webp") return bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  if (ext === ".docx") return bytes[0] === 0x50 && bytes[1] === 0x4b;
+  if (ext === ".doc") return bytes.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
+  return false;
+}
+
 function auraAudioMime(originalName?: string, mimeType?: string, buffer?: Buffer) {
   return resolveAuraAudioMetadata(originalName, mimeType, buffer).mimeType;
 }
@@ -3087,6 +3133,34 @@ async function ensureTermosAceiteAuditoriaTable() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_termos_aceite_membro_chave ON termos_aceite_auditoria (membro_id, termo_chave, aceito_em DESC)`);
 }
 
+async function ensureInitialOnboardingTable() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS initial_onboarding_journeys (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id text NOT NULL UNIQUE,
+      membro_id text,
+      convite_link_id text,
+      convite_id text,
+      flow_version integer NOT NULL DEFAULT 2,
+      status text NOT NULL DEFAULT 'em_andamento',
+      current_step text NOT NULL DEFAULT 'aceites',
+      completed_steps jsonb NOT NULL DEFAULT '[]'::jsonb,
+      responses jsonb NOT NULL DEFAULT '{}'::jsonb,
+      preferences jsonb NOT NULL DEFAULT '{}'::jsonb,
+      start_destination text,
+      terms_ready_at timestamp,
+      completed_at timestamp,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`ALTER TABLE initial_onboarding_journeys ADD COLUMN IF NOT EXISTS flow_version integer`);
+  await db.execute(sql`UPDATE initial_onboarding_journeys SET flow_version = 1 WHERE flow_version IS NULL`);
+  await db.execute(sql`ALTER TABLE initial_onboarding_journeys ALTER COLUMN flow_version SET DEFAULT 2`);
+  await db.execute(sql`ALTER TABLE initial_onboarding_journeys ALTER COLUMN flow_version SET NOT NULL`);
+  await db.execute(sql`ALTER TABLE initial_onboarding_journeys ALTER COLUMN current_step SET DEFAULT 'aceites'`);
+}
+
 async function ensureChamadasAliancaTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS chamadas_alianca (
@@ -3438,6 +3512,7 @@ export async function registerRoutes(
   ensureCompanyEmployeeAccountsTable().catch((err: any) => console.warn("[company-access] Tabela nao sincronizada:", err?.message || err));
   ensureCompanyPlanSubscriptionsTable().catch((err: any) => console.warn("[company-plan] Tabela nao sincronizada:", err?.message || err));
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
+  ensureInitialOnboardingTable().catch((err: any) => console.warn("[initial-onboarding] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
   ensureBiaInfoComercialAtivoFields().catch((err: any) => console.warn("[bia_info_comercial] Campos do ativo nao sincronizados:", err?.message || err));
   ensureBiaBancoTables().catch((err: any) => console.warn("[bia-banco] Tabelas nao sincronizadas:", err?.message || err));
@@ -3458,6 +3533,29 @@ export async function registerRoutes(
       created_at timestamp DEFAULT now()
     )
   `).catch((err: any) => console.warn("[usage] Tabela nao sincronizada:", err?.message || err));
+
+  app.use("/api", async (req: any, res, next) => {
+    const userId = req.session?.directusUserId || req.session?.userId;
+    if (!userId || isInitialOnboardingApiAllowed(req.originalUrl)) return next();
+    try {
+      await ensureInitialOnboardingTable();
+      const result: any = await db.execute(sql`
+        SELECT status, current_step FROM initial_onboarding_journeys WHERE user_id = ${String(userId)} LIMIT 1
+      `);
+      const journey = result?.rows?.[0];
+      if (journey && journey.status !== "concluido") {
+        return res.status(403).json({
+          error: "Conclua seu onboarding para acessar este recurso.",
+          code: "ONBOARDING_REQUIRED",
+          current_step: journey.current_step,
+        });
+      }
+      return next();
+    } catch (error: any) {
+      console.warn("[initial-onboarding] Falha ao verificar restricao:", error?.message || error);
+      return res.status(503).json({ error: "Não foi possível verificar seu onboarding agora." });
+    }
+  });
 
   function isAdminRequest(req: any) {
     const role = req.session?.role || "user";
@@ -19132,6 +19230,337 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   // ========== AUTH (Directus-based) ==========
 
   // â”€â”€ Self-registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function getInitialOnboardingJourney(userId: string) {
+    await ensureInitialOnboardingTable();
+    const result: any = await db.execute(sql`SELECT * FROM initial_onboarding_journeys WHERE user_id = ${userId} LIMIT 1`);
+    return result?.rows?.[0] || null;
+  }
+
+  function onboardingStepUrl(step: string) {
+    return `/onboarding/${isInitialOnboardingStep(step) ? step : "personalizacao"}`;
+  }
+
+  function onboardingDestinationUrl(destination: unknown) {
+    const value = String(destination || "inicio");
+    if (value === "imovel") return "/carteira/novo";
+    if (value === "profissional") return "/meu-perfil";
+    if (value === "capital") return "/built-capital";
+    return "/";
+  }
+
+  function onboardingRequiredTermKeys(_purposes: string[]): string[] {
+    return [...INITIAL_ONBOARDING_REQUIRED_TERM_KEYS];
+  }
+
+  function preOnboardingRequiredTermKeys(): string[] {
+    return [...INITIAL_ONBOARDING_REQUIRED_TERM_KEYS];
+  }
+
+  app.post("/api/register/start", async (req, res) => {
+    let membroId: string | null = null;
+    let userId: string | null = null;
+    let conviteLink: any = null;
+    try {
+      const nome = String(req.body?.nome || "").trim();
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      const username = String(req.body?.username || "").trim().toLowerCase();
+      const password = String(req.body?.password || "");
+      const conviteToken = String(req.body?.convite_token || "").trim();
+      if (nome.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || username.length < 3 || password.length < 4) {
+        return res.status(400).json({ error: "Revise nome, e-mail, usuário e senha." });
+      }
+      conviteLink = await storage.getConviteLinkByToken(conviteToken);
+      if (!conviteLink || conviteLink.status !== "ativo" || (conviteLink.expires_at && new Date() > new Date(conviteLink.expires_at))) {
+        return res.status(403).json({ error: "Código de convite inválido, expirado ou já utilizado." });
+      }
+      if (!conviteLink.comunidade_id) return res.status(400).json({ error: "O convite não possui comunidade de origem." });
+      if (await storage.getUserByEmail(email)) return res.status(409).json({ error: "E-mail já cadastrado", field: "email" });
+      if (await storage.getUserByUsername(username)) return res.status(409).json({ error: "Nome de usuário já em uso", field: "username" });
+
+      const profile = await directusCreate("cadastro_geral", {
+        Nome_de_usuario: username, nome, email,
+        na_vitrine: false, em_membros_built: false, em_built_capital: false,
+      });
+      membroId = String(profile?.id || "") || null;
+      if (!membroId) throw new Error("Não foi possível criar o perfil inicial.");
+      const user = await storage.createUser({
+        username, password, nome, email, membro_directus_id: membroId,
+        role: "user", permissions: permissionsForRole("user"), ativo: true,
+      });
+      userId = String(user.id);
+      await storage.updateConviteLink(conviteLink.id, { status: "usado", usado_por_user_id: user.id, usado_em: new Date() });
+      const onboardingInvite = await storage.createConvite({
+        comunidade_id: conviteLink.comunidade_id,
+        candidato_membro_id: membroId,
+        candidato_nome: nome,
+        candidato_email: email,
+        invitador_membro_id: conviteLink.gerador_membro_id || null,
+        status: "onboarding_pendente",
+        tipo: "onboarding_inicial",
+        dados_contratuais: { nome_completo: nome, email, origem: "novo_onboarding", termos_aceitos: {}, termos_versoes: {} },
+        expires_at: null,
+      });
+      await ensureInitialOnboardingTable();
+      await db.execute(sql`
+        INSERT INTO initial_onboarding_journeys (user_id, membro_id, convite_link_id, convite_id, flow_version, current_step, terms_ready_at, responses)
+        VALUES (${userId}, ${membroId}, ${String(conviteLink.id)}, ${String(onboardingInvite.id)}, 2, 'aceites', now(), ${JSON.stringify({ conta: { nome, email, username } })}::jsonb)
+        ON CONFLICT (user_id) DO NOTHING
+      `);
+      (req.session as any).directusUserId = user.id;
+      (req.session as any).membroId = membroId;
+      (req.session as any).nome = nome;
+      (req.session as any).email = email;
+      (req.session as any).role = "user";
+      (req.session as any).permissions = permissionsForRole("user");
+      const { password: _password, ...safeUser } = user;
+      return res.json({ success: true, user: safeUser, onboarding_required: true, next_url: "/onboarding/aceites" });
+    } catch (error: any) {
+      console.error("[initial-onboarding/start]", error);
+      if (userId) await storage.deleteUser(userId).catch(() => undefined);
+      if (membroId) await directusDelete("cadastro_geral", membroId).catch(() => undefined);
+      if (conviteLink?.id) await storage.updateConviteLink(conviteLink.id, { status: "ativo", usado_por_user_id: null, usado_em: null }).catch(() => undefined);
+      return res.status(500).json({ error: error?.message || "Não foi possível iniciar o cadastro." });
+    }
+  });
+
+  app.get("/api/onboarding", async (req: any, res) => {
+    const userId = req.session?.directusUserId || req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autenticado" });
+    const journey = await getInitialOnboardingJourney(String(userId));
+    if (!journey) return res.json({ required: false, status: "concluido" });
+    const responses = journey.responses && typeof journey.responses === "object" ? journey.responses : {};
+    const purposes = normalizeOnboardingPurposes((responses as any)?.personalizacao?.purposes);
+    const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
+    const onboardingInvite = invites.find((item: any) => String(item.id) === String(journey.convite_id)) || null;
+    let comunidade: any = null;
+    if (onboardingInvite?.comunidade_id) {
+      const col = await getComunidadeCol();
+      comunidade = await directusFetchOne(col, String(onboardingInvite.comunidade_id), "fields=id,nome,pais,territorio").catch(() => null);
+    }
+    let recommendations: any[] = [];
+    if (["conexoes", "pronto", "aceites"].includes(String(journey.current_step))) {
+      const members = await directusFetch("cadastro_geral", `fields=id,nome,empresa,cargo,cidade,estado,foto_perfil&filter[id][_neq]=${encodeURIComponent(String(journey.membro_id || ""))}&limit=6`).catch(() => []);
+      recommendations = (Array.isArray(members) ? members : []).map((item: any) => ({
+        id: item.id, nome: item.nome || "Membro BUILT",
+        descricao: item.empresa || item.cargo || [item.cidade, item.estado].filter(Boolean).join(", ") || "Rede BUILT",
+        foto: buildOnboardingRecommendationPhotoUrl(item.foto_perfil),
+      }));
+    }
+    const termKeys = Number(journey.flow_version || 1) >= 2 && !(Array.isArray(journey.completed_steps) && journey.completed_steps.includes("aceites"))
+      ? preOnboardingRequiredTermKeys()
+      : onboardingRequiredTermKeys(purposes);
+    return res.json({
+      required: journey.status !== "concluido", journey,
+      next_url: onboardingStepUrl(journey.current_step),
+      profile: { nome: req.session?.nome, email: req.session?.email, membro_id: journey.membro_id },
+      comunidade, recommendations,
+      terms: termKeys.map((key) => ({ key, ...TERMOS_ACEITE_BUILT[key] })).filter((item) => item.titulo),
+    });
+  });
+
+  app.post("/api/onboarding/upload", (req: any, res) => {
+    const userId = req.session?.directusUserId || req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autenticado" });
+    onboardingUpload.single("file")(req, res, async (error) => {
+      if (error) {
+        const message = error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE"
+          ? "O arquivo excede o limite de 10 MB."
+          : error.message;
+        return res.status(400).json({ error: message });
+      }
+      const file = req.file as Express.Multer.File | undefined;
+      if (!file) return res.status(400).json({ error: "Selecione um arquivo." });
+      if (!hasValidOnboardingFileSignature(file)) {
+        return res.status(400).json({ error: "O conteúdo do arquivo não corresponde ao tipo informado." });
+      }
+      try {
+        const journey = await getInitialOnboardingJourney(String(userId));
+        if (!journey || journey.status === "concluido") return res.status(409).json({ error: "Onboarding não disponível." });
+        const formData = new FormData();
+        formData.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
+        formData.append("title", `Onboarding - ${file.originalname}`);
+        const directusResponse = await fetch(`${DIRECTUS_URL}/files`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+          body: formData,
+        });
+        if (!directusResponse.ok) throw new Error(`Falha no armazenamento (${directusResponse.status}).`);
+        const uploaded = await directusResponse.json() as any;
+        const fileId = String(uploaded?.data?.id || "");
+        if (!fileId) throw new Error("O armazenamento não retornou a identificação do arquivo.");
+        const preferences = journey.preferences && typeof journey.preferences === "object" ? journey.preferences : {};
+        const uploads = Array.isArray((preferences as any).uploads) ? (preferences as any).uploads : [];
+        const uploadEvidence = {
+          file_id: fileId,
+          purpose: String(req.body?.purpose || "documento_perfil"),
+          original_name: file.originalname,
+          mime_type: file.mimetype,
+          size: file.size,
+          owner_user_id: String(userId),
+          uploaded_at: new Date().toISOString(),
+        };
+        await db.execute(sql`
+          UPDATE initial_onboarding_journeys
+          SET preferences = ${JSON.stringify({ ...preferences, uploads: [...uploads, uploadEvidence] })}::jsonb,
+              updated_at = now()
+          WHERE user_id = ${String(userId)}
+        `);
+        return res.json({ success: true, file: uploadEvidence });
+      } catch (uploadError: any) {
+        return res.status(500).json({ error: uploadError?.message || "Não foi possível enviar o arquivo." });
+      }
+    });
+  });
+
+  app.put("/api/onboarding/etapas/:etapa", async (req: any, res) => {
+    const userId = req.session?.directusUserId || req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autenticado" });
+    const step = String(req.params.etapa);
+    if (!isInitialOnboardingStep(step) || step === "aceites") return res.status(400).json({ error: "Etapa inválida." });
+    const journey = await getInitialOnboardingJourney(String(userId));
+    if (!journey || journey.status === "concluido") return res.status(409).json({ error: "Onboarding não disponível." });
+    const flowVersion = Number(journey.flow_version || 1);
+    if (!canAccessOnboardingStep(journey.current_step as InitialOnboardingStep, step, flowVersion)) {
+      return res.status(409).json({ error: "Conclua a etapa anterior.", next_url: onboardingStepUrl(journey.current_step) });
+    }
+    const currentResponses = journey.responses && typeof journey.responses === "object" ? journey.responses : {};
+    const payload = { ...(req.body || {}) };
+    if (step !== "personalizacao") payload.purposes = normalizeOnboardingPurposes((currentResponses as any)?.personalizacao?.purposes);
+    if (String(req.query?.draft || "") === "1") {
+      await db.execute(sql`
+        UPDATE initial_onboarding_journeys
+        SET responses = ${JSON.stringify({ ...currentResponses, [step]: payload })}::jsonb, updated_at = now()
+        WHERE user_id = ${String(userId)}
+      `);
+      return res.json({ success: true, draft: true });
+    }
+    const validationError = validateOnboardingStepPayload(step, payload);
+    if (validationError) return res.status(400).json({ error: validationError });
+    const completed = Array.from(new Set([...(Array.isArray(journey.completed_steps) ? journey.completed_steps : []), step]));
+    const mergedResponses = { ...currentResponses, [step]: payload };
+    if (flowVersion >= 2 && step === "pronto") {
+      if (!completed.includes("aceites")) return res.status(409).json({ error: "Conclua os aceites antes de iniciar o onboarding.", next_url: "/onboarding/aceites" });
+      const profile = (mergedResponses as any)?.perfil || {};
+      const config = (mergedResponses as any)?.configuracao || {};
+      await directusUpdate("cadastro_geral", String(journey.membro_id), buildInitialOnboardingProfileFields(profile, config));
+      const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
+      const invite = invites.find((item: any) => String(item.id) === String(journey.convite_id));
+      if (!invite) return res.status(404).json({ error: "Convite do onboarding não encontrado." });
+      const purposes = normalizeOnboardingPurposes((mergedResponses as any)?.personalizacao?.purposes);
+      await storage.updateConvite(invite.id, {
+        status: "acesso_inicial_ativo",
+        dados_contratuais: { ...((invite.dados_contratuais as any) || {}), finalidades_conta: purposes } as any,
+      });
+      await db.execute(sql`
+        UPDATE initial_onboarding_journeys SET
+          responses = ${JSON.stringify(mergedResponses)}::jsonb,
+          completed_steps = ${JSON.stringify(completed)}::jsonb,
+          current_step = 'pronto', status = 'concluido', completed_at = now(), updated_at = now()
+        WHERE user_id = ${String(userId)}
+      `);
+      return res.json({ success: true, current_step: "pronto", redirect_url: onboardingDestinationUrl(journey.start_destination) });
+    }
+    const nextStep = step === "pronto" ? "aceites" : nextOnboardingStep(step, flowVersion);
+    const status = step === "pronto" ? "aguardando_aceites" : "em_andamento";
+    await db.execute(sql`
+      UPDATE initial_onboarding_journeys SET
+        responses = ${JSON.stringify(mergedResponses)}::jsonb,
+        completed_steps = ${JSON.stringify(completed)}::jsonb,
+        current_step = ${nextStep}, status = ${status},
+        start_destination = ${step === "personalizacao" ? String(payload.start_destination || "") : journey.start_destination},
+        terms_ready_at = CASE WHEN ${step} = 'pronto' THEN now() ELSE terms_ready_at END,
+        updated_at = now()
+      WHERE user_id = ${String(userId)}
+    `);
+    if (step === "personalizacao") {
+      await replaceAccountPurposes({ userId: String(userId), membroId: journey.membro_id ? String(journey.membro_id) : null, role: null, isPlatformAdmin: false }, payload.purposes, "initial_onboarding");
+    }
+    if (step === "pronto" && journey.convite_id) {
+      const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
+      const invite = invites.find((item: any) => String(item.id) === String(journey.convite_id));
+      if (invite && invite.status === "onboarding_pendente") await storage.updateConvite(invite.id, { status: "termos_pendentes" });
+    }
+    return res.json({ success: true, current_step: nextStep, next_url: onboardingStepUrl(nextStep) });
+  });
+
+  app.post("/api/onboarding/concluir", async (req: any, res) => {
+    const userId = req.session?.directusUserId || req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autenticado" });
+    const journey = await getInitialOnboardingJourney(String(userId));
+    if (!journey) return res.status(404).json({ error: "Jornada não encontrada." });
+    const pending = firstPendingOnboardingStep(journey.completed_steps, journey.flow_version);
+    if (pending !== "aceites") return res.status(409).json({ error: "Conclua as etapas anteriores.", next_url: onboardingStepUrl(pending) });
+    await db.execute(sql`UPDATE initial_onboarding_journeys SET status = 'aguardando_aceites', current_step = 'aceites', terms_ready_at = COALESCE(terms_ready_at, now()), updated_at = now() WHERE user_id = ${String(userId)}`);
+    return res.json({ success: true, next_url: "/onboarding/aceites" });
+  });
+
+  app.post("/api/onboarding/finalizar-aceites", async (req: any, res) => {
+    const userId = req.session?.directusUserId || req.session?.userId;
+    if (!userId) return res.status(401).json({ error: "Não autenticado" });
+    const journey = await getInitialOnboardingJourney(String(userId));
+    if (!journey) return res.status(404).json({ error: "Jornada não encontrada." });
+    if (journey.status === "concluido") {
+      return res.json({ success: true, redirect_url: onboardingDestinationUrl(journey.start_destination), idempotent: true });
+    }
+    if (journey.current_step !== "aceites") return res.status(409).json({ error: "Conclua as etapas anteriores.", next_url: onboardingStepUrl(journey.current_step) });
+    const responses = journey.responses && typeof journey.responses === "object" ? journey.responses : {};
+    const purposes = normalizeOnboardingPurposes((responses as any)?.personalizacao?.purposes);
+    const preAcceptanceFlow = Number(journey.flow_version || 1) >= 2 && !(Array.isArray(journey.completed_steps) && journey.completed_steps.includes("aceites"));
+    const requiredKeys = preAcceptanceFlow ? preOnboardingRequiredTermKeys() : onboardingRequiredTermKeys(purposes);
+    const accepted = req.body?.termos_aceitos && typeof req.body.termos_aceitos === "object" ? req.body.termos_aceitos : {};
+    if (!requiredKeys.every((key) => accepted[key] === true)) return res.status(400).json({ error: "Revise e aceite todos os documentos obrigatórios." });
+    const acceptanceLocation = getCapturedAcceptanceLocation(req.body?.aceite_localizacao);
+    if (!acceptanceLocation) return res.status(400).json({ error: ACCEPTANCE_LOCATION_REQUIRED_ERROR });
+    const now = new Date();
+    const versions: Record<string, string> = Object.fromEntries(requiredKeys.map((key) => [key, TERMOS_ACEITE_BUILT[key]?.versao || "BUILT JUR - 1"]));
+    const invites = await storage.getConvitesByCandidatoMembro(String(journey.membro_id || "")).catch(() => []);
+    const invite = invites.find((item: any) => String(item.id) === String(journey.convite_id));
+    if (!invite) return res.status(404).json({ error: "Convite do onboarding não encontrado." });
+    const profile = (responses as any)?.perfil || {};
+    const config = (responses as any)?.configuracao || {};
+    const profilePatch: Record<string, any> = {
+      codigo_etica_aceito_em: now.toISOString(), codigo_etica_versao: versions.codigo_etica,
+      politicas_participacao_aceito_em: now.toISOString(), politicas_participacao_versao: versions.politicas_participacao_protecao,
+    };
+    if (requiredKeys.includes("vitrine")) {
+      profilePatch.vitrine_termo_aceito_em = now.toISOString();
+      profilePatch.vitrine_termo_versao = versions.vitrine;
+    }
+    if (requiredKeys.includes("built_capital")) {
+      profilePatch.built_capital_termo_aceito_em = now.toISOString();
+      profilePatch.built_capital_termo_versao = versions.built_capital;
+    }
+    if (!preAcceptanceFlow) Object.assign(profilePatch, buildInitialOnboardingProfileFields(profile, config));
+    await directusUpdate("cadastro_geral", String(journey.membro_id), profilePatch);
+    await storage.updateConvite(invite.id, {
+      status: preAcceptanceFlow ? "termos_aceitos" : "acesso_inicial_ativo", termos_aceitos_em: now,
+      dados_contratuais: { ...((invite.dados_contratuais as any) || {}), finalidades_conta: purposes, termos_aceitos: accepted, termos_versoes: versions, aceito_em: now.toISOString(), aceite_localizacao: acceptanceLocation } as any,
+    });
+    const previousAcceptances = await getLatestTermAcceptances(String(journey.membro_id));
+    for (const key of requiredKeys) {
+      if (String(previousAcceptances.get(key)?.termo_versao || "") === versions[key]) continue;
+      const recorded = await recordTermAcceptanceAudit({ membroId: String(journey.membro_id), termoChave: key, termoVersao: versions[key], origem: TERMOS_ACEITE_BUILT[key]?.origem || null, aceitoEm: now, aceiteLocalizacao: acceptanceLocation });
+      if (!recorded) throw new Error(`Não foi possível registrar o aceite de ${key}.`);
+    }
+    const allCompleted = Array.from(new Set([...(Array.isArray(journey.completed_steps) ? journey.completed_steps : []), "aceites"]));
+    if (preAcceptanceFlow) {
+      const acceptedResponses = {
+        ...responses,
+        aceites: { termos_aceitos: accepted, termos_versoes: versions, aceito_em: now.toISOString() },
+      };
+      await db.execute(sql`
+        UPDATE initial_onboarding_journeys SET
+          status = 'em_andamento', current_step = 'personalizacao',
+          responses = ${JSON.stringify(acceptedResponses)}::jsonb,
+          completed_steps = ${JSON.stringify(allCompleted)}::jsonb, updated_at = now()
+        WHERE user_id = ${String(userId)}
+      `);
+      return res.json({ success: true, next_url: "/onboarding/personalizacao" });
+    }
+    await db.execute(sql`UPDATE initial_onboarding_journeys SET status = 'concluido', completed_steps = ${JSON.stringify(allCompleted)}::jsonb, completed_at = now(), updated_at = now() WHERE user_id = ${String(userId)}`);
+    return res.json({ success: true, redirect_url: onboardingDestinationUrl(journey.start_destination) });
+  });
+
   app.post("/api/register/validate", async (req, res) => {
     try {
       const conviteToken = String(req.body?.convite_token || "").trim();
@@ -19965,6 +20394,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       } catch (_) {}
     }
 
+    const initialOnboarding = await getInitialOnboardingJourney(String(directusUserId)).catch(() => null);
+    const onboardingRequired = Boolean(initialOnboarding && initialOnboarding.status !== "concluido");
+
     res.json({
       id: directusUserId,
       nome: nomePerfil,
@@ -19985,6 +20417,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       built_capital_termo_aceito_em: builtCapitalTermoAceitoEm,
       built_capital_termo_versao: builtCapitalTermoVersao,
       pending_vitrine,
+      onboarding_required: onboardingRequired,
+      onboarding_step: onboardingRequired ? initialOnboarding.current_step : null,
+      onboarding_next_url: onboardingRequired ? onboardingStepUrl(initialOnboarding.current_step) : null,
       convite_pendente,
       adesao_pendente,
       company_employee: Boolean(companyEmployee),

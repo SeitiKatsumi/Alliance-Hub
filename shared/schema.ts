@@ -314,6 +314,27 @@ export const userAccountPurposes = pgTable("user_account_purposes", {
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [unique().on(table.user_id, table.purpose)]);
 
+export const initialOnboardingJourneys = pgTable("initial_onboarding_journeys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: text("user_id").notNull().unique(),
+  membro_id: text("membro_id"),
+  convite_link_id: text("convite_link_id"),
+  convite_id: text("convite_id"),
+  flow_version: integer("flow_version").notNull().default(2),
+  status: text("status").notNull().default("em_andamento"),
+  current_step: text("current_step").notNull().default("aceites"),
+  completed_steps: jsonb("completed_steps").$type<string[]>().notNull().default([]),
+  responses: jsonb("responses").$type<Record<string, unknown>>().notNull().default({}),
+  preferences: jsonb("preferences").$type<Record<string, unknown>>().notNull().default({}),
+  start_destination: text("start_destination"),
+  terms_ready_at: timestamp("terms_ready_at"),
+  completed_at: timestamp("completed_at"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type InitialOnboardingJourney = typeof initialOnboardingJourneys.$inferSelect;
+
 export const propertyAssistantSessions = pgTable("property_assistant_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   owner_user_id: text("owner_user_id").notNull(),

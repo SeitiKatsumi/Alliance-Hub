@@ -1,0 +1,70 @@
+[vitrine-fields] Field na_vitrine response: 400
+[geo-opa] Field latitude response: 400
+[opa-media] Field imagem_directus_id response: 400
+[geo-bias] Field latitude response: 400
+[vitrine-fields] Field em_membros_built response: 400
+[geo-opa] Field longitude response: 400
+[geo-bias] Field longitude response: 400
+[opa-media] Field ramo_atuacao response: 400
+[vitrine-fields] Field em_built_capital response: 400
+[opa-media] Field criado_por_user_id response: 400
+[geo-opa] Field localizacao response: 400
+[geo-bias] Field localizacao response: 400
+[vitrine-fields] Field link_site response: 400
+[opa-media] Field criado_por_membro_id response: 400
+[vitrine-fields] Field latitude response: 400
+[vitrine-fields] Field longitude response: 400
+[vitrine-fields] Field foto_posicao_x response: 400
+[vitrine-fields] Field foto_posicao_y response: 400
+[vitrine-fields] Field logo_empresa response: 400
+[vitrine-fields] Field especialidade_livre response: 400
+[vitrine-fields] Field ramo_atuacao response: 400
+[vitrine-fields] Field segmento response: 400
+[vitrine-fields] Field area_atuacao response: 400
+[vitrine-fields] Field idiomas response: 400
+[vitrine-fields] Field nucleos_alianca response: 400
+[vitrine-fields] Field tipos_alianca response: 400
+[vitrine-fields] Field codigo_etica_aceito_em response: 400
+[vitrine-fields] Field codigo_etica_versao response: 400
+[vitrine-fields] Field politicas_participacao_aceito_em response: 400
+[vitrine-fields] Field politicas_participacao_versao response: 400
+[vitrine-fields] Field vitrine_termo_aceito_em response: 400
+[vitrine-fields] Field vitrine_termo_versao response: 400
+[vitrine-fields] Field built_capital_termo_aceito_em response: 400
+[vitrine-fields] Field built_capital_termo_versao response: 400
+[vitrine-fields] Field area_aliancas_termo_aceito_em response: 400
+[vitrine-fields] Field area_aliancas_termo_versao response: 400
+[vitrine-fields] Field nacionalidade response: 400
+[vitrine-fields] Field nome_mae response: 400
+[vitrine-fields] Field nome_pai response: 400
+[vitrine-fields] Field data_nascimento response: 400
+[vitrine-fields] Field profissao response: 400
+[vitrine-fields] Field cpf response: 400
+[vitrine-fields] Field cnpj response: 400
+[vitrine-fields] Field rg response: 400
+[vitrine-fields] Field estado_civil response: 400
+[vitrine-fields] Field regime_comunhao response: 400
+[vitrine-fields] Field conjuge_nome_completo response: 400
+[categorias] Field bia_id response: 400
+[vitrine-fields] Field conjuge_nacionalidade response: 400
+[vitrine-fields] Field conjuge_nome_mae response: 400
+node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3004
+    at Server.setupListenHandle [as _listen2] (node:net:2008:16)
+    at listenInCluster (node:net:2065:12)
+    at node:net:2274:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2044:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3004
+}
+
+Node.js v24.16.0

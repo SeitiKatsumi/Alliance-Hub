@@ -1,0 +1,147 @@
+[google-auth] Google OAuth enabled (callback: https://app.builtalliances.com/auth/google/callback)
+[bias-valid] No field validations to clear
+[comunidade] Found collection as 'Comunidade'
+[bia] nome_bia varchar length OK, skipping
+[estudos] Collection already exists
+[nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+[perms] No reference permissions found
+[cadastro_geral] nome expanded to varchar(500)
+[cadastro_geral] perfil_aliado already OK (text/null), skipping
+[cadastro_geral] nucleo_alianca already OK (text/null), skipping
+[cadastro_geral] empresa expanded to varchar(500)
+[cadastro_geral] cargo expanded to varchar(500)
+[perms] No reference permissions found
+[comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_membros' already exists
+[comunidade] M2M alias 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+[comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_bias' already exists
+[comunidade] M2M alias 'bias': INVALID_PAYLOAD
+9:14:48 PM [express] serving on port 3004
+[comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+[comunidade] Fields ensured (M2O/M2M)
+9:14:56 PM [express] GET /api/me 401 in 3ms :: {"error":"Não autenticado"}
+9:14:56 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:14:56 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:14:56 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:12 PM [express] GET /api/carteira/onboarding-status 401 in 1ms :: {"error":"Não autenticado"}
+9:15:26 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:26 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:15:26 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:26 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:56 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:56 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:56 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:15:56 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:16:57 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:16:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:44 PM [express] GET /api/agenda-alertas/contador 401 in 1ms :: {"error":"Não autenticado"}
+9:17:44 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:17:44 PM [express] GET /api/rede/oportunidades/notificacoes/minhas 401 in 1ms :: {"error":"Não autenticado"}
+9:17:44 PM [express] GET /api/bia-socio-solicitacoes/minhas 401 in 1ms :: {"error":"Nao autenticado"}
+9:17:44 PM [express] GET /api/chamadas-alianca/minhas 401 in 1ms :: {"error":"Nao autenticado"}
+9:17:44 PM [express] GET /api/bia-diretor-solicitacoes/minhas 401 in 0ms :: {"error":"Nao autenticado"}
+9:17:44 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:17:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:18:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:18:27 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:18:27 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:18:27 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:18:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:18:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:18:57 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:18:57 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:19:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:19:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:19:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:19:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:19:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:19:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:19:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:19:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:20:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:20:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:21:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:21:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:21:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:21:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:21:41 PM [vite] (client) hmr update /src/pages/login.tsx, /src/index.css
+9:21:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:21:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:21:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:21:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:22:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:22:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:23:05 PM [vite] (client) hmr update /src/pages/login.tsx, /src/index.css
+9:23:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:23:26 PM [vite] (client) hmr update /src/pages/login.tsx, /src/index.css
+9:23:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:23:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:23:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:23:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:23:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:23:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:23:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:23:58 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:24:25 PM [vite] (client) hmr update /src/pages/login.tsx, /src/index.css
+9:24:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:24:28 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:24:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:24:28 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:24:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:24:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:24:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:24:58 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:25:29 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:25:29 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:25:29 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:25:29 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:25:59 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:25:59 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:25:59 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:25:59 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:26:04 PM [vite] (client) hmr update /src/App.tsx, /src/index.css
+9:26:34 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:26:34 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:26:34 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:26:34 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:27:04 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:27:04 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:27:04 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:27:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:27:35 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:27:35 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:27:35 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:27:35 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:28:05 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+9:28:05 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:28:05 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+9:28:05 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}

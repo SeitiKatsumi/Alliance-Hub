@@ -1,0 +1,50 @@
+[google-auth] Google OAuth enabled (callback: https://app.builtalliances.com/auth/google/callback)
+[bias-valid] No field validations to clear
+[comunidade] Found collection as 'Comunidade'
+[estudos] Collection already exists
+[nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+[perms] No reference permissions found
+[bia] nome_bia varchar length OK, skipping
+[cadastro_geral] nome expanded to varchar(500)
+[cadastro_geral] perfil_aliado already OK (text/null), skipping
+[cadastro_geral] nucleo_alianca already OK (text/null), skipping
+[cadastro_geral] empresa expanded to varchar(500)
+[cadastro_geral] cargo expanded to varchar(500)
+[perms] No reference permissions found
+[comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_membros' already exists
+[comunidade] M2M alias 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+[comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_bias' already exists
+[comunidade] M2M alias 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+[comunidade] Fields ensured (M2O/M2M)
+7:54:57 PM [express] serving on port 3004
+7:55:03 PM [express] GET /api/me 401 in 4ms :: {"error":"Não autenticado"}
+7:55:03 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+7:55:33 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:55:33 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:55:34 PM [express] GET /api/rede/oportunidades 200 in 3134ms :: [{"id":"04db88bf-7a71-4592-a89b-383e61b51f91","source_type":"demanda","source_id":"3499432d-7fd1-4697-8034-a8f3a8853285","codigo":"DEM-RYQL57PBJ5","tipo":"demanda","titulo":"Deamnada teste","descricao":null,"autor_tipo":"usuario","autor_user_id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","autor_membro_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","autor_bia_id":null,"criador_user_id":"3c4b4d72-32d3-469f-9598-0a0ccad6fd79","criador_membro_id":"06196cc4-b506-4fa0-b3eb-a74576d5b059","responsavel_user_id":null,"responsavel_membro_id":null,"imovel_id":"inv-1786331759396-8f73c1f9","bia_id":null,"status":"aberta","visibilidade":"publicada","urgencia":"normal","especialidades":[],"cidade":null,"estado":null,"pais":"Brasil","publicada_em":"2026-08-10 13:46:33.103864","expira_em":"2026-10-09 13:46:33.103864","fluxo_disparo":"imediato","metadata":{"opa_id":null,"contexto":null,"alternativa":null,"oportunidade_id":"land-1786372591428-cd07d442","economic_opportunity_id":"27ade89d-2e34-4e7a-a618-5ebecfc8547d"},"criado_em":"2026-08-10 03:56:23.194556","atualizado_em":"2026-08-10 14:36:33.601789","resultado_fechamento":null,"valor_fechamento":null,"moeda_fechamento":null,"total_interesses":"0","can_manage":false,"selo":"Demanda","url":"/vitrine/oportunidades/demandas/3499432d-7fd1-4697-8034-a8f3a8853285"}]
+7:55:35 PM [express] GET /api/rede/oportunidades/OPP-DANJL5H8BJ 403 in 1197ms :: {"error":"Esta Oportunidade possui acesso contextual."}
+7:55:53 PM [express] GET /api/rede/oportunidades 200 in 214ms :: []
+7:56:03 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+7:56:03 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:56:33 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:56:33 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:57:03 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+7:57:03 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:57:34 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:57:34 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+7:58:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:58:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:58:34 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:58:34 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:59:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:59:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:59:34 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+7:59:34 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+8:00:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+8:00:04 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}

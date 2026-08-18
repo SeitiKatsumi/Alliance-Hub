@@ -36,6 +36,7 @@ import {
 } from "./agenda-alerts";
 import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
+import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
 import {
   attachObjectToRegistryTraces,
   attachObjectToObjectTraces,
@@ -5040,20 +5041,17 @@ export async function registerRoutes(
       console.warn("[membro-comunidade-mae] Nao foi possivel carregar convites:", error?.message || error);
       return [];
     });
-    const conviteOrigem = [...convites]
-      .filter((convite: any) => convite.comunidade_id)
-      .sort((a: any, b: any) => new Date(a.criado_em || 0).getTime() - new Date(b.criado_em || 0).getTime())[0];
-    if (conviteOrigem?.comunidade_id) {
-      return persistMembroComunidadeMae(memberId, String(conviteOrigem.comunidade_id), "convite", {
-        convite_id: conviteOrigem.id,
-        convite_status: conviteOrigem.status || null,
-        convite_tipo: conviteOrigem.tipo || null,
+    const origin = selectMemberCommunityOrigin(convites, links);
+    if (origin?.source === "convite" && origin.invitation) {
+      return persistMembroComunidadeMae(memberId, origin.communityId, "convite", {
+        convite_id: origin.invitation.id,
+        convite_status: origin.invitation.status || null,
+        convite_tipo: origin.invitation.tipo || null,
       });
     }
 
-    const firstMembroLink = links.find((link) => link.papel === "membro" || link.papel === "ambos") || links[0];
-    if (firstMembroLink?.id) {
-      return persistMembroComunidadeMae(memberId, String(firstMembroLink.id), "legacy_first_link", {
+    if (origin) {
+      return persistMembroComunidadeMae(memberId, origin.communityId, "legacy_first_link", {
         reason: "Primeira comunidade vinculada antes da regra de Comunidade Mae",
       });
     }
@@ -22278,19 +22276,16 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
   async function findMemberCommunityForAdesao(membroId: string) {
     const col = await getComunidadeCol();
-    const fields = "id,nome,pais,territorio,aliado.id,aliado.nome,aliado.email,membros.cadastro_geral_id";
-    const byMemberUrl = `${DIRECTUS_URL}/items/${col}?fields=${fields}&filter[membros][cadastro_geral_id][_eq]=${encodeURIComponent(membroId)}&limit=1`;
-    const memberRes = await fetch(byMemberUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-    if (memberRes.ok) {
-      const data = await memberRes.json();
-      if (data.data?.[0]) return data.data[0];
-    }
+    const links = await getMembroComunidadesLinks(membroId);
+    const communityMother = await resolveMembroComunidadeMae(membroId, links);
+    const candidateIds = orderedAdesaoCommunityIds(communityMother?.comunidade_id, links);
 
-    const byAliadoUrl = `${DIRECTUS_URL}/items/${col}?fields=${fields}&filter[aliado][_eq]=${encodeURIComponent(membroId)}&limit=1`;
-    const aliadoRes = await fetch(byAliadoUrl, { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } });
-    if (aliadoRes.ok) {
-      const data = await aliadoRes.json();
-      if (data.data?.[0]) return data.data[0];
+    for (const communityId of candidateIds) {
+      const community = await directusFetchOne(col, communityId).catch((error: any) => {
+        console.warn(`[adesao] Nao foi possivel carregar a comunidade ${communityId}:`, error?.message || error);
+        return null;
+      });
+      if (community?.id) return community;
     }
 
     return null;

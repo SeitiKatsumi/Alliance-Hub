@@ -1,0 +1,25 @@
+[google-auth] Google OAuth enabled (callback: https://app.builtalliances.com/auth/google/callback)
+[comunidade] Found collection as 'Comunidade'
+[estudos] Collection already exists
+[nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+[perms] No reference permissions found
+[bias-valid] No field validations to clear
+[bia] nome_bia varchar length OK, skipping
+[cadastro_geral] nome expanded to varchar(500)
+[cadastro_geral] perfil_aliado already OK (text/null), skipping
+[cadastro_geral] nucleo_alianca already OK (text/null), skipping
+[cadastro_geral] empresa expanded to varchar(500)
+[cadastro_geral] cargo expanded to varchar(500)
+[perms] No reference permissions found
+[comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_membros' already exists
+[comunidade] M2M alias 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+[comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_bias' already exists
+[comunidade] M2M alias 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+[comunidade] Fields ensured (M2O/M2M)
+1:53:12 PM [express] serving on port 5000

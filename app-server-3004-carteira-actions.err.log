@@ -1,17 +1,46 @@
-[geo-bias] Field latitude response: 400
-[vitrine-fields] Field na_vitrine response: 400
-[opa-media] Field imagem_directus_id response: 400
+[usage] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:2279:3) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[convites_link] Campo tipo nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+[agenda] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-diretores] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-socios] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-mou] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-access] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[company-access] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[company-plan] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[termos-aceite] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[chamadas-alianca] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia_info_comercial] Campos do ativo nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Tabelas nao sincronizadas: connect ECONNREFUSED 127.0.0.1:5433
+[land-bank] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[inventario] Tabelas nao sincronizadas: connect ECONNREFUSED 127.0.0.1:5433
+[membro-comunidade-mae] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[anuncios_pagamento] Campos de pagamento nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
+[fluxo_historico] Tabela de historico nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[vitrine-fields] Field na_vitrine response: 500
 [geo-opa] Field latitude response: 400
-[geo-bias] Field longitude response: 400
-[geo-opa] Field longitude response: 400
 [vitrine-fields] Field em_membros_built response: 400
-[opa-media] Field ramo_atuacao response: 400
-[geo-opa] Field localizacao response: 400
-[geo-bias] Field localizacao response: 400
+[geo-bias] Field latitude response: 400
+[opa-media] Field imagem_directus_id response: 400
 [vitrine-fields] Field em_built_capital response: 400
-[opa-media] Field criado_por_user_id response: 400
-[opa-media] Field criado_por_membro_id response: 400
+[geo-bias] Field longitude response: 400
+[opa-media] Field ramo_atuacao response: 400
+[estudos] create collection failed: {"errors":[{"message":"Invalid payload. Collection \"estudos_viabilidade\" already exists.","extensions":{"reason":"Collection \"estudos_viabilidade\" already exists","code":"INVALID_PAYLOAD"}}]}
+[geo-opa] Field longitude response: 400
+[geo-bias] Field localizacao response: 400
 [vitrine-fields] Field link_site response: 400
+[opa-media] Field criado_por_user_id response: 400
+[geo-opa] Field localizacao response: 400
+[opa-media] Field criado_por_membro_id response: 400
 [vitrine-fields] Field latitude response: 400
 [vitrine-fields] Field longitude response: 400
 [vitrine-fields] Field foto_posicao_x response: 400
@@ -22,6 +51,8 @@
 [vitrine-fields] Field segmento response: 400
 [vitrine-fields] Field area_atuacao response: 400
 [vitrine-fields] Field idiomas response: 400
+[categorias] Field bia_id response: 400
+[transferencias_cotas] Campo anexos nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
 [vitrine-fields] Field nucleos_alianca response: 400
 [vitrine-fields] Field tipos_alianca response: 400
 [vitrine-fields] Field codigo_etica_aceito_em response: 400
@@ -35,7 +66,6 @@
 [vitrine-fields] Field area_aliancas_termo_aceito_em response: 400
 [vitrine-fields] Field area_aliancas_termo_versao response: 400
 [vitrine-fields] Field nacionalidade response: 400
-[categorias] Field bia_id response: 400
 [vitrine-fields] Field nome_mae response: 400
 [vitrine-fields] Field nome_pai response: 400
 [vitrine-fields] Field data_nascimento response: 400
@@ -77,8 +107,26 @@
 [vitrine-fields] Field conjuge_cidade response: 400
 [vitrine-fields] Field conjuge_estado response: 400
 [vitrine-fields] Field conjuge_pais response: 400
-Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
   npx update-browserslist-db@latest
   Why you should do it regularly: https://github.com/browserslist/update-db#readme
 
 A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[login] local auth error: connect ECONNREFUSED 127.0.0.1:5433
+[login] local user lookup error: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[usage] evento registrado apenas em memoria: connect ECONNREFUSED 127.0.0.1:5433

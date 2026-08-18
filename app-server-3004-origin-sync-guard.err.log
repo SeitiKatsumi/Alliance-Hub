@@ -1,0 +1,152 @@
+[bias-valid] Error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[bia-financeiro] Error while expanding total_receita: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[bia] ensureNomeBiaLength error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[estudos] Error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[nucleo_tecnico] Error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[land-bank-directus] Collection not synced: fetch failed
+[usage] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:2318:3) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[convites_link] Campo tipo nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+[agenda] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-diretores] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-socios] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-mou] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-access] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[company-access] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[company-plan] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[cadastro_geral] nome error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[termos-aceite] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[chamadas-alianca] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia_info_comercial] Campos do ativo nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Tabelas nao sincronizadas: connect ECONNREFUSED 127.0.0.1:5433
+[land-bank] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[inventario] Tabelas nao sincronizadas: connect ECONNREFUSED 127.0.0.1:5433
+[membro-comunidade-mae] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[anuncios_pagamento] Campos de pagamento nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
+[cadastro_geral] perfil_aliado error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[fluxo_historico] Tabela de historico nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[cadastro_geral] nucleo_alianca error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[fluxo_pagamento] Field pagamento_provider not ensured: unknown
+[cadastro_geral] empresa error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[fluxo_pagamento] Field pagamento_id not ensured: unknown
+[cadastro_geral] cargo error: [TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:8055
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -4078,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 8055
+  }
+}
+[fluxo_pagamento] Field pagamento_url not ensured: unknown
+[fluxo_pagamento] Field pagamento_status not ensured: unknown
+[fluxo_pagamento] Field pagamento_pais not ensured: unknown
+[fluxo_pagamento] Field pagamento_pagador_nome not ensured: unknown
+[fluxo_pagamento] Field pagamento_pagador_email not ensured: unknown
+[fluxo_pagamento] Field pagamento_pagador_documento not ensured: unknown
+[fluxo_pagamento] Field pagamento_gerado_em not ensured: unknown
+[categorias] Plano de contas nÃ£o sincronizado: fetch failed
+[categorias] bia_id field not ensured: fetch failed
+[transferencias_cotas] Campo anexos nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[login] Directus unavailable: fetch failed
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades
+[directus-fallback] tipos_oportunidades carregado via https://app.builtalliances.com/api/oportunidades

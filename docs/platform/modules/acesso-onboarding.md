@@ -67,6 +67,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Aceites anteriores a Personalizacao aparecem como uma preparacao da jornada, sem marcar ou destacar a etapa 5; a numeracao continua reservada as cinco etapas visiveis do onboarding.
 - A tela de aceites informa antes da acao que a localizacao do dispositivo e obrigatoria e interrompe o envio com mensagem orientativa quando o navegador nao concede a permissao.
 - Cada acao recomendada da etapa Pronto conclui a jornada e redireciona ao destino interno escolhido; jornadas legadas ainda preservam seus aceites finais.
+- A solicitacao de adesao reutiliza a comunidade do convite original quando o candidato ainda nao possui relacao M2M como membro; refresh ou retomada nao perde essa origem.
 - Status cadastral so pode ser `informado`, `enviado` ou `pendente` sem evidencia externa.
 - Selecao de finalidade nao publica perfil, imovel ou oportunidade.
 - A finalidade `imoveis` libera a entrada na BUILT Vitrine sem ativar a publicacao do perfil; BUILT Alliances continua condicionada ao vinculo de membro.

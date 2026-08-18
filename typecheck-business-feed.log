@@ -1,0 +1,109 @@
+
+> rest-express@1.0.0 check
+> tsc
+
+client/src/pages/bia-detalhe.tsx(201,7): error TS2345: Argument of type 'string | number | string[] | AnexoFile[] | null | undefined' is not assignable to parameter of type 'string | number | null | undefined'.
+  Type 'string[]' is not assignable to type 'string | number | null | undefined'.
+client/src/pages/bia-detalhe.tsx(747,17): error TS2322: Type '"link"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+client/src/pages/bia-detalhe.tsx(932,21): error TS2322: Type '"link"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+client/src/pages/bias-calculadora.tsx(1288,28): error TS2304: Cannot find name 'inicioAportes'.
+client/src/pages/bias-calculadora.tsx(1289,38): error TS2304: Cannot find name 'setInicioAportes'.
+client/src/pages/bias-calculadora.tsx(1296,26): error TS2304: Cannot find name 'totalAportes'.
+client/src/pages/bias-calculadora.tsx(1297,29): error TS2304: Cannot find name 'setTotalAportes'.
+client/src/pages/gestao-opas.tsx(353,23): error TS2552: Cannot find name 'bia'. Did you mean 'bias'?
+client/src/pages/gestao-opas.tsx(353,33): error TS7006: Parameter 'item' implicitly has an 'any' type.
+client/src/pages/land-bank-detalhe.tsx(756,24): error TS2339: Property 'observacao_analise' does not exist on type 'LandBankAsset'.
+client/src/pages/land-bank-detalhe.tsx(759,92): error TS2339: Property 'observacao_analise' does not exist on type 'LandBankAsset'.
+client/src/pages/meu-perfil.tsx(2570,9): error TS2322: Type 'string | number | true | string[]' is not assignable to type 'undefined'.
+  Type 'string' is not assignable to type 'undefined'.
+client/src/pages/nucleo-capital.tsx(714,29): error TS2322: Type '"link"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+client/src/pages/opa-detalhe.tsx(332,17): error TS2322: Type '"link"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+client/src/pages/resultados.tsx(502,48): error TS2339: Property 'autor_bia' does not exist on type 'BiasProjeto'.
+client/src/pages/resultados.tsx(503,51): error TS2551: Property 'aliado_built' does not exist on type 'BiasProjeto'. Did you mean 'cpp_aliado_built'?
+client/src/pages/resultados.tsx(505,50): error TS2339: Property 'diretor_alianca' does not exist on type 'BiasProjeto'.
+client/src/pages/resultados.tsx(506,50): error TS2339: Property 'diretor_nucleo_tecnico' does not exist on type 'BiasProjeto'.
+client/src/pages/resultados.tsx(507,48): error TS2339: Property 'diretor_execucao' does not exist on type 'BiasProjeto'.
+client/src/pages/resultados.tsx(508,52): error TS2339: Property 'diretor_comercial' does not exist on type 'BiasProjeto'.
+client/src/pages/resultados.tsx(509,50): error TS2339: Property 'diretor_capital' does not exist on type 'BiasProjeto'.
+server/auth-google.ts(60,14): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(strategy: "google", options: AuthenticateOptionsGoogle, callback?: ((...args: any[]) => any) | undefined): any', gave the following error.
+    Object literal may only specify known properties, and 'callbackURL' does not exist in type 'AuthenticateOptionsGoogle'.
+  Overload 2 of 3, '(strategy: string | string[] | Strategy, callback?: AuthenticateCallback | ((...args: any[]) => any) | undefined): any', gave the following error.
+    Object literal may only specify known properties, and 'session' does not exist in type 'AuthenticateCallback | ((...args: any[]) => any)'.
+  Overload 3 of 3, '(strategy: string | string[] | Strategy, options: AuthenticateOptions, callback?: AuthenticateCallback | ((...args: any[]) => any) | undefined): any', gave the following error.
+    Object literal may only specify known properties, and 'callbackURL' does not exist in type 'AuthenticateOptions'.
+server/auth-google.ts(70,16): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(strategy: "google", options: AuthenticateOptionsGoogle, callback?: ((...args: any[]) => any) | undefined): any', gave the following error.
+    Object literal may only specify known properties, and 'callbackURL' does not exist in type 'AuthenticateOptionsGoogle'.
+  Overload 2 of 3, '(strategy: string | string[] | Strategy, callback?: AuthenticateCallback | ((...args: any[]) => any) | undefined): any', gave the following error.
+    Object literal may only specify known properties, and 'session' does not exist in type 'AuthenticateCallback | ((...args: any[]) => any)'.
+  Overload 3 of 3, '(strategy: string | string[] | Strategy, options: AuthenticateOptions, callback?: AuthenticateCallback | ((...args: any[]) => any) | undefined): any', gave the following error.
+    Object literal may only specify known properties, and 'callbackURL' does not exist in type 'AuthenticateOptions'.
+server/member-business-feed.ts(45,23): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/replit_integrations/audio/routes.ts(23,27): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/replit_integrations/audio/routes.ts(51,27): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/replit_integrations/audio/routes.ts(65,39): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/replit_integrations/batch/utils.ts(110,30): error TS2339: Property 'AbortError' does not exist on type '<T>(input: (attemptNumber: number) => T | PromiseLike<T>, options?: Options | undefined) => Promise<T>'.
+server/replit_integrations/batch/utils.ts(159,32): error TS2339: Property 'AbortError' does not exist on type '<T>(input: (attemptNumber: number) => T | PromiseLike<T>, options?: Options | undefined) => Promise<T>'.
+server/replit_integrations/chat/routes.ts(25,27): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/replit_integrations/chat/routes.ts(53,27): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/replit_integrations/chat/routes.ts(65,39): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/replit_integrations/chat/storage.ts(2,10): error TS2305: Module '"@shared/schema"' has no exported member 'conversations'.
+server/replit_integrations/chat/storage.ts(2,25): error TS2305: Module '"@shared/schema"' has no exported member 'messages'.
+server/replit_integrations/image/client.ts(23,18): error TS18048: 'response.data' is possibly 'undefined'.
+server/replit_integrations/image/client.ts(50,23): error TS18048: 'response.data' is possibly 'undefined'.
+server/replit_integrations/image/routes.ts(20,25): error TS18048: 'response.data' is possibly 'undefined'.
+server/routes.ts(15,21): error TS7016: Could not find a declaration file for module 'pngjs'. 'C:/Users/ESPC/Documents/New project 2/node_modules/pngjs/lib/png.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/pngjs` if it exists or add a new declaration (.d.ts) file containing `declare module 'pngjs';`
+server/routes.ts(149,32): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(6138,51): error TS2802: Type 'MapIterator<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(7037,43): error TS2802: Type 'ArrayIterator<[number, { title: string; body: string; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(8441,16): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+server/routes.ts(8442,16): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+server/routes.ts(10473,11): error TS7034: Variable 'items' implicitly has type 'any[]' in some locations where its type cannot be determined.
+server/routes.ts(10481,16): error TS7005: Variable 'items' implicitly has an 'any[]' type.
+server/routes.ts(12167,26): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+server/routes.ts(14875,19): error TS2304: Cannot find name 'isOpportunityPublic'.
+server/routes.ts(17603,32): error TS7006: Parameter 'm' implicitly has an 'any' type.
+server/routes.ts(17606,29): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/routes.ts(18059,9): error TS2740: Type 'Response' is missing the following properties from type 'Response<any, Record<string, any>>': sendStatus, links, send, jsonp, and 85 more.
+server/routes.ts(18066,32): error TS18047: 'authRes' is possibly 'null'.
+server/routes.ts(18066,40): error TS2339: Property 'text' does not exist on type 'Response<any, Record<string, any>>'.
+server/routes.ts(18067,33): error TS18047: 'authRes' is possibly 'null'.
+server/routes.ts(18067,41): error TS2551: Property 'headers' does not exist on type 'Response<any, Record<string, any>>'. Did you mean 'header'?
+server/routes.ts(18082,21): error TS2339: Property 'ok' does not exist on type 'Response<any, Record<string, any>>'.
+server/routes.ts(18608,28): error TS2802: Type 'MapIterator<{ user_id: string; membro_id: string | null; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(18740,16): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+server/routes.ts(18773,16): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+server/routes.ts(18784,16): error TS1252: Function declarations are not allowed inside blocks in strict mode when targeting 'ES5'. Modules are automatically in strict mode.
+server/routes.ts(18831,24): error TS2802: Type 'MapIterator<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(20718,51): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/routes.ts(20809,59): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/routes.ts(20810,51): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/routes.ts(20817,54): error TS2339: Property 'default' does not exist on type 'typeof import("C:/Users/ESPC/Documents/New project 2/node_modules/pdf-parse/dist/pdf-parse/esm/index")'.
+server/routes.ts(20837,59): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+server/routes.ts(20838,51): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/routes.ts(20997,32): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(21592,34): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(21797,32): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(22394,54): error TS2339: Property 'default' does not exist on type 'typeof import("C:/Users/ESPC/Documents/New project 2/node_modules/pdf-parse/dist/pdf-parse/esm/index")'.
+server/storage.ts(885,57): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { bia_id: string | SQL<unknown> | Placeholder<string, any>; membro_id: string | SQL<unknown> | Placeholder<string, any>; mou_versao: string | SQL<unknown> | Placeholder<...>; ... 4 more ...; aceito_em?: Date | ... 3 more ... | undefined; }): PgInsertBase<...>', gave the following error.
+    Argument of type '{ bia_id: string; membro_id: string; mou_versao: string; mou_titulo: string; aceite_localizacao?: Record<string, unknown> | Json | undefined; dados_contratuais?: Json | undefined; }' is not assignable to parameter of type '{ bia_id: string | SQL<unknown> | Placeholder<string, any>; membro_id: string | SQL<unknown> | Placeholder<string, any>; mou_versao: string | SQL<unknown> | Placeholder<...>; ... 4 more ...; aceito_em?: Date | ... 3 more ... | undefined; }'.
+      Types of property 'aceite_localizacao' are incompatible.
+        Type 'Record<string, unknown> | Json | undefined' is not assignable to type 'Record<string, unknown> | SQL<unknown> | Placeholder<string, any> | null | undefined'.
+          Type 'string' is not assignable to type 'Record<string, unknown> | SQL<unknown> | Placeholder<string, any> | null | undefined'.
+  Overload 2 of 2, '(values: { bia_id: string | SQL<unknown> | Placeholder<string, any>; membro_id: string | SQL<unknown> | Placeholder<string, any>; mou_versao: string | SQL<unknown> | Placeholder<...>; ... 4 more ...; aceito_em?: Date | ... 3 more ... | undefined; }[]): PgInsertBase<...>', gave the following error.
+    Argument of type '{ bia_id: string; membro_id: string; mou_versao: string; mou_titulo: string; aceite_localizacao?: Record<string, unknown> | Json | undefined; dados_contratuais?: Json | undefined; }' is not assignable to parameter of type '{ bia_id: string | SQL<unknown> | Placeholder<string, any>; membro_id: string | SQL<unknown> | Placeholder<string, any>; mou_versao: string | SQL<unknown> | Placeholder<...>; ... 4 more ...; aceito_em?: Date | ... 3 more ... | undefined; }[]'.
+      Type '{ bia_id: string; membro_id: string; mou_versao: string; mou_titulo: string; aceite_localizacao?: Record<string, unknown> | Json | undefined; dados_contratuais?: Json | undefined; }' is missing the following properties from type '{ bia_id: string | SQL<unknown> | Placeholder<string, any>; membro_id: string | SQL<unknown> | Placeholder<string, any>; mou_versao: string | SQL<unknown> | Placeholder<...>; ... 4 more ...; aceito_em?: Date | ... 3 more ... | undefined; }[]': length, pop, push, concat, and 35 more.

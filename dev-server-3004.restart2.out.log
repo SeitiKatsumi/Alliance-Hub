@@ -1,0 +1,100 @@
+[google-auth] Google OAuth enabled (callback: https://app.builtalliances.com/auth/google/callback)
+[bias-valid] No field validations to clear
+[comunidade] Found collection as 'Comunidade'
+[estudos] Collection already exists
+[nucleo_tecnico] Directus collection exists (data stored in local PostgreSQL)
+[bia] nome_bia varchar length OK, skipping
+[perms] No reference permissions found
+[cadastro_geral] nome expanded to varchar(500)
+[cadastro_geral] perfil_aliado already OK (text/null), skipping
+[cadastro_geral] nucleo_alianca already OK (text/null), skipping
+[cadastro_geral] empresa expanded to varchar(500)
+[cadastro_geral] cargo expanded to varchar(500)
+[perms] No reference permissions found
+[comunidade] M2M 'membros': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_membros' already exists
+[comunidade] M2M alias 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel1 'membros': INVALID_PAYLOAD
+[comunidade] M2M rel2 'membros': INVALID_PAYLOAD
+[comunidade] M2M 'bias': parent_id=integer, related_id=uuid
+[comunidade] Junction 'comunidade_bias' already exists
+[comunidade] M2M alias 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel1 'bias': INVALID_PAYLOAD
+[comunidade] M2M rel2 'bias': INVALID_PAYLOAD
+[comunidade] Fields ensured (M2O/M2M)
+1:53:59 PM [express] serving on port 3004
+1:54:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:37 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:54:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:54:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:54:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:54:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:55:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:37 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:55:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:55:37 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:56:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:07 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:56:07 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:56:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:56:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:57:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:57:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:57:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:57:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:08 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:58:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:58:08 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:08 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:58:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:58:38 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:58:38 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:59:08 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:59:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:59:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:59:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:59:08 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:59:39 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:59:39 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+1:59:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:59:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+1:59:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:00:39 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:01:09 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2:01:09 PM [express] GET /api/me 401 in 1ms :: {"error":"Não autenticado"}
+2:01:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:01:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}
+2:01:09 PM [express] GET /api/me 401 in 0ms :: {"error":"Não autenticado"}

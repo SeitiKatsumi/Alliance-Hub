@@ -1,0 +1,1241 @@
+[usage] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async ensureOpaInteressesCrmFields (C:\Users\ESPC\Documents\New project 2\server\routes.ts:2279:3) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[convites_link] Campo tipo nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+[agenda] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-diretores] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-socios] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-mou] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-access] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[company-access] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[company-plan] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[termos-aceite] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[chamadas-alianca] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia_info_comercial] Campos do ativo nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
+[bia-banco] Tabelas nao sincronizadas: connect ECONNREFUSED 127.0.0.1:5433
+[land-bank] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[inventario] Tabelas nao sincronizadas: connect ECONNREFUSED 127.0.0.1:5433
+[membro-comunidade-mae] Tabela nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[anuncios_pagamento] Campos de pagamento nao sincronizados: connect ECONNREFUSED 127.0.0.1:5433
+[fluxo_historico] Tabela de historico nao sincronizada: connect ECONNREFUSED 127.0.0.1:5433
+[bia-financeiro] Error while expanding total_receita: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[bias-valid] Error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[bia] ensureNomeBiaLength error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[estudos] Error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[nucleo_tecnico] Error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[land-bank-directus] Collection not synced: fetch failed
+[fluxo_pagamento] Field pagamento_provider not ensured: unknown
+[cadastro_geral] nome error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[fluxo_pagamento] Field pagamento_id not ensured: unknown
+[cadastro_geral] perfil_aliado error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[fluxo_pagamento] Field pagamento_url not ensured: unknown
+[cadastro_geral] nucleo_alianca error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[fluxo_pagamento] Field pagamento_status not ensured: unknown
+[cadastro_geral] empresa error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[fluxo_pagamento] Field pagamento_pais not ensured: unknown
+[cadastro_geral] cargo error: [TypeError: fetch failed] {
+  [cause]: Error: getaddrinfo ENOTFOUND databases.builtalliances.com
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'databases.builtalliances.com'
+  }
+}
+[fluxo_pagamento] Field pagamento_pagador_nome not ensured: unknown
+[fluxo_pagamento] Field pagamento_pagador_email not ensured: unknown
+[fluxo_pagamento] Field pagamento_pagador_documento not ensured: unknown
+[fluxo_pagamento] Field pagamento_gerado_em not ensured: unknown
+[categorias] Plano de contas nÃ£o sincronizado: fetch failed
+[categorias] bia_id field not ensured: fetch failed
+[transferencias_cotas] Campo anexos nao sincronizado: connect ECONNREFUSED 127.0.0.1:5433
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[2026-08-05T23:58:34.148Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 03:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.157Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 04:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.163Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 04:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.170Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 05:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.176Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 05:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.184Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 06:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.190Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 06:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.196Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 07:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.203Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 07:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.214Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 08:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[2026-08-05T23:58:34.219Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 08:30:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[2026-08-06T08:00:02.289Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Thu Aug 06 2026 17:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[2026-08-07T07:00:01.108Z] [PID: 34976] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Fri Aug 07 2026 16:00:00 GMT+0900 (Japan Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}
+[cron] reminder job error: Error: connect ECONNREFUSED 127.0.0.1:5433
+    at C:\Users\ESPC\Documents\New project 2\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\node_modules\src\node-postgres\session.ts:104:19)
+    at async <anonymous> (C:\Users\ESPC\Documents\New project 2\server\index.ts:157:25)
+    at async Timeout._onTimeout (C:\Users\ESPC\Documents\New project 2\node_modules\node-cron\src\scheduler\runner.ts:100:30) {
+  errno: -4078,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 5433
+}

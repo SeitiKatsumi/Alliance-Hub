@@ -33,6 +33,7 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 - Avaliacao: enviada, validada/incluida ou desconsiderada conforme politica.
 - Confianca: inicial, em validacao, validada e consolidada.
 - Permissao de microfone: prompt, concedida, negada ou indisponivel; negar nao bloqueia envio de arquivo/texto.
+- Convite do novo onboarding: `termos_aceitos -> aguardando_avaliacao_aura` ao concluir a etapa Pronto quando candidato e aliado conector estao identificados.
 
 ## Invariantes
 

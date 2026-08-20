@@ -107,6 +107,7 @@ import {
   nextOnboardingStep,
   normalizeAccountPurposeObjectives,
   normalizeOnboardingPurposes,
+  resolveInitialOnboardingInviteCompletion,
   validateOnboardingStepPayload,
   INITIAL_ONBOARDING_REQUIRED_TERM_KEYS,
   type InitialOnboardingStep,
@@ -822,6 +823,7 @@ async function ensureVitrineFields() {
     { field: "built_capital_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo BUILT Capital aceito" }, schema: { is_nullable: true } },
     { field: "area_aliancas_termo_aceito_em", type: "timestamp", meta: { interface: "datetime", display: "datetime", hidden: false, note: "Data de aceite do Termo Area de Aliancas" }, schema: { is_nullable: true } },
     { field: "area_aliancas_termo_versao", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Versao do Termo Area de Aliancas aceito" }, schema: { is_nullable: true } },
+    { field: "nome_completo", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome civil completo para formalizacao" }, schema: { is_nullable: true } },
     { field: "nacionalidade", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nacionalidade para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "nome_mae", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome da mae para formalizacao de BIA" }, schema: { is_nullable: true } },
     { field: "nome_pai", type: "string", meta: { interface: "input", display: "raw", hidden: false, note: "Nome do pai para formalizacao de BIA" }, schema: { is_nullable: true } },
@@ -4838,6 +4840,7 @@ export async function registerRoutes(
         "built_capital_termo_versao",
         "area_aliancas_termo_aceito_em",
         "area_aliancas_termo_versao",
+        "nome_completo",
         "nacionalidade",
         "nome_mae",
         "nome_pai",
@@ -5976,7 +5979,7 @@ export async function registerRoutes(
 
   function pickBiaDadosContratuaisCadastro(data: Record<string, any>) {
     const payload: Record<string, any> = {};
-    if (String(data.nome_completo || "").trim()) payload.nome = String(data.nome_completo).trim();
+    if (String(data.nome_completo || "").trim()) payload.nome_completo = String(data.nome_completo).trim();
     for (const field of BIA_DADOS_CONTRATUAIS_CADASTRO_FIELDS) {
       if (data[field] !== undefined) payload[field] = data[field];
     }
@@ -7533,7 +7536,7 @@ export async function registerRoutes(
   function mergeContractData(member: any, aceite: any): Record<string, any> {
     const dados = aceite?.dados_contratuais && typeof aceite.dados_contratuais === "object" ? aceite.dados_contratuais : {};
     const fallback: Record<string, any> = {
-      nome_completo: member?.nome || member?.Nome_de_usuario,
+      nome_completo: member?.nome_completo || member?.nome || member?.Nome_de_usuario,
       email: member?.email,
       telefone: member?.telefone || member?.whatsapp,
       cpf: member?.cpf || member?.CPF,
@@ -7620,7 +7623,7 @@ export async function registerRoutes(
     const enderecoConjuge = d.conjuge_nome_completo && usaEnderecoSeparado
       ? ` O cônjuge reside em ${formatEndereco(d, "conjuge") || "endereço não informado"}.`
       : "";
-    return `${mouValue(d.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nº ${mouValue(d.cpf)} e no RG sob o nº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
+    return `${mouValue(d.nome_completo || participant.member?.nome_completo || participant.member?.nome || participant.member?.Nome_de_usuario)}, ${mouValue(d.nacionalidade)}, filho(a) de ${mouValue(d.nome_mae)} e ${mouValue(d.nome_pai)}, nascido(a) em ${mouValue(d.data_nascimento)}, ${mouValue(d.profissao)}, e-mail ${mouValue(d.email)}, telefone ${mouValue(d.telefone)}, inscrito(a) no CPF sob o nº ${mouValue(d.cpf)} e no RG sob o nº ${mouValue(d.rg)}, ${estadoCivil}${regime}, residente e domiciliado(a) em ${endereco}.${conjuge}${enderecoConjuge} Papel(is) na BIA: ${participant.roles.join(", ")}.`;
   }
 
   function mouMemberName(value: any): string | null {
@@ -7648,7 +7651,7 @@ export async function registerRoutes(
     const merged: Record<string, any> = {};
     const fieldGroups = [
       fields,
-      "id,nome,Nome_de_usuario,email,telefone,whatsapp,cpf,CPF,cargo,cidade,estado,pais",
+      "id,nome,nome_completo,Nome_de_usuario,email,telefone,whatsapp,cpf,CPF,cargo,cidade,estado,pais",
       "nacionalidade,nome_mae,nome_pai,data_nascimento,profissao,rg,estado_civil,regime_comunhao",
       "cep,endereco,numero,complemento,bairro,cidade,estado,pais,titular_cep,titular_endereco,titular_numero,titular_complemento,titular_bairro,titular_cidade,titular_estado,titular_pais",
       "conjuge_nome_completo,conjuge_nacionalidade,conjuge_nome_mae,conjuge_nome_pai,conjuge_data_nascimento,conjuge_profissao,conjuge_email,conjuge_telefone,conjuge_cpf,conjuge_rg,mesmo_endereco,mesmo_endereco_conjuge,conjuge_cep,conjuge_endereco,conjuge_numero,conjuge_complemento,conjuge_bairro,conjuge_cidade,conjuge_estado,conjuge_pais",
@@ -7692,7 +7695,7 @@ export async function registerRoutes(
     }
     const aceiteByMember = new Map(aceites.map((aceite: any) => [String(aceite.membro_id), aceite]));
     const fields = [
-      "id", "nome", "Nome_de_usuario", "email", "telefone", "whatsapp", "cpf", "CPF", "cargo", "cep", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais",
+      "id", "nome", "nome_completo", "Nome_de_usuario", "email", "telefone", "whatsapp", "cpf", "CPF", "cargo", "cep", "endereco", "numero", "complemento", "bairro", "cidade", "estado", "pais",
       "nacionalidade", "nome_mae", "nome_pai", "data_nascimento", "profissao", "rg", "estado_civil", "regime_comunhao",
       "titular_cep", "titular_endereco", "titular_numero", "titular_complemento", "titular_bairro", "titular_cidade", "titular_estado", "titular_pais",
       "conjuge_nome_completo", "conjuge_nacionalidade", "conjuge_nome_mae", "conjuge_nome_pai",
@@ -19465,10 +19468,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       const invite = invites.find((item: any) => String(item.id) === String(journey.convite_id));
       if (!invite) return res.status(404).json({ error: "Convite do onboarding não encontrado." });
       const purposes = normalizeOnboardingPurposes((mergedResponses as any)?.personalizacao?.purposes);
-      await storage.updateConvite(invite.id, {
-        status: "acesso_inicial_ativo",
-        dados_contratuais: { ...((invite.dados_contratuais as any) || {}), finalidades_conta: purposes } as any,
-      });
+      await completeInitialOnboardingInvite(invite, purposes);
       await db.execute(sql`
         UPDATE initial_onboarding_journeys SET
           responses = ${JSON.stringify(mergedResponses)}::jsonb,
@@ -22322,6 +22322,99 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
     return null;
   }
+
+  async function notifyConnectorAboutAuraRequest(invite: any, avaliacaoToken: string) {
+    if (!invite?.invitador_membro_id) return;
+    try {
+      const [invitador, comunidadeCollection] = await Promise.all([
+        getDirectusMembro(String(invite.invitador_membro_id)),
+        getComunidadeCol(),
+      ]);
+      if (!invitador?.email) return;
+      const comunidade = await directusFetchOne(
+        comunidadeCollection,
+        String(invite.comunidade_id),
+        "fields=id,nome",
+      ).catch(() => null);
+      await notificarInvitadorAvaliarAura({
+        invitadorEmail: invitador.email,
+        invitadorNome: invitador.nome || "Membro BUILT",
+        candidatoNome: invite.candidato_nome || "Candidato",
+        comunidadeNome: comunidade?.nome || "Comunidade BUILT",
+        avaliacaoToken,
+      });
+    } catch (error: any) {
+      console.warn(`[onboarding-aura ${String(invite?.id || "convite")}] Alerta por e-mail nao enviado:`, error?.message || error);
+    }
+  }
+
+  async function completeInitialOnboardingInvite(invite: any, purposes?: string[]) {
+    const action = resolveInitialOnboardingInviteCompletion(invite);
+    const dadosContratuais = {
+      ...((invite?.dados_contratuais as any) || {}),
+      ...(purposes ? { finalidades_conta: purposes } : {}),
+    };
+
+    if (action === "request_aura") {
+      const avaliacaoToken = randomUUID();
+      const [updated] = await db
+        .update(convitesComunidade)
+        .set({
+          status: "aguardando_avaliacao_aura",
+          solicitacao_acesso_em: new Date(),
+          avaliacao_token: avaliacaoToken,
+          dados_contratuais: dadosContratuais,
+          atualizado_em: new Date(),
+        })
+        .where(and(
+          eq(convitesComunidade.id, String(invite.id)),
+          eq(convitesComunidade.status, "termos_aceitos"),
+        ))
+        .returning();
+      if (updated) await notifyConnectorAboutAuraRequest(updated, avaliacaoToken);
+      return updated || invite;
+    }
+
+    if (action === "activate_access") {
+      return storage.updateConvite(String(invite.id), {
+        status: "acesso_inicial_ativo",
+        dados_contratuais: dadosContratuais,
+      } as any);
+    }
+
+    if (purposes) {
+      return storage.updateConvite(String(invite.id), {
+        dados_contratuais: dadosContratuais,
+      } as any);
+    }
+    return invite;
+  }
+
+  async function repairCompletedOnboardingAuraRequests() {
+    const result: any = await db.execute(sql`
+      SELECT convite.*
+      FROM convites_comunidade convite
+      INNER JOIN initial_onboarding_journeys journey
+        ON journey.convite_id = convite.id
+      WHERE journey.flow_version >= 2
+        AND journey.status = 'concluido'
+        AND convite.tipo = 'onboarding_inicial'
+        AND convite.status = 'termos_aceitos'
+        AND convite.candidato_membro_id IS NOT NULL
+        AND convite.invitador_membro_id IS NOT NULL
+    `);
+    const pendingInvites = Array.isArray(result?.rows) ? result.rows : [];
+    for (const invite of pendingInvites) {
+      await completeInitialOnboardingInvite(invite);
+    }
+    if (pendingInvites.length > 0) {
+      console.info(`[onboarding-aura] ${pendingInvites.length} solicitacao(oes) concluida(s) reparada(s).`);
+    }
+  }
+
+  repairCompletedOnboardingAuraRequests().catch((error: any) => {
+    console.warn("[onboarding-aura] Nao foi possivel reparar solicitacoes concluidas:", error?.message || error);
+  });
 
   function getPublicAppBaseUrl(): string {
     const rawDomain = process.env.APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://app.builtalliances.com");

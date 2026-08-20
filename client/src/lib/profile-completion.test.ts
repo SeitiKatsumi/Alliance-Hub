@@ -5,6 +5,7 @@ import { getProfileCompletion, type ProfileCompletionSource } from "./profile-co
 const completeProfile: ProfileCompletionSource = {
   foto_perfil: "foto-id",
   nome: "Maria da Silva",
+  nome_completo: "Maria Aparecida da Silva",
   email: "maria@example.com",
   cpf: "123.456.789-00",
   telefone: "+55 11 99999-9999",
@@ -47,6 +48,13 @@ test("pendência informa o nome do campo que deve ser preenchido", () => {
   const { link_site: _linkSite, ...profileWithoutSite } = completeProfile;
   const result = getProfileCompletion(profileWithoutSite);
   assert.deepEqual(result.missing.map((item) => item.label), ["Site ou portfólio"]);
+});
+
+test("nome público não substitui o nome completo de formalização", () => {
+  const { nome_completo: _nomeCompleto, ...profileWithoutFormalName } = completeProfile;
+  const result = getProfileCompletion(profileWithoutFormalName);
+  assert.deepEqual(result.missing.map((item) => item.key), ["nome_completo"]);
+  assert.equal(result.missing[0]?.label, "Nome completo para formalização");
 });
 
 test("empresa informada exige CNPJ e marca para completar o perfil", () => {

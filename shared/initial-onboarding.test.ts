@@ -18,9 +18,28 @@ import {
   nextOnboardingStep,
   normalizeAccountPurposeObjectives,
   normalizeOnboardingPurposes,
+  resolveInitialOnboardingInviteCompletion,
   shouldOfferOnboardingCpf,
   validateOnboardingStepPayload,
 } from "./initial-onboarding";
+
+test("encaminha o convite concluido para a Aura do aliado conector", () => {
+  assert.equal(resolveInitialOnboardingInviteCompletion({
+    status: "termos_aceitos",
+    candidato_membro_id: "candidato-1",
+    invitador_membro_id: "conector-1",
+  }), "request_aura");
+  assert.equal(resolveInitialOnboardingInviteCompletion({
+    status: "termos_aceitos",
+    candidato_membro_id: "candidato-1",
+    invitador_membro_id: null,
+  }), "activate_access");
+  assert.equal(resolveInitialOnboardingInviteCompletion({
+    status: "aguardando_avaliacao_aura",
+    candidato_membro_id: "candidato-1",
+    invitador_membro_id: "conector-1",
+  }), "preserve_status");
+});
 
 test("mantém os títulos e perguntas oficiais dos blocos de intenção", () => {
   assert.deepEqual(INITIAL_ONBOARDING_OBJECTIVE_COPY, {

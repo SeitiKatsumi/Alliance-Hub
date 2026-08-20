@@ -41,6 +41,8 @@ Mantem o patrimonio privado do usuario, seus imoveis, receitas, despesas, docume
 - Carteira e financeiro de BIA nunca se misturam automaticamente.
 - Edicao relevante gera evento com autor, origem e horario.
 - IA propoe dados; confirmacao humana grava o snapshot oficial.
+- Em Conversar com a IA, o usuario pode digitar, enviar um arquivo de audio ou gravar a fala no momento; gravacao e arquivo usam a mesma analise e permanecem revisaveis antes de salvar.
+- Negar o microfone nao bloqueia o cadastro: a interface orienta como liberar a permissao e preserva o envio de arquivo e o texto como alternativas.
 - Compartilhar um imovel nao compartilha toda a Carteira.
 - Publicar e opt-in, reversivel e deve mascarar dados privados.
 

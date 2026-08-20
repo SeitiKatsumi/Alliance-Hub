@@ -20,6 +20,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 ## Dados e fontes de verdade
 
 - Directus `cadastro_geral`: perfil de pessoa/empresa.
+- Identidade do membro: `nome` e o nome publico exibido no perfil; `nome_completo` e `cpf` sao dados restritos de formalizacao. Registros legados sem `nome_completo` podem usar `nome` apenas como fallback de leitura em documentos.
 - PostgreSQL `user_account_purposes`: finalidades escolhidas e suas intencoes; Meu Perfil usa a mesma taxonomia de `shared/initial-onboarding.ts`.
 - Classificacao profissional oficial: `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas`; onboarding e edicao de perfil escrevem nesses mesmos campos.
 - Taxonomias compartilhadas: `client/src/lib/ramos-segmentos.ts`, `shared/profile-taxonomy.ts` e `shared/contribution-areas.ts`.
@@ -50,6 +51,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - Cadastro, onboarding, Meu Perfil e administracao de membros nao podem manter listas paralelas para ramo, segmento, abrangencia, idiomas ou areas de contribuicao.
 - Os cards de finalidade do Meu Perfil abrem a configuracao das intencoes canonicas; alterar uma finalidade nao altera os campos de associacao `em_membros_built` ou `em_built_capital`.
 - Cards de recomendacao aceitam foto Directus ou URL externa e sempre preservam fallback visual quando a imagem estiver indisponivel.
+- Editar o nome completo de formalizacao ou o CPF nunca altera o nome publico exibido no perfil; o salvamento geral do perfil nao exige CPF antes de uma formalizacao.
 
 ## Efeitos e dependencias
 

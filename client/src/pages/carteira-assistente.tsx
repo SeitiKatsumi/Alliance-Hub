@@ -18,6 +18,7 @@ import {
   PencilLine,
   Search,
   Sparkles,
+  StopCircle,
   Upload,
   Users,
 } from "lucide-react";
@@ -29,6 +30,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { BrowserPermissionHelp } from "@/components/browser-permission-help";
+import {
+  createAudioMediaRecorder,
+  formatRecordingTime,
+  getAudioRecordingFilename,
+} from "@/lib/audio-recording";
 
 type JourneyStep = "cadastro" | "intencao" | "analise" | "conexao";
 type JourneyMethod = "conversa" | "cartorio" | "documentos" | "manual";
@@ -129,9 +136,20 @@ export default function CarteiraAssistentePage() {
   const [draft, setDraft] = useState<Record<string, any>>({ pais: "Brasil", moeda: "BRL" });
   const [sourceText, setSourceText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordedDuration, setRecordedDuration] = useState(0);
+  const [recordedAudioReady, setRecordedAudioReady] = useState(false);
+  const [micBlocked, setMicBlocked] = useState(false);
+  const [micPermissionHelpOpen, setMicPermissionHelpOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingSecondsRef = useRef(0);
 
   const sessionQuery = useQuery<AssistantSession>({
     queryKey: ["/api/carteira/assistente/sessoes", sessionId],
@@ -149,6 +167,116 @@ export default function CarteiraAssistentePage() {
     setDraft({ pais: "Brasil", moeda: "BRL", ...(session.draft || {}) });
     setSelectedMembers(Array.isArray(session.draft?.profissionais_recomendados) ? session.draft.profissionais_recomendados.map(String) : []);
   }, [session?.id]);
+
+  useEffect(() => () => {
+    if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  function clearRecordingTimer() {
+    if (!recordingTimerRef.current) return;
+    window.clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = null;
+  }
+
+  function stopRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  }
+
+  async function startRecording() {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        setMicBlocked(true);
+        setMicPermissionHelpOpen(true);
+        toast({
+          title: "Gravação indisponível",
+          description: "Este navegador não permite gravar aqui. Você ainda pode enviar um arquivo de áudio.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = createAudioMediaRecorder(stream);
+      audioStreamRef.current = stream;
+      audioChunksRef.current = [];
+      recordingSecondsRef.current = 0;
+      setRecordingSeconds(0);
+      setRecordedDuration(0);
+      setRecordedAudioReady(false);
+      setFile(null);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        clearRecordingTimer();
+        stream.getTracks().forEach((track) => track.stop());
+        const recordedMimeType = recorder.mimeType || audioChunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: recordedMimeType });
+        const duration = recordingSecondsRef.current;
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        audioStreamRef.current = null;
+        setRecording(false);
+        setRecordedDuration(duration);
+        if (blob.size > 0) {
+          setFile(new File(
+            [blob],
+            getAudioRecordingFilename(recordedMimeType, "cadastro-imovel"),
+            { type: recordedMimeType },
+          ));
+          setRecordedAudioReady(true);
+          toast({ title: "Áudio pronto", description: "Agora você pode gerar a prévia editável." });
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(250);
+      setRecording(true);
+      setMicBlocked(false);
+      recordingTimerRef.current = window.setInterval(() => {
+        recordingSecondsRef.current += 1;
+        setRecordingSeconds(recordingSecondsRef.current);
+        if (recordingSecondsRef.current >= 300) stopRecording();
+      }, 1000);
+    } catch (error: any) {
+      clearRecordingTimer();
+      audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+      const permissionDenied = error?.name === "NotAllowedError" || /permission|denied|permiss/i.test(error?.message || "");
+      if (permissionDenied) {
+        setMicBlocked(true);
+        setMicPermissionHelpOpen(true);
+      }
+      toast({
+        title: permissionDenied ? "Microfone bloqueado" : "Não foi possível gravar",
+        description: permissionDenied
+          ? "Libere o microfone nas configurações do navegador ou envie um arquivo de áudio."
+          : error?.message || "Tente novamente ou envie um arquivo de áudio.",
+        variant: "destructive",
+      });
+    }
+  }
+
+  function requestRecording() {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    if (micBlocked) {
+      setMicPermissionHelpOpen(true);
+      return;
+    }
+    void startRecording();
+  }
 
   function setJourneyUrl(next: { session?: string; step?: JourneyStep; path?: "imovel" | "oportunidade" }) {
     const query = new URLSearchParams(search);
@@ -225,6 +353,8 @@ export default function CarteiraAssistentePage() {
       queryClient.setQueryData(["/api/carteira/assistente/sessoes", sessionId], updated);
       setDraft({ pais: "Brasil", moeda: "BRL", ...(updated.draft || {}) });
       setFile(null);
+      setRecordedAudioReady(false);
+      setRecordedDuration(0);
       setSourceText("");
       toast({ title: "Prévia gerada", description: "Revise os dados antes de continuar." });
     },
@@ -284,7 +414,7 @@ export default function CarteiraAssistentePage() {
   });
 
   const currentIndex = STEPS.findIndex((item) => item.id === step);
-  const isAnalyzable = Boolean(file || sourceText.trim());
+  const isAnalyzable = !recording && Boolean(file || sourceText.trim());
   const suggestions = session?.suggestions || {};
   const conflicts = suggestions.conflitos && typeof suggestions.conflitos === "object" ? suggestions.conflitos : {};
   const recommendations = recommendationsQuery.data?.recomendacoes || [];
@@ -386,11 +516,12 @@ export default function CarteiraAssistentePage() {
                     type="button"
                     role="tab"
                     aria-selected={selected}
+                    disabled={recording && item.id !== "conversa"}
                     onClick={() => {
                       setMethod(item.id);
                       if (item.id === "manual") window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
                     }}
-                    className={`flex min-h-14 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors sm:text-sm ${selected ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700 hover:border-blue-300"}`}
+                    className={`flex min-h-14 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm ${selected ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700 hover:border-blue-300"}`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="min-w-0 flex-1">{item.title}</span>
@@ -433,10 +564,73 @@ export default function CarteiraAssistentePage() {
                     <p className="mt-1 text-sm text-slate-600">{METHODS.find((item) => item.id === method)?.description}</p>
                   </div>
                   {method === "conversa" && <Textarea value={sourceText} onChange={(event) => setSourceText(event.target.value)} rows={7} placeholder="Ex.: Tenho um terreno em Campinas com aproximadamente 800 m²..." />}
-                  <input ref={fileRef} className="hidden" type="file" accept={sourceAccept} onChange={(event) => setFile(event.target.files?.[0] || null)} />
-                  <Button type="button" variant="outline" className="w-full" onClick={() => fileRef.current?.click()}>
-                    {method === "conversa" ? <Mic className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}{file ? file.name : method === "conversa" ? "Enviar áudio" : "Escolher arquivo"}
-                  </Button>
+                  <input
+                    ref={fileRef}
+                    className="hidden"
+                    type="file"
+                    accept={sourceAccept}
+                    onChange={(event) => {
+                      const selectedFile = event.target.files?.[0] || null;
+                      setFile(selectedFile);
+                      setRecordedAudioReady(false);
+                      setRecordedDuration(0);
+                    }}
+                  />
+                  {method === "conversa" ? (
+                    <>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={requestRecording}
+                          disabled={analyzeMutation.isPending}
+                          className={recording ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800" : ""}
+                          data-testid="btn-gravar-audio-carteira"
+                        >
+                          {recording ? <StopCircle className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+                          {recording ? "Parar e usar áudio" : recordedAudioReady ? "Gravar novamente" : "Falar agora"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileRef.current?.click()}
+                          disabled={recording || analyzeMutation.isPending}
+                          data-testid="btn-enviar-audio-carteira"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Enviar áudio
+                        </Button>
+                      </div>
+                      {recording && (
+                        <div
+                          role="status"
+                          aria-live="polite"
+                          className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+                          data-testid="status-gravando-audio-carteira"
+                        >
+                          <span className="relative flex h-3 w-3 shrink-0">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+                          </span>
+                          <span className="font-semibold">Gravando sua fala</span>
+                          <span className="ml-auto tabular-nums">{formatRecordingTime(recordingSeconds)}</span>
+                        </div>
+                      )}
+                      {!recording && file && (
+                        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800" role="status">
+                          <span className="font-semibold">{recordedAudioReady ? "Áudio gravado pronto" : "Arquivo de áudio selecionado"}</span>
+                          <span className="mt-0.5 block break-all text-emerald-700/80">
+                            {recordedAudioReady && recordedDuration > 0 ? `${formatRecordingTime(recordedDuration)} · ` : ""}{file.name}
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-xs leading-5 text-slate-500">Você pode falar por até 5 minutos ou enviar uma gravação já existente.</p>
+                    </>
+                  ) : (
+                    <Button type="button" variant="outline" className="w-full" onClick={() => fileRef.current?.click()}>
+                      <Upload className="mr-2 h-4 w-4" />{file ? file.name : "Escolher arquivo"}
+                    </Button>
+                  )}
                   <Button type="button" disabled={!isAnalyzable || analyzeMutation.isPending} onClick={() => analyzeMutation.mutate()} className="w-full bg-blue-600 text-white hover:bg-blue-700">{analyzeMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}Gerar prévia editável</Button>
                   <p className="text-xs leading-5 text-slate-500">A extração preenche apenas campos vazios. Qualquer divergência será apresentada para sua escolha.</p>
                 </>
@@ -547,9 +741,9 @@ export default function CarteiraAssistentePage() {
       )}
 
       <footer className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur">
-        <Button variant="outline" disabled={currentIndex === 0 || updateMutation.isPending} onClick={() => setJourneyUrl({ step: STEPS[Math.max(0, currentIndex - 1)].id })}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
+        <Button variant="outline" disabled={currentIndex === 0 || updateMutation.isPending || recording} onClick={() => setJourneyUrl({ step: STEPS[Math.max(0, currentIndex - 1)].id })}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
         {step !== "conexao" ? (
-          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={(step === "cadastro" && !String(draft.nome || "").trim()) || (step === "intencao" && !draft.intencao) || (step === "analise" && !draft.analise_revisada) || updateMutation.isPending} onClick={() => updateMutation.mutate({
+          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={recording || (step === "cadastro" && !String(draft.nome || "").trim()) || (step === "intencao" && !draft.intencao) || (step === "analise" && !draft.analise_revisada) || updateMutation.isPending} onClick={() => updateMutation.mutate({
             nextStep: STEPS[currentIndex + 1].id,
             payload: step === "intencao"
               ? { intencao: draft.intencao }
@@ -563,6 +757,16 @@ export default function CarteiraAssistentePage() {
           <Button className="bg-emerald-600 text-white hover:bg-emerald-700" disabled={finishMutation.isPending} onClick={() => finishMutation.mutate()}>{finishMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}{selectedMembers.length ? `Concluir e guardar ${selectedMembers.length} ${selectedMembers.length === 1 ? "indicação" : "indicações"}` : "Concluir sem conexões"}</Button>
         )}
       </footer>
+
+      <BrowserPermissionHelp
+        open={micPermissionHelpOpen}
+        onOpenChange={setMicPermissionHelpOpen}
+        permission="microphone"
+        blocked={micBlocked}
+        onRetry={startRecording}
+        fallbackLabel="Enviar áudio"
+        onFallback={() => fileRef.current?.click()}
+      />
     </main>
   );
 }

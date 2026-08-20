@@ -44,6 +44,8 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 
 Contas novas: `credenciais validadas -> aceites -> personalizacao -> perfil -> configuracao -> conexoes -> pronto -> acesso liberado`.
 
+Quando a conta nasceu de convite com aliado conector identificado, a conclusao da etapa Pronto cria de forma idempotente a solicitacao de Aura e muda o convite de `termos_aceitos` para `aguardando_avaliacao_aura`; sem conector, o acesso inicial e ativado diretamente.
+
 Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites depois da etapa Pronto.
 
 Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback, refresh ou webhook nao pode criar outro usuario, pagamento ou aceite.
@@ -70,6 +72,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - Aceites anteriores a Personalizacao aparecem como uma preparacao da jornada, sem marcar ou destacar a etapa 5; a numeracao continua reservada as cinco etapas visiveis do onboarding.
 - A tela de aceites informa antes da acao que a localizacao do dispositivo e obrigatoria e interrompe o envio com mensagem orientativa quando o navegador nao concede a permissao.
 - Cada acao recomendada da etapa Pronto conclui a jornada e redireciona ao destino interno escolhido; jornadas legadas ainda preservam seus aceites finais.
+- A conclusao do novo onboarding com aliado conector gera um unico token de avaliacao de Aura, torna a pendencia acionavel na Agenda do conector e preserva esse estado em repeticoes ou retomadas.
 - A solicitacao de adesao reutiliza a comunidade do convite original quando o candidato ainda nao possui relacao M2M como membro; refresh ou retomada nao perde essa origem.
 - Status cadastral so pode ser `informado`, `enviado` ou `pendente` sem evidencia externa.
 - Selecao de finalidade nao publica perfil, imovel ou oportunidade.

@@ -489,6 +489,7 @@ const REDES_DISPONIVEIS = [
 interface Membro {
   id: string;
   nome: string;
+  nome_completo?: string | null;
   email?: string;
   telefone?: string;
   whatsapp?: string;
@@ -568,6 +569,7 @@ interface Membro {
 
 const PROFILE_EDITABLE_FIELDS: Array<keyof Membro> = [
   "nome",
+  "nome_completo",
   "email",
   "telefone",
   "whatsapp",
@@ -818,6 +820,7 @@ export default function MeuPerfilPage() {
       const tiposAlianca = uniqueContributionAreas(membro.tipos_alianca);
       setForm({
         ...membro,
+        nome_completo: membro.nome_completo || membro.nome || null,
         link_site: sanitizeLinkSite(membro.link_site),
         tipos_alianca: tiposAlianca,
         em_built_capital: hasAporteFinanceiro(tiposAlianca) ? true : membro.em_built_capital,
@@ -1149,10 +1152,6 @@ export default function MeuPerfilPage() {
     }
     if (!hasInternationalDialCode(normalizedTelefone) && !hasInternationalDialCode(normalizedWhatsapp)) {
       toast({ title: "Contato obrigatório", description: "Informe telefone ou WhatsApp com código internacional.", variant: "destructive" });
-      return;
-    }
-    if (!String(form.cpf || "").trim()) {
-      toast({ title: "CPF obrigatório", description: "Informe o CPF para salvar o perfil.", variant: "destructive" });
       return;
     }
     if (String(form.empresa || "").trim() && !String(form.cnpj || "").trim()) {
@@ -1804,7 +1803,7 @@ export default function MeuPerfilPage() {
                 <SectionLabel icon={User} label="Dados Pessoais" />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Nome completo">
+                  <Field label="Nome que aparecerá no perfil">
                     <Input
                       value={form.nome || ""}
                       onChange={e => set("nome", e.target.value)}
@@ -1820,16 +1819,6 @@ export default function MeuPerfilPage() {
                       required
                       className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
                       data-testid="input-perfil-email"
-                    />
-                  </Field>
-                  <Field label="CPF *">
-                    <Input
-                      value={form.cpf || ""}
-                      onChange={e => set("cpf", e.target.value)}
-                      required
-                      placeholder="000.000.000-00"
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-brand-gold/40"
-                      data-testid="input-perfil-cpf"
                     />
                   </Field>
                   <Field label="Telefone *">
@@ -2853,7 +2842,7 @@ function DadosFormalizacaoSection({
         if (data.bairro) next[fields.bairro] = data.bairro;
         if (data.localidade) next[fields.cidade] = data.localidade;
         if (data.uf) next[fields.estado] = data.uf;
-        next[fields.pais] = current[fields.pais] || "Brasil";
+        Object.assign(next, { [fields.pais]: current[fields.pais] || "Brasil" });
         return next;
       });
     } catch (error) {
@@ -2883,6 +2872,9 @@ function DadosFormalizacaoSection({
         </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Nome completo">
+          <Input value={form.nome_completo || ""} onChange={e => setField("nome_completo", e.target.value)} data-testid="input-formalizacao-nome-completo" />
+        </Field>
         <Field label="Nacionalidade">
           <Input value={form.nacionalidade || ""} onChange={e => setField("nacionalidade", e.target.value)} data-testid="input-perfil-nacionalidade" />
         </Field>
@@ -2899,7 +2891,7 @@ function DadosFormalizacaoSection({
           <Input type="date" value={form.data_nascimento || ""} onChange={e => setField("data_nascimento", e.target.value)} data-testid="input-perfil-data-nascimento" />
         </Field>
         <Field label="CPF">
-          <Input value={form.cpf || ""} onChange={e => setField("cpf", e.target.value)} data-testid="input-formalizacao-cpf" />
+          <Input value={form.cpf || ""} onChange={e => setField("cpf", e.target.value)} inputMode="numeric" placeholder="000.000.000-00" data-testid="input-formalizacao-cpf" />
         </Field>
         <Field label="RG">
           <Input value={form.rg || ""} onChange={e => setField("rg", e.target.value)} data-testid="input-perfil-rg" />

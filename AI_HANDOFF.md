@@ -11,6 +11,9 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 ## Tocando Agora
 - Evitar reabrir acesso global aos nucleos da BIA. Se alterar `bia-detalhe.tsx`, preservar a lista filtrada `allowedNucleoTabs`.
 - Este chat altera o resolvedor de comunidade da adesao e a configuracao de finalidades/intencoes no Meu Perfil, preservando rotas, sidebar e estruturas de BIA/OPA/Alliances.
+- Este chat tambem altera somente a captura de voz em `carteira-assistente.tsx` e o helper generico de gravacao; nao altera BIAs, OPAs ou a estrutura de Alliances.
+- Este chat separa o nome publico (`nome`) do nome de formalizacao (`nome_completo`) no Meu Perfil e toca apenas os fallbacks de qualificacao formal em `server/routes.ts`; nao altera fluxos, papeis ou estrutura de BIA.
+- Este chat corrige somente a conclusao do novo onboarding em `server/routes.ts`: convites com aliado conector passam de `termos_aceitos` para `aguardando_avaliacao_aura`, incluindo reparo idempotente de jornadas ja concluidas.
 
 ## Cuidado
 - Antes de editar arquivos ja modificados, rode `git status --short` e leia o trecho atual.

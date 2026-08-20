@@ -1,5 +1,6 @@
 export interface ProfileCompletionSource {
   nome?: unknown;
+  nome_completo?: unknown;
   email?: unknown;
   cpf?: unknown;
   telefone?: unknown;
@@ -76,8 +77,9 @@ export function getProfileCompletion(profile?: ProfileCompletionSource | null): 
 
   const checks: ProfileCompletionItem[] = [
     { key: "foto", label: "Foto de perfil", complete: hasValue(data.foto_perfil) || hasValue(data.foto) },
-    { key: "nome", label: "Nome completo", complete: hasValue(data.nome) },
+    { key: "nome", label: "Nome que aparecerá no perfil", complete: hasValue(data.nome) },
     { key: "email", label: "E-mail", complete: hasValue(data.email) },
+    { key: "nome_completo", label: "Nome completo para formalização", complete: hasValue(data.nome_completo) },
     { key: "cpf", label: "CPF", complete: hasValue(data.cpf) },
     { key: "telefone", label: "Telefone", complete: hasValue(data.telefone) },
     { key: "whatsapp", label: "WhatsApp", complete: hasValue(data.whatsapp) },

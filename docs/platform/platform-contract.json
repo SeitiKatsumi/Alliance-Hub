@@ -37,13 +37,13 @@
       "doc": "docs/platform/modules/perfil-rede-empresa.md",
       "keywords": ["perfil", "membro", "empresa", "funcionario", "comunidade", "comunidade mae", "rede", "avatar", "permissao empresarial"],
       "routes": ["/meu-perfil", "/area-membros", "/membro/:id", "/comunidade", "/comunidade/:id", "/admin?tab=membros"],
-      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/membros.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx", "client/src/lib/ramos-segmentos.ts"],
+      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/membros.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx", "client/src/lib/ramos-segmentos.ts", "client/src/lib/profile-completion.ts"],
       "backendFiles": ["server/routes.ts", "shared/company-access.ts", "shared/contribution-areas.ts", "shared/initial-onboarding.ts", "shared/member-community.ts", "shared/profile-taxonomy.ts", "shared/schema.ts"],
       "apiPrefixes": ["/api/membros", "/api/membros-built", "/api/minha-conta/finalidades", "/api/comunidades"],
       "dataStores": ["Directus cadastro_geral", "PostgreSQL users", "PostgreSQL membros", "PostgreSQL user_account_purposes", "PostgreSQL membro_comunidade_mae", "Directus relacoes de comunidade"],
       "roles": ["membro", "funcionario", "gestor de empresa", "aliado", "admin", "superadmin"],
-      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "O convite original preserva a comunidade de origem durante a adesao mesmo antes da relacao M2M de membro.", "Funcionario possui identidade e auditoria proprias.", "Cadastro, onboarding e edicao de perfil usam os mesmos campos e taxonomias de atuacao profissional e contribuicao.", "Meu Perfil reutiliza as intencoes canonicas do onboarding e salva finalidade e intencoes juntas sem alterar vinculos de membro.", "Cards de recomendacao aceitam foto Directus ou URL externa e preservam fallback visual."],
-      "tests": ["shared/company-access.test.ts", "shared/member-community.test.ts", "server/member-business-feed.test.ts"]
+      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "O convite original preserva a comunidade de origem durante a adesao mesmo antes da relacao M2M de membro.", "Funcionario possui identidade e auditoria proprias.", "Cadastro, onboarding e edicao de perfil usam os mesmos campos e taxonomias de atuacao profissional e contribuicao.", "Meu Perfil reutiliza as intencoes canonicas do onboarding e salva finalidade e intencoes juntas sem alterar vinculos de membro.", "Cards de recomendacao aceitam foto Directus ou URL externa e preservam fallback visual.", "O nome publico usa cadastro_geral.nome; nome_completo e CPF ficam restritos a formalizacao e nao alteram a identidade exibida."],
+      "tests": ["client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts", "shared/member-community.test.ts", "server/member-business-feed.test.ts"]
     },
     {
       "id": "built-vitrine",
@@ -93,13 +93,13 @@
       "doc": "docs/platform/modules/carteira.md",
       "keywords": ["carteira", "patrimonio", "imovel", "pulso", "documento do imovel", "alerta patrimonial", "diagnostico", "demanda", "compartilhamento"],
       "routes": ["/carteira", "/carteira/:id", "/carteira/novo", "/oportunidades", "/oportunidades/:id"],
-      "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx"],
+      "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx", "client/src/lib/audio-recording.ts"],
       "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/schema.ts"],
       "apiPrefixes": ["/api/carteira", "/api/oportunidades"],
       "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL property_assistant_sessions"],
       "roles": ["proprietario", "leitor convidado", "colaborador", "administrador do imovel"],
-      "invariants": ["Carteira privada nao se mistura ao financeiro de BIA.", "Edicao relevante gera evento.", "Publicacao e compartilhamento sao opt-in e por imovel."],
-      "tests": ["server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
+      "invariants": ["Carteira privada nao se mistura ao financeiro de BIA.", "Edicao relevante gera evento.", "Publicacao e compartilhamento sao opt-in e por imovel.", "Conversa com a IA aceita texto, arquivo de audio e gravacao direta sem bloquear o cadastro quando o microfone for negado."],
+      "tests": ["client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
     },
     {
       "id": "aura",

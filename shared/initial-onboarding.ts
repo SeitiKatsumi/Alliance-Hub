@@ -27,6 +27,23 @@ export const INITIAL_ONBOARDING_LEGACY_STEPS = [
 
 export type InitialOnboardingStep = typeof INITIAL_ONBOARDING_STEPS[number];
 
+export type InitialOnboardingInviteCompletionAction =
+  | "request_aura"
+  | "activate_access"
+  | "preserve_status";
+
+export function resolveInitialOnboardingInviteCompletion(invite: {
+  status?: unknown;
+  candidato_membro_id?: unknown;
+  invitador_membro_id?: unknown;
+} | null | undefined): InitialOnboardingInviteCompletionAction {
+  const status = String(invite?.status || "");
+  if (status !== "termos_aceitos") return "preserve_status";
+  const hasCandidate = Boolean(String(invite?.candidato_membro_id || "").trim());
+  const hasConnector = Boolean(String(invite?.invitador_membro_id || "").trim());
+  return hasCandidate && hasConnector ? "request_aura" : "activate_access";
+}
+
 export function getInitialOnboardingSteps(flowVersion: unknown = 2): readonly InitialOnboardingStep[] {
   return Number(flowVersion || 1) >= 2 ? INITIAL_ONBOARDING_STEPS : INITIAL_ONBOARDING_LEGACY_STEPS;
 }

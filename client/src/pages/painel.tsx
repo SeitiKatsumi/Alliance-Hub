@@ -9,6 +9,7 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { InviteQrCode } from "@/components/invite-qr-code";
 import { CompanyAccessPanel } from "@/components/company-access-panel";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
+import { ModuleInfo } from "@/components/module-info";
 import { isBuiltMemberForAura } from "@/lib/aura-access";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -969,6 +970,8 @@ export default function PainelPage() {
 
   const nomeExibido = user?.nome || user?.username || "membro";
   const roleLabel = deriveRole(user);
+  const canUsePremium = ["admin", "manager", "superadmin"].includes(String(user?.role || "").toLowerCase())
+    || user?.membership?.active === true;
   const isBuiltAlliancesMember = environmentAccessFor(user, "alliances").canAccess;
 
   function goToEnvironment(target: EnvironmentTarget, path: string) {
@@ -1030,10 +1033,14 @@ export default function PainelPage() {
                 {avatarInitials || <LayoutDashboard className="w-4 h-4" />}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex items-center gap-1">
               <h1 className="text-xl font-semibold text-foreground">
                 {greeting()}, {nomeExibido}
               </h1>
+              <ModuleInfo
+                title="Início"
+                description="Reúne sua atividade, pendências, Carteira, negócios e atalhos dos ambientes BUILT em uma visão única."
+              />
             </div>
           </div>
           {user?.membro_directus_id && (
@@ -1081,8 +1088,8 @@ export default function PainelPage() {
         </div>
       </div>
 
-      <Tabs value={dashboardTab} onValueChange={handleDashboardTabChange} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1 lg:grid-cols-4">
+      <Tabs value={!canUsePremium && dashboardTab === "gestao" ? "inicio" : dashboardTab} onValueChange={handleDashboardTabChange} className="space-y-4">
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1 ${canUsePremium ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
           <TabsTrigger value="inicio" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-inicio">
             <LayoutDashboard className="w-4 h-4 text-blue-600" />
             Início
@@ -1095,10 +1102,10 @@ export default function PainelPage() {
             <BriefcaseBusiness className="w-4 h-4 text-cyan-600" />
             Negócios para você
           </TabsTrigger>
-          <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
+          {canUsePremium && <TabsTrigger value="gestao" className="gap-2 text-xs sm:text-sm" data-testid="tab-dashboard-gestao">
             <SlidersHorizontal className="w-4 h-4 text-violet-600" />
             Gestão
-          </TabsTrigger>
+          </TabsTrigger>}
         </TabsList>
 
         <TabsContent value="inicio" className="space-y-4 mt-0">
@@ -1497,7 +1504,7 @@ export default function PainelPage() {
               </TabsTrigger>
               <TabsTrigger value="bias" className="gap-2 text-xs sm:text-sm" data-testid="tab-carteira-bias">
                 <Briefcase className="h-4 w-4 text-amber-500" />
-                Minhas BIAs
+                Minhas Alianças
               </TabsTrigger>
             </TabsList>
 
@@ -1509,7 +1516,7 @@ export default function PainelPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-amber-500" />
-              Minhas BIAs
+              Minhas Alianças
             </h2>
             <Button
               variant="ghost"
@@ -1841,7 +1848,12 @@ export default function PainelPage() {
           />
         </TabsContent>
 
-        <TabsContent value="gestao" className="space-y-4 mt-0">
+        {canUsePremium && <TabsContent value="gestao" className="space-y-4 mt-0">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4 text-left" onClick={() => navigate("/comunidade")}><Globe className="h-5 w-5 text-emerald-600" /><span><span className="block font-semibold">Comunidades e ROs</span><span className="block text-xs font-normal text-muted-foreground">Acesse sua comunidade e rodadas de oportunidade.</span></span></Button>
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4 text-left" onClick={() => navigate("/area-membros")}><Users className="h-5 w-5 text-blue-600" /><span><span className="block font-semibold">Rede de Membros Aliados</span><span className="block text-xs font-normal text-muted-foreground">Encontre membros da rede BUILT.</span></span></Button>
+            <Button variant="outline" className="h-auto justify-start gap-3 p-4 text-left" onClick={() => navigate("/banco-ativos")}><Landmark className="h-5 w-5 text-amber-600" /><span><span className="block font-semibold">Banco de Ativos</span><span className="block text-xs font-normal text-muted-foreground">Consulte os ativos compartilhados.</span></span></Button>
+          </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -2001,7 +2013,7 @@ export default function PainelPage() {
             </div>
           </div>
 
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
 
       <Dialog

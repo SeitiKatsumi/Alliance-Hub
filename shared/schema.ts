@@ -1053,6 +1053,56 @@ export const insertAnuncioSchema = createInsertSchema(anuncios).omit({
 export type InsertAnuncio = z.infer<typeof insertAnuncioSchema>;
 export type Anuncio = typeof anuncios.$inferSelect;
 
+export const membroAnuidades = pgTable("membro_anuidades", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  membro_id: text("membro_id").notNull(),
+  user_id: text("user_id"),
+  comunidade_id: text("comunidade_id").notNull(),
+  provider: text("provider").notNull(),
+  valor: numeric("valor", { precision: 14, scale: 2 }).notNull(),
+  moeda: text("moeda").notNull().default("BRL"),
+  starts_at: timestamp("starts_at").notNull(),
+  ends_at: timestamp("ends_at").notNull(),
+  external_id: text("external_id"),
+  status: text("status").notNull().default("pending"),
+  metadata: jsonb("metadata").notNull().default({}),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  providerExternalUnique: unique("membro_anuidades_provider_external_uniq").on(table.provider, table.external_id),
+}));
+
+export const biaPatrimonialSnapshots = pgTable("bia_patrimonial_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  patrimonio_liquido: numeric("patrimonio_liquido", { precision: 16, scale: 2 }).notNull(),
+  data_base: date("data_base").notNull(),
+  moeda: text("moeda").notNull().default("BRL"),
+  metodologia: text("metodologia").notNull(),
+  liquidez: text("liquidez"),
+  confirmado: boolean("confirmado").notNull().default(true),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const biaAporteSolicitacoes = pgTable("bia_aporte_solicitacoes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  membro_id: text("membro_id").notNull(),
+  valor: numeric("valor", { precision: 16, scale: 2 }).notNull(),
+  moeda: text("moeda").notNull().default("BRL"),
+  comprovante_file_id: text("comprovante_file_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  observacao: text("observacao"),
+  fluxo_caixa_id: text("fluxo_caixa_id"),
+  decidido_por_user_id: text("decidido_por_user_id"),
+  decidido_por_membro_id: text("decidido_por_membro_id"),
+  decidido_em: timestamp("decidido_em"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export function getQuinzena(dateStr: string): { inicio: string; fim: string } {
   const [y, m, d] = dateStr.split("-").map(Number);
   const ultimoDia = new Date(y, m, 0).getDate();

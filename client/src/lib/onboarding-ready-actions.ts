@@ -1,7 +1,7 @@
 export const ONBOARDING_READY_DESTINATION_HREFS = {
   imovel: "/carteira/novo",
   profissional: "/meu-perfil",
-  capital: "/built-capital",
+  capital: "/agenda-alertas?view=alertas&group=chamadas-capital",
   rede: "/vitrine/parceiros",
 } as const;
 

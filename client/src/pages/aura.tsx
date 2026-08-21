@@ -38,6 +38,7 @@ import {
 } from "@/lib/aura-audio";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { BrowserPermissionHelp } from "@/components/browser-permission-help";
+import { ModuleInfo } from "@/components/module-info";
 
 interface AuraResult {
   score: number | null;
@@ -1020,6 +1021,10 @@ export default function AuraPage() {
         <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#D7BB7D]" />
           Aura Percebida
+          <ModuleInfo
+            title="Aura Percebida"
+            description="Registra percepções reputacionais entre pessoas vinculadas na rede e consolida as evidências nas dimensões Técnica, Relacional e Comportamental."
+          />
         </h1>
         <p className="text-sm text-muted-foreground">
           Reputação construída pela percepção da comunidade sobre você.

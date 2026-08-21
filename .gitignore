@@ -4,6 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+*.log
 .env
 .local/
 /data/documentos-aliancas-fallback.json

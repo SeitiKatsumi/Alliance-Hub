@@ -1,7 +1,6 @@
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 import type { AppUser } from "@/hooks/use-auth";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
 import {
@@ -44,9 +42,9 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
     return {
       canAccess,
       target,
-      title: "Acesso à BUILT Vitrine",
-      description: "Para acessar a BUILT Vitrine, selecione Imóvel ou oportunidade nas finalidades da conta ou habilite seu perfil público de mercado.",
-      actionLabel: "Atualizar perfil",
+      title: "Área de Vitrine",
+      description: "Todos os usuários podem consultar profissionais, fornecedores, demandas e OBAs. Somente perfis profissionais podem optar por aparecer na Vitrine.",
+      actionLabel: "Abrir Vitrine",
     };
   }
 
@@ -63,9 +61,9 @@ export function environmentAccessFor(user: AppUser | null | undefined, target: E
   return {
     canAccess,
     target,
-    title: "Torne-se membro BUILT Alliances",
-    description: "A BUILT Alliances é restrita a membros da rede. Para acessar esse ambiente, conclua sua adesão como membro.",
-    actionLabel: "Virar membro",
+    title: "Área de Alianças",
+    description: "Este ambiente é exclusivo para quem desenvolve ou participa de uma aliança. Consulte seus convites e chamadas na Agenda.",
+    actionLabel: "Ver Agenda",
   };
 }
 
@@ -79,50 +77,18 @@ export function EnvironmentAccessDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const [isRequestingMembership, setIsRequestingMembership] = useState(false);
 
   async function handlePrimaryAction() {
-    if (access?.target !== "alliances") {
+    if (access?.target === "alliances") {
       onOpenChange(false);
-      navigate("/meu-perfil");
+      navigate("/agenda-alertas?view=alertas");
       return;
     }
 
-    setIsRequestingMembership(true);
-    try {
-      const res = await fetch("/api/opa/solicitar-adesao", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Não foi possível iniciar a adesão.");
+    if (access) {
       onOpenChange(false);
-      if (data.alreadyMember) {
-        navigate("/area-aliancas?tab=opas");
-        return;
-      }
-      toast({
-        title: "Pagamento de adesão gerado",
-        description: "Vamos direcionar você para concluir a adesão.",
-      });
-      if (data.checkout_url) {
-        window.location.assign(data.checkout_url);
-      } else if (data.token) {
-        navigate(`/pagamento/${data.token}`);
-      } else if (data.link) {
-        navigate(String(data.link).replace(/^https?:\/\/[^/]+/i, ""));
-      }
-    } catch (err: any) {
-      toast({
-        title: "Não foi possível iniciar a adesão",
-        description: err?.message || "Verifique seu cadastro e tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRequestingMembership(false);
+      navigate("/meu-perfil");
+      return;
     }
   }
 
@@ -142,9 +108,7 @@ export function EnvironmentAccessDialog({
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700"
             onClick={handlePrimaryAction}
-            disabled={isRequestingMembership}
           >
-            {isRequestingMembership && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {access?.actionLabel || "Ver perfil"}
           </Button>
         </DialogFooter>

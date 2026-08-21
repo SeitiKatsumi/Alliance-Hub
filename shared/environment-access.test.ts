@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canAccessBuiltEnvironment, isBuiltAlliancesMember } from "./environment-access";
+import { canAccessBuiltEnvironment, canPublishVitrineProfile, isBuiltAlliancesMember } from "./environment-access";
 
-test("finalidade de imóvel libera a Vitrine sem publicar o perfil", () => {
+test("todo usuário cadastrado acessa a Área de Vitrine", () => {
   const user = {
     role: "user",
     account_purposes: ["imoveis"],
@@ -14,11 +14,21 @@ test("finalidade de imóvel libera a Vitrine sem publicar o perfil", () => {
   assert.equal(canAccessBuiltEnvironment(user, "alliances"), false);
 });
 
+test("perfil profissional acessa a Área de Vitrine sem publicar o perfil", () => {
+  assert.equal(canAccessBuiltEnvironment({
+    role: "user",
+    account_purposes: ["profissional"],
+    na_vitrine: false,
+  }, "vitrine"), true);
+  assert.equal(canPublishVitrineProfile({ role: "user", account_purposes: ["profissional"] }), true);
+  assert.equal(canPublishVitrineProfile({ role: "user", account_purposes: ["imoveis"] }), false);
+});
+
 test("finalidade de imóvel também libera Alliances quando a pessoa é membro", () => {
   const user = {
     role: "user",
     account_purposes: ["imoveis"],
-    em_membros_built: true,
+    has_alliance_participation: true,
   };
 
   assert.equal(isBuiltAlliancesMember(user), true);
@@ -27,7 +37,7 @@ test("finalidade de imóvel também libera Alliances quando a pessoa é membro",
 
 test("mantém acessos legados e permissões explícitas de funcionário", () => {
   assert.equal(canAccessBuiltEnvironment({ role: "user", na_vitrine: true }, "vitrine"), true);
-  assert.equal(canAccessBuiltEnvironment({ role: "membro" }, "alliances"), true);
+  assert.equal(canAccessBuiltEnvironment({ role: "membro", has_alliance_participation: true }, "alliances"), true);
   assert.equal(canAccessBuiltEnvironment({
     role: "user",
     account_purposes: ["imoveis"],

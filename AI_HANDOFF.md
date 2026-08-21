@@ -9,11 +9,16 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat move o acesso visual da Aura para o resumo de `meu-perfil.tsx`, com o mesmo card do Inicio, e remove apenas o atalho lateral; rotas, calculo, permissoes e dados da Aura permanecem intactos.
+- Este chat esta concluindo a reorganizacao solicitada pelo cliente: libera consulta da Vitrine para autenticados sem liberar publicacao, restringe a Area de Aliancas a BIAs relacionadas, aplica anuidade nas abas premium e completa as interfaces patrimoniais. Ao tocar `server/routes.ts`, `area-aliancas.tsx`, `painel.tsx` e `app-sidebar.tsx`, preserva as permissoes cumulativas e os filtros de nucleos existentes.
+- A branch `codex/member-portfolio-reorg` reorganiza os nomes dos ambientes, remove Capital apenas da navegação e adiciona anuidade/Carteira patrimonial. Ao tocar `server/routes.ts` e `app-sidebar.tsx`, preserva integralmente as permissões e abas filtradas das BIAs/OPAs existentes.
 - Evitar reabrir acesso global aos nucleos da BIA. Se alterar `bia-detalhe.tsx`, preservar a lista filtrada `allowedNucleoTabs`.
 - Este chat altera o resolvedor de comunidade da adesao e a configuracao de finalidades/intencoes no Meu Perfil, preservando rotas, sidebar e estruturas de BIA/OPA/Alliances.
 - Este chat tambem altera somente a captura de voz em `carteira-assistente.tsx` e o helper generico de gravacao; nao altera BIAs, OPAs ou a estrutura de Alliances.
 - Este chat separa o nome publico (`nome`) do nome de formalizacao (`nome_completo`) no Meu Perfil e toca apenas os fallbacks de qualificacao formal em `server/routes.ts`; nao altera fluxos, papeis ou estrutura de BIA.
 - Este chat corrige somente a conclusao do novo onboarding em `server/routes.ts`: convites com aliado conector passam de `termos_aceitos` para `aguardando_avaliacao_aura`, incluindo reparo idempotente de jornadas ja concluidas.
+- Este chat remove o atalho duplicado da Carteira em `app-sidebar.tsx`, redireciona `/carteira` para a aba do Inicio em `App.tsx` e torna a ajuda dos cabecalhos acionavel; rotas de cadastro e detalhe da Carteira permanecem intactas.
+- Este chat faz `PerfilOnboardingModal` rejeitar respostas HTTP de erro ao carregar o membro; indisponibilidade do backend nao volta a solicitar aceites ja registrados.
 
 ## Cuidado
 - Antes de editar arquivos ja modificados, rode `git status --short` e leia o trecho atual.

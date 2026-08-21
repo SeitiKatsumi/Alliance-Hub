@@ -13,7 +13,8 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## APIs e provedores
 
-- Stripe/checkout e webhooks de adesao.
+- Anuidade de Membro BUILT de R$ 3.197/ano: Asaas no Brasil e Stripe nos demais paises.
+- PostgreSQL `membro_anuidades` e a fonte de vigencia; `/api/me` separa usuario cadastrado, Membro BUILT, comunidades e permissoes.
 - Pinbank em `server/pinbank-client.ts`: onboarding, documentos, conta, saldo, extrato e cobrancas.
 - OpenAI em rotas de audio, texto, arquivo e analise.
 - Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
@@ -33,7 +34,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 ## Estados e transicoes
 
-- Pagamento/cobranca: criado, pendente, pago, falhou, cancelado/estornado.
+- Anuidade: pending, active, expired, canceled, refunded ou disputed. Cancelamento preserva acesso ate o fim pago; reembolso/chargeback encerra vigencia.
 - Integracao: nao configurada, configurada, degradada ou indisponivel.
 - IA: recebida, processando, proposta, confirmada ou falhou.
 

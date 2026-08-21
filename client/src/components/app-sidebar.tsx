@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Sparkles, LayoutDashboard, ChevronDown, Users, UserCircle, TrendingUp, Globe2, Gem, BellRing } from "lucide-react";
+import { LayoutDashboard, ChevronDown, Users, UserCircle, Briefcase, Globe2, Gem, BellRing } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,8 @@ import { hasEmployeeModuleAccess } from "@/lib/company-access";
 import { agendaAlertBadgeLabel } from "@/lib/agenda-alerts";
 import builtLogo from "@assets/Logo_Built_3_Horizontal_Negativo.png";
 
+const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENABLED !== "false";
+
 export function AppSidebar() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "manager";
@@ -30,10 +32,9 @@ export function AppSidebar() {
   const [location, navigate] = useLocation();
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
   const canInicio = hasEmployeeModuleAccess(user, "inicio");
-  const canVitrine = hasEmployeeModuleAccess(user, "vitrine");
+  const canVitrine = hasEmployeeModuleAccess(user, "vitrine") && environmentAccessFor(user, "vitrine").canAccess;
   const canAlliances = hasEmployeeModuleAccess(user, "alliances");
-  const canCapital = hasEmployeeModuleAccess(user, "capital");
-  const canAura = hasEmployeeModuleAccess(user, "aura");
+  const canCapital = !MEMBER_PORTFOLIO_V2_ENABLED && hasEmployeeModuleAccess(user, "capital");
   const canAnyEnvironment = canVitrine || canAlliances || canCapital;
   const { data: alertCount } = useQuery<{ pendencias_ativas: number; display: number | "99+" | null }>({
     queryKey: ["/api/agenda-alertas/contador"],
@@ -118,24 +119,21 @@ export function AppSidebar() {
                       <SidebarMenuSubButton asChild isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine">
                         <button type="button" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
                           <Gem className="w-3.5 h-3.5" />
-                          <span>BUILT Vitrine</span>
+                          <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Vitrine" : "BUILT Vitrine"}</span>
                         </button>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>}
                     {canAlliances && <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas">
-                        <button type="button" onClick={() => handleEnvironmentClick("alliances", "/area-aliancas?tab=opas")}>
+                        <button type="button" onClick={() => handleEnvironmentClick("alliances", MEMBER_PORTFOLIO_V2_ENABLED ? "/area-aliancas?tab=bias" : "/area-aliancas?tab=opas")}>
                           <Users className="w-3.5 h-3.5" />
-                          <span>BUILT Alliances</span>
+                          <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances"}</span>
                         </button>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>}
                     {canCapital && <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital">
-                        <button type="button" onClick={() => handleEnvironmentClick("capital", "/built-capital")}>
-                          <TrendingUp className="w-3.5 h-3.5" />
-                          <span>BUILT Capital</span>
-                        </button>
+                        <button type="button" onClick={() => handleEnvironmentClick("capital", "/built-capital")}><Briefcase className="w-3.5 h-3.5" /><span>BUILT Capital</span></button>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>}
                   </SidebarMenuSub>
@@ -153,16 +151,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-
-              {/* Aura — visível para todos; consultar/registrar é restrito a membros */}
-              {canAura && <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location.startsWith("/aura")} data-testid="nav-aura" className="text-sm">
-                  <Link href="/aura">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Aura</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>}
 
               {/* Meu Perfil — sempre visível */}
               <SidebarMenuItem>

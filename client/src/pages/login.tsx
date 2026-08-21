@@ -433,11 +433,15 @@ export default function LoginPage() {
     };
   }, [regFotoPreview, regLogoPreview]);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    const submitted = new FormData(e.currentTarget);
     try {
-      await login({ email, password });
+      await login({
+        email: String(submitted.get("email") || email).trim(),
+        password: String(submitted.get("password") || password),
+      });
       navigate("/");
     } catch (err: any) {
       const msg = err?.message || "Credenciais inválidas";
@@ -984,14 +988,14 @@ export default function LoginPage() {
                       <Label htmlFor="email" className="text-sm text-white/75">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
-                        <Input id="email" type="email" data-testid="input-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" autoComplete="email" className={`${inputCls} pl-12`} required />
+                        <Input id="email" name="email" type="email" data-testid="input-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" autoComplete="email" className={`${inputCls} pl-12`} required />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="password" className="text-sm text-white/75">Senha</Label>
                       <div className="relative">
                         <KeyRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/45" />
-                        <Input id="password" data-testid="input-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" autoComplete="current-password" className={`${inputCls} pl-12 pr-11`} required />
+                        <Input id="password" name="password" data-testid="input-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" autoComplete="current-password" className={`${inputCls} pl-12 pr-11`} required />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/45 transition-colors hover:text-white/75">
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>

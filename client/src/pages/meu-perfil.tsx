@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InviteQrCode } from "@/components/invite-qr-code";
+import { ModuleInfo } from "@/components/module-info";
+import { AuraScore, getFaixaColor } from "@/components/aura-score";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -764,6 +766,11 @@ export default function MeuPerfilPage() {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const { data: auraData } = useQuery<{ score: number | null; n: number; faixa: string | null }>({
+    queryKey: ["/api/aura/score", membroId],
+    enabled: !!membroId,
+  });
   const [showPasswordFields, setShowPasswordFields] = useState({
     currentPassword: false,
     newPassword: false,
@@ -1493,6 +1500,27 @@ export default function MeuPerfilPage() {
         </div>
       </div>
       <div className="mt-4 space-y-3 text-xs">
+        {membroId && (
+          <a
+            href={`/aura/${encodeURIComponent(membroId)}`}
+            className="flex w-full items-center gap-3 rounded-lg border bg-white p-3 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            style={{ borderColor: auraData?.score != null ? `${getFaixaColor(auraData.score)}30` : undefined }}
+            aria-label="Abrir minha Aura"
+            data-testid="link-resumo-aura"
+          >
+            <AuraScore score={auraData?.score ?? null} size="sm" showLabel={false} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-[#001D34]">Aura Percebida</span>
+              <span className="mt-1 block text-xs text-slate-500">
+                {auraData?.score != null ? auraData.faixa : "Aguardando avaliações"}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">
+                {auraData?.score != null ? "resultado atual da rede" : "sem avaliações"}
+              </span>
+            </span>
+            <span className="shrink-0 text-sm font-semibold text-blue-700" aria-hidden="true">→</span>
+          </a>
+        )}
         <div>
           <p className="font-bold text-slate-700">Papel na BUILT</p>
           <p className="mt-1 break-words text-slate-600">{papeisBuilt.join(" + ") || "-"}</p>
@@ -1660,7 +1688,7 @@ export default function MeuPerfilPage() {
           </div>
 
           <div className="min-w-0">
-            <h1 className="flex items-start gap-2 text-xl font-bold leading-tight text-[#001D34] sm:items-center sm:gap-3 sm:text-2xl"><span aria-hidden="true" className="text-2xl sm:text-3xl">👋</span><span>Vamos personalizar sua experiência</span></h1>
+            <h1 className="flex items-start gap-2 text-xl font-bold leading-tight text-[#001D34] sm:items-center sm:gap-3 sm:text-2xl"><span aria-hidden="true" className="text-2xl sm:text-3xl">👋</span><span>Vamos personalizar sua experiência</span><ModuleInfo title="Meu Perfil" description="Controle o nome público, finalidades, áreas de contribuição, atuação, contatos e dados de formalização usados nos módulos da BUILT." /></h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Atualize suas informações para melhorar recomendações, conexões e oportunidades na BUILT.
             </p>
@@ -2445,7 +2473,7 @@ export default function MeuPerfilPage() {
             </Card>
 
             {/* Vitrine BUILT */}
-            <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
+            {prestadorSelecionado && <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Globe} label="Vitrine BUILT" />
                 <div
@@ -2453,7 +2481,12 @@ export default function MeuPerfilPage() {
                   style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
                 >
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-white">Aparecer na Vitrine</p>
+                    <p className="flex items-center gap-2 text-sm font-medium text-white">
+                      Aparecer na Vitrine
+                      <span title="Opção exclusiva para profissionais independentes, prestadores de serviços e fornecedores" aria-label="Opção exclusiva para profissionais independentes, prestadores de serviços e fornecedores">
+                        <Info className="h-4 w-4 text-white/45" />
+                      </span>
+                    </p>
                     <p className="text-xs text-white/35 leading-relaxed">
                       Quando ativo, os dados deste perfil serao usados no seu card publico da Vitrine.
                     </p>
@@ -2466,7 +2499,7 @@ export default function MeuPerfilPage() {
                   />
                 </div>
               </CardContent>
-            </Card>
+            </Card>}
 
             {/* Meu Convite */}
             <Card className="profile-onboarding-card" style={{ background: "#ffffff" }}>

@@ -53,6 +53,8 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 ## Invariantes
 
 - E-mail normalizado nao pode identificar duas contas ativas diferentes.
+- O login local envia os valores efetivamente preenchidos no formulario, inclusive quando email e senha vierem do preenchimento automatico do navegador.
+- Falha ao carregar o perfil do membro nunca e interpretada como ausencia de aceite e nao abre novamente os documentos ja aceitos.
 - Uma conta com `initial_onboarding_journeys.status != concluido` so acessa autenticacao, onboarding, aceites, upload autorizado e logout.
 - Etapas futuras nao podem ser gravadas antes da primeira pendencia; rascunhos e conclusoes sao retomaveis.
 - Perfil exclusivo de imovel ou oportunidade nao exige CPF.
@@ -76,7 +78,7 @@ Estados de convite, pagamento e usuario devem ser idempotentes. Repetir callback
 - A solicitacao de adesao reutiliza a comunidade do convite original quando o candidato ainda nao possui relacao M2M como membro; refresh ou retomada nao perde essa origem.
 - Status cadastral so pode ser `informado`, `enviado` ou `pendente` sem evidencia externa.
 - Selecao de finalidade nao publica perfil, imovel ou oportunidade.
-- A finalidade `imoveis` libera a entrada na BUILT Vitrine sem ativar a publicacao do perfil; BUILT Alliances continua condicionada ao vinculo de membro.
+- Todo usuario autenticado consulta a Area de Vitrine sem ativar a publicacao do perfil; Area de Aliancas continua condicionada ao vinculo com uma alianca.
 - Aceite registra versao, identidade, data/hora e evidencia do momento.
 - Localizacao do aceite e capturada pelo helper compartilhado com `status = capturada`, coordenadas validas, precisao e horario; perfil/endereco nao a substituem.
 - Falha de sincronizacao com Directus nao pode ser apresentada como cadastro concluido sem pendencia explicita.

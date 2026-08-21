@@ -14,6 +14,7 @@ import AgendaPage from "@/pages/agenda";
 import ConvitesPage from "@/pages/convites";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ModuleInfo } from "@/components/module-info";
 import { useAuth } from "@/hooks/use-auth";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -124,7 +125,13 @@ export default function AgendaAlertasPage() {
             <BellRing className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-foreground">Agenda e Alertas</h1>
+            <div className="flex items-center gap-1">
+              <h1 className="text-2xl font-bold text-foreground">Agenda e Alertas</h1>
+              <ModuleInfo
+                title="Agenda e Alertas"
+                description="Centraliza compromissos, convites, aprovações e pendências dos demais módulos, sempre com acesso direto à ação de origem."
+              />
+            </div>
             <p className="text-sm text-muted-foreground">Compromissos, pendências e atualizações em um só lugar.</p>
           </div>
         </div>

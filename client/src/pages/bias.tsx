@@ -3843,7 +3843,7 @@ export function BiaFormSheet({ open, onClose, bia, membros, isLoading, canDelete
 }
 
 // ---- Main Page ----
-export default function BiasPage() {
+export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolean } = {}) {
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -3884,8 +3884,9 @@ export default function BiasPage() {
     (!!editingBia?.aliado_built && editingBia.aliado_built === user.membro_directus_id)
   );
 
+  const biasEndpoint = relatedOnly ? "/api/bias?scope=related" : "/api/bias";
   const { data: biasRaw = [], isLoading: loadingBias, isError: biasLoadError, error: biasLoadErrorInfo } = useQuery<BiasProjeto[]>({
-    queryKey: ["/api/bias"],
+    queryKey: [biasEndpoint],
   });
 
   const { data: membrosRaw = [], isLoading: loadingMembros } = useQuery<Membro[]>({

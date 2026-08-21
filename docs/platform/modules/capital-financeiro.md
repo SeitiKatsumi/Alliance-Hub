@@ -8,6 +8,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 - `/bias/:id?tab=capital&capital=banco|documentos|financeiro|analises|calculadora`.
 - `/movimentacao-cotas/:biaId`.
+- BUILT Capital nao e mais ambiente de navegacao; URLs `/built-capital*` redirecionam para Agenda/Chamadas de Capital sem apagar dados historicos.
 - Paginas legadas redirecionadas: `/fluxo-caixa`, `/resultados`, `/bias-calculadora`, `/nucleo-capital`.
 - Implementacao principal em `client/src/pages/bia-detalhe.tsx`, `client/src/pages/fluxo-caixa.tsx`, `client/src/pages/resultados.tsx`, `client/src/pages/bias-calculadora.tsx`, `client/src/pages/nucleo-capital.tsx` e `client/src/pages/movimentacao-cotas.tsx`.
 
@@ -15,6 +16,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 
 - `/api/fluxo-caixa*`, categorias, tipos de CPP e anexos.
 - `/api/bias/:id/aportes`, `/info-comercial`, `/banco*`.
+- Chamadas de capital geram tarefas deduplicadas para finalidade `capital` e/ou contribuicao `Aporte Financeiro`.
 - Endpoints de percentuais/DM, valor de origem, cotas, transferencias, cobrancas e Pinbank.
 
 ## Dados e fontes de verdade

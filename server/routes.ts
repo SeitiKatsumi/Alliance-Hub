@@ -37,6 +37,8 @@ import {
 import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
+import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateMap, calculatePortfolioTotals, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "@shared/member-portfolio";
+import { canAccessBuiltEnvironment, canPublishVitrineProfile } from "@shared/environment-access";
 import {
   attachObjectToRegistryTraces,
   attachObjectToObjectTraces,
@@ -1781,9 +1783,44 @@ async function ensureInventarioTables() {
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_acessos_imovel_membro_unique ON carteira_acessos (imovel_id, membro_id) WHERE membro_id IS NOT NULL`);
 }
 
+async function ensureMemberPortfolioTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS membro_anuidades (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), membro_id text NOT NULL, user_id text,
+      comunidade_id text NOT NULL, provider text NOT NULL, valor numeric(14,2) NOT NULL,
+      moeda text NOT NULL DEFAULT 'BRL', starts_at timestamp NOT NULL, ends_at timestamp NOT NULL,
+      external_id text, status text NOT NULL DEFAULT 'pending', metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_at timestamp DEFAULT now() NOT NULL, updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS membro_anuidades_provider_external_uniq ON membro_anuidades (provider, external_id) WHERE external_id IS NOT NULL`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_membro_anuidades_vigencia ON membro_anuidades (membro_id, comunidade_id, ends_at DESC)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_patrimonial_snapshots (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bia_id text NOT NULL,
+      patrimonio_liquido numeric(16,2) NOT NULL, data_base date NOT NULL, moeda text NOT NULL DEFAULT 'BRL',
+      metodologia text NOT NULL, liquidez text, confirmado boolean NOT NULL DEFAULT true,
+      criado_por_user_id text, criado_por_membro_id text, created_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_patrimonial_snapshot ON bia_patrimonial_snapshots (bia_id, data_base DESC, created_at DESC)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_aporte_solicitacoes (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bia_id text NOT NULL, membro_id text NOT NULL,
+      valor numeric(16,2) NOT NULL, moeda text NOT NULL DEFAULT 'BRL', comprovante_file_id text NOT NULL,
+      status text NOT NULL DEFAULT 'pending', observacao text, fluxo_caixa_id text,
+      decidido_por_user_id text, decidido_por_membro_id text, decidido_em timestamp,
+      created_at timestamp DEFAULT now() NOT NULL, updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS bia_aporte_fluxo_uniq ON bia_aporte_solicitacoes (fluxo_caixa_id) WHERE fluxo_caixa_id IS NOT NULL`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_aporte_solicitacoes ON bia_aporte_solicitacoes (bia_id, membro_id, status, created_at DESC)`);
+}
+
 async function applyBusinessOpportunityTables() {
   await ensureLandBankAssetsTable();
   await ensureInventarioTables();
+  await ensureMemberPortfolioTables();
 
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS visibilidade text NOT NULL DEFAULT 'privada'`);
   await db.execute(sql`ALTER TABLE carteira_demandas ADD COLUMN IF NOT EXISTS consentimento_publicacao_at timestamp`);
@@ -4168,6 +4205,9 @@ export async function registerRoutes(
     if (!(req.session as any).directusUserId) {
       return res.status(401).json({ error: "NÃƒÂ£o autenticado" });
     }
+    if (process.env.MEMBER_PORTFOLIO_V2_ENABLED !== "false" && !(await canAccessProtectedOpaActions(req))) {
+      return res.status(403).json({ error: "A Rede de Membros Aliados exige anuidade BUILT ativa." });
+    }
     const isBuiltAllianceMember = (m: any) => {
       const redes = Array.isArray(m?.Outras_redes_as_quais_pertenco) ? m.Outras_redes_as_quais_pertenco : [];
       return redes.includes("BUILT_PROUD_MEMBER");
@@ -4209,6 +4249,9 @@ export async function registerRoutes(
   app.get("/api/membros-built", async (req, res) => {
     if (!(req.session as any).directusUserId) {
       return res.status(401).json({ error: "NÃ£o autenticado" });
+    }
+    if (process.env.MEMBER_PORTFOLIO_V2_ENABLED !== "false" && !(await canAccessProtectedOpaActions(req))) {
+      return res.status(403).json({ error: "A Rede de Membros Aliados exige anuidade BUILT ativa." });
     }
     try {
       const url = `${DIRECTUS_URL}/items/cadastro_geral?limit=-1&fields=id,nome,cargo,empresa,cidade,estado,pais,whatsapp,email,foto_perfil,foto_posicao_x,foto_posicao_y,perfil_aliado,nucleo_alianca,tipo_alianca,tipo_de_cadastro,na_vitrine,link_site,latitude,longitude,logo_empresa,especialidade_livre,ramo_atuacao,segmento,area_atuacao,idiomas,nucleos_alianca,tipos_alianca,Outras_redes_as_quais_pertenco,Especialidades.especialidades_id.nome_especialidade`;
@@ -4778,6 +4821,20 @@ export async function registerRoutes(
       const payload = Object.fromEntries(
         Object.entries(req.body).filter(([key]) => !STRIP_FIELDS.includes(key) && key !== "aceite_localizacao")
       );
+      const sessionRole = String((req.session as any).role || "user");
+      if (payload.na_vitrine === true && !["admin", "manager", "superadmin"].includes(sessionRole)) {
+        const current = await directusFetchOne("cadastro_geral", req.params.id, "fields=na_vitrine");
+        if (current?.na_vitrine !== true) {
+          const purposeRows = await db.execute(sql`
+            SELECT purpose
+            FROM user_account_purposes
+            WHERE user_id = ${String((req.session as any).directusUserId)} AND active = true
+          `).then((result: any) => result.rows || []);
+          if (!canPublishVitrineProfile({ role: sessionRole, account_purposes: purposeRows.map((row: any) => row.purpose) })) {
+            return res.status(403).json({ error: "A publicação na Vitrine é exclusiva para perfis profissionais e fornecedores." });
+          }
+        }
+      }
       const acceptanceTimestampFields = [
         "codigo_etica_aceito_em",
         "politicas_participacao_aceito_em",
@@ -4804,7 +4861,6 @@ export async function registerRoutes(
       }
 
       // Non-superadmins cannot modify BUILT_ seals
-      const sessionRole = (req.session as any).role || "user";
       if (sessionRole !== "admin" && payload.Outras_redes_as_quais_pertenco !== undefined) {
         // Fetch current BUILT_ seals and preserve them
         const current = await directusFetchOne("cadastro_geral", req.params.id, "fields=Outras_redes_as_quais_pertenco");
@@ -7493,9 +7549,9 @@ export async function registerRoutes(
       || loadMouAssetPngForPdf("logo-built-horizontal-negativo.png");
   }
 
-  async function uploadPdfToDirectus(buffer: Buffer, filename: string): Promise<string> {
+  async function uploadBufferToDirectus(buffer: Buffer, filename: string, mimeType: string): Promise<string> {
     const formData = new FormData();
-    const blob = new Blob([buffer], { type: "application/pdf" });
+    const blob = new Blob([buffer], { type: mimeType });
     formData.append("file", blob, filename);
     const directusRes = await fetch(`${DIRECTUS_URL}/files`, {
       method: "POST",
@@ -7508,6 +7564,10 @@ export async function registerRoutes(
     }
     const json = await directusRes.json();
     return json.data.id;
+  }
+
+  async function uploadPdfToDirectus(buffer: Buffer, filename: string): Promise<string> {
+    return uploadBufferToDirectus(buffer, filename, "application/pdf");
   }
 
   function formatPdfMoney(value: any, currency = "BRL"): string {
@@ -7811,16 +7871,14 @@ export async function registerRoutes(
     }
     const entries = allEntries.filter((entry: any) => directusRelationId(entry?.bia) === biaId || String(entry?.bia || "") === biaId);
 
-    const values = new Map<string, { memberId: string; name: string; value: number }>();
+    const contributions: Array<{ memberId: string; name: string; value: number }> = [];
     for (const entry of entries) {
       if (entry?.tipo !== "entrada") continue;
       if (entry?.descricao === "Valor de Origem da BIA") continue;
       const favorecido = relationMember(entry?.favorecido_id) || relationMember(entry?.Favorecido);
       const id = memberId(favorecido);
       if (!id) continue;
-      const current = values.get(id) || { memberId: id, name: memberName(favorecido), value: 0 };
-      current.value += parsePdfNumber(entry?.valor);
-      values.set(id, current);
+      contributions.push({ memberId: id, name: memberName(favorecido), value: parsePdfNumber(entry?.valor) });
     }
 
     let transferencias: any[] = [];
@@ -7845,45 +7903,35 @@ export async function registerRoutes(
       return name;
     };
 
-    for (const transfer of transferencias.filter((item: any) => item.status === "aceita")) {
-      const origemId = String(transfer.membro_origem_id || "");
-      const destinoId = String(transfer.membro_destino_id || "");
-      if (!origemId || !destinoId) continue;
-      const origem = values.get(origemId);
-      if (!origem) continue;
-      const requestedValue = parsePdfNumber(transfer.valor_total);
-      const movedValue = Math.min(requestedValue, Math.max(0, origem.value));
-      if (movedValue <= 0) continue;
-      origem.value = Math.max(0, origem.value - movedValue);
-      const destino = values.get(destinoId) || {
-        memberId: destinoId,
-        name: await resolveMemberName(destinoId),
-        value: 0,
-      };
-      destino.value += movedValue;
-      values.set(destinoId, destino);
-      if (!roleByMember.has(destinoId)) roleByMember.set(destinoId, roleByMember.get(origemId) || "NÃ£o classificados");
+    const acceptedTransfers = transferencias.map((transfer: any) => ({
+      status: transfer.status,
+      fromMemberId: String(transfer.membro_origem_id || ""),
+      toMemberId: String(transfer.membro_destino_id || ""),
+      value: parsePdfNumber(transfer.valor_total),
+    }));
+    for (const transfer of acceptedTransfers.filter((item) => item.status === "aceita")) {
+      if (!roleByMember.has(transfer.toMemberId)) roleByMember.set(transfer.toMemberId, roleByMember.get(transfer.fromMemberId) || "NÃ£o classificados");
     }
 
-    const rowsBase = Array.from(values.values()).filter((item) => item.value > 0.005);
+    const rowsBase = calculateMap(contributions, acceptedTransfers);
     for (const item of rowsBase) {
       const currentName = String(item.name || "").trim();
       if (
         !currentName
         || currentName === "Membro desconhecido"
+        || currentName === "Membro"
         || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentName)
       ) {
         item.name = await resolveMemberName(item.memberId);
       }
     }
-    const total = rowsBase.reduce((sum, item) => sum + item.value, 0);
     return rowsBase
       .map((item) => ({
         group: roleByMember.get(item.memberId) || "NÃ£o classificados",
         memberId: item.memberId,
         name: item.name,
         value: item.value,
-        percent: total > 0 ? (item.value / total) * 100 : 0,
+        percent: item.percent,
       }))
       .sort((a, b) => {
         const order = ["SÃ³cios GuardiÃµes", "SÃ³cios Multiplicadores", "NÃ£o classificados"];
@@ -8827,7 +8875,10 @@ export async function registerRoutes(
   app.get("/api/bias", async (req, res) => {
     try {
       const items = await directusFetch("bias_projetos", "fields=*,Anexos.directus_files_id.*");
-      const visible = items.filter((item: any) => canViewBia(item, req));
+      const relatedOnly = req.query.scope === "related";
+      const visible = items.filter((item: any) => relatedOnly
+        ? hasBiaAdminBypass(req) || isUserLinkedToBia(item, (req.session as any)?.membroId)
+        : canViewBia(item, req));
       const withCodes = await Promise.all(visible.map((item: any) => ensureBiaPublicCode(item)));
       res.json(resolveAnexosBia(withCodes));
     } catch (error: any) {
@@ -10858,6 +10909,108 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bias/:id/patrimonio", async (req, res) => {
+    try {
+      if (!await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view")) return;
+      const result = await db.execute(sql`SELECT * FROM bia_patrimonial_snapshots WHERE bia_id = ${req.params.id} ORDER BY data_base DESC, created_at DESC`);
+      res.json(result.rows || []);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.post("/api/bias/:id/patrimonio", async (req, res) => {
+    try {
+      if (!await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "edit")) return;
+      const value = Number(req.body?.patrimonio_liquido);
+      const baseDate = String(req.body?.data_base || "");
+      const methodology = String(req.body?.metodologia || "").trim();
+      const liquidity = req.body?.liquidez ? String(req.body.liquidez) : null;
+      if (!Number.isFinite(value) || value < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(baseDate) || !methodology) return res.status(400).json({ error: "Informe valor, data-base e metodologia válidos." });
+      if (liquidity && !["baixa", "media", "alta"].includes(liquidity)) return res.status(400).json({ error: "Liquidez inválida." });
+      const result = await db.execute(sql`
+        INSERT INTO bia_patrimonial_snapshots (bia_id, patrimonio_liquido, data_base, moeda, metodologia, liquidez, confirmado, criado_por_user_id, criado_por_membro_id)
+        VALUES (${req.params.id}, ${value}, ${baseDate}, ${String(req.body?.moeda || "BRL")}, ${methodology}, ${liquidity}, true, ${String((req.session as any).directusUserId || "")}, ${String((req.session as any).membroId || "")})
+        RETURNING *
+      `);
+      res.status(201).json(result.rows?.[0]);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.get("/api/bias/:id/aporte-solicitacoes", async (req, res) => {
+    try {
+      const access = await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view");
+      if (!access) return;
+      const canManage = hasBiaAccess(access.access.permissions, "capital_financeiro", "edit");
+      const membroId = String((req.session as any).membroId || "");
+      const result = await db.execute(canManage
+        ? sql`SELECT * FROM bia_aporte_solicitacoes WHERE bia_id = ${req.params.id} ORDER BY created_at DESC`
+        : sql`SELECT * FROM bia_aporte_solicitacoes WHERE bia_id = ${req.params.id} AND membro_id = ${membroId} ORDER BY created_at DESC`);
+      res.json(result.rows || []);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.post("/api/bias/:id/aporte-solicitacoes", upload.single("comprovante"), async (req, res) => {
+    try {
+      const access = await requireBiaModuleAccess(req, res, req.params.id, "capital_financeiro", "view");
+      if (!access) return;
+      const membroId = String((req.session as any).membroId || "");
+      const value = Number(req.body?.valor);
+      if (!membroId || !Number.isFinite(value) || value <= 0) return res.status(400).json({ error: "Informe um valor de aporte válido." });
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) return res.status(400).json({ error: "Envie o comprovante do aporte." });
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const signature = file.buffer.subarray(0, 12).toString("hex");
+      const validFile = (ext === ".pdf" && file.buffer.subarray(0, 4).toString() === "%PDF")
+        || ([".jpg", ".jpeg"].includes(ext) && signature.startsWith("ffd8ff"))
+        || (ext === ".png" && signature.startsWith("89504e470d0a1a0a"));
+      if (!validFile) return res.status(400).json({ error: "Comprovante inválido. Use PDF, JPG ou PNG." });
+      const fileId = await uploadBufferToDirectus(file.buffer, file.originalname, file.mimetype || "application/octet-stream");
+      const result = await db.execute(sql`
+        INSERT INTO bia_aporte_solicitacoes (bia_id, membro_id, valor, moeda, comprovante_file_id, observacao)
+        VALUES (${req.params.id}, ${membroId}, ${value}, ${String(req.body?.moeda || "BRL")}, ${fileId}, ${req.body?.observacao ? String(req.body.observacao) : null}) RETURNING *
+      `);
+      res.status(201).json(result.rows?.[0]);
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
+  app.patch("/api/bias/:biaId/aporte-solicitacoes/:id", async (req, res) => {
+    const action = String(req.body?.action || "");
+    if (!["approve", "reject"].includes(action)) return res.status(400).json({ error: "Decisão inválida." });
+    try {
+      if (!await requireBiaModuleAccess(req, res, req.params.biaId, "capital_financeiro", "edit")) return;
+      const current = (await db.execute(sql`SELECT * FROM bia_aporte_solicitacoes WHERE id = ${req.params.id} AND bia_id = ${req.params.biaId} LIMIT 1`)).rows?.[0] as any;
+      if (!current) return res.status(404).json({ error: "Solicitação não encontrada." });
+      if (["approved", "rejected"].includes(String(current.status))) return res.json({ ...current, idempotent: true });
+      if (action === "reject") {
+        const rejected = await db.execute(sql`
+          UPDATE bia_aporte_solicitacoes SET status = 'rejected', observacao = ${String(req.body?.observacao || current.observacao || "")}, decidido_por_user_id = ${String((req.session as any).directusUserId || "")}, decidido_por_membro_id = ${String((req.session as any).membroId || "")}, decidido_em = now(), updated_at = now()
+          WHERE id = ${current.id} AND status = 'pending' RETURNING *
+        `);
+        const participantUser = await db.select().from(usersTable).where(eq(usersTable.membro_directus_id, String(current.membro_id))).limit(1).then((rows) => rows[0]).catch(() => null);
+        if (participantUser && rejected.rows?.[0]) await storage.createAgendaTarefa({ user_id: participantUser.id, membro_id: current.membro_id, titulo: "Aporte rejeitado", descricao: String(req.body?.observacao || "Consulte a decisão registrada pelo diretor."), data: new Date().toISOString().slice(0, 10), status: "pendente", prioridade: "media", contexto_tipo: "bia_aporte", contexto_id: String(current.id) });
+        return res.json(rejected.rows?.[0] || current);
+      }
+      const claimed = await db.execute(sql`UPDATE bia_aporte_solicitacoes SET status = 'processing', updated_at = now() WHERE id = ${current.id} AND status = 'pending' RETURNING *`);
+      if (!claimed.rows?.[0]) return res.status(409).json({ error: "Esta solicitação já está sendo processada." });
+      try {
+        const flow = await directusCreate("fluxo_caixa", {
+          bia: req.params.biaId, tipo: "entrada", valor: String(current.valor), data: new Date().toISOString().slice(0, 10),
+          descricao: "Aporte do Fator de Multiplicação - solicitação aprovada", status: "pago", favorecido_id: current.membro_id,
+          Anexos: [{ directus_files_id: current.comprovante_file_id }],
+        });
+        const approved = await db.execute(sql`
+          UPDATE bia_aporte_solicitacoes SET status = 'approved', fluxo_caixa_id = ${String(flow.id)}, observacao = ${String(req.body?.observacao || current.observacao || "")}, decidido_por_user_id = ${String((req.session as any).directusUserId || "")}, decidido_por_membro_id = ${String((req.session as any).membroId || "")}, decidido_em = now(), updated_at = now()
+          WHERE id = ${current.id} AND status = 'processing' RETURNING *
+        `);
+        const participantUser = await db.select().from(usersTable).where(eq(usersTable.membro_directus_id, String(current.membro_id))).limit(1).then((rows) => rows[0]).catch(() => null);
+        if (participantUser) await storage.createAgendaTarefa({ user_id: participantUser.id, membro_id: current.membro_id, titulo: "Aporte aprovado", descricao: "Seu aporte foi aprovado e registrado no MAP da aliança.", data: new Date().toISOString().slice(0, 10), status: "pendente", prioridade: "media", contexto_tipo: "bia_aporte", contexto_id: String(current.id) });
+        return res.json(approved.rows?.[0]);
+      } catch (error) {
+        await db.execute(sql`UPDATE bia_aporte_solicitacoes SET status = 'pending', updated_at = now() WHERE id = ${current.id} AND status = 'processing'`);
+        throw error;
+      }
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+
   // ========== BIA APROVAÃ‡Ã•ES ==========
 
   // GET /api/bia-aprovacoes â€” list pending approvals visible to the current user
@@ -12151,18 +12304,20 @@ ${textContent}`;
 
   async function canAccessProtectedOpaActions(req: Request): Promise<boolean> {
     const role = (req.session as any)?.role;
-    if (role === "admin" || role === "manager" || role === "superadmin" || role === "aliado" || role === "membro") return true;
+    if (role === "admin" || role === "manager" || role === "superadmin") return true;
 
     const membroId = (req.session as any)?.membroId as string | undefined;
     if (!membroId) return false;
 
-    const membro = await directusFetchOne(
-      "cadastro_geral",
-      membroId,
-      "fields=em_membros_built",
-    ).catch(() => null);
+    if (process.env.MEMBER_PORTFOLIO_V2_ENABLED === "false") {
+      const member = await directusFetchOne("cadastro_geral", membroId, "fields=em_membros_built").catch(() => null);
+      return member?.em_membros_built === true;
+    }
 
-    return membro?.em_membros_built === true;
+    const membership = (await db.execute(sql`
+      SELECT status, starts_at, ends_at FROM membro_anuidades WHERE membro_id = ${membroId} ORDER BY ends_at DESC LIMIT 1
+    `).catch(() => ({ rows: [] } as any))).rows?.[0] as any;
+    return isMembershipActive(membership);
   }
 
   function resolveAnexosOpa(items: any[], includeAnexos = true): any[] {
@@ -12268,8 +12423,9 @@ ${textContent}`;
     fs.writeFileSync(chamadasCapitalFile, JSON.stringify(items, null, 2), "utf8");
   }
 
-  app.get("/api/chamadas-capital", async (_req, res) => {
+  app.get("/api/chamadas-capital", async (req, res) => {
     try {
+      if (!(req.session as any).directusUserId) return res.status(401).json({ error: "Nao autenticado" });
       const items = readChamadasCapitalFile()
         .sort((a, b) => String(b.date_created || b.created_at || "").localeCompare(String(a.date_created || a.created_at || "")));
       res.json(items);
@@ -12296,7 +12452,7 @@ ${textContent}`;
         return res.status(400).json({ error: "Informe o nome da chamada de capital" });
       }
       const now = new Date().toISOString();
-      const item = {
+      const item: any = {
         id: randomUUID(),
         ...payload,
         criado_por_user_id: (req.session as any).directusUserId || null,
@@ -12306,8 +12462,25 @@ ${textContent}`;
         updated_at: now,
       };
       const items = readChamadasCapitalFile();
+      const [purposeRows, contributionMembers, localUsers] = await Promise.all([
+        db.execute(sql`SELECT user_id, membro_id FROM user_account_purposes WHERE purpose = 'capital' AND active = true`).then((result: any) => result.rows || []),
+        directusFetchScoped("cadastro_geral", "fields=id,tipo_alianca,tipos_alianca").catch(() => []),
+        db.select({ id: usersTable.id, membroId: usersTable.membro_directus_id }).from(usersTable).where(eq(usersTable.ativo, true)),
+      ]);
+      const targetMemberIds = new Set<string>((contributionMembers as any[]).filter((member: any) => [member.tipo_alianca, ...(Array.isArray(member.tipos_alianca) ? member.tipos_alianca : [])].some((value) => String(value || "").toLowerCase() === "aporte financeiro")).map((member: any) => String(member.id)));
+      const targetUserIds = new Set<string>(purposeRows.map((row: any) => String(row.user_id)));
+      for (const row of purposeRows) if (row.membro_id) targetMemberIds.add(String(row.membro_id));
+      for (const user of localUsers) if (user.membroId && targetMemberIds.has(String(user.membroId))) targetUserIds.add(String(user.id));
+      item.destinatarios = targetUserIds.size;
       items.unshift(item);
       writeChamadasCapitalFile(items);
+      await Promise.all(Array.from(targetUserIds).map((userId) => storage.createAgendaTarefa({
+        user_id: userId,
+        titulo: `Chamada de capital: ${item.nome_oportunidade}`,
+        descricao: item.descricao || "Nova chamada de capital compatível com seu perfil.",
+        data: new Date().toISOString().slice(0, 10),
+        status: "pendente", prioridade: "alta", contexto_tipo: "chamada_capital", contexto_id: item.id,
+      })));
       res.status(201).json(item);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -12521,7 +12694,7 @@ ${textContent}`;
       const canManifestar = await canAccessProtectedOpaActions(req);
       if (!canManifestar) {
         return res.status(403).json({
-          error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances.",
+          error: "Para acessar os detalhes e manifestar interesse, ative sua anuidade de Membro BUILT.",
         });
       }
       const membroId = (req.session as any).membroId as string | undefined;
@@ -13017,7 +13190,7 @@ ${textContent}`;
       const userId = (req.session as any)?.directusUserId as string | undefined;
       if (!userId) return res.status(401).json({ error: "Não autenticado" });
       if (!(await canAccessProtectedOpaActions(req))) {
-        return res.status(403).json({ error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances." });
+        return res.status(403).json({ error: "Para acessar os detalhes e manifestar interesse, ative sua anuidade de Membro BUILT." });
       }
       const asset = await getLocalLandBankAsset(req.params.id);
       if (!asset || asset.visibilidade !== "publicada") return res.status(404).json({ error: "Ativo não encontrado" });
@@ -13497,7 +13670,16 @@ ${textContent}`;
       ocupacao: body.ocupacao || "desconhecido",
       objetivo: body.objetivo || "indefinido",
       titularidade: Array.isArray(body.titularidade) ? body.titularidade : [],
+      participacao_percentual: Math.min(100, Math.max(0, Number(body.participacao_percentual ?? 100))),
+      situacao_pagamento: ["quitado", "financiado"].includes(String(body.situacao_pagamento || "")) ? body.situacao_pagamento : "quitado",
+      forma_pagamento: body.forma_pagamento || "",
+      instituicao_financeira: body.instituicao_financeira || "",
+      condicoes_financiamento: body.condicoes_financiamento || "",
+      parcelas_pagas: Math.max(0, Number(body.parcelas_pagas || 0)),
+      parcelas_restantes: Math.max(0, Number(body.parcelas_restantes || 0)),
       divida_saldo: body.divida_saldo || "",
+      liquidez_sugerida: ["baixa", "media", "alta"].includes(String(body.liquidez_sugerida || "")) ? body.liquidez_sugerida : null,
+      liquidez_confirmada: ["baixa", "media", "alta"].includes(String(body.liquidez_confirmada || "")) ? body.liquidez_confirmada : null,
       valor_data_base: body.valor_data_base || now.toISOString().slice(0, 10),
       valor_origem: body.valor_origem || "declarada",
       area_origem: body.area_origem || "declarada",
@@ -13827,10 +14009,10 @@ ${textContent}`;
     `);
   }
 
-  async function loadCarteiraContext(imovelId: string) {
+  async function loadCarteiraContext(imovelId: string, since?: string | null) {
     const [imovelResult, lancamentosResult, documentosResult, alertasResult] = await Promise.all([
       db.execute(sql`SELECT * FROM inventario_imoveis WHERE id = ${imovelId} LIMIT 1`),
-      db.execute(sql`SELECT * FROM inventario_lancamentos WHERE imovel_id = ${imovelId} ORDER BY created_at DESC`),
+      db.execute(since ? sql`SELECT * FROM inventario_lancamentos WHERE imovel_id = ${imovelId} AND CASE WHEN data->>'data' ~ '^\d{4}-\d{2}-\d{2}$' THEN (data->>'data')::date ELSE created_at::date END >= ${since} ORDER BY created_at DESC` : sql`SELECT * FROM inventario_lancamentos WHERE imovel_id = ${imovelId} ORDER BY created_at DESC`),
       db.execute(sql`SELECT * FROM carteira_documentos WHERE imovel_id = ${imovelId} ORDER BY criado_em DESC`),
       db.execute(sql`SELECT * FROM carteira_alertas WHERE imovel_id = ${imovelId} ORDER BY criado_em DESC`),
     ]);
@@ -13844,8 +14026,8 @@ ${textContent}`;
     };
   }
 
-  async function calculateCarteiraDiagnosis(imovelId: string) {
-    const context = await loadCarteiraContext(imovelId);
+  async function calculateCarteiraDiagnosis(imovelId: string, since?: string | null) {
+    const context = await loadCarteiraContext(imovelId, since);
     if (!context) return null;
     return diagnosticarCarteira(context);
   }
@@ -13870,14 +14052,19 @@ ${textContent}`;
     return insert.rows?.[0];
   }
 
-  async function carteiraCardForRow(row: any, actor: CarteiraActor) {
+  async function carteiraCardForRow(row: any, actor: CarteiraActor, since?: string | null) {
     const imovel = normalizeInventarioRow(row);
     const resolved = await resolveCarteiraAccess(imovel.id, actor);
-    const diagnostico = await calculateCarteiraDiagnosis(imovel.id);
+    const context = await loadCarteiraContext(imovel.id, since);
+    const diagnostico = context ? diagnosticarCarteira(context) : null;
+    const contasAPagar = (context?.lancamentos || [])
+      .filter((item: any) => item.tipo === "despesa" && ["agendado", "pendente", "vencido"].includes(String(item.status)))
+      .reduce((sum: number, item: any) => sum + Number(item.valor || 0), 0);
     return {
       ...imovel,
       access_level: resolved?.nivel || "leitura",
       is_owner: resolved?.isOwner || false,
+      contas_a_pagar: Number(contasAPagar.toFixed(2)),
       diagnostico,
     };
   }
@@ -14313,32 +14500,104 @@ ${inputText.slice(0, 18000)}`,
     }
   });
 
+  async function carteiraAlliancesForMember(membroId: string | null, req: Request, since?: string | null) {
+    if (!membroId || process.env.MEMBER_PORTFOLIO_V2_ENABLED === "false") return [];
+    const allBias = await directusFetchScoped(
+      "bias_projetos",
+      "fields=id,codigo_publico,nome_bia,situacao,moeda,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
+    ).catch(() => []);
+    const related = (allBias as any[]).filter((bia) => isUserLinkedToBia(bia, membroId));
+    return Promise.all(related.map(async (bia) => {
+      const [allocation, snapshotResult, access, financialEntries] = await Promise.all([
+        getBiaAllocationMap(bia, String(bia.id)),
+        db.execute(sql`
+          SELECT * FROM bia_patrimonial_snapshots
+          WHERE bia_id = ${String(bia.id)} AND confirmado = true
+          ORDER BY data_base DESC, created_at DESC LIMIT 1
+        `),
+        resolveBiaAccessForRequest(bia, req),
+        directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=valor,tipo,status,descricao,data,data_vencimento&limit=-1`).catch(() => []),
+      ]);
+      const own = allocation.find((row) => row.memberId === membroId);
+      const snapshot = snapshotResult.rows?.[0] as any;
+      const mapPercent = Number(own?.percent || 0);
+      const officialValue = snapshot ? Number(snapshot.patrimonio_liquido || 0) : null;
+      const inPeriod = (financialEntries as any[]).filter((entry) => {
+        const date = String(entry.data || entry.data_vencimento || "");
+        return !since || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= since;
+      }).filter((entry) => !String(entry.descricao || "").toLowerCase().startsWith("aporte do fator"));
+      const share = mapPercent / 100;
+      const revenues = inPeriod.filter((entry) => ["entrada", "receita"].includes(String(entry.tipo || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
+      const expenses = inPeriod.filter((entry) => ["saida", "saída", "despesa"].includes(String(entry.tipo || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
+      const payables = inPeriod.filter((entry) => ["pendente", "agendado", "vencido"].includes(String(entry.status || "").toLowerCase())).reduce((sum, entry) => sum + parseMarketValueServer(entry.valor), 0) * share;
+      return {
+        id: String(bia.id),
+        codigo: bia.codigo_publico || null,
+        nome: bia.nome_bia || "Aliança",
+        situacao: bia.situacao || null,
+        moeda: snapshot?.moeda || bia.moeda || "BRL",
+        map_percent: mapPercent,
+        aportes_oficiais: Number(own?.value || 0),
+        patrimonio_liquido_oficial: officialValue,
+        valor_participacao: officialValue !== null && mapPercent > 0 ? Number((officialValue * mapPercent / 100).toFixed(2)) : null,
+        data_base: snapshot?.data_base || null,
+        metodologia: snapshot?.metodologia || null,
+        liquidez: snapshot?.liquidez || null,
+        confirmado: Boolean(snapshot),
+        can_manage_patrimonio: hasBiaAccess(access.permissions, "capital_financeiro", "edit"),
+        receitas_participacao: Number(revenues.toFixed(2)),
+        despesas_participacao: Number(expenses.toFixed(2)),
+        contas_a_pagar_participacao: Number(payables.toFixed(2)),
+        evolucao_patrimonial_percentual: officialValue !== null && Number(own?.value || 0) > 0
+          ? Number((((officialValue * share - Number(own?.value || 0)) / Number(own?.value || 0)) * 100).toFixed(2))
+          : null,
+      };
+    }));
+  }
+
   app.get("/api/carteira/resumo", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
+      const period = req.query.period === "all" ? "all" : "12m";
+      const since = period === "all" ? null : new Date(Date.UTC(new Date().getUTCFullYear() - 1, new Date().getUTCMonth(), new Date().getUTCDate())).toISOString().slice(0, 10);
       const result = await db.execute(sql`
         SELECT i.*
         FROM inventario_imoveis i
         WHERE ${carteiraAccessibleWhere(actor)}
         ORDER BY i.updated_at DESC
       `);
-      const imoveis = await Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor)));
-      const patrimonioPago = imoveis.reduce((sum, item) => sum + parseMarketValueServer(item.valor_pago), 0);
-      const patrimonioAtual = imoveis.reduce((sum, item) => sum + parseMarketValueServer(item.valor_atual), 0);
-      const divida = imoveis.reduce((sum, item) => sum + parseMarketValueServer(item.divida_saldo), 0);
+      const imoveis = await Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor, since)));
       const receitas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.receitas || 0), 0);
       const despesas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.despesas || 0), 0);
+      const contasAPagar = imoveis.reduce((sum, item) => sum + Number(item.contas_a_pagar || 0), 0);
+      const aliancas = await carteiraAlliancesForMember(actor.membroId, req, since);
+      const consolidated = calculatePortfolioTotals(
+        imoveis.map((item) => ({
+          acquisitionValue: parseMarketValueServer(item.valor_pago),
+          currentValue: parseMarketValueServer(item.valor_atual),
+          debt: parseMarketValueServer(item.divida_saldo),
+          liquidity: item.liquidez_confirmada || item.liquidez_sugerida,
+          ownershipPercent: Number(item.participacao_percentual ?? 100),
+        })),
+        aliancas.map((item) => ({ invested: item.aportes_oficiais, participationValue: item.valor_participacao, liquidity: item.liquidez })),
+      );
       res.json({
+        period,
         imoveis,
+        aliancas,
         totais: {
-          patrimonio_total: Number((patrimonioAtual - divida).toFixed(2)),
-          patrimonio_pago: Number(patrimonioPago.toFixed(2)),
-          patrimonio_atual: Number(patrimonioAtual.toFixed(2)),
-          divida: Number(divida.toFixed(2)),
-          valorizacao: Number((patrimonioAtual - patrimonioPago).toFixed(2)),
+          patrimonio_total: Number(consolidated.netWorth.toFixed(2)),
+          patrimonio_pago: Number(consolidated.acquisitionValue.toFixed(2)),
+          patrimonio_atual: Number(consolidated.propertyCurrentValue.toFixed(2)),
+          divida: Number(consolidated.debt.toFixed(2)),
+          valorizacao: Number((consolidated.propertyCurrentValue - consolidated.acquisitionValue).toFixed(2)),
+          total_investido_aliancas: Number(consolidated.allianceInvested.toFixed(2)),
+          valor_participacoes_aliancas: Number(consolidated.allianceValue.toFixed(2)),
+          percentual_baixa_liquidez: Number(consolidated.lowLiquidityPercent.toFixed(2)),
           receitas: Number(receitas.toFixed(2)),
           despesas: Number(despesas.toFixed(2)),
           resultado_liquido: Number((receitas - despesas).toFixed(2)),
+          contas_a_pagar: Number(contasAPagar.toFixed(2)),
           alertas_abertos: imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.alertas_abertos || 0), 0),
         },
       });
@@ -14417,6 +14676,27 @@ ${inputText.slice(0, 18000)}`,
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
+  });
+
+  app.post("/api/carteira/imoveis/:id/avaliacao/confirmar", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const value = parseMarketValueServer(req.body?.valor_atual);
+      const baseDate = String(req.body?.data_base || new Date().toISOString().slice(0, 10));
+      if (!(value > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) return res.status(400).json({ error: "Informe valor e data-base válidos." });
+      const result = await db.transaction(async (tx) => {
+        const data = { ...access.imovel, valor_atual: value, valor_origem: "comparaveis_confirmados", valor_data_base: baseDate, updatedAt: new Date().toISOString() };
+        await tx.execute(sql`UPDATE inventario_imoveis SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${req.params.id}`);
+        const analysis = await tx.execute(sql`
+          INSERT INTO carteira_analises (imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id)
+          VALUES (${req.params.id}, 'avaliacao_confirmada', 'comparaveis-v1', ${JSON.stringify({ valor_anterior: access.imovel.valor_atual, fontes: req.body?.fontes || [], amostra: req.body?.amostra || null, regiao: req.body?.regiao || null, confianca: req.body?.confianca || null })}::jsonb, ${JSON.stringify({ valor_atual: value, data_base: baseDate, confirmado: true })}::jsonb, ${actor.userId}, ${actor.membroId}) RETURNING *
+        `);
+        return { imovel: data, analise: analysis.rows?.[0] };
+      });
+      await recordCarteiraEvent(req.params.id, actor, "avaliacao_confirmada", "Avaliação por comparáveis confirmada", { valor_atual: value, data_base: baseDate });
+      res.json(result);
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
   });
 
   app.delete("/api/carteira/imoveis/:id", async (req, res) => {
@@ -14648,6 +14928,68 @@ ${textContent.slice(0, 16000)}`,
     } catch (error: any) {
       res.status(error.status || 500).json({ error: "Erro ao analisar documento: " + error.message });
     }
+  });
+
+  app.post("/api/carteira/imoveis/:id/financiamento/preview", upload.single("file"), async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(String(req.params.id), actor, "administracao");
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) return res.status(400).json({ error: "Selecione XLS, XLSX, CSV ou PDF." });
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      if (![".xls", ".xlsx", ".csv", ".pdf"].includes(ext)) return res.status(400).json({ error: "Formato inválido. Use XLS, XLSX, CSV ou PDF." });
+      const signature = file.buffer.subarray(0, 8).toString("hex");
+      const validSignature = ext === ".pdf" ? file.buffer.subarray(0, 4).toString() === "%PDF"
+        : ext === ".xlsx" ? signature.startsWith("504b")
+        : ext === ".xls" ? signature.startsWith("d0cf11e0")
+        : !file.buffer.includes(0);
+      if (!validSignature) return res.status(400).json({ error: "O conteúdo do arquivo não corresponde à extensão informada." });
+      const textContent = await extractInventarioFileText(file);
+      const installments = extractInstallmentLancamentos(textContent, new Date().toISOString().slice(0, 10)).slice(0, 500);
+      if (!installments.length) return res.status(422).json({ error: "Nenhuma parcela com número, vencimento e valor foi identificada." });
+      const fileId = await uploadBufferToDirectus(file.buffer, file.originalname, file.mimetype || "application/octet-stream");
+      const result = await db.execute(sql`
+        INSERT INTO carteira_analises (imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id)
+        VALUES (${req.params.id}, 'financiamento_preview', 'financiamento-v1', ${JSON.stringify({ file_id: fileId, nome: file.originalname, mime: file.mimetype })}::jsonb, ${JSON.stringify({ parcelas: installments })}::jsonb, ${actor.userId}, ${actor.membroId}) RETURNING *
+      `);
+      res.status(201).json({ preview_id: result.rows?.[0]?.id, file_id: fileId, arquivo: file.originalname, parcelas: installments });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.post("/api/carteira/imoveis/:id/financiamento/:previewId/confirmar", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(String(req.params.id), actor, "administracao");
+      const result = await db.transaction(async (tx) => {
+        const analysis = (await tx.execute(sql`
+          SELECT * FROM carteira_analises WHERE id = ${req.params.previewId} AND imovel_id = ${req.params.id} AND tipo = 'financiamento_preview' FOR UPDATE
+        `)).rows?.[0] as any;
+        if (!analysis) { const error: any = new Error("Prévia não encontrada."); error.status = 404; throw error; }
+        if (analysis.resultado?.confirmed_at) return { idempotent: true, ...analysis.resultado };
+        const source = analysis.entrada || {};
+        const installments = Array.isArray(req.body?.parcelas) ? req.body.parcelas : analysis.resultado?.parcelas;
+        if (!Array.isArray(installments) || !installments.length) { const error: any = new Error("Revise ao menos uma parcela."); error.status = 400; throw error; }
+        const normalized = normalizeFinancingInstallments(installments);
+        if (!normalized.length) { const error: any = new Error("Nenhuma parcela válida para confirmar."); error.status = 400; throw error; }
+        const documentRow = (await tx.execute(sql`
+          INSERT INTO carteira_documentos (imovel_id, file_id, nome, tipo, versao, origem, status_validacao, dados_extraidos, criado_por_user_id, criado_por_membro_id)
+          VALUES (${req.params.id}, ${String(source.file_id)}, ${String(source.nome || "Financiamento")}, 'Financiamento', 1, 'extraida', 'confirmado', ${JSON.stringify({ preview_id: analysis.id, parcelas: normalized.length })}::jsonb, ${actor.userId}, ${actor.membroId}) RETURNING id
+        `)).rows?.[0] as any;
+        for (const item of normalized) {
+          const launchId = `inv-lanc-${randomUUID()}`;
+          const data = { id: launchId, imovel_id: req.params.id, tipo: "despesa", categoria: "Financiamento", valor: item.valor, data: item.data, data_vencimento: item.data, data_pagamento: item.status === "pago" ? item.data : null, status: item.status, descricao: `Parcela ${item.parcela}`, origem: "financiamento_importado", documento_origem_id: documentRow.id };
+          await tx.execute(sql`INSERT INTO inventario_lancamentos (id, imovel_id, data, owner_user_id, owner_membro_id) VALUES (${launchId}, ${req.params.id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})`);
+        }
+        const paid = normalized.filter((item: any) => item.status === "pago").length;
+        const remaining = normalized.length - paid;
+        const debt = normalized.filter((item: any) => item.status !== "pago" && item.status !== "cancelado").reduce((sum: number, item: any) => sum + item.valor, 0);
+        await tx.execute(sql`UPDATE inventario_imoveis SET data = data || ${JSON.stringify({ situacao_pagamento: remaining ? "financiado" : "quitado", parcelas_pagas: paid, parcelas_restantes: remaining, divida_saldo: debt })}::jsonb, updated_at = now() WHERE id = ${req.params.id}`);
+        const confirmed = { ...analysis.resultado, parcelas: normalized, documento_id: documentRow.id, confirmed_at: new Date().toISOString() };
+        await tx.execute(sql`UPDATE carteira_analises SET resultado = ${JSON.stringify(confirmed)}::jsonb WHERE id = ${analysis.id}`);
+        return confirmed;
+      });
+      res.json(result);
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
   });
 
   app.post("/api/carteira/imoveis/:id/documentos", async (req, res) => {
@@ -17217,7 +17559,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       const userId = (req.session as any)?.directusUserId as string | undefined;
       if (!userId) return res.status(401).json({ error: "Não autenticado" });
       if (!(await canAccessProtectedOpaActions(req))) {
-        return res.status(403).json({ error: "Para manifestar interesse, conclua sua adesão ao BUILT Alliances." });
+        return res.status(403).json({ error: "Para acessar os detalhes e manifestar interesse, ative sua anuidade de Membro BUILT." });
       }
       const demand = await getDemandWithProperty(req.params.id);
       const restrictedAccess = demand?.visibilidade === "restrita" && await hasRestrictedOpportunityDelivery(req, "demanda", req.params.id);
@@ -20298,6 +20640,48 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     });
   });
 
+  async function membershipSummary(membroId: string | null, userId: string, legacyMember: boolean, onboardingComplete: boolean) {
+    if (!membroId) return { condition: "registered", active: false, status: null, starts_at: null, ends_at: null, communities: [], requirements: { onboarding: onboardingComplete, aura: false, annual_fee: false, community: false } };
+    let rows = (await db.execute(sql`
+      SELECT * FROM membro_anuidades WHERE membro_id = ${membroId} ORDER BY ends_at DESC, created_at DESC
+    `)).rows as any[];
+    if (!rows.length && legacyMember) {
+      const comunidade = await findMemberCommunityForAdesao(membroId).catch(() => null);
+      if (comunidade?.id) {
+        const startsAt = new Date();
+        const endsAt = membershipEndsAt(startsAt);
+        await db.execute(sql`
+          INSERT INTO membro_anuidades (membro_id, user_id, comunidade_id, provider, valor, moeda, starts_at, ends_at, external_id, status, metadata)
+          VALUES (${membroId}, ${userId}, ${String(comunidade.id)}, 'legacy', 0, 'BRL', ${startsAt}, ${endsAt}, ${`legacy:${membroId}`}, 'active', ${JSON.stringify({ migrated: true })}::jsonb)
+          ON CONFLICT DO NOTHING
+        `);
+        rows = (await db.execute(sql`SELECT * FROM membro_anuidades WHERE membro_id = ${membroId} ORDER BY ends_at DESC, created_at DESC`)).rows as any[];
+      }
+    }
+    const now = new Date();
+    const current = rows.find((row) => isMembershipActive(row, now)) || rows[0] || null;
+    const active = isMembershipActive(current, now);
+    const aura = Number((await db.execute(sql`SELECT count(*)::int AS total FROM aura_avaliacoes WHERE avaliado_membro_id = ${membroId}`)).rows?.[0]?.total || 0) > 0;
+    const communities = Array.from(new Set(rows.filter((row) => isMembershipActive(row, now)).map((row) => String(row.comunidade_id))));
+    return {
+      condition: active ? "member" : "registered",
+      active,
+      status: current ? (String(current.status) === "active" && !active ? "expired" : current.status) : null,
+      starts_at: current?.starts_at || null,
+      ends_at: current?.ends_at || null,
+      annual_fee_brl: BUILT_MEMBER_ANNUAL_FEE_BRL,
+      communities,
+      requirements: { onboarding: onboardingComplete, aura, annual_fee: active, community: communities.length > 0 },
+      permissions: {
+        opportunity_details: active,
+        authorized_contacts: active,
+        management: active,
+        allied_member_network: active,
+        asset_bank: active,
+      },
+    };
+  }
+
   app.get("/api/me", async (req, res) => {
     const directusUserId = (req.session as any).directusUserId;
     if (!directusUserId) return res.status(401).json({ error: "NÃ£o autenticado" });
@@ -20431,6 +20815,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       Object.fromEntries(accountPurposeRows.map((row: any) => [row.purpose, row.objectives])),
       accountPurposes,
     );
+    const membership = await membershipSummary(membroId, String(directusUserId), Boolean(emMembrosBuilt), !onboardingRequired).catch((error: any) => {
+      console.warn("[membership] Resumo indisponivel:", error?.message || error);
+      return { condition: "registered", active: false, status: null, starts_at: null, ends_at: null, communities: [], requirements: { onboarding: !onboardingRequired, aura: false, annual_fee: false, community: false }, permissions: {} };
+    });
+    const hasAllianceParticipation = Boolean(membroId && await directusFetchScoped(
+      "bias_projetos",
+      "fields=id,autor_bia,aliado_built,diretor_alianca,diretor_nucleo_tecnico,diretor_execucao,diretor_comercial,diretor_capital,socios_guardioes,socios_multiplicadores,terceiros",
+    ).then((items: any[]) => items.some((bia) => isUserLinkedToBia(bia, membroId))).catch(() => false));
 
     res.json({
       id: directusUserId,
@@ -20446,6 +20838,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       na_vitrine: naVitrine,
       em_membros_built: emMembrosBuilt,
       em_built_capital: emBuiltCapital,
+      membership,
+      has_alliance_participation: hasAllianceParticipation,
       foto_perfil: assetApiUrl(fotoPerfil),
       vitrine_termo_aceito_em: vitrineTermoAceitoEm,
       vitrine_termo_versao: vitrineTermoVersao,
@@ -22436,6 +22830,30 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     return url.toString();
   }
 
+  async function recordMembershipAnnuality(convite: any, provider: string, externalId: string, status: "active" | "refunded" | "disputed" = "active") {
+    if (!convite?.candidato_membro_id || !convite?.comunidade_id || !externalId) return;
+    if (status !== "active") {
+      await db.execute(sql`
+        UPDATE membro_anuidades SET status = ${status}, ends_at = LEAST(ends_at, now()), updated_at = now()
+        WHERE provider = ${provider} AND external_id = ${externalId}
+      `);
+      return;
+    }
+    const previous = (await db.execute(sql`
+      SELECT ends_at FROM membro_anuidades
+      WHERE membro_id = ${String(convite.candidato_membro_id)} AND comunidade_id = ${String(convite.comunidade_id)}
+        AND status IN ('active', 'canceled') AND ends_at > now()
+      ORDER BY ends_at DESC LIMIT 1
+    `)).rows?.[0] as any;
+    const startsAt = previous?.ends_at ? new Date(previous.ends_at) : new Date();
+    const endsAt = membershipEndsAt(startsAt);
+    await db.execute(sql`
+      INSERT INTO membro_anuidades (membro_id, user_id, comunidade_id, provider, valor, moeda, starts_at, ends_at, external_id, status, metadata)
+      VALUES (${String(convite.candidato_membro_id)}, NULL, ${String(convite.comunidade_id)}, ${provider}, ${BUILT_MEMBER_ANNUAL_FEE_BRL}, 'BRL', ${startsAt}, ${endsAt}, ${externalId}, 'active', ${JSON.stringify({ convite_id: convite.id, convite_token: convite.token })}::jsonb)
+      ON CONFLICT DO NOTHING
+    `);
+  }
+
   async function createAsaasAdesaoPaymentLinkUrl(convite: any, comunidade: any): Promise<string> {
     const apiKey = process.env.ASAAS_API_KEY;
     if (!apiKey) return buildAsaasAdesaoCheckoutUrl(convite.token);
@@ -22452,12 +22870,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         access_token: apiKey,
       },
       body: JSON.stringify({
-        name: "Adesao BUILT Alliances",
-        description: `Adesao a ${comunidade?.nome || "BUILT Alliances"}`,
+        name: "Anuidade de Membro BUILT",
+        description: `Anuidade de Membro BUILT - ${comunidade?.nome || "Comunidade BUILT"}`,
         endDate: endDate.toISOString().slice(0, 10),
         value: 3197,
         billingType: "UNDEFINED",
-        chargeType: "DETACHED",
+        chargeType: "RECURRENT",
+        subscriptionCycle: "YEARLY",
         externalReference: convite.token,
         notificationEnabled: true,
         callback: {
@@ -22481,16 +22900,17 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const stripe = getStripeClient();
     const baseUrl = getPublicAppBaseUrl();
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+      mode: "subscription",
       payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
             currency: "brl",
             unit_amount: 319700,
+            recurring: { interval: "year" },
             product_data: {
-              name: "Taxa de AdesÃ£o BUILT Alliances",
-              description: `AdesÃ£o Ã  comunidade ${convite.candidato_nome ? "- " + convite.candidato_nome : ""}`.trim(),
+              name: "Anuidade de Membro BUILT",
+              description: `Membro da comunidade ${convite.comunidade_id || "BUILT"}`,
             },
           },
           quantity: 1,
@@ -22502,6 +22922,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         convite_id: String(convite.id),
         candidato_nome: convite.candidato_nome || "",
         comunidade_id: convite.comunidade_id || "",
+      },
+      subscription_data: {
+        metadata: {
+          convite_token: convite.token,
+          convite_id: String(convite.id),
+          comunidade_id: convite.comunidade_id || "",
+        },
       },
       success_url: `${baseUrl}/pagamento/${convite.token}?payment_success=true`,
       cancel_url: `${baseUrl}/pagamento/${convite.token}`,
@@ -22532,6 +22959,17 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     try {
       const membroId = (req.session as any).membroId as string | undefined;
       if (!membroId) return res.status(400).json({ error: "Seu perfil ainda nÃ£o estÃ¡ vinculado ao cadastro de membro." });
+
+      const onboarding = await getInitialOnboardingJourney(String((req.session as any).directusUserId)).catch(() => null);
+      if (onboarding && onboarding.status !== "concluido") {
+        return res.status(409).json({ code: "ONBOARDING_REQUIRED", error: "Conclua o onboarding antes de iniciar a anuidade de Membro BUILT." });
+      }
+      const auraRegistrada = Number((await db.execute(sql`
+        SELECT count(*)::int AS total FROM aura_avaliacoes WHERE avaliado_membro_id = ${membroId}
+      `)).rows?.[0]?.total || 0) > 0;
+      if (!auraRegistrada) {
+        return res.status(409).json({ code: "AURA_REQUIRED", error: "A Aura precisa ser registrada pelo aliado conector antes da anuidade de Membro BUILT." });
+      }
 
       if (await canAccessProtectedOpaActions(req)) {
         return res.json({ alreadyMember: true });
@@ -23445,6 +23883,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       // Only mark membro after both Directus updates succeed
       await storage.updateConvite(convite.id, { status: "membro" });
+      await recordMembershipAnnuality(convite, "manual", `manual:${convite.token}`);
 
       // 3. Send final approval email to the candidate + notify community stakeholders
       const candidatoEmail = convite.candidato_email || candidatoData?.email;
@@ -23916,6 +24355,29 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         }
         return res.status(200).json({ received: true });
       }
+      const renewalToken = invoice.metadata?.convite_token
+        || invoice.parent?.subscription_details?.metadata?.convite_token
+        || invoice.subscription_details?.metadata?.convite_token;
+      if (renewalToken) {
+        const convite = await storage.getConviteByToken(String(renewalToken)).catch(() => null);
+        if (convite) await recordMembershipAnnuality(convite, "stripe", String(invoice.id));
+        return res.status(200).json({ received: true });
+      }
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object;
+      const token = subscription.metadata?.convite_token;
+      if (token) {
+        const convite = await storage.getConviteByToken(String(token)).catch(() => null);
+        if (convite) {
+          await db.execute(sql`
+            UPDATE membro_anuidades SET status = 'canceled', updated_at = now()
+            WHERE membro_id = ${String(convite.candidato_membro_id)} AND provider = 'stripe' AND status = 'active'
+          `);
+        }
+      }
+      return res.status(200).json({ received: true });
     }
 
     if (event.type === "checkout.session.completed") {
@@ -23978,6 +24440,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
         // Idempotency: skip if already activated
         if (convite.status === "membro") {
+          await recordMembershipAnnuality(convite, "stripe", String(session.id));
           console.log("[stripe/webhook] convite already activated, skipping:", token);
           return res.status(200).json({ received: true });
         }
@@ -24038,6 +24501,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
         // 3. Only mark as membro after both Directus updates succeed
         await storage.updateConvite(convite.id, { status: "membro" });
+        await recordMembershipAnnuality(convite, "stripe", String(session.id));
         console.log("[stripe/webhook] convite activated:", token);
 
         // 4. Send final approval email to the candidate + notify community stakeholders
@@ -24119,6 +24583,13 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     // Only act on confirmed/received payments
     const ACTIVATION_EVENTS = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"];
     if (!ACTIVATION_EVENTS.includes(event)) {
+      if (["PAYMENT_REFUNDED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE"].includes(event)) {
+        const status = event === "PAYMENT_REFUNDED" ? "refunded" : "disputed";
+        await db.execute(sql`
+          UPDATE membro_anuidades SET status = ${status}, ends_at = LEAST(ends_at, now()), updated_at = now()
+          WHERE provider = 'asaas' AND external_id = ${String(payment.id || "")}
+        `).catch((error: any) => console.warn("[asaas/webhook] Falha ao revogar anuidade:", error?.message || error));
+      }
       return res.status(200).json({ received: true });
     }
 
@@ -24185,6 +24656,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       // Idempotency: skip if already activated
       if (convite.status === "membro") {
+        await recordMembershipAnnuality(convite, "asaas", String(payment.id || extRef || convite.token));
         console.log(`[asaas/webhook] convite already activated, skipping: ${convite.token}`);
         return res.status(200).json({ received: true });
       }
@@ -24243,6 +24715,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
 
       // 3. Mark convite as membro
       await storage.updateConvite(convite.id, { status: "membro" });
+      await recordMembershipAnnuality(convite, "asaas", String(payment.id || extRef || convite.token));
       console.log(`[asaas/webhook] convite activated: ${convite.token}`);
 
       // 4. Send final approval email to the candidate + notify community stakeholders

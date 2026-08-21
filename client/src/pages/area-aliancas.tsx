@@ -26,6 +26,7 @@ import { AuraBadge } from "@/components/aura-score";
 import { RedeBadgeButton } from "@/components/rede-badge-viewer";
 import { MapWheelGuard } from "@/components/map-wheel-guard";
 import { BiaStructuringQueue } from "@/components/bia-structuring-queue";
+import { ModuleInfo } from "@/components/module-info";
 import ComunidadePage from "@/pages/comunidade";
 import AreMembroPage from "@/pages/area-membros";
 import BiasPage from "@/pages/bias";
@@ -67,6 +68,8 @@ import { getMembroUrl } from "@/lib/public-refs";
 import { landBankPhotoUrl } from "@/lib/land-bank-assets";
 import type { MarketM2Analysis } from "@/lib/market-analysis";
 import { useToast } from "@/hooks/use-toast";
+
+const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENABLED !== "false";
 
 const WORLD_GEO = "/world-countries-50m.json";
 
@@ -1545,10 +1548,12 @@ export function InventarioPanel({ onPublishToLandBank }: { onPublishToLandBank?:
   );
 }
 
-export default function AreaAliancasPage() {
+export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landbank" } = {}) {
   const { toast } = useToast();
   const searchParams = useSearch();
   const getTabsFromSearch = () => {
+    if (forcedArea === "landbank") return { main: "landbank", rede: "membros", landBank: "land-bank" };
+    if (MEMBER_PORTFOLIO_V2_ENABLED) return { main: "bias", rede: "membros", landBank: "land-bank" };
     const tab = new URLSearchParams(searchParams).get("tab");
     if (["membros", "comunidades", "aliados"].includes(tab || "")) {
       return { main: "rede", rede: tab!, landBank: "land-bank" };
@@ -1806,44 +1811,48 @@ export default function AreaAliancasPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-area-aliancas-title">
           <Users className="h-7 w-7 text-cyan-500" />
-          BUILT Alliances
+          {forcedArea === "landbank" ? "Banco de Ativos" : MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances"}
+          <ModuleInfo
+            title={forcedArea === "landbank" ? "Banco de Ativos" : "Área de Alianças"}
+            description={forcedArea === "landbank" ? "Consulte ativos compartilhados com Membros BUILT e acompanhe oportunidades patrimoniais autorizadas." : "Área exclusiva para acompanhar as BIAs que você desenvolve ou das quais participa, com documentos, atividades e responsabilidades conforme seu papel."}
+          />
         </h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={updateAreaTab} className="space-y-5">
         <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
-          <TabsTrigger
+          {!MEMBER_PORTFOLIO_V2_ENABLED && <TabsTrigger
             value="oportunidades"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-oportunidades"
           >
             <Target className="h-4 w-4 shrink-0 text-cyan-500" />
             Oportunidades
-          </TabsTrigger>
-          <TabsTrigger
+          </TabsTrigger>}
+          {!forcedArea && <TabsTrigger
             value="bias"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-bias"
           >
             <Briefcase className="h-4 w-4 shrink-0 text-orange-500" />
             BIAs
-          </TabsTrigger>
-          <TabsTrigger
+          </TabsTrigger>}
+          {(forcedArea === "landbank" || !MEMBER_PORTFOLIO_V2_ENABLED) && <TabsTrigger
             value="rede"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-rede"
           >
             <Network className="h-4 w-4 shrink-0 text-blue-500" />
             Rede
-          </TabsTrigger>
-          <TabsTrigger
+          </TabsTrigger>}
+          {!MEMBER_PORTFOLIO_V2_ENABLED && <TabsTrigger
             value="landbank"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-landbank"
           >
             <MapPin className="h-4 w-4 shrink-0 text-emerald-500" />
             Banco de Ativos
-          </TabsTrigger>
+          </TabsTrigger>}
         </TabsList>
 
         <TabsContent
@@ -1856,7 +1865,7 @@ export default function AreaAliancasPage() {
           value="bias"
           className="[&>div]:p-0 [&>div]:max-w-none [&_[data-testid='text-bias-title']>div]:hidden"
         >
-          {activeTab === "bias" && <BiasPage />}
+          {activeTab === "bias" && <BiasPage relatedOnly />}
         </TabsContent>
         <TabsContent value="rede" className="space-y-5">
           {activeTab === "rede" && (

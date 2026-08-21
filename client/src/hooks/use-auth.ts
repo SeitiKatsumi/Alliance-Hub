@@ -17,6 +17,18 @@ export interface AppUser {
   na_vitrine?: boolean | null;
   em_membros_built?: boolean | null;
   em_built_capital?: boolean | null;
+  has_alliance_participation?: boolean;
+  membership?: {
+    condition: "registered" | "member";
+    active: boolean;
+    status: string | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    annual_fee_brl?: number;
+    communities: string[];
+    requirements: { onboarding: boolean; aura: boolean; annual_fee: boolean; community: boolean };
+    permissions?: Record<string, boolean>;
+  };
   foto_perfil?: string | null;
   pending_vitrine?: boolean;
   onboarding_required?: boolean;

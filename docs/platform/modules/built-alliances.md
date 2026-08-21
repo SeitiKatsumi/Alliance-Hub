@@ -1,4 +1,4 @@
-# BUILT Alliances, Oportunidades e BIAs
+# Area de Aliancas, Oportunidades e BIAs
 
 ## Objetivo e usuarios
 
@@ -28,7 +28,7 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 ## Papeis e permissoes
 
 - Autor, Aliado BUILT, Diretor de Alianca, diretorias de nucleo, socios e administradores acumulam acessos.
-- A finalidade `imoveis` nao substitui o vinculo: quem a selecionou acessa o ambiente somente quando tambem e membro BUILT, aliado, administrador ou funcionario explicitamente autorizado.
+- O ambiente lista somente BIAs relacionadas ao usuario. Participante preserva acesso operacional a sua BIA mesmo sem anuidade vigente, conforme a matriz da propria BIA.
 - Maior permissao valida prevalece; papel em uma BIA nao concede acesso a outra.
 - Aliado/Diretor responsavel deve conseguir agir em seu fluxo por notificacao/pagina apropriada, sem depender do painel admin.
 - Backend valida a etapa, o papel e o recurso antes de mutar.

@@ -62,6 +62,9 @@ import { useToast } from "@/hooks/use-toast";
 import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForRamo, getTipoDisplayName, parseSegmentosValue, RAMOS_SEGMENTOS } from "@/lib/ramos-segmentos";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { companyModuleForLocation, hasEmployeeModuleAccess } from "@/lib/company-access";
+import { dashboardNavigationUrl } from "@/lib/dashboard-navigation";
+
+const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENABLED !== "false";
 
 type PropertyOnboardingStatus = {
   required?: boolean;
@@ -140,6 +143,38 @@ function LegacyAgendaAlertsRedirect({ view }: { view: "agenda" | "alertas" }) {
   }, [navigate, view]);
 
   return null;
+}
+
+function LegacyCarteiraRedirect() {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    navigate(dashboardNavigationUrl({ tab: "carteira", carteiraView: "imoveis", businessSection: "recomendados" }), { replace: true });
+  }, [navigate]);
+
+  return null;
+}
+
+function LegacyCapitalRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate("/agenda-alertas?view=alertas&group=chamadas-capital", { replace: true });
+  }, [navigate]);
+  return null;
+}
+
+function RedirectToMembership() {
+  const [, navigate] = useLocation();
+  return (
+    <div className="mx-auto flex min-h-[55vh] max-w-lg items-center px-5 text-center">
+      <div className="w-full rounded-xl border bg-white p-8 shadow-sm">
+        <h1 className="text-xl font-bold text-[#001D34]">Área exclusiva para Membros BUILT</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">A anuidade ativa libera Comunidades e ROs, Rede de Membros Aliados, Banco de Ativos, Gestão e oportunidades detalhadas.</p>
+        <p className="mt-3 text-sm font-semibold text-[#001D34]">Anuidade: R$ 3.197/ano</p>
+        <Button className="mt-5 bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/meu-perfil")}>Ver minha condição de membro</Button>
+      </div>
+    </div>
+  );
 }
 
 function LegacyVitrineObasRedirect() {
@@ -520,7 +555,7 @@ function PerfilOnboardingModal({
 
   const { data: membro, isLoading } = useQuery<OnboardingMembro>({
     queryKey: ["/api/membros", membroId],
-    queryFn: () => fetch(`/api/membros/${membroId}`).then(r => r.json()),
+    queryFn: async () => (await apiRequest("GET", `/api/membros/${membroId}`)).json(),
     enabled: !!membroId,
   });
 
@@ -1151,6 +1186,8 @@ function ProtectedApp() {
     && companyRouteModule
     && !hasEmployeeModuleAccess(user, companyRouteModule, "view"),
   );
+  const vitrineRouteDenied = location.startsWith("/vitrine")
+    && !environmentAccessFor(user, "vitrine").canAccess;
 
   const { data: propertyOnboardingStatus } = useQuery<PropertyOnboardingStatus>({
     queryKey: ["/api/carteira/onboarding-status", user?.id],
@@ -1401,18 +1438,30 @@ function ProtectedApp() {
                   </Button>
                 </div>
               </div>
+            ) : vitrineRouteDenied ? (
+              <div className="flex min-h-[55vh] items-center justify-center px-5">
+                <div className="max-w-md text-center">
+                  <h1 className="text-xl font-bold text-[#001D34]">Área de Vitrine</h1>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    Área destinada a profissionais independentes, prestadores de serviços e fornecedores.
+                  </p>
+                  <Button className="mt-5 bg-blue-600 text-white hover:bg-blue-700" onClick={() => navigate("/meu-perfil")}>
+                    Atualizar perfil
+                  </Button>
+                </div>
+              </div>
             ) : <Switch>
               <Route path="/" component={PainelPage} />
               <Route path="/carteira/novo" component={CarteiraAssistentePage} />
               <Route path="/carteira/:id" component={CarteiraPage} />
-              <Route path="/carteira" component={CarteiraPage} />
+              <Route path="/carteira" component={LegacyCarteiraRedirect} />
               <Route path="/oportunidades/nova" component={NovaOportunidadeImobiliariaPage} />
               <Route path="/oportunidades/:id" component={LandBankDetalhePage} />
               <Route path="/oportunidades" component={OportunidadesImobiliariasPage} />
               <Route path="/agenda-alertas" component={AgendaAlertasPage} />
               <Route path="/agenda">{() => <LegacyAgendaAlertsRedirect view="agenda" />}</Route>
               <Route path="/bias/:id" component={BiaDetalhePage} />
-              <Route path="/bias" component={BiasPage} />
+              <Route path="/bias">{() => <BiasPage />}</Route>
               <Route path="/opas/:id" component={OpaDetalhePage} />
               <Route path="/opas" component={LegacyOpasRedirect} />
               <Route path="/bias-calculadora" component={LegacyBiasRedirect} />
@@ -1443,15 +1492,16 @@ function ProtectedApp() {
               <Route path="/rastreabilidade/:codigo" component={BusinessTraceDetailPage} />
               <Route path="/area-aliancas" component={AlliancesRouteGuard} />
               <Route path="/land-bank/:id" component={LandBankDetalhePage} />
-              <Route path="/area-membros" component={AreMembroPage} />
+              <Route path="/banco-ativos">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <AreaAliancasPage forcedArea="landbank" /> : <RedirectToMembership />}</Route>
+              <Route path="/area-membros">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <AreMembroPage /> : <RedirectToMembership />}</Route>
               <Route path="/membro/:id" component={MembroDetalhePage} />
-              <Route path="/comunidade/:id" component={ComunidadeDetalhePage} />
-              <Route path="/comunidade">{() => <ComunidadePage />}</Route>
+              <Route path="/comunidade/:id">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <ComunidadeDetalhePage /> : <RedirectToMembership />}</Route>
+              <Route path="/comunidade">{() => user?.membership?.active || ["admin", "manager", "superadmin"].includes(String(user?.role || "")) ? <ComunidadePage /> : <RedirectToMembership />}</Route>
               <Route path="/notificacoes">{() => <LegacyAgendaAlertsRedirect view="alertas" />}</Route>
               <Route path="/convites">{() => <LegacyAgendaAlertsRedirect view="alertas" />}</Route>
-              <Route path="/built-capital/chamadas/:id" component={BuiltCapitalChamadaDetalhePage} />
-              <Route path="/built-capital/chamadas" component={BuiltCapitalChamadasPage} />
-              <Route path="/built-capital" component={BuiltCapitalPage} />
+              <Route path="/built-capital/chamadas/:id">{() => MEMBER_PORTFOLIO_V2_ENABLED ? <LegacyCapitalRedirect /> : <BuiltCapitalChamadaDetalhePage />}</Route>
+              <Route path="/built-capital/chamadas">{() => MEMBER_PORTFOLIO_V2_ENABLED ? <LegacyCapitalRedirect /> : <BuiltCapitalChamadasPage />}</Route>
+              <Route path="/built-capital">{() => MEMBER_PORTFOLIO_V2_ENABLED ? <LegacyCapitalRedirect /> : <BuiltCapitalPage />}</Route>
               <Route path="/membros" component={LegacyMembrosRedirect} />
               <Route path="/aura/:membroId" component={AuraPage} />
               <Route path="/aura" component={AuraPage} />

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-18",
+  "updatedAt": "2026-08-21",
   "description": "Matriz de impacto entre funcionalidades, interface, API, persistencia, invariantes e testes.",
   "modules": [
     {
@@ -14,7 +14,7 @@
       "apiPrefixes": ["/api/login", "/api/register", "/api/onboarding", "/api/me", "/api/minha-conta/finalidades", "/api/convites", "/api/meu-convite"],
       "dataStores": ["PostgreSQL users", "PostgreSQL convites_link", "PostgreSQL initial_onboarding_journeys", "PostgreSQL user_account_purposes", "PostgreSQL password_reset_tokens", "Directus cadastro_geral", "Directus files", "sessao Express"],
       "roles": ["visitante", "candidato", "membro", "funcionario", "admin", "superadmin"],
-      "invariants": ["Usuario autenticavel e membro nao sao o mesmo identificador.", "Finalidades ativas de user_account_purposes sao devolvidas por /api/me e alimentam a regra compartilhada de ambientes.", "A finalidade imoveis libera a entrada na Vitrine sem publicar o perfil; Alliances exige tambem vinculo de membro.", "A adesao preserva a comunidade do convite original quando o candidato ainda nao possui relacao M2M como membro.", "Contas novas aceitam Codigo de Etica e Politicas de Participacao antes das cinco etapas; Vitrine e Capital exigem seus termos no primeiro acesso ao modulo.", "Aceites iniciais aparecem antes da numeracao e nao destacam a etapa 5.", "A tela informa que a localizacao do dispositivo e obrigatoria e orienta o usuario quando a permissao nao e concedida.", "A evidencia de localizacao enviada ao backend inclui status capturada, coordenadas validas, precisao e horario.", "Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites ao final.", "Etapas futuras nao podem ser acessadas antes da primeira pendencia.", "Perfil exclusivo de imovel nao exige CPF.", "CPF permanece disponivel para preenchimento opcional em qualquer finalidade, inclusive no perfil exclusivo de imovel.", "Blocos de intencao exibem titulo curto e pergunta contextual oficial para imovel, profissional e capital.", "Perfis da personalizacao preservam identidade visual: imovel azul, profissional verde e capital roxo.", "Acoes recomendadas da conclusao reutilizam as cores dos perfis e distinguem a rede em ciano.", "Recomendacoes do onboarding normalizam foto Directus ou URL externa e preservam fallback visual.", "Leitura de assets necessarios aos avatares permanece disponivel durante o onboarding sem liberar APIs vizinhas.", "Preferencias de atualizacao ficam no onboarding e nao criam conexoes nem publicam perfil.", "Onboarding reutiliza campos e taxonomias oficiais de ramo, segmento, area de atuacao, especialidade, idiomas e areas de contribuicao.", "Escolhas nao publicam recursos automaticamente.", "Aceite preserva versao, identidade, horario e evidencia capturada.", "Repetir callback, cadastro ou finalizacao nao duplica efeito."],
+      "invariants": ["Usuario autenticavel e membro nao sao o mesmo identificador.", "Finalidades ativas de user_account_purposes sao devolvidas por /api/me e alimentam a regra compartilhada de ambientes.", "Todo usuario autenticado consulta a Area de Vitrine; somente perfis profissionais podem optar pela publicacao. Alliances exige vinculo com uma alianca.", "A adesao preserva a comunidade do convite original quando o candidato ainda nao possui relacao M2M como membro.", "Contas novas aceitam Codigo de Etica e Politicas de Participacao antes das cinco etapas; Vitrine e Capital exigem seus termos no primeiro acesso ao modulo.", "Aceites iniciais aparecem antes da numeracao e nao destacam a etapa 5.", "A tela informa que a localizacao do dispositivo e obrigatoria e orienta o usuario quando a permissao nao e concedida.", "A evidencia de localizacao enviada ao backend inclui status capturada, coordenadas validas, precisao e horario.", "Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites ao final.", "Etapas futuras nao podem ser acessadas antes da primeira pendencia.", "Perfil exclusivo de imovel nao exige CPF.", "CPF permanece disponivel para preenchimento opcional em qualquer finalidade, inclusive no perfil exclusivo de imovel.", "Blocos de intencao exibem titulo curto e pergunta contextual oficial para imovel, profissional e capital.", "Perfis da personalizacao preservam identidade visual: imovel azul, profissional verde e capital roxo.", "Acoes recomendadas da conclusao reutilizam as cores dos perfis e distinguem a rede em ciano.", "Recomendacoes do onboarding normalizam foto Directus ou URL externa e preserva fallback visual.", "Leitura de assets necessarios aos avatares permanece disponivel durante o onboarding sem liberar APIs vizinhas.", "Preferencias de atualizacao ficam no onboarding e nao criam conexoes nem publicam perfil.", "Onboarding reutiliza campos e taxonomias oficiais de ramo, segmento, area de atuacao, especialidade, idiomas e areas de contribuicao.", "Escolhas nao publicam recursos automaticamente.", "Aceite preserva versao, identidade, horario e evidencia capturada.", "Repetir callback, cadastro ou finalizacao nao duplica efeito."],
       "tests": ["client/src/lib/acceptanceLocation.test.ts", "client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts", "shared/environment-access.test.ts", "shared/initial-onboarding.test.ts", "shared/member-community.test.ts"]
     },
     {
@@ -47,7 +47,7 @@
     },
     {
       "id": "built-vitrine",
-      "name": "BUILT Vitrine",
+      "name": "Area de Vitrine",
       "doc": "docs/platform/modules/built-vitrine.md",
       "keywords": ["vitrine", "publicacao", "parceiro", "anuncio", "demanda publica", "oba publica", "ativo publicado", "interesse"],
       "routes": ["/vitrine", "/vitrine/:id", "/vitrine/oportunidades/obas", "/vitrine/oportunidades/demandas"],
@@ -56,21 +56,21 @@
       "apiPrefixes": ["/api/vitrine", "/api/vitrine/demandas", "/api/assets"],
       "dataStores": ["Directus cadastro_geral", "PostgreSQL anuncios", "PostgreSQL opportunity_registry", "projecoes publicas"],
       "roles": ["visitante", "membro", "publicador", "moderador", "admin"],
-      "invariants": ["A finalidade imoveis libera a entrada na Vitrine sem ativar na_vitrine.", "O termo da Vitrine e exigido no primeiro acesso ao modulo, nao no onboarding inicial.", "Publicacao e opt-in e reversivel.", "Projecao publica omite dados privados.", "Interesse repetido e idempotente."],
+      "invariants": ["Todo usuario autenticado consulta a area; funcionarios respeitam a permissao empresarial.", "Somente perfis profissionais podem optar pela publicacao, que e reversivel.", "Usuario gratuito recebe resumo sem contatos privados; detalhes autorizados exigem anuidade vigente.", "Projecao publica omite dados privados.", "Interesse repetido e idempotente."],
       "tests": ["server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/property-journey.test.ts", "shared/environment-access.test.ts"]
     },
     {
       "id": "built-alliances",
-      "name": "BUILT Alliances, oportunidades e BIAs",
+      "name": "Area de Aliancas e BIAs",
       "doc": "docs/platform/modules/built-alliances.md",
       "keywords": ["alliances", "bia", "oba", "opa", "land bank", "banco de ativos", "estruturacao", "diretoria", "socio", "mou", "rastreabilidade"],
       "routes": ["/area-aliancas", "/area-aliancas/oportunidades/:codigo", "/opas/:id", "/bias", "/bias/:id", "/land-bank/:id", "/rastreabilidade/:codigo"],
       "frontendFiles": ["client/src/components/environment-access.tsx", "client/src/pages/area-aliancas.tsx", "client/src/pages/opa-detalhe.tsx", "client/src/pages/bias.tsx", "client/src/pages/bia-detalhe.tsx", "client/src/pages/land-bank-detalhe.tsx", "client/src/components/bia-structuring-queue.tsx", "client/src/components/opportunity-distribution-controls.tsx"],
-      "backendFiles": ["server/routes.ts", "server/bia-lifecycle.ts", "server/opportunity-platform.ts", "server/business-trace.ts", "shared/bia-access.ts", "shared/environment-access.ts", "shared/schema.ts"],
+      "backendFiles": ["server/routes.ts", "server/bia-lifecycle.ts", "server/opportunity-platform.ts", "server/business-trace.ts", "shared/bia-access.ts", "shared/environment-access.ts", "shared/member-portfolio.ts", "shared/schema.ts"],
       "apiPrefixes": ["/api/bias", "/api/land-bank-assets", "/api/bia-estruturacao-solicitacoes", "/api/bia-aprovacoes", "/api/bia-diretor-solicitacoes", "/api/bia-socio-solicitacoes"],
       "dataStores": ["Directus bias_projetos", "Directus land_bank_assets", "PostgreSQL opportunity_registry", "PostgreSQL business_trace_*", "PostgreSQL bia_*"],
       "roles": ["autor", "aliado BUILT", "diretor de alianca", "diretor de nucleo", "socio", "admin", "superadmin"],
-      "invariants": ["A finalidade imoveis so libera Alliances quando existe tambem vinculo de membro ou permissao empresarial explicita.", "Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Aliado ou diretor responsavel nao depende do painel admin para agir."],
+      "invariants": ["A Area de Aliancas exibe apenas BIAs relacionadas ao usuario, independentemente da vigencia da anuidade.", "Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Aliado ou diretor responsavel nao depende do painel admin para agir."],
       "tests": ["shared/bia-access.test.ts", "shared/environment-access.test.ts", "server/bia-lifecycle.test.ts", "server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/business-trace.test.ts"]
     },
     {
@@ -94,12 +94,12 @@
       "keywords": ["carteira", "patrimonio", "imovel", "pulso", "documento do imovel", "alerta patrimonial", "diagnostico", "demanda", "compartilhamento"],
       "routes": ["/carteira", "/carteira/:id", "/carteira/novo", "/oportunidades", "/oportunidades/:id"],
       "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx", "client/src/lib/audio-recording.ts"],
-      "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/carteira", "/api/oportunidades"],
-      "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL property_assistant_sessions"],
+      "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/member-portfolio.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/carteira", "/api/bias/:id/patrimonio", "/api/bias/:id/aporte-solicitacoes", "/api/oportunidades"],
+      "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL bia_patrimonial_snapshots", "PostgreSQL bia_aporte_solicitacoes", "Directus fluxo_caixa", "Directus bias_projetos"],
       "roles": ["proprietario", "leitor convidado", "colaborador", "administrador do imovel"],
-      "invariants": ["Carteira privada nao se mistura ao financeiro de BIA.", "Edicao relevante gera evento.", "Publicacao e compartilhamento sao opt-in e por imovel.", "Conversa com a IA aceita texto, arquivo de audio e gravacao direta sem bloquear o cadastro quando o microfone for negado."],
-      "tests": ["client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
+      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "Publicacao e compartilhamento sao opt-in e por imovel."],
+      "tests": ["shared/member-portfolio.test.ts", "client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
     },
     {
       "id": "aura",
@@ -151,10 +151,10 @@
       "routes": ["/pagamento/:token", "/pagamento/sucesso", "/bias/:id?tab=capital", "/admin"],
       "frontendFiles": ["client/src/pages/pagamento.tsx", "client/src/pages/pagamento-sucesso.tsx", "client/src/components/PagamentoModal.tsx", "client/src/components/browser-permission-help.tsx"],
       "backendFiles": ["server/routes.ts", "server/pinbank-client.ts", "server/mailer.ts", "server/stripe.ts"],
-      "apiPrefixes": ["/api/convites", "/api/upload", "/api/files"],
-      "dataStores": ["IDs externos persistidos", "eventos validados de provedor", "arquivos Directus", "variaveis de ambiente"],
+      "apiPrefixes": ["/api/convites", "/api/opa/solicitar-adesao", "/api/stripe/webhook", "/api/webhooks/asaas", "/api/upload", "/api/files"],
+      "dataStores": ["PostgreSQL membro_anuidades", "IDs externos persistidos", "eventos validados de provedor", "arquivos Directus", "variaveis de ambiente"],
       "roles": ["pagador", "participante autorizado", "operador financeiro", "admin"],
-      "invariants": ["Webhook e retentativa sao idempotentes.", "Falha externa nao vira sucesso silencioso.", "Segredos e PII nao chegam ao cliente ou logs."],
+      "invariants": ["A anuidade de R$ 3.197 formaliza Membro BUILT somente depois de onboarding, Aura, pagamento e associacao comunitaria.", "Cancelamento preserva acesso ate o fim pago; reembolso e chargeback encerram a vigencia.", "Webhook e retentativa sao idempotentes.", "Falha externa nao vira sucesso silencioso.", "Segredos e PII nao chegam ao cliente ou logs."],
       "tests": ["server/aura-audio.test.ts", "server/valor-origem-sync.test.ts"]
     }
   ],

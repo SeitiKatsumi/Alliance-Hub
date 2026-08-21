@@ -37,6 +37,7 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 
 ## Invariantes
 
+- A explicacao do modulo usa um controle de informacao acionavel no cabecalho da pagina, sem poluir as abas ou o menu lateral.
 - Contador e lista usam a mesma regra e o mesmo escopo de usuario.
 - Um evento de origem gera no maximo uma pendencia acionavel equivalente.
 - Resolver na origem remove da central sem apagar o historico.

@@ -7,6 +7,7 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 ## Telas e URLs
 
 - `/aura` e `/aura/:membroId`.
+- O resumo de `/meu-perfil` exibe o score, a faixa e o estado da Aura do proprio membro com o mesmo padrao visual do Inicio; o clique abre `/aura/:membroId`.
 - `/avaliar-aura/:token` para avaliacao publica controlada de candidato.
 - Implementacao principal: `client/src/pages/aura.tsx`, `client/src/pages/avaliar-aura-candidato.tsx`, `client/src/components/aura-score.tsx` e `client/src/lib/aura-access.ts`.
 
@@ -37,6 +38,8 @@ Registra percepcoes reputacionais entre membros por palavras ou expressoes, com 
 
 ## Invariantes
 
+- A explicacao do modulo usa um controle de informacao acionavel no cabecalho da pagina, sem poluir as abas ou o menu lateral.
+- Aura nao aparece como modulo separado no menu lateral; Inicio e Meu Perfil fornecem os acessos contextuais.
 - Um par avaliador/avaliado respeita a unicidade definida no dominio.
 - Ate tres termos ou expressoes canonicas por avaliacao.
 - Canonizacao, sinonimos, dimensoes e pesos vivem no helper de dominio.

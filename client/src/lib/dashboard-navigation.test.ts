@@ -24,5 +24,6 @@ test("portfolio keeps only properties and BIAs", () => {
 
 test("new dashboard URLs remain stable", () => {
   assert.equal(dashboardNavigationUrl({ tab: "negocios", carteiraView: "imoveis", businessSection: "andamento" }), "/?tab=negocios&section=andamento");
+  assert.equal(dashboardNavigationUrl({ tab: "carteira", carteiraView: "imoveis", businessSection: "recomendados" }), "/?tab=carteira&view=imoveis");
   assert.equal(dashboardNavigationUrl({ tab: "carteira", carteiraView: "bias", businessSection: "recomendados" }), "/?tab=carteira&view=bias");
 });

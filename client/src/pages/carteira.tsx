@@ -58,6 +58,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
+import { ModuleInfo } from "@/components/module-info";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
@@ -105,7 +106,16 @@ interface CarteiraImovel {
   ocupacao?: string;
   objetivo?: string;
   titularidade?: Array<{ nome: string; percentual?: number | string }>;
+  participacao_percentual?: number;
+  situacao_pagamento?: "quitado" | "financiado";
+  forma_pagamento?: string;
+  instituicao_financeira?: string;
+  condicoes_financiamento?: string;
+  parcelas_pagas?: number;
+  parcelas_restantes?: number;
   divida_saldo?: string | number;
+  liquidez_sugerida?: "baixa" | "media" | "alta" | null;
+  liquidez_confirmada?: "baixa" | "media" | "alta" | null;
   valor_data_base?: string;
   valor_origem?: string;
   area_origem?: string;
@@ -117,10 +127,19 @@ interface CarteiraImovel {
   access_level?: AccessLevel;
   is_owner?: boolean;
   diagnostico?: CarteiraDiagnostico | null;
+  contas_a_pagar?: number;
 }
 
 interface CarteiraResumo {
+  period: "12m" | "all";
   imoveis: CarteiraImovel[];
+  aliancas: Array<{
+    id: string; codigo?: string | null; nome: string; situacao?: string | null; moeda: string;
+    map_percent: number; aportes_oficiais: number; patrimonio_liquido_oficial?: number | null;
+    valor_participacao?: number | null; data_base?: string | null; metodologia?: string | null;
+    liquidez?: string | null; confirmado: boolean; can_manage_patrimonio?: boolean;
+    receitas_participacao?: number; despesas_participacao?: number; contas_a_pagar_participacao?: number; evolucao_patrimonial_percentual?: number | null;
+  }>;
   totais: {
     patrimonio_total: number;
     patrimonio_pago: number;
@@ -131,6 +150,10 @@ interface CarteiraResumo {
     despesas: number;
     resultado_liquido: number;
     alertas_abertos: number;
+    total_investido_aliancas: number;
+    valor_participacoes_aliancas: number;
+    percentual_baixa_liquidez: number;
+    contas_a_pagar: number;
   };
 }
 
@@ -319,6 +342,13 @@ const EMPTY_PROPERTY: Omit<CarteiraImovel, "id"> = {
   ocupacao: "desconhecido",
   objetivo: "indefinido",
   titularidade: [],
+  participacao_percentual: 100,
+  situacao_pagamento: "quitado",
+  forma_pagamento: "",
+  instituicao_financeira: "",
+  condicoes_financiamento: "",
+  parcelas_pagas: 0,
+  parcelas_restantes: 0,
   divida_saldo: "",
   valor_data_base: new Date().toISOString().slice(0, 10),
   valor_origem: "declarada",
@@ -608,7 +638,7 @@ function PropertyFormDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Valor pago</Label>
+            <Label>Valor de aquisição</Label>
             <Input inputMode="decimal" value={String(form.valor_pago || "")} onChange={(event) => setForm({ ...form, valor_pago: event.target.value })} />
           </div>
           <div className="space-y-2">
@@ -637,6 +667,42 @@ function PropertyFormDialog({
             <Input inputMode="decimal" value={String(form.divida_saldo || "")} onChange={(event) => setForm({ ...form, divida_saldo: event.target.value })} />
           </div>
           <div className="space-y-2">
+            <Label>Situação do pagamento</Label>
+            <Select value={form.situacao_pagamento || "quitado"} onValueChange={(value: "quitado" | "financiado") => setForm({ ...form, situacao_pagamento: value })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="quitado">Quitado</SelectItem><SelectItem value="financiado">Financiado</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Forma de pagamento</Label>
+            <Input value={form.forma_pagamento || ""} onChange={(event) => setForm({ ...form, forma_pagamento: event.target.value })} placeholder="À vista, financiamento..." />
+          </div>
+          {form.situacao_pagamento === "financiado" && <>
+            <div className="space-y-2">
+              <Label>Instituição financeira</Label>
+              <Input value={form.instituicao_financeira || ""} onChange={(event) => setForm({ ...form, instituicao_financeira: event.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Condições do financiamento</Label>
+              <Input value={form.condicoes_financiamento || ""} onChange={(event) => setForm({ ...form, condicoes_financiamento: event.target.value })} placeholder="Taxa, prazo e sistema de amortização" />
+            </div>
+            <div className="space-y-2">
+              <Label>Parcelas pagas</Label>
+              <Input type="number" min="0" value={form.parcelas_pagas || 0} onChange={(event) => setForm({ ...form, parcelas_pagas: Number(event.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Parcelas restantes</Label>
+              <Input type="number" min="0" value={form.parcelas_restantes || 0} onChange={(event) => setForm({ ...form, parcelas_restantes: Number(event.target.value) })} />
+            </div>
+          </>}
+          <div className="space-y-2">
+            <Label>Liquidez confirmada</Label>
+            <Select value={form.liquidez_confirmada || "nao_confirmada"} onValueChange={(value) => setForm({ ...form, liquidez_confirmada: value === "nao_confirmada" ? null : value as any })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="nao_confirmada">Não confirmada</SelectItem><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="media">Média</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label>Titularidade</Label>
             <Input
               value={(form.titularidade || []).map((item) => item.nome).join(", ")}
@@ -645,6 +711,17 @@ function PropertyFormDialog({
                 titularidade: event.target.value.split(",").map((nome) => ({ nome: nome.trim() })).filter((item) => item.nome),
               })}
               placeholder="Nome dos titulares, separados por vírgula"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Sua participação neste imóvel (%)</Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={form.participacao_percentual ?? 100}
+              onChange={(event) => setForm({ ...form, participacao_percentual: Math.min(100, Math.max(0, Number(event.target.value))) })}
             />
           </div>
           <div className="space-y-2">
@@ -724,11 +801,13 @@ function PropertyFormDialog({
 
 function PropertyCard({
   item,
+  portfolioTotal,
   onOpen,
   onEdit,
   onDelete,
 }: {
   item: CarteiraImovel;
+  portfolioTotal: number;
   onOpen: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -736,6 +815,12 @@ function PropertyCard({
   const diagnostic = item.diagnostico;
   const hasActions = Boolean(onEdit || onDelete);
   const photoUrl = carteiraPhotoUrl(item.foto);
+  const ownership = Math.min(100, Math.max(0, Number(item.participacao_percentual ?? 100)));
+  const ownedValue = parseNumber(item.valor_atual) * ownership / 100;
+  const ownedDebt = parseNumber(item.divida_saldo) * ownership / 100;
+  const portfolioShare = portfolioTotal > 0 ? Math.max(0, ownedValue - ownedDebt) / portfolioTotal * 100 : 0;
+  const acquisition = parseNumber(item.valor_pago) * ownership / 100;
+  const evolution = acquisition > 0 ? (ownedValue - acquisition) / acquisition * 100 : null;
   return (
     <Card className="relative overflow-hidden border-border/70 transition-colors hover:border-blue-300">
       <CardContent className="p-0">
@@ -797,8 +882,8 @@ function PropertyCard({
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3 text-sm">
             <div>
-              <p className="text-[11px] text-muted-foreground">Valor estimado</p>
-              <p className="font-semibold tabular-nums">{money(item.valor_atual, item.moeda)}</p>
+              <p className="text-[11px] text-muted-foreground">Sua fração ({ownership.toFixed(2)}%)</p>
+              <p className="font-semibold tabular-nums">{money(ownedValue, item.moeda)}</p>
             </div>
             <div>
               <p className="text-[11px] text-muted-foreground">Resultado registrado</p>
@@ -807,6 +892,7 @@ function PropertyCard({
               </p>
             </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">{portfolioShare.toFixed(1)}% do patrimônio total · {money(item.contas_a_pagar || 0, item.moeda)} a pagar{evolution == null ? "" : ` · evolução ${evolution.toFixed(1)}%`}</p>
           <div className="mt-3 space-y-1 text-xs">
             <p><span className="font-medium text-foreground">Oportunidade:</span> <span className="text-muted-foreground">{diagnostic?.oportunidade || "Complete os dados do imóvel."}</span></p>
             <p><span className="font-medium text-foreground">Próxima ação:</span> <span className="text-blue-700">{diagnostic?.proxima_acao || "Realizar Pulso Patrimonial"}</span></p>
@@ -822,10 +908,24 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("todos");
+  const [period, setPeriod] = useState<"12m" | "all">("12m");
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CarteiraImovel | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CarteiraImovel | null>(null);
-  const { data, isLoading } = useQuery<CarteiraResumo>({ queryKey: ["/api/carteira/resumo"] });
+  const [aporteTarget, setAporteTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
+  const [aporteValor, setAporteValor] = useState("");
+  const [aporteObservacao, setAporteObservacao] = useState("");
+  const [aporteFile, setAporteFile] = useState<File | null>(null);
+  const [gestaoTarget, setGestaoTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
+  const [snapshotForm, setSnapshotForm] = useState({ patrimonio_liquido: "", data_base: new Date().toISOString().slice(0, 10), metodologia: "Avaliação dos diretores", liquidez: "media" });
+  const { data, isLoading } = useQuery<CarteiraResumo>({
+    queryKey: ["/api/carteira/resumo", period],
+    queryFn: async () => {
+      const response = await fetch(`/api/carteira/resumo?period=${period}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Não foi possível carregar a Carteira.");
+      return response.json();
+    },
+  });
   function invalidateDashboard() {
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
     queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis"] });
@@ -860,6 +960,42 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     },
     onError: (error: any) => toast({ title: "Não foi possível excluir o imóvel", description: error?.message, variant: "destructive" }),
   });
+  const aporteMutation = useMutation({
+    mutationFn: async () => {
+      if (!aporteTarget || !aporteFile) throw new Error("Informe o valor e envie o comprovante.");
+      const body = new FormData();
+      body.append("valor", aporteValor);
+      body.append("observacao", aporteObservacao);
+      body.append("comprovante", aporteFile);
+      const response = await fetch(`/api/bias/${aporteTarget.id}/aporte-solicitacoes`, { method: "POST", credentials: "include", body });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível enviar o aporte.");
+      return data;
+    },
+    onSuccess: () => {
+      setAporteTarget(null);
+      setAporteValor("");
+      setAporteObservacao("");
+      setAporteFile(null);
+      toast({ title: "Aporte enviado para aprovação" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível enviar o aporte", description: error?.message, variant: "destructive" }),
+  });
+  const aporteRequestsQuery = useQuery<any[]>({
+    queryKey: ["/api/bias", gestaoTarget?.id, "aporte-solicitacoes"],
+    enabled: Boolean(gestaoTarget),
+    queryFn: async () => (await apiRequest("GET", `/api/bias/${gestaoTarget!.id}/aporte-solicitacoes`)).json(),
+  });
+  const snapshotMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/bias/${gestaoTarget!.id}/patrimonio`, { ...snapshotForm, patrimonio_liquido: parseNumber(snapshotForm.patrimonio_liquido), moeda: gestaoTarget?.moeda || "BRL" }),
+    onSuccess: () => { invalidateDashboard(); toast({ title: "Valor patrimonial oficial registrado" }); },
+    onError: (error: any) => toast({ title: "Não foi possível registrar o patrimônio", description: error?.message, variant: "destructive" }),
+  });
+  const aporteDecisionMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) => apiRequest("PATCH", `/api/bias/${gestaoTarget!.id}/aporte-solicitacoes/${id}`, { action }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/bias", gestaoTarget?.id, "aporte-solicitacoes"] }); invalidateDashboard(); },
+    onError: (error: any) => toast({ title: "Não foi possível registrar a decisão", description: error?.message, variant: "destructive" }),
+  });
   const imoveis = useMemo(() => {
     const query = search.trim().toLowerCase();
     return (data?.imoveis || []).filter((item) => {
@@ -873,15 +1009,33 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     });
   }, [data?.imoveis, group, search]);
   const totals = data?.totais;
+  const portfolioRegions = useMemo(() => {
+    const groups = new Map<string, { assets: number; value: number }>();
+    for (const item of data?.imoveis || []) {
+      const key = [item.bairro, item.cidade].filter(Boolean).join(", ") || "Localização não informada";
+      const current = groups.get(key) || { assets: 0, value: 0 };
+      const share = Math.min(100, Math.max(0, Number(item.participacao_percentual ?? 100))) / 100;
+      current.assets += 1;
+      current.value += (parseNumber(item.valor_atual) - parseNumber(item.divida_saldo)) * share;
+      groups.set(key, current);
+    }
+    return Array.from(groups.entries()).sort((a, b) => b[1].value - a[1].value);
+  }, [data?.imoveis]);
+  const maxRegionValue = Math.max(1, ...portfolioRegions.map(([, summary]) => Math.max(0, summary.value)));
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className={compact ? "text-lg font-semibold" : "text-2xl font-bold"}>Carteira Patrimonial</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Seus imóveis, histórico, decisões e próximas ações em um só lugar.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Imóveis próprios e participações econômicas em alianças, consolidados em um só lugar.</p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => document.getElementById("meus-imoveis")?.scrollIntoView({ behavior: "smooth" })}>Meus imóveis</Button>
+            <Button size="sm" variant="outline" onClick={() => document.getElementById("minhas-aliancas")?.scrollIntoView({ behavior: "smooth" })}>Minhas Alianças</Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Select value={period} onValueChange={(value) => setPeriod(value as "12m" | "all")}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="12m">Últimos 12 meses</SelectItem><SelectItem value="all">Todo o período</SelectItem></SelectContent></Select>
           <Button variant="outline" onClick={() => navigate("/carteira/novo?path=oportunidade&step=cadastro")}>
             <Lightbulb className="mr-2 h-4 w-4" />
             Identifiquei uma oportunidade
@@ -895,15 +1049,18 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <Metric label="Patrimônio líquido" value={money(totals?.patrimonio_total || 0)} icon={Landmark} helper={`Dívidas informadas: ${money(totals?.divida || 0)}`} />
-        <Metric label="Valor pago" value={money(totals?.patrimonio_pago || 0)} icon={CircleDollarSign} />
+        <Metric label="Valor de aquisição" value={money(totals?.patrimonio_pago || 0)} icon={CircleDollarSign} />
         <Metric label="Valor atual estimado" value={money(totals?.patrimonio_atual || 0)} icon={Home} />
+        <Metric label="Investido em alianças" value={money(totals?.total_investido_aliancas || 0)} icon={Users} helper={`Valor oficial atual: ${money(totals?.valor_participacoes_aliancas || 0)}`} />
+        <Metric label="Baixa liquidez" value={`${(totals?.percentual_baixa_liquidez || 0).toFixed(1)}%`} icon={Clock3} />
         <Metric label="Valorização registrada" value={money(totals?.valorizacao || 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao || 0)} />
         <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" />
         <Metric label="Despesas" value={money(totals?.despesas || 0)} icon={TrendingDown} tone="text-red-700" />
         <Metric label="Resultado líquido" value={money(totals?.resultado_liquido || 0)} icon={Wallet} tone={metricTone(totals?.resultado_liquido || 0)} helper={`${totals?.alertas_abertos || 0} alertas abertos`} />
+        <Metric label="Parcelas e contas a pagar" value={money(totals?.contas_a_pagar || 0)} icon={CalendarClock} />
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div id="meus-imoveis" className="flex flex-col gap-2 scroll-mt-20 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar imóvel, cidade ou situação..." className="pl-9" />
@@ -944,6 +1101,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
             <PropertyCard
               key={item.id}
               item={item}
+              portfolioTotal={totals?.patrimonio_total || 0}
               onOpen={() => navigate(`/carteira/${item.id}`)}
               onEdit={canAccess(item.access_level, "administracao") ? () => {
                 setEditingItem(item);
@@ -954,6 +1112,71 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
           ))}
         </div>
       )}
+      <section id="minhas-aliancas" className="scroll-mt-20 space-y-3 border-t pt-5">
+        <div>
+          <h3 className="text-lg font-semibold">Minhas Alianças</h3>
+          <p className="text-sm text-muted-foreground">Todas as alianças formais aparecem aqui. Apenas MAP com valor patrimonial oficial confirmado entra no total.</p>
+        </div>
+        {(data?.aliancas || []).length === 0 ? (
+          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">Você ainda não participa formalmente de uma aliança.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {data?.aliancas.map((item) => (
+              <Card key={item.id} className="border-border/70">
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{item.nome}</p><p className="text-xs text-muted-foreground">{item.codigo || item.situacao || "Aliança BUILT"}</p></div><Badge variant="outline">MAP {item.map_percent.toFixed(2)}%</Badge></div>
+                  <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? "Aguardando valor oficial" : money(item.valor_participacao, item.moeda)}</p></div></div>
+                  <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs"><div><p className="text-muted-foreground">Receitas</p><p className="font-semibold text-emerald-700">{money(item.receitas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">Despesas</p><p className="font-semibold text-red-700">{money(item.despesas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">A pagar</p><p className="font-semibold">{money(item.contas_a_pagar_participacao || 0, item.moeda)}</p></div></div>
+                  {item.evolucao_patrimonial_percentual != null && <p className={`text-xs font-medium ${metricTone(item.evolucao_patrimonial_percentual)}`}>Evolução patrimonial: {item.evolucao_patrimonial_percentual.toFixed(1)}%</p>}
+                  <p className="text-xs text-muted-foreground">{item.valor_participacao == null || !totals?.patrimonio_total ? "Ainda não entra no patrimônio consolidado." : `${(item.valor_participacao / totals.patrimonio_total * 100).toFixed(1)}% do patrimônio total.`}</p>
+                  <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => navigate(`/bias/${item.id}`)}>Abrir aliança</Button><Button variant="outline" onClick={() => setAporteTarget(item)}><HandCoins className="mr-2 h-4 w-4" />Enviar aporte</Button></div>
+                  {item.can_manage_patrimonio && <Button className="w-full" variant="outline" onClick={() => { setGestaoTarget(item); setSnapshotForm((current) => ({ ...current, patrimonio_liquido: item.patrimonio_liquido_oficial == null ? "" : String(item.patrimonio_liquido_oficial), data_base: item.data_base || current.data_base, metodologia: item.metodologia || current.metodologia, liquidez: item.liquidez || current.liquidez })); }}><ShieldCheck className="mr-2 h-4 w-4" />Gestão patrimonial</Button>}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+      {portfolioRegions.length > 0 && <section className="space-y-3 border-t pt-5">
+        <div><h3 className="text-lg font-semibold">Mapa de calor patrimonial por região</h3><p className="text-sm text-muted-foreground">Quanto mais intensa a cor, maior o patrimônio líquido da Carteira naquela região. Endereços privados não são exibidos.</p></div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{portfolioRegions.map(([region, summary]) => <div key={region} className="rounded-md border p-3" style={{ backgroundColor: `rgba(37, 99, 235, ${0.08 + 0.42 * Math.max(0, summary.value) / maxRegionValue})` }}><p className="font-medium">{region}</p><p className="text-xs text-slate-700">{summary.assets} ativo(s) · {money(summary.value)}</p></div>)}</div>
+      </section>}
+      <Dialog open={Boolean(aporteTarget)} onOpenChange={(open) => !open && setAporteTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Enviar aporte para aprovação</DialogTitle><DialogDescription>O lançamento e o MAP só serão alterados após a aprovação de um diretor autorizado em {aporteTarget?.nome}.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="aporte-valor">Valor</Label><Input id="aporte-valor" type="number" min="0.01" step="0.01" value={aporteValor} onChange={(event) => setAporteValor(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="aporte-comprovante">Comprovante (PDF, JPG ou PNG)</Label><Input id="aporte-comprovante" type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setAporteFile(event.target.files?.[0] || null)} /></div>
+            <div className="space-y-2"><Label htmlFor="aporte-observacao">Observação</Label><Textarea id="aporte-observacao" value={aporteObservacao} onChange={(event) => setAporteObservacao(event.target.value)} /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAporteTarget(null)}>Cancelar</Button><Button disabled={aporteMutation.isPending || !aporteFile || Number(aporteValor) <= 0} onClick={() => aporteMutation.mutate()}>{aporteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar para aprovação</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(gestaoTarget)} onOpenChange={(open) => !open && setGestaoTarget(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Gestão patrimonial · {gestaoTarget?.nome}</DialogTitle>
+            <DialogDescription>Somente diretores autorizados registram o valor oficial e decidem solicitações de aporte.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2"><Label>Patrimônio líquido oficial</Label><Input inputMode="decimal" value={snapshotForm.patrimonio_liquido} onChange={(event) => setSnapshotForm({ ...snapshotForm, patrimonio_liquido: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Data-base</Label><Input type="date" value={snapshotForm.data_base} onChange={(event) => setSnapshotForm({ ...snapshotForm, data_base: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Metodologia</Label><Input value={snapshotForm.metodologia} onChange={(event) => setSnapshotForm({ ...snapshotForm, metodologia: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Liquidez</Label><Select value={snapshotForm.liquidez} onValueChange={(value) => setSnapshotForm({ ...snapshotForm, liquidez: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="media">Média</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div>
+            <Button className="sm:col-span-2" disabled={snapshotMutation.isPending || parseNumber(snapshotForm.patrimonio_liquido) < 0 || !snapshotForm.metodologia} onClick={() => snapshotMutation.mutate()}>{snapshotMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Registrar novo snapshot oficial</Button>
+          </div>
+          <div className="space-y-2 border-t pt-4">
+            <p className="font-semibold">Solicitações de aporte</p>
+            {aporteRequestsQuery.isLoading ? <p className="text-sm text-muted-foreground">Carregando...</p> : !(aporteRequestsQuery.data || []).some((item) => item.status === "pending") ? <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p> : (aporteRequestsQuery.data || []).filter((item) => item.status === "pending").map((item) => (
+              <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-md border p-3">
+                <div className="min-w-0 flex-1"><p className="font-medium">{money(item.valor, item.moeda || gestaoTarget?.moeda)}</p><p className="text-xs text-muted-foreground">Membro {item.membro_id}</p></div>
+                <Button size="sm" variant="outline" disabled={aporteDecisionMutation.isPending} onClick={() => aporteDecisionMutation.mutate({ id: item.id, action: "reject" })}>Rejeitar</Button>
+                <Button size="sm" disabled={aporteDecisionMutation.isPending} onClick={() => aporteDecisionMutation.mutate({ id: item.id, action: "approve" })}>Aprovar</Button>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       <PropertyFormDialog
         open={formOpen}
         onOpenChange={(open) => {
@@ -1125,6 +1348,8 @@ function DetailPage({ id }: { id: string }) {
   const [pulseForm, setPulseForm] = useState({ ocupacao: "", receita: "", despesa: "", acontecimento: "", objetivo: "", data_referencia: new Date().toISOString().slice(0, 10) });
   const [pulsePreview, setPulsePreview] = useState<any | null>(null);
   const [importedLaunches, setImportedLaunches] = useState<any[]>([]);
+  const [financingFile, setFinancingFile] = useState<File | null>(null);
+  const [financingPreview, setFinancingPreview] = useState<{ preview_id: string; arquivo: string; parcelas: any[] } | null>(null);
   const [documentForm, setDocumentForm] = useState({
     file: null as File | null,
     nome: "",
@@ -1335,6 +1560,36 @@ function DetailPage({ id }: { id: string }) {
       toast({ title: "Prévia preparada", description: "Revise os dados extraídos antes de adicionar o documento." });
     },
     onError: (error: any) => toast({ title: "Erro ao analisar documento", description: error?.message, variant: "destructive" }),
+  });
+  const financingPreviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!financingFile) throw new Error("Selecione uma planilha ou PDF do banco.");
+      const body = new FormData();
+      body.append("file", financingFile);
+      const response = await fetch(`/api/carteira/imoveis/${id}/financiamento/preview`, { method: "POST", credentials: "include", body });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível extrair as parcelas.");
+      return data;
+    },
+    onSuccess: setFinancingPreview,
+    onError: (error: any) => toast({ title: "Erro ao importar financiamento", description: error?.message, variant: "destructive" }),
+  });
+  const financingConfirmMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/carteira/imoveis/${id}/financiamento/${financingPreview!.preview_id}/confirmar`, { parcelas: financingPreview!.parcelas }),
+    onSuccess: () => { setFinancingFile(null); setFinancingPreview(null); queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "documentos"] }); invalidateAll(); toast({ title: "Financiamento importado" }); },
+    onError: (error: any) => toast({ title: "Não foi possível confirmar o financiamento", description: error?.message, variant: "destructive" }),
+  });
+  const confirmMarketMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/carteira/imoveis/${id}/avaliacao/confirmar`, {
+      valor_atual: Number(marketQuery.data?.referencia_m2_media || 0) * parseNumber(imovel?.area_m2),
+      data_base: new Date().toISOString().slice(0, 10),
+      fontes: marketQuery.data?.fontes || [],
+      amostra: marketQuery.data?.quantidade_comparaveis || 0,
+      regiao: [imovel?.bairro, imovel?.cidade, imovel?.estado].filter(Boolean).join(", "),
+      confianca: (marketQuery.data?.quantidade_comparaveis || 0) >= 5 ? "alta" : "moderada",
+    }),
+    onSuccess: () => { invalidateAll(); toast({ title: "Valor de mercado confirmado", description: "O histórico e a data-base foram preservados." }); },
+    onError: (error: any) => toast({ title: "Não foi possível confirmar o valor", description: error?.message, variant: "destructive" }),
   });
   const deleteDocumentMutation = useMutation({
     mutationFn: (documentId: string) => apiRequest("DELETE", `/api/carteira/imoveis/${id}/documentos/${documentId}`),
@@ -1552,6 +1807,7 @@ function DetailPage({ id }: { id: string }) {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-bold text-foreground">{imovel.nome}</h1>
+                  <ModuleInfo title="Imóvel da Carteira" description="Reúne patrimônio, financiamento, documentos, receitas, despesas, avaliação, Pulso e demandas deste imóvel." />
                   <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{diagnostic?.situacao || "Preliminar"}</Badge>
                   <Badge variant="outline">{imovel.access_level}</Badge>
                 </div>
@@ -1758,6 +2014,24 @@ function DetailPage({ id }: { id: string }) {
               </div>
             </section>
           )}
+          {canManage && <section className="space-y-3 rounded-md border border-blue-100 bg-blue-50/40 p-4">
+            <div><h3 className="font-semibold">Importar parcelas do financiamento</h3><p className="text-sm text-muted-foreground">Envie XLS, XLSX, CSV ou PDF do banco. Revise a prévia antes de gravar lançamentos e saldo devedor.</p></div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input type="file" accept=".xls,.xlsx,.csv,.pdf" onChange={(event) => { setFinancingFile(event.target.files?.[0] || null); setFinancingPreview(null); }} />
+              <Button variant="outline" disabled={!financingFile || financingPreviewMutation.isPending} onClick={() => financingPreviewMutation.mutate()}>{financingPreviewMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Gerar prévia</Button>
+            </div>
+            {financingPreview && <div className="space-y-2">
+              <p className="text-sm font-medium">{financingPreview.arquivo} · {financingPreview.parcelas.length} parcela(s)</p>
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">{financingPreview.parcelas.map((item, index) => <div key={index} className="grid gap-2 rounded-md border bg-white p-2 sm:grid-cols-[80px_1fr_130px_130px_40px]">
+                <Input type="number" min="1" value={item.parcela} aria-label="Número da parcela" onChange={(event) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, parcela: Number(event.target.value) } : row) })} />
+                <Input type="date" value={item.data_vencimento || item.data || ""} aria-label="Vencimento" onChange={(event) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, data_vencimento: event.target.value } : row) })} />
+                <Input inputMode="decimal" value={item.valor} aria-label="Valor da parcela" onChange={(event) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, valor: parseNumber(event.target.value) } : row) })} />
+                <Select value={item.status || "pendente"} onValueChange={(value) => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.map((row, rowIndex) => rowIndex === index ? { ...row, status: value } : row) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pago">Pago</SelectItem><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="agendado">Agendado</SelectItem><SelectItem value="vencido">Vencido</SelectItem><SelectItem value="cancelado">Cancelado</SelectItem></SelectContent></Select>
+                <Button size="icon" variant="ghost" aria-label="Remover parcela" onClick={() => setFinancingPreview({ ...financingPreview, parcelas: financingPreview.parcelas.filter((_, rowIndex) => rowIndex !== index) })}><Trash2 className="h-4 w-4" /></Button>
+              </div>)}</div>
+              <Button disabled={!financingPreview.parcelas.length || financingConfirmMutation.isPending} onClick={() => financingConfirmMutation.mutate()}>{financingConfirmMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar parcelas</Button>
+            </div>}
+          </section>}
           {(docsQuery.data || []).length === 0 ? (
             <div className="border-y py-12 text-center text-sm text-muted-foreground">Nenhum documento organizado.</div>
           ) : (
@@ -1794,6 +2068,7 @@ function DetailPage({ id }: { id: string }) {
                   <p className="mt-3 text-sm text-blue-800">Baseado em {marketQuery.data.quantidade_comparaveis} imóveis comparáveis entre {marketQuery.data.area_min} e {marketQuery.data.area_max} m².</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="border-y py-3"><p className="text-xs text-muted-foreground">Informado</p><p className="font-bold">{money(marketQuery.data.preco_m2_informado, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Referência média</p><p className="font-bold">{money(marketQuery.data.referencia_m2_media, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Faixa</p><p className="font-bold">{money(marketQuery.data.referencia_m2_min, imovel.moeda)} – {money(marketQuery.data.referencia_m2_max, imovel.moeda)}</p></div></div>
                   {!!marketQuery.data.fontes?.length && <div className="mt-3 flex flex-wrap gap-2">{marketQuery.data.fontes.slice(0, 5).map((source, index) => <a key={`${source.url}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="text-xs text-blue-700 underline">Comparável {index + 1}</a>)}</div>}
+                  {canManage && Number(marketQuery.data.referencia_m2_media || 0) > 0 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-white p-3"><div><p className="text-xs text-muted-foreground">Valor sugerido para confirmação</p><p className="font-bold">{money(Number(marketQuery.data.referencia_m2_media) * parseNumber(imovel.area_m2), imovel.moeda)}</p></div><Button disabled={confirmMarketMutation.isPending} onClick={() => confirmMarketMutation.mutate()}>{confirmMarketMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar valor sugerido</Button></div>}
                 </>
               ) : <p className="mt-3 text-sm text-muted-foreground">{marketQuery.data?.resumo || "Ainda não há comparáveis suficientes para exibir uma média."}</p>}
             </div>

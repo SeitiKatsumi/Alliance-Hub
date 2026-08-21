@@ -9,6 +9,7 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat achata somente a navegacao de `app-sidebar.tsx`: Area de Vitrine e Area de Aliancas ficam no primeiro nivel, sem o agrupador Ambientes BUILT; destinos e permissoes permanecem iguais.
 - Este chat move o acesso visual da Aura para o resumo de `meu-perfil.tsx`, com o mesmo card do Inicio, e remove apenas o atalho lateral; rotas, calculo, permissoes e dados da Aura permanecem intactos.
 - Este chat esta concluindo a reorganizacao solicitada pelo cliente: libera consulta da Vitrine para autenticados sem liberar publicacao, restringe a Area de Aliancas a BIAs relacionadas, aplica anuidade nas abas premium e completa as interfaces patrimoniais. Ao tocar `server/routes.ts`, `area-aliancas.tsx`, `painel.tsx` e `app-sidebar.tsx`, preserva as permissoes cumulativas e os filtros de nucleos existentes.
 - A branch `codex/member-portfolio-reorg` reorganiza os nomes dos ambientes, remove Capital apenas da navegação e adiciona anuidade/Carteira patrimonial. Ao tocar `server/routes.ts` e `app-sidebar.tsx`, preserva integralmente as permissões e abas filtradas das BIAs/OPAs existentes.

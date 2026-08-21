@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { LayoutDashboard, ChevronDown, Users, UserCircle, Briefcase, Globe2, Gem, BellRing } from "lucide-react";
+import { LayoutDashboard, Users, UserCircle, Briefcase, Gem, BellRing } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,13 +11,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
 import { agendaAlertBadgeLabel } from "@/lib/agenda-alerts";
@@ -27,7 +23,6 @@ const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENA
 
 export function AppSidebar() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "manager";
   const isSuperAdmin = user?.role === "admin";
   const [location, navigate] = useLocation();
   const [blockedAccess, setBlockedAccess] = useState<ReturnType<typeof environmentAccessFor> | null>(null);
@@ -35,7 +30,6 @@ export function AppSidebar() {
   const canVitrine = hasEmployeeModuleAccess(user, "vitrine") && environmentAccessFor(user, "vitrine").canAccess;
   const canAlliances = hasEmployeeModuleAccess(user, "alliances");
   const canCapital = !MEMBER_PORTFOLIO_V2_ENABLED && hasEmployeeModuleAccess(user, "capital");
-  const canAnyEnvironment = canVitrine || canAlliances || canCapital;
   const { data: alertCount } = useQuery<{ pendencias_ativas: number; display: number | "99+" | null }>({
     queryKey: ["/api/agenda-alertas/contador"],
     queryFn: async () => {
@@ -48,9 +42,6 @@ export function AppSidebar() {
     staleTime: 10000,
   });
   const alertBadge = agendaAlertBadgeLabel(alertCount?.pendencias_ativas);
-
-  const isAmbientesSection = location.startsWith("/vitrine") || location.startsWith("/opas") || location === "/area-aliancas" || location === "/built-capital";
-  const [ambientesOpen, setAmbientesOpen] = useState(isAmbientesSection);
 
   function handleEnvironmentClick(target: EnvironmentTarget, href: string) {
     const access = environmentAccessFor(user, target);
@@ -103,42 +94,26 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {canAnyEnvironment && <Collapsible open={ambientesOpen} onOpenChange={setAmbientesOpen}>
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton isActive={isAmbientesSection} className="text-sm" data-testid="nav-ambientes-built">
-                      <Globe2 className="w-3.5 h-3.5" />
-                      <span>Ambientes BUILT</span>
-                      <ChevronDown className={`ml-auto h-3.5 w-3.5 transition-transform ${ambientesOpen ? "rotate-180" : ""}`} />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                </SidebarMenuItem>
-                <CollapsibleContent>
-                  <SidebarMenuSub>
-                    {canVitrine && <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine">
-                        <button type="button" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
-                          <Gem className="w-3.5 h-3.5" />
-                          <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Vitrine" : "BUILT Vitrine"}</span>
-                        </button>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>}
-                    {canAlliances && <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas">
-                        <button type="button" onClick={() => handleEnvironmentClick("alliances", MEMBER_PORTFOLIO_V2_ENABLED ? "/area-aliancas?tab=bias" : "/area-aliancas?tab=opas")}>
-                          <Users className="w-3.5 h-3.5" />
-                          <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances"}</span>
-                        </button>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>}
-                    {canCapital && <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital">
-                        <button type="button" onClick={() => handleEnvironmentClick("capital", "/built-capital")}><Briefcase className="w-3.5 h-3.5" /><span>BUILT Capital</span></button>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>}
-                  </SidebarMenuSub>
-                </CollapsibleContent>
-              </Collapsible>}
+              {canVitrine && <SidebarMenuItem>
+                <SidebarMenuButton isActive={location.startsWith("/vitrine")} className="text-sm" data-testid="nav-vitrine" onClick={() => handleEnvironmentClick("vitrine", "/vitrine")}>
+                  <Gem className="w-3.5 h-3.5" />
+                  <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Vitrine" : "BUILT Vitrine"}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>}
+
+              {canAlliances && <SidebarMenuItem>
+                <SidebarMenuButton isActive={location === "/area-aliancas" || location.startsWith("/opas")} className="text-sm" data-testid="nav-area-aliancas" onClick={() => handleEnvironmentClick("alliances", MEMBER_PORTFOLIO_V2_ENABLED ? "/area-aliancas?tab=bias" : "/area-aliancas?tab=opas")}>
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{MEMBER_PORTFOLIO_V2_ENABLED ? "Área de Alianças" : "BUILT Alliances"}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>}
+
+              {canCapital && <SidebarMenuItem>
+                <SidebarMenuButton isActive={location === "/built-capital"} className="text-sm" data-testid="nav-built-capital" onClick={() => handleEnvironmentClick("capital", "/built-capital")}>
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>BUILT Capital</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>}
 
               {/* Administração — Super Admin only */}
               {isSuperAdmin && (

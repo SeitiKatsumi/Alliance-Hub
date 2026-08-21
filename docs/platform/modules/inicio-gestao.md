@@ -9,6 +9,7 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 - `/` e `/painel`: painel principal em `client/src/pages/painel.tsx`.
 - A Carteira integra as abas do Inicio e nao aparece como modulo separado no menu lateral; `/carteira` preserva compatibilidade por redirecionamento.
 - Aura permanece acessivel pelos cards do Inicio e do resumo do Meu Perfil, sem modulo separado no menu lateral.
+- Area de Vitrine e Area de Aliancas aparecem diretamente no menu lateral, sem o agrupador Ambientes BUILT.
 - `/agenda-alertas`: destino de Agenda, Alertas e Pendencias.
 - Navegacao e composicao: `client/src/App.tsx`, `client/src/components/app-sidebar.tsx` e `client/src/lib/dashboard-navigation.ts`.
 

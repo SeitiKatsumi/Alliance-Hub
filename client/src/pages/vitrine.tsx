@@ -34,6 +34,17 @@ import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
 import { getAllTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
+import {
+  ALL_VITRINE_PARTNER_FILTERS,
+  getVitrinePartnerCidadeKey,
+  getVitrinePartnerEstadoKey,
+  getVitrinePartnerEspecialidades,
+  getVitrinePartnerRamos,
+  getVitrinePartnerSegmentos,
+  matchesVitrinePartner,
+  normalizeVitrinePartnerText,
+  type VitrinePartnerSearchProfile,
+} from "@/lib/vitrine-partner-search";
 
 const WORLD_GEO = "/world-countries-50m.json";
 const ASSET_CACHE_VERSION = "directus-db-20260616";
@@ -65,7 +76,7 @@ const NUCLEOS = [
   "Núcleo de Capital",
 ];
 
-interface MembroVitrine {
+interface MembroVitrine extends VitrinePartnerSearchProfile {
   id: string;
   nome: string;
   cargo: string;
@@ -73,6 +84,15 @@ interface MembroVitrine {
   empresa: string;
   cidade: string;
   estado: string;
+  pais?: string | null;
+  especialidade_livre?: string | null;
+  ramo_atuacao?: string | null;
+  segmento?: string | null;
+  area_atuacao?: string | null;
+  idiomas?: string[] | null;
+  Especialidades?: Array<{
+    especialidades_id?: { nome_especialidade?: string | null } | null;
+  }> | null;
   whatsapp: string;
   email: string;
   foto: string | null;
@@ -415,16 +435,6 @@ function getInitials(nome: string): string {
   return nome.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function normalizeFilterText(value: string | null): string {
-  return (value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[.,;/|()[\]{}]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function fixMojibakeText(value: string): string {
   if (!/[ÃÂ]|[\u0080-\u009F]/.test(value)) return value.normalize("NFC");
   try {
@@ -443,21 +453,6 @@ function fixMojibakeDeep<T>(value: T): T {
     ) as T;
   }
   return value;
-}
-
-function normalizeTerritorioKey(cidade: string | null): string {
-  return normalizeFilterText(cidade)
-    .replace(/\b(brasil|brazil|japao|japan|portugal|usa|eua|estados unidos|united states)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function formatFilterLabel(value: string): string {
-  const cleaned = value.replace(/\s+/g, " ").trim();
-  if (!cleaned) return "";
-  return cleaned
-    .toLocaleLowerCase("pt-BR")
-    .replace(/(^|\s|[-'/])([a-zà-ú])/g, (match) => match.toLocaleUpperCase("pt-BR"));
 }
 
 const ESTADOS_BR = [
@@ -893,7 +888,11 @@ export default function VitrinePage() {
   const isParceirosPage = location === "/vitrine/parceiros";
   const [search, setSearch] = useState("");
   const [filterEspecialidade, setFilterEspecialidade] = useState("all");
-  const [filterTerritorio, setFilterTerritorio] = useState("all");
+  const [filterCidade, setFilterCidade] = useState("all");
+  const [filterEstado, setFilterEstado] = useState("all");
+  const [filterRamo, setFilterRamo] = useState("all");
+  const [filterSegmento, setFilterSegmento] = useState("all");
+  const [filterAreaAtuacao, setFilterAreaAtuacao] = useState("all");
   const [sortOrder, setSortOrder] = useState<"default" | "az" | "za">("default");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -1303,57 +1302,87 @@ export default function VitrinePage() {
     saveMutation.mutate(payload as any);
   }
 
-  const especialidades = useMemo(() => {
-    const map = new Map<string, string>();
-    membros.forEach(m => {
-      const key = normalizeFilterText(m.especialidade);
-      if (!key) return;
-      const label = formatFilterLabel(m.especialidade || "");
-      const current = map.get(key);
-      if (!current || label.length < current.length || current === current.toLocaleUpperCase("pt-BR")) {
-        map.set(key, label);
-      }
+  const makeOptions = (values: Array<string | null | undefined>) => {
+    const options = new Map<string, string>();
+    values.forEach(value => {
+      const label = String(value || "").trim();
+      const key = normalizeVitrinePartnerText(label);
+      if (key && !options.has(key)) options.set(key, label);
     });
-    return Array.from(map.entries())
+    return Array.from(options.entries())
       .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" }));
+  };
+
+  const estados = useMemo(() => {
+    const options = new Map<string, string>();
+    membros.forEach(m => {
+      const value = getVitrinePartnerEstadoKey(m.estado);
+      const label = String(m.estado || "").trim();
+      if (value && label && !options.has(value)) options.set(value, label);
+    });
+    return Array.from(options.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" }));
   }, [membros]);
 
-  const territorios = useMemo(() => {
-    const map = new Map<string, string>();
-    membros.forEach(m => {
-      const key = normalizeTerritorioKey(m.cidade);
-      if (!key) return;
-      const label = formatFilterLabel(key);
-      const current = map.get(key);
-      if (!current || label.length < current.length) {
-        map.set(key, label);
-      }
-    });
-    return Array.from(map.entries())
+  const cidades = useMemo(() => {
+    const options = new Map<string, string>();
+    membros
+      .filter(m => filterEstado === ALL_VITRINE_PARTNER_FILTERS || getVitrinePartnerEstadoKey(m.estado) === filterEstado)
+      .forEach(m => {
+        const value = getVitrinePartnerCidadeKey(m);
+        if (!value || options.has(value)) return;
+        options.set(value, String(m.cidade || "").trim());
+      });
+    return Array.from(options.entries())
       .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [membros]);
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" }));
+  }, [membros, filterEstado]);
+
+  const ramos = useMemo(() => makeOptions(membros.flatMap(getVitrinePartnerRamos)), [membros]);
+  const segmentos = useMemo(() => makeOptions(membros.flatMap(getVitrinePartnerSegmentos)), [membros]);
+  const areasAtuacao = useMemo(() => makeOptions(membros.map(m => m.area_atuacao)), [membros]);
+  const especialidades = useMemo(() => makeOptions(membros.flatMap(getVitrinePartnerEspecialidades)), [membros]);
 
   const filtered = useMemo(() => {
-    const list = membros.filter(m => {
-      const nome = (m.nome || "").toLowerCase();
-      const empresa = (m.empresa || "").toLowerCase();
-      const esp = (m.especialidade || "").toLowerCase();
-      const q = search.toLowerCase();
-      const matchSearch = !q || nome.includes(q) || empresa.includes(q) || esp.includes(q);
-      const matchEsp = filterEspecialidade === "all" || normalizeFilterText(m.especialidade) === filterEspecialidade;
-      const matchTerritorio = filterTerritorio === "all" || normalizeTerritorioKey(m.cidade) === filterTerritorio;
-      return matchSearch && matchEsp && matchTerritorio;
-    });
+    const list = membros.filter(m => matchesVitrinePartner(m, {
+      query: search,
+      cidade: filterCidade,
+      estado: filterEstado,
+      ramo: filterRamo,
+      segmento: filterSegmento,
+      areaAtuacao: filterAreaAtuacao,
+      especialidade: filterEspecialidade,
+    }));
     if (sortOrder === "default") return list;
     return [...list].sort((a, b) => {
       const compare = (a.nome || a.empresa || "").localeCompare(b.nome || b.empresa || "", "pt-BR", { sensitivity: "base" });
       return sortOrder === "az" ? compare : -compare;
     });
-  }, [membros, search, filterEspecialidade, filterTerritorio, sortOrder]);
+  }, [membros, search, filterCidade, filterEstado, filterRamo, filterSegmento, filterAreaAtuacao, filterEspecialidade, sortOrder]);
 
-  const hasFilters = search || filterEspecialidade !== "all" || filterTerritorio !== "all" || sortOrder !== "default";
+  const hasFilters = Boolean(
+    search
+    || filterCidade !== ALL_VITRINE_PARTNER_FILTERS
+    || filterEstado !== ALL_VITRINE_PARTNER_FILTERS
+    || filterRamo !== ALL_VITRINE_PARTNER_FILTERS
+    || filterSegmento !== ALL_VITRINE_PARTNER_FILTERS
+    || filterAreaAtuacao !== ALL_VITRINE_PARTNER_FILTERS
+    || filterEspecialidade !== ALL_VITRINE_PARTNER_FILTERS
+    || sortOrder !== "default"
+  );
+
+  function clearFilters() {
+    setSearch("");
+    setFilterCidade(ALL_VITRINE_PARTNER_FILTERS);
+    setFilterEstado(ALL_VITRINE_PARTNER_FILTERS);
+    setFilterRamo(ALL_VITRINE_PARTNER_FILTERS);
+    setFilterSegmento(ALL_VITRINE_PARTNER_FILTERS);
+    setFilterAreaAtuacao(ALL_VITRINE_PARTNER_FILTERS);
+    setFilterEspecialidade(ALL_VITRINE_PARTNER_FILTERS);
+    setSortOrder("default");
+  }
   const opasDestaque = useMemo(
     () => opas
       .filter(o => !o.status || ["ativa", "em_formacao", "em formação"].includes(String(o.status).toLowerCase()))
@@ -1371,13 +1400,6 @@ export default function VitrinePage() {
   const demandaEmExibicao = demandaSelecionada
     || demandasPublicadas.find((demanda) => demanda.id === selectedDemandaId)
     || null;
-
-  function clearFilters() {
-    setSearch("");
-    setFilterEspecialidade("all");
-    setFilterTerritorio("all");
-    setSortOrder("default");
-  }
 
   function abrirTodosParceiros() {
     clearFilters();
@@ -1818,11 +1840,11 @@ export default function VitrinePage() {
       {/* Filters */}
       {isParceirosPage && (
       <>
-      <div id="todos-parceiros" className="flex flex-wrap items-center gap-3 scroll-mt-6">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div id="todos-parceiros" className="flex flex-wrap items-center gap-2.5 scroll-mt-6">
+        <div className="relative min-w-[240px] flex-[1_1_320px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome, empresa ou especialidade..."
+            placeholder="Buscar por nome, empresa, cidade ou atuação..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm bg-background border-border text-foreground placeholder:text-muted-foreground"
@@ -1830,26 +1852,77 @@ export default function VitrinePage() {
           />
         </div>
 
-        <Select value={filterEspecialidade} onValueChange={setFilterEspecialidade}>
-          <SelectTrigger className="w-44 h-9 text-sm bg-background border-border text-foreground" data-testid="select-vitrine-especialidade">
-            <SelectValue placeholder="Ramo de atuação" />
+        <Select value={filterEstado} onValueChange={value => {
+          setFilterEstado(value);
+          setFilterCidade(ALL_VITRINE_PARTNER_FILTERS);
+        }}>
+          <SelectTrigger className="h-9 w-full bg-background text-sm text-foreground sm:w-[140px]" data-testid="select-vitrine-estado" aria-label="Filtrar por estado">
+            <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent className="bg-popover border-border text-popover-foreground">
-            <SelectItem value="all">Todos ramos</SelectItem>
-            {especialidades.map(e => (
-              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+            <SelectItem value={ALL_VITRINE_PARTNER_FILTERS}>Todos estados</SelectItem>
+            {estados.map(item => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={filterTerritorio} onValueChange={setFilterTerritorio}>
-          <SelectTrigger className="w-40 h-9 text-sm bg-background border-border text-foreground" data-testid="select-vitrine-territorio">
-            <SelectValue placeholder="Território" />
+        <Select value={filterCidade} onValueChange={setFilterCidade}>
+          <SelectTrigger className="h-9 w-full bg-background text-sm text-foreground sm:w-[190px]" data-testid="select-vitrine-cidade" aria-label="Filtrar por cidade">
+            <SelectValue placeholder="Cidade" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72 bg-popover border-border text-popover-foreground">
+            <SelectItem value={ALL_VITRINE_PARTNER_FILTERS}>Todas cidades</SelectItem>
+            {cidades.map(item => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterRamo} onValueChange={setFilterRamo}>
+          <SelectTrigger className="h-9 w-full bg-background text-sm text-foreground sm:w-[190px]" data-testid="select-vitrine-ramo" aria-label="Filtrar por ramo de atuação">
+            <SelectValue placeholder="Ramo de atuação" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72 bg-popover border-border text-popover-foreground">
+            <SelectItem value={ALL_VITRINE_PARTNER_FILTERS}>Todos ramos</SelectItem>
+            {ramos.map(item => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterSegmento} onValueChange={setFilterSegmento}>
+          <SelectTrigger className="h-9 w-full bg-background text-sm text-foreground sm:w-[175px]" data-testid="select-vitrine-segmento" aria-label="Filtrar por segmento">
+            <SelectValue placeholder="Segmento" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72 bg-popover border-border text-popover-foreground">
+            <SelectItem value={ALL_VITRINE_PARTNER_FILTERS}>Todos segmentos</SelectItem>
+            {segmentos.map(item => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterAreaAtuacao} onValueChange={setFilterAreaAtuacao}>
+          <SelectTrigger className="h-9 w-full bg-background text-sm text-foreground sm:w-[165px]" data-testid="select-vitrine-area-atuacao" aria-label="Filtrar por área de atuação">
+            <SelectValue placeholder="Área de atuação" />
           </SelectTrigger>
           <SelectContent className="bg-popover border-border text-popover-foreground">
-            <SelectItem value="all">Todos os territórios</SelectItem>
-            {territorios.map(t => (
-              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+            <SelectItem value={ALL_VITRINE_PARTNER_FILTERS}>Todas as áreas</SelectItem>
+            {areasAtuacao.map(item => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterEspecialidade} onValueChange={setFilterEspecialidade}>
+          <SelectTrigger className="h-9 w-full bg-background text-sm text-foreground sm:w-[180px]" data-testid="select-vitrine-especialidade" aria-label="Filtrar por especialidade">
+            <SelectValue placeholder="Especialidade" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72 bg-popover border-border text-popover-foreground">
+            <SelectItem value={ALL_VITRINE_PARTNER_FILTERS}>Todas especialidades</SelectItem>
+            {especialidades.map(item => (
+              <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -1864,6 +1937,20 @@ export default function VitrinePage() {
             <SelectItem value="za">Z-A</SelectItem>
           </SelectContent>
         </Select>
+
+        {hasFilters && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1.5 px-2.5 text-muted-foreground"
+            onClick={clearFilters}
+            data-testid="btn-vitrine-limpar-filtros"
+          >
+            <X className="h-3.5 w-3.5" />
+            Limpar
+          </Button>
+        )}
 
         <div className="flex h-9 rounded-md border border-border overflow-hidden bg-background" aria-label="Modo de visualização">
           <button

@@ -20,6 +20,7 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 ## Dados e fontes de verdade
 
 - Perfis: Directus `cadastro_geral`.
+- Busca de parceiros: usa os campos oficiais `nome`, `cargo`, `empresa`, `cidade`, `estado`, `pais`, `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre`, `idiomas` e a relacao `Especialidades` do mesmo perfil.
 - Oportunidades e demandas: registro de origem mais projecao publica.
 - Anuncios: PostgreSQL `anuncios` e integracao administrativa.
 - Carteira permanece privada; a Vitrine recebe apenas copia explicitamente publicada.
@@ -46,6 +47,7 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 - Projecao publica nunca retorna objeto interno completo.
 - Interesse duplicado do mesmo usuario/recurso e idempotente.
 - Busca, mapa, contador e detalhe usam o mesmo conjunto de itens publicaveis.
+- A busca de parceiros ignora caixa e acentuacao; cidade, estado, ramo, segmento, area de atuacao e todas as especialidades podem ser combinados sem substituir a taxonomia oficial do perfil.
 
 ## Efeitos e dependencias
 
@@ -57,4 +59,5 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 - `server/opportunity-platform.test.ts`
 - `server/network-opportunities.test.ts`
 - `server/property-journey.test.ts`
+- `client/src/lib/vitrine-partner-search.test.ts`
 - Ao alterar: testar anonimato/publico/autenticado, dono/nao dono, publicacao e retirada, busca/mapa/detalhe e viewport mobile.

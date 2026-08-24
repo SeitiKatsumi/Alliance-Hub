@@ -44,7 +44,7 @@ Controla a entrada de usuarios, criacao da identidade, recuperacao de acesso, co
 
 Contas novas: `credenciais validadas -> aceites -> personalizacao -> perfil -> configuracao -> conexoes -> pronto -> acesso liberado`.
 
-Quando a conta nasceu de convite com aliado conector identificado, a conclusao dos aceites cria de forma idempotente a solicitacao de Aura e muda o convite de `termos_aceitos` para `aguardando_avaliacao_aura`; o candidato continua normalmente as cinco etapas do onboarding. Sem conector, o acesso inicial e ativado ao concluir a etapa Pronto.
+Quando a conta nasceu de convite com aliado conector identificado, a conclusao dos aceites cria de forma idempotente a solicitacao de Aura e muda o convite de `termos_aceitos` para `aguardando_avaliacao_aura`; o candidato continua normalmente as cinco etapas do onboarding. Convites legados com aceite registrado, mas ainda marcados como `termos_enviados`, sao reparados para a etapa de Aura e nao reenviam os termos. Sem conector, o acesso inicial e ativado ao concluir a etapa Pronto.
 
 Jornadas iniciadas na versao anterior preservam a ordem legada, com aceites depois da etapa Pronto.
 

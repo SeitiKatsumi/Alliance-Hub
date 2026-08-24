@@ -1,5 +1,6 @@
 export const MARKET_AREA_TOLERANCE_M2 = 30;
 export const MARKET_MIN_COMPARABLES = 3;
+export const MARKET_RADIUS_KM = 10;
 
 export interface MarketComparable {
   titulo: string;
@@ -12,6 +13,7 @@ export interface MarketComparable {
   preco_total: number;
   preco_m2: number;
   moeda: string;
+  distancia_km?: number;
   trecho?: string;
 }
 
@@ -23,6 +25,8 @@ export interface MarketComparableTarget {
   areaM2: number;
   precoM2: number;
   moeda: string;
+  raioMaxKm?: number;
+  exigirDistancia?: boolean;
 }
 
 interface MarketSource {
@@ -156,10 +160,13 @@ function normalizeComparable(
   const areaM2 = parsePositiveNumber(row.area_m2 || row.area);
   const precoTotal = parsePositiveNumber(row.preco_total || row.valor || row.preco || row.price);
   const moeda = normalizeCurrency(row.moeda, target.moeda);
+  const distanciaKm = Number(row.distancia_km);
 
   if (!url || !sameType(target.tipo, tipo) || !sameRegion(target, row)) return null;
   if (areaM2 < areaMin || areaM2 > areaMax || precoTotal <= 0) return null;
   if (moeda !== target.moeda.toUpperCase()) return null;
+  if (target.exigirDistancia && (!Number.isFinite(distanciaKm) || distanciaKm < 0)) return null;
+  if (Number.isFinite(distanciaKm) && distanciaKm > Number(target.raioMaxKm || MARKET_RADIUS_KM)) return null;
 
   return {
     titulo: String(row.titulo || row.title || row.nome || "Imóvel comparável").trim().slice(0, 180),
@@ -172,8 +179,21 @@ function normalizeComparable(
     preco_total: Number(precoTotal.toFixed(2)),
     preco_m2: Number((precoTotal / areaM2).toFixed(2)),
     moeda,
+    distancia_km: Number.isFinite(distanciaKm) ? Number(distanciaKm.toFixed(2)) : undefined,
     trecho: row.trecho || row.resumo ? String(row.trecho || row.resumo).trim().slice(0, 280) : undefined,
   };
+}
+
+export function marketDistanceKm(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+): number {
+  const radians = (value: number) => value * Math.PI / 180;
+  const latitudeDelta = radians(to.latitude - from.latitude);
+  const longitudeDelta = radians(to.longitude - from.longitude);
+  const a = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function classification(precoM2: number, referenceAverage: number): "abaixo" | "media" | "acima" {
@@ -203,6 +223,7 @@ export function buildComparableMarketAnalysis(
     `mesmo tipo: ${target.tipo}`,
     `mesma região: ${region}`,
     `área entre ${areaMin.toLocaleString("pt-BR")} e ${areaMax.toLocaleString("pt-BR")} m²`,
+    ...(target.exigirDistancia ? [`distância de até ${Number(target.raioMaxKm || MARKET_RADIUS_KM).toLocaleString("pt-BR")} km do imóvel`] : []),
   ];
   const fontes = comparaveis.map(({ titulo, url, trecho }) => ({ titulo, url, trecho }));
   const base = {

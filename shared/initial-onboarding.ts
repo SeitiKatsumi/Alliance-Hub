@@ -36,9 +36,12 @@ export function resolveInitialOnboardingInviteCompletion(invite: {
   status?: unknown;
   candidato_membro_id?: unknown;
   invitador_membro_id?: unknown;
+  termos_aceitos_em?: unknown;
 } | null | undefined): InitialOnboardingInviteCompletionAction {
   const status = String(invite?.status || "");
-  if (status !== "termos_aceitos") return "preserve_status";
+  const hasAcceptedTerms = status === "termos_aceitos"
+    || (status === "termos_enviados" && Boolean(invite?.termos_aceitos_em));
+  if (!hasAcceptedTerms) return "preserve_status";
   const hasCandidate = Boolean(String(invite?.candidato_membro_id || "").trim());
   const hasConnector = Boolean(String(invite?.invitador_membro_id || "").trim());
   return hasCandidate && hasConnector ? "request_aura" : "activate_access";

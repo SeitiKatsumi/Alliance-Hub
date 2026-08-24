@@ -39,6 +39,12 @@ test("encaminha o convite para a Aura do aliado conector logo apos os aceites", 
     candidato_membro_id: "candidato-1",
     invitador_membro_id: "conector-1",
   }), "preserve_status");
+  assert.equal(resolveInitialOnboardingInviteCompletion({
+    status: "termos_enviados",
+    termos_aceitos_em: new Date(),
+    candidato_membro_id: "candidato-1",
+    invitador_membro_id: "conector-1",
+  }), "request_aura");
 });
 
 test("mantém os títulos e perguntas oficiais dos blocos de intenção", () => {

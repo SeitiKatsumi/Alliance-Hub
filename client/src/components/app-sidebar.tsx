@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { EnvironmentAccessDialog, environmentAccessFor, type EnvironmentTarget } from "@/components/environment-access";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
-import { agendaAlertBadgeLabel } from "@/lib/agenda-alerts";
+import { AGENDA_ALERTS_REFRESH_MS, agendaAlertBadgeLabel } from "@/lib/agenda-alerts";
 import builtLogo from "@assets/Logo_Built_3_Horizontal_Negativo.png";
 
 const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENABLED !== "false";
@@ -37,9 +37,10 @@ export function AppSidebar() {
       if (!response.ok) return { pendencias_ativas: 0, display: null };
       return response.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
     refetchOnWindowFocus: true,
-    staleTime: 10000,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
   const alertBadge = agendaAlertBadgeLabel(alertCount?.pendencias_ativas);
 

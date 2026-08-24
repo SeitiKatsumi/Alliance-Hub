@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { agendaAlertBadgeLabel, normalizeAgendaAlertsView } from "./agenda-alerts";
+import { AGENDA_ALERTS_REFRESH_MS, agendaAlertBadgeLabel, normalizeAgendaAlertsView } from "./agenda-alerts";
+
+test("aprovacoes ativas atualizam sem espera perceptivel", () => {
+  assert.ok(AGENDA_ALERTS_REFRESH_MS <= 2000);
+});
 
 test("mantem as visualizacoes persistentes validas", () => {
   assert.equal(normalizeAgendaAlertsView("resumo", true), "resumo");

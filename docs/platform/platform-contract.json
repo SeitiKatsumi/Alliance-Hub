@@ -96,9 +96,9 @@
       "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx", "client/src/lib/audio-recording.ts"],
       "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/member-portfolio.ts", "shared/schema.ts"],
       "apiPrefixes": ["/api/carteira", "/api/bias/:id/patrimonio", "/api/bias/:id/aporte-solicitacoes", "/api/oportunidades"],
-      "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL bia_patrimonial_snapshots", "PostgreSQL bia_aporte_solicitacoes", "Directus fluxo_caixa", "Directus bias_projetos"],
+      "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL carteira_cotacoes_cambio", "PostgreSQL bia_patrimonial_snapshots", "PostgreSQL bia_aporte_solicitacoes", "Directus fluxo_caixa", "Directus bias_projetos"],
       "roles": ["proprietario", "leitor convidado", "colaborador", "administrador do imovel", "administrador da plataforma"],
-      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "Proprietario ou administrador da plataforma pode excluir um imovel mediante confirmacao.", "Publicacao e compartilhamento sao opt-in e por imovel."],
+      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "Patrimonio Total Estimado e bruto e nao desconta dividas.", "Valor de aquisicao soma imoveis proporcionais e aportes oficiais em BIAs.", "Estimativa automatica exige tres comparaveis em raio verificado de ate 10 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao.", "Multimoeda usa cotacao de venda PTAX persistida e exclui valores sem cotacao identificando a moeda.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "Proprietario ou administrador da plataforma pode excluir um imovel mediante confirmacao.", "Publicacao e compartilhamento sao opt-in e por imovel."],
       "tests": ["shared/member-portfolio.test.ts", "client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
     },
     {
@@ -126,7 +126,7 @@
       "apiPrefixes": ["/api/agenda", "/api/agenda-alertas"],
       "dataStores": ["PostgreSQL agenda_tarefas", "estados dos objetos de origem", "cache React Query"],
       "roles": ["destinatario", "aliado", "diretor", "membro", "admin"],
-      "invariants": ["Contador e lista usam a mesma regra.", "Uma origem gera no maximo uma pendencia equivalente.", "Notificacao nao substitui autorizacao no destino."],
+      "invariants": ["Contador e lista usam a mesma regra.", "Uma origem gera no maximo uma pendencia equivalente.", "Notificacao nao substitui autorizacao no destino.", "Com a aplicacao visivel, novas aprovacoes pendentes aparecem em ate 2 segundos sem recarregar a pagina."],
       "tests": ["server/agenda-alerts.test.ts", "client/src/lib/agenda-alerts.test.ts", "client/src/lib/dashboard-navigation.test.ts"]
     },
     {

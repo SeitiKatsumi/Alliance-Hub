@@ -15,7 +15,7 @@ import { PinbankClient, type PinbankChargePayload, type PinbankChargeQueryPayloa
 import { PNG } from "pngjs";
 import { randomUUID } from "crypto";
 import { deflateSync } from "zlib";
-import { buildComparableMarketAnalysis, MARKET_AREA_TOLERANCE_M2 } from "./market-comparables";
+import { buildComparableMarketAnalysis, marketDistanceKm, MARKET_AREA_TOLERANCE_M2, MARKET_RADIUS_KM } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { resolveAuraAudioMetadata } from "./aura-audio";
 import {
@@ -37,7 +37,7 @@ import {
 import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
-import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateMap, calculatePortfolioTotals, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "@shared/member-portfolio";
+import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type PortfolioExchangeRate } from "@shared/member-portfolio";
 import { canAccessBuiltEnvironment, canPublishVitrineProfile } from "@shared/environment-access";
 import {
   attachObjectToRegistryTraces,
@@ -1817,6 +1817,16 @@ async function ensureMemberPortfolioTables() {
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS bia_aporte_fluxo_uniq ON bia_aporte_solicitacoes (fluxo_caixa_id) WHERE fluxo_caixa_id IS NOT NULL`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_aporte_solicitacoes ON bia_aporte_solicitacoes (bia_id, membro_id, status, created_at DESC)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_cotacoes_cambio (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), moeda text NOT NULL,
+      taxa_brl numeric(18,8) NOT NULL, data_cotacao date NOT NULL,
+      fonte text NOT NULL DEFAULT 'BCB PTAX', fonte_url text NOT NULL,
+      fetched_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT carteira_cotacoes_cambio_moeda_data_uniq UNIQUE (moeda, data_cotacao)
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_cotacoes_cambio_latest ON carteira_cotacoes_cambio (moeda, data_cotacao DESC, fetched_at DESC)`);
 }
 
 async function applyBusinessOpportunityTables() {
@@ -4618,7 +4628,7 @@ export async function registerRoutes(
   // Helper: check if the session role allows full Cadastro Geral access (Super Admin only)
   async function requireCadastroAccess(req: any, res: any): Promise<boolean> {
     const role = await getEffectiveRole(req);
-    if (role === "admin") return true;
+    if (["admin", "superadmin"].includes(role)) return true;
     res.status(403).json({ error: "Acesso restrito a Super Administradores." });
     return false;
   }
@@ -4626,7 +4636,7 @@ export async function registerRoutes(
   // Helper: allow if Super Admin OR if user is accessing their own membro record
   async function requireCadastroOrOwn(req: any, res: any): Promise<boolean> {
     const role = await getEffectiveRole(req);
-    if (role === "admin") return true;
+    if (role === "admin" || role === "superadmin") return true;
     const sessionMembroId = (req.session as any).membroId as string | null;
     if (sessionMembroId && req.params.id === sessionMembroId) return true;
     res.status(403).json({ error: "Acesso restrito a Super Administradores." });
@@ -14046,13 +14056,14 @@ ${textContent}`;
     tipo: string,
     entrada: Record<string, unknown>,
     resultado: Record<string, unknown>,
+    version = "carteira-v1",
   ) {
     const insert = await db.execute(sql`
       INSERT INTO carteira_analises (
         imovel_id, tipo, versao_regra, entrada, resultado, criado_por_user_id, criado_por_membro_id
       )
       VALUES (
-        ${imovelId}, ${tipo}, 'carteira-v1', ${JSON.stringify(entrada)}::jsonb,
+        ${imovelId}, ${tipo}, ${version}, ${JSON.stringify(entrada)}::jsonb,
         ${JSON.stringify(resultado)}::jsonb, ${actor.userId}, ${actor.membroId}
       )
       RETURNING *
@@ -14566,6 +14577,203 @@ ${inputText.slice(0, 18000)}`,
     }));
   }
 
+  const MARKET_ESTIMATE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+  const PTAX_SOURCE = "BCB PTAX";
+  const PTAX_SOURCE_URL = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata";
+
+  async function loadPortfolioMarketAnalyses() {
+    const result = await db.execute(sql`
+      SELECT * FROM carteira_analises
+      WHERE tipo = 'avaliacao_mercado_sugerida'
+      ORDER BY imovel_id, criado_em DESC
+    `);
+    const states = new Map<string, { latestAttempt?: any; latestSuccess?: any }>();
+    for (const row of result.rows || []) {
+      const id = String(row.imovel_id);
+      const state = states.get(id) || {};
+      if (!state.latestAttempt) state.latestAttempt = row;
+      const outcome = (row.resultado || {}) as any;
+      if (!state.latestSuccess && outcome.status === "atualizada" && Number(outcome.valor_estimado || 0) > 0) state.latestSuccess = row;
+      states.set(id, state);
+    }
+    return states;
+  }
+
+  function portfolioMarketEstimate(imovel: any, state?: { latestAttempt?: any; latestSuccess?: any }) {
+    const attempt = state?.latestAttempt;
+    const success = state?.latestSuccess;
+    const attemptAge = attempt?.criado_em ? Date.now() - new Date(attempt.criado_em).getTime() : Number.POSITIVE_INFINITY;
+    const successAge = success?.criado_em ? Date.now() - new Date(success.criado_em).getTime() : Number.POSITIVE_INFINITY;
+    const successResult = (success?.resultado || {}) as any;
+    const attemptResult = (attempt?.resultado || {}) as any;
+    const suggestedValue = Number(successResult.valor_estimado || 0);
+    const fallbackValue = parseMarketValueServer(imovel.valor_atual);
+    const status = attemptAge < MARKET_ESTIMATE_MAX_AGE_MS && attemptResult.status !== "atualizada"
+      ? String(attemptResult.status || "sem_amostra")
+      : suggestedValue > 0
+        ? (successAge < MARKET_ESTIMATE_MAX_AGE_MS ? "atualizada" : "desatualizada")
+        : "sem_dados";
+    return {
+      valor: suggestedValue > 0 ? suggestedValue : fallbackValue,
+      moeda: String(successResult.moeda || imovel.moeda || "BRL").toUpperCase(),
+      data_base: successResult.data_base || imovel.valor_data_base || null,
+      status,
+      raio_km: MARKET_RADIUS_KM,
+      quantidade_comparaveis: Number(successResult.quantidade_comparaveis || 0),
+      confianca: successResult.confianca || null,
+      fonte: suggestedValue > 0 ? "comparaveis_mercado" : String(imovel.valor_origem || "declarada"),
+      precisa_atualizar: attemptAge >= MARKET_ESTIMATE_MAX_AGE_MS,
+      valor_fallback: suggestedValue > 0 ? null : fallbackValue,
+    };
+  }
+
+  async function loadPortfolioExchangeRates() {
+    const result = await db.execute(sql`
+      SELECT DISTINCT ON (moeda) moeda, taxa_brl, data_cotacao, fonte, fonte_url, fetched_at
+      FROM carteira_cotacoes_cambio
+      ORDER BY moeda, data_cotacao DESC, fetched_at DESC
+    `);
+    const rates = new Map<string, PortfolioExchangeRate & { fetchedAt: string; fonteUrl: string }>();
+    for (const row of result.rows || []) {
+      const moeda = String(row.moeda || "").toUpperCase();
+      rates.set(moeda, {
+        moeda,
+        taxaBrl: Number(row.taxa_brl),
+        data: String(row.data_cotacao),
+        fonte: String(row.fonte || PTAX_SOURCE),
+        fonteUrl: String(row.fonte_url || PTAX_SOURCE_URL),
+        fetchedAt: new Date(row.fetched_at as any).toISOString(),
+      });
+    }
+    return rates;
+  }
+
+  function ptaxDate(date: Date) {
+    return `${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}-${date.getUTCFullYear()}`;
+  }
+
+  async function fetchPtaxSaleQuote(currency: string) {
+    const moeda = String(currency || "").trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(moeda) || moeda === "BRL") throw Object.assign(new Error("Moeda inválida para cotação."), { status: 400 });
+    const end = new Date();
+    const start = new Date(end.getTime() - 10 * 24 * 60 * 60 * 1000);
+    const url = `${PTAX_SOURCE_URL}/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@moeda='${moeda}'&@dataInicial='${ptaxDate(start)}'&@dataFinalCotacao='${ptaxDate(end)}'&$orderby=dataHoraCotacao%20desc&$top=1&$format=json`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+    if (!response.ok) throw Object.assign(new Error(`Cotação ${moeda} indisponível no Banco Central.`), { status: 503 });
+    const payload = await response.json() as any;
+    const quote = payload?.value?.[0];
+    const rate = Number(quote?.cotacaoVenda || 0);
+    const quoteDate = String(quote?.dataHoraCotacao || "").slice(0, 10);
+    if (!(rate > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(quoteDate)) throw Object.assign(new Error(`Cotação ${moeda} não encontrada.`), { status: 503 });
+    await db.execute(sql`
+      INSERT INTO carteira_cotacoes_cambio (moeda, taxa_brl, data_cotacao, fonte, fonte_url)
+      VALUES (${moeda}, ${rate}, ${quoteDate}, ${PTAX_SOURCE}, ${PTAX_SOURCE_URL})
+      ON CONFLICT (moeda, data_cotacao) DO UPDATE SET
+        taxa_brl = EXCLUDED.taxa_brl, fonte = EXCLUDED.fonte,
+        fonte_url = EXCLUDED.fonte_url, fetched_at = now()
+    `);
+    return { moeda, taxa_brl: rate, data_cotacao: quoteDate, fonte: PTAX_SOURCE, fonte_url: PTAX_SOURCE_URL };
+  }
+
+  app.post("/api/carteira/cotacoes/atualizar", async (req, res) => {
+    try {
+      requireCarteiraActor(req);
+      const currencies = Array.from(new Set((Array.isArray(req.body?.moedas) ? req.body.moedas : [])
+        .map((value: unknown) => String(value || "").trim().toUpperCase())
+        .filter((value: string) => /^[A-Z]{3}$/.test(value) && value !== "BRL"))).slice(0, 10) as string[];
+      const current = await loadPortfolioExchangeRates();
+      const refreshed = [];
+      for (const currency of currencies) {
+        const cached = current.get(currency);
+        if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < 24 * 60 * 60 * 1000) {
+          refreshed.push(cached);
+          continue;
+        }
+        refreshed.push(await fetchPtaxSaleQuote(currency));
+      }
+      res.json({ success: true, cotacoes: refreshed });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  async function geocodeMarketLocation(query: string) {
+    const location = String(query || "").trim();
+    if (!location) return null;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+    const response = await fetch(url, {
+      headers: { "User-Agent": "BuiltAlliances/1.0 contact@builtalliances.com" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as any[];
+    const latitude = Number(payload?.[0]?.lat);
+    const longitude = Number(payload?.[0]?.lon);
+    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+  }
+
+  async function marketComparablesWithVerifiedDistance(rawComparables: unknown, targetLocation: string) {
+    const target = await geocodeMarketLocation(targetLocation);
+    if (!target) return null;
+    const rows = Array.isArray(rawComparables) ? rawComparables : [];
+    const verified = [];
+    for (const value of rows.slice(0, 12)) {
+      if (!value || typeof value !== "object") continue;
+      const row = value as Record<string, unknown>;
+      const comparableLocation = [row.endereco, row.numero, row.bairro, row.cidade, row.estado, row.pais]
+        .filter(Boolean).join(", ") || String(row.localizacao || row.location || "");
+      const coordinates = await geocodeMarketLocation(comparableLocation);
+      if (coordinates) verified.push({ ...row, distancia_km: marketDistanceKm(target, coordinates) });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return verified;
+  }
+
+  async function researchPropertyMarketValue(imovel: any) {
+    const areaM2 = parseAreaM2Server(imovel.area_m2);
+    const referenceValue = parseMarketValueServer(imovel.valor_atual) || parseMarketValueServer(imovel.valor_pago);
+    if (!(areaM2 > 0) || !(referenceValue > 0)) throw Object.assign(new Error("Informe área e valor do imóvel antes da pesquisa de mercado."), { status: 422 });
+    const location = [imovel.endereco, imovel.numero, imovel.bairro, imovel.cidade, imovel.estado, imovel.pais, imovel.cep ? `CEP ${imovel.cep}` : ""]
+      .filter(Boolean).join(", ");
+    if (!location) throw Object.assign(new Error("Informe o endereço do imóvel para validar o raio de 10 km."), { status: 422 });
+    const parsed = await analyzeM2WithWebSearch({
+      origem: "carteira",
+      nome: String(imovel.nome || "Imóvel"),
+      tipo: String(imovel.tipo || "Não informado"),
+      location,
+      bairro: String(imovel.bairro || ""),
+      cidade: String(imovel.cidade || ""),
+      valor: referenceValue,
+      areaM2,
+      precoM2: referenceValue / areaM2,
+      moeda: String(imovel.moeda || "BRL").toUpperCase(),
+    });
+    const verified = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, location);
+    if (!verified) throw Object.assign(new Error("Não foi possível validar a localização do imóvel para a pesquisa."), { status: 422 });
+    const analysis = buildComparableMarketAnalysis(verified, {
+      tipo: String(imovel.tipo || "Não informado"),
+      bairro: String(imovel.bairro || ""),
+      cidade: String(imovel.cidade || ""),
+      localizacao: location,
+      areaM2,
+      precoM2: referenceValue / areaM2,
+      moeda: String(imovel.moeda || "BRL").toUpperCase(),
+      raioMaxKm: MARKET_RADIUS_KM,
+      exigirDistancia: true,
+    });
+    const value = analysis.amostra_suficiente && analysis.referencia_m2_media
+      ? Number((analysis.referencia_m2_media * areaM2).toFixed(2))
+      : null;
+    return {
+      ...analysis,
+      status: value ? "atualizada" : "sem_amostra",
+      valor_estimado: value,
+      data_base: new Date().toISOString().slice(0, 10),
+      moeda: String(imovel.moeda || "BRL").toUpperCase(),
+      raio_km: MARKET_RADIUS_KM,
+    };
+  }
+
   app.get("/api/carteira/resumo", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
@@ -14577,7 +14785,20 @@ ${inputText.slice(0, 18000)}`,
         WHERE ${carteiraAccessibleWhere(actor)}
         ORDER BY i.updated_at DESC
       `);
-      const imoveis = await Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor, since)));
+      const [cards, marketStates, exchangeRates] = await Promise.all([
+        Promise.all((result.rows || []).map((row) => carteiraCardForRow(row, actor, since))),
+        loadPortfolioMarketAnalyses(),
+        loadPortfolioExchangeRates(),
+      ]);
+      const imoveis = cards.map((item) => {
+        const estimate = portfolioMarketEstimate(item, marketStates.get(String(item.id)));
+        return {
+          ...item,
+          estimativa_mercado: estimate,
+          valor_utilizado_no_total: estimate.valor,
+          valor_utilizado_origem: estimate.fonte,
+        };
+      });
       const receitas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.receitas || 0), 0);
       const despesas = imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.despesas || 0), 0);
       const contasAPagar = imoveis.reduce((sum, item) => sum + Number(item.contas_a_pagar || 0), 0);
@@ -14592,6 +14813,42 @@ ${inputText.slice(0, 18000)}`,
         })),
         aliancas.map((item) => ({ invested: item.aportes_oficiais, participationValue: item.valor_participacao, liquidity: item.liquidez })),
       );
+      const requiredCurrencies = new Set<string>();
+      for (const item of [...imoveis, ...aliancas]) {
+        const currency = String(item.moeda || "BRL").toUpperCase();
+        if (currency !== "BRL") requiredCurrencies.add(currency);
+      }
+      const excludedCurrencies = new Set<string>();
+      const toBrl = (value: number, currency: string) => {
+        if (!value) return 0;
+        const converted = convertPortfolioAmountToBrl(value, currency, exchangeRates);
+        if (converted == null) excludedCurrencies.add(String(currency || "BRL").toUpperCase());
+        return converted || 0;
+      };
+      for (const item of imoveis) {
+        (item as any).valor_utilizado_no_total_brl = toBrl(parseMarketValueServer(item.valor_utilizado_no_total), item.moeda);
+        (item as any).valor_aquisicao_brl = toBrl(parseMarketValueServer(item.valor_pago), item.moeda);
+      }
+      for (const item of aliancas) {
+        (item as any).valor_participacao_brl = item.valor_participacao == null ? null : toBrl(Number(item.valor_participacao), item.moeda);
+      }
+      const consolidatedBrl = calculatePortfolioTotals(
+        imoveis.map((item) => ({
+          acquisitionValue: Number((item as any).valor_aquisicao_brl || 0),
+          currentValue: Number((item as any).valor_utilizado_no_total_brl || 0),
+          debt: toBrl(parseMarketValueServer(item.divida_saldo), item.moeda),
+          ownershipPercent: Number(item.participacao_percentual ?? 100),
+        })),
+        aliancas.map((item) => ({
+          invested: toBrl(Number(item.aportes_oficiais || 0), item.moeda),
+          participationValue: (item as any).valor_participacao_brl,
+        })),
+      );
+      const now = Date.now();
+      const missingOrStaleRates = Array.from(requiredCurrencies).filter((currency) => {
+        const rate = exchangeRates.get(currency);
+        return !rate || now - new Date(rate.fetchedAt).getTime() >= 24 * 60 * 60 * 1000;
+      });
       res.json({
         period,
         imoveis,
@@ -14610,6 +14867,22 @@ ${inputText.slice(0, 18000)}`,
           resultado_liquido: Number((receitas - despesas).toFixed(2)),
           contas_a_pagar: Number(contasAPagar.toFixed(2)),
           alertas_abertos: imoveis.reduce((sum, item) => sum + Number(item.diagnostico?.indicadores?.alertas_abertos || 0), 0),
+          patrimonio_total_estimado_brl: Number(consolidatedBrl.estimatedTotal.toFixed(2)),
+          valor_aquisicao_total_brl: Number(consolidatedBrl.acquisitionTotal.toFixed(2)),
+          valor_estimado_imoveis_brl: Number(consolidatedBrl.propertyCurrentValue.toFixed(2)),
+          valor_participacoes_aliancas_brl: Number(consolidatedBrl.allianceValue.toFixed(2)),
+          investido_aliancas_brl: Number(consolidatedBrl.allianceInvested.toFixed(2)),
+          valorizacao_registrada_brl: Number(consolidatedBrl.registeredAppreciation.toFixed(2)),
+          valorizacao_cobertura: consolidatedBrl.valuationCoverage,
+        },
+        cambio: {
+          moeda_base: "BRL",
+          fonte: PTAX_SOURCE,
+          fonte_url: PTAX_SOURCE_URL,
+          cotacoes: Array.from(exchangeRates.values()),
+          moedas_necessarias: Array.from(requiredCurrencies),
+          moedas_excluidas: Array.from(excludedCurrencies),
+          precisa_atualizar: missingOrStaleRates.length > 0,
         },
       });
     } catch (error: any) {
@@ -14685,6 +14958,37 @@ ${inputText.slice(0, 18000)}`,
         depois: data,
       });
       res.json({ ...data, access_level: access.nivel, is_owner: access.isOwner, can_delete: canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin) });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/imoveis/:id/avaliacao/pesquisar", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const cached = await db.execute(sql`
+        SELECT * FROM carteira_analises
+        WHERE imovel_id = ${req.params.id} AND tipo = 'avaliacao_mercado_sugerida'
+          AND criado_em >= now() - interval '30 days'
+        ORDER BY criado_em DESC LIMIT 1
+      `);
+      if (cached.rows?.[0]) return res.json({ cached: true, analise: cached.rows[0], ...(cached.rows[0].resultado as any) });
+      const result = await researchPropertyMarketValue(access.imovel);
+      const analysis = await persistCarteiraAnalysis(
+        req.params.id,
+        actor,
+        "avaliacao_mercado_sugerida",
+        {
+          valor_referencia: access.imovel.valor_atual || access.imovel.valor_pago || null,
+          area_m2: access.imovel.area_m2 || null,
+          moeda: access.imovel.moeda || "BRL",
+          raio_km: MARKET_RADIUS_KM,
+        },
+        result,
+        "comparaveis-raio-10km-v1",
+      );
+      res.json({ cached: false, analise: analysis, ...result });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -19295,12 +19599,12 @@ Instruções:
 - Use pesquisa web real e retorne somente anúncios individuais de venda com URL pública direta.
 - Não use índices genéricos, médias municipais, relatórios, páginas de busca sem imóvel específico, aluguel ou conhecimento interno.
 - Cada anúncio precisa ser do mesmo tipo do ativo, estar em ${requiredRegion} e ter área entre ${areaMin.toFixed(2)} e ${areaMax.toFixed(2)} m².
-- Para cada anúncio, extraia o preço total de venda, a área, o tipo, o bairro, a cidade, a localização e a URL.
+- Para cada anúncio, extraia o preço total de venda, a área, o tipo, o endereço público disponível, o bairro, a cidade, o estado, o país, a localização e a URL.
 - Procure até 12 anúncios válidos. Não amplie silenciosamente a região nem a faixa de área.
 - Não calcule média, faixa, diferença, confiança ou classificação; o servidor fará esses cálculos.
 - Não invente anúncios, URLs, preços, áreas ou localizações. Quando um dado não estiver explícito na fonte, não inclua o anúncio.
 - Responda SOMENTE JSON minificado neste formato:
-{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","bairro":"bairro","cidade":"cidade","localizacao":"bairro, cidade, estado","area_m2":0,"preco_total":0,"moeda":"BRL","trecho":"preço e área encontrados na fonte"}]}`;
+{"comparaveis":[{"titulo":"nome do imóvel","url":"https://...","tipo":"tipo do imóvel","endereco":"endereço público se disponível","bairro":"bairro","cidade":"cidade","estado":"estado","pais":"país","localizacao":"bairro, cidade, estado","area_m2":0,"preco_total":0,"moeda":"BRL","trecho":"preço e área encontrados na fonte"}]}`;
 
     const client = getOpenAI() as any;
     if (!client.responses?.create) {
@@ -19363,7 +19667,9 @@ Instruções:
         precoM2,
         moeda: String(body.moeda || "BRL"),
       });
-      const analysis = buildComparableMarketAnalysis(parsed.comparaveis || parsed.imoveis, {
+      const verifiedComparables = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, location);
+      if (!verifiedComparables) return res.status(422).json({ error: "Não foi possível validar a localização para aplicar o raio de 10 km." });
+      const analysis = buildComparableMarketAnalysis(verifiedComparables, {
         tipo: String(body.tipo || body.qualificacao || "Não informado"),
         bairro: String(body.bairro || ""),
         cidade: String(body.cidade || ""),
@@ -19371,6 +19677,8 @@ Instruções:
         areaM2,
         precoM2,
         moeda: String(body.moeda || "BRL"),
+        raioMaxKm: MARKET_RADIUS_KM,
+        exigirDistancia: true,
       });
       res.json({
         success: true,
@@ -19378,6 +19686,7 @@ Instruções:
         preco_m2_informado: Math.round(precoM2),
         valor_total: Math.round(valor),
         area_m2: Number(areaM2.toFixed(2)),
+        raio_km: MARKET_RADIUS_KM,
       });
     } catch (error: any) {
       console.error("[ai/preco-m2]", error?.message || error);
@@ -22767,7 +23076,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     };
 
     if (action === "request_aura") {
-      const avaliacaoToken = randomUUID();
+      const avaliacaoToken = invite.avaliacao_token || randomUUID();
       const [updated] = await db
         .update(convitesComunidade)
         .set({
@@ -22779,7 +23088,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
         })
         .where(and(
           eq(convitesComunidade.id, String(invite.id)),
-          eq(convitesComunidade.status, "termos_aceitos"),
+          sql`${convitesComunidade.status} IN ('termos_aceitos', 'termos_enviados')`,
         ))
         .returning();
       if (updated) await notifyConnectorAboutAuraRequest(updated, avaliacaoToken);
@@ -22810,7 +23119,8 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       WHERE journey.flow_version >= 2
         AND journey.completed_steps @> '["aceites"]'::jsonb
         AND convite.tipo = 'onboarding_inicial'
-        AND convite.status = 'termos_aceitos'
+        AND convite.status IN ('termos_aceitos', 'termos_enviados')
+        AND convite.termos_aceitos_em IS NOT NULL
         AND convite.candidato_membro_id IS NOT NULL
         AND convite.invitador_membro_id IS NOT NULL
     `);
@@ -23954,6 +24264,11 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       // Authorization: only aliado or admin can send reminders
       if (!isCommunityManager(req, comunidade)) {
         return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade pode enviar lembretes" });
+      }
+
+      if (convite.tipo === "onboarding_inicial" && convite.termos_aceitos_em) {
+        const repaired = await completeInitialOnboardingInvite(convite);
+        return res.json({ success: true, convite: repaired });
       }
 
       if (convite.candidato_email && ["aprovado", "termos_enviados"].includes(convite.status)) {

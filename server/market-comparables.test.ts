@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildComparableMarketAnalysis } from "./market-comparables";
+import { buildComparableMarketAnalysis, marketDistanceKm } from "./market-comparables";
 
 const target = {
   tipo: "Apartamento",
@@ -80,4 +80,22 @@ test("classifica acima e abaixo somente depois de ultrapassar 10%", () => {
   assert.equal(buildComparableMarketAnalysis(rows, { ...target, precoM2: 5_501 }).classificacao, "acima");
   assert.equal(buildComparableMarketAnalysis(rows, { ...target, precoM2: 4_500 }).classificacao, "media");
   assert.equal(buildComparableMarketAnalysis(rows, { ...target, precoM2: 4_499 }).classificacao, "abaixo");
+});
+
+test("aplica raio inclusivo de 10 km quando a distância foi verificada", () => {
+  const result = buildComparableMarketAnalysis([
+    comparable(1, 100, 500_000, { distancia_km: 0 }),
+    comparable(2, 120, 600_000, { distancia_km: 10 }),
+    comparable(3, 130, 650_000, { distancia_km: 10.01 }),
+    comparable(4, 140, 700_000),
+  ], { ...target, exigirDistancia: true, raioMaxKm: 10 });
+  assert.equal(result.quantidade_comparaveis, 2);
+  assert.equal(result.amostra_suficiente, false);
+});
+
+test("calcula distância geográfica em quilômetros", () => {
+  assert.ok(Math.abs(marketDistanceKm(
+    { latitude: -23.55052, longitude: -46.633308 },
+    { latitude: -23.55052, longitude: -46.533308 },
+  ) - 10.22) < 0.1);
 });

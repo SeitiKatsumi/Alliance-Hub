@@ -130,6 +130,16 @@ interface CarteiraImovel {
   can_delete?: boolean;
   diagnostico?: CarteiraDiagnostico | null;
   contas_a_pagar?: number;
+  estimativa_mercado?: {
+    valor: number; moeda: string; data_base?: string | null;
+    status: "atualizada" | "desatualizada" | "sem_amostra" | "sem_dados";
+    raio_km: number; quantidade_comparaveis: number; confianca?: string | null;
+    fonte: string; precisa_atualizar: boolean; valor_fallback?: number | null;
+  };
+  valor_utilizado_no_total?: number;
+  valor_utilizado_no_total_brl?: number;
+  valor_aquisicao_brl?: number;
+  valor_utilizado_origem?: string;
 }
 
 interface CarteiraResumo {
@@ -138,7 +148,7 @@ interface CarteiraResumo {
   aliancas: Array<{
     id: string; codigo?: string | null; nome: string; situacao?: string | null; moeda: string;
     map_percent: number; aportes_oficiais: number; patrimonio_liquido_oficial?: number | null;
-    valor_participacao?: number | null; data_base?: string | null; metodologia?: string | null;
+    valor_participacao?: number | null; valor_participacao_brl?: number | null; data_base?: string | null; metodologia?: string | null;
     liquidez?: string | null; confirmado: boolean; can_manage_patrimonio?: boolean; can_delete?: boolean;
     receitas_participacao?: number; despesas_participacao?: number; contas_a_pagar_participacao?: number; evolucao_patrimonial_percentual?: number | null;
   }>;
@@ -156,6 +166,21 @@ interface CarteiraResumo {
     valor_participacoes_aliancas: number;
     percentual_baixa_liquidez: number;
     contas_a_pagar: number;
+    patrimonio_total_estimado_brl?: number;
+    valor_aquisicao_total_brl?: number;
+    valor_estimado_imoveis_brl?: number;
+    valor_participacoes_aliancas_brl?: number;
+    investido_aliancas_brl?: number;
+    valorizacao_registrada_brl?: number;
+    valorizacao_cobertura?: {
+      propertiesIncluded: number; propertiesTotal: number;
+      alliancesIncluded: number; alliancesTotal: number;
+    };
+  };
+  cambio?: {
+    moeda_base: "BRL"; fonte: string; fonte_url: string;
+    cotacoes: Array<{ moeda: string; taxaBrl: number; data: string; fonte: string; fetchedAt: string }>;
+    moedas_necessarias: string[]; moedas_excluidas: string[]; precisa_atualizar: boolean;
   };
 }
 
@@ -400,19 +425,23 @@ function carteiraPhotoUrl(value?: string | null) {
   return `/api/assets/${encodeURIComponent(photo)}`;
 }
 
-function Metric({ label, value, icon: Icon, tone = "text-slate-900", helper }: {
+function Metric({ label, value, icon: Icon, tone = "text-slate-900", helper, description }: {
   label: string;
   value: string;
   icon: any;
   tone?: string;
   helper?: string;
+  description?: string;
 }) {
   return (
     <Card className="border-border/70">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">{label}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              {description && <ModuleInfo title={label} description={description} />}
+            </div>
             <p className={`mt-1 truncate text-lg font-bold tabular-nums ${tone}`}>{value}</p>
             {helper && <p className="mt-1 text-[11px] text-muted-foreground">{helper}</p>}
           </div>
@@ -818,10 +847,9 @@ function PropertyCard({
   const hasActions = Boolean(onEdit || onDelete);
   const photoUrl = carteiraPhotoUrl(item.foto);
   const ownership = Math.min(100, Math.max(0, Number(item.participacao_percentual ?? 100)));
-  const ownedValue = parseNumber(item.valor_atual) * ownership / 100;
-  const ownedDebt = parseNumber(item.divida_saldo) * ownership / 100;
-  const portfolioShare = portfolioTotal > 0 ? Math.max(0, ownedValue - ownedDebt) / portfolioTotal * 100 : 0;
-  const acquisition = parseNumber(item.valor_pago) * ownership / 100;
+  const ownedValue = parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * ownership / 100;
+  const portfolioShare = portfolioTotal > 0 ? Math.max(0, ownedValue) / portfolioTotal * 100 : 0;
+  const acquisition = parseNumber(item.valor_aquisicao_brl ?? item.valor_pago) * ownership / 100;
   const evolution = acquisition > 0 ? (ownedValue - acquisition) / acquisition * 100 : null;
   return (
     <Card className="relative overflow-hidden border-border/70 transition-colors hover:border-blue-300">
@@ -885,7 +913,7 @@ function PropertyCard({
           <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3 text-sm">
             <div>
               <p className="text-[11px] text-muted-foreground">Sua fração ({ownership.toFixed(2)}%)</p>
-              <p className="font-semibold tabular-nums">{money(ownedValue, item.moeda)}</p>
+              <p className="font-semibold tabular-nums">{money(ownedValue)}</p>
             </div>
             <div>
               <p className="text-[11px] text-muted-foreground">Resultado registrado</p>
@@ -923,6 +951,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
   const [aporteFile, setAporteFile] = useState<File | null>(null);
   const [gestaoTarget, setGestaoTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
   const [snapshotForm, setSnapshotForm] = useState({ patrimonio_liquido: "", data_base: new Date().toISOString().slice(0, 10), metodologia: "Avaliação dos diretores", liquidez: "media" });
+  const automaticRefreshKey = useRef("");
   const { data, isLoading } = useQuery<CarteiraResumo>({
     queryKey: ["/api/carteira/resumo", period],
     queryFn: async () => {
@@ -965,6 +994,32 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     },
     onError: (error: any) => toast({ title: "Não foi possível excluir o imóvel", description: error?.message, variant: "destructive" }),
   });
+  useEffect(() => {
+    if (!data) return;
+    const pendingProperties = data.imoveis.filter((item) => item.estimativa_mercado?.precisa_atualizar
+      && ["proprietario", "administracao"].includes(String(item.access_level || "")));
+    const pendingCurrencies = data.cambio?.precisa_atualizar ? data.cambio.moedas_necessarias : [];
+    const key = `${pendingCurrencies.slice().sort().join(",")}|${pendingProperties.map((item) => item.id).sort().join(",")}`;
+    if (!key.replace("|", "") || automaticRefreshKey.current === key) return;
+    automaticRefreshKey.current = key;
+    void (async () => {
+      let changed = false;
+      if (pendingCurrencies.length) {
+        const response = await fetch("/api/carteira/cotacoes/atualizar", {
+          method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ moedas: pendingCurrencies }),
+        }).catch(() => null);
+        changed = Boolean(response?.ok) || changed;
+      }
+      for (const item of pendingProperties) {
+        const response = await fetch(`/api/carteira/imoveis/${encodeURIComponent(item.id)}/avaliacao/pesquisar`, {
+          method: "POST", credentials: "include",
+        }).catch(() => null);
+        changed = Boolean(response?.ok) || changed;
+      }
+      if (changed) queryClient.invalidateQueries({ queryKey: ["/api/carteira/resumo"] });
+    })();
+  }, [data]);
   const deleteAllianceMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/bias/${id}`),
     onSuccess: () => {
@@ -1024,6 +1079,14 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     });
   }, [data?.imoveis, group, search]);
   const totals = data?.totais;
+  const excludedCurrencies = data?.cambio?.moedas_excluidas || [];
+  const currencyNotice = excludedCurrencies.length
+    ? ` Valores em ${excludedCurrencies.join(", ")} estão temporariamente fora do consolidado por falta de cotação oficial.`
+    : " Valores em outras moedas são convertidos para BRL pela cotação de venda PTAX mais recente disponível.";
+  const valuationCoverage = totals?.valorizacao_cobertura;
+  const valuationCoverageText = valuationCoverage
+    ? ` O cálculo inclui ${valuationCoverage.propertiesIncluded} de ${valuationCoverage.propertiesTotal} imóveis e ${valuationCoverage.alliancesIncluded} de ${valuationCoverage.alliancesTotal} alianças com as duas bases disponíveis.`
+    : "";
   const portfolioRegions = useMemo(() => {
     const groups = new Map<string, { assets: number; value: number }>();
     for (const item of data?.imoveis || []) {
@@ -1031,7 +1094,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
       const current = groups.get(key) || { assets: 0, value: 0 };
       const share = Math.min(100, Math.max(0, Number(item.participacao_percentual ?? 100))) / 100;
       current.assets += 1;
-      current.value += (parseNumber(item.valor_atual) - parseNumber(item.divida_saldo)) * share;
+      current.value += parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * share;
       groups.set(key, current);
     }
     return Array.from(groups.entries()).sort((a, b) => b[1].value - a[1].value);
@@ -1062,17 +1125,16 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <Metric label="Patrimônio líquido" value={money(totals?.patrimonio_total || 0)} icon={Landmark} helper={`Dívidas informadas: ${money(totals?.divida || 0)}`} />
-        <Metric label="Valor de aquisição" value={money(totals?.patrimonio_pago || 0)} icon={CircleDollarSign} />
-        <Metric label="Valor atual estimado" value={money(totals?.patrimonio_atual || 0)} icon={Home} />
-        <Metric label="Investido em alianças" value={money(totals?.total_investido_aliancas || 0)} icon={Users} helper={`Valor oficial atual: ${money(totals?.valor_participacoes_aliancas || 0)}`} />
-        <Metric label="Baixa liquidez" value={`${(totals?.percentual_baixa_liquidez || 0).toFixed(1)}%`} icon={Clock3} />
-        <Metric label="Valorização registrada" value={money(totals?.valorizacao || 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao || 0)} />
-        <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" />
-        <Metric label="Despesas" value={money(totals?.despesas || 0)} icon={TrendingDown} tone="text-red-700" />
-        <Metric label="Resultado líquido" value={money(totals?.resultado_liquido || 0)} icon={Wallet} tone={metricTone(totals?.resultado_liquido || 0)} helper={`${totals?.alertas_abertos || 0} alertas abertos`} />
-        <Metric label="Parcelas e contas a pagar" value={money(totals?.contas_a_pagar || 0)} icon={CalendarClock} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor estimado dos imóveis próprios, respeitando sua fração de propriedade, ao valor confirmado das participações nas BIAs pelo MAP. Dívidas e contas a pagar não são descontadas deste total.${currencyNotice}`} />
+        <Metric label="Valor de aquisição" value={money(totals?.valor_aquisicao_total_brl ?? totals?.patrimonio_pago ?? 0)} icon={CircleDollarSign} description={`Soma o valor pago pelos imóveis, proporcional à sua propriedade, aos aportes oficiais realizados nas BIAs.${currencyNotice}`} />
+        <Metric label="Valor estimado dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma as estimativas dos imóveis em carteira. A pesquisa usa ao menos três anúncios comparáveis do mesmo tipo, dentro de um raio de até 10 km, e é renovada a cada 30 dias. Quando a pesquisa não está disponível, permanece o último valor válido ou o valor declarado.${currencyNotice}`} />
+        <Metric label="Investido em alianças" value={money(totals?.investido_aliancas_brl ?? totals?.total_investido_aliancas ?? 0)} icon={Users} helper={`Valor oficial atual: ${money(totals?.valor_participacoes_aliancas_brl ?? totals?.valor_participacoes_aliancas ?? 0)}`} description={`Soma os aportes oficiais que você realizou nas BIAs. Uma BIA sem snapshot patrimonial confirmado permanece neste indicador, mas ainda não entra no Patrimônio Total Estimado.${currencyNotice}`} />
+        <Metric label="Valorização registrada" value={money(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} description={`Diferença entre o valor estimado e o valor de aquisição dos imóveis, somada à diferença entre as participações confirmadas nas BIAs e os aportes oficiais. Ativos sem as duas bases ficam fora deste cálculo.${valuationCoverageText}${currencyNotice}`} />
+        <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" description={`Soma das receitas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
+        <Metric label="Despesas" value={money(totals?.despesas || 0)} icon={TrendingDown} tone="text-red-700" description={`Soma das despesas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
+        <Metric label="Resultado líquido" value={money(totals?.resultado_liquido || 0)} icon={Wallet} tone={metricTone(totals?.resultado_liquido || 0)} helper={`${totals?.alertas_abertos || 0} alertas abertos`} description="Resultado das receitas menos as despesas registradas para os imóveis no período selecionado." />
+        <Metric label="Parcelas e contas a pagar" value={money(totals?.contas_a_pagar || 0)} icon={CalendarClock} description="Soma das parcelas e despesas pendentes, agendadas ou vencidas dos imóveis. Este valor aparece separadamente e não é descontado do Patrimônio Total Estimado." />
       </div>
 
       <div id="meus-imoveis" className="flex flex-col gap-2 scroll-mt-20 sm:flex-row">
@@ -1116,7 +1178,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
             <PropertyCard
               key={item.id}
               item={item}
-              portfolioTotal={totals?.patrimonio_total || 0}
+              portfolioTotal={totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0}
               onOpen={() => navigate(`/carteira/${item.id}`)}
               onEdit={canAccess(item.access_level, "administracao") ? () => {
                 setEditingItem(item);
@@ -1153,7 +1215,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
                   <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? "Aguardando valor oficial" : money(item.valor_participacao, item.moeda)}</p></div></div>
                   <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs"><div><p className="text-muted-foreground">Receitas</p><p className="font-semibold text-emerald-700">{money(item.receitas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">Despesas</p><p className="font-semibold text-red-700">{money(item.despesas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">A pagar</p><p className="font-semibold">{money(item.contas_a_pagar_participacao || 0, item.moeda)}</p></div></div>
                   {item.evolucao_patrimonial_percentual != null && <p className={`text-xs font-medium ${metricTone(item.evolucao_patrimonial_percentual)}`}>Evolução patrimonial: {item.evolucao_patrimonial_percentual.toFixed(1)}%</p>}
-                  <p className="text-xs text-muted-foreground">{item.valor_participacao == null || !totals?.patrimonio_total ? "Ainda não entra no patrimônio consolidado." : `${(item.valor_participacao / totals.patrimonio_total * 100).toFixed(1)}% do patrimônio total.`}</p>
+                  <p className="text-xs text-muted-foreground">{item.valor_participacao_brl == null || !(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total) ? "Ainda não entra no patrimônio consolidado." : `${(item.valor_participacao_brl / (totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 1) * 100).toFixed(1)}% do patrimônio total estimado.`}</p>
                   <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => navigate(`/bias/${item.id}`)}>Abrir aliança</Button><Button variant="outline" onClick={() => setAporteTarget(item)}><HandCoins className="mr-2 h-4 w-4" />Enviar aporte</Button></div>
                   {item.can_manage_patrimonio && <Button className="w-full" variant="outline" onClick={() => { setGestaoTarget(item); setSnapshotForm((current) => ({ ...current, patrimonio_liquido: item.patrimonio_liquido_oficial == null ? "" : String(item.patrimonio_liquido_oficial), data_base: item.data_base || current.data_base, metodologia: item.metodologia || current.metodologia, liquidez: item.liquidez || current.liquidez })); }}><ShieldCheck className="mr-2 h-4 w-4" />Gestão patrimonial</Button>}
                 </CardContent>
@@ -1163,7 +1225,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
         )}
       </section>
       {portfolioRegions.length > 0 && <section className="space-y-3 border-t pt-5">
-        <div><h3 className="text-lg font-semibold">Mapa de calor patrimonial por região</h3><p className="text-sm text-muted-foreground">Quanto mais intensa a cor, maior o patrimônio líquido da Carteira naquela região. Endereços privados não são exibidos.</p></div>
+        <div><h3 className="text-lg font-semibold">Mapa de calor patrimonial por região</h3><p className="text-sm text-muted-foreground">Quanto mais intensa a cor, maior o patrimônio estimado da Carteira naquela região. Endereços privados não são exibidos.</p></div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{portfolioRegions.map(([region, summary]) => <div key={region} className="rounded-md border p-3" style={{ backgroundColor: `rgba(37, 99, 235, ${0.08 + 0.42 * Math.max(0, summary.value) / maxRegionValue})` }}><p className="font-medium">{region}</p><p className="text-xs text-slate-700">{summary.assets} ativo(s) · {money(summary.value)}</p></div>)}</div>
       </section>}
       <Dialog open={Boolean(aporteTarget)} onOpenChange={(open) => !open && setAporteTarget(null)}>

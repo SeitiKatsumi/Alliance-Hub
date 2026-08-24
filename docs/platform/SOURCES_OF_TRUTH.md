@@ -18,7 +18,7 @@ Uma informação deve ter uma fonte oficial. Espelhos servem para leitura, desem
 | Fluxo financeiro da BIA | Directus `fluxo_caixa` | cards e análises | valores derivados não devem ser persistidos por telas diferentes |
 | Valor de origem | campo da BIA + lançamentos protegidos | calculadora e análises | sincronização preserva parcelas pagas/com evidência |
 | DM/CPP | percentuais e helper de domínio da BIA | cards de visão geral e análises | zero explícito é diferente de ausente |
-| Carteira | tabelas locais `carteira_*` | publicação opcional | item privado não vira ativo público automaticamente |
+| Carteira | tabelas locais `carteira_*` e `inventario_*`; MAP/aportes no financeiro oficial da BIA | publicação opcional e totais calculados | estimativas ficam em `carteira_analises`; cotacoes PTAX ficam em `carteira_cotacoes_cambio`; item privado não vira ativo público automaticamente |
 | Oportunidades | registro local e objetos de origem | Vitrine, OBA, Land Bank | projeção pública remove dados privados |
 | Aura | `aura_avaliacoes` + léxico | score e cards | vínculo deve considerar todas as comunidades |
 | Aceites | registros locais versionados | PDFs | perfil atual não substitui evidência do momento do aceite |

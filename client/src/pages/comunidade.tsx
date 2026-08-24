@@ -2,7 +2,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
+import { AGENDA_ALERTS_REFRESH_MS, invalidateAgendaAlertQueries } from "@/lib/agenda-alerts";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { capitalizeWords } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -41,6 +41,7 @@ import {
   formatAuraRecordingTime,
   getAuraAudioFilename,
 } from "@/lib/aura-audio";
+import { isCommunityApprovalPending } from "@shared/community-approval";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
@@ -1267,7 +1268,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       return result;
     },
     enabled: comunidadesParaConvites.length > 0,
-    refetchInterval: 30000,
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
   const { data: convitesComoConector = [] } = useQuery<any[]>({
@@ -1280,7 +1281,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       return Array.isArray(data) ? data : [];
     },
     enabled: Boolean(user?.membro_directus_id),
-    refetchInterval: 30000,
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
   const { data: diretorSolicitacoes = [] } = useQuery<DiretorSolicitacao[]>({
@@ -1292,7 +1293,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       return Array.isArray(data) ? data : [];
     },
     enabled: convitesOnly || activeTab === "convites",
-    refetchInterval: 30000,
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
   const { data: socioSolicitacoes = [] } = useQuery<SocioSolicitacao[]>({
@@ -1304,7 +1305,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       return Array.isArray(data) ? data : [];
     },
     enabled: convitesOnly || activeTab === "convites",
-    refetchInterval: 30000,
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
   });
 
   const decisaoMutation = useMutation({
@@ -1409,13 +1410,6 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       });
       if (isLocationError) setLocationPermissionHelpOpen(true);
     },
-  });
-
-  const lembretesMutation = useMutation({
-    mutationFn: (token: string) =>
-      apiRequest("POST", `/api/convites/${token}/lembrete`, {}),
-    onSuccess: () => toast({ title: "Lembrete enviado!" }),
-    onError: () => toast({ title: "Erro ao enviar lembrete", variant: "destructive" }),
   });
 
   // Query for vitrine/capital candidates from convitesComunidade
@@ -1834,15 +1828,6 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
 
   const showConvitesTab = false;
   const todosCandidatosCompleto = todosCandidatosFiltrados.filter(c => c.tipo !== "vitrine");
-  const PENDING_DECISION_STATUSES = ["candidato", "aguardando_avaliacao_aura"];
-  const ACTIONABLE_APPROVAL_STATUSES = [
-    "candidato",
-    "aguardando_avaliacao_aura",
-    "aprovado",
-    "termos_enviados",
-    "termos_aceitos",
-    "pagamento_pendente",
-  ];
   const HIDDEN_APPROVAL_STATUSES = ["cancelado", "cancelada", "arquivado", "arquivada"];
   const normalize = (value: string) =>
     value
@@ -1859,8 +1844,8 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   )
     .filter((convite: any) => !HIDDEN_APPROVAL_STATUSES.includes(String(convite.status || "").toLowerCase()))
     .sort((a: any, b: any) => {
-    const priorityA = PENDING_DECISION_STATUSES.includes(a.status) ?0 : 1;
-    const priorityB = PENDING_DECISION_STATUSES.includes(b.status) ?0 : 1;
+    const priorityA = isCommunityApprovalPending(a.status) ?0 : 1;
+    const priorityB = isCommunityApprovalPending(b.status) ?0 : 1;
     if (priorityA !== priorityB) return priorityA - priorityB;
     const dateA = new Date(a.criado_em || a.created_at || 0).getTime();
     const dateB = new Date(b.criado_em || b.created_at || 0).getTime();
@@ -1903,15 +1888,8 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
         solicitacao.solicitante_nome,
       ].filter(Boolean).join(" ")).includes(aprovacoesQuery);
     });
-  const convitesPendentes = aprovacoesFiltradas.filter((c: any) =>
-    ["candidato", "aguardando_avaliacao_aura"].includes(c.status)
-  );
-  const aprovacoesImportantes = aprovacoesFiltradas.filter((c: any) =>
-    ACTIONABLE_APPROVAL_STATUSES.includes(c.status)
-  );
-  const aprovacoesHistorico = aprovacoesFiltradas.filter((c: any) =>
-    !ACTIONABLE_APPROVAL_STATUSES.includes(c.status)
-  );
+  const aprovacoesImportantes = aprovacoesFiltradas.filter((c: any) => isCommunityApprovalPending(c.status));
+  const aprovacoesHistorico = aprovacoesFiltradas.filter((c: any) => !isCommunityApprovalPending(c.status));
   const aprovacoesExibidas = mostrarHistoricoAprovacoes ?aprovacoesHistorico : aprovacoesImportantes;
   const totalAprovacoesPendentes = aprovacoesImportantes.length + diretorSolicitacoesPendentes.length + socioSolicitacoesPendentes.length;
   const opasPublicasFiltradas = (opasNotificacoes || [])
@@ -1940,7 +1918,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   // Badge count: include candidato (ready for aliado decision) + aguardando_avaliacao_aura (inviting member hasn't evaluated yet)
   const convitesBadgeCount =
     mergeConvitesById(vitrineCandidatos, todosCandidatos, convitesComoConector)
-      .filter((c: any) => PENDING_DECISION_STATUSES.includes(c.status)).length;
+      .filter((c: any) => isCommunityApprovalPending(c.status)).length;
 
   return (
     <div className={`${embedded ? "space-y-6" : "p-6 space-y-6 max-w-7xl mx-auto"} ${convitesOnly ?"notifications-page" : ""}`}>
@@ -2415,17 +2393,6 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                                   Rejeitar
                                 </button>
                               </>
-                            )}
-                            {["aprovado", "termos_enviados"].includes(convite.status) && (
-                              <button
-                                onClick={() => lembretesMutation.mutate(convite.token)}
-                                disabled={lembretesMutation.isPending}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-purple-700 border border-purple-200 hover:bg-purple-50 transition-colors"
-                                data-testid={"btn-lembrete-tab-" + convite.id}
-                              >
-                                <Clock className="w-3.5 h-3.5" />
-                                Reenviar Termos
-                              </button>
                             )}
                           </>
                         )}
@@ -2932,16 +2899,6 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
                       Rejeitar
                     </button>
                   </>
-                )}
-                {["aprovado", "termos_enviados"].includes(sc.status) && (
-                  <button
-                    onClick={() => { lembretesMutation.mutate(sc.token); setSelectedConvite(null); }}
-                    disabled={lembretesMutation.isPending}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-mono text-purple-400 border border-purple-500/30 hover:bg-purple-500/10 transition-colors"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    Reenviar Termos
-                  </button>
                 )}
                 {sc.status === "aguardando_avaliacao_aura" && sc.avaliacao_token && (
                   <button

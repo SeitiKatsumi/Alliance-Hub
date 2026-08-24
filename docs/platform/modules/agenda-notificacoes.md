@@ -16,6 +16,7 @@ Consolida compromissos, chamadas, convites, aprovacoes e pendencias acionaveis d
 - `/api/agenda*`, `/api/agenda-alertas/contador`, `/alertas` e `/resumo`.
 - APIs de convites, chamadas, aprovacoes, documentos, pagamentos e alertas da Carteira sao fontes.
 - Cron/timers e polling podem criar ou atualizar lembretes; deduplicacao e obrigatoria.
+- Enquanto a aplicacao estiver visivel, contador, resumo e fontes de aprovacoes pendentes sao atualizados em ate 2 segundos, sem recarregar a pagina.
 
 ## Dados e fontes de verdade
 

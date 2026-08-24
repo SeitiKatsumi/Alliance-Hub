@@ -44,6 +44,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 ## Invariantes
 
 - Um usuario pode participar de varias comunidades simultaneamente.
+- Em `Aprovacoes pendentes`, convites aparecem somente quando aguardam decisao sobre o candidato ou avaliacao de Aura; termos enviados, aceitos e pagamento ficam no historico, sem reenvio manual de termos.
 - Nunca selecionar apenas a primeira comunidade para autorizar Aura, convite ou estruturacao de BIA.
 - O inicio da adesao resolve a comunidade pela ancora de origem e por todos os vinculos atuais; o convite original continua valido para candidatos ainda nao promovidos a membro.
 - Vinculo deve comparar IDs normalizados de usuario, membro Directus e registros relacionais.

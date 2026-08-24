@@ -1103,6 +1103,18 @@ export const biaAporteSolicitacoes = pgTable("bia_aporte_solicitacoes", {
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const carteiraCotacoesCambio = pgTable("carteira_cotacoes_cambio", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  moeda: text("moeda").notNull(),
+  taxa_brl: numeric("taxa_brl", { precision: 18, scale: 8 }).notNull(),
+  data_cotacao: date("data_cotacao").notNull(),
+  fonte: text("fonte").notNull().default("BCB PTAX"),
+  fonte_url: text("fonte_url").notNull(),
+  fetched_at: timestamp("fetched_at").defaultNow().notNull(),
+}, (table) => ({
+  moedaDataUnique: unique("carteira_cotacoes_cambio_moeda_data_uniq").on(table.moeda, table.data_cotacao),
+}));
+
 export function getQuinzena(dateStr: string): { inicio: string; fim: string } {
   const [y, m, d] = dateStr.split("-").map(Number);
   const ultimoDia = new Date(y, m, 0).getDate();

@@ -21,7 +21,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 ## Dados e fontes de verdade
 
-- PostgreSQL `inventario_imoveis`, `inventario_lancamentos`, `carteira_eventos`, `carteira_documentos`, `carteira_analises`, `carteira_alertas`, `carteira_demandas`, acessos e sessoes do assistente.
+- PostgreSQL `inventario_imoveis`, `inventario_lancamentos`, `carteira_eventos`, `carteira_documentos`, `carteira_analises`, `carteira_alertas`, `carteira_demandas`, `carteira_cotacoes_cambio`, acessos e sessoes do assistente.
 - PostgreSQL `bia_patrimonial_snapshots` e `bia_aporte_solicitacoes`; MAP continua derivado dos aportes oficiais do Directus e transferencias aceitas.
 - Historico de evento e append-only; o snapshot atual nao substitui a trilha.
 - Ativo publicado e uma projecao/copia rastreada, nao a fonte do item privado.
@@ -44,6 +44,12 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 - A Carteira le o financeiro oficial da BIA, mas nunca o altera sem solicitacao e aprovacao autorizada.
 - Somente MAP maior que zero e snapshot patrimonial confirmado entram no patrimonio consolidado.
+- `Patrimonio Total Estimado` e bruto: soma o valor estimado dos imoveis proprios, proporcional a propriedade, ao valor confirmado das participacoes em BIAs pelo MAP; dividas ficam separadas.
+- `Valor de aquisicao` soma o valor pago proporcional dos imoveis aos aportes oficiais nas BIAs.
+- `Valorizacao registrada` considera somente ativos que possuam valor atual/estimado e base de aquisicao/aporte.
+- A estimativa automatica usa no minimo tres anuncios do mesmo tipo com distancia geocodificada de ate 10 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao humana.
+- O resumo nao chama servicos externos; pesquisas e cotacoes desatualizadas sao renovadas em segundo plano e resultados validos permanecem disponiveis durante falhas.
+- Consolidacoes multimoeda usam a ultima cotacao de venda PTAX persistida; sem cotacao, a moeda e identificada e excluida do total, nunca tratada silenciosamente como BRL.
 - Cada imovel registra a participacao percentual do usuario; aquisicao, valor atual, divida e concentracao usam essa fracao.
 - Parcelas importadas de XLS, XLSX, CSV ou PDF so viram documento e lancamentos depois da confirmacao da previa editavel.
 - Diretores autorizados registram snapshots e aprovam ou rejeitam aportes; participantes apenas enviam solicitacoes e comprovantes.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateMap, calculatePortfolioTotals, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "./member-portfolio";
+import { calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments } from "./member-portfolio";
 
 test("cancelamento preserva acesso ate o fim da vigencia", () => {
   const startsAt = new Date("2026-08-21T00:00:00Z");
@@ -25,6 +25,9 @@ test("patrimonio soma imoveis liquidos e apenas participacoes confirmadas", () =
     [{ invested: 30, participationValue: 50 }, { invested: 10, participationValue: null }],
   );
   assert.equal(result.netWorth, 170);
+  assert.equal(result.estimatedTotal, 190);
+  assert.equal(result.acquisitionTotal, 140);
+  assert.equal(result.registeredAppreciation, 60);
   assert.equal(result.allianceInvested, 40);
   assert.equal(result.lowLiquidityPercent, (140 / 170) * 100);
 });
@@ -38,6 +41,25 @@ test("patrimonio considera somente a fracao do imovel pertencente ao usuario", (
   assert.equal(result.propertyCurrentValue, 90);
   assert.equal(result.debt, 12);
   assert.equal(result.netWorth, 78);
+  assert.equal(result.estimatedTotal, 90);
+});
+
+test("patrimonio total estimado nao desconta dividas e valor de aquisicao inclui aportes", () => {
+  const result = calculatePortfolioTotals(
+    [{ acquisitionValue: 500_000, currentValue: 600_000, debt: 80_000, ownershipPercent: 50 }],
+    [{ invested: 100_000, participationValue: 100_000 }, { invested: 20_000, participationValue: null }],
+  );
+  assert.equal(result.estimatedTotal, 400_000);
+  assert.equal(result.acquisitionTotal, 370_000);
+  assert.equal(result.registeredAppreciation, 50_000);
+  assert.deepEqual(result.valuationCoverage, { propertiesIncluded: 1, propertiesTotal: 1, alliancesIncluded: 1, alliancesTotal: 2 });
+});
+
+test("converte moedas com cotacao conhecida e nao presume BRL quando ela falta", () => {
+  const rates = new Map([["USD", { moeda: "USD", taxaBrl: 5.25, data: "2026-08-24", fonte: "BCB PTAX" }]]);
+  assert.equal(convertPortfolioAmountToBrl(100, "USD", rates), 525);
+  assert.equal(convertPortfolioAmountToBrl(100, "BRL", rates), 100);
+  assert.equal(convertPortfolioAmountToBrl(100, "EUR", rates), null);
 });
 
 test("importacao de financiamento descarta parcelas invalidas e normaliza o status", () => {

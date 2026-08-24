@@ -59,17 +59,53 @@ export function calculatePortfolioTotals(
   const allianceInvested = alliances.reduce((sum, item) => sum + Number(item.invested || 0), 0);
   const allianceValue = alliances.reduce((sum, item) => sum + Number(item.participationValue || 0), 0);
   const netWorth = propertyCurrentValue - debt + allianceValue;
+  const estimatedTotal = propertyCurrentValue + allianceValue;
+  const acquisitionTotal = acquisitionValue + allianceInvested;
+  const propertyAppreciation = properties.reduce((sum, item) => {
+    const acquisition = Number(item.acquisitionValue || 0) * share(item);
+    const current = Number(item.currentValue || 0) * share(item);
+    return acquisition > 0 && current > 0 ? sum + current - acquisition : sum;
+  }, 0);
+  const allianceAppreciation = alliances.reduce((sum, item) => {
+    const invested = Number(item.invested || 0);
+    const current = item.participationValue == null ? 0 : Number(item.participationValue);
+    return invested > 0 && current > 0 ? sum + current - invested : sum;
+  }, 0);
   const lowLiquidityValue = properties.reduce((sum, item) => sum + (item.liquidity === "baixa" ? Number(item.currentValue || 0) * share(item) : 0), 0)
     + alliances.reduce((sum, item) => sum + (item.liquidity === "baixa" ? Number(item.participationValue || 0) : 0), 0);
   return {
     netWorth,
+    estimatedTotal,
     acquisitionValue,
+    acquisitionTotal,
     propertyCurrentValue,
     debt,
     allianceInvested,
     allianceValue,
+    registeredAppreciation: propertyAppreciation + allianceAppreciation,
+    valuationCoverage: {
+      propertiesIncluded: properties.filter((item) => Number(item.acquisitionValue || 0) > 0 && Number(item.currentValue || 0) > 0).length,
+      propertiesTotal: properties.length,
+      alliancesIncluded: alliances.filter((item) => Number(item.invested || 0) > 0 && item.participationValue != null && Number(item.participationValue) > 0).length,
+      alliancesTotal: alliances.length,
+    },
     lowLiquidityPercent: netWorth > 0 ? (lowLiquidityValue / netWorth) * 100 : 0,
   };
+}
+
+export type PortfolioExchangeRate = { moeda: string; taxaBrl: number; data: string; fonte: string };
+
+export function convertPortfolioAmountToBrl(
+  value: number,
+  currency: string | null | undefined,
+  rates: Map<string, PortfolioExchangeRate>,
+): number | null {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) return null;
+  const normalized = String(currency || "BRL").trim().toUpperCase();
+  if (normalized === "BRL") return amount;
+  const rate = rates.get(normalized);
+  return rate && Number.isFinite(rate.taxaBrl) && rate.taxaBrl > 0 ? amount * rate.taxaBrl : null;
 }
 
 export function normalizeFinancingInstallments(items: unknown) {

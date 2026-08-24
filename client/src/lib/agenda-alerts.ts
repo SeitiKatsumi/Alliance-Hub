@@ -2,6 +2,8 @@ import type { QueryClient } from "@tanstack/react-query";
 
 export type AgendaAlertsView = "resumo" | "agenda" | "alertas";
 
+export const AGENDA_ALERTS_REFRESH_MS = 2000;
+
 export function normalizeAgendaAlertsView(value: string | null | undefined, canViewAgenda: boolean): AgendaAlertsView {
   if (value === "alertas") return "alertas";
   if (value === "agenda") return canViewAgenda ? "agenda" : "alertas";

@@ -18,7 +18,12 @@ import { ModuleInfo } from "@/components/module-info";
 import { useAuth } from "@/hooks/use-auth";
 import { hasEmployeeModuleAccess } from "@/lib/company-access";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { invalidateAgendaAlertQueries, normalizeAgendaAlertsView, type AgendaAlertsView } from "@/lib/agenda-alerts";
+import {
+  AGENDA_ALERTS_REFRESH_MS,
+  invalidateAgendaAlertQueries,
+  normalizeAgendaAlertsView,
+  type AgendaAlertsView,
+} from "@/lib/agenda-alerts";
 
 interface AgendaPreviewItem {
   id: string;
@@ -94,9 +99,10 @@ export default function AgendaAlertasPage() {
       if (!response.ok) throw new Error("Não foi possível carregar a Agenda e Alertas.");
       return response.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: AGENDA_ALERTS_REFRESH_MS,
     refetchOnWindowFocus: true,
-    staleTime: 10000,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   useEffect(() => {

@@ -56,6 +56,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
 import { ModuleInfo } from "@/components/module-info";
@@ -126,6 +127,7 @@ interface CarteiraImovel {
   ultima_atualizacao?: string | null;
   access_level?: AccessLevel;
   is_owner?: boolean;
+  can_delete?: boolean;
   diagnostico?: CarteiraDiagnostico | null;
   contas_a_pagar?: number;
 }
@@ -137,7 +139,7 @@ interface CarteiraResumo {
     id: string; codigo?: string | null; nome: string; situacao?: string | null; moeda: string;
     map_percent: number; aportes_oficiais: number; patrimonio_liquido_oficial?: number | null;
     valor_participacao?: number | null; data_base?: string | null; metodologia?: string | null;
-    liquidez?: string | null; confirmado: boolean; can_manage_patrimonio?: boolean;
+    liquidez?: string | null; confirmado: boolean; can_manage_patrimonio?: boolean; can_delete?: boolean;
     receitas_participacao?: number; despesas_participacao?: number; contas_a_pagar_participacao?: number; evolucao_patrimonial_percentual?: number | null;
   }>;
   totais: {
@@ -906,12 +908,15 @@ function PropertyCard({
 export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isPlatformAdmin = ["admin", "superadmin"].includes(String(user?.role || "").toLowerCase());
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("todos");
   const [period, setPeriod] = useState<"12m" | "all">("12m");
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CarteiraImovel | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CarteiraImovel | null>(null);
+  const [deleteAllianceTarget, setDeleteAllianceTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
   const [aporteTarget, setAporteTarget] = useState<CarteiraResumo["aliancas"][number] | null>(null);
   const [aporteValor, setAporteValor] = useState("");
   const [aporteObservacao, setAporteObservacao] = useState("");
@@ -959,6 +964,16 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
       toast({ title: "Imóvel excluído da Carteira" });
     },
     onError: (error: any) => toast({ title: "Não foi possível excluir o imóvel", description: error?.message, variant: "destructive" }),
+  });
+  const deleteAllianceMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/bias/${id}`),
+    onSuccess: () => {
+      invalidateDashboard();
+      queryClient.invalidateQueries({ queryKey: ["/api/bias"] });
+      setDeleteAllianceTarget(null);
+      toast({ title: "BIA excluída" });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível excluir a BIA", description: error?.message, variant: "destructive" }),
   });
   const aporteMutation = useMutation({
     mutationFn: async () => {
@@ -1107,7 +1122,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
                 setEditingItem(item);
                 setFormOpen(true);
               } : undefined}
-              onDelete={item.is_owner ? () => setDeleteTarget(item) : undefined}
+              onDelete={(item.can_delete ?? (item.is_owner || isPlatformAdmin)) ? () => setDeleteTarget(item) : undefined}
             />
           ))}
         </div>
@@ -1124,7 +1139,17 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
             {data?.aliancas.map((item) => (
               <Card key={item.id} className="border-border/70">
                 <CardContent className="space-y-3 p-4">
-                  <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{item.nome}</p><p className="text-xs text-muted-foreground">{item.codigo || item.situacao || "Aliança BUILT"}</p></div><Badge variant="outline">MAP {item.map_percent.toFixed(2)}%</Badge></div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div><p className="font-semibold">{item.nome}</p><p className="text-xs text-muted-foreground">{item.codigo || item.situacao || "Aliança BUILT"}</p></div>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline">MAP {item.map_percent.toFixed(2)}%</Badge>
+                      {(item.can_delete ?? isPlatformAdmin) && (
+                        <Button type="button" variant="outline" size="icon" className="h-8 w-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setDeleteAllianceTarget(item)} aria-label={`Excluir ${item.nome}`} title="Excluir BIA">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Aportes oficiais</p><p className="font-semibold">{money(item.aportes_oficiais, item.moeda)}</p></div><div><p className="text-xs text-muted-foreground">Sua participação</p><p className="font-semibold">{item.valor_participacao == null ? "Aguardando valor oficial" : money(item.valor_participacao, item.moeda)}</p></div></div>
                   <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs"><div><p className="text-muted-foreground">Receitas</p><p className="font-semibold text-emerald-700">{money(item.receitas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">Despesas</p><p className="font-semibold text-red-700">{money(item.despesas_participacao || 0, item.moeda)}</p></div><div><p className="text-muted-foreground">A pagar</p><p className="font-semibold">{money(item.contas_a_pagar_participacao || 0, item.moeda)}</p></div></div>
                   {item.evolucao_patrimonial_percentual != null && <p className={`text-xs font-medium ${metricTone(item.evolucao_patrimonial_percentual)}`}>Evolução patrimonial: {item.evolucao_patrimonial_percentual.toFixed(1)}%</p>}
@@ -1210,6 +1235,28 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
             >
               {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Excluir imóvel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={Boolean(deleteAllianceTarget)} onOpenChange={(open) => !open && setDeleteAllianceTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {deleteAllianceTarget?.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação é permanente e removerá a BIA da plataforma.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAllianceMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteAllianceMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteAllianceTarget) deleteAllianceMutation.mutate(deleteAllianceTarget.id);
+              }}
+            >
+              {deleteAllianceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Excluir BIA
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1334,6 +1381,8 @@ function carteiraDetailTabFromSearch(search: string): CarteiraDetailTab {
 }
 
 function DetailPage({ id }: { id: string }) {
+  const { user } = useAuth();
+  const isPlatformAdmin = ["admin", "superadmin"].includes(String(user?.role || "").toLowerCase());
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [activeDetailTab, setActiveDetailTab] = useState<CarteiraDetailTab>(() =>
@@ -1409,6 +1458,7 @@ function DetailPage({ id }: { id: string }) {
   const canManage = canAccess(detailQuery.data?.access_level, "administracao");
   const canCollaborate = canAccess(detailQuery.data?.access_level, "colaboracao");
   const isOwner = detailQuery.data?.is_owner === true;
+  const canDelete = detailQuery.data?.can_delete ?? (isOwner || isPlatformAdmin);
   const accessQuery = useQuery<AccessResponse>({
     queryKey: ["/api/carteira/imoveis", id, "acessos"],
     enabled: canManage,
@@ -1780,7 +1830,7 @@ function DetailPage({ id }: { id: string }) {
         <div className="flex flex-wrap justify-end gap-2">
           {canManage && <Button variant="outline" title="Editar imóvel" onClick={() => setEditOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>}
           {canManage && <Button variant="outline" onClick={() => setPublishConfirm(true)}><Sparkles className="mr-2 h-4 w-4" />Explorar oportunidades</Button>}
-          {isOwner && (
+          {canDelete && (
             <Button
               variant="outline"
               className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"

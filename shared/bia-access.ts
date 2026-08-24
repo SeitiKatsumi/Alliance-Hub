@@ -167,6 +167,10 @@ export function canConfigureBiaParticipantAccess(roles: BiaParticipantRole[]): b
   return roles.some((role) => role !== "terceiro");
 }
 
+export function isBiaPlatformAdminRole(role: unknown): boolean {
+  return role === "admin" || role === "superadmin";
+}
+
 export function resolveBiaParticipantPermissions(
   roles: BiaParticipantRole[],
   override: unknown | null | undefined,

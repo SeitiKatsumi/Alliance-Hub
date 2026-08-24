@@ -7,6 +7,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { isBiaPendingBypassed } from "@/lib/bia-pending-bypass";
+import { isBiaPlatformAdminRole } from "@shared/bia-access";
 import { getInstitutionalPercentageRange, loadDmRanges } from "@/lib/dm-ranges";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -1625,9 +1626,9 @@ function BrazilMapHeader({ biasAll, membros, opas }: { biasAll: BiasProjeto[]; m
 }
 
 // ---- BIA Card ----
-function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
+function BiaCard({ bia, membros, opas, onEdit, onDelete, canDelete, aprovacaoPendente }: {
   bia: BiasProjeto; membros: Membro[]; opas: Oportunidade[];
-  onEdit: () => void; onDelete: () => void; aprovacaoPendente?: boolean;
+  onEdit: () => void; onDelete: () => void; canDelete: boolean; aprovacaoPendente?: boolean;
 }) {
   const [, navigate] = useLocation();
   const membroMap = useMemo(() => {
@@ -1772,6 +1773,18 @@ function BiaCard({ bia, membros, opas, onEdit, onDelete, aprovacaoPendente }: {
             >
               Ver detalhes
             </Button>
+            {canDelete && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                aria-label={`Excluir ${bia.nome_bia}`}
+                data-testid={`btn-delete-bia-${bia.id}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -3850,6 +3863,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
   const redes = user?.Outras_redes_as_quais_pertenco ?? [];
   const canCreateBia = !!user && (
     user.role === "admin" ||
+    user.role === "superadmin" ||
     user.role === "manager" ||
     redes.includes("BUILT_FOUNDING_MEMBER") ||
     redes.includes("BUILT_ALLIANCE_PARTNER") ||
@@ -3878,6 +3892,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
   const [motivoRejeicao, setMotivoRejeicao] = useState("");
   const canDeleteBia = !!user && (
     user.role === "admin" ||
+    user.role === "superadmin" ||
     user.role === "aliado" ||
     redes.includes("BUILT_FOUNDING_MEMBER") ||
     redes.includes("BUILT_ALLIANCE_PARTNER") ||
@@ -4204,6 +4219,7 @@ export default function BiasPage({ relatedOnly = false }: { relatedOnly?: boolea
               opas={opasRaw as Oportunidade[]}
               onEdit={() => openEdit(b)}
               onDelete={() => setDeleteTarget(b)}
+              canDelete={isBiaPlatformAdminRole(user?.role)}
               aprovacaoPendente={pendingBiaIds.has(b.id)}
             />
           ))}

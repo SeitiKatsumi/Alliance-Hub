@@ -7,6 +7,7 @@ import {
   collectBiaParticipantRoles,
   defaultBiaAccessForRoles,
   hasBiaAccess,
+  isBiaPlatformAdminRole,
   mergeBiaAccess,
   normalizeBiaAccessMatrix,
   resolveBiaParticipantPermissions,
@@ -111,4 +112,10 @@ test("nao oferece configuracao de permissoes para terceiros puros", () => {
   assert.equal(canConfigureBiaParticipantAccess(["terceiro"]), false);
   assert.equal(canConfigureBiaParticipantAccess(["terceiro", "socio_guardiao"]), true);
   assert.equal(canConfigureBiaParticipantAccess(["diretor_tecnico"]), true);
+});
+
+test("admin e superadmin podem administrar qualquer BIA", () => {
+  assert.equal(isBiaPlatformAdminRole("admin"), true);
+  assert.equal(isBiaPlatformAdminRole("superadmin"), true);
+  assert.equal(isBiaPlatformAdminRole("user"), false);
 });

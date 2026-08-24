@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildCarteiraAlternativas,
+  canDeleteCarteiraAsset,
   diagnosticarCarteira,
   hasCarteiraAccess,
 } from "../shared/carteira";
@@ -13,6 +14,12 @@ test("hierarquia de acesso respeita leitura, colaboração, administração e pr
   assert.equal(hasCarteiraAccess("colaboracao", "administracao"), false);
   assert.equal(hasCarteiraAccess("administracao", "colaboracao"), true);
   assert.equal(hasCarteiraAccess("proprietario", "administracao"), true);
+});
+
+test("somente proprietário ou administrador da plataforma pode excluir imóvel", () => {
+  assert.equal(canDeleteCarteiraAsset(true, false), true);
+  assert.equal(canDeleteCarteiraAsset(false, true), true);
+  assert.equal(canDeleteCarteiraAsset(false, false), false);
 });
 
 test("imóvel vazio com despesas é classificado como ocioso e gerador de custos", () => {

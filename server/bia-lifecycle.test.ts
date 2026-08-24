@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   biaActivationRequirements,
   biaFormalParticipantIds,
+  biaDeletionTargets,
   canCreateObaForBia,
   isBiaDirector,
 } from "./bia-lifecycle";
@@ -44,4 +45,12 @@ test("OBAs exigem BIA ativa e um diretor", () => {
   assert.equal(canCreateObaForBia(bia, "director-1"), false);
   assert.equal(canCreateObaForBia({ ...bia, situacao: "ativa" }, "partner-1"), false);
   assert.equal(canCreateObaForBia({ ...bia, situacao: "ativa" }, "director-1"), true);
+});
+
+test("remove os vínculos com comunidades antes da BIA", () => {
+  assert.deepEqual(biaDeletionTargets("bia-1", [10, "11"]), [
+    { collection: "comunidade_bias", id: "10" },
+    { collection: "comunidade_bias", id: "11" },
+    { collection: "bias_projetos", id: "bia-1" },
+  ]);
 });

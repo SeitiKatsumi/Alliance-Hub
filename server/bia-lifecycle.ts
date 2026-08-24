@@ -73,3 +73,10 @@ export function canCreateObaForBia(bia: BiaLifecycleRecord, memberId: unknown, i
   if (String(bia.situacao || "ativa") !== "ativa") return false;
   return isPlatformAdmin || isBiaDirector(bia, memberId);
 }
+
+export function biaDeletionTargets(biaId: string, communityLinkIds: Array<string | number>) {
+  return [
+    ...communityLinkIds.map((id) => ({ collection: "comunidade_bias", id: String(id) })),
+    { collection: "bias_projetos", id: biaId },
+  ];
+}

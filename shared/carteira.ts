@@ -25,6 +25,10 @@ export function hasCarteiraAccess(
   return !!current && ACCESS_RANK[current] >= ACCESS_RANK[required];
 }
 
+export function canDeleteCarteiraAsset(isOwner: boolean, isPlatformAdmin: boolean): boolean {
+  return isOwner || isPlatformAdmin;
+}
+
 export type CarteiraDataOrigin =
   | "declarada"
   | "extraida"

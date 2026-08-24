@@ -25,7 +25,7 @@ import {
   reconcileValorOrigemEntries,
 } from "./valor-origem-sync";
 import { normalizeCarteiraAlertUpdate } from "./carteira-alertas";
-import { biaActivationRequirements, biaFormalParticipantIds, canCreateObaForBia } from "./bia-lifecycle";
+import { biaActivationRequirements, biaDeletionTargets, biaFormalParticipantIds, canCreateObaForBia } from "./bia-lifecycle";
 import {
   activeAgendaAlertCount,
   agendaAlertBadge,
@@ -116,6 +116,7 @@ import {
 } from "@shared/initial-onboarding";
 import {
   buildCarteiraAlternativas,
+  canDeleteCarteiraAsset,
   diagnosticarCarteira,
   hasCarteiraAccess,
   isCarteiraAccessLevel,
@@ -131,6 +132,7 @@ import {
   collectBiaParticipantRoles,
   defaultBiaAccessForRoles,
   hasBiaAccess,
+  isBiaPlatformAdminRole,
   isBiaAccessLevel,
   normalizeBiaAccessMatrix,
   resolveBiaParticipantPermissions,
@@ -5670,9 +5672,9 @@ export async function registerRoutes(
   }
 
   async function canDeleteBia(req: any, bia: any): Promise<boolean> {
-    const role = req.session?.role || "user";
+    const role = await getEffectiveRole(req);
     const membroId = req.session?.membroId || null;
-    if (role === "admin") return true;
+    if (isBiaPlatformAdminRole(role)) return true;
     if (role === "aliado") return true;
     if (membroId && directusRelationId(bia?.aliado_built) === String(membroId)) return true;
 
@@ -9586,7 +9588,13 @@ export async function registerRoutes(
       if (!(await canDeleteBia(req, bia))) {
         return res.status(403).json({ error: "Apenas Aliados BUILT ou superadmin podem deletar BIAs." });
       }
-      await directusDelete("bias_projetos", req.params.id);
+      const communityLinks = await directusFetchScoped(
+        "comunidade_bias",
+        `fields=id&filter[bias_projetos_id][_eq]=${encodeURIComponent(req.params.id)}`,
+      );
+      for (const target of biaDeletionTargets(req.params.id, communityLinks.map((link: any) => link.id).filter(Boolean))) {
+        await directusDelete(target.collection, target.id);
+      }
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -14064,6 +14072,7 @@ ${textContent}`;
       ...imovel,
       access_level: resolved?.nivel || "leitura",
       is_owner: resolved?.isOwner || false,
+      can_delete: canDeleteCarteiraAsset(Boolean(resolved?.isOwner), actor.isPlatformAdmin),
       contas_a_pagar: Number(contasAPagar.toFixed(2)),
       diagnostico,
     };
@@ -14508,7 +14517,7 @@ ${inputText.slice(0, 18000)}`,
     ).catch(() => []);
     const related = (allBias as any[]).filter((bia) => isUserLinkedToBia(bia, membroId));
     return Promise.all(related.map(async (bia) => {
-      const [allocation, snapshotResult, access, financialEntries] = await Promise.all([
+      const [allocation, snapshotResult, access, financialEntries, canDelete] = await Promise.all([
         getBiaAllocationMap(bia, String(bia.id)),
         db.execute(sql`
           SELECT * FROM bia_patrimonial_snapshots
@@ -14517,6 +14526,7 @@ ${inputText.slice(0, 18000)}`,
         `),
         resolveBiaAccessForRequest(bia, req),
         directusFetchScoped("fluxo_caixa", `filter[bia][_eq]=${encodeURIComponent(String(bia.id))}&fields=valor,tipo,status,descricao,data,data_vencimento&limit=-1`).catch(() => []),
+        canDeleteBia(req, bia),
       ]);
       const own = allocation.find((row) => row.memberId === membroId);
       const snapshot = snapshotResult.rows?.[0] as any;
@@ -14545,6 +14555,7 @@ ${inputText.slice(0, 18000)}`,
         liquidez: snapshot?.liquidez || null,
         confirmado: Boolean(snapshot),
         can_manage_patrimonio: hasBiaAccess(access.permissions, "capital_financeiro", "edit"),
+        can_delete: canDelete,
         receitas_participacao: Number(revenues.toFixed(2)),
         despesas_participacao: Number(expenses.toFixed(2)),
         contas_a_pagar_participacao: Number(payables.toFixed(2)),
@@ -14630,6 +14641,7 @@ ${inputText.slice(0, 18000)}`,
         ...access.imovel,
         access_level: access.nivel,
         is_owner: access.isOwner,
+        can_delete: canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin),
         diagnostico,
       });
     } catch (error: any) {
@@ -14647,7 +14659,7 @@ ${inputText.slice(0, 18000)}`,
         VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})
       `);
       await recordCarteiraEvent(id, actor, "imovel_criado", "Imóvel adicionado à Carteira", { depois: data });
-      res.status(201).json({ ...data, access_level: "proprietario", is_owner: true });
+      res.status(201).json({ ...data, access_level: "proprietario", is_owner: true, can_delete: true });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -14672,7 +14684,7 @@ ${inputText.slice(0, 18000)}`,
         antes: access.imovel,
         depois: data,
       });
-      res.json({ ...data, access_level: access.nivel, is_owner: access.isOwner });
+      res.json({ ...data, access_level: access.nivel, is_owner: access.isOwner, can_delete: canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin) });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -14702,8 +14714,10 @@ ${inputText.slice(0, 18000)}`,
   app.delete("/api/carteira/imoveis/:id", async (req, res) => {
     try {
       const actor = requireCarteiraActor(req);
-      const access = await requireCarteiraAccess(req.params.id, actor, "proprietario");
-      if (!access.isOwner) return res.status(403).json({ error: "Somente o proprietário pode excluir este imóvel." });
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin)) {
+        return res.status(403).json({ error: "Somente o proprietário ou um administrador da plataforma pode excluir este imóvel." });
+      }
       await db.execute(sql`DELETE FROM inventario_imoveis WHERE id = ${req.params.id}`);
       res.json({ success: true });
     } catch (error: any) {

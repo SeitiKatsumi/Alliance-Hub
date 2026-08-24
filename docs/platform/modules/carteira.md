@@ -28,7 +28,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 
 ## Papeis e permissoes
 
-- Proprietario: controle total e transferencia consciente.
+- Proprietario: controle total e transferencia consciente; administrador da plataforma pode excluir um registro mediante confirmacao operacional.
 - Convidado: leitura, colaboracao ou administracao conforme acesso explicito e validade.
 - Administrador da plataforma nao recebe acesso automatico ao patrimonio privado sem regra operacional auditavel.
 - Arquivo e dado privado exigem autorizacao sobre o imovel pai.

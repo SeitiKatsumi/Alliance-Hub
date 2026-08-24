@@ -70,7 +70,7 @@
       "apiPrefixes": ["/api/bias", "/api/land-bank-assets", "/api/bia-estruturacao-solicitacoes", "/api/bia-aprovacoes", "/api/bia-diretor-solicitacoes", "/api/bia-socio-solicitacoes"],
       "dataStores": ["Directus bias_projetos", "Directus land_bank_assets", "PostgreSQL opportunity_registry", "PostgreSQL business_trace_*", "PostgreSQL bia_*"],
       "roles": ["autor", "aliado BUILT", "diretor de alianca", "diretor de nucleo", "socio", "admin", "superadmin"],
-      "invariants": ["A Area de Aliancas exibe apenas BIAs relacionadas ao usuario, independentemente da vigencia da anuidade.", "Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Aliado ou diretor responsavel nao depende do painel admin para agir."],
+      "invariants": ["A Area de Aliancas exibe apenas BIAs relacionadas ao usuario, independentemente da vigencia da anuidade.", "Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Aliado ou diretor responsavel nao depende do painel admin para agir.", "A Carteira exibe a exclusao de BIA somente quando a autorizacao efetiva do backend permite a operacao.", "Admin e superadmin podem excluir qualquer BIA pela lista da Area de Aliancas, sempre mediante confirmacao.", "A exclusao remove primeiro os vinculos comunidade_bias que bloqueiam a BIA e preserva registros historicos locais."],
       "tests": ["shared/bia-access.test.ts", "shared/environment-access.test.ts", "server/bia-lifecycle.test.ts", "server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/business-trace.test.ts"]
     },
     {
@@ -97,8 +97,8 @@
       "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/member-portfolio.ts", "shared/schema.ts"],
       "apiPrefixes": ["/api/carteira", "/api/bias/:id/patrimonio", "/api/bias/:id/aporte-solicitacoes", "/api/oportunidades"],
       "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL bia_patrimonial_snapshots", "PostgreSQL bia_aporte_solicitacoes", "Directus fluxo_caixa", "Directus bias_projetos"],
-      "roles": ["proprietario", "leitor convidado", "colaborador", "administrador do imovel"],
-      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "Publicacao e compartilhamento sao opt-in e por imovel."],
+      "roles": ["proprietario", "leitor convidado", "colaborador", "administrador do imovel", "administrador da plataforma"],
+      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "Proprietario ou administrador da plataforma pode excluir um imovel mediante confirmacao.", "Publicacao e compartilhamento sao opt-in e por imovel."],
       "tests": ["shared/member-portfolio.test.ts", "client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
     },
     {

@@ -39,7 +39,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     features: [
       { id: "painel-inicial", title: "Painel inicial personalizado", description: "Resumo de perfil, ambientes BUILT, Aura, BIAs, convergências e ações rápidas.", status: "disponivel" },
       { id: "frase-dia", title: "Frase do dia", description: "Conteúdo institucional rotativo apresentado no painel do usuário.", status: "disponivel" },
-      { id: "atalhos-ambientes", title: "Acesso aos ambientes BUILT", description: "Atalhos para Vitrine, Alliances e Capital, respeitando o nível de acesso do usuário.", status: "disponivel" },
+      { id: "atalhos-ambientes", title: "Acesso aos ambientes BUILT", description: "Atalhos para Vitrine e Alliances, respeitando o nível de acesso do usuário.", status: "disponivel" },
       { id: "alertas-pendencias", title: "Alertas e pendências", description: "Centraliza convites, chamadas, aprovações e alertas patrimoniais da Carteira.", status: "disponivel" },
       { id: "acoes-alertas", title: "Tratamento de alertas", description: "Permite registrar uma ação em andamento ou ignorar um alerta da Carteira com histórico.", status: "disponivel" },
       { id: "proximas-acoes", title: "Próximas ações", description: "Resumo de compromissos e prioridades conectado à Agenda.", status: "disponivel" },
@@ -54,7 +54,7 @@ export const PLATFORM_FUNCTIONAL_MODULES: PlatformFunctionalModule[] = [
     features: [
       { id: "perfil-completo", title: "Perfil pessoal e empresarial", description: "Dados de identificação, contato, atuação, especialidades, redes e portfólio.", status: "disponivel" },
       { id: "foto-avatar", title: "Foto e avatar", description: "Upload e atualização da imagem de perfil do membro.", status: "disponivel" },
-      { id: "rede-profissionais", title: "Rede de profissionais", description: "Busca e filtros por nome, empresa, especialidade, estado e tipo de participante.", status: "disponivel" },
+      { id: "rede-profissionais", title: "Rede de profissionais", description: "Busca e filtros por nome, empresa, cidade, estado, ramo, segmento, área de atuação e especialidade.", status: "disponivel" },
       { id: "detalhe-membro", title: "Detalhe público do membro", description: "Visualização rastreável do perfil, atuação e informações liberadas para a rede.", status: "disponivel" },
       { id: "edicao-administrativa", title: "Edição administrativa de usuários", description: "Atualização ampliada dos dados do membro pela administração.", status: "disponivel" },
       { id: "plano-empresa", title: "Plano Empresa", description: "Assinatura empresarial atualmente gratuita para criação de acessos de funcionários.", status: "disponivel" },

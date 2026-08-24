@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getProfileCompletion, type ProfileCompletionSource } from "./profile-completion";
+import { getProfileCompletion, getProfileCompletionPath, type ProfileCompletionSource } from "./profile-completion";
 
 const completeProfile: ProfileCompletionSource = {
   foto_perfil: "foto-id",
@@ -55,6 +55,11 @@ test("nome público não substitui o nome completo de formalização", () => {
   const result = getProfileCompletion(profileWithoutFormalName);
   assert.deepEqual(result.missing.map((item) => item.key), ["nome_completo"]);
   assert.equal(result.missing[0]?.label, "Nome completo para formalização");
+  assert.equal(getProfileCompletionPath(profileWithoutFormalName), "/meu-perfil?campo=nome_completo");
+});
+
+test("perfil completo abre o perfil sem apontar um campo", () => {
+  assert.equal(getProfileCompletionPath(completeProfile), "/meu-perfil");
 });
 
 test("empresa informada exige CNPJ e marca para completar o perfil", () => {

@@ -19898,7 +19898,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
     if (!preAcceptanceFlow) Object.assign(profilePatch, buildInitialOnboardingProfileFields(profile, config));
     await directusUpdate("cadastro_geral", String(journey.membro_id), profilePatch);
-    await storage.updateConvite(invite.id, {
+    const acceptedInvite = await storage.updateConvite(invite.id, {
       status: preAcceptanceFlow ? "termos_aceitos" : "acesso_inicial_ativo", termos_aceitos_em: now,
       dados_contratuais: { ...((invite.dados_contratuais as any) || {}), finalidades_conta: purposes, termos_aceitos: accepted, termos_versoes: versions, aceito_em: now.toISOString(), aceite_localizacao: acceptanceLocation } as any,
     });
@@ -19910,6 +19910,9 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
     const allCompleted = Array.from(new Set([...(Array.isArray(journey.completed_steps) ? journey.completed_steps : []), "aceites"]));
     if (preAcceptanceFlow) {
+      if (resolveInitialOnboardingInviteCompletion(acceptedInvite) === "request_aura") {
+        await completeInitialOnboardingInvite(acceptedInvite, purposes);
+      }
       const acceptedResponses = {
         ...responses,
         aceites: { termos_aceitos: accepted, termos_versoes: versions, aceito_em: now.toISOString() },
@@ -22784,14 +22787,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     return invite;
   }
 
-  async function repairCompletedOnboardingAuraRequests() {
+  async function repairAcceptedOnboardingAuraRequests() {
     const result: any = await db.execute(sql`
       SELECT convite.*
       FROM convites_comunidade convite
       INNER JOIN initial_onboarding_journeys journey
         ON journey.convite_id = convite.id
       WHERE journey.flow_version >= 2
-        AND journey.status = 'concluido'
+        AND journey.completed_steps @> '["aceites"]'::jsonb
         AND convite.tipo = 'onboarding_inicial'
         AND convite.status = 'termos_aceitos'
         AND convite.candidato_membro_id IS NOT NULL
@@ -22802,12 +22805,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       await completeInitialOnboardingInvite(invite);
     }
     if (pendingInvites.length > 0) {
-      console.info(`[onboarding-aura] ${pendingInvites.length} solicitacao(oes) concluida(s) reparada(s).`);
+      console.info(`[onboarding-aura] ${pendingInvites.length} solicitacao(oes) aceita(s) reparada(s).`);
     }
   }
 
-  repairCompletedOnboardingAuraRequests().catch((error: any) => {
-    console.warn("[onboarding-aura] Nao foi possivel reparar solicitacoes concluidas:", error?.message || error);
+  repairAcceptedOnboardingAuraRequests().catch((error: any) => {
+    console.warn("[onboarding-aura] Nao foi possivel reparar solicitacoes aceitas:", error?.message || error);
   });
 
   function getPublicAppBaseUrl(): string {

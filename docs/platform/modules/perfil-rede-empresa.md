@@ -53,6 +53,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - O resumo do Meu Perfil reutiliza o padrao visual e o score oficial da Aura exibidos no Inicio e abre `/aura/:membroId`; ele nao recalcula nem persiste score.
 - Cards de recomendacao aceitam foto Directus ou URL externa e sempre preservam fallback visual quando a imagem estiver indisponivel.
 - Editar o nome completo de formalizacao ou o CPF nunca altera o nome publico exibido no perfil; o salvamento geral do perfil nao exige CPF antes de uma formalizacao.
+- O link profundo `/meu-perfil?campo=<chave>` abre a secao necessaria, rola ate o controle correspondente e move o foco para ele.
 
 ## Efeitos e dependencias
 

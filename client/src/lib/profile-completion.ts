@@ -127,3 +127,8 @@ export function getProfileCompletion(profile?: ProfileCompletionSource | null): 
     missing: checks.filter((item) => !item.complete),
   };
 }
+
+export function getProfileCompletionPath(profile?: ProfileCompletionSource | null): string {
+  const field = getProfileCompletion(profile).missing[0]?.key;
+  return field ? `/meu-perfil?campo=${encodeURIComponent(field)}` : "/meu-perfil";
+}

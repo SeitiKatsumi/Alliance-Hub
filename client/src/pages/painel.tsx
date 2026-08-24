@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
-  Briefcase, Globe, Users, TrendingUp, TrendingDown,
+  Briefcase, Globe, Users, TrendingDown,
   MapPin, LayoutDashboard, Building2,
   Target, Wallet, ChevronRight, Sparkles, Search, SlidersHorizontal,
   Ticket, Copy, RefreshCw, Loader2, Quote, ArrowRight, Gem, Plus, Megaphone,
@@ -34,7 +34,7 @@ import { DASHBOARD_DAILY_QUOTES } from "@/lib/dashboard-quotes";
 import { formatBuiltInviteMessage } from "@/lib/invite-message";
 import { getBiaPublicRef, getBiaUrl } from "@/lib/bia-url";
 import { getOpaUrl } from "@/lib/public-refs";
-import { getProfileCompletion, type ProfileCompletionSource } from "@/lib/profile-completion";
+import { getProfileCompletion, getProfileCompletionPath, type ProfileCompletionSource } from "@/lib/profile-completion";
 import {
   dashboardNavigationUrl,
   resolveDashboardNavigation,
@@ -301,7 +301,7 @@ function getDailyEnvironmentImages(date = new Date()) {
   const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const dayIndex = Math.abs(Math.floor(localMidnight / DAY_IN_MS));
   const start = dayIndex % DASHBOARD_ENV_IMAGES.length;
-  return [0, 3, 6].map((offset) => DASHBOARD_ENV_IMAGES[(start + offset) % DASHBOARD_ENV_IMAGES.length]);
+  return [0, 3].map((offset) => DASHBOARD_ENV_IMAGES[(start + offset) % DASHBOARD_ENV_IMAGES.length]);
 }
 
 function canonicalChartLabel(value?: string | null): { key: string; label: string } {
@@ -686,6 +686,7 @@ export default function PainelPage() {
   const remainingProfileMissing = Math.max(0, profileCompletion.missing.length - visibleProfileMissing.length);
   const profileMissingText = visibleProfileMissing.map((item) => item.label).join(", ");
   const allProfileMissingText = profileCompletion.missing.map((item) => item.label).join(", ");
+  const profileCompletionPath = getProfileCompletionPath(profileDetails);
 
   const { data: carteiraAlerts = [], isLoading: isLoadingCarteiraAlerts } = useQuery<CarteiraDashboardAlert[]>({
     queryKey: ["/api/carteira/alertas"],
@@ -1141,7 +1142,7 @@ export default function PainelPage() {
         <Card className="border border-border/60">
           <CardContent className="p-4">
             <h2 className="text-sm font-semibold text-foreground">Seus ambientes BUILT</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
               {[
                 {
                   title: "BUILT Vitrine",
@@ -1172,21 +1173,6 @@ export default function PainelPage() {
                   line: "bg-cyan-300/90",
                   bg: "from-[#050B2A] via-[#0044B8] to-[#090E2D]",
                   image: environmentImages[1],
-                },
-                {
-                  title: "BUILT Capital",
-                  subtitle: "Invista. Acompanhe.",
-                  action: "Entrar em Capital",
-                  path: "/built-capital",
-                  target: "capital" as const,
-                  icon: TrendingUp,
-                  accent: "text-emerald-300 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]",
-                  border: "border-emerald-300/90",
-                  button: "text-emerald-200 hover:bg-emerald-300/20",
-                  glow: "bg-emerald-300/45",
-                  line: "bg-emerald-300/90",
-                  bg: "from-[#031B2D] via-[#00605F] to-[#06121D]",
-                  image: environmentImages[2],
                 },
               ].map((ambiente) => {
                 const Icon = ambiente.icon;
@@ -1255,7 +1241,7 @@ export default function PainelPage() {
               <button
                 type="button"
                 className="mt-3 flex w-full items-center gap-3 rounded-md border border-blue-100 bg-blue-50/60 p-2.5 text-left transition-colors hover:border-blue-200 hover:bg-blue-50"
-                onClick={() => navigate("/meu-perfil")}
+                onClick={() => navigate(profileCompletionPath)}
                 data-testid="dashboard-profile-completion"
               >
                 <ProfileCompletionRing percentage={profileCompletion.percentage} />

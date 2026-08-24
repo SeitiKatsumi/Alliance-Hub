@@ -46,6 +46,35 @@ import {
   type AccountPurposeObjectives,
 } from "@shared/initial-onboarding";
 
+const PROFILE_FIELD_TARGETS: Record<string, { testId: string; formal?: boolean }> = {
+  foto: { testId: "btn-trocar-foto" },
+  nome: { testId: "input-perfil-nome" },
+  email: { testId: "input-perfil-email" },
+  nome_completo: { testId: "input-formalizacao-nome-completo", formal: true },
+  cpf: { testId: "input-formalizacao-cpf", formal: true },
+  telefone: { testId: "input-perfil-telefone" },
+  whatsapp: { testId: "input-perfil-whatsapp" },
+  nacionalidade: { testId: "input-perfil-nacionalidade", formal: true },
+  data_nascimento: { testId: "input-perfil-data-nascimento", formal: true },
+  rg: { testId: "input-perfil-rg", formal: true },
+  estado_civil: { testId: "select-perfil-estado-civil", formal: true },
+  localizacao: { testId: "btn-pick-location" },
+  endereco: { testId: "input-perfil-endereco", formal: true },
+  areas_contribuicao: { testId: "section-areas-contribuicao" },
+  cargo: { testId: "input-perfil-cargo" },
+  ramo_atuacao: { testId: "select-perfil-ramo" },
+  segmento: { testId: "select-perfil-segmento" },
+  area_atuacao: { testId: "select-perfil-area-atuacao" },
+  especialidade: { testId: "input-perfil-especialidade-livre" },
+  idiomas: { testId: "input-idioma-busca" },
+  biografia: { testId: "input-perfil-aliado" },
+  site: { testId: "input-perfil-link-site" },
+  cnpj: { testId: "input-perfil-cnpj" },
+  logo_empresa: { testId: "btn-trocar-logo-empresa" },
+  regime_comunhao: { testId: "select-perfil-regime-comunhao", formal: true },
+  conjuge_nome: { testId: "input-perfil-conjuge-nome", formal: true },
+};
+
 interface NominatimResult {
   place_id: number;
   display_name: string;
@@ -722,6 +751,8 @@ export default function MeuPerfilPage() {
   const isSuperAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const [saved, setSaved] = useState(false);
+  const requestedProfileField = new URLSearchParams(window.location.search).get("campo");
+  const requestedProfileTarget = requestedProfileField ? PROFILE_FIELD_TARGETS[requestedProfileField] : undefined;
 
   const membroId = user?.membro_directus_id;
 
@@ -834,6 +865,20 @@ export default function MeuPerfilPage() {
       });
     }
   }, [membro]);
+
+  useEffect(() => {
+    if (isLoading || !requestedProfileTarget) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(`[data-testid="${requestedProfileTarget.testId}"]`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable = target.matches("input, button, textarea, [tabindex]")
+        ? target
+        : target.querySelector<HTMLElement>("input, button, textarea, [tabindex]:not([tabindex='-1'])");
+      focusable?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isLoading, requestedProfileTarget]);
 
   useEffect(() => {
     return () => {
@@ -1775,7 +1820,7 @@ export default function MeuPerfilPage() {
                   </div>
                 </section>
 
-                <section className="profile-section p-4">
+                <section className="profile-section p-4" data-testid="section-areas-contribuicao">
                   <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
@@ -1909,7 +1954,12 @@ export default function MeuPerfilPage() {
               <CardContent className="pt-5 space-y-4">
                 <SectionLabel icon={Briefcase} label="Dados complementares" />
 
-                <DadosFormalizacaoSection form={form} setField={set} setForm={setForm} />
+                <DadosFormalizacaoSection
+                  form={form}
+                  setField={set}
+                  setForm={setForm}
+                  openInitially={requestedProfileTarget?.formal === true}
+                />
 
                 <input
                   ref={fotoInputRef}
@@ -2837,15 +2887,17 @@ function DadosFormalizacaoSection({
   form,
   setField,
   setForm,
+  openInitially = false,
 }: {
   form: Partial<Membro>;
   setField: (field: keyof Membro, value: string) => void;
   setForm: React.Dispatch<React.SetStateAction<Partial<Membro>>>;
+  openInitially?: boolean;
 }) {
   const estadoCivil = String(form.estado_civil || "").toLowerCase();
   const temConjuge = ["casado", "casada", "uniao_estavel", "união_estável"].includes(estadoCivil);
   const mesmoEndereco = form.mesmo_endereco !== false;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openInitially);
   const [cepLoading, setCepLoading] = useState<string | null>(null);
 
   const applyCep = async (

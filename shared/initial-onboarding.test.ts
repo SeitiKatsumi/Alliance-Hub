@@ -23,7 +23,7 @@ import {
   validateOnboardingStepPayload,
 } from "./initial-onboarding";
 
-test("encaminha o convite concluido para a Aura do aliado conector", () => {
+test("encaminha o convite para a Aura do aliado conector logo apos os aceites", () => {
   assert.equal(resolveInitialOnboardingInviteCompletion({
     status: "termos_aceitos",
     candidato_membro_id: "candidato-1",

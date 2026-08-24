@@ -10,6 +10,8 @@ Oferece a visao consolidada do usuario: progresso cadastral, ambientes disponive
 - A Carteira integra as abas do Inicio e nao aparece como modulo separado no menu lateral; `/carteira` preserva compatibilidade por redirecionamento.
 - Aura permanece acessivel pelos cards do Inicio e do resumo do Meu Perfil, sem modulo separado no menu lateral.
 - Area de Vitrine e Area de Aliancas aparecem diretamente no menu lateral, sem o agrupador Ambientes BUILT.
+- O painel inicial exibe somente os atalhos da Area de Vitrine e da Area de Aliancas; BUILT Capital nao aparece nessa navegacao.
+- O card de conclusao do perfil abre `/meu-perfil` diretamente no primeiro campo pendente informado pelo helper oficial de progresso.
 - `/agenda-alertas`: destino de Agenda, Alertas e Pendencias.
 - Navegacao e composicao: `client/src/App.tsx`, `client/src/components/app-sidebar.tsx` e `client/src/lib/dashboard-navigation.ts`.
 

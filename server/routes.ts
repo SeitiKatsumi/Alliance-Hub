@@ -75,6 +75,7 @@ import {
   publicOpportunityRegistryView,
 } from "./opportunity-platform";
 import {
+  hasUsefulPropertyDocumentText,
   isProfessionalPurpose,
   mergePropertyExtraction,
   nextPropertyAssistantStep,
@@ -14507,7 +14508,7 @@ ${textContent}`;
       const inputText = file
         ? String(file.mimetype || "").toLowerCase().startsWith("audio/")
           ? await transcribeAuraAudioFile(file)
-          : await extractInventarioFileText(file, "Leia este documento ou imagem de imóvel e extraia somente informações visíveis sobre o ativo, endereço, área, registro, valores e características.")
+          : await extractInventarioFileText(file, "Leia este documento ou imagem de imóvel e extraia somente informações visíveis sobre o ativo, endereço, área, registro, valores e características.", true)
         : String(req.body?.texto || "").trim();
       if (!inputText) return res.status(400).json({ error: "Envie um texto, imagem ou documento para análise." });
       const response = await getOpenAI().chat.completions.create({
@@ -14526,6 +14527,11 @@ ${inputText.slice(0, 18000)}`,
       });
       const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
       const cleanDraft = Object.fromEntries(Object.entries(parsed.draft || {}).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+      if (!Object.keys(cleanDraft).some((field) => field !== "pais")) {
+        const error: any = new Error("A IA não identificou dados do imóvel neste arquivo. Envie uma imagem mais nítida ou preencha os campos manualmente.");
+        error.status = 422;
+        throw error;
+      }
       const baseDraft = { ...(current.draft || {}), ...submittedDraft };
       const mergedExtraction = mergePropertyExtraction(baseDraft, cleanDraft, sourceName);
       const previousConflicts = { ...(current.suggestions?.conflitos || {}) };
@@ -14539,8 +14545,11 @@ ${inputText.slice(0, 18000)}`,
         fonte: sourceName,
         conflitos: { ...previousConflicts, ...mergedExtraction.conflicts },
       };
-      const sources = Array.isArray(current.sources) ? [...current.sources] : [];
-      if (!sources.some((source: any) => source?.tipo === sourceType && source?.nome === sourceName)) {
+      const sourceKey = (source: any) => `${source?.tipo || ""}:${String(source?.nome || "").trim().toLocaleLowerCase("pt-BR")}`;
+      const sources = (Array.isArray(current.sources) ? [...current.sources] : []).filter((source: any, index: number, items: any[]) => {
+        return items.findIndex((item: any) => sourceKey(item) === sourceKey(source)) === index;
+      });
+      if (!sources.some((source: any) => sourceKey(source) === sourceKey({ tipo: sourceType, nome: sourceName }))) {
         sources.push({ tipo: sourceType, nome: sourceName, adicionado_em: new Date().toISOString() });
       }
       const result = await db.execute(sql`
@@ -20140,7 +20149,7 @@ ${textContent.slice(0, 16000)}`;
     };
   }
 
-  async function extractInventarioFileText(file: any, imagePrompt = "Leia este comprovante/documento de imóvel e extraia o texto visível, incluindo datas, valores, categoria e descrição.") {
+  async function extractInventarioFileText(file: any, imagePrompt = "Leia este comprovante/documento de imóvel e extraia o texto visível, incluindo datas, valores, categoria e descrição.", preferVisualPdf = false) {
     const ext = path.extname(file.originalname || "").toLowerCase().replace(".", "");
     const mime = String(file.mimetype || "").toLowerCase();
     if (mime.startsWith("image/") && ["png", "jpg", "jpeg", "webp"].includes(ext)) {
@@ -20164,9 +20173,28 @@ ${textContent.slice(0, 16000)}`;
       return wb.SheetNames.map((sheet) => XLSX.utils.sheet_to_csv(wb.Sheets[sheet])).join("\n\n");
     }
     if (ext === "pdf" || mime.includes("pdf")) {
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: file.buffer });
-      return (await parser.getText()).text;
+      let localText = "";
+      try {
+        const { PDFParse } = await import("pdf-parse");
+        const parser = new PDFParse({ data: file.buffer });
+        localText = (await parser.getText()).text || "";
+      } catch {}
+      if (!preferVisualPdf && hasUsefulPropertyDocumentText(localText)) return localText;
+      const client = getOpenAI() as any;
+      if (!client.responses?.create) return localText;
+      const response = await client.responses.create({
+        model: process.env.OPENAI_DOCUMENT_MODEL || "gpt-4.1-mini",
+        input: [{
+          role: "user",
+          content: [
+            { type: "input_file", filename: file.originalname || "documento.pdf", file_data: `data:application/pdf;base64,${file.buffer.toString("base64")}` },
+            { type: "input_text", text: imagePrompt },
+          ],
+        }],
+        temperature: 0,
+        max_output_tokens: 2200,
+      });
+      return String(response.output_text || "").trim() || localText;
     }
     return file.buffer.toString("utf-8");
   }

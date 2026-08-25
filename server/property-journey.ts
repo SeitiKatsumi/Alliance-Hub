@@ -216,6 +216,12 @@ export function mergePropertyExtraction(
   return { draft, conflicts };
 }
 
+export function hasUsefulPropertyDocumentText(value: unknown) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const words = text.split(" ").filter((word) => /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(word));
+  return text.length >= 80 && words.length >= 12;
+}
+
 export function normalizeDemandKind(value: unknown): DemandKind {
   const normalized = String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ -]+/g, "_");
   const aliases: Record<string, DemandKind> = {

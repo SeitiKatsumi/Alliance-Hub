@@ -421,6 +421,7 @@ export default function CarteiraAssistentePage() {
   const isAnalyzable = !recording && Boolean(file || sourceText.trim());
   const suggestions = session?.suggestions || {};
   const conflicts = suggestions.conflitos && typeof suggestions.conflitos === "object" ? suggestions.conflitos : {};
+  const visibleSources = (session?.sources || []).filter((source, index, items) => items.findIndex((item) => item.tipo === source.tipo && item.nome.trim().toLocaleLowerCase("pt-BR") === source.nome.trim().toLocaleLowerCase("pt-BR")) === index);
   const recommendations = recommendationsQuery.data?.recomendacoes || [];
   const sourceAccept = method === "cartorio"
     ? ".pdf,.png,.jpg,.jpeg,.webp"
@@ -534,10 +535,10 @@ export default function CarteiraAssistentePage() {
                 );
               })}
             </div>
-            {session.sources?.length ? (
+            {visibleSources.length ? (
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 <span className="font-medium text-slate-700">Fontes adicionadas:</span>
-                {session.sources.map((source, index) => (
+                {visibleSources.map((source, index) => (
                   <span key={`${source.tipo}-${source.nome}-${index}`} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
                     <Check className="h-3.5 w-3.5" />{source.nome}
                   </span>

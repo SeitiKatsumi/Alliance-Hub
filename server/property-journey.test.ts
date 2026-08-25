@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  hasUsefulPropertyDocumentText,
   isProfessionalPurpose,
   mergePropertyExtraction,
   nextPropertyAssistantStep,
@@ -13,6 +14,12 @@ import {
   resolveAccountPurposesForInvite,
   scorePropertyProfessionalMatch,
 } from "./property-journey";
+
+test("scanned or empty property documents require visual extraction", () => {
+  assert.equal(hasUsefulPropertyDocumentText(""), false);
+  assert.equal(hasUsefulPropertyDocumentText("%PDF-1.7 1 0 obj endobj"), false);
+  assert.equal(hasUsefulPropertyDocumentText("Matrícula do imóvel contendo endereço, proprietários, área total, limites, confrontações e demais informações registradas no cartório competente para consulta e conferência do cadastro."), true);
+});
 
 test("account purposes are independent and legacy vitrine maps to professional", () => {
   assert.deepEqual(normalizeAccountPurposes(["imoveis", "capital", "imoveis"]), ["imoveis", "capital"]);

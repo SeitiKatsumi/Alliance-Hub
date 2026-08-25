@@ -9,6 +9,8 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat implementa coproprietarios estruturados e MAP de origem em `shared/schema.ts`, `shared/member-portfolio.ts`, `server/routes.ts`, `client/src/pages/carteira.tsx`, `client/src/pages/carteira-assistente.tsx`, `client/src/pages/bia-detalhe.tsx` e contratos da Carteira/Alliances. A conta limitada reutiliza o MOU de `comunidade.tsx` em `/convites-alianca`; `allowedNucleoTabs`, abas, nucleos e a gestao de OPA permanecem preservados.
+- Este chat corrige somente a responsividade das abas e dos indicadores do Capital em `nucleo-capital.tsx` e `resultados.tsx`; formulas, dados, papeis e permissoes da BIA permanecem inalterados.
 - Este chat ajusta exclusivamente os indicadores e as avaliações automáticas da Carteira Patrimonial em `shared/member-portfolio.ts`, `server/market-comparables.ts`, `server/routes.ts` e `client/src/pages/carteira.tsx`. Ao tocar `server/routes.ts`, preserva as mudanças de onboarding, aprovações, exclusão de BIAs e permissões já em andamento.
 - Este chat achata somente a navegacao de `app-sidebar.tsx`: Area de Vitrine e Area de Aliancas ficam no primeiro nivel, sem o agrupador Ambientes BUILT; destinos e permissoes permanecem iguais.
 - Este chat move o acesso visual da Aura para o resumo de `meu-perfil.tsx`, com o mesmo card do Inicio, e remove apenas o atalho lateral; rotas, calculo, permissoes e dados da Aura permanecem intactos.

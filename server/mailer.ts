@@ -887,3 +887,25 @@ export async function notificarNovaOportunidade(opts: {
     `),
   );
 }
+
+export async function enviarConviteCoproprietarioImovel(opts: {
+  email: string;
+  nome: string;
+  imovel: string;
+  percentual: number;
+  token: string;
+}) {
+  const link = `${BASE_URL}/convite-imovel/${encodeURIComponent(opts.token)}`;
+  return send(
+    opts.email,
+    `Confirme sua participação no imóvel ${opts.imovel}`,
+    baseTemplate(`
+      <h2 style="color:#D7BB7D;margin-top:0">Imóvel compartilhado com você</h2>
+      <p style="color:rgba(255,255,255,0.8)">Olá, <strong>${opts.nome}</strong>!</p>
+      <p style="color:rgba(255,255,255,0.7)">Você foi convidado para confirmar <strong style="color:#D7BB7D">${opts.percentual}%</strong> de participação em <strong>${opts.imovel}</strong>.</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:13px">Esta declaração não substitui escritura, matrícula ou outro documento de titularidade.</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:13px">O convite é individual, de uso único e expira em 7 dias.</p>
+      <div style="text-align:center;margin:32px 0"><a href="${link}" style="display:inline-block;background-color:#D7BB7D;color:#001D34;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold">Revisar e confirmar</a></div>
+    `),
+  );
+}

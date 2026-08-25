@@ -13,7 +13,7 @@ import { and, eq, desc, sql } from "drizzle-orm";
 import { getStripeClient } from "./stripe";
 import { PinbankClient, type PinbankChargePayload, type PinbankChargeQueryPayload, type PinbankCompanyOnboardingPayload, type PinbankDocumentPayload } from "./pinbank-client";
 import { PNG } from "pngjs";
-import { randomUUID } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import { deflateSync } from "zlib";
 import { buildComparableMarketAnalysis, marketDistanceKm, MARKET_AREA_TOLERANCE_M2, MARKET_RADIUS_KM } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
@@ -38,6 +38,7 @@ import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
 import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type PortfolioExchangeRate } from "@shared/member-portfolio";
+import { buildPropertyOriginAllocations, normalizePropertyPartners, propertyMapIsComplete, PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, type PropertyPartnerInput } from "@shared/property-ownership";
 import { canAccessBuiltEnvironment, canPublishVitrineProfile } from "@shared/environment-access";
 import {
   attachObjectToRegistryTraces,
@@ -1692,6 +1693,64 @@ async function ensureInventarioTables() {
     )
   `);
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS carteira_imovel_socios (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE CASCADE,
+      user_id text,
+      membro_id text,
+      nome text NOT NULL,
+      email text,
+      map_percentual numeric(7,4) NOT NULL CHECK (map_percentual > 0 AND map_percentual <= 100),
+      status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'aceito', 'recusado', 'revogado')),
+      aceite_versao integer NOT NULL DEFAULT 1,
+      aceite_evidencias jsonb NOT NULL DEFAULT '{}'::jsonb,
+      convite_token_hash text,
+      convite_expira_em timestamp,
+      aceite_em timestamp,
+      recusado_em timestamp,
+      convidado_por_user_id text,
+      convidado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`ALTER TABLE carteira_imovel_socios ADD COLUMN IF NOT EXISTS aceite_evidencias jsonb NOT NULL DEFAULT '{}'::jsonb`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_imovel_origens (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      imovel_id text NOT NULL REFERENCES inventario_imoveis(id) ON DELETE RESTRICT,
+      bia_id text,
+      nome_bia text NOT NULL,
+      status text NOT NULL DEFAULT 'preparacao' CHECK (status IN ('preparacao', 'aguardando_aprovacao', 'aguardando_mou', 'ativa', 'cancelada')),
+      valor_origem numeric(18,2) NOT NULL CHECK (valor_origem > 0),
+      moeda text NOT NULL DEFAULT 'BRL',
+      divida_snapshot numeric(18,2) NOT NULL DEFAULT 0,
+      papeis jsonb NOT NULL DEFAULT '{}'::jsonb,
+      criado_por_user_id text,
+      criado_por_membro_id text,
+      criado_em timestamp DEFAULT now() NOT NULL,
+      atualizado_em timestamp DEFAULT now() NOT NULL,
+      ativado_em timestamp,
+      cancelado_em timestamp
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_map_origem_alocacoes (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      origem_id uuid NOT NULL REFERENCES bia_imovel_origens(id) ON DELETE CASCADE,
+      bia_id text NOT NULL,
+      socio_id uuid REFERENCES carteira_imovel_socios(id) ON DELETE SET NULL,
+      membro_id text NOT NULL,
+      nome text NOT NULL,
+      papel text NOT NULL CHECK (papel IN ('guardiao', 'multiplicador')),
+      percentual numeric(7,4) NOT NULL CHECK (percentual > 0 AND percentual <= 100),
+      valor numeric(18,2) NOT NULL CHECK (valor > 0),
+      moeda text NOT NULL DEFAULT 'BRL',
+      criado_em timestamp DEFAULT now() NOT NULL,
+      UNIQUE (origem_id, membro_id)
+    )
+  `);
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS user_account_purposes (
       user_id text NOT NULL,
       membro_id text,
@@ -1767,6 +1826,12 @@ async function ensureInventarioTables() {
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_demandas_imovel ON carteira_demandas (imovel_id, criado_em DESC)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_user ON carteira_acessos (user_id, imovel_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_acessos_membro ON carteira_acessos (membro_id, imovel_id)`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_imovel_socios_email ON carteira_imovel_socios (imovel_id, lower(email)) WHERE email IS NOT NULL AND status <> 'revogado'`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_imovel_socios_user ON carteira_imovel_socios (imovel_id, user_id) WHERE user_id IS NOT NULL AND status <> 'revogado'`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_carteira_imovel_socios_membro ON carteira_imovel_socios (imovel_id, membro_id) WHERE membro_id IS NOT NULL AND status <> 'revogado'`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_bia_imovel_origem_ativa ON bia_imovel_origens (imovel_id) WHERE status <> 'cancelada'`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_bia_imovel_origem_bia ON bia_imovel_origens (bia_id) WHERE bia_id IS NOT NULL`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_map_origem_bia ON bia_map_origem_alocacoes (bia_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_property_assistant_owner ON property_assistant_sessions (owner_user_id, updated_at DESC)`);
   await db.execute(sql`ALTER TABLE property_assistant_sessions ALTER COLUMN method DROP NOT NULL`);
   await db.execute(sql`ALTER TABLE property_assistant_sessions ALTER COLUMN method DROP DEFAULT`);
@@ -3594,7 +3659,7 @@ export async function registerRoutes(
 
   app.use("/api", async (req: any, res, next) => {
     const userId = req.session?.directusUserId || req.session?.userId;
-    if (!userId || isInitialOnboardingApiAllowed(req.originalUrl)) return next();
+    if (!userId || req.session?.role === "coproprietario" || isInitialOnboardingApiAllowed(req.originalUrl)) return next();
     try {
       await ensureInitialOnboardingTable();
       const result: any = await db.execute(sql`
@@ -3613,6 +3678,53 @@ export async function registerRoutes(
       console.warn("[initial-onboarding] Falha ao verificar restricao:", error?.message || error);
       return res.status(503).json({ error: "Não foi possível verificar seu onboarding agora." });
     }
+  });
+
+  app.use("/api", async (req: any, res, next) => {
+    if (req.session?.role !== "coproprietario") return next();
+    const path = String(req.path || "");
+    if (req.method === "GET" && req.session?.membroId && path === `/membros/${req.session.membroId}`) return next();
+    if (path.startsWith("/files/")) {
+      const fileId = path.slice("/files/".length);
+      const allowedFile = await db.execute(sql`
+        SELECT 1 FROM (
+          SELECT i.id FROM inventario_imoveis i
+          JOIN carteira_imovel_socios cis ON cis.imovel_id = i.id AND cis.status = 'aceito'
+          LEFT JOIN carteira_documentos d ON d.imovel_id = i.id
+          WHERE (cis.user_id = ${String(req.session?.directusUserId || "")} OR cis.membro_id = ${String(req.session?.membroId || "")})
+            AND (d.file_id = ${fileId} OR i.data->>'foto' = ${fileId} OR i.data->'foto'->>'id' = ${fileId})
+          UNION ALL
+          SELECT o.imovel_id FROM bia_imovel_origens o
+          JOIN carteira_imovel_socios cis ON cis.imovel_id = o.imovel_id AND cis.status = 'aceito'
+          LEFT JOIN nucleo_tecnico_docs nd ON nd.bia_id = o.bia_id
+          LEFT JOIN alianca_docs ad ON ad.bia_id = o.bia_id
+          WHERE o.status = 'ativa'
+            AND (cis.user_id = ${String(req.session?.directusUserId || "")} OR cis.membro_id = ${String(req.session?.membroId || "")})
+            AND (COALESCE(nd.arquivo_ids, '[]'::jsonb) @> ${JSON.stringify([fileId])}::jsonb OR COALESCE(ad.arquivo_ids, '[]'::jsonb) @> ${JSON.stringify([fileId])}::jsonb)
+        ) authorized LIMIT 1
+      `).catch(() => ({ rows: [] } as any));
+      if (allowedFile.rows?.[0]) return next();
+      const origins = await db.execute(sql`
+        SELECT o.bia_id FROM bia_imovel_origens o JOIN carteira_imovel_socios cis ON cis.imovel_id = o.imovel_id AND cis.status = 'aceito'
+        WHERE o.status = 'ativa' AND (cis.user_id = ${String(req.session?.directusUserId || "")} OR cis.membro_id = ${String(req.session?.membroId || "")})
+      `).catch(() => ({ rows: [] } as any));
+      for (const origin of origins.rows || []) {
+        const bia = await directusFetchOne("bias_projetos", String(origin.bia_id), "fields=Anexos.directus_files_id").catch(() => null);
+        const ids = (Array.isArray(bia?.Anexos) ? bia.Anexos : []).map((item: any) => directusRelationId(item?.directus_files_id || item)).filter(Boolean);
+        if (ids.includes(fileId)) return next();
+      }
+      return res.status(403).json({ error: "Arquivo não autorizado.", code: "COPROPRIETARIO_FILE_FORBIDDEN" });
+    }
+    if (req.method !== "GET" && (path === "/carteira/imoveis" || path === "/bias" || path.startsWith("/bias/") || path.startsWith("/nucleo-tecnico-docs") || path.startsWith("/alianca-docs"))) {
+      return res.status(403).json({ error: "A conta de coproprietário possui acesso somente para consulta.", code: "COPROPRIETARIO_READ_ONLY" });
+    }
+    const allowed = [
+      "/me", "/logout", "/login", "/carteira/resumo", "/carteira/imoveis",
+      "/carteira/convites/", "/bias", "/bia-socio-solicitacoes", "/bia-mou",
+      "/nucleo-tecnico-docs", "/alianca-docs",
+    ];
+    if (allowed.some((prefix) => path === prefix || path.startsWith(prefix))) return next();
+    return res.status(403).json({ error: "Esta conta possui acesso somente aos imóveis e alianças compartilhados.", code: "COPROPRIETARIO_LIMITED" });
   });
 
   function isAdminRequest(req: any) {
@@ -7902,9 +8014,31 @@ export async function registerRoutes(
 
     const guardioes = new Set(parseBiaMemberList(bia.socios_guardioes));
     const multiplicadores = new Set(parseBiaMemberList(bia.socios_multiplicadores));
+    const originResult = await db.execute(sql`
+      SELECT membro_id, nome, papel, valor::float8 AS valor
+      FROM bia_map_origem_alocacoes WHERE bia_id = ${biaId}
+    `).catch(() => ({ rows: [] } as any));
+    let originAllocations = (originResult.rows || []).map((row: any) => ({
+      memberId: String(row.membro_id), name: String(row.nome || "Membro"), value: Number(row.valor || 0), papel: String(row.papel || ""),
+    }));
+    if (!originAllocations.length) {
+      const proposed = await db.execute(sql`
+        SELECT * FROM bia_imovel_origens WHERE bia_id = ${biaId} AND status IN ('aguardando_aprovacao', 'aguardando_mou') LIMIT 1
+      `).catch(() => ({ rows: [] } as any));
+      const origin: any = proposed.rows?.[0];
+      if (origin) {
+        const allocations = buildPropertyOriginAllocations(
+          await loadPropertyPartners(String(origin.imovel_id)),
+          (origin.papeis || {}) as Record<string, "guardiao" | "multiplicador">,
+          Number(origin.valor_origem),
+        );
+        originAllocations = allocations.map((row) => ({ memberId: row.membroId, name: row.nome, value: row.valor, papel: row.papel }));
+      }
+    }
     const roleByMember = new Map<string, MouAllocationRow["group"]>();
     guardioes.forEach((id) => roleByMember.set(id, "SÃ³cios GuardiÃµes"));
     multiplicadores.forEach((id) => roleByMember.set(id, "SÃ³cios Multiplicadores"));
+    originAllocations.forEach((item: any) => roleByMember.set(item.memberId, item.papel === "guardiao" ? "SÃ³cios GuardiÃµes" : "SÃ³cios Multiplicadores"));
 
     const nameCache = new Map<string, string>();
     const resolveMemberName = async (id: string) => {
@@ -7925,7 +8059,7 @@ export async function registerRoutes(
       if (!roleByMember.has(transfer.toMemberId)) roleByMember.set(transfer.toMemberId, roleByMember.get(transfer.fromMemberId) || "NÃ£o classificados");
     }
 
-    const rowsBase = calculateMap(contributions, acceptedTransfers);
+    const rowsBase = calculateMap(contributions, acceptedTransfers, originAllocations);
     for (const item of rowsBase) {
       const currentName = String(item.name || "").trim();
       if (
@@ -8903,7 +9037,17 @@ export async function registerRoutes(
       const item = await resolveBiaByIdOrPublicCode(req.params.id, "*,Anexos.directus_files_id.*");
       if (!item) return res.status(404).json({ error: "BIA nÃ£o encontrada" });
       if (!canViewBia(item, req)) return res.status(403).json({ error: "VocÃª nÃ£o tem acesso a esta BIA privada" });
-      res.json(resolveAnexosBia([item])[0]);
+      const origin = await db.execute(sql`
+        SELECT o.imovel_id, o.valor_origem::float8 AS valor_origem, o.moeda, o.divida_snapshot::float8 AS divida_snapshot,
+          o.status, i.data->>'nome' AS imovel_nome
+        FROM bia_imovel_origens o JOIN inventario_imoveis i ON i.id = o.imovel_id
+        WHERE o.bia_id = ${String(item.id)} AND o.status <> 'cancelada' LIMIT 1
+      `).catch(() => ({ rows: [] } as any));
+      const originMap = await db.execute(sql`
+        SELECT membro_id, nome, papel, percentual::float8 AS percentual, valor::float8 AS valor, moeda
+        FROM bia_map_origem_alocacoes WHERE bia_id = ${String(item.id)} ORDER BY criado_em
+      `).catch(() => ({ rows: [] } as any));
+      res.json({ ...resolveAnexosBia([item])[0], imovel_origem: origin.rows?.[0] || null, map_origem: originMap.rows || [] });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -9605,6 +9749,10 @@ export async function registerRoutes(
       for (const target of biaDeletionTargets(req.params.id, communityLinks.map((link: any) => link.id).filter(Boolean))) {
         await directusDelete(target.collection, target.id);
       }
+      await db.execute(sql`
+        UPDATE bia_imovel_origens SET status = 'cancelada', cancelado_em = now(), atualizado_em = now()
+        WHERE bia_id = ${req.params.id} AND status <> 'cancelada'
+      `).catch(() => {});
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -11099,6 +11247,10 @@ export async function registerRoutes(
       if (!isAdmin && !isAliado) return res.status(403).json({ error: "Apenas o Aliado BUILT da comunidade ou admin pode aprovar" });
 
       await storage.updateBiaAprovacao(aprovacao.id, { status: "aprovado" });
+      await startPropertyOriginMouRequests(String(aprovacao.bia_id), req).catch((error: any) => {
+        console.error("[bia-origem] falha ao iniciar convites de MOU:", error?.message || error);
+        throw error;
+      });
 
       // Notify the director by email (fire and forget)
       if (aprovacao.solicitante_email) {
@@ -11133,6 +11285,10 @@ export async function registerRoutes(
 
       const motivo = req.body?.motivo || null;
       await storage.updateBiaAprovacao(aprovacao.id, { status: "rejeitado", motivo_rejeicao: motivo });
+      await db.execute(sql`
+        UPDATE bia_imovel_origens SET status = 'cancelada', cancelado_em = now(), atualizado_em = now()
+        WHERE bia_id = ${String(aprovacao.bia_id)} AND status = 'aguardando_aprovacao'
+      `).catch(() => {});
 
       // Notify the director
       if (aprovacao.solicitante_email) {
@@ -11331,6 +11487,7 @@ export async function registerRoutes(
         status: "aceito",
         respondido_em: new Date(),
       } as any);
+      await activatePropertyOriginIfReady(String(solicitacao.bia_id));
 
       await notificarRespostaSolicitacao({
         solicitanteEmail: solicitacao.solicitante_email,
@@ -13919,6 +14076,14 @@ ${textContent}`;
           )
       )
       OR EXISTS (
+        SELECT 1 FROM carteira_imovel_socios cis
+        WHERE cis.imovel_id = i.id AND cis.status = 'aceito'
+          AND (
+            (cis.user_id IS NOT NULL AND cis.user_id = ${actor.userId})
+            OR (cis.membro_id IS NOT NULL AND cis.membro_id = ${actor.membroId})
+          )
+      )
+      OR EXISTS (
         SELECT 1
         FROM carteira_acessos_temporarios cat
         WHERE cat.imovel_id = i.id AND cat.revogado_em IS NULL
@@ -13935,6 +14100,8 @@ ${textContent}`;
     return {
       userId: imovel.owner_user_id || null,
       membroId: imovel.owner_membro_id || null,
+      role: null,
+      isPlatformAdmin: false,
     };
   }
 
@@ -13954,6 +14121,14 @@ ${textContent}`;
     );
     if (isOwner) return { imovel, nivel: "proprietario", isOwner: true };
     if (actor.isPlatformAdmin) return { imovel, nivel: "administracao", isOwner: false };
+
+    const partnerResult = await db.execute(sql`
+      SELECT 1 FROM carteira_imovel_socios
+      WHERE imovel_id = ${imovelId} AND status = 'aceito'
+        AND ((user_id IS NOT NULL AND user_id = ${actor.userId}) OR (membro_id IS NOT NULL AND membro_id = ${actor.membroId}))
+      LIMIT 1
+    `);
+    if (partnerResult.rows?.[0]) return { imovel, nivel: "leitura", isOwner: false };
 
     const accessResult = await db.execute(sql`
       SELECT nivel
@@ -14081,6 +14256,7 @@ ${textContent}`;
       .reduce((sum: number, item: any) => sum + Number(item.valor || 0), 0);
     return {
       ...imovel,
+      ...(await propertyOwnershipView(imovel, actor)),
       access_level: resolved?.nivel || "leitura",
       is_owner: resolved?.isOwner || false,
       can_delete: canDeleteCarteiraAsset(Boolean(resolved?.isOwner), actor.isPlatformAdmin),
@@ -14090,7 +14266,7 @@ ${textContent}`;
   }
 
   async function replaceAccountPurposes(
-    actor: CarteiraActor,
+    actor: Pick<CarteiraActor, "userId" | "membroId">,
     purposes: unknown,
     source = "profile",
     comunidadeId?: string | null,
@@ -14509,10 +14685,24 @@ ${inputText.slice(0, 18000)}`,
       }
       const id = `inv-${Date.now()}-${randomUUID().slice(0, 8)}`;
       const data = sanitizeInventarioImovel({ ...draft, id }, actor, id);
+      const assistantPartners = [
+        { nome: (req.session as any)?.nome || data.nome || "Proprietário principal", email: (req.session as any)?.email || null, user_id: actor.userId, membro_id: actor.membroId, map_percentual: Number(draft.participacao_percentual ?? 100) },
+        ...(Array.isArray(draft.socios_adicionais) ? draft.socios_adicionais : []),
+      ];
+      validatePropertyPartnersInput(assistantPartners, actor, req);
       await db.transaction(async (tx) => {
         await tx.execute(sql`INSERT INTO inventario_imoveis (id, data, owner_user_id, owner_membro_id) VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})`);
         await tx.execute(sql`UPDATE property_assistant_sessions SET status = 'concluido', step = 'concluido', property_id = ${id}, draft = ${JSON.stringify(draft)}::jsonb, confirmations = confirmations || ${JSON.stringify({ cadastro: true })}::jsonb, updated_at = now() WHERE id = ${current.id}`);
       });
+      try {
+        await savePropertyPartners(data, actor, req, assistantPartners);
+      } catch (error) {
+        await db.transaction(async (tx) => {
+          await tx.execute(sql`DELETE FROM inventario_imoveis WHERE id = ${id}`);
+          await tx.execute(sql`UPDATE property_assistant_sessions SET status = 'ativo', step = 'cadastro', property_id = NULL, updated_at = now() WHERE id = ${current.id}`);
+        });
+        throw error;
+      }
       await recordCarteiraEvent(id, actor, "imovel_criado_assistente", "Imóvel cadastrado com o assistente", { session_id: current.id, method: current.method });
       res.status(201).json({ success: true, path: "imovel", property_id: id, url: `/carteira/${id}` });
     } catch (error: any) {
@@ -14625,6 +14815,201 @@ ${inputText.slice(0, 18000)}`,
       precisa_atualizar: attemptAge >= MARKET_ESTIMATE_MAX_AGE_MS,
       valor_fallback: suggestedValue > 0 ? null : fallbackValue,
     };
+  }
+
+  const propertyInviteHash = (token: string) => createHash("sha256").update(token).digest("hex");
+
+  async function loadPropertyPartners(imovelId: string) {
+    const result = await db.execute(sql`
+      SELECT id, imovel_id, user_id, membro_id, nome, email, map_percentual::float8 AS map_percentual,
+             status, aceite_versao, aceite_evidencias, convite_expira_em, aceite_em, recusado_em, criado_em, atualizado_em
+      FROM carteira_imovel_socios
+      WHERE imovel_id = ${imovelId} AND status <> 'revogado'
+      ORDER BY criado_em ASC
+    `);
+    return (result.rows || []) as any[];
+  }
+
+  async function loadPropertyOrigin(imovelId: string) {
+    const result = await db.execute(sql`
+      SELECT id, imovel_id, bia_id, nome_bia, status, valor_origem::float8 AS valor_origem,
+             moeda, divida_snapshot::float8 AS divida_snapshot, papeis, criado_em, atualizado_em, ativado_em
+      FROM bia_imovel_origens WHERE imovel_id = ${imovelId} AND status <> 'cancelada' LIMIT 1
+    `);
+    return result.rows?.[0] || null;
+  }
+
+  async function activatePropertyOriginIfReady(biaId: string) {
+    const originResult = await db.execute(sql`SELECT * FROM bia_imovel_origens WHERE bia_id = ${biaId} AND status = 'aguardando_mou' LIMIT 1`);
+    const origin: any = originResult.rows?.[0];
+    if (!origin) return false;
+    const partners = await loadPropertyPartners(String(origin.imovel_id));
+    if (!propertyMapIsComplete(partners) || partners.some((item) => item.status !== "aceito" || !item.membro_id)) return false;
+    const mouAccepted = await Promise.all(partners.map((item) => hasBiaMouAceito(biaId, String(item.membro_id))));
+    if (mouAccepted.some((accepted) => !accepted)) return false;
+    const roles = (origin.papeis || {}) as Record<string, "guardiao" | "multiplicador">;
+    const allocations = buildPropertyOriginAllocations(partners, roles, Number(origin.valor_origem));
+    if (allocations.length !== partners.length) return false;
+    await db.transaction(async (tx) => {
+      for (const item of allocations) await tx.execute(sql`
+        INSERT INTO bia_map_origem_alocacoes (origem_id, bia_id, socio_id, membro_id, nome, papel, percentual, valor, moeda)
+        VALUES (${String(origin.id)}, ${biaId}, ${item.socioId || null}, ${item.membroId}, ${item.nome}, ${item.papel}, ${item.percentual}, ${item.valor}, ${String(origin.moeda || "BRL")})
+        ON CONFLICT (origem_id, membro_id) DO NOTHING
+      `);
+    });
+    const guardioes = allocations.filter((item) => item.papel === "guardiao").map((item) => item.membroId);
+    const multiplicadores = allocations.filter((item) => item.papel === "multiplicador").map((item) => item.membroId);
+    await directusUpdate("bias_projetos", biaId, {
+      socios_guardioes: JSON.stringify(guardioes), socios_multiplicadores: JSON.stringify(multiplicadores), situacao: "ativa", bia_publica: false,
+    });
+    return db.transaction(async (tx) => {
+      const activated = await tx.execute(sql`
+        UPDATE bia_imovel_origens SET status = 'ativa', ativado_em = COALESCE(ativado_em, now()), atualizado_em = now()
+        WHERE id = ${String(origin.id)} AND status = 'aguardando_mou' RETURNING id
+      `);
+      if (!activated.rows?.[0]) return false;
+      await tx.execute(sql`
+        INSERT INTO carteira_eventos (imovel_id, tipo, origem, titulo, payload)
+        VALUES (${String(origin.imovel_id)}, 'bia_origem_ativada', 'sistema', 'BIA originada pelo imóvel ativada', ${JSON.stringify({ bia_id: biaId, map: allocations })}::jsonb)
+      `);
+      return true;
+    });
+  }
+
+  async function startPropertyOriginMouRequests(biaId: string, req: any) {
+    const originResult = await db.execute(sql`SELECT * FROM bia_imovel_origens WHERE bia_id = ${biaId} AND status IN ('aguardando_aprovacao','aguardando_mou') LIMIT 1`);
+    const origin: any = originResult.rows?.[0];
+    if (!origin) return [];
+    const partners = await loadPropertyPartners(String(origin.imovel_id));
+    const roles = (origin.papeis || {}) as Record<string, "guardiao" | "multiplicador">;
+    const body = {
+      socios_guardioes: partners.filter((item) => roles[String(item.id)] === "guardiao").map((item) => item.membro_id),
+      socios_multiplicadores: partners.filter((item) => roles[String(item.id)] === "multiplicador").map((item) => item.membro_id),
+    };
+    const requests = await processSocioSolicitacoes({ biaId, biaNome: origin.nome_bia, body, req, currentBia: null });
+    await db.execute(sql`UPDATE bia_imovel_origens SET status = 'aguardando_mou', atualizado_em = now() WHERE id = ${String(origin.id)}`);
+    await activatePropertyOriginIfReady(biaId);
+    return requests;
+  }
+
+  async function propertyOwnershipView(imovel: any, actor: CarteiraActor) {
+    const socios = await loadPropertyPartners(String(imovel.id));
+    const userShare = socios.find((item) =>
+      (actor.userId && item.user_id && String(item.user_id) === actor.userId)
+      || (actor.membroId && item.membro_id && String(item.membro_id) === actor.membroId));
+    const userPercentage = userShare?.status === "aceito"
+      ? Number(userShare.map_percentual)
+      : Number(socios.length ? 0 : (imovel.participacao_percentual || 100));
+    return {
+      socios,
+      map_percentual_usuario: userPercentage,
+      participacao_percentual: userPercentage,
+      socios_pendentes: socios.filter((item) => item.status === "pendente").length,
+      bia_origem: await loadPropertyOrigin(String(imovel.id)),
+    };
+  }
+
+  async function invitePropertyPartner(row: any, imovel: any) {
+    if (!row?.email || row.status !== "pendente") return;
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await db.execute(sql`
+      UPDATE carteira_imovel_socios
+      SET convite_token_hash = ${propertyInviteHash(token)}, convite_expira_em = ${expiresAt}, atualizado_em = now()
+      WHERE id = ${String(row.id)}
+    `);
+    const { enviarConviteCoproprietarioImovel } = await import("./mailer");
+    await enviarConviteCoproprietarioImovel({
+      email: String(row.email), nome: String(row.nome || "coproprietário"), imovel: String(imovel.nome || "Imóvel compartilhado"),
+      percentual: Number(row.map_percentual), token,
+    });
+  }
+
+  function validatePropertyPartnersInput(rawPartners: unknown, actor: CarteiraActor, req: any) {
+    const requested = normalizePropertyPartners(rawPartners);
+    if (!Array.isArray(rawPartners) || requested.length !== rawPartners.length) {
+      const error: any = new Error("Informe nome, e-mail e percentual válidos, sem sócios duplicados.");
+      error.status = 400;
+      throw error;
+    }
+    if (!propertyMapIsComplete(requested)) {
+      const error: any = new Error("Os percentuais dos sócios devem totalizar exatamente 100%.");
+      error.status = 400;
+      throw error;
+    }
+    const sessionEmail = String(req.session?.email || "").trim().toLowerCase();
+    const sessionName = String(req.session?.nome || "Proprietário principal").trim();
+    const ownerIndex = requested.findIndex((item) =>
+      (actor.userId && item.user_id === actor.userId)
+      || (actor.membroId && item.membro_id === actor.membroId)
+      || (sessionEmail && item.email === sessionEmail));
+    if (ownerIndex < 0) {
+      const error: any = new Error("Inclua o administrador principal do imóvel na composição societária.");
+      error.status = 400;
+      throw error;
+    }
+    if (requested.some((item, index) => index !== ownerIndex && !item.email)) {
+      const error: any = new Error("Informe o e-mail de cada coproprietário convidado.");
+      error.status = 400;
+      throw error;
+    }
+    requested[ownerIndex] = {
+      ...requested[ownerIndex], nome: requested[ownerIndex].nome || sessionName, email: requested[ownerIndex].email || sessionEmail,
+      user_id: actor.userId, membro_id: actor.membroId, status: "aceito",
+    };
+    return requested;
+  }
+
+  async function savePropertyPartners(imovel: any, actor: CarteiraActor, req: any, rawPartners: unknown) {
+    const requested = validatePropertyPartnersInput(rawPartners, actor, req);
+    const ownerIndex = requested.findIndex((item) => item.user_id === actor.userId || item.membro_id === actor.membroId);
+    const existing = await loadPropertyPartners(String(imovel.id));
+    const keptIds: string[] = [];
+    const pendingToInvite: any[] = [];
+    for (const item of requested) {
+      const current = existing.find((row) =>
+        (item.id && String(row.id) === item.id)
+        || (item.membro_id && String(row.membro_id || "") === item.membro_id)
+        || (item.user_id && String(row.user_id || "") === item.user_id)
+        || (item.email && String(row.email || "").toLowerCase() === item.email));
+      const knownUser = item.email ? await storage.getUserByEmail(item.email).catch(() => undefined) : undefined;
+      const isOwner = item === requested[ownerIndex];
+      const changed = !current || Number(current.map_percentual) !== Number(item.map_percentual) || String(current.email || "").toLowerCase() !== String(item.email || "");
+      const status = isOwner ? "aceito" : changed ? "pendente" : String(current.status || "pendente");
+      const result = current
+        ? await db.execute(sql`
+            UPDATE carteira_imovel_socios SET nome = ${String(item.nome || item.email || "Coproprietário")}, email = ${item.email || null},
+              user_id = ${isOwner ? actor.userId : knownUser?.id || item.user_id || current.user_id || null},
+              membro_id = ${isOwner ? actor.membroId : knownUser?.membro_directus_id || item.membro_id || current.membro_id || null},
+              map_percentual = ${Number(item.map_percentual)}, status = ${status}, aceite_versao = ${PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION},
+              aceite_em = ${status === "aceito" ? new Date() : null},
+              aceite_evidencias = ${status === "aceito" ? JSON.stringify({ versao: PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, origem: "administrador_principal", user_id: actor.userId, membro_id: actor.membroId }) : JSON.stringify({})}::jsonb,
+              recusado_em = NULL, atualizado_em = now()
+            WHERE id = ${String(current.id)} RETURNING *
+          `)
+        : await db.execute(sql`
+            INSERT INTO carteira_imovel_socios (imovel_id, user_id, membro_id, nome, email, map_percentual, status, aceite_versao,
+              aceite_em, aceite_evidencias, convidado_por_user_id, convidado_por_membro_id)
+            VALUES (${String(imovel.id)}, ${isOwner ? actor.userId : knownUser?.id || item.user_id || null},
+              ${isOwner ? actor.membroId : knownUser?.membro_directus_id || item.membro_id || null}, ${String(item.nome || item.email || "Coproprietário")},
+              ${item.email || null}, ${Number(item.map_percentual)}, ${status}, ${PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION},
+              ${status === "aceito" ? new Date() : null}, ${status === "aceito" ? JSON.stringify({ versao: PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, origem: "administrador_principal", user_id: actor.userId, membro_id: actor.membroId }) : JSON.stringify({})}::jsonb,
+              ${actor.userId}, ${actor.membroId}) RETURNING *
+          `);
+      const saved = result.rows?.[0];
+      if (saved) {
+        keptIds.push(String(saved.id));
+        if (status === "pendente" && (changed || !saved.convite_token_hash)) pendingToInvite.push(saved);
+      }
+    }
+    if (keptIds.length) await db.execute(sql`
+      UPDATE carteira_imovel_socios SET status = 'revogado', convite_token_hash = NULL, atualizado_em = now()
+      WHERE imovel_id = ${String(imovel.id)} AND status <> 'revogado' AND id NOT IN (${sql.join(keptIds.map((id) => sql`${id}`), sql`, `)})
+    `);
+    for (const row of pendingToInvite) await invitePropertyPartner(row, imovel).catch((error: any) => {
+      console.warn("[carteira-socios] convite por e-mail indisponível:", error?.message || error);
+    });
+    return loadPropertyPartners(String(imovel.id));
   }
 
   async function loadPortfolioExchangeRates() {
@@ -14912,6 +15297,7 @@ ${inputText.slice(0, 18000)}`,
       const diagnostico = await calculateCarteiraDiagnosis(req.params.id);
       res.json({
         ...access.imovel,
+        ...(await propertyOwnershipView(access.imovel, actor)),
         access_level: access.nivel,
         is_owner: access.isOwner,
         can_delete: canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin),
@@ -14927,12 +15313,23 @@ ${inputText.slice(0, 18000)}`,
       const actor = requireCarteiraActor(req);
       const id = req.body?.id || `inv-${Date.now()}-${randomUUID().slice(0, 8)}`;
       const data = sanitizeInventarioImovel(req.body || {}, actor, id);
+      const requestedPartners = Object.prototype.hasOwnProperty.call(req.body || {}, "socios")
+        ? req.body.socios
+        : [{ nome: (req.session as any)?.nome || data.nome || "Proprietário principal", email: (req.session as any)?.email || null, user_id: actor.userId, membro_id: actor.membroId, map_percentual: 100 }];
+      validatePropertyPartnersInput(requestedPartners, actor, req);
       await db.execute(sql`
         INSERT INTO inventario_imoveis (id, data, owner_user_id, owner_membro_id)
         VALUES (${id}, ${JSON.stringify(data)}::jsonb, ${actor.userId}, ${actor.membroId})
       `);
+      let socios: any[];
+      try {
+        socios = await savePropertyPartners(data, actor, req, requestedPartners);
+      } catch (error) {
+        await db.execute(sql`DELETE FROM inventario_imoveis WHERE id = ${id}`).catch(() => {});
+        throw error;
+      }
       await recordCarteiraEvent(id, actor, "imovel_criado", "Imóvel adicionado à Carteira", { depois: data });
-      res.status(201).json({ ...data, access_level: "proprietario", is_owner: true, can_delete: true });
+      res.status(201).json({ ...data, ...(await propertyOwnershipView(data, actor)), access_level: "proprietario", is_owner: true, can_delete: true });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
@@ -14948,19 +15345,291 @@ ${inputText.slice(0, 18000)}`,
         ownerActor,
         req.params.id,
       );
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, "socios")) validatePropertyPartnersInput(req.body.socios, ownerActor, req);
       await db.execute(sql`
         UPDATE inventario_imoveis
         SET data = ${JSON.stringify(data)}::jsonb, updated_at = now()
         WHERE id = ${req.params.id}
       `);
+      const socios = Object.prototype.hasOwnProperty.call(req.body || {}, "socios")
+        ? await savePropertyPartners(data, ownerActor, req, req.body.socios)
+        : await loadPropertyPartners(req.params.id);
       await recordCarteiraEvent(req.params.id, actor, "imovel_atualizado", "Dados do imóvel atualizados", {
         antes: access.imovel,
         depois: data,
       });
-      res.json({ ...data, access_level: access.nivel, is_owner: access.isOwner, can_delete: canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin) });
+      res.json({ ...data, ...(await propertyOwnershipView(data, actor)), socios, access_level: access.nivel, is_owner: access.isOwner, can_delete: canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin) });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
+  });
+
+  app.get("/api/carteira/imoveis/:id/socios", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      await requireCarteiraAccess(req.params.id, actor, "leitura");
+      res.json(await loadPropertyPartners(req.params.id));
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.put("/api/carteira/imoveis/:id/socios", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!access.isOwner && !actor.isPlatformAdmin) return res.status(403).json({ error: "Somente o administrador principal pode alterar os sócios do imóvel." });
+      const ownerActor = carteiraOwnerActor(access.imovel);
+      const socios = await savePropertyPartners(access.imovel, ownerActor, req, req.body?.socios);
+      const titularidade = socios.map((item) => item.nome).join(", ");
+      const ownerShare = socios.find((item) => item.user_id === ownerActor.userId || item.membro_id === ownerActor.membroId);
+      const data = { ...access.imovel, titularidade, participacao_percentual: Number(ownerShare?.map_percentual || access.imovel.participacao_percentual || 100) };
+      await db.execute(sql`UPDATE inventario_imoveis SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${req.params.id}`);
+      await recordCarteiraEvent(req.params.id, actor, "socios_atualizados", "Composição societária do imóvel atualizada", { socios: socios.map(({ id, nome, map_percentual, status }) => ({ id, nome, map_percentual, status })) });
+      res.json({ socios, map_total: socios.reduce((sum, item) => sum + Number(item.map_percentual), 0) });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.post("/api/carteira/imoveis/:id/socios/:socioId/reenviar", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!access.isOwner && !actor.isPlatformAdmin) return res.status(403).json({ error: "Somente o administrador principal pode reenviar convites." });
+      const row = (await loadPropertyPartners(req.params.id)).find((item) => String(item.id) === req.params.socioId);
+      if (!row) return res.status(404).json({ error: "Coproprietário não encontrado." });
+      if ((row.user_id && row.user_id === access.imovel.owner_user_id) || (row.membro_id && row.membro_id === access.imovel.owner_membro_id)) return res.status(409).json({ error: "O administrador principal não recebe convite." });
+      await db.execute(sql`
+        UPDATE carteira_imovel_socios SET status = 'pendente', aceite_em = NULL, recusado_em = NULL,
+          aceite_evidencias = '{}'::jsonb, convite_token_hash = NULL, atualizado_em = now()
+        WHERE id = ${req.params.socioId}
+      `);
+      await invitePropertyPartner({ ...row, status: "pendente" }, access.imovel);
+      res.json({ success: true });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.delete("/api/carteira/imoveis/:id/socios/:socioId", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!access.isOwner && !actor.isPlatformAdmin) return res.status(403).json({ error: "Somente o administrador principal pode remover sócios." });
+      const row = (await loadPropertyPartners(req.params.id)).find((item) => String(item.id) === req.params.socioId);
+      if (!row) return res.status(404).json({ error: "Sócio não encontrado." });
+      if ((row.user_id && row.user_id === access.imovel.owner_user_id) || (row.membro_id && row.membro_id === access.imovel.owner_membro_id)) return res.status(409).json({ error: "O administrador principal não pode ser removido." });
+      const remaining = (await loadPropertyPartners(req.params.id)).filter((item) => String(item.id) !== req.params.socioId);
+      if (!propertyMapIsComplete(remaining)) return res.status(409).json({ error: "Redistribua o MAP no formulário para que a composição restante continue totalizando 100%." });
+      await db.execute(sql`UPDATE carteira_imovel_socios SET status = 'revogado', convite_token_hash = NULL, atualizado_em = now() WHERE id = ${req.params.socioId}`);
+      res.json({ success: true });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.get("/api/carteira/convites/:token", async (req, res) => {
+    const result = await db.execute(sql`
+      SELECT cis.id, cis.nome, cis.email, cis.map_percentual::float8 AS map_percentual, cis.status, cis.convite_expira_em,
+             i.data->>'nome' AS imovel_nome
+      FROM carteira_imovel_socios cis JOIN inventario_imoveis i ON i.id = cis.imovel_id
+      WHERE cis.convite_token_hash = ${propertyInviteHash(req.params.token)} LIMIT 1
+    `);
+    const invite = result.rows?.[0];
+    if (!invite || invite.status !== "pendente") return res.status(404).json({ error: "Convite inválido ou já utilizado." });
+    if (!invite.convite_expira_em || new Date(invite.convite_expira_em as any) < new Date()) return res.status(410).json({ error: "Este convite expirou. Solicite um novo envio." });
+    const existing = invite.email ? await storage.getUserByEmail(String(invite.email)).catch(() => undefined) : undefined;
+    res.json({ ...invite, conta_existente: Boolean(existing) });
+  });
+
+  app.post("/api/carteira/convites/:token/aceitar", async (req, res) => {
+    const tokenHash = propertyInviteHash(req.params.token);
+    let claimedInviteId: string | null = null;
+    let createdDirectusMemberId: string | null = null;
+    let createdLocalUser = false;
+    try {
+      const result = await db.execute(sql`
+        SELECT cis.*, i.data->>'nome' AS imovel_nome FROM carteira_imovel_socios cis
+        JOIN inventario_imoveis i ON i.id = cis.imovel_id
+        WHERE cis.convite_token_hash = ${tokenHash}
+      `);
+      const invite: any = result.rows?.[0];
+      if (!invite || invite.status !== "pendente") return res.status(404).json({ error: "Convite inválido ou já utilizado." });
+      if (!invite.convite_expira_em || new Date(invite.convite_expira_em) < new Date()) return res.status(410).json({ error: "Este convite expirou." });
+      let user = invite.email ? await storage.getUserByEmail(String(invite.email)).catch(() => undefined) : undefined;
+      const sessionUserId = String((req.session as any)?.directusUserId || (req.session as any)?.userId || "");
+      if (user && sessionUserId && sessionUserId !== String(user.id)) return res.status(403).json({ error: "Saia da conta atual e entre com o e-mail convidado." });
+      if (user && !sessionUserId) {
+        const { comparePasswords } = await import("./storage");
+        if (!(await comparePasswords(String(req.body?.password || ""), user.password))) return res.status(401).json({ error: "Informe a senha da conta convidada.", code: "LOGIN_REQUIRED", email: invite.email });
+        (req.session as any).directusUserId = user.id;
+        (req.session as any).membroId = user.membro_directus_id || null;
+        (req.session as any).nome = user.nome;
+        (req.session as any).email = user.email;
+        (req.session as any).role = user.role || "user";
+        (req.session as any).permissions = user.permissions || {};
+      }
+      if (!user) {
+        const password = String(req.body?.password || "");
+        if (password.length < 4) return res.status(400).json({ error: "Crie uma senha com pelo menos 4 caracteres." });
+        if (req.body?.aceite_termos !== true || req.body?.aceite_privacidade !== true) return res.status(400).json({ error: "Confirme os termos básicos e a política de privacidade." });
+      }
+      const claim = await db.execute(sql`
+        UPDATE carteira_imovel_socios SET convite_token_hash = NULL, atualizado_em = now()
+        WHERE id = ${String(invite.id)} AND convite_token_hash = ${tokenHash} AND status = 'pendente' RETURNING id
+      `);
+      claimedInviteId = claim.rows?.[0] ? String(claim.rows[0].id) : null;
+      if (!claimedInviteId) return res.status(409).json({ error: "Este convite já está sendo processado ou foi utilizado." });
+      if (!user) {
+        const nome = String(req.body?.nome || invite.nome || "Coproprietário").trim();
+        const password = String(req.body?.password || "");
+        const usernameBase = String(invite.email).split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase() || "coproprietario";
+        let username = usernameBase;
+        for (let suffix = 2; await storage.getUserByUsername(username); suffix++) username = `${usernameBase}${suffix}`;
+        const directus = await directusCreate("cadastro_geral", { Nome_de_usuario: username, nome, email: invite.email, na_vitrine: false, em_membros_built: false });
+        const membroId = String(directus?.id || "");
+        if (!membroId) throw new Error("Não foi possível criar o perfil mínimo do coproprietário.");
+        createdDirectusMemberId = membroId;
+        user = await storage.createUser({ username, password, nome, email: String(invite.email), membro_directus_id: membroId, role: "coproprietario", permissions: {} as any, ativo: true });
+        createdLocalUser = true;
+        (req.session as any).directusUserId = user.id;
+        (req.session as any).membroId = membroId;
+        (req.session as any).nome = nome;
+        (req.session as any).email = invite.email;
+        (req.session as any).role = "coproprietario";
+        (req.session as any).permissions = {};
+      }
+      await db.execute(sql`
+        UPDATE carteira_imovel_socios SET user_id = ${String(user.id)}, membro_id = ${user.membro_directus_id || invite.membro_id || null},
+          nome = ${String(user.nome || invite.nome)}, status = 'aceito', aceite_em = now(), convite_token_hash = NULL,
+          aceite_evidencias = ${JSON.stringify({
+            versao: PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION,
+            origem: "convite_coproprietario",
+            termos: "termos_basicos_v1",
+            privacidade: "privacidade_v1",
+            user_id: String(user.id),
+            membro_id: user.membro_directus_id || invite.membro_id || null,
+            user_agent_sha256: createHash("sha256").update(String(req.get("user-agent") || "")).digest("hex"),
+          })}::jsonb,
+          atualizado_em = now()
+        WHERE id = ${String(invite.id)} AND status = 'pendente'
+      `);
+      res.json({ success: true, redirect_url: `/?tab=carteira`, imovel_id: invite.imovel_id });
+    } catch (error: any) {
+      if (claimedInviteId) await db.execute(sql`
+        UPDATE carteira_imovel_socios SET convite_token_hash = ${tokenHash}, atualizado_em = now()
+        WHERE id = ${claimedInviteId} AND status = 'pendente' AND convite_token_hash IS NULL
+      `).catch(() => {});
+      if (createdDirectusMemberId && !createdLocalUser) await directusDelete("cadastro_geral", createdDirectusMemberId).catch(() => {});
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/carteira/convites/:token/recusar", async (req, res) => {
+    const result = await db.execute(sql`
+      UPDATE carteira_imovel_socios SET status = 'recusado', recusado_em = now(), convite_token_hash = NULL, atualizado_em = now()
+      WHERE convite_token_hash = ${propertyInviteHash(req.params.token)} AND status = 'pendente' RETURNING id
+    `);
+    if (!result.rows?.[0]) return res.status(404).json({ error: "Convite inválido ou já respondido." });
+    res.json({ success: true });
+  });
+
+  app.get("/api/carteira/imoveis/:id/origem-bia/preview", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!access.isOwner && !actor.isPlatformAdmin) return res.status(403).json({ error: "Somente o administrador principal pode originar uma BIA." });
+      const socios = await loadPropertyPartners(req.params.id);
+      const existing = await loadPropertyOrigin(req.params.id);
+      const valorOrigem = parseMarketValueServer(access.imovel.valor_pago);
+      const reasons = [
+        !propertyMapIsComplete(socios) ? "A composição dos sócios precisa totalizar 100%." : "",
+        socios.some((item) => item.status !== "aceito" || !item.membro_id) ? "Todos os coproprietários precisam aceitar o convite e possuir conta BUILT." : "",
+        !(valorOrigem > 0) ? "Informe um valor de aquisição positivo." : "",
+        existing ? "Este imóvel já possui uma solicitação ou BIA vinculada." : "",
+      ].filter(Boolean);
+      res.json({ pronto: reasons.length === 0, impedimentos: reasons, imovel: access.imovel, socios, valor_origem_sugerido: valorOrigem, divida: parseMarketValueServer(access.imovel.divida_saldo), bia_origem: existing });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.post("/api/carteira/imoveis/:id/origem-bia", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!access.isOwner && !actor.isPlatformAdmin) return res.status(403).json({ error: "Somente o administrador principal pode originar uma BIA." });
+      if (!actor.membroId) return res.status(422).json({ error: "O administrador principal precisa possuir um perfil BUILT vinculado." });
+      if (await loadPropertyOrigin(req.params.id)) return res.status(409).json({ error: "Este imóvel já possui uma solicitação ou BIA vinculada." });
+      const socios = await loadPropertyPartners(req.params.id);
+      if (!propertyMapIsComplete(socios) || socios.some((item) => item.status !== "aceito" || !item.membro_id)) return res.status(409).json({ error: "Confirme todos os coproprietários e complete 100% do MAP antes de originar a BIA." });
+      const valorOrigem = parseMarketValueServer(req.body?.valor_origem || access.imovel.valor_pago);
+      if (!(valorOrigem > 0)) return res.status(400).json({ error: "Informe um valor de origem positivo." });
+      const roles = (req.body?.papeis || {}) as Record<string, "guardiao" | "multiplicador">;
+      if (socios.some((item) => !["guardiao", "multiplicador"].includes(String(roles[String(item.id)])))) return res.status(400).json({ error: "Escolha Guardião ou Multiplicador para cada coproprietário." });
+      const divida = parseMarketValueServer(access.imovel.divida_saldo);
+      if (divida > 0 && req.body?.ciente_divida !== true) return res.status(400).json({ error: "Confirme a ciência do saldo devedor do imóvel financiado." });
+
+      const sessionRole = String((req.session as any).role || "user").toLowerCase();
+      let canCreateDirectly = ["admin", "manager", "superadmin"].includes(sessionRole);
+      if (!canCreateDirectly) {
+        const member = await directusFetchOne("cadastro_geral", actor.membroId, "fields=tipos_alianca,Outras_redes_as_quais_pertenco").catch(() => null);
+        const seals = Array.isArray(member?.Outras_redes_as_quais_pertenco) ? member.Outras_redes_as_quais_pertenco : [];
+        const types = Array.isArray(member?.tipos_alianca) ? member.tipos_alianca : [];
+        canCreateDirectly = seals.some((item: any) => ["BUILT_FOUNDING_MEMBER", "BUILT_ALLIANCE_PARTNER"].includes(String(item)))
+          || types.some((item: any) => normalizeText(item).includes("lideranca"));
+      }
+      const comunidades = await getMembroComunidadesLinks(actor.membroId).catch(() => [] as any[]);
+      const comunidade = comunidades.find((item: any) => item.is_mae) || comunidades[0] || null;
+      const aliadoId = directusRelationId(comunidade?.aliado) || null;
+      const nomeBia = String(req.body?.nome_bia || `BIA ${access.imovel.nome || "Imóvel"}`).trim();
+      const createPayload = withUpdatedBiaFinancials(withUpdatedBiaDm(prepareBiaPayload({
+        nome_bia: nomeBia, descricao_bia: `BIA originada pelo imóvel ${access.imovel.nome || req.params.id}`,
+        valor_origem: valorOrigem, moeda: String(access.imovel.moeda || "BRL"), situacao: "em_formacao", bia_publica: false,
+        autor_bia: actor.membroId, diretor_alianca: actor.membroId, aliado_built: aliadoId || undefined,
+        localizacao: [access.imovel.cidade, access.imovel.estado, access.imovel.pais].filter(Boolean).join(", "),
+      }), null), null);
+      createPayload.codigo_publico = await createUniqueBiaPublicCode();
+      const bia = await directusCreate("bias_projetos", createPayload);
+      const status = canCreateDirectly ? "aguardando_mou" : "aguardando_aprovacao";
+      try {
+        await db.execute(sql`
+          INSERT INTO bia_imovel_origens (imovel_id, bia_id, nome_bia, status, valor_origem, moeda, divida_snapshot, papeis, criado_por_user_id, criado_por_membro_id)
+          VALUES (${req.params.id}, ${String(bia.id)}, ${nomeBia}, ${status}, ${valorOrigem}, ${String(access.imovel.moeda || "BRL")}, ${divida}, ${JSON.stringify(roles)}::jsonb, ${actor.userId}, ${actor.membroId})
+        `);
+      } catch (error) {
+        await directusDelete("bias_projetos", String(bia.id)).catch(() => {});
+        throw error;
+      }
+      let approvalId: string | null = null;
+      if (canCreateDirectly) {
+        await startPropertyOriginMouRequests(String(bia.id), req);
+      } else {
+        const ally: any = comunidade?.aliado || null;
+        const approval = await storage.createBiaAprovacao({
+          bia_id: String(bia.id), bia_nome: nomeBia, status: "pendente", solicitante_membro_id: actor.membroId,
+          solicitante_nome: (req.session as any)?.nome || null, solicitante_email: (req.session as any)?.email || null,
+          aliado_built_membro_id: aliadoId, aliado_built_email: ally?.email || null, aliado_built_nome: ally?.nome || null,
+          comunidade_id: comunidade?.id ? String(comunidade.id) : null, comunidade_nome: comunidade?.nome || null, motivo_rejeicao: null,
+        });
+        approvalId = String(approval.id);
+      }
+      await recordCarteiraEvent(req.params.id, actor, "bia_origem_solicitada", "Solicitação para originar BIA enviada", { bia_id: bia.id, valor_origem: valorOrigem, status });
+      res.status(201).json({ success: true, bia_id: bia.id, status, aprovacao_id: approvalId });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+
+  app.post("/api/carteira/imoveis/:id/origem-bia/cancelar", async (req, res) => {
+    try {
+      const actor = requireCarteiraActor(req);
+      const access = await requireCarteiraAccess(req.params.id, actor, "administracao");
+      if (!access.isOwner && !actor.isPlatformAdmin) return res.status(403).json({ error: "Somente o administrador principal pode cancelar a solicitação." });
+      const origin = await loadPropertyOrigin(req.params.id);
+      if (!origin || origin.status === "ativa") return res.status(409).json({ error: "Não existe solicitação cancelável para este imóvel." });
+      await db.execute(sql`UPDATE bia_imovel_origens SET status = 'cancelada', cancelado_em = now(), atualizado_em = now() WHERE id = ${String(origin.id)}`);
+      if (origin.bia_id) {
+        await Promise.all([
+          storage.cancelBiaSocioSolicitacoes(String(origin.bia_id), "socios_guardioes"),
+          storage.cancelBiaSocioSolicitacoes(String(origin.bia_id), "socios_multiplicadores"),
+        ]);
+        const approval = await storage.getBiaAprovacaoByBiaId(String(origin.bia_id));
+        if (approval?.status === "pendente") await storage.updateBiaAprovacao(approval.id, { status: "rejeitado", motivo_rejeicao: "Solicitação cancelada pelo proprietário." } as any);
+        await directusDelete("bias_projetos", String(origin.bia_id)).catch(() => {});
+      }
+      await recordCarteiraEvent(req.params.id, actor, "bia_origem_cancelada", "Origem da BIA cancelada", { bia_id: origin.bia_id || null });
+      res.json({ success: true });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
   });
 
   app.post("/api/carteira/imoveis/:id/avaliacao/pesquisar", async (req, res) => {
@@ -15022,6 +15691,8 @@ ${inputText.slice(0, 18000)}`,
       if (!canDeleteCarteiraAsset(access.isOwner, actor.isPlatformAdmin)) {
         return res.status(403).json({ error: "Somente o proprietário ou um administrador da plataforma pode excluir este imóvel." });
       }
+      const linked = await loadPropertyOrigin(req.params.id);
+      if (linked) return res.status(409).json({ error: "Este imóvel não pode ser excluído enquanto possuir uma BIA vinculada.", code: "PROPERTY_HAS_ACTIVE_BIA", bia_id: linked.bia_id });
       await db.execute(sql`DELETE FROM inventario_imoveis WHERE id = ${req.params.id}`);
       res.json({ success: true });
     } catch (error: any) {
@@ -20157,7 +20828,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     `);
     if (step === "personalizacao") {
       await replaceAccountPurposes(
-        { userId: String(userId), membroId: journey.membro_id ? String(journey.membro_id) : null, role: null, isPlatformAdmin: false },
+        { userId: String(userId), membroId: journey.membro_id ? String(journey.membro_id) : null },
         payload.purposes,
         "initial_onboarding",
         null,

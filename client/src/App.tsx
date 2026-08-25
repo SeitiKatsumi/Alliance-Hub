@@ -50,6 +50,7 @@ import LoginPage from "@/pages/login";
 import InitialOnboardingPage from "@/pages/initial-onboarding";
 import AguardandoAprovacaoPage from "@/pages/aguardando-aprovacao";
 import ConvitePage from "@/pages/convite";
+import ConviteImovelPage from "@/pages/convite-imovel";
 import AdesaoPage from "@/pages/adesao";
 import AvaliarAuraCandidatoPage from "@/pages/avaliar-aura-candidato";
 import PagamentoPage from "@/pages/pagamento";
@@ -552,11 +553,12 @@ function PerfilOnboardingModal({
   const [termoVitrineAceito, setTermoVitrineAceito] = useState(false);
   const [termoAreaAliancasAceito, setTermoAreaAliancasAceito] = useState(false);
   const [termoBuiltCapitalAceito, setTermoBuiltCapitalAceito] = useState(false);
+  const isLimitedCoowner = fallbackUser?.role === "coproprietario";
 
   const { data: membro, isLoading } = useQuery<OnboardingMembro>({
     queryKey: ["/api/membros", membroId],
     queryFn: async () => (await apiRequest("GET", `/api/membros/${membroId}`)).json(),
-    enabled: !!membroId,
+    enabled: !!membroId && !isLimitedCoowner,
   });
 
   useEffect(() => {
@@ -598,11 +600,11 @@ function PerfilOnboardingModal({
   const isAreaAliancasRoute = location.startsWith("/area-aliancas");
   const isBuiltCapitalRoute = location.startsWith("/built-capital");
   const canAccessAreaAliancas = environmentAccessFor(fallbackUser, "alliances").canAccess;
-  const codigoEticaPendente = !!membro && !membro.codigo_etica_aceito_em;
-  const politicasParticipacaoPendente = !!membro && !membro.politicas_participacao_aceito_em;
-  const termoVitrinePendente = !!membro && isVitrineRoute && !membro.vitrine_termo_aceito_em;
-  const termoAreaAliancasPendente = !!membro && canAccessAreaAliancas && isAreaAliancasRoute && !membro.area_aliancas_termo_aceito_em;
-  const termoBuiltCapitalPendente = !!membro && isBuiltCapitalRoute && !membro.built_capital_termo_aceito_em;
+  const codigoEticaPendente = !isLimitedCoowner && !!membro && !membro.codigo_etica_aceito_em;
+  const politicasParticipacaoPendente = !isLimitedCoowner && !!membro && !membro.politicas_participacao_aceito_em;
+  const termoVitrinePendente = !isLimitedCoowner && !!membro && isVitrineRoute && !membro.vitrine_termo_aceito_em;
+  const termoAreaAliancasPendente = !isLimitedCoowner && !!membro && canAccessAreaAliancas && isAreaAliancasRoute && !membro.area_aliancas_termo_aceito_em;
+  const termoBuiltCapitalPendente = !isLimitedCoowner && !!membro && isBuiltCapitalRoute && !membro.built_capital_termo_aceito_em;
   const termoPendente = codigoEticaPendente || politicasParticipacaoPendente || termoVitrinePendente || termoAreaAliancasPendente || termoBuiltCapitalPendente;
   const shouldOpen = !!membroId && !completed && !isLoading && !!membro && (requiredMissing || termoPendente);
   const mostrarPerfilCompleto = requiredMissing;
@@ -1196,7 +1198,7 @@ function ProtectedApp() {
       if (!response.ok) return { required: false };
       return response.json();
     },
-    enabled: isAuthenticated && !!user?.id && !user?.pending_vitrine,
+    enabled: isAuthenticated && !!user?.id && !user?.pending_vitrine && user?.role !== "coproprietario",
     staleTime: 10000,
   });
 
@@ -1224,7 +1226,7 @@ function ProtectedApp() {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.id && user?.role !== "coproprietario",
     refetchInterval: 30000,
     staleTime: 15000,
   });
@@ -1301,7 +1303,7 @@ function ProtectedApp() {
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.id && user?.role !== "coproprietario",
     refetchInterval: 30000,
     staleTime: 15000,
   });
@@ -1327,7 +1329,7 @@ function ProtectedApp() {
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.id && user?.role !== "coproprietario",
     refetchInterval: 30000,
     staleTime: 15000,
   });
@@ -1346,13 +1348,13 @@ function ProtectedApp() {
       title: "Nova pendência",
       description: pendentes.length === 1 ? "Você tem uma nova notificação para revisar." : `Você tem ${pendentes.length} notificações para revisar.`,
       action: (
-        <ToastAction altText="Ver alertas" onClick={() => navigate("/agenda-alertas?view=alertas")}>
+        <ToastAction altText="Ver alertas" onClick={() => navigate(user?.role === "coproprietario" ? "/convites-alianca" : "/agenda-alertas?view=alertas")}>
           Ver
         </ToastAction>
       ),
     });
     window.localStorage.setItem(key, "1");
-  }, [minhasChamadasAlianca, minhasSolicitacoesDiretoria, minhasSolicitacoesSocio, navigate, toast, user?.id]);
+  }, [minhasChamadasAlianca, minhasSolicitacoesDiretoria, minhasSolicitacoesSocio, navigate, toast, user?.id, user?.role]);
 
   if (isLoading) {
     return (
@@ -1459,6 +1461,7 @@ function ProtectedApp() {
               <Route path="/oportunidades/:id" component={LandBankDetalhePage} />
               <Route path="/oportunidades" component={OportunidadesImobiliariasPage} />
               <Route path="/agenda-alertas" component={AgendaAlertasPage} />
+              <Route path="/convites-alianca">{() => <ComunidadePage convitesOnly />}</Route>
               <Route path="/agenda">{() => <LegacyAgendaAlertsRedirect view="agenda" />}</Route>
               <Route path="/bias/:id" component={BiaDetalhePage} />
               <Route path="/bias">{() => <BiasPage />}</Route>
@@ -1526,6 +1529,7 @@ function App() {
       <TooltipProvider>
         <Switch>
           <Route path="/convite/:token" component={ConvitePage} />
+          <Route path="/convite-imovel/:token" component={ConviteImovelPage} />
           <Route path="/adesao/:token" component={AdesaoPage} />
           <Route path="/avaliar-aura/:token" component={AvaliarAuraCandidatoPage} />
           <Route path="/pagamento/sucesso" component={PagamentoSucessoPage} />

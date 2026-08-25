@@ -799,20 +799,20 @@ export default function NucleoCapitalPage({
       </div>}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
-        <TabsList className="grid h-auto w-full gap-1 bg-muted/60 p-1" style={{ gridTemplateColumns: `repeat(${allowedTabs.length}, minmax(0, 1fr))` }}>
-          {allowedTabs.some((tab) => tab.key === "banco") && <TabsTrigger value="banco" className="gap-2" data-testid="tab-capital-banco">
+        <TabsList className="flex h-auto w-full max-w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
+          {allowedTabs.some((tab) => tab.key === "banco") && <TabsTrigger value="banco" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-banco">
             <Banknote className="h-4 w-4" />
             Banco
           </TabsTrigger>}
-          {allowedTabs.some((tab) => tab.key === "financeiro") && <TabsTrigger value="financeiro" className="gap-2" data-testid="tab-capital-financeiro">
+          {allowedTabs.some((tab) => tab.key === "financeiro") && <TabsTrigger value="financeiro" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-financeiro">
             <Wallet className="h-4 w-4" />
             Financeiro
           </TabsTrigger>}
-          {allowedTabs.some((tab) => tab.key === "analises") && <TabsTrigger value="analises" className="gap-2" data-testid="tab-capital-analises">
+          {allowedTabs.some((tab) => tab.key === "analises") && <TabsTrigger value="analises" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-analises">
             <BarChart3 className="h-4 w-4" />
             Análises
           </TabsTrigger>}
-          {allowedTabs.some((tab) => tab.key === "calculadora") && <TabsTrigger value="calculadora" className="gap-2" data-testid="tab-capital-calculadora">
+          {allowedTabs.some((tab) => tab.key === "calculadora") && <TabsTrigger value="calculadora" className="min-w-max flex-1 shrink-0 gap-2 whitespace-nowrap" data-testid="tab-capital-calculadora">
             <Calculator className="h-4 w-4" />
             Calculadora DM
           </TabsTrigger>}

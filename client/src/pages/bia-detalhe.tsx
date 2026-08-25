@@ -62,6 +62,7 @@ interface BiasProjeto {
   socios_guardioes?: string[] | null;
   terceiros?: string[] | null;
   valor_origem?: string | number;
+  imovel_origem?: { imovel_id: string; imovel_nome: string; valor_origem: number; moeda: string; divida_snapshot: number; status: string } | null;
   divisor_multiplicador?: string | number;
   perc_autor_opa?: string | number;
   perc_aliado_built?: string | number;
@@ -200,7 +201,7 @@ function calcularResultadoLiquidoBia(bia: BiasProjeto, custoFinalOverride?: numb
   const realizado = n(bia.valor_realizado_venda);
   const custoFinal = custoFinalOverride ?? n(bia.custo_final_previsto);
   const pct = (realizadoField: keyof BiasProjeto, previstoField: keyof BiasProjeto) =>
-    n(fieldFilled(bia[realizadoField]) ? bia[realizadoField] : bia[previstoField]);
+    n((fieldFilled(bia[realizadoField]) ? bia[realizadoField] : bia[previstoField]) as string | number | null | undefined);
   const totalDeducoes =
     ((pct("comissao_realizada", "comissao_prevista_corretor") +
       pct("ir_realizado", "ir_previsto") +
@@ -770,7 +771,7 @@ export default function BiaDetalhePage() {
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">BIA não encontrada.</p>
-        <Button variant="link" onClick={() => navigate("/area-aliancas?tab=bias")}>Voltar</Button>
+        <Button variant="ghost" className="text-blue-600" onClick={() => navigate("/area-aliancas?tab=bias")}>Voltar</Button>
       </div>
     );
   }
@@ -942,6 +943,15 @@ export default function BiaDetalhePage() {
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
 
+          {bia.imovel_origem && (
+            <Card>
+              <CardContent className="flex flex-col gap-4 pt-5 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div><SectionTitle icon={Building2}>Imóvel de origem</SectionTitle><p className="font-medium">{bia.imovel_origem.imovel_nome}</p><p className="mt-1 text-sm text-muted-foreground">Valor bruto de origem: {formatMoney(n(bia.imovel_origem.valor_origem), bia.imovel_origem.moeda || bia.moeda || "BRL")}{n(bia.imovel_origem.divida_snapshot) > 0 ? ` · dívida separada: ${formatMoney(n(bia.imovel_origem.divida_snapshot), bia.imovel_origem.moeda || bia.moeda || "BRL")}` : ""}</p></div>
+                <Button variant="outline" onClick={() => navigate(`/carteira/${bia.imovel_origem?.imovel_id}`)}>Abrir imóvel</Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Equipe */}
           <Card>
             <CardContent className="pt-5 pb-4">
@@ -973,7 +983,7 @@ export default function BiaDetalhePage() {
                   <Target className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Nenhuma OBA vinculada a esta BIA</p>
                   <Button
-                    variant="link"
+                    variant="ghost"
                     size="sm"
                     onClick={() => navigate("/area-aliancas?tab=opas")}
                     className="mt-1 text-brand-gold/60"

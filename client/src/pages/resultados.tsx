@@ -151,13 +151,13 @@ function MetricCard({
   icon: any; color?: string; border?: string; highlight?: boolean;
 }) {
   return (
-    <Card className={`${border} ${highlight ?"bg-gradient-to-br from-brand-gold/5 to-transparent" : ""}`}>
+    <Card className={`min-w-0 ${border} ${highlight ?"bg-gradient-to-br from-brand-gold/5 to-transparent" : ""}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         <Icon className={`w-4 h-4 ${color}`} />
       </CardHeader>
-      <CardContent>
-        <p className={`text-xl font-bold ${color}`}>{value}</p>
+      <CardContent className="min-w-0">
+        <p className={`break-words text-lg font-bold tabular-nums sm:text-xl ${color}`}>{value}</p>
         {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
       </CardContent>
     </Card>
@@ -583,7 +583,7 @@ export default function ResultadosPage({
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
       </div>
@@ -607,7 +607,7 @@ export default function ResultadosPage({
 
         {!embedded && (
           <Select value={selectedBiaId} onValueChange={handleBiaChange}>
-            <SelectTrigger className="w-[300px]" data-testid="select-bia">
+            <SelectTrigger className="w-full sm:w-[300px]" data-testid="select-bia">
               <SelectValue placeholder="Selecione uma BIA..." />
             </SelectTrigger>
             <SelectContent>
@@ -630,7 +630,7 @@ export default function ResultadosPage({
       ) : (
         <>
           {/* KPIs principais */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               label="Resultado Líquido"
               value={formatMoney(resultadoLiquido, bia?.moeda || "BRL")}
@@ -664,7 +664,7 @@ export default function ResultadosPage({
           </div>
 
           {/* Linha 2 â€” mÃ©tricas secundÃ¡rias */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               label="Total de Entradas"
               value={formatMoney(totalAportesPagos, bia?.moeda || "BRL")}
@@ -885,7 +885,7 @@ export default function ResultadosPage({
                   </span>
                 </div>
                 <Separator className="my-1" />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3">
+                <div className="grid grid-cols-1 gap-4 pt-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="text-center p-3 rounded-lg bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">Lucro</p>
                     <p className={`text-lg font-bold ${colorClass(lucroValor)}`}>{formatMoney(lucroValor, bia?.moeda || "BRL")}</p>

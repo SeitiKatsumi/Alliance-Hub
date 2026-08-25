@@ -63,6 +63,16 @@ import { ModuleInfo } from "@/components/module-info";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
+interface ImovelSocio {
+  id?: string;
+  nome: string;
+  email?: string | null;
+  user_id?: string | null;
+  membro_id?: string | null;
+  map_percentual: number;
+  status?: "pendente" | "aceito" | "recusado" | "revogado";
+}
+
 interface CarteiraDiagnostico {
   situacao: string;
   classificacoes: string[];
@@ -108,6 +118,10 @@ interface CarteiraImovel {
   objetivo?: string;
   titularidade?: Array<{ nome: string; percentual?: number | string }>;
   participacao_percentual?: number;
+  socios?: ImovelSocio[];
+  map_percentual_usuario?: number;
+  socios_pendentes?: number;
+  bia_origem?: { id: string; bia_id?: string; nome_bia: string; status: string; valor_origem: number } | null;
   situacao_pagamento?: "quitado" | "financiado";
   forma_pagamento?: string;
   instituicao_financeira?: string;
@@ -370,6 +384,7 @@ const EMPTY_PROPERTY: Omit<CarteiraImovel, "id"> = {
   objetivo: "indefinido",
   titularidade: [],
   participacao_percentual: 100,
+  socios: [],
   situacao_pagamento: "quitado",
   forma_pagamento: "",
   instituicao_financeira: "",
@@ -466,21 +481,32 @@ function PropertyFormDialog({
   saving?: boolean;
 }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [form, setForm] = useState<Omit<CarteiraImovel, "id">>(EMPTY_PROPERTY);
   const [cepLoading, setCepLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [resendingPartnerId, setResendingPartnerId] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoUrl = carteiraPhotoUrl(form.foto);
 
   useEffect(() => {
     if (!open) return;
     if (!initial) {
-      setForm(EMPTY_PROPERTY);
+      setForm({
+        ...EMPTY_PROPERTY,
+        socios: [{ nome: user?.nome || "Proprietário principal", email: user?.email || "", user_id: user?.id || null, membro_id: user?.membro_directus_id || null, map_percentual: 100, status: "aceito" }],
+      });
       return;
     }
     const { id: _id, diagnostico: _diagnostico, access_level: _access, is_owner: _owner, ...editable } = initial;
-    setForm({ ...EMPTY_PROPERTY, ...editable });
-  }, [open, initial]);
+    setForm({
+      ...EMPTY_PROPERTY,
+      ...editable,
+      socios: initial.socios?.length ? initial.socios : [{ nome: user?.nome || "Proprietário principal", email: user?.email || "", user_id: user?.id || null, membro_id: user?.membro_directus_id || null, map_percentual: initial.participacao_percentual ?? 100, status: "aceito" }],
+    });
+  }, [open, initial, user]);
+
+  const mapTotal = (form.socios || []).reduce((sum, item) => sum + Number(item.map_percentual || 0), 0);
 
   async function updateCep(raw: string) {
     const digits = raw.replace(/\D/g, "").slice(0, 8);
@@ -535,6 +561,20 @@ function PropertyFormDialog({
       toast({ title: "Não foi possível enviar a foto", description: error?.message || "Tente novamente.", variant: "destructive" });
     } finally {
       setUploadingPhoto(false);
+    }
+  }
+
+  async function resendPartnerInvite(partner: ImovelSocio) {
+    if (!initial?.id || !partner.id) return;
+    setResendingPartnerId(partner.id);
+    try {
+      await apiRequest("POST", `/api/carteira/imoveis/${initial.id}/socios/${partner.id}/reenviar`, {});
+      setForm((current) => ({ ...current, socios: current.socios?.map((item) => item.id === partner.id ? { ...item, status: "pendente" } : item) }));
+      toast({ title: "Convite reenviado", description: `Enviamos uma nova confirmação para ${partner.email}.` });
+    } catch (error: any) {
+      toast({ title: "Não foi possível reenviar", description: error?.message || "Tente novamente.", variant: "destructive" });
+    } finally {
+      setResendingPartnerId(null);
     }
   }
 
@@ -733,27 +773,25 @@ function PropertyFormDialog({
               <SelectContent><SelectItem value="nao_confirmada">Não confirmada</SelectItem><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="media">Média</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Titularidade</Label>
-            <Input
-              value={(form.titularidade || []).map((item) => item.nome).join(", ")}
-              onChange={(event) => setForm({
-                ...form,
-                titularidade: event.target.value.split(",").map((nome) => ({ nome: nome.trim() })).filter((item) => item.nome),
-              })}
-              placeholder="Nome dos titulares, separados por vírgula"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Sua participação neste imóvel (%)</Label>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={form.participacao_percentual ?? 100}
-              onChange={(event) => setForm({ ...form, participacao_percentual: Math.min(100, Math.max(0, Number(event.target.value))) })}
-            />
+          <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div><Label className="text-base">Sócios e MAP de origem</Label><p className="mt-1 text-xs text-muted-foreground">Convide coproprietários por e-mail. A composição precisa totalizar exatamente 100%.</p></div>
+              <Badge variant={Math.abs(mapTotal - 100) < 0.0001 ? "default" : "destructive"}>{mapTotal.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%</Badge>
+            </div>
+            {(form.socios || []).map((socio, index) => (
+              <div key={socio.id || index} className="grid gap-2 rounded-md border bg-white p-3 sm:grid-cols-[1fr_1fr_120px_auto] sm:items-end">
+                <div className="space-y-1"><Label>Nome</Label><Input value={socio.nome} onChange={(event) => setForm({ ...form, socios: form.socios?.map((item, itemIndex) => itemIndex === index ? { ...item, nome: event.target.value } : item) })} /></div>
+                <div className="space-y-1"><Label>E-mail</Label><Input type="email" value={socio.email || ""} disabled={index === 0} onChange={(event) => setForm({ ...form, socios: form.socios?.map((item, itemIndex) => itemIndex === index ? { ...item, email: event.target.value } : item) })} /></div>
+                <div className="space-y-1"><Label>MAP (%)</Label><Input type="number" min="0.0001" max="100" step="0.01" value={socio.map_percentual} onChange={(event) => setForm({ ...form, socios: form.socios?.map((item, itemIndex) => itemIndex === index ? { ...item, map_percentual: Number(event.target.value) } : item) })} /></div>
+                <div className="flex items-center gap-1 pb-0.5">
+                  {socio.status && <Badge variant="outline">{socio.status}</Badge>}
+                  {initial?.id && socio.id && index > 0 && socio.status !== "aceito" && <Button type="button" variant="ghost" size="icon" aria-label={`Reenviar convite para ${socio.nome || socio.email}`} disabled={resendingPartnerId === socio.id} onClick={() => void resendPartnerInvite(socio)}>{resendingPartnerId === socio.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>}
+                  {index > 0 && <Button type="button" variant="ghost" size="icon" aria-label={`Remover ${socio.nome || "sócio"}`} onClick={() => setForm({ ...form, socios: form.socios?.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 className="h-4 w-4 text-red-600" /></Button>}
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={() => setForm({ ...form, socios: [...(form.socios || []), { nome: "", email: "", map_percentual: 0, status: "pendente" }] })}><UserPlus className="mr-2 h-4 w-4" />Adicionar coproprietário</Button>
+            <p className="text-xs text-muted-foreground">Os percentuais são declarações econômicas e não substituem escritura, matrícula ou documentos de titularidade.</p>
           </div>
           <div className="space-y-2">
             <Label>CEP</Label>
@@ -818,7 +856,7 @@ function PropertyFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700"
-            disabled={saving || uploadingPhoto || !form.nome || !form.tipo}
+            disabled={saving || uploadingPhoto || !form.nome || !form.tipo || Math.abs(mapTotal - 100) >= 0.0001 || (form.socios || []).some((item) => !item.nome || !item.email)}
             onClick={() => onSave(form)}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -846,7 +884,7 @@ function PropertyCard({
   const diagnostic = item.diagnostico;
   const hasActions = Boolean(onEdit || onDelete);
   const photoUrl = carteiraPhotoUrl(item.foto);
-  const ownership = Math.min(100, Math.max(0, Number(item.participacao_percentual ?? 100)));
+  const ownership = Math.min(100, Math.max(0, Number(item.map_percentual_usuario ?? item.participacao_percentual ?? 100)));
   const ownedValue = parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * ownership / 100;
   const portfolioShare = portfolioTotal > 0 ? Math.max(0, ownedValue) / portfolioTotal * 100 : 0;
   const acquisition = parseNumber(item.valor_aquisicao_brl ?? item.valor_pago) * ownership / 100;
@@ -1092,7 +1130,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
     for (const item of data?.imoveis || []) {
       const key = [item.bairro, item.cidade].filter(Boolean).join(", ") || "Localização não informada";
       const current = groups.get(key) || { assets: 0, value: 0 };
-      const share = Math.min(100, Math.max(0, Number(item.participacao_percentual ?? 100))) / 100;
+      const share = Math.min(100, Math.max(0, Number(item.map_percentual_usuario ?? item.participacao_percentual ?? 100))) / 100;
       current.assets += 1;
       current.value += parseNumber(item.valor_utilizado_no_total_brl ?? item.valor_atual) * share;
       groups.set(key, current);
@@ -1455,6 +1493,8 @@ function DetailPage({ id }: { id: string }) {
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [originOpen, setOriginOpen] = useState(false);
+  const [originForm, setOriginForm] = useState({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {} as Record<string, "guardiao" | "multiplicador"> });
   const [transferIdentifier, setTransferIdentifier] = useState("");
   const [pulseForm, setPulseForm] = useState({ ocupacao: "", receita: "", despesa: "", acontecimento: "", objetivo: "", data_referencia: new Date().toISOString().slice(0, 10) });
   const [pulsePreview, setPulsePreview] = useState<any | null>(null);
@@ -1500,6 +1540,21 @@ function DetailPage({ id }: { id: string }) {
   const [demandProposals, setDemandProposals] = useState<Record<string, string>>({});
 
   const detailQuery = useQuery<CarteiraImovel>({ queryKey: ["/api/carteira/imoveis", id] });
+  const originPreviewQuery = useQuery<any>({
+    queryKey: ["/api/carteira/imoveis", id, "origem-bia", "preview"],
+    enabled: originOpen,
+    queryFn: async () => (await apiRequest("GET", `/api/carteira/imoveis/${id}/origem-bia/preview`)).json(),
+  });
+  useEffect(() => {
+    const preview = originPreviewQuery.data;
+    if (!originOpen || !preview) return;
+    setOriginForm((current) => ({
+      ...current,
+      nome_bia: current.nome_bia || `BIA ${preview.imovel?.nome || "Imóvel"}`,
+      valor_origem: current.valor_origem || String(preview.valor_origem_sugerido || ""),
+      papeis: Object.keys(current.papeis).length ? current.papeis : Object.fromEntries((preview.socios || []).map((item: ImovelSocio) => [String(item.id), "guardiao"])),
+    }));
+  }, [originOpen, originPreviewQuery.data]);
   const launchesQuery = useQuery<CarteiraLancamento[]>({
     queryKey: ["/api/carteira/lancamentos", id],
     queryFn: async () => (await apiRequest("GET", `/api/carteira/lancamentos?imovel_id=${encodeURIComponent(id)}`)).json(),
@@ -1582,6 +1637,20 @@ function DetailPage({ id }: { id: string }) {
     mutationFn: async (payload: Omit<CarteiraImovel, "id">) => (await apiRequest("PATCH", `/api/carteira/imoveis/${id}`, payload)).json(),
     onSuccess: () => { setEditOpen(false); invalidateAll(); toast({ title: "Imóvel atualizado" }); },
     onError: (error: any) => toast({ title: "Erro ao atualizar", description: error?.message, variant: "destructive" }),
+  });
+  const originMutation = useMutation({
+    mutationFn: async () => (await apiRequest("POST", `/api/carteira/imoveis/${id}/origem-bia`, originForm)).json(),
+    onSuccess: (data: any) => {
+      setOriginOpen(false);
+      invalidateAll();
+      toast({ title: data.status === "aguardando_aprovacao" ? "Solicitação enviada para aprovação" : "Convites de MOU enviados", description: "O MAP inicial será ativado uma única vez após todos os aceites." });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível originar a BIA", description: error?.message, variant: "destructive" }),
+  });
+  const cancelOriginMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/carteira/imoveis/${id}/origem-bia/cancelar`, {}),
+    onSuccess: () => { invalidateAll(); toast({ title: "Solicitação de origem cancelada" }); },
+    onError: (error: any) => toast({ title: "Não foi possível cancelar", description: error?.message, variant: "destructive" }),
   });
   const deletePropertyMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/carteira/imoveis/${id}`),
@@ -1891,6 +1960,9 @@ function DetailPage({ id }: { id: string }) {
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
           {canManage && <Button variant="outline" title="Editar imóvel" onClick={() => setEditOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar</Button>}
+          {imovel.is_owner && !imovel.bia_origem && <Button variant="outline" onClick={() => setOriginOpen(true)}><Link2 className="mr-2 h-4 w-4" />Originar BIA</Button>}
+          {imovel.bia_origem?.bia_id && <Button variant="outline" onClick={() => navigate(`/bias/${imovel.bia_origem?.bia_id}`)}><Link2 className="mr-2 h-4 w-4" />Abrir BIA vinculada</Button>}
+          {imovel.is_owner && imovel.bia_origem && imovel.bia_origem.status !== "ativa" && <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700" disabled={cancelOriginMutation.isPending} onClick={() => window.confirm("Cancelar a solicitação e os convites de MOU desta BIA?") && cancelOriginMutation.mutate()}>{cancelOriginMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}Cancelar origem</Button>}
           {canManage && <Button variant="outline" onClick={() => setPublishConfirm(true)}><Sparkles className="mr-2 h-4 w-4" />Explorar oportunidades</Button>}
           {canDelete && (
             <Button
@@ -1977,6 +2049,23 @@ function DetailPage({ id }: { id: string }) {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div><h2 className="font-semibold">Sócios e MAP de origem</h2><p className="text-sm text-muted-foreground">Participações econômicas confirmadas ou aguardando aceite.</p></div>
+              <Badge variant="outline">{(imovel.socios || []).reduce((sum, item) => sum + Number(item.map_percentual || 0), 0).toLocaleString("pt-BR")}%</Badge>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {(imovel.socios || []).map((socio) => (
+                <div key={socio.id || socio.email} className="rounded-md border bg-white p-3">
+                  <div className="flex items-start justify-between gap-2"><p className="font-medium">{socio.nome}</p><Badge variant={socio.status === "aceito" ? "default" : "outline"}>{socio.status || "pendente"}</Badge></div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{socio.email}</p>
+                  <p className="mt-3 text-lg font-bold text-blue-700">{Number(socio.map_percentual).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}% MAP</p>
+                </div>
+              ))}
+            </div>
+            {!(imovel.socios || []).length && <p className="border-y py-6 text-center text-sm text-muted-foreground">Revise a composição societária na edição do imóvel.</p>}
           </section>
 
           <section>
@@ -2414,6 +2503,23 @@ function DetailPage({ id }: { id: string }) {
       </Tabs>
 
       <PropertyFormDialog open={editOpen} onOpenChange={setEditOpen} initial={imovel} onSave={(payload) => editMutation.mutate(payload)} saving={editMutation.isPending} />
+      <Dialog open={originOpen} onOpenChange={(open) => { setOriginOpen(open); if (!open) setOriginForm({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {} }); }}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Originar uma BIA deste imóvel</DialogTitle><DialogDescription>O imóvel e seu histórico permanecem na Carteira. O MAP abaixo será congelado após todos aceitarem o MOU.</DialogDescription></DialogHeader>
+          {originPreviewQuery.isLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div> : (
+            <div className="space-y-4">
+              {!!originPreviewQuery.data?.impedimentos?.length && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Antes de continuar:</p><ul className="mt-1 list-disc pl-5">{originPreviewQuery.data.impedimentos.map((item: string) => <li key={item}>{item}</li>)}</ul></div>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2"><Label>Nome da BIA</Label><Input value={originForm.nome_bia} onChange={(event) => setOriginForm({ ...originForm, nome_bia: event.target.value })} /></div>
+                <div className="space-y-2"><Label>Valor de origem bruto</Label><Input inputMode="decimal" value={originForm.valor_origem} onChange={(event) => setOriginForm({ ...originForm, valor_origem: event.target.value })} /></div>
+              </div>
+              <div className="space-y-2"><Label>Papel de cada participante</Label>{(originPreviewQuery.data?.socios || []).map((socio: ImovelSocio) => <div key={socio.id} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_130px_180px] sm:items-center"><div><p className="font-medium">{socio.nome}</p><p className="text-xs text-muted-foreground">{socio.map_percentual}% do MAP</p></div><Badge variant="outline">{socio.status}</Badge><Select value={originForm.papeis[String(socio.id)] || ""} onValueChange={(value: "guardiao" | "multiplicador") => setOriginForm({ ...originForm, papeis: { ...originForm.papeis, [String(socio.id)]: value } })}><SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger><SelectContent><SelectItem value="guardiao">Guardião</SelectItem><SelectItem value="multiplicador">Multiplicador</SelectItem></SelectContent></Select></div>)}</div>
+              {Number(originPreviewQuery.data?.divida || 0) > 0 && <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3"><Checkbox checked={originForm.ciente_divida} onCheckedChange={(checked) => setOriginForm({ ...originForm, ciente_divida: checked === true })} /><span className="text-sm">Estou ciente de que o valor de origem é bruto e que o saldo devedor de {money(originPreviewQuery.data.divida, imovel.moeda)} permanecerá registrado separadamente.</span></label>}
+            </div>
+          )}
+          <DialogFooter><Button variant="outline" onClick={() => setOriginOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={!originPreviewQuery.data?.pronto || !originForm.nome_bia.trim() || !(parseNumber(originForm.valor_origem) > 0) || (Number(originPreviewQuery.data?.divida || 0) > 0 && !originForm.ciente_divida) || Object.keys(originForm.papeis).length !== (originPreviewQuery.data?.socios || []).length || originMutation.isPending} onClick={() => originMutation.mutate()}>{originMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar e solicitar MOUs</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <NewLaunchDialog open={launchOpen} onOpenChange={setLaunchOpen} imovelId={id} onSaved={invalidateAll} />
       <Dialog open={demandOpen} onOpenChange={setDemandOpen}>
         <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] sm:max-w-xl">

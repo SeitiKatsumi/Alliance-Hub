@@ -1006,6 +1006,7 @@ interface ComunidadePageProps {
 export default function ComunidadePage({ convitesOnly = false, embedded = false }: ComunidadePageProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const isLimitedCoOwner = user?.role === "coproprietario";
   const isAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const searchParams = useSearch();
@@ -1033,11 +1034,19 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
   const { data: comunidades = [], isLoading } = useQuery<Comunidade[]>({
     queryKey: ["/api/comunidades"],
     queryFn: () => fetch("/api/comunidades").then(r => { if (!r.ok) throw new Error("Erro ao buscar comunidades"); return r.json(); }),
+    enabled: !isLimitedCoOwner,
   });
 
   const { data: membros = [] } = useQuery<Membro[]>({
-    queryKey: ["/api/membros"],
-    queryFn: () => fetch("/api/membros").then(r => { if (!r.ok) throw new Error("Erro ao buscar membros"); return r.json(); }),
+    queryKey: ["/api/membros", isLimitedCoOwner ? user?.membro_directus_id : "todos"],
+    queryFn: async () => {
+      const url = isLimitedCoOwner ? `/api/membros/${user?.membro_directus_id}` : "/api/membros";
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Erro ao buscar membro");
+      const data = await response.json();
+      return Array.isArray(data) ? data : [data];
+    },
+    enabled: !isLimitedCoOwner || !!user?.membro_directus_id,
   });
 
   const currentMembro = useMemo(
@@ -1052,7 +1061,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
 
   const { data: opasNotificacoes = [] } = useQuery<any[]>({
     queryKey: ["/api/oportunidades"],
-    enabled: convitesOnly || activeTab === "convites",
+    enabled: !isLimitedCoOwner && (convitesOnly || activeTab === "convites"),
   });
 
   const { data: chamadasAlianca = [] } = useQuery<ChamadaAlianca[]>({
@@ -1063,7 +1072,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    enabled: convitesOnly || activeTab === "convites",
+    enabled: !isLimitedCoOwner && (convitesOnly || activeTab === "convites"),
     refetchInterval: 30000,
   });
 
@@ -1374,7 +1383,7 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
       if (!mouPendente) throw new Error("Nenhum MOU pendente");
       const base = mouPendente.tipo === "diretor" ? "bia-diretor-solicitacoes" : "bia-socio-solicitacoes";
       const aceite_localizacao = await captureRequiredAcceptanceLocation();
-      if (currentMembro?.id) {
+      if (currentMembro?.id && !isLimitedCoOwner) {
         await apiRequest("PATCH", `/api/membros/${currentMembro.id}`, pickMouDadosProfilePayload(mouDadosForm));
       }
       return apiRequest("PATCH", `/api/${base}/${mouPendente.id}/aceitar`, {
@@ -2052,8 +2061,10 @@ export default function ComunidadePage({ convitesOnly = false, embedded = false 
           <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-brand-gold/20 bg-white p-1 shadow-sm sm:grid-cols-3">
             {[
               { key: "aprovacoes", label: "Aprovações pendentes", count: totalAprovacoesPendentes },
-              { key: "chamadas", label: "Chamadas para aliança", count: chamadasAlianca.length },
-              { key: "opas", label: "Novas OBAs", count: opasPublicasFiltradas.length },
+              ...(!isLimitedCoOwner ? [
+                { key: "chamadas", label: "Chamadas para aliança", count: chamadasAlianca.length },
+                { key: "opas", label: "Novas OBAs", count: opasPublicasFiltradas.length },
+              ] : []),
             ].map((tab) => (
               <button
                 key={tab.key}

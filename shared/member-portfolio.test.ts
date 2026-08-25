@@ -44,6 +44,18 @@ test("patrimonio considera somente a fracao do imovel pertencente ao usuario", (
   assert.equal(result.estimatedTotal, 90);
 });
 
+test("MAP incorpora a alocacao inicial do imovel sem lancamento financeiro", () => {
+  const rows = calculateMap(
+    [{ memberId: "a", value: 100 }],
+    [],
+    [{ memberId: "a", value: 600 }, { memberId: "b", value: 400 }],
+  );
+  assert.deepEqual(rows.map((row) => [row.memberId, row.value, row.percent]), [
+    ["a", 700, 63.63636363636363],
+    ["b", 400, 36.36363636363637],
+  ]);
+});
+
 test("patrimonio total estimado nao desconta dividas e valor de aquisicao inclui aportes", () => {
   const result = calculatePortfolioTotals(
     [{ acquisitionValue: 500_000, currentValue: 600_000, debt: 80_000, ownershipPercent: 50 }],

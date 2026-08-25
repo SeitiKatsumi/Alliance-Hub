@@ -20,7 +20,9 @@ import {
   Sparkles,
   StopCircle,
   Upload,
+  UserPlus,
   Users,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -414,6 +416,8 @@ export default function CarteiraAssistentePage() {
   });
 
   const currentIndex = STEPS.findIndex((item) => item.id === step);
+  const ownershipTotal = Number(draft.participacao_percentual ?? 100) + (draft.socios_adicionais || []).reduce((sum: number, item: any) => sum + Number(item.map_percentual || 0), 0);
+  const ownershipValid = path !== "imovel" || (Math.abs(ownershipTotal - 100) < 0.0001 && (draft.socios_adicionais || []).every((item: any) => item.nome && item.email && Number(item.map_percentual) > 0));
   const isAnalyzable = !recording && Boolean(file || sourceText.trim());
   const suggestions = session?.suggestions || {};
   const conflicts = suggestions.conflitos && typeof suggestions.conflitos === "object" ? suggestions.conflitos : {};
@@ -663,6 +667,13 @@ export default function CarteiraAssistentePage() {
               <div><Label>País</Label><Input className="mt-1" value={draft.pais || "Brasil"} onChange={(event) => setDraft({ ...draft, pais: event.target.value })} /></div>
               <div className="sm:col-span-2"><Label>Endereço</Label><Input className="mt-1" value={draft.endereco || ""} onChange={(event) => setDraft({ ...draft, endereco: event.target.value })} /></div>
               <div className="sm:col-span-2"><Label>Descrição</Label><Textarea className="mt-1" value={draft.descricao || ""} onChange={(event) => setDraft({ ...draft, descricao: event.target.value })} /></div>
+              {path === "imovel" && <div className="space-y-3 rounded-md border bg-slate-50 p-4 sm:col-span-2">
+                <div><Label className="text-base">Sócios e MAP de origem</Label><p className="mt-1 text-xs text-muted-foreground">Informe sua participação e convide coproprietários. A soma precisa fechar 100%.</p></div>
+                <div className="space-y-1"><Label>Sua participação (%)</Label><Input type="number" min="0.0001" max="100" step="0.01" value={draft.participacao_percentual ?? 100} onChange={(event) => setDraft({ ...draft, participacao_percentual: Number(event.target.value) })} /></div>
+                {(draft.socios_adicionais || []).map((socio: any, index: number) => <div key={index} className="grid gap-2 rounded-md border bg-white p-3 sm:grid-cols-[1fr_1fr_120px_auto] sm:items-end"><div><Label>Nome</Label><Input className="mt-1" value={socio.nome || ""} onChange={(event) => setDraft({ ...draft, socios_adicionais: draft.socios_adicionais.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, nome: event.target.value } : item) })} /></div><div><Label>E-mail</Label><Input className="mt-1" type="email" value={socio.email || ""} onChange={(event) => setDraft({ ...draft, socios_adicionais: draft.socios_adicionais.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, email: event.target.value } : item) })} /></div><div><Label>MAP (%)</Label><Input className="mt-1" type="number" min="0.0001" max="100" step="0.01" value={socio.map_percentual || 0} onChange={(event) => setDraft({ ...draft, socios_adicionais: draft.socios_adicionais.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, map_percentual: Number(event.target.value) } : item) })} /></div><Button type="button" variant="ghost" size="icon" aria-label={`Remover ${socio.nome || "sócio"}`} onClick={() => setDraft({ ...draft, socios_adicionais: draft.socios_adicionais.filter((_: any, itemIndex: number) => itemIndex !== index) })}><Trash2 className="h-4 w-4 text-red-600" /></Button></div>)}
+                <div className="flex flex-wrap items-center justify-between gap-2"><Button type="button" variant="outline" onClick={() => setDraft({ ...draft, socios_adicionais: [...(draft.socios_adicionais || []), { nome: "", email: "", map_percentual: 0 }] })}><UserPlus className="mr-2 h-4 w-4" />Adicionar coproprietário</Button><span className={`text-sm font-semibold ${Math.abs(Number(draft.participacao_percentual ?? 100) + (draft.socios_adicionais || []).reduce((sum: number, item: any) => sum + Number(item.map_percentual || 0), 0) - 100) < 0.0001 ? "text-emerald-700" : "text-red-700"}`}>{(Number(draft.participacao_percentual ?? 100) + (draft.socios_adicionais || []).reduce((sum: number, item: any) => sum + Number(item.map_percentual || 0), 0)).toLocaleString("pt-BR")}%</span></div>
+                <p className="text-xs text-muted-foreground">Esta declaração econômica não substitui escritura, matrícula ou documentos de titularidade.</p>
+              </div>}
             </div>
             </section>
           </div>
@@ -743,7 +754,7 @@ export default function CarteiraAssistentePage() {
       <footer className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur">
         <Button variant="outline" disabled={currentIndex === 0 || updateMutation.isPending || recording} onClick={() => setJourneyUrl({ step: STEPS[Math.max(0, currentIndex - 1)].id })}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
         {step !== "conexao" ? (
-          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={recording || (step === "cadastro" && !String(draft.nome || "").trim()) || (step === "intencao" && !draft.intencao) || (step === "analise" && !draft.analise_revisada) || updateMutation.isPending} onClick={() => updateMutation.mutate({
+          <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={recording || (step === "cadastro" && (!String(draft.nome || "").trim() || !ownershipValid)) || (step === "intencao" && !draft.intencao) || (step === "analise" && !draft.analise_revisada) || updateMutation.isPending} onClick={() => updateMutation.mutate({
             nextStep: STEPS[currentIndex + 1].id,
             payload: step === "intencao"
               ? { intencao: draft.intencao }

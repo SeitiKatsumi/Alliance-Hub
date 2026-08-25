@@ -715,6 +715,61 @@ export const carteiraAcessos = pgTable("carteira_acessos", {
   imovelMembroUniq: unique("carteira_acessos_imovel_membro_uniq").on(t.imovel_id, t.membro_id),
 }));
 
+export const carteiraImovelSocios = pgTable("carteira_imovel_socios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "cascade" }),
+  user_id: text("user_id"),
+  membro_id: text("membro_id"),
+  nome: text("nome").notNull(),
+  email: text("email"),
+  map_percentual: numeric("map_percentual", { precision: 7, scale: 4 }).notNull(),
+  status: text("status").notNull().default("pendente"),
+  aceite_versao: integer("aceite_versao").notNull().default(1),
+  aceite_evidencias: jsonb("aceite_evidencias").$type<Record<string, unknown>>().notNull().default({}),
+  convite_token_hash: text("convite_token_hash"),
+  convite_expira_em: timestamp("convite_expira_em"),
+  aceite_em: timestamp("aceite_em"),
+  recusado_em: timestamp("recusado_em"),
+  convidado_por_user_id: text("convidado_por_user_id"),
+  convidado_por_membro_id: text("convidado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+export const biaImovelOrigens = pgTable("bia_imovel_origens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  imovel_id: text("imovel_id").notNull().references(() => inventarioImoveis.id, { onDelete: "restrict" }),
+  bia_id: text("bia_id"),
+  nome_bia: text("nome_bia").notNull(),
+  status: text("status").notNull().default("preparacao"),
+  valor_origem: numeric("valor_origem", { precision: 18, scale: 2 }).notNull(),
+  moeda: text("moeda").notNull().default("BRL"),
+  divida_snapshot: numeric("divida_snapshot", { precision: 18, scale: 2 }).notNull().default("0"),
+  papeis: jsonb("papeis").$type<Record<string, "guardiao" | "multiplicador">>().notNull().default({}),
+  criado_por_user_id: text("criado_por_user_id"),
+  criado_por_membro_id: text("criado_por_membro_id"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+  ativado_em: timestamp("ativado_em"),
+  cancelado_em: timestamp("cancelado_em"),
+});
+
+export const biaMapOrigemAlocacoes = pgTable("bia_map_origem_alocacoes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  origem_id: varchar("origem_id").notNull().references(() => biaImovelOrigens.id, { onDelete: "cascade" }),
+  bia_id: text("bia_id").notNull(),
+  socio_id: varchar("socio_id").references(() => carteiraImovelSocios.id, { onDelete: "set null" }),
+  membro_id: text("membro_id").notNull(),
+  nome: text("nome").notNull(),
+  papel: text("papel").notNull(),
+  percentual: numeric("percentual", { precision: 7, scale: 4 }).notNull(),
+  valor: numeric("valor", { precision: 18, scale: 2 }).notNull(),
+  moeda: text("moeda").notNull().default("BRL"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+}, (t) => ({
+  origemMembroUniq: unique("bia_map_origem_origem_membro_uniq").on(t.origem_id, t.membro_id),
+}));
+
 export type InventarioImovel = typeof inventarioImoveis.$inferSelect;
 export type InventarioLancamento = typeof inventarioLancamentos.$inferSelect;
 export type CarteiraEvento = typeof carteiraEventos.$inferSelect;
@@ -724,6 +779,9 @@ export type CarteiraAlerta = typeof carteiraAlertas.$inferSelect;
 export type CarteiraDemanda = typeof carteiraDemandas.$inferSelect;
 export type EconomicOpportunity = typeof economicOpportunities.$inferSelect;
 export type CarteiraAcesso = typeof carteiraAcessos.$inferSelect;
+export type CarteiraImovelSocio = typeof carteiraImovelSocios.$inferSelect;
+export type BiaImovelOrigem = typeof biaImovelOrigens.$inferSelect;
+export type BiaMapOrigemAlocacao = typeof biaMapOrigemAlocacoes.$inferSelect;
 
 export const membroComunidadeMae = pgTable("membro_comunidade_mae", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -750,7 +808,7 @@ export const createUserSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   membro_directus_id: z.string().optional().or(z.literal("")),
-  role: z.enum(["admin", "manager", "user", "membro", "investidor", "aliado"]).default("user"),
+  role: z.enum(["admin", "manager", "user", "membro", "investidor", "aliado", "coproprietario"]).default("user"),
   permissions: z.record(z.enum(["none", "view", "edit"])).optional(),
   ativo: z.boolean().default(true),
 });

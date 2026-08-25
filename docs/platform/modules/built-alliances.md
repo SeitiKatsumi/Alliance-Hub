@@ -16,6 +16,7 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 
 - `/api/bias*`, `/api/opas*`, `/api/oportunidades*`, `/api/land-bank-assets*`.
 - `/api/bia-estruturacao-solicitacoes*`, aprovacoes, diretorias, socios e chamadas.
+- `/api/carteira/imoveis/:id/origem-bia*` cria uma BIA rastreada a partir de um imovel e reutiliza aprovacoes e MOU existentes; `/convites-alianca` disponibiliza o aceite para contas limitadas.
 - Demandas, distribuicao, feedback, reunioes, rastreabilidade e oportunidades economicas.
 - Timer de oportunidade no backend e invalidacoes React Query no frontend.
 
@@ -23,6 +24,7 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 
 - Directus `bias_projetos`, `land_bank_assets` e colecoes legadas de oportunidade.
 - PostgreSQL: `bias_projetos` operacional, `oportunidades`, `opportunity_*`, `business_trace_*`, aprovacoes, solicitacoes e permissoes.
+- PostgreSQL `bia_imovel_origens` e `bia_map_origem_alocacoes` preservam o imovel, o valor e o MAP inicial imutavel; a BIA continua oficial no Directus.
 - Uma entidade espelhada deve declarar a direcao de sincronizacao; ID Directus nao e substituido por codigo publico.
 
 ## Papeis e permissoes
@@ -48,6 +50,8 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - Convite pendente nao e membro aceito, mas deve permanecer visivel no papel correto.
 - IDs de relacao do Directus podem chegar como string, numero ou objeto e devem ser normalizados.
 - Nao apagar ou recriar BIA para sincronizar formulario parcial.
+- Uma BIA originada de imovel somente ativa depois que todos os coproprietarios aceitam o MOU; Guardiao/Multiplicador e MAP inicial sao efetivados de forma idempotente.
+- Alocacao de MAP de origem participa do helper central, mas nao e receita, aporte ou entrada de caixa.
 - Abas da BIA persistem em URL para refresh e compartilhamento.
 
 ## Efeitos e dependencias

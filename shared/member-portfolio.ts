@@ -24,9 +24,9 @@ export function isMembershipActive(
 export type MapContribution = { memberId: string; name?: string; value: number };
 export type MapTransfer = { status?: string; fromMemberId: string; toMemberId: string; value: number };
 
-export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[]) {
+export function calculateMap(contributions: MapContribution[], transfers: MapTransfer[], originAllocations: MapContribution[] = []) {
   const values = new Map<string, { memberId: string; name: string; value: number }>();
-  for (const contribution of contributions) {
+  for (const contribution of [...originAllocations, ...contributions]) {
     if (!contribution.memberId || !Number.isFinite(contribution.value) || contribution.value <= 0) continue;
     const current = values.get(contribution.memberId) || { memberId: contribution.memberId, name: contribution.name || "Membro", value: 0 };
     current.value += contribution.value;

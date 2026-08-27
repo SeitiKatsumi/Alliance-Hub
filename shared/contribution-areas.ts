@@ -87,6 +87,13 @@ const DISPLAY_ORDER = [
   "Liderança de Capital", "Aporte Financeiro", "Crédito e Captação", "Contábeis e Tributárias", "Gestão Financeira",
 ];
 
+export const LEADERSHIP_CONTRIBUTION_VALUES = [
+  "Alianças de Liderança Técnica",
+  "Alianças de Liderança de Obras",
+  "Alianças de Liderança Comercial",
+  "Alianças de Liderança de Capital",
+] as const;
+
 function normalizedKey(value: unknown): string {
   return String(value || "")
     .normalize("NFD")
@@ -100,6 +107,11 @@ export function getAllContributionAreas(): ContributionAreaDefinition[] {
   return CONTRIBUTION_AREA_GROUPS
     .flatMap((group) => group.areas)
     .sort((a, b) => (order.get(normalizedKey(a.displayName)) ?? 999) - (order.get(normalizedKey(b.displayName)) ?? 999));
+}
+
+export function getPublicContributionAreas(): ContributionAreaDefinition[] {
+  const leadership = new Set<string>(LEADERSHIP_CONTRIBUTION_VALUES);
+  return getAllContributionAreas().filter((area) => !leadership.has(area.value));
 }
 
 export function getContributionAreaDisplayName(value: string): string {

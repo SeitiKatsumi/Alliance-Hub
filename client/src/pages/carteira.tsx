@@ -60,6 +60,7 @@ import { useAuth } from "@/hooks/use-auth";
 import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
 import { ModuleInfo } from "@/components/module-info";
+import { DemandResolutionSelect, type DemandResolutionMode } from "@/components/demand-resolution-select";
 
 type AccessLevel = "leitura" | "colaboracao" | "administracao" | "proprietario";
 
@@ -210,6 +211,21 @@ interface CarteiraLancamento {
   status?: string;
   descricao: string;
   origem?: string;
+}
+
+type CarteiraLancamentoSuggestion = Omit<CarteiraLancamento, "id" | "imovel_id">;
+
+async function analyzeCarteiraLaunchFile(file: File, audio = false): Promise<{ lancamentos: CarteiraLancamentoSuggestion[]; texto?: string }> {
+  const body = new FormData();
+  body.append(audio ? "audio" : "file", file);
+  const response = await fetch(audio ? "/api/carteira/transcrever-audio" : "/api/carteira/importar-anexos", {
+    method: "POST",
+    credentials: "include",
+    body,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Falha na análise por IA");
+  return { ...data, lancamentos: Array.isArray(data.lancamentos) ? data.lancamentos : [] };
 }
 
 interface CarteiraDocumento {
@@ -1368,19 +1384,79 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
 function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: boolean; onOpenChange: (open: boolean) => void; imovelId: string; onSaved: () => void }) {
   const { toast } = useToast();
   const [form, setForm] = useState({ tipo: "despesa", categoria: "Manutenção", valor: "", data: new Date().toISOString().slice(0, 10), status: "pago", descricao: "" });
+  const [suggestions, setSuggestions] = useState<CarteiraLancamentoSuggestion[]>([]);
+  const close = () => {
+    setSuggestions([]);
+    onOpenChange(false);
+  };
   const mutation = useMutation({
     mutationFn: async () => (await apiRequest("POST", "/api/carteira/lancamentos", { ...form, valor: parseNumber(form.valor), imovel_id: imovelId, origem: "declarada" })).json(),
     onSuccess: () => {
-      onOpenChange(false);
+      close();
       setForm({ tipo: "despesa", categoria: "Manutenção", valor: "", data: new Date().toISOString().slice(0, 10), status: "pago", descricao: "" });
       onSaved();
     },
     onError: (error: any) => toast({ title: "Erro ao salvar lançamento", description: error?.message, variant: "destructive" }),
   });
+  const importMutation = useMutation({
+    mutationFn: ({ file, audio }: { file: File; audio?: boolean }) => analyzeCarteiraLaunchFile(file, audio),
+    onSuccess: (data) => {
+      setSuggestions(data.lancamentos);
+      toast({
+        title: data.lancamentos.length ? "Prévia da IA preparada" : "Nenhum lançamento identificado",
+        description: data.lancamentos.length ? `${data.lancamentos.length} lançamento(s) para revisar.` : "Tente outro arquivo ou preencha manualmente.",
+      });
+    },
+    onError: (error: any) => toast({ title: "Não foi possível analisar", description: error?.message, variant: "destructive" }),
+  });
+  const suggestionsMutation = useMutation({
+    mutationFn: () => Promise.all(suggestions.map((item) => apiRequest("POST", "/api/carteira/lancamentos", { ...item, imovel_id: imovelId }))),
+    onSuccess: () => {
+      close();
+      onSaved();
+      toast({ title: "Lançamentos registrados" });
+    },
+    onError: (error: any) => toast({ title: "Erro ao salvar lançamentos", description: error?.message, variant: "destructive" }),
+  });
+  const updateSuggestion = (index: number, patch: Partial<CarteiraLancamentoSuggestion>) => {
+    setSuggestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(nextOpen) => nextOpen ? onOpenChange(true) : close()}>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader><DialogTitle>Novo lançamento</DialogTitle></DialogHeader>
+        <section className="space-y-3 rounded-md border border-blue-100 bg-blue-50/50 p-3">
+          <div>
+            <p className="flex items-center gap-2 font-medium"><Sparkles className="h-4 w-4 text-blue-600" />Leitura com IA</p>
+            <p className="mt-1 text-sm text-muted-foreground">Envie comprovante, planilha, PDF, imagem, texto ou áudio. Revise antes de salvar.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline" asChild disabled={importMutation.isPending}>
+              <label className="cursor-pointer"><Paperclip className="mr-2 h-4 w-4" />Arquivo ou imagem<input type="file" className="hidden" disabled={importMutation.isPending} accept=".pdf,.csv,.txt,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) importMutation.mutate({ file }); event.currentTarget.value = ""; }} /></label>
+            </Button>
+            <Button variant="outline" asChild disabled={importMutation.isPending}>
+              <label className="cursor-pointer"><Mic className="mr-2 h-4 w-4" />Áudio<input type="file" className="hidden" disabled={importMutation.isPending} accept="audio/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) importMutation.mutate({ file, audio: true }); event.currentTarget.value = ""; }} /></label>
+            </Button>
+            {importMutation.isPending && <span className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analisando...</span>}
+          </div>
+        </section>
+        {suggestions.length > 0 && (
+          <section className="space-y-3">
+            <p className="text-sm font-medium">Prévia editável · {suggestions.length} lançamento(s)</p>
+            {suggestions.map((item, index) => (
+              <div key={index} className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                <div className="space-y-2"><Label>Tipo</Label><Select value={item.tipo} onValueChange={(value: "receita" | "despesa") => updateSuggestion(index, { tipo: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="receita">Receita</SelectItem><SelectItem value="despesa">Despesa</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label>Categoria</Label><Input value={item.categoria} onChange={(event) => updateSuggestion(index, { categoria: event.target.value })} /></div>
+                <div className="space-y-2"><Label>Valor</Label><Input inputMode="decimal" value={item.valor} onChange={(event) => updateSuggestion(index, { valor: parseNumber(event.target.value) })} /></div>
+                <div className="space-y-2"><Label>Data</Label><Input type="date" value={item.data} onChange={(event) => updateSuggestion(index, { data: event.target.value })} /></div>
+                <div className="space-y-2"><Label>Status</Label><Select value={item.status || "pendente"} onValueChange={(value) => updateSuggestion(index, { status: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pago">Pago</SelectItem><SelectItem value="agendado">Agendado</SelectItem><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="vencido">Vencido</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label>Descrição</Label><Input value={item.descricao} onChange={(event) => updateSuggestion(index, { descricao: event.target.value })} /></div>
+              </div>
+            ))}
+            <div className="flex justify-end"><Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={suggestionsMutation.isPending || suggestions.some((item) => !item.valor || !item.descricao)} onClick={() => suggestionsMutation.mutate()}>{suggestionsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar sugestões</Button></div>
+          </section>
+        )}
+        <div className="flex items-center gap-3 text-xs uppercase text-muted-foreground"><span className="h-px flex-1 bg-border" />ou preencha manualmente<span className="h-px flex-1 bg-border" /></div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Tipo</Label>
@@ -1401,7 +1477,7 @@ function NewLaunchDialog({ open, onOpenChange, imovelId, onSaved }: { open: bool
           <div className="space-y-2 sm:col-span-2"><Label>Descrição</Label><Input value={form.descricao} onChange={(event) => setForm({ ...form, descricao: event.target.value })} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="outline" onClick={close}>Cancelar</Button>
           <Button className="bg-blue-600 text-white hover:bg-blue-700" disabled={mutation.isPending || !form.valor || !form.descricao} onClick={() => mutation.mutate()}>
             {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
           </Button>
@@ -1518,6 +1594,7 @@ function DetailPage({ id }: { id: string }) {
   const [demandForm, setDemandForm] = useState({
     titulo: "",
     escopo: "",
+    tipo_resolucao: "NETWORK_DEMAND" as DemandResolutionMode,
     tipo_demanda: "servico_fornecimento" as "venda" | "locacao" | "servico_fornecimento",
     urgencia: "normal",
     ajuda: "ainda_nao_sei",
@@ -1785,6 +1862,7 @@ function DetailPage({ id }: { id: string }) {
     mutationFn: async () => (await apiRequest("POST", `/api/carteira/imoveis/${id}/demandas`, {
       titulo: demandForm.titulo,
       escopo: demandForm.escopo,
+      tipo_resolucao: demandForm.tipo_resolucao,
       urgencia: demandForm.urgencia,
       tipo_demanda: demandForm.tipo_demanda,
       modalidade_distribuicao: demandForm.modalidade_distribuicao,
@@ -1802,7 +1880,7 @@ function DetailPage({ id }: { id: string }) {
     onSuccess: () => {
       setDemandOpen(false);
       setDemandProfessionalSearch("");
-      setDemandForm({ titulo: "", escopo: "", tipo_demanda: "servico_fornecimento", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", modalidade_distribuicao: "pulso", destinatarios: [], publicar: false, fluxo_disparo: "gradual", validade_dias: "60" });
+      setDemandForm({ titulo: "", escopo: "", tipo_resolucao: "NETWORK_DEMAND", tipo_demanda: "servico_fornecimento", urgencia: "normal", ajuda: "ainda_nao_sei", especialidades: "", responsavel_user_id: "", modalidade_distribuicao: "pulso", destinatarios: [], publicar: false, fluxo_disparo: "gradual", validade_dias: "60" });
       queryClient.invalidateQueries({ queryKey: ["/api/carteira/imoveis", id, "demandas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       invalidateAll();
@@ -1910,19 +1988,14 @@ function DetailPage({ id }: { id: string }) {
 
   async function importPulseFile(file?: File, audio = false) {
     if (!file) return;
-    const body = new FormData();
-    body.append(audio ? "audio" : "file", file);
-    const response = await fetch(audio ? "/api/carteira/transcrever-audio" : "/api/carteira/importar-anexos", {
-      method: "POST",
-      credentials: "include",
-      body,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return toast({ title: "Não foi possível analisar o arquivo", description: data.error, variant: "destructive" });
-    const launches = Array.isArray(data.lancamentos) ? data.lancamentos : [];
-    setImportedLaunches((current) => [...current, ...launches]);
-    if (data.texto) setPulseForm((current) => ({ ...current, acontecimento: [current.acontecimento, data.texto].filter(Boolean).join("\n") }));
-    toast({ title: "Prévia da IA preparada", description: `${launches.length} lançamento(s) sugerido(s).` });
+    try {
+      const data = await analyzeCarteiraLaunchFile(file, audio);
+      setImportedLaunches((current) => [...current, ...data.lancamentos]);
+      if (data.texto) setPulseForm((current) => ({ ...current, acontecimento: [current.acontecimento, data.texto].filter(Boolean).join("\n") }));
+      toast({ title: "Prévia da IA preparada", description: `${data.lancamentos.length} lançamento(s) sugerido(s).` });
+    } catch (error: any) {
+      toast({ title: "Não foi possível analisar o arquivo", description: error?.message, variant: "destructive" });
+    }
   }
 
   async function attachDemandDocument(demand: CarteiraDemanda, file?: File) {
@@ -2527,6 +2600,7 @@ function DetailPage({ id }: { id: string }) {
           <div className="space-y-4">
             <div className="space-y-2"><Label>O que você precisa?</Label><Input value={demandForm.titulo} onChange={(event) => setDemandForm({ ...demandForm, titulo: event.target.value })} placeholder={`Ex.: Avaliar o valor de ${imovel.nome}`} /></div>
             <div className="space-y-2"><Label>Conte um pouco mais</Label><Textarea value={demandForm.escopo} onChange={(event) => setDemandForm({ ...demandForm, escopo: event.target.value })} placeholder="Descreva o resultado esperado, o contexto e qualquer restrição importante." /></div>
+            <DemandResolutionSelect value={demandForm.tipo_resolucao} onChange={(value) => setDemandForm({ ...demandForm, tipo_resolucao: value })} />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tipo da demanda</Label>

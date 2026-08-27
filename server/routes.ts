@@ -15,7 +15,7 @@ import { PinbankClient, type PinbankChargePayload, type PinbankChargeQueryPayloa
 import { PNG } from "pngjs";
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { deflateSync } from "zlib";
-import { buildComparableMarketAnalysis, marketDistanceKm, MARKET_AREA_TOLERANCE_M2, MARKET_RADIUS_KM } from "./market-comparables";
+import { buildComparableMarketAnalysis, marketDistanceKm, marketLocationCandidates, MARKET_AREA_TOLERANCE_M2, MARKET_RADIUS_KM } from "./market-comparables";
 import { normalizeBiaOriginPatch } from "./bia-origin-value";
 import { resolveAuraAudioMetadata } from "./aura-audio";
 import {
@@ -38,6 +38,20 @@ import { acceptQuotaTransfer } from "./quota-transfer";
 import { classifyBusinessFeedContext, scoreBusinessFeedCandidate, sortBusinessFeed } from "./member-business-feed";
 import { orderedAdesaoCommunityIds, selectMemberCommunityOrigin } from "@shared/member-community";
 import { BUILT_MEMBER_ANNUAL_FEE_BRL, calculateMap, calculatePortfolioTotals, convertPortfolioAmountToBrl, isMembershipActive, membershipEndsAt, normalizeFinancingInstallments, type PortfolioExchangeRate } from "@shared/member-portfolio";
+import {
+  BIA_GOVERNANCE_MONTHLY_CENTS,
+  BIA_MINIMUM_RIG_RATE,
+  COMPANY_ANNUAL_PRICE_CENTS,
+  COMPANY_INCLUDED_SEATS,
+  MEMBER_ANNUAL_PRICE_CENTS,
+  calculateRigCents,
+  companyCheckoutAmount,
+  governanceCompetences,
+  governanceStartsAt,
+} from "@shared/monetization";
+import { getPublicContributionAreas } from "@shared/contribution-areas";
+import { PUBLIC_LABELS } from "@shared/public-labels";
+import { RAMOS_SEGMENTOS } from "../client/src/lib/ramos-segmentos";
 import { buildPropertyOriginAllocations, normalizePropertyPartners, propertyMapIsComplete, PROPERTY_OWNERSHIP_ACCEPTANCE_VERSION, type PropertyPartnerInput } from "@shared/property-ownership";
 import { canAccessBuiltEnvironment, canPublishVitrineProfile } from "@shared/environment-access";
 import {
@@ -74,6 +88,13 @@ import {
   opportunityExpiry,
   publicOpportunityRegistryView,
 } from "./opportunity-platform";
+import {
+  demandResolutionError,
+  demandStatusAfterProposalAccepted,
+  normalizeDemandProposalStatus,
+  normalizeDemandResolutionMode,
+  normalizeProposalAmount,
+} from "./demand-domain";
 import {
   hasUsefulPropertyDocumentText,
   isProfessionalPurpose,
@@ -1413,6 +1434,7 @@ async function ensureCompanyEmployeeAccountsTable() {
       owner_nome text,
       owner_email text,
       employee_user_id text NOT NULL UNIQUE,
+      employee_membro_id text,
       cargo text,
       permissions jsonb NOT NULL DEFAULT '{}'::jsonb,
       status text NOT NULL DEFAULT 'ativo',
@@ -1424,6 +1446,7 @@ async function ensureCompanyEmployeeAccountsTable() {
   `);
   await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS owner_nome text`);
   await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS owner_email text`);
+  await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS employee_membro_id text`);
   await db.execute(sql`ALTER TABLE company_employee_accounts ADD COLUMN IF NOT EXISTS updated_by_user_id text`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_company_employee_accounts_owner ON company_employee_accounts (owner_user_id, created_at DESC)`);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_company_employee_accounts_employee ON company_employee_accounts (employee_user_id)`);
@@ -1437,11 +1460,17 @@ async function ensureCompanyPlanSubscriptionsTable() {
       owner_user_id text NOT NULL UNIQUE,
       plan_code text NOT NULL DEFAULT 'empresa',
       status text NOT NULL DEFAULT 'disponivel',
-      billing_mode text NOT NULL DEFAULT 'gratuito',
-      price_cents integer NOT NULL DEFAULT 0,
+      billing_mode text NOT NULL DEFAULT 'annual',
+      price_cents integer NOT NULL DEFAULT 383640,
       currency text NOT NULL DEFAULT 'BRL',
       provider text,
       provider_subscription_id text,
+      payment_external_id text,
+      checkout_type text,
+      policy_version integer NOT NULL DEFAULT 1,
+      seat_limit integer NOT NULL DEFAULT 3,
+      renewal_price_cents integer NOT NULL DEFAULT 383640,
+      legacy_free boolean NOT NULL DEFAULT false,
       activated_at timestamp,
       current_period_start timestamp DEFAULT now() NOT NULL,
       current_period_end timestamp,
@@ -1451,24 +1480,116 @@ async function ensureCompanyPlanSubscriptionsTable() {
     )
   `);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS activated_at timestamp`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS payment_external_id text`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS checkout_type text`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS policy_version integer NOT NULL DEFAULT 1`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS seat_limit integer NOT NULL DEFAULT 3`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS renewal_price_cents integer NOT NULL DEFAULT 383640`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS legacy_free boolean NOT NULL DEFAULT false`);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN status SET DEFAULT 'disponivel'`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN billing_mode SET DEFAULT 'annual'`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN price_cents SET DEFAULT 383640`);
   await db.execute(sql`
-    UPDATE company_plan_subscriptions plan
-    SET status = 'disponivel', updated_at = now()
-    WHERE plan.status = 'ativo'
-      AND plan.billing_mode = 'gratuito'
-      AND plan.price_cents = 0
-      AND plan.provider IS NULL
-      AND plan.provider_subscription_id IS NULL
-      AND plan.activated_at IS NULL
-      AND NOT EXISTS (
-        SELECT 1
-        FROM company_employee_accounts account
-        WHERE account.owner_user_id = plan.owner_user_id
-      )
+    UPDATE company_plan_subscriptions
+    SET legacy_free = true
+    WHERE billing_mode = 'gratuito' AND price_cents = 0
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_company_plan_subscriptions_owner ON company_plan_subscriptions (owner_user_id)`);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_company_plan_payment_external ON company_plan_subscriptions (provider, payment_external_id) WHERE payment_external_id IS NOT NULL`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_company_plan_subscriptions_status ON company_plan_subscriptions (status)`);
+}
+
+async function ensureMonetizationTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS monetization_policies (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      code text NOT NULL,
+      version integer NOT NULL,
+      amount_cents integer,
+      minimum_rate numeric(8, 6),
+      currency text NOT NULL DEFAULT 'BRL',
+      effective_from timestamp DEFAULT now() NOT NULL,
+      status text NOT NULL DEFAULT 'active',
+      approved_by_user_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT monetization_policies_code_version_uniq UNIQUE (code, version)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_billing_terms (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL UNIQUE,
+      policy_id text NOT NULL,
+      origin_value numeric(16, 2) NOT NULL,
+      rig_rate numeric(8, 6) NOT NULL,
+      rig_amount_cents integer NOT NULL,
+      governance_amount_cents integer NOT NULL DEFAULT 60000,
+      institutional_start_at timestamp NOT NULL,
+      billing_resume_at timestamp,
+      status text NOT NULL DEFAULT 'draft',
+      approved_by_user_id text,
+      approved_at timestamp,
+      snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`ALTER TABLE bia_billing_terms ADD COLUMN IF NOT EXISTS billing_resume_at timestamp`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bia_billing_charges (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      bia_id text NOT NULL,
+      terms_id text NOT NULL,
+      charge_type text NOT NULL,
+      competence text NOT NULL,
+      amount_cents integer NOT NULL,
+      due_at timestamp NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      provider text,
+      provider_external_id text,
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT bia_billing_charges_term_type_competence_uniq UNIQUE (terms_id, charge_type, competence),
+      CONSTRAINT bia_billing_charges_provider_external_uniq UNIQUE (provider, provider_external_id)
+    )
+  `);
+  const policies = [
+    ["MEMBER_ANNUAL", MEMBER_ANNUAL_PRICE_CENTS, null],
+    ["COMPANY_ANNUAL", COMPANY_ANNUAL_PRICE_CENTS, null],
+    ["BIA_RIG", null, BIA_MINIMUM_RIG_RATE],
+    ["BIA_GOVERNANCE_MONTHLY", BIA_GOVERNANCE_MONTHLY_CENTS, null],
+  ] as const;
+  for (const [code, amount, minimumRate] of policies) {
+    await db.execute(sql`
+      INSERT INTO monetization_policies (code, version, amount_cents, minimum_rate, currency, status)
+      VALUES (${code}, 1, ${amount}, ${minimumRate}, 'BRL', 'active')
+      ON CONFLICT (code, version) DO NOTHING
+    `);
+  }
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_bia_billing_charges_due ON bia_billing_charges (status, due_at)`);
+}
+
+async function ensureTaxonomyTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS taxonomy_public_labels (
+      code text PRIMARY KEY,
+      display_name text NOT NULL,
+      description text,
+      updated_by_user_id text,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS contribution_area_segments (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      contribution_area_value text NOT NULL,
+      segment_code text NOT NULL,
+      created_by_user_id text,
+      created_at timestamp DEFAULT now() NOT NULL,
+      CONSTRAINT contribution_area_segments_uniq UNIQUE (contribution_area_value, segment_code)
+    )
+  `);
 }
 
 async function ensureBiaBancoTables() {
@@ -1961,6 +2082,11 @@ async function applyBusinessOpportunityTables() {
       UNIQUE (demanda_id, user_id)
     )
   `);
+  await db.execute(sql`ALTER TABLE carteira_demanda_interesses ADD COLUMN IF NOT EXISTS escopo text`);
+  await db.execute(sql`ALTER TABLE carteira_demanda_interesses ADD COLUMN IF NOT EXISTS valor numeric(14, 2)`);
+  await db.execute(sql`ALTER TABLE carteira_demanda_interesses ADD COLUMN IF NOT EXISTS moeda text NOT NULL DEFAULT 'BRL'`);
+  await db.execute(sql`ALTER TABLE carteira_demanda_interesses ADD COLUMN IF NOT EXISTS prazo text`);
+  await db.execute(sql`ALTER TABLE carteira_demanda_interesses ADD COLUMN IF NOT EXISTS valida_ate timestamp`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS land_bank_asset_interesses (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3635,6 +3761,10 @@ export async function registerRoutes(
   ensureBiaUserPermissionsTable().catch((err: any) => console.warn("[bia-access] Tabela nao sincronizada:", err?.message || err));
   ensureCompanyEmployeeAccountsTable().catch((err: any) => console.warn("[company-access] Tabela nao sincronizada:", err?.message || err));
   ensureCompanyPlanSubscriptionsTable().catch((err: any) => console.warn("[company-plan] Tabela nao sincronizada:", err?.message || err));
+  ensureMonetizationTables().catch((err: any) => console.warn("[monetization] Tabelas nao sincronizadas:", err?.message || err));
+  ensureTaxonomyTables().catch((err: any) => console.warn("[taxonomy] Tabelas nao sincronizadas:", err?.message || err));
+  processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Competencias nao sincronizadas:", err?.message || err));
+  setInterval(() => processBiaGovernanceCharges().catch((err: any) => console.warn("[monetization] Cron de governanca falhou:", err?.message || err)), 6 * 60 * 60 * 1000).unref();
   ensureTermosAceiteAuditoriaTable().catch((err: any) => console.warn("[termos-aceite] Tabela nao sincronizada:", err?.message || err));
   ensureInitialOnboardingTable().catch((err: any) => console.warn("[initial-onboarding] Tabela nao sincronizada:", err?.message || err));
   ensureChamadasAliancaTable().catch((err: any) => console.warn("[chamadas-alianca] Tabela nao sincronizada:", err?.message || err));
@@ -3767,6 +3897,317 @@ export async function registerRoutes(
     return Array.isArray(result?.rows) ? result.rows : Array.isArray(result) ? result : [];
   }
 
+  async function activeMonetizationPolicy(code: string) {
+    await ensureMonetizationTables();
+    const result: any = await db.execute(sql`
+      SELECT * FROM monetization_policies
+      WHERE code = ${code} AND status = 'active' AND effective_from <= now()
+      ORDER BY version DESC LIMIT 1
+    `);
+    return resultRows(result)[0] || null;
+  }
+
+  function governanceDueAt(competence: string, institutionalStart: Date) {
+    const [year, month] = competence.split("-").map(Number);
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return new Date(Date.UTC(year, month - 1, Math.min(institutionalStart.getUTCDate(), lastDay)));
+  }
+
+  async function processBiaGovernanceCharges(through = new Date()) {
+    await ensureMonetizationTables();
+    const result: any = await db.execute(sql`SELECT * FROM bia_billing_terms WHERE status = 'active'`);
+    for (const terms of resultRows(result)) {
+      const institutionalStart = new Date(terms.institutional_start_at);
+      const resumeAt = terms.billing_resume_at ? new Date(terms.billing_resume_at) : institutionalStart;
+      for (const competence of governanceCompetences(institutionalStart, through)) {
+        const dueAt = governanceDueAt(competence, institutionalStart);
+        if (dueAt < resumeAt) continue;
+        await db.execute(sql`
+          INSERT INTO bia_billing_charges (
+            bia_id, terms_id, charge_type, competence, amount_cents, due_at, status, metadata
+          ) VALUES (
+            ${terms.bia_id}, ${terms.id}, 'governance', ${competence},
+            ${Number(terms.governance_amount_cents)}, ${dueAt}, 'pending',
+            ${JSON.stringify({ policy_snapshot: terms.snapshot || {}, no_daily_proration: true })}::jsonb
+          ) ON CONFLICT (terms_id, charge_type, competence) DO NOTHING
+        `);
+      }
+    }
+  }
+
+  app.get("/api/taxonomy/public-labels", async (_req, res) => {
+    try {
+      await ensureTaxonomyTables();
+      const overrides: any = await db.execute(sql`SELECT code, display_name, description FROM taxonomy_public_labels`);
+      const byCode = new Map(resultRows(overrides).map((item) => [String(item.code), item]));
+      res.json(Object.entries(PUBLIC_LABELS).map(([code, fallback]) => ({
+        code,
+        display_name: byCode.get(code)?.display_name || fallback,
+        description: byCode.get(code)?.description || null,
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar nomes públicos" });
+    }
+  });
+
+  app.get("/api/taxonomy/contribution-segments", async (req, res) => {
+    try {
+      await ensureTaxonomyTables();
+      const area = String(req.query.contribution_area || "").trim();
+      const result: any = area
+        ? await db.execute(sql`SELECT contribution_area_value, segment_code FROM contribution_area_segments WHERE contribution_area_value = ${area} ORDER BY segment_code`)
+        : await db.execute(sql`SELECT contribution_area_value, segment_code FROM contribution_area_segments ORDER BY contribution_area_value, segment_code`);
+      res.json(resultRows(result));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar relação de segmentos" });
+    }
+  });
+
+  app.put("/api/admin/taxonomy/public-labels/:code", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const code = String(req.params.code || "");
+    const displayName = String(req.body?.display_name || "").trim();
+    if (!(code in PUBLIC_LABELS) || !displayName) return res.status(400).json({ error: "Código ou nome público inválido." });
+    try {
+      await ensureTaxonomyTables();
+      const result: any = await db.execute(sql`
+        INSERT INTO taxonomy_public_labels (code, display_name, description, updated_by_user_id, updated_at)
+        VALUES (${code}, ${displayName}, ${String(req.body?.description || "").trim() || null}, ${String(req.session?.directusUserId || "")}, now())
+        ON CONFLICT (code) DO UPDATE SET display_name = EXCLUDED.display_name,
+          description = EXCLUDED.description, updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = now()
+        RETURNING *
+      `);
+      await recordUsageEvent(req, "taxonomy_public_label_updated", { metadata: { code } });
+      res.json(resultRows(result)[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar nome público" });
+    }
+  });
+
+  app.put("/api/admin/taxonomy/contribution-segments", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const area = String(req.body?.contribution_area || "").trim();
+    const allowedAreas = new Set(getPublicContributionAreas().map((item) => item.value));
+    const segmentCodes = Array.from(new Set((Array.isArray(req.body?.segment_codes) ? req.body.segment_codes : [])
+      .map((item: unknown) => String(item || "").trim()).filter(Boolean))) as string[];
+    if (!allowedAreas.has(area)) return res.status(400).json({ error: "Área de contribuição pública inválida." });
+    const allowedSegmentCodes = new Set(RAMOS_SEGMENTOS.flatMap((ramo) => ramo.segmentos.map((segmento) => segmento.codigo)));
+    if (segmentCodes.some((code) => !allowedSegmentCodes.has(code))) return res.status(400).json({ error: "A relação contém um segmento fora da taxonomia oficial." });
+    try {
+      await ensureTaxonomyTables();
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`DELETE FROM contribution_area_segments WHERE contribution_area_value = ${area}`);
+        for (const segmentCode of segmentCodes) {
+          await tx.execute(sql`
+            INSERT INTO contribution_area_segments (contribution_area_value, segment_code, created_by_user_id)
+            VALUES (${area}, ${segmentCode}, ${String(req.session?.directusUserId || "")})
+            ON CONFLICT (contribution_area_value, segment_code) DO NOTHING
+          `);
+        }
+      });
+      await recordUsageEvent(req, "contribution_segments_updated", { metadata: { contribution_area: area, total: segmentCodes.length } });
+      res.json({ contribution_area: area, segment_codes: segmentCodes });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar relação de segmentos" });
+    }
+  });
+
+  app.get("/api/admin/monetization/policies", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    try {
+      await ensureMonetizationTables();
+      const result: any = await db.execute(sql`SELECT * FROM monetization_policies ORDER BY code, version DESC`);
+      res.json(resultRows(result));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar políticas" });
+    }
+  });
+
+  app.put("/api/admin/monetization/policies/:code", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const code = String(req.params.code || "");
+    const allowed = new Set(["MEMBER_ANNUAL", "COMPANY_ANNUAL", "BIA_RIG", "BIA_GOVERNANCE_MONTHLY"]);
+    if (!allowed.has(code)) return res.status(400).json({ error: "Política desconhecida." });
+    const amountCents = req.body?.amount_cents == null ? null : Number(req.body.amount_cents);
+    const minimumRate = req.body?.minimum_rate == null ? null : Number(req.body.minimum_rate);
+    if (code === "BIA_RIG" && (!Number.isFinite(minimumRate) || Number(minimumRate) < BIA_MINIMUM_RIG_RATE)) {
+      return res.status(400).json({ error: "O percentual mínimo de RIG não pode ser inferior a 1%." });
+    }
+    if (code !== "BIA_RIG" && (!Number.isInteger(amountCents) || Number(amountCents) <= 0)) {
+      return res.status(400).json({ error: "Informe um valor monetário válido em centavos." });
+    }
+    const effectiveFrom = req.body?.effective_from ? new Date(req.body.effective_from) : new Date();
+    if (!Number.isFinite(effectiveFrom.getTime())) return res.status(400).json({ error: "Data de vigência inválida." });
+    try {
+      let created: any = null;
+      await db.transaction(async (tx) => {
+        const latest: any = await tx.execute(sql`SELECT COALESCE(max(version), 0)::int AS version FROM monetization_policies WHERE code = ${code}`);
+        const version = Number(resultRows(latest)[0]?.version || 0) + 1;
+        await tx.execute(sql`UPDATE monetization_policies SET status = 'inactive' WHERE code = ${code} AND status = 'active'`);
+        const result: any = await tx.execute(sql`
+          INSERT INTO monetization_policies (code, version, amount_cents, minimum_rate, currency, effective_from, status, approved_by_user_id)
+          VALUES (${code}, ${version}, ${amountCents}, ${minimumRate}, 'BRL', ${effectiveFrom}, 'active', ${String(req.session?.directusUserId || "")})
+          RETURNING *
+        `);
+        created = resultRows(result)[0] || null;
+      });
+      await recordUsageEvent(req, "monetization_policy_versioned", { metadata: { code, version: created?.version } });
+      res.status(201).json(created);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao versionar política" });
+    }
+  });
+
+  app.get("/api/admin/bias/:id/monetization", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    try {
+      await processBiaGovernanceCharges();
+      const bia = await resolveBiaByIdOrPublicCode(String(req.params.id), "id");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada." });
+      const terms: any = await db.execute(sql`SELECT * FROM bia_billing_terms WHERE bia_id = ${String(bia.id)} LIMIT 1`);
+      const term = resultRows(terms)[0] || null;
+      const charges: any = term
+        ? await db.execute(sql`SELECT * FROM bia_billing_charges WHERE terms_id = ${term.id} ORDER BY due_at, created_at`)
+        : { rows: [] };
+      res.json({ terms: term, charges: resultRows(charges) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar monetização da BIA" });
+    }
+  });
+
+  app.put("/api/admin/bias/:id/monetization", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const biaId = String(req.params.id);
+    const originValue = Number(req.body?.origin_value);
+    const rigRate = Number(req.body?.rig_rate);
+    const institutionalStart = new Date(req.body?.institutional_start_at);
+    const rigAmountCents = calculateRigCents(originValue, rigRate);
+    if (rigAmountCents == null) return res.status(400).json({ error: "Valor de Origem inválido ou RIG inferior a 1%." });
+    if (!Number.isFinite(institutionalStart.getTime())) return res.status(400).json({ error: "Data de início institucional inválida." });
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(biaId, "id,nome");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada." });
+      const existing: any = await db.execute(sql`SELECT status FROM bia_billing_terms WHERE bia_id = ${String(bia.id)} LIMIT 1`);
+      if (resultRows(existing)[0]?.status && resultRows(existing)[0].status !== "draft") {
+        return res.status(409).json({ error: "O termo aprovado é imutável. Crie uma nova política para futuras BIAs." });
+      }
+      const rigPolicy = await activeMonetizationPolicy("BIA_RIG");
+      const governancePolicy = await activeMonetizationPolicy("BIA_GOVERNANCE_MONTHLY");
+      if (!rigPolicy || !governancePolicy) return res.status(503).json({ error: "Políticas de monetização não configuradas." });
+      if (rigRate < Number(rigPolicy.minimum_rate || BIA_MINIMUM_RIG_RATE)) {
+        return res.status(400).json({ error: `O RIG não pode ser inferior a ${Number(rigPolicy.minimum_rate || BIA_MINIMUM_RIG_RATE) * 100}%.` });
+      }
+      const snapshot = {
+        rig_policy: { id: rigPolicy.id, version: rigPolicy.version, minimum_rate: Number(rigPolicy.minimum_rate) },
+        governance_policy: { id: governancePolicy.id, version: governancePolicy.version, amount_cents: Number(governancePolicy.amount_cents) },
+        currency: "BRL",
+        first_24_months_covered_by_rig: true,
+      };
+      const result: any = await db.execute(sql`
+        INSERT INTO bia_billing_terms (
+          bia_id, policy_id, origin_value, rig_rate, rig_amount_cents, governance_amount_cents,
+          institutional_start_at, billing_resume_at, status, snapshot, updated_at
+        ) VALUES (
+          ${String(bia.id)}, ${String(rigPolicy.id)}, ${originValue}, ${rigRate}, ${rigAmountCents},
+          ${Number(governancePolicy.amount_cents)}, ${institutionalStart}, ${institutionalStart}, 'draft', ${JSON.stringify(snapshot)}::jsonb, now()
+        ) ON CONFLICT (bia_id) DO UPDATE SET policy_id = EXCLUDED.policy_id, origin_value = EXCLUDED.origin_value,
+          rig_rate = EXCLUDED.rig_rate, rig_amount_cents = EXCLUDED.rig_amount_cents,
+          governance_amount_cents = EXCLUDED.governance_amount_cents, institutional_start_at = EXCLUDED.institutional_start_at,
+          billing_resume_at = EXCLUDED.billing_resume_at, snapshot = EXCLUDED.snapshot, updated_at = now()
+        RETURNING *
+      `);
+      await recordUsageEvent(req, "bia_monetization_draft_saved", { metadata: { bia_id: String(bia.id) } });
+      res.json(resultRows(result)[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao salvar termo da BIA" });
+    }
+  });
+
+  app.post("/api/admin/bias/:id/monetization/approve", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(String(req.params.id), "id");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada." });
+      let approved: any = null;
+      await db.transaction(async (tx) => {
+        const result: any = await tx.execute(sql`
+          UPDATE bia_billing_terms SET status = 'active', approved_by_user_id = ${String(req.session?.directusUserId || "")},
+            approved_at = now(), updated_at = now()
+          WHERE bia_id = ${String(bia.id)} AND status = 'draft'
+          RETURNING *
+        `);
+        approved = resultRows(result)[0] || null;
+        if (!approved) return;
+        await tx.execute(sql`
+          INSERT INTO bia_billing_charges (bia_id, terms_id, charge_type, competence, amount_cents, due_at, status, metadata)
+          VALUES (${approved.bia_id}, ${approved.id}, 'rig', 'ORIGIN', ${Number(approved.rig_amount_cents)},
+            ${new Date(approved.institutional_start_at)}, 'pending', ${JSON.stringify({ policy_snapshot: approved.snapshot || {} })}::jsonb)
+          ON CONFLICT (terms_id, charge_type, competence) DO NOTHING
+        `);
+      });
+      if (!approved) return res.status(409).json({ error: "Somente um termo em rascunho pode ser aprovado." });
+      await processBiaGovernanceCharges();
+      await recordUsageEvent(req, "bia_monetization_approved", { metadata: { bia_id: approved.bia_id, terms_id: approved.id } });
+      res.json(approved);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao aprovar termo da BIA" });
+    }
+  });
+
+  app.patch("/api/admin/bias/:id/monetization", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const nextStatus = String(req.body?.status || "");
+    if (!["active", "suspended", "ended"].includes(nextStatus)) return res.status(400).json({ error: "Status inválido." });
+    try {
+      const bia = await resolveBiaByIdOrPublicCode(String(req.params.id), "id");
+      if (!bia) return res.status(404).json({ error: "BIA não encontrada." });
+      if (nextStatus !== "active") await processBiaGovernanceCharges();
+      const currentResult: any = await db.execute(sql`SELECT status FROM bia_billing_terms WHERE bia_id = ${String(bia.id)} LIMIT 1`);
+      const currentStatus = resultRows(currentResult)[0]?.status;
+      if (!currentStatus || currentStatus === "draft" || currentStatus === "ended") {
+        return res.status(409).json({ error: "Termo não encontrado, não aprovado ou encerrado." });
+      }
+      if (nextStatus === currentStatus) return res.json((await db.execute(sql`SELECT * FROM bia_billing_terms WHERE bia_id = ${String(bia.id)} LIMIT 1`)).rows?.[0]);
+      if (nextStatus === "active" && currentStatus !== "suspended") return res.status(409).json({ error: "Somente uma governança suspensa pode ser reativada." });
+      const result: any = await db.execute(sql`
+        UPDATE bia_billing_terms
+        SET status = ${nextStatus}, billing_resume_at = CASE WHEN ${nextStatus} = 'active' THEN now() ELSE billing_resume_at END, updated_at = now()
+        WHERE bia_id = ${String(bia.id)} AND status = ${currentStatus}
+        RETURNING *
+      `);
+      const terms = resultRows(result)[0] || null;
+      if (!terms) return res.status(409).json({ error: "Termo não encontrado ou encerrado." });
+      await recordUsageEvent(req, "bia_monetization_status_changed", { metadata: { bia_id: terms.bia_id, status: nextStatus } });
+      res.json(terms);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao alterar governança da BIA" });
+    }
+  });
+
+  app.patch("/api/admin/bia-monetization/charges/:chargeId", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const status = String(req.body?.status || "");
+    if (!["pending", "paid", "overdue", "canceled", "refunded", "chargeback"].includes(status)) {
+      return res.status(400).json({ error: "Status de cobrança inválido." });
+    }
+    try {
+      const result: any = await db.execute(sql`
+        UPDATE bia_billing_charges
+        SET status = ${status}, provider = ${req.body?.provider ? String(req.body.provider) : null},
+          provider_external_id = ${req.body?.provider_external_id ? String(req.body.provider_external_id) : null},
+          metadata = metadata || ${JSON.stringify({ changed_by_user_id: String(req.session?.directusUserId || ""), changed_at: new Date().toISOString() })}::jsonb,
+          updated_at = now()
+        WHERE id = ${String(req.params.chargeId)} RETURNING *
+      `);
+      const charge = resultRows(result)[0] || null;
+      if (!charge) return res.status(404).json({ error: "Cobrança não encontrada." });
+      await recordUsageEvent(req, "bia_charge_status_changed", { metadata: { charge_id: charge.id, status } });
+      res.json(charge);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao atualizar cobrança" });
+    }
+  });
+
   async function ensureCompanyPlanForOwner(ownerUserId: string): Promise<any> {
     await ensureCompanyPlanSubscriptionsTable();
     await db.execute(sql`
@@ -3778,7 +4219,7 @@ export async function registerRoutes(
         price_cents,
         currency
       )
-      VALUES (${ownerUserId}, 'empresa', 'disponivel', 'gratuito', 0, 'BRL')
+      VALUES (${ownerUserId}, 'empresa', 'disponivel', 'annual', ${COMPANY_ANNUAL_PRICE_CENTS}, 'BRL')
       ON CONFLICT (owner_user_id) DO NOTHING
     `);
     const result: any = await db.execute(sql`
@@ -3799,7 +4240,66 @@ export async function registerRoutes(
       is_free: billingMode === "gratuito" || priceCents === 0,
       billing_required: billingMode !== "gratuito" && priceCents > 0,
       can_manage_employees: plan?.status === "ativo",
+      included_users: Number(plan?.seat_limit || COMPANY_INCLUDED_SEATS),
+      renewal_price_cents: Number(plan?.renewal_price_cents || COMPANY_ANNUAL_PRICE_CENTS),
     };
+  }
+
+  function isActiveCompanyPlan(plan: any) {
+    return Boolean(plan?.status === "ativo" && (!plan.current_period_end || new Date(plan.current_period_end) > new Date()));
+  }
+
+  async function activeIndividualMembershipForOwner(ownerUserId: string) {
+    const result: any = await db.execute(sql`
+      SELECT membership.*
+      FROM users owner
+      JOIN membro_anuidades membership ON membership.membro_id = owner.membro_directus_id
+      WHERE owner.id::text = ${ownerUserId}
+        AND membership.status = 'active'
+        AND membership.starts_at <= now()
+        AND membership.ends_at > now()
+      ORDER BY membership.ends_at DESC
+      LIMIT 1
+    `);
+    return resultRows(result)[0] || null;
+  }
+
+  async function activateCompanyPlanPayment(ownerUserId: string, provider: string, externalId: string, checkoutType?: string | null) {
+    await ensureCompanyPlanForOwner(ownerUserId);
+    const existing: any = await db.execute(sql`
+      SELECT * FROM company_plan_subscriptions
+      WHERE owner_user_id = ${ownerUserId}
+      LIMIT 1
+    `);
+    const current = resultRows(existing)[0];
+    if (current?.status === "ativo" && current?.payment_external_id === externalId) return current;
+    const individual = checkoutType === "upgrade" ? await activeIndividualMembershipForOwner(ownerUserId) : null;
+    const periodEnd = individual?.ends_at ? new Date(individual.ends_at) : membershipEndsAt(new Date());
+    const result: any = await db.execute(sql`
+      UPDATE company_plan_subscriptions
+      SET status = 'ativo', billing_mode = 'annual', price_cents = ${COMPANY_ANNUAL_PRICE_CENTS},
+          renewal_price_cents = ${COMPANY_ANNUAL_PRICE_CENTS}, currency = 'BRL', provider = ${provider},
+          provider_subscription_id = ${externalId}, payment_external_id = ${externalId},
+          checkout_type = ${checkoutType || "full"}, legacy_free = false,
+          activated_at = COALESCE(activated_at, now()), current_period_start = now(),
+          current_period_end = ${periodEnd}, updated_at = now()
+      WHERE owner_user_id = ${ownerUserId}
+      RETURNING *
+    `);
+    return resultRows(result)[0] || null;
+  }
+
+  async function hasActiveCompanyPlan(userId: string): Promise<boolean> {
+    const result: any = await db.execute(sql`
+      SELECT 1
+      FROM company_plan_subscriptions plan
+      LEFT JOIN company_employee_accounts employee ON employee.owner_user_id = plan.owner_user_id
+      WHERE plan.status = 'ativo'
+        AND (plan.current_period_end IS NULL OR plan.current_period_end > now())
+        AND (plan.owner_user_id = ${userId} OR (employee.employee_user_id = ${userId} AND employee.status = 'ativo'))
+      LIMIT 1
+    `).catch(() => ({ rows: [] } as any));
+    return Boolean(resultRows(result)[0]);
   }
 
   async function getCompanyEmployeeByUserId(employeeUserId: string): Promise<any | null> {
@@ -3841,7 +4341,11 @@ export async function registerRoutes(
     req.session.companyOwnerUserId = String(account.owner_user_id);
     req.session.companyOwnerMembroId = account.owner_membro_id ? String(account.owner_membro_id) : null;
     req.session.companyEmployeePermissions = permissions;
-    req.session.membroId = account.owner_membro_id ? String(account.owner_membro_id) : null;
+    req.session.membroId = account.employee_membro_id
+      ? String(account.employee_membro_id)
+      : account.owner_membro_id
+        ? String(account.owner_membro_id)
+        : null;
     req.session.nome = localUser?.nome || account.employee_nome || req.session.nome;
     req.session.email = localUser?.email || account.employee_email || req.session.email;
     req.session.role = "employee";
@@ -3891,7 +4395,7 @@ export async function registerRoutes(
         });
       }
       const companyPlan = await ensureCompanyPlanForOwner(String(account.owner_user_id));
-      if (!companyPlan || companyPlan.status !== "ativo") {
+      if (!isActiveCompanyPlan(companyPlan)) {
         return res.status(403).json({
           error: "A assinatura do Plano Empresa não está ativa.",
           code: "COMPANY_PLAN_INACTIVE",
@@ -3900,7 +4404,11 @@ export async function registerRoutes(
       applyCompanyEmployeeSession(req, account);
 
       if (pathname.startsWith("/api/empresa/funcionarios")) return next();
-      if (pathname.startsWith("/api/membros/") && !["GET", "HEAD"].includes(req.method)) {
+      if (
+        pathname.startsWith("/api/membros/")
+        && !["GET", "HEAD"].includes(req.method)
+        && pathname !== `/api/membros/${account.employee_membro_id || ""}`
+      ) {
         return res.status(403).json({
           error: "Funcionários não podem alterar o perfil principal da empresa.",
           code: "COMPANY_ACCESS_DENIED",
@@ -3954,31 +4462,100 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/empresa/plano/ativar", async (req: any, res) => {
+  async function createCompanyPlanCheckout(req: any, res: any) {
     const ownerUserId = requireCompanyOwner(req, res);
     if (!ownerUserId) return;
     try {
-      await ensureCompanyPlanForOwner(ownerUserId);
-      const result: any = await db.execute(sql`
+      const plan = await ensureCompanyPlanForOwner(ownerUserId);
+      if (plan?.status === "ativo" && !plan?.legacy_free && (!plan?.current_period_end || new Date(plan.current_period_end) > new Date())) {
+        return res.status(409).json({ error: "O Plano Empresa já está ativo." });
+      }
+      const individual = await activeIndividualMembershipForOwner(ownerUserId);
+      const checkoutType = individual ? "upgrade" : "full";
+      const amountCents = companyCheckoutAmount(Boolean(individual));
+      const requestedProvider = String(req.body?.provider || "").toLowerCase();
+      const provider = requestedProvider === "asaas" || requestedProvider === "stripe"
+        ? requestedProvider
+        : isBrazilPaymentContext(req.body?.pais || "brasil") ? "asaas" : "stripe";
+      const appUrl = getPublicAppBaseUrl();
+      const externalReference = `company_plan:${ownerUserId}:${checkoutType}`;
+      let checkoutUrl = "";
+      let externalId = "";
+
+      if (provider === "asaas") {
+        const apiKey = process.env.ASAAS_API_KEY;
+        if (!apiKey) return res.status(503).json({ error: "Pagamento Asaas não configurado." });
+        const baseUrl = (process.env.ASAAS_API_URL || "https://api.asaas.com/v3").replace(/\/$/, "");
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 1);
+        const response = await fetch(`${baseUrl}/paymentLinks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", access_token: apiKey },
+          body: JSON.stringify({
+            name: checkoutType === "upgrade" ? "Upgrade para Plano Empresa BUILT" : "Plano Empresa BUILT",
+            description: checkoutType === "upgrade"
+              ? "Diferença de upgrade para o Plano Empresa BUILT"
+              : "Anuidade do Plano Empresa BUILT",
+            endDate: endDate.toISOString().slice(0, 10),
+            value: amountCents / 100,
+            billingType: "UNDEFINED",
+            chargeType: "DETACHED",
+            externalReference,
+            notificationEnabled: true,
+            callback: { successUrl: `${appUrl}/meu-perfil?company_payment_success=true`, autoRedirect: true },
+          }),
+        });
+        if (!response.ok) {
+          const body = await response.text().catch(() => "");
+          throw new Error(`Não foi possível gerar a cobrança no Asaas (${response.status}): ${body.slice(0, 200)}`);
+        }
+        const paymentLink: any = await response.json();
+        checkoutUrl = String(paymentLink.url || paymentLink.invoiceUrl || "");
+        externalId = String(paymentLink.id || externalReference);
+      } else {
+        const stripe = getStripeClient();
+        const session: any = await stripe.checkout.sessions.create({
+          mode: "payment",
+          customer_email: req.session?.email || undefined,
+          line_items: [{
+            quantity: 1,
+            price_data: {
+              currency: "brl",
+              unit_amount: amountCents,
+              product_data: { name: checkoutType === "upgrade" ? "Upgrade Plano Empresa BUILT" : "Plano Empresa BUILT" },
+            },
+          }],
+          success_url: `${appUrl}/meu-perfil?company_payment_success=true`,
+          cancel_url: `${appUrl}/meu-perfil?company_payment_cancelled=true`,
+          client_reference_id: externalReference,
+          metadata: { company_plan_owner_user_id: ownerUserId, company_checkout_type: checkoutType },
+        });
+        checkoutUrl = String(session.url || "");
+        externalId = String(session.id || "");
+      }
+      if (!checkoutUrl || !externalId) throw new Error("O provedor não retornou o link de pagamento.");
+      await db.execute(sql`
         UPDATE company_plan_subscriptions
-        SET
-          status = 'ativo',
-          billing_mode = 'gratuito',
-          price_cents = 0,
-          currency = 'BRL',
-          activated_at = COALESCE(activated_at, now()),
-          current_period_start = now(),
-          updated_at = now()
+        SET status = 'pagamento_pendente', billing_mode = 'annual', price_cents = ${amountCents},
+            renewal_price_cents = ${COMPANY_ANNUAL_PRICE_CENTS}, currency = 'BRL', provider = ${provider},
+            provider_subscription_id = ${externalId}, checkout_type = ${checkoutType}, updated_at = now()
         WHERE owner_user_id = ${ownerUserId}
-        RETURNING *
       `);
-      const plan = resultRows(result)[0] || null;
-      if (!plan) return res.status(500).json({ error: "Não foi possível ativar o Plano Empresa." });
-      res.json(serializeCompanyPlan(plan));
+      return res.json({
+        checkout_url: checkoutUrl,
+        provider,
+        checkout_type: checkoutType,
+        amount_cents: amountCents,
+        renewal_price_cents: COMPANY_ANNUAL_PRICE_CENTS,
+        current_period_end: individual?.ends_at || null,
+      });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Erro ao ativar o Plano Empresa" });
+      return res.status(500).json({ error: error.message || "Erro ao gerar o checkout do Plano Empresa" });
     }
-  });
+  }
+
+  app.post("/api/empresa/plano/checkout", createCompanyPlanCheckout);
+  app.post("/api/empresa/plano/ativar", createCompanyPlanCheckout);
 
   app.get("/api/empresa/funcionarios", async (req: any, res) => {
     const ownerUserId = requireCompanyOwner(req, res);
@@ -4023,23 +4600,42 @@ export async function registerRoutes(
     }
 
     let employeeUser: any | null = null;
+    let employeeMembroId: string | null = null;
     try {
       await ensureCompanyEmployeeAccountsTable();
       const companyPlan = await ensureCompanyPlanForOwner(ownerUserId);
-      if (!companyPlan || companyPlan.status !== "ativo") {
+      if (!isActiveCompanyPlan(companyPlan)) {
         return res.status(403).json({ error: "A assinatura do Plano Empresa não está ativa." });
+      }
+      const activeAccounts: any = await db.execute(sql`
+        SELECT count(*)::int AS total
+        FROM company_employee_accounts
+        WHERE owner_user_id = ${ownerUserId} AND status = 'ativo'
+      `);
+      if (Number(resultRows(activeAccounts)[0]?.total || 0) >= Number(companyPlan.seat_limit || COMPANY_INCLUDED_SEATS) - 1) {
+        return res.status(409).json({ error: "O Plano Empresa permite no máximo dois usuários adicionais ativos." });
       }
       const existing = await storage.getUsersByEmail(email);
       if (existing.length > 0) {
         return res.status(409).json({ error: "Já existe uma conta com este e-mail." });
       }
       const companyPermissions = normalizeCompanyAccess(req.body?.permissions);
+      const directus = await directusCreate("cadastro_geral", {
+        Nome_de_usuario: email,
+        nome,
+        email,
+        na_vitrine: false,
+        em_membros_built: false,
+        em_built_capital: false,
+      });
+      employeeMembroId = String(directus?.id || "") || null;
+      if (!employeeMembroId) throw new Error("Não foi possível criar o perfil individual do funcionário.");
       employeeUser = await storage.createUser({
         username: email,
         password,
         nome,
         email,
-        membro_directus_id: req.session?.membroId || null,
+        membro_directus_id: employeeMembroId,
         role: "user",
         permissions: companyAccessToLegacyPermissions(companyPermissions) as any,
         ativo: true,
@@ -4051,6 +4647,7 @@ export async function registerRoutes(
           owner_nome,
           owner_email,
           employee_user_id,
+          employee_membro_id,
           cargo,
           permissions,
           status,
@@ -4062,6 +4659,7 @@ export async function registerRoutes(
           ${req.session?.nome || null},
           ${req.session?.email || null},
           ${employeeUser.id},
+          ${employeeMembroId},
           ${cargo || null},
           ${JSON.stringify(companyPermissions)}::jsonb,
           'ativo',
@@ -4070,6 +4668,12 @@ export async function registerRoutes(
         RETURNING *
       `);
       const account = resultRows(result)[0];
+      await ensureInitialOnboardingTable();
+      await db.execute(sql`
+        INSERT INTO initial_onboarding_journeys (user_id, membro_id, flow_version, current_step, terms_ready_at, responses)
+        VALUES (${String(employeeUser.id)}, ${employeeMembroId}, 2, 'aceites', now(), ${JSON.stringify({ conta: { nome, email }, origem: "plano_empresa" })}::jsonb)
+        ON CONFLICT (user_id) DO NOTHING
+      `);
       res.status(201).json({
         ...account,
         nome: employeeUser.nome,
@@ -4078,7 +4682,10 @@ export async function registerRoutes(
         permissions: companyPermissions,
       });
     } catch (error: any) {
+      if (employeeUser?.id) await db.execute(sql`DELETE FROM company_employee_accounts WHERE employee_user_id = ${String(employeeUser.id)}`).catch(() => undefined);
+      if (employeeUser?.id) await db.execute(sql`DELETE FROM initial_onboarding_journeys WHERE user_id = ${String(employeeUser.id)}`).catch(() => undefined);
       if (employeeUser?.id) await storage.deleteUser(employeeUser.id).catch(() => false);
+      if (employeeMembroId) await directusDelete("cadastro_geral", employeeMembroId).catch(() => false);
       res.status(500).json({ error: error.message || "Erro ao criar acesso de funcionário" });
     }
   });
@@ -4088,7 +4695,7 @@ export async function registerRoutes(
     if (!ownerUserId) return;
     try {
       const companyPlan = await ensureCompanyPlanForOwner(ownerUserId);
-      if (!companyPlan || companyPlan.status !== "ativo") {
+      if (!isActiveCompanyPlan(companyPlan)) {
         return res.status(403).json({ error: "A assinatura do Plano Empresa não está ativa." });
       }
       const account = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
@@ -4098,6 +4705,15 @@ export async function registerRoutes(
         ? normalizeCompanyAccess(account.permissions)
         : normalizeCompanyAccess(req.body.permissions);
       const nextStatus = req.body?.status === "suspenso" ? "suspenso" : "ativo";
+      if (nextStatus === "ativo" && account.status !== "ativo") {
+        const activeAccounts: any = await db.execute(sql`
+          SELECT count(*)::int AS total FROM company_employee_accounts
+          WHERE owner_user_id = ${ownerUserId} AND status = 'ativo'
+        `);
+        if (Number(resultRows(activeAccounts)[0]?.total || 0) >= Number(companyPlan.seat_limit || COMPANY_INCLUDED_SEATS) - 1) {
+          return res.status(409).json({ error: "O Plano Empresa permite no máximo dois usuários adicionais ativos." });
+        }
+      }
       const nextCargo = req.body?.cargo === undefined ? account.cargo : String(req.body.cargo || "").trim() || null;
       const userUpdate: Record<string, any> = {
         ativo: nextStatus === "ativo",
@@ -4125,6 +4741,12 @@ export async function registerRoutes(
       }
 
       await storage.updateUser(String(account.employee_user_id), userUpdate as any);
+      if (account.employee_membro_id && (userUpdate.nome || userUpdate.email)) {
+        await directusUpdate("cadastro_geral", String(account.employee_membro_id), {
+          ...(userUpdate.nome ? { nome: userUpdate.nome } : {}),
+          ...(userUpdate.email ? { email: userUpdate.email } : {}),
+        });
+      }
       await db.execute(sql`
         UPDATE company_employee_accounts
         SET
@@ -4150,7 +4772,7 @@ export async function registerRoutes(
     if (!ownerUserId) return;
     try {
       const companyPlan = await ensureCompanyPlanForOwner(ownerUserId);
-      if (!companyPlan || companyPlan.status !== "ativo") {
+      if (!isActiveCompanyPlan(companyPlan)) {
         return res.status(403).json({ error: "A assinatura do Plano Empresa não está ativa." });
       }
       const account = await getCompanyEmployeeForOwner(ownerUserId, req.params.id);
@@ -6043,7 +6665,15 @@ export async function registerRoutes(
       ...pickFilledBiaInfoComercialFields(bia ?? {}),
       ...pickFilledBiaInfoComercialFields(infoLocal ?? {}),
     };
-    return personalizarBiaMouTexto(texto, String(biaId), biaComInfo);
+    const personalizado = personalizarBiaMouTexto(texto, String(biaId), biaComInfo);
+    const termsResult: any = await db.execute(sql`
+      SELECT * FROM bia_billing_terms WHERE bia_id = ${String(biaId)} AND status <> 'draft' LIMIT 1
+    `).catch(() => ({ rows: [] } as any));
+    const terms = resultRows(termsResult)[0];
+    if (!terms) return personalizado;
+    const money = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+    const snapshot = terms.snapshot || {};
+    return `${personalizado}\n\nANEXO FINANCEIRO DA BIA\n\nValor de Origem: ${money(Math.round(Number(terms.origin_value) * 100))}.\nRIG: ${(Number(terms.rig_rate) * 100).toLocaleString("pt-BR")}% (${money(Number(terms.rig_amount_cents))}), política versão ${snapshot?.rig_policy?.version || "não informada"}.\nOs primeiros 24 meses de governança estão cobertos pelo RIG. A partir do 25º mês, enquanto a governança estiver ativa, será devida mensalidade de ${money(Number(terms.governance_amount_cents))}, sem rateio diário, conforme política versão ${snapshot?.governance_policy?.version || "não informada"}.\nInício institucional aprovado: ${new Date(terms.institutional_start_at).toLocaleDateString("pt-BR")}.`;
   }
 
   const CHAMADA_ALIANCA_TITULO_OPA = "Chamadas para alianÃ§a de LideranÃ§a";
@@ -12484,6 +13114,8 @@ ${textContent}`;
 
     const membroId = (req.session as any)?.membroId as string | undefined;
     if (!membroId) return false;
+    const userId = String((req.session as any)?.directusUserId || "");
+    if (userId && await hasActiveCompanyPlan(userId)) return true;
 
     if (process.env.MEMBER_PORTFOLIO_V2_ENABLED === "false") {
       const member = await directusFetchOne("cadastro_geral", membroId, "fields=em_membros_built").catch(() => null);
@@ -15091,22 +15723,28 @@ ${inputText.slice(0, 18000)}`,
     }
   });
 
-  async function geocodeMarketLocation(query: string) {
-    const location = String(query || "").trim();
-    if (!location) return null;
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
-    const response = await fetch(url, {
-      headers: { "User-Agent": "BuiltAlliances/1.0 contact@builtalliances.com" },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) return null;
-    const payload = await response.json() as any[];
-    const latitude = Number(payload?.[0]?.lat);
-    const longitude = Number(payload?.[0]?.lon);
-    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+  let nextNominatimRequestAt = 0;
+  async function geocodeMarketLocation(query: unknown) {
+    for (const location of marketLocationCandidates(query)) {
+      const now = Date.now();
+      const scheduledAt = Math.max(now, nextNominatimRequestAt);
+      nextNominatimRequestAt = scheduledAt + 1_000;
+      if (scheduledAt > now) await new Promise((resolve) => setTimeout(resolve, scheduledAt - now));
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+      const response = await fetch(url, {
+        headers: { "User-Agent": "BuiltAlliances/1.0 contact@builtalliances.com" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) continue;
+      const payload = await response.json() as any[];
+      const latitude = Number(payload?.[0]?.lat);
+      const longitude = Number(payload?.[0]?.lon);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
+    }
+    return null;
   }
 
-  async function marketComparablesWithVerifiedDistance(rawComparables: unknown, targetLocation: string) {
+  async function marketComparablesWithVerifiedDistance(rawComparables: unknown, targetLocation: unknown) {
     const target = await geocodeMarketLocation(targetLocation);
     if (!target) return null;
     const rows = Array.isArray(rawComparables) ? rawComparables : [];
@@ -15114,11 +15752,8 @@ ${inputText.slice(0, 18000)}`,
     for (const value of rows.slice(0, 12)) {
       if (!value || typeof value !== "object") continue;
       const row = value as Record<string, unknown>;
-      const comparableLocation = [row.endereco, row.numero, row.bairro, row.cidade, row.estado, row.pais]
-        .filter(Boolean).join(", ") || String(row.localizacao || row.location || "");
-      const coordinates = await geocodeMarketLocation(comparableLocation);
+      const coordinates = await geocodeMarketLocation(row);
       if (coordinates) verified.push({ ...row, distancia_km: marketDistanceKm(target, coordinates) });
-      await new Promise((resolve) => setTimeout(resolve, 250));
     }
     return verified;
   }
@@ -15142,7 +15777,7 @@ ${inputText.slice(0, 18000)}`,
       precoM2: referenceValue / areaM2,
       moeda: String(imovel.moeda || "BRL").toUpperCase(),
     });
-    const verified = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, location);
+    const verified = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, imovel);
     if (!verified) throw Object.assign(new Error("Não foi possível validar a localização do imóvel para a pesquisa."), { status: 422 });
     const analysis = buildComparableMarketAnalysis(verified, {
       tipo: String(imovel.tipo || "Não informado"),
@@ -16839,7 +17474,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         ${JSON.stringify(Array.isArray(demand.especialidades) ? demand.especialidades : [])}::jsonb,
         ${demand.cidade || property.cidade || null}, ${demand.estado || property.estado || null}, ${demand.pais || property.pais || "Brasil"},
         ${demand.publicada_em || null}, ${expiresAt}, ${demand.fluxo_disparo || "imediato"},
-        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null, tipo_demanda: normalizeDemandKind(demand.tipo_demanda), modalidade_distribuicao: normalizeDemandDistributionMode(demand.modalidade_distribuicao) })}::jsonb,
+        ${JSON.stringify({ alternativa: demand.alternativa || null, contexto: demand.contexto || null, oportunidade_id: demand.oportunidade_id || null, economic_opportunity_id: demand.economic_opportunity_id || null, opa_id: demand.opa_id || null, tipo_resolucao: normalizeDemandResolutionMode(demand.tipo_resolucao), tipo_demanda: normalizeDemandKind(demand.tipo_demanda), modalidade_distribuicao: normalizeDemandDistributionMode(demand.modalidade_distribuicao) })}::jsonb,
         ${demand.criado_em || new Date()}, ${demand.atualizado_em || new Date()}
       )
       ON CONFLICT (source_type, source_id) DO UPDATE SET
@@ -18083,7 +18718,10 @@ Deixe claro que premissas precisam de validação profissional.`,
       const titulo = String(req.body?.titulo || "").trim();
       const biaId = req.body?.bia_id ? String(req.body.bia_id) : null;
       const imovelId = req.body?.imovel_id ? String(req.body.imovel_id) : null;
+      const resolutionMode = normalizeDemandResolutionMode(req.body?.tipo_resolucao);
       if (!titulo) return res.status(400).json({ error: "Informe o título da Demanda." });
+      const resolutionError = demandResolutionError(resolutionMode, biaId);
+      if (resolutionError) return res.status(400).json({ error: resolutionError });
       const context = String(req.body?.contexto || req.body?.descricao || req.body?.escopo || "").trim();
       if (!biaId && !imovelId && !context) {
         return res.status(400).json({ error: "Para uma Demanda sem imóvel, descreva o contexto e informe a localização quando souber." });
@@ -18109,7 +18747,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       const code = await createUniqueDemandCode();
       const publishedAt = publicar ? new Date() : null;
       const demandStatus = modalidadeDistribuicao === "direcionada" || publicar ? "aberta" : "rascunho";
-      const demandVisibility = modalidadeDistribuicao === "direcionada" || publicar ? "restrita" : "privada";
+      const demandVisibility = modalidadeDistribuicao === "direcionada" ? "restrita" : publicar ? "publicada" : "privada";
       const expiryDays = Number(req.body?.validade_dias || 60);
       const insert = await db.execute(sql`
         INSERT INTO carteira_demandas (
@@ -18123,7 +18761,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         ) VALUES (
           ${imovelId}, ${biaId}, ${code}, ${authorType},
           ${authorType === "usuario" ? actor.userId : null}, ${authorType === "usuario" ? actor.membroId : null},
-          'solicitacao', ${titulo}, ${req.body?.descricao || req.body?.escopo || null},
+          ${resolutionMode}, ${titulo}, ${req.body?.descricao || req.body?.escopo || null},
           ${req.body?.urgencia || "normal"},
           ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
           ${demandStatus}, ${req.body?.responsavel_user_id || actor.userId},
@@ -18156,6 +18794,35 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
+  app.get("/api/demandas/:id", async (req, res) => {
+    try {
+      const registry = await getOpportunityRegistry(req.params.id);
+      if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+      const demand = await getDemandWithProperty(String(registry.source_id));
+      if (!demand) return res.status(404).json({ error: "Demanda não encontrada" });
+      if (await canManageOpportunity(req, registry)) return res.json(demand);
+      if (isOpportunityPublic(registry.status, registry.visibilidade, registry.expira_em)) {
+        return res.json(publicDemandView(demand));
+      }
+      if (registry.visibilidade === "restrita" && await hasRestrictedOpportunityDelivery(req, "demanda", String(registry.source_id))) {
+        return res.json(publicDemandView(demand));
+      }
+      if (registry.bia_id) {
+        const authorization = await requireBiaModuleAccess(req, res, String(registry.bia_id), "configuracao_bia", "view");
+        if (!authorization) return;
+        return res.json(demand);
+      }
+      if (registry.imovel_id) {
+        const actor = requireCarteiraActor(req);
+        await requireCarteiraAccess(String(registry.imovel_id), actor, "leitura");
+        return res.json(demand);
+      }
+      return res.status(403).json({ error: "Sem permissão para consultar esta Demanda." });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/demandas/:id", async (req, res) => {
     try {
       const registry = await getOpportunityRegistry(req.params.id);
@@ -18167,6 +18834,11 @@ Deixe claro que premissas precisam de validação profissional.`,
       const current = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0] as any;
       if (!current) return res.status(404).json({ error: "Demanda não encontrada" });
       const status = req.body?.status === undefined ? current.status : normalizeOpportunityStatus(req.body.status, normalizeOpportunityStatus(current.status));
+      const resolutionMode = req.body?.tipo_resolucao === undefined
+        ? normalizeDemandResolutionMode(current.tipo_resolucao)
+        : normalizeDemandResolutionMode(req.body.tipo_resolucao);
+      const resolutionError = demandResolutionError(resolutionMode, current.bia_id);
+      if (resolutionError) return res.status(400).json({ error: resolutionError });
       const updated = await db.execute(sql`
         UPDATE carteira_demandas SET
           titulo = ${String(req.body?.titulo ?? current.titulo).trim()},
@@ -18182,6 +18854,7 @@ Deixe claro que premissas precisam de validação profissional.`,
           pais = ${req.body?.pais === undefined ? current.pais : String(req.body.pais || "").trim() || null},
           expira_em = ${req.body?.expira_em === undefined ? current.expira_em : req.body.expira_em || null},
           fluxo_disparo = ${req.body?.fluxo_disparo === "gradual" ? "gradual" : req.body?.fluxo_disparo === "imediato" ? "imediato" : current.fluxo_disparo || "imediato"},
+          tipo_resolucao = ${resolutionMode},
           status = ${status}, atualizado_em = now()
         WHERE id = ${registry.source_id} RETURNING *
       `);
@@ -18311,6 +18984,9 @@ Deixe claro que premissas precisam de validação profissional.`,
       await requireCarteiraAccess(req.params.id, actor, "administracao");
       const titulo = String(req.body?.titulo || "").trim();
       if (!titulo) return res.status(400).json({ error: "Informe o título da demanda." });
+      const resolutionMode = normalizeDemandResolutionMode(req.body?.tipo_resolucao);
+      const resolutionError = demandResolutionError(resolutionMode, null);
+      if (resolutionError) return res.status(400).json({ error: resolutionError });
       const tipoDemanda = normalizeDemandKind(req.body?.tipo_demanda);
       const modalidadeDistribuicao = normalizeDemandDistributionMode(req.body?.modalidade_distribuicao);
       const destinatarios = Array.isArray(req.body?.destinatarios) ? req.body.destinatarios : [];
@@ -18321,7 +18997,7 @@ Deixe claro que premissas precisam de validação profissional.`,
       if (publicar && req.body?.consentimento_publicacao !== true) {
         return res.status(400).json({ error: "Confirme o consentimento para publicar a demanda na Vitrine." });
       }
-      const visibilidade = modalidadeDistribuicao === "direcionada" || publicar ? "restrita" : "privada";
+      const visibilidade = modalidadeDistribuicao === "direcionada" ? "restrita" : publicar ? "publicada" : "privada";
       const demandStatus = modalidadeDistribuicao === "direcionada" || publicar ? "aberta" : "rascunho";
       const resumoPublico = String(req.body?.resumo_publico || req.body?.escopo || "").trim() || null;
       const codigo = await createUniqueDemandCode();
@@ -18337,7 +19013,7 @@ Deixe claro que premissas precisam de validação profissional.`,
         )
         VALUES (
           ${req.params.id}, ${codigo}, 'usuario', ${actor.userId}, ${actor.membroId},
-          'solicitacao', ${req.body?.alternativa || null}, ${titulo},
+          ${resolutionMode}, ${req.body?.alternativa || null}, ${titulo},
           ${req.body?.escopo || null}, ${req.body?.urgencia || "normal"},
           ${JSON.stringify(Array.isArray(req.body?.especialidades) ? req.body.especialidades : [])}::jsonb,
           ${demandStatus}, ${req.body?.responsavel_user_id || null},
@@ -18552,26 +19228,91 @@ Deixe claro que premissas precisam de validação profissional.`,
     }
   });
 
-  app.post("/api/vitrine/demandas/:id/interesse", async (req, res) => {
+  async function createDemandAgendaNotification(input: {
+    userId?: string | null;
+    memberId?: string | null;
+    demandId: string;
+    key: string;
+    title: string;
+    description: string;
+  }) {
+    if (!input.userId) return;
+    const existing = await db.execute(sql`
+      SELECT id FROM agenda_tarefas
+      WHERE user_id = ${input.userId}
+        AND contexto_tipo = 'demanda'
+        AND contexto_id = ${input.demandId}
+        AND origem_tarefa_id = ${input.key}
+      LIMIT 1
+    `);
+    if (existing.rows?.[0]) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await db.execute(sql`
+      INSERT INTO agenda_tarefas (
+        user_id, membro_id, titulo, descricao, data, prioridade,
+        contexto_tipo, contexto_id, origem_tarefa_id
+      ) VALUES (
+        ${input.userId}, ${input.memberId || null}, ${input.title}, ${input.description},
+        ${today}, 'media', 'demanda', ${input.demandId}, ${input.key}
+      )
+    `);
+  }
+
+  function demandIdFromRequest(req: Request) {
+    return String(req.params.demandaId || req.params.id || "");
+  }
+
+  async function submitDemandProposal(req: Request, res: Response) {
     try {
       const userId = (req.session as any)?.directusUserId as string | undefined;
       if (!userId) return res.status(401).json({ error: "Não autenticado" });
       if (!(await canAccessProtectedOpaActions(req))) {
-        return res.status(403).json({ error: "Para acessar os detalhes e manifestar interesse, ative sua anuidade de Membro BUILT." });
+        return res.status(403).json({ error: "Para enviar uma proposta, ative sua anuidade de Membro BUILT." });
       }
-      const demand = await getDemandWithProperty(req.params.id);
-      const restrictedAccess = demand?.visibilidade === "restrita" && await hasRestrictedOpportunityDelivery(req, "demanda", req.params.id);
+      const demandId = demandIdFromRequest(req);
+      const demand = await getDemandWithProperty(demandId);
+      const restrictedAccess = demand?.visibilidade === "restrita" && await hasRestrictedOpportunityDelivery(req, "demanda", demandId);
       if (!demand || (demand.visibilidade !== "publicada" && !restrictedAccess)) return res.status(404).json({ error: "Demanda não encontrada" });
+      const session = (req.session as any) || {};
+      if (String(demand.autor_user_id || demand.criado_por_user_id || "") === userId
+        || (session.membroId && String(demand.autor_membro_id || demand.criado_por_membro_id || "") === String(session.membroId))) {
+        return res.status(409).json({ error: "A pessoa responsável pela Demanda não pode enviar uma proposta para ela mesma." });
+      }
+      const message = String(req.body?.mensagem || "").trim();
+      const scope = String(req.body?.escopo || "").trim();
+      if (!message && !scope) return res.status(400).json({ error: "Descreva como você pretende atender esta Demanda." });
+      const amount = normalizeProposalAmount(req.body?.valor);
+      if (req.body?.valor !== undefined && req.body?.valor !== null && req.body?.valor !== "" && amount === null) {
+        return res.status(400).json({ error: "Informe um valor de proposta válido." });
+      }
+      const currency = String(req.body?.moeda || "BRL").trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(currency)) return res.status(400).json({ error: "Informe uma moeda válida." });
+      const validUntil = req.body?.valida_ate ? new Date(req.body.valida_ate) : null;
+      if (validUntil && (!Number.isFinite(validUntil.getTime()) || validUntil <= new Date())) {
+        return res.status(400).json({ error: "A validade da proposta deve estar no futuro." });
+      }
       const result = await db.execute(sql`
-        INSERT INTO carteira_demanda_interesses (demanda_id, user_id, membro_id, membro_nome, mensagem)
-        VALUES (${req.params.id}, ${userId}, ${(req.session as any).membroId || null}, ${(req.session as any).nome || null}, ${req.body?.mensagem || null})
+        INSERT INTO carteira_demanda_interesses (
+          demanda_id, user_id, membro_id, membro_nome, mensagem, escopo,
+          valor, moeda, prazo, valida_ate
+        ) VALUES (
+          ${demandId}, ${userId}, ${session.membroId || null}, ${session.nome || null},
+          ${message || null}, ${scope || null}, ${amount}, ${currency},
+          ${String(req.body?.prazo || "").trim() || null}, ${validUntil}
+        )
         ON CONFLICT (demanda_id, user_id) DO UPDATE SET
           mensagem = EXCLUDED.mensagem,
+          escopo = EXCLUDED.escopo,
+          valor = EXCLUDED.valor,
+          moeda = EXCLUDED.moeda,
+          prazo = EXCLUDED.prazo,
+          valida_ate = EXCLUDED.valida_ate,
           status = 'interesse_recebido',
+          selecionado_em = NULL,
           atualizado_em = now()
         RETURNING *
       `);
-      const registry = await getOpportunityRegistry(req.params.id).catch(() => null);
+      const registry = await getOpportunityRegistry(demandId).catch(() => null);
       if (registry) {
         const flow = (await db.execute(sql`
           SELECT * FROM opportunity_distribution_flows
@@ -18584,76 +19325,128 @@ Deixe claro que premissas precisam de validação profissional.`,
             SET status = 'pausado', pausa_motivo = 'interesse_recebido', atualizado_em = now()
             WHERE id = ${flow.id}
           `);
-          await recordOpportunityEvent(String(registry.id), req, "pulso_pausado_interesse", "Pulso pausado após manifestação de interesse", { interesse_id: result.rows?.[0]?.id || null });
+          await recordOpportunityEvent(String(registry.id), req, "pulso_pausado_proposta", "Pulso pausado após proposta comercial", { proposta_id: result.rows?.[0]?.id || null });
         }
+        await recordOpportunityEvent(String(registry.id), req, "proposta_recebida", "Proposta comercial recebida", { proposta_id: result.rows?.[0]?.id || null });
       }
+      await createDemandAgendaNotification({
+        userId: demand.responsavel_user_id || demand.criado_por_user_id || demand.autor_user_id,
+        memberId: demand.responsavel_membro_id || demand.criado_por_membro_id || demand.autor_membro_id,
+        demandId,
+        key: `proposta:${result.rows?.[0]?.id}`,
+        title: "Nova proposta para sua Demanda",
+        description: `Você recebeu uma proposta para “${demand.titulo}”. Analise o escopo antes de decidir.`,
+      });
       res.status(201).json(result.rows?.[0]);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
-  });
+  }
 
-  app.delete("/api/vitrine/demandas/:id/interesse", async (req, res) => {
+  async function withdrawDemandProposal(req: Request, res: Response) {
     try {
       const userId = (req.session as any)?.directusUserId as string | undefined;
       if (!userId) return res.status(401).json({ error: "Não autenticado" });
+      const demandId = demandIdFromRequest(req);
       await db.execute(sql`
         UPDATE carteira_demanda_interesses
         SET status = 'retirado', atualizado_em = now()
-        WHERE demanda_id = ${req.params.id} AND user_id = ${userId}
+        WHERE demanda_id = ${demandId} AND user_id = ${userId} AND status <> 'selecionado'
       `);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  }
 
-  app.get("/api/carteira/imoveis/:id/demandas/:demandaId/interesses", async (req, res) => {
+  async function listDemandProposals(req: Request, res: Response) {
     try {
-      const actor = requireCarteiraActor(req);
-      await requireCarteiraAccess(req.params.id, actor, "administracao");
+      const demandId = demandIdFromRequest(req);
+      const registry = await getOpportunityRegistry(demandId);
+      if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para consultar as propostas desta Demanda." });
       const result = await db.execute(sql`
         SELECT * FROM carteira_demanda_interesses
-        WHERE demanda_id = ${req.params.demandaId} AND status <> 'retirado'
+        WHERE demanda_id = ${demandId}
         ORDER BY criado_em DESC
       `);
       res.json(result.rows || []);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
-  });
+  }
 
-  app.patch("/api/carteira/imoveis/:id/demandas/:demandaId/interesses/:interesseId", async (req, res) => {
+  async function updateDemandProposal(req: Request, res: Response) {
     try {
       const actor = requireCarteiraActor(req);
-      await requireCarteiraAccess(req.params.id, actor, "administracao");
-      const status = normalizeInterestStatus(req.body?.status);
-      const result = await db.execute(sql`
-        UPDATE carteira_demanda_interesses
-        SET status = ${status},
-            selecionado_em = CASE WHEN ${status} = 'selecionado' THEN COALESCE(selecionado_em, now()) ELSE selecionado_em END,
-            atualizado_em = now()
-        WHERE id = ${req.params.interesseId} AND demanda_id = ${req.params.demandaId}
-        RETURNING *
-      `);
-      if (!result.rows?.[0]) return res.status(404).json({ error: "Interesse não encontrado" });
-      if (status === "selecionado") {
-        await grantSelectedDemandAccess(req.params.demandaId, result.rows[0], actor);
-        const registry = await getOpportunityRegistry(req.params.demandaId).catch(() => null);
-        if (registry) {
-          await db.execute(sql`
-            UPDATE opportunity_distribution_flows
-            SET status = 'concluido', pausa_motivo = 'profissional_selecionado', proxima_execucao_em = NULL, atualizado_em = now()
-            WHERE registry_id = ${registry.id} AND versao = 'pulse-v2'
+      const demandId = demandIdFromRequest(req);
+      const proposalId = String(req.params.propostaId || req.params.interesseId || "");
+      const registry = await getOpportunityRegistry(demandId);
+      if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+      if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para analisar esta proposta." });
+      const status = normalizeDemandProposalStatus(req.body?.status);
+      if (!status) return res.status(400).json({ error: "Status de proposta inválido." });
+      const currentDemand = (await db.execute(sql`SELECT status, titulo FROM carteira_demandas WHERE id = ${demandId} LIMIT 1`)).rows?.[0] as any;
+      const result = await db.transaction(async (tx) => {
+        const updated = await tx.execute(sql`
+          UPDATE carteira_demanda_interesses
+          SET status = ${status},
+              selecionado_em = CASE WHEN ${status} = 'selecionado' THEN COALESCE(selecionado_em, now()) ELSE selecionado_em END,
+              atualizado_em = now()
+          WHERE id = ${proposalId} AND demanda_id = ${demandId} AND status <> 'retirado'
+          RETURNING *
+        `);
+        const proposal = updated.rows?.[0] as any;
+        if (!proposal) return null;
+        if (status === "selecionado") {
+          await tx.execute(sql`
+            UPDATE carteira_demanda_interesses
+            SET status = 'nao_selecionado', atualizado_em = now()
+            WHERE demanda_id = ${demandId} AND id <> ${proposalId} AND status NOT IN ('retirado', 'nao_selecionado')
           `);
-          await recordOpportunityEvent(String(registry.id), req, "profissional_selecionado", "Profissional selecionado e acesso temporário concedido", { interesse_id: req.params.interesseId });
+          await tx.execute(sql`
+            UPDATE carteira_demandas
+            SET status = ${demandStatusAfterProposalAccepted(currentDemand?.status)}, atualizado_em = now()
+            WHERE id = ${demandId}
+          `);
         }
+        return proposal;
+      });
+      if (!result) return res.status(404).json({ error: "Proposta não encontrada" });
+      if (status === "selecionado") {
+        await grantSelectedDemandAccess(demandId, result, actor);
+        await db.execute(sql`
+          UPDATE opportunity_distribution_flows
+          SET status = 'concluido', pausa_motivo = 'proposta_aceita', proxima_execucao_em = NULL, atualizado_em = now()
+          WHERE registry_id = ${registry.id} AND versao = 'pulse-v2'
+        `);
+        await syncDemandRegistry(demandId);
+        await recordOpportunityEvent(String(registry.id), req, "proposta_aceita", "Proposta comercial aceita", { proposta_id: proposalId });
+        await createDemandAgendaNotification({
+          userId: result.user_id,
+          memberId: result.membro_id,
+          demandId,
+          key: `proposta-aceita:${proposalId}`,
+          title: "Sua proposta foi aceita",
+          description: `Sua proposta para “${currentDemand?.titulo || "Demanda"}” foi aceita. Combine os próximos passos com a pessoa responsável.`,
+        });
+      } else {
+        await recordOpportunityEvent(String(registry.id), req, "proposta_atualizada", "Situação da proposta atualizada", { proposta_id: proposalId, status });
       }
-      res.json(result.rows[0]);
+      res.json(result);
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
     }
-  });
+  }
+
+  app.post("/api/demandas/:id/propostas", submitDemandProposal);
+  app.get("/api/demandas/:id/propostas", listDemandProposals);
+  app.patch("/api/demandas/:id/propostas/:propostaId", updateDemandProposal);
+  app.delete("/api/demandas/:id/propostas/minha", withdrawDemandProposal);
+  app.post("/api/vitrine/demandas/:id/interesse", submitDemandProposal);
+  app.delete("/api/vitrine/demandas/:id/interesse", withdrawDemandProposal);
+  app.get("/api/carteira/imoveis/:id/demandas/:demandaId/interesses", listDemandProposals);
+  app.patch("/api/carteira/imoveis/:id/demandas/:demandaId/interesses/:interesseId", updateDemandProposal);
 
   app.get("/api/vitrine/demandas/:id/dados-privados", async (req, res) => {
     try {
@@ -18852,6 +19645,16 @@ Deixe claro que premissas precisam de validação profissional.`,
         await db.execute(sql`UPDATE opportunity_registry SET status = ${status}, visibilidade = 'privada', atualizado_em = now() WHERE id = ${registry.id}`);
       }
       await recordOpportunityEvent(String(registry.id), req, "encerrada", "Oportunidade encerrada", { status, valor, moeda: req.body?.moeda || null });
+      if (registry.tipo === "demanda" && participantUserId) {
+        await createDemandAgendaNotification({
+          userId: participantUserId,
+          memberId: participantMemberId,
+          demandId: String(registry.source_id),
+          key: `encerrada:${registry.id}:${status}`,
+          title: "Demanda encerrada",
+          description: `A Demanda “${registry.titulo || registry.codigo}” foi encerrada com o status ${status.replace(/_/g, " ")}.`,
+        });
+      }
       res.json(await getOpportunityRegistry(String(registry.id)));
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message });
@@ -19145,16 +19948,55 @@ Deixe claro que premissas precisam de validação profissional.`,
   });
 
   async function convertDemandToOpa(req: Request, res: Response, loadedRegistry?: any) {
+    let claimedDemandId: string | null = null;
+    let createdOpaId: string | null = null;
+    let previousDemandStatus: string | null = null;
     try {
       const registry = loadedRegistry || await getOpportunityRegistry(String(req.params.codigo || req.body?.demanda_id || ""));
       if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
       if (!(await canManageOpportunity(req, registry))) return res.status(403).json({ error: "Sem permissão para converter esta Demanda." });
+      const demand = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0] as any;
+      if (!demand) return res.status(404).json({ error: "Demanda não encontrada" });
+      if (demand.opa_id) {
+        const existingOpa = await directusFetchOne("tipos_oportunidades", String(demand.opa_id), "fields=*").catch(() => null);
+        const existingRegistry = existingOpa ? await syncOpaRegistry(existingOpa) : await getOpportunityRegistry(String(demand.opa_id)).catch(() => null);
+        if (!existingRegistry) throw Object.assign(new Error("A OBA existe, mas não foi possível recuperar seu índice público."), { status: 500 });
+        await db.execute(sql`
+          INSERT INTO opportunity_relations (
+            origem_registry_id, destino_registry_id, tipo, metadata, criado_por_user_id, criado_por_membro_id
+          ) VALUES (
+            ${registry.id}, ${existingRegistry.id}, 'demanda_gerou_oba', ${JSON.stringify({ bia_id: demand.bia_id || registry.bia_id })}::jsonb,
+            ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null}
+          ) ON CONFLICT (origem_registry_id, destino_registry_id, tipo) DO NOTHING
+        `);
+        await db.execute(sql`
+          UPDATE carteira_demandas SET status = 'convertida', visibilidade = 'privada', tipo_resolucao = 'OBA', atualizado_em = now()
+          WHERE id = ${String(demand.id)}
+        `);
+        await db.execute(sql`
+          UPDATE opportunity_registry
+          SET metadata = metadata || ${JSON.stringify({ demanda_id: String(demand.id), demanda_codigo: registry.codigo })}::jsonb,
+              atualizado_em = now()
+          WHERE id = ${existingRegistry.id}
+        `);
+        await syncDemandRegistry(String(demand.id));
+        return res.json({ oba: existingOpa, oportunidade: existingRegistry, origem: registry, idempotent: true });
+      }
       if (!isOpportunityEditable(registry.status)) return res.status(409).json({ error: "Esta Demanda já foi encerrada." });
-      const biaId = String(req.body?.bia_id || registry.bia_id || "").trim();
-      if (!biaId) return res.status(400).json({ error: "Selecione a BIA que será autora da OBA." });
+      const biaId = String(demand.bia_id || registry.bia_id || "").trim();
+      if (!biaId) return res.status(400).json({ error: "Somente uma Demanda já vinculada a uma BIA pode gerar uma OBA." });
+      const requestedBiaId = String(req.body?.bia_id || biaId).trim();
+      if (requestedBiaId !== biaId) return res.status(409).json({ error: "A OBA deve permanecer vinculada à mesma BIA da Demanda." });
       const authorization = await requireBiaModuleAccess(req, res, biaId, "configuracao_bia", "edit");
       if (!authorization) return;
-      const demand = (await db.execute(sql`SELECT * FROM carteira_demandas WHERE id = ${registry.source_id} LIMIT 1`)).rows?.[0] as any;
+      const claim: any = await db.execute(sql`
+        UPDATE carteira_demandas SET status = 'convertendo_oba', atualizado_em = now()
+        WHERE id = ${String(demand.id)} AND opa_id IS NULL AND status = ${String(demand.status)}
+        RETURNING id, status
+      `);
+      if (!resultRows(claim)[0]) return res.status(409).json({ error: "A conversão desta Demanda já está em andamento." });
+      claimedDemandId = String(demand.id);
+      previousDemandStatus = String(demand.status);
       const payload = prepareOpaPayload({
         nome_oportunidade: req.body?.titulo || demand.titulo,
         descricao: req.body?.descricao || demand.escopo,
@@ -19177,10 +20019,15 @@ Deixe claro que premissas precisam de validação profissional.`,
         delete payload.criado_por_membro_id;
         opa = await directusCreate("tipos_oportunidades", payload);
       }
+      createdOpaId = String(opa.id);
+      await db.execute(sql`
+        UPDATE carteira_demandas SET opa_id = ${createdOpaId}, atualizado_em = now()
+        WHERE id = ${claimedDemandId} AND opa_id IS NULL
+      `);
       const targetRegistry = await syncOpaRegistry(opa);
       if (!targetRegistry) throw Object.assign(new Error("A OBA foi criada, mas não foi possível indexá-la."), { status: 500 });
       await db.execute(sql`
-        UPDATE carteira_demandas SET status = 'convertida', visibilidade = 'privada', opa_id = ${String(opa.id)}, atualizado_em = now()
+        UPDATE carteira_demandas SET status = 'convertida', visibilidade = 'privada', tipo_resolucao = 'OBA', opa_id = ${String(opa.id)}, atualizado_em = now()
         WHERE id = ${registry.source_id}
       `);
       await syncDemandRegistry(String(registry.source_id));
@@ -19192,16 +20039,47 @@ Deixe claro que premissas precisam de validação profissional.`,
           ${(req.session as any)?.directusUserId || null}, ${(req.session as any)?.membroId || null}
         ) ON CONFLICT (origem_registry_id, destino_registry_id, tipo) DO NOTHING
       `);
+      await db.execute(sql`
+        UPDATE opportunity_registry
+        SET metadata = metadata || ${JSON.stringify({ demanda_id: String(demand.id), demanda_codigo: registry.codigo })}::jsonb,
+            atualizado_em = now()
+        WHERE id = ${targetRegistry.id}
+      `);
       await recordOpportunityEvent(String(registry.id), req, "convertida_oba", "Demanda convertida em OBA", { oba_codigo: targetRegistry.codigo });
       await recordOpportunityEvent(String(targetRegistry.id), req, "originada_demanda", "OBA criada a partir de Demanda", { demanda_codigo: registry.codigo });
-      res.status(201).json({ oba: opa, oportunidade: targetRegistry, origem: registry });
+      await createDemandAgendaNotification({
+        userId: demand.responsavel_user_id || demand.criado_por_user_id || demand.autor_user_id,
+        memberId: demand.responsavel_membro_id || demand.criado_por_membro_id || demand.autor_membro_id,
+        demandId: String(demand.id),
+        key: `convertida-oba:${targetRegistry.id}`,
+        title: "Demanda convertida em OBA",
+        description: `A Demanda “${demand.titulo}” agora segue como OBA na mesma BIA.`,
+      });
+      res.status(201).json({
+        oba: opa,
+        oportunidade: { ...targetRegistry, metadata: { ...(targetRegistry.metadata || {}), demanda_id: String(demand.id), demanda_codigo: registry.codigo } },
+        origem: registry,
+      });
     } catch (error: any) {
+      if (claimedDemandId && !createdOpaId) {
+        await db.execute(sql`
+          UPDATE carteira_demandas SET status = ${previousDemandStatus || "aberta"}, atualizado_em = now()
+          WHERE id = ${claimedDemandId} AND opa_id IS NULL AND status = 'convertendo_oba'
+        `).catch(() => undefined);
+      }
       res.status(error.statusCode || error.status || 500).json({ error: error.message });
     }
   }
 
   app.post("/api/rede/oportunidades/:codigo/converter-oba", async (req, res) => {
     const registry = await getOpportunityRegistry(req.params.codigo).catch(() => null);
+    if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
+    return convertDemandToOpa(req, res, registry);
+  });
+
+  app.post("/api/demandas/:id/converter-oba", async (req, res) => {
+    req.body = { ...(req.body || {}), demanda_id: req.params.id };
+    const registry = await getOpportunityRegistry(req.params.id).catch(() => null);
     if (!registry || registry.tipo !== "demanda") return res.status(404).json({ error: "Demanda não encontrada" });
     return convertDemandToOpa(req, res, registry);
   });
@@ -20366,7 +21244,7 @@ Instruções:
         precoM2,
         moeda: String(body.moeda || "BRL"),
       });
-      const verifiedComparables = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, location);
+      const verifiedComparables = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, body);
       if (!verifiedComparables) return res.status(422).json({ error: "Não foi possível validar a localização para aplicar o raio de 10 km." });
       const analysis = buildComparableMarketAnalysis(verifiedComparables, {
         tipo: String(body.tipo || body.qualificacao || "Não informado"),
@@ -21508,7 +22386,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
                   id: localUser.id,
                   nome: localUser.nome,
                   email: localUser.email,
-                  membro_directus_id: employeeAccount.owner_membro_id || null,
+                  membro_directus_id: employeeAccount.employee_membro_id || employeeAccount.owner_membro_id || null,
                   role: "employee",
                   permissions: companyAccessToLegacyPermissions(employeeAccount.permissions),
                   company_employee: true,
@@ -21685,18 +22563,29 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     }
     const now = new Date();
     const current = rows.find((row) => isMembershipActive(row, now)) || rows[0] || null;
-    const active = isMembershipActive(current, now);
+    const companyPlanResult: any = await db.execute(sql`
+      SELECT plan.current_period_start AS starts_at, plan.current_period_end AS ends_at
+      FROM company_plan_subscriptions plan
+      LEFT JOIN company_employee_accounts employee ON employee.owner_user_id = plan.owner_user_id
+      WHERE plan.status = 'ativo'
+        AND (plan.current_period_end IS NULL OR plan.current_period_end > now())
+        AND (plan.owner_user_id = ${userId} OR (employee.employee_user_id = ${userId} AND employee.status = 'ativo'))
+      LIMIT 1
+    `).catch(() => ({ rows: [] } as any));
+    const companyPlan = resultRows(companyPlanResult)[0] || null;
+    const active = isMembershipActive(current, now) || Boolean(companyPlan);
     const aura = Number((await db.execute(sql`SELECT count(*)::int AS total FROM aura_avaliacoes WHERE avaliado_membro_id = ${membroId}`)).rows?.[0]?.total || 0) > 0;
     const communities = Array.from(new Set(rows.filter((row) => isMembershipActive(row, now)).map((row) => String(row.comunidade_id))));
     return {
       condition: active ? "member" : "registered",
       active,
       status: current ? (String(current.status) === "active" && !active ? "expired" : current.status) : null,
-      starts_at: current?.starts_at || null,
-      ends_at: current?.ends_at || null,
+      starts_at: current?.starts_at || companyPlan?.starts_at || null,
+      ends_at: current?.ends_at || companyPlan?.ends_at || null,
       annual_fee_brl: BUILT_MEMBER_ANNUAL_FEE_BRL,
       communities,
       requirements: { onboarding: onboardingComplete, aura, annual_fee: active, community: communities.length > 0 },
+      entitlement_source: companyPlan ? "company_plan" : active ? "individual_membership" : null,
       permissions: {
         opportunity_details: active,
         authorized_contacts: active,
@@ -25411,8 +26300,37 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       return res.status(200).json({ received: true });
     }
 
+    if (["charge.refunded", "charge.dispute.created"].includes(event.type)) {
+      const charge = event.data.object;
+      const paymentId = String(charge.payment_intent || charge.id || "");
+      if (paymentId) {
+        await db.execute(sql`
+          UPDATE company_plan_subscriptions
+          SET status = ${event.type === "charge.refunded" ? "reembolsado" : "chargeback"}, updated_at = now()
+          WHERE provider = 'stripe' AND payment_external_id = ${paymentId}
+        `).catch((error: any) => console.warn("[stripe/webhook] Falha ao revogar Plano Empresa:", error?.message || error));
+      }
+      return res.status(200).json({ received: true });
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      const companyOwnerUserId: string | undefined = session.metadata?.company_plan_owner_user_id || undefined;
+      if (companyOwnerUserId) {
+        if (session.payment_status !== "paid") return res.status(200).json({ received: true });
+        try {
+          await activateCompanyPlanPayment(
+            companyOwnerUserId,
+            "stripe",
+            String(session.payment_intent || session.id),
+            session.metadata?.company_checkout_type || "full",
+          );
+          return res.status(200).json({ received: true });
+        } catch (error: any) {
+          console.error("[stripe/webhook] company plan activation error:", error?.message || error);
+          return res.status(500).json({ error: "Erro ao ativar o Plano Empresa" });
+        }
+      }
       const fluxoCaixaId: string | undefined = session.metadata?.fluxo_caixa_id || undefined;
       if (fluxoCaixaId) {
         if (session.payment_status !== "paid") {
@@ -25608,6 +26526,7 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const body = req.body as any;
     const event: string = body?.event || "";
     const payment = body?.payment || {};
+    const companyReference = String(payment.externalReference || "");
 
     console.log(`[asaas/webhook] event=${event} paymentId=${payment.id} status=${payment.status}`);
 
@@ -25620,6 +26539,14 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
           UPDATE membro_anuidades SET status = ${status}, ends_at = LEAST(ends_at, now()), updated_at = now()
           WHERE provider = 'asaas' AND external_id = ${String(payment.id || "")}
         `).catch((error: any) => console.warn("[asaas/webhook] Falha ao revogar anuidade:", error?.message || error));
+        if (companyReference.startsWith("company_plan:")) {
+          const ownerUserId = companyReference.split(":")[1];
+          await db.execute(sql`
+            UPDATE company_plan_subscriptions
+            SET status = ${status === "refunded" ? "reembolsado" : "chargeback"}, updated_at = now()
+            WHERE owner_user_id = ${ownerUserId} AND provider = 'asaas'
+          `).catch((error: any) => console.warn("[asaas/webhook] Falha ao revogar Plano Empresa:", error?.message || error));
+        }
       }
       return res.status(200).json({ received: true });
     }
@@ -25628,6 +26555,12 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
       // Strategy 1: match by externalReference (set this to the convite token when creating dynamic payments)
       let convite: any = null;
       const extRef: string | null = payment.externalReference || null;
+      if (extRef?.startsWith("company_plan:")) {
+        const [, ownerUserId, checkoutType] = extRef.split(":");
+        if (!ownerUserId) return res.status(200).json({ received: true });
+        await activateCompanyPlanPayment(ownerUserId, "asaas", String(payment.id || extRef), checkoutType || "full");
+        return res.status(200).json({ received: true });
+      }
       if (extRef?.startsWith("fluxo_caixa:")) {
         const fluxoCaixaId = extRef.replace("fluxo_caixa:", "");
         try {

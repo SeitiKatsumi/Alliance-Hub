@@ -1303,6 +1303,7 @@ export default function PainelPage() {
             <p className="text-sm font-semibold text-foreground">Ações rápidas</p>
             <div className="mt-3 grid grid-cols-2 gap-3">
               {[
+                { label: "Nova Demanda", icon: Target, path: "/demandas/nova" },
                 { label: "Nova BIA", icon: Plus, path: "/area-aliancas?tab=bias&criar=true" },
                 { label: "Registrar Percepção de AURA", icon: Sparkles, path: "/aura?registrar=1", auraRegister: true },
                 { label: "Criar destaque", icon: Megaphone, path: "/vitrine?criarAnuncio=true", target: "vitrine" as const },

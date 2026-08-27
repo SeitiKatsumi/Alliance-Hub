@@ -38,6 +38,7 @@ Controla Banco da BIA, documentos bancarios, lancamentos, pagamentos, valor de o
 - DM/CPP usa um helper unico em calculadora, visao geral, analises e geracao de lancamentos.
 - Valor de origem preserva parcelas pagas ou com evidencia ao recalcular cronograma.
 - Entradas, saidas, saldo, custo total e indicadores por m2 devem declarar formula e base temporal.
+- A analise de preco por m2 valida o raio real de 10 km; quando o endereco completo nao e reconhecido, tenta bairro/cidade, cidade/estado e CEP cadastrados, sem dispensar a verificacao geografica.
 - No mobile, a navegacao do Capital permite rolagem horizontal sem sobrepor rotulos e os indicadores financeiros refluem sem cortar valores.
 - Transferencia de cotas totaliza exatamente 100%, com precisao definida e destinatarios pertencentes a BIA.
 - Webhook/cobranca e idempotente.

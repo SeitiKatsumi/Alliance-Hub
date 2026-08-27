@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-21",
+  "updatedAt": "2026-08-27",
   "description": "Matriz de impacto entre funcionalidades, interface, API, persistencia, invariantes e testes.",
   "modules": [
     {
@@ -9,8 +9,8 @@
       "doc": "docs/platform/modules/acesso-onboarding.md",
       "keywords": ["login", "cadastro", "onboarding", "convite", "adesao", "sessao", "senha", "aceite", "localizacao", "pdf"],
       "routes": ["/login", "/convite/:token", "/adesao/:token", "/pagamento/:token", "/aguardando-aprovacao", "/onboarding/:etapa", "/meu-perfil"],
-      "frontendFiles": ["client/src/App.tsx", "client/src/pages/login.tsx", "client/src/pages/initial-onboarding.tsx", "client/src/pages/convite.tsx", "client/src/pages/adesao.tsx", "client/src/pages/meu-perfil.tsx", "client/src/components/contribution-area-selector.tsx", "client/src/components/environment-access.tsx", "client/src/components/profile-activity-fields.tsx", "client/src/lib/acceptanceLocation.ts", "client/src/lib/ramos-segmentos.ts", "client/src/lib/profile-completion.ts"],
-      "backendFiles": ["server/routes.ts", "server/auth-google.ts", "server/storage.ts", "shared/schema.ts", "shared/initial-onboarding.ts", "shared/contribution-areas.ts", "shared/environment-access.ts", "shared/member-community.ts", "shared/profile-taxonomy.ts"],
+      "frontendFiles": ["client/src/App.tsx", "client/src/pages/login.tsx", "client/src/pages/initial-onboarding.tsx", "client/src/pages/convite.tsx", "client/src/pages/adesao.tsx", "client/src/pages/meu-perfil.tsx", "client/src/components/contribution-area-selector.tsx", "client/src/components/environment-access.tsx", "client/src/components/profile-activity-fields.tsx", "client/src/hooks/use-public-labels.ts", "client/src/lib/acceptanceLocation.ts", "client/src/lib/ramos-segmentos.ts", "client/src/lib/profile-completion.ts"],
+      "backendFiles": ["server/routes.ts", "server/auth-google.ts", "server/storage.ts", "shared/schema.ts", "shared/initial-onboarding.ts", "shared/contribution-areas.ts", "shared/public-labels.ts", "shared/environment-access.ts", "shared/member-community.ts", "shared/profile-taxonomy.ts"],
       "apiPrefixes": ["/api/login", "/api/register", "/api/onboarding", "/api/me", "/api/minha-conta/finalidades", "/api/convites", "/api/meu-convite"],
       "dataStores": ["PostgreSQL users", "PostgreSQL convites_link", "PostgreSQL initial_onboarding_journeys", "PostgreSQL user_account_purposes", "PostgreSQL password_reset_tokens", "Directus cadastro_geral", "Directus files", "sessao Express"],
       "roles": ["visitante", "candidato", "membro", "funcionario", "admin", "superadmin"],
@@ -36,28 +36,28 @@
       "name": "Perfis, rede, empresas e comunidades",
       "doc": "docs/platform/modules/perfil-rede-empresa.md",
       "keywords": ["perfil", "membro", "empresa", "funcionario", "comunidade", "comunidade mae", "rede", "avatar", "permissao empresarial"],
-      "routes": ["/meu-perfil", "/area-membros", "/membro/:id", "/comunidade", "/comunidade/:id", "/admin?tab=membros"],
-      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/membros.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx", "client/src/lib/ramos-segmentos.ts", "client/src/lib/profile-completion.ts"],
-      "backendFiles": ["server/routes.ts", "shared/company-access.ts", "shared/contribution-areas.ts", "shared/initial-onboarding.ts", "shared/member-community.ts", "shared/profile-taxonomy.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/membros", "/api/membros-built", "/api/minha-conta/finalidades", "/api/comunidades"],
-      "dataStores": ["Directus cadastro_geral", "PostgreSQL users", "PostgreSQL membros", "PostgreSQL user_account_purposes", "PostgreSQL membro_comunidade_mae", "Directus relacoes de comunidade"],
+      "routes": ["/meu-perfil", "/area-membros", "/membro/:id", "/comunidade", "/comunidade/:id", "/admin?tab=membros", "/admin?tab=politicas"],
+      "frontendFiles": ["client/src/pages/meu-perfil.tsx", "client/src/pages/membros.tsx", "client/src/pages/area-membros.tsx", "client/src/pages/membro-detalhe.tsx", "client/src/pages/comunidade.tsx", "client/src/pages/comunidade-detalhe.tsx", "client/src/components/company-access-panel.tsx", "client/src/components/admin-commercial-policies.tsx", "client/src/hooks/use-public-labels.ts", "client/src/lib/ramos-segmentos.ts", "client/src/lib/profile-completion.ts"],
+      "backendFiles": ["server/routes.ts", "shared/company-access.ts", "shared/contribution-areas.ts", "shared/public-labels.ts", "shared/monetization.ts", "shared/initial-onboarding.ts", "shared/member-community.ts", "shared/profile-taxonomy.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/membros", "/api/membros-built", "/api/minha-conta/finalidades", "/api/comunidades", "/api/empresa/plano", "/api/empresa/funcionarios", "/api/taxonomy"],
+      "dataStores": ["Directus cadastro_geral", "PostgreSQL users", "PostgreSQL membros", "PostgreSQL company_plan_subscriptions", "PostgreSQL company_employee_accounts", "PostgreSQL taxonomy_public_labels", "PostgreSQL contribution_area_segments", "PostgreSQL user_account_purposes", "PostgreSQL membro_comunidade_mae", "Directus relacoes de comunidade"],
       "roles": ["membro", "funcionario", "gestor de empresa", "aliado", "admin", "superadmin"],
-      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "O convite original preserva a comunidade de origem durante a adesao mesmo antes da relacao M2M de membro.", "Funcionario possui identidade e auditoria proprias.", "Cadastro, onboarding e edicao de perfil usam os mesmos campos e taxonomias de atuacao profissional e contribuicao.", "Meu Perfil reutiliza as intencoes canonicas do onboarding e salva finalidade e intencoes juntas sem alterar vinculos de membro.", "Cards de recomendacao aceitam foto Directus ou URL externa e preservam fallback visual.", "O nome publico usa cadastro_geral.nome; nome_completo e CPF ficam restritos a formalizacao e nao alteram a identidade exibida."],
-      "tests": ["client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts", "shared/member-community.test.ts", "server/member-business-feed.test.ts"]
+      "invariants": ["Um usuario pode pertencer a varias comunidades.", "Comunidade mae nao substitui a lista integral de vinculos.", "O convite original preserva a comunidade de origem durante a adesao mesmo antes da relacao M2M de membro.", "Funcionario possui identidade, onboarding, aceites, Aura, comunidades e auditoria proprias.", "Plano Empresa inclui titular e no maximo dois usuarios adicionais ativos; pagamento nao substitui requisitos individuais.", "Upgrade vigente cobra 63940 centavos e preserva a renovacao; a proxima renovacao custa 383640 centavos.", "Cadastro, onboarding e edicao de perfil usam os mesmos campos e taxonomias de atuacao profissional e contribuicao.", "As 16 areas publicas excluem as quatro funcoes de lideranca da BIA.", "Meu Perfil reutiliza as intencoes canonicas do onboarding e salva finalidade e intencoes juntas sem alterar vinculos de membro.", "Cards de recomendacao aceitam foto Directus ou URL externa e preservam fallback visual.", "O nome publico usa cadastro_geral.nome; nome_completo e CPF ficam restritos a formalizacao e nao alteram a identidade exibida."],
+      "tests": ["client/src/lib/profile-completion.test.ts", "shared/company-access.test.ts", "shared/contribution-areas.test.ts", "shared/monetization.test.ts", "shared/member-community.test.ts", "server/member-business-feed.test.ts"]
     },
     {
       "id": "built-vitrine",
       "name": "Area de Vitrine",
       "doc": "docs/platform/modules/built-vitrine.md",
-      "keywords": ["vitrine", "publicacao", "parceiro", "anuncio", "demanda publica", "oba publica", "ativo publicado", "interesse"],
-      "routes": ["/vitrine", "/vitrine/:id", "/vitrine/oportunidades/obas", "/vitrine/oportunidades/demandas"],
-      "frontendFiles": ["client/src/components/environment-access.tsx", "client/src/pages/vitrine.tsx", "client/src/pages/vitrine-detalhe.tsx", "client/src/pages/vitrine-oportunidades.tsx", "client/src/pages/vitrine-opa-detalhe.tsx", "client/src/pages/vitrine-demandas.tsx"],
-      "backendFiles": ["server/routes.ts", "server/opportunity-platform.ts", "server/property-journey.ts", "shared/environment-access.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/vitrine", "/api/vitrine/demandas", "/api/assets"],
-      "dataStores": ["Directus cadastro_geral", "PostgreSQL anuncios", "PostgreSQL opportunity_registry", "projecoes publicas"],
+      "keywords": ["vitrine", "publicacao", "parceiro", "anuncio", "demanda publica", "proposta comercial", "oba publica", "ativo publicado"],
+      "routes": ["/vitrine", "/vitrine/:id", "/vitrine/oportunidades/obas", "/vitrine/oportunidades/demandas", "/demandas/nova"],
+      "frontendFiles": ["client/src/components/environment-access.tsx", "client/src/components/demand-resolution-select.tsx", "client/src/hooks/use-public-labels.ts", "client/src/pages/vitrine.tsx", "client/src/pages/vitrine-detalhe.tsx", "client/src/pages/vitrine-oportunidades.tsx", "client/src/pages/vitrine-opa-detalhe.tsx", "client/src/pages/vitrine-demandas.tsx", "client/src/pages/nova-demanda.tsx"],
+      "backendFiles": ["server/routes.ts", "server/demand-domain.ts", "server/opportunity-platform.ts", "server/property-journey.ts", "shared/public-labels.ts", "shared/environment-access.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/vitrine", "/api/vitrine/demandas", "/api/demandas", "/api/assets"],
+      "dataStores": ["Directus cadastro_geral", "PostgreSQL carteira_demandas", "PostgreSQL carteira_demanda_interesses", "PostgreSQL anuncios", "PostgreSQL opportunity_registry", "projecoes publicas"],
       "roles": ["visitante", "membro", "publicador", "moderador", "admin"],
-      "invariants": ["Todo usuario autenticado consulta a area; funcionarios respeitam a permissao empresarial.", "Somente perfis profissionais podem optar pela publicacao, que e reversivel.", "Usuario gratuito recebe resumo sem contatos privados; detalhes autorizados exigem anuidade vigente.", "Projecao publica omite dados privados.", "Interesse repetido e idempotente."],
-      "tests": ["server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/property-journey.test.ts", "shared/environment-access.test.ts"]
+      "invariants": ["Todo usuario autenticado consulta a area; funcionarios respeitam a permissao empresarial.", "Somente perfis profissionais podem optar pela publicacao, que e reversivel.", "Usuario gratuito recebe resumo sem contatos privados; detalhes autorizados exigem anuidade vigente.", "Projecao publica omite dados privados.", "Proposta repetida atualiza o mesmo registro.", "Aceite rejeita propostas concorrentes e nunca cria associacao de BIA.", "MEM existe somente em OBA."],
+      "tests": ["server/demand-domain.test.ts", "server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/property-journey.test.ts", "shared/environment-access.test.ts"]
     },
     {
       "id": "built-alliances",
@@ -66,12 +66,12 @@
       "keywords": ["alliances", "bia", "oba", "opa", "land bank", "banco de ativos", "estruturacao", "diretoria", "socio", "mou", "rastreabilidade", "map de origem"],
       "routes": ["/area-aliancas", "/area-aliancas/oportunidades/:codigo", "/opas/:id", "/bias", "/bias/:id", "/convites-alianca", "/land-bank/:id", "/rastreabilidade/:codigo"],
       "frontendFiles": ["client/src/components/environment-access.tsx", "client/src/pages/area-aliancas.tsx", "client/src/pages/opa-detalhe.tsx", "client/src/pages/bias.tsx", "client/src/pages/bia-detalhe.tsx", "client/src/pages/land-bank-detalhe.tsx", "client/src/components/bia-structuring-queue.tsx", "client/src/components/opportunity-distribution-controls.tsx"],
-      "backendFiles": ["server/routes.ts", "server/bia-lifecycle.ts", "server/opportunity-platform.ts", "server/business-trace.ts", "shared/bia-access.ts", "shared/environment-access.ts", "shared/member-portfolio.ts", "shared/property-ownership.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/bias", "/api/land-bank-assets", "/api/bia-estruturacao-solicitacoes", "/api/bia-aprovacoes", "/api/bia-diretor-solicitacoes", "/api/bia-socio-solicitacoes"],
-      "dataStores": ["Directus bias_projetos", "Directus land_bank_assets", "PostgreSQL opportunity_registry", "PostgreSQL business_trace_*", "PostgreSQL bia_*", "PostgreSQL bia_imovel_origens", "PostgreSQL bia_map_origem_alocacoes"],
+      "backendFiles": ["server/routes.ts", "server/demand-domain.ts", "server/bia-lifecycle.ts", "server/opportunity-platform.ts", "server/business-trace.ts", "shared/bia-access.ts", "shared/environment-access.ts", "shared/member-portfolio.ts", "shared/monetization.ts", "shared/property-ownership.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/bias", "/api/demandas", "/api/land-bank-assets", "/api/bia-estruturacao-solicitacoes", "/api/bia-aprovacoes", "/api/bia-diretor-solicitacoes", "/api/bia-socio-solicitacoes"],
+      "dataStores": ["Directus bias_projetos", "Directus tipos_oportunidades", "Directus land_bank_assets", "PostgreSQL carteira_demandas", "PostgreSQL opportunity_registry", "PostgreSQL opportunity_relations", "PostgreSQL business_trace_*", "PostgreSQL bia_*", "PostgreSQL bia_billing_terms", "PostgreSQL bia_billing_charges", "PostgreSQL bia_imovel_origens", "PostgreSQL bia_map_origem_alocacoes"],
       "roles": ["autor", "aliado BUILT", "diretor de alianca", "diretor de nucleo", "socio", "admin", "superadmin"],
-      "invariants": ["A Area de Aliancas exibe apenas BIAs relacionadas ao usuario, independentemente da vigencia da anuidade.", "Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Aliado ou diretor responsavel nao depende do painel admin para agir.", "A Carteira exibe a exclusao de BIA somente quando a autorizacao efetiva do backend permite a operacao.", "Admin e superadmin podem excluir qualquer BIA pela lista da Area de Aliancas, sempre mediante confirmacao.", "A exclusao remove primeiro os vinculos comunidade_bias que bloqueiam a BIA e preserva registros historicos locais.", "BIA originada de imovel ativa somente depois de todos os coproprietarios aceitarem o MOU.", "MAP de origem e imutavel, idempotente e nao cria receita ou entrada de caixa."],
-      "tests": ["shared/bia-access.test.ts", "shared/environment-access.test.ts", "server/bia-lifecycle.test.ts", "server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/business-trace.test.ts", "shared/property-ownership.test.ts"]
+      "invariants": ["A Area de Aliancas exibe apenas BIAs relacionadas ao usuario, independentemente da vigencia da anuidade.", "Papel e acesso sao cumulativos e limitados a BIA.", "Toda transicao preserva a origem e cria rastro.", "Uma Demanda gera no maximo uma OBA e somente na propria BIA; demanda_gerou_oba e a genealogia oficial.", "OBA e o nome publico e OPA permanece somente por compatibilidade interna.", "Aliado ou diretor responsavel nao depende do painel admin para agir.", "A Carteira exibe a exclusao de BIA somente quando a autorizacao efetiva do backend permite a operacao.", "Admin e superadmin podem excluir qualquer BIA pela lista da Area de Aliancas, sempre mediante confirmacao.", "A exclusao remove primeiro os vinculos comunidade_bias que bloqueiam a BIA e preserva registros historicos locais.", "BIA originada de imovel ativa somente depois de todos os coproprietarios aceitarem o MOU.", "Termo financeiro aprovado congela RIG, inicio institucional e versoes das politicas no MOU/PDF.", "MAP de origem e imutavel, idempotente e nao cria receita ou entrada de caixa."],
+      "tests": ["server/demand-domain.test.ts", "shared/monetization.test.ts", "shared/bia-access.test.ts", "shared/environment-access.test.ts", "server/bia-lifecycle.test.ts", "server/opportunity-platform.test.ts", "server/network-opportunities.test.ts", "server/business-trace.test.ts", "shared/property-ownership.test.ts"]
     },
     {
       "id": "capital-financeiro",
@@ -84,7 +84,7 @@
       "apiPrefixes": ["/api/fluxo-caixa", "/api/bias", "/api/transferencia-cotas"],
       "dataStores": ["Directus fluxo_caixa", "Directus bias_projetos", "Directus Categorias", "Directus Tipos_CPP", "PostgreSQL transferencias_cotas", "PostgreSQL bia_info_comercial"],
       "roles": ["participante da BIA", "diretor de capital", "diretor de alianca", "aliado", "admin", "superadmin"],
-      "invariants": ["Zero explicito no DM nao usa fallback.", "Formula DM/CPP e unica em todas as telas.", "Valor de origem preserva parcelas pagas ou com evidencia.", "No mobile, as abas do Capital rolam sem sobrepor rotulos e os indicadores refluem sem cortar valores.", "Transferencia totaliza 100 por cento com precisao definida."],
+      "invariants": ["Zero explicito no DM nao usa fallback.", "Formula DM/CPP e unica em todas as telas.", "Valor de origem preserva parcelas pagas ou com evidencia.", "A analise de preco por m2 valida o raio de 10 km e tenta bairro, cidade, estado e CEP quando o endereco completo nao e reconhecido.", "No mobile, as abas do Capital rolam sem sobrepor rotulos e os indicadores refluem sem cortar valores.", "Transferencia totaliza 100 por cento com precisao definida."],
       "tests": ["server/valor-origem-sync.test.ts", "server/bia-origin-value.test.ts", "server/quota-transfer.test.ts", "server/market-comparables.test.ts"]
     },
     {
@@ -93,13 +93,13 @@
       "doc": "docs/platform/modules/carteira.md",
       "keywords": ["carteira", "patrimonio", "imovel", "pulso", "documento do imovel", "alerta patrimonial", "diagnostico", "demanda", "compartilhamento", "coproprietario", "map de origem", "originar bia"],
       "routes": ["/carteira", "/carteira/:id", "/carteira/novo", "/convite-imovel/:token", "/convites-alianca", "/oportunidades", "/oportunidades/:id"],
-      "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/convite-imovel.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx", "client/src/lib/audio-recording.ts"],
-      "backendFiles": ["server/routes.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/member-portfolio.ts", "shared/property-ownership.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/carteira", "/api/bias/:id/patrimonio", "/api/bias/:id/aporte-solicitacoes", "/api/oportunidades"],
+      "frontendFiles": ["client/src/pages/carteira.tsx", "client/src/pages/nova-demanda.tsx", "client/src/pages/carteira-assistente.tsx", "client/src/pages/convite-imovel.tsx", "client/src/pages/oportunidades-imobiliarias.tsx", "client/src/components/bia-demandas.tsx", "client/src/components/demand-resolution-select.tsx", "client/src/lib/audio-recording.ts"],
+      "backendFiles": ["server/routes.ts", "server/demand-domain.ts", "server/carteira-alertas.ts", "server/property-journey.ts", "shared/carteira.ts", "shared/member-portfolio.ts", "shared/property-ownership.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/carteira", "/api/demandas", "/api/bias/:id/patrimonio", "/api/bias/:id/aporte-solicitacoes", "/api/oportunidades"],
       "dataStores": ["PostgreSQL inventario_imoveis", "PostgreSQL inventario_lancamentos", "PostgreSQL carteira_*", "PostgreSQL carteira_cotacoes_cambio", "PostgreSQL carteira_imovel_socios", "PostgreSQL bia_imovel_origens", "PostgreSQL bia_map_origem_alocacoes", "PostgreSQL bia_patrimonial_snapshots", "PostgreSQL bia_aporte_solicitacoes", "Directus fluxo_caixa", "Directus bias_projetos"],
       "roles": ["proprietario", "coproprietario confirmado", "conta limitada coproprietario", "leitor convidado", "colaborador", "administrador do imovel", "administrador da plataforma"],
-      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "Patrimonio Total Estimado e bruto e nao desconta dividas.", "Valor de aquisicao soma imoveis proporcionais e aportes oficiais em BIAs.", "Estimativa automatica exige tres comparaveis em raio verificado de ate 10 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao.", "Multimoeda usa cotacao de venda PTAX persistida e exclui valores sem cotacao identificando a moeda.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "A extracao de matriculas em PDF usa leitura visual quando o texto incorporado e insuficiente e nunca registra como sucesso uma analise sem campos identificados.", "Proprietario ou administrador da plataforma pode excluir um imovel mediante confirmacao.", "Publicacao e compartilhamento sao opt-in e por imovel.", "A composicao proposta dos coproprietarios deve totalizar exatamente 100 por cento.", "Convite pendente conta no total, mas nao concede acesso nem permite originar BIA.", "MAP inicial da BIA e ativado uma unica vez depois de todos aceitarem o MOU e nao altera o caixa.", "Imovel com BIA ativa vinculada nao pode ser excluido."],
-      "tests": ["shared/member-portfolio.test.ts", "shared/property-ownership.test.ts", "client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
+      "invariants": ["Carteira privada le o financeiro oficial da BIA sem substitui-lo.", "carteira_demandas e a fonte operacional unica; opportunity_registry e indice e rastreabilidade.", "Modos INTERNAL_BIA e OBA exigem BIA e valores monetarios de proposta permanecem numericos no dominio.", "Somente MAP positivo com snapshot oficial confirmado entra no patrimonio consolidado.", "Patrimonio Total Estimado e bruto e nao desconta dividas.", "Valor de aquisicao soma imoveis proporcionais e aportes oficiais em BIAs.", "Estimativa automatica exige tres comparaveis em raio verificado de ate 10 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao.", "Multimoeda usa cotacao de venda PTAX persistida e exclui valores sem cotacao identificando a moeda.", "A fracao do imovel pertencente ao usuario e aplicada aos totais e a concentracao patrimonial.", "Aprovacao de aporte e idempotente e somente ela cria lancamento oficial.", "Edicao relevante gera evento.", "A extracao de matriculas em PDF usa leitura visual quando o texto incorporado e insuficiente e nunca registra como sucesso uma analise sem campos identificados.", "Proprietario ou administrador da plataforma pode excluir um imovel mediante confirmacao.", "Publicacao e compartilhamento sao opt-in e por imovel.", "A composicao proposta dos coproprietarios deve totalizar exatamente 100 por cento.", "Convite pendente conta no total, mas nao concede acesso nem permite originar BIA.", "MAP inicial da BIA e ativado uma unica vez depois de todos aceitarem o MOU e nao altera o caixa.", "Imovel com BIA ativa vinculada nao pode ser excluido."],
+      "tests": ["server/demand-domain.test.ts", "shared/member-portfolio.test.ts", "shared/property-ownership.test.ts", "client/src/lib/audio-recording.test.ts", "server/carteira-domain.test.ts", "server/carteira-alertas.test.ts", "server/property-journey.test.ts", "server/market-comparables.test.ts"]
     },
     {
       "id": "aura",
@@ -133,29 +133,29 @@
       "id": "administracao",
       "name": "Administracao",
       "doc": "docs/platform/modules/administracao.md",
-      "keywords": ["admin", "administracao", "superadmin", "mapa de calor", "monetizacao", "configuracao", "cadastro geral", "auditoria", "estruturacao de bia"],
-      "routes": ["/admin"],
-      "frontendFiles": ["client/src/pages/admin.tsx", "client/src/components/bia-structuring-queue.tsx", "client/src/data/platform-functional-report.ts"],
-      "backendFiles": ["server/routes.ts", "shared/schema.ts"],
-      "apiPrefixes": ["/api/admin", "/api/bia-estruturacao-solicitacoes"],
-      "dataStores": ["PostgreSQL user_usage_events", "PostgreSQL company_plan_subscriptions", "PostgreSQL anuncios", "Directus cadastro_geral", "agregacoes de pagamentos"],
+      "keywords": ["admin", "administracao", "superadmin", "mapa de calor", "monetizacao", "rig", "governanca", "politica", "taxonomia", "configuracao", "cadastro geral", "auditoria", "estruturacao de bia"],
+      "routes": ["/admin", "/admin?tab=politicas"],
+      "frontendFiles": ["client/src/pages/admin.tsx", "client/src/components/admin-commercial-policies.tsx", "client/src/components/bia-structuring-queue.tsx", "client/src/data/platform-functional-report.ts"],
+      "backendFiles": ["server/routes.ts", "shared/monetization.ts", "shared/public-labels.ts", "shared/schema.ts"],
+      "apiPrefixes": ["/api/admin", "/api/admin/monetization/policies", "/api/admin/bias/:id/monetization", "/api/admin/taxonomy", "/api/bia-estruturacao-solicitacoes"],
+      "dataStores": ["PostgreSQL user_usage_events", "PostgreSQL monetization_policies", "PostgreSQL bia_billing_terms", "PostgreSQL bia_billing_charges", "PostgreSQL taxonomy_public_labels", "PostgreSQL contribution_area_segments", "PostgreSQL company_plan_subscriptions", "PostgreSQL anuncios", "Directus cadastro_geral", "agregacoes de pagamentos"],
       "roles": ["admin", "superadmin", "aliado ou diretor com tarefa operacional"],
-      "invariants": ["Painel administrativo nao e requisito para papel operacional agir.", "Toda mutacao registra executor.", "Metricas informam fonte, criterio e janela."],
-      "tests": ["client/src/data/platform-functional-report.test.ts", "server/agenda-alerts.test.ts"]
+      "invariants": ["Painel administrativo nao e requisito para papel operacional agir.", "Toda mutacao registra executor.", "Politicas comerciais sao versionadas e snapshots aprovados nao sao recalculados.", "RIG e no minimo um por cento e exige aprovacao administrativa e inicio institucional explicito.", "Governanca de 60000 centavos gera competencias desde o mes 25 sem rateio diario somente enquanto ativa.", "Metricas informam fonte, criterio e janela."],
+      "tests": ["shared/monetization.test.ts", "shared/contribution-areas.test.ts", "client/src/data/platform-functional-report.test.ts", "server/agenda-alerts.test.ts"]
     },
     {
       "id": "pagamentos-integracoes",
       "name": "Pagamentos e integracoes",
       "doc": "docs/platform/modules/pagamentos-integracoes.md",
-      "keywords": ["pagamento", "assinatura", "stripe", "pinbank", "openai", "directus", "webhook", "arquivo", "upload", "mapa", "geocodificacao", "email"],
-      "routes": ["/pagamento/:token", "/pagamento/sucesso", "/bias/:id?tab=capital", "/admin"],
-      "frontendFiles": ["client/src/pages/pagamento.tsx", "client/src/pages/pagamento-sucesso.tsx", "client/src/components/PagamentoModal.tsx", "client/src/components/browser-permission-help.tsx"],
-      "backendFiles": ["server/routes.ts", "server/pinbank-client.ts", "server/mailer.ts", "server/stripe.ts"],
-      "apiPrefixes": ["/api/convites", "/api/opa/solicitar-adesao", "/api/stripe/webhook", "/api/webhooks/asaas", "/api/upload", "/api/files"],
-      "dataStores": ["PostgreSQL membro_anuidades", "IDs externos persistidos", "eventos validados de provedor", "arquivos Directus", "variaveis de ambiente"],
+      "keywords": ["pagamento", "assinatura", "plano empresa", "upgrade", "stripe", "asaas", "pinbank", "openai", "directus", "webhook", "arquivo", "upload", "mapa", "geocodificacao", "email"],
+      "routes": ["/pagamento/:token", "/pagamento/sucesso", "/meu-perfil", "/bias/:id?tab=capital", "/admin"],
+      "frontendFiles": ["client/src/pages/pagamento.tsx", "client/src/pages/pagamento-sucesso.tsx", "client/src/components/company-access-panel.tsx", "client/src/components/PagamentoModal.tsx", "client/src/components/browser-permission-help.tsx"],
+      "backendFiles": ["server/routes.ts", "shared/monetization.ts", "server/pinbank-client.ts", "server/mailer.ts", "server/stripe.ts"],
+      "apiPrefixes": ["/api/convites", "/api/empresa/plano/checkout", "/api/opa/solicitar-adesao", "/api/stripe/webhook", "/api/webhooks/asaas", "/api/upload", "/api/files"],
+      "dataStores": ["PostgreSQL membro_anuidades", "PostgreSQL company_plan_subscriptions", "PostgreSQL bia_billing_charges", "IDs externos persistidos", "eventos validados de provedor", "arquivos Directus", "variaveis de ambiente"],
       "roles": ["pagador", "participante autorizado", "operador financeiro", "admin"],
-      "invariants": ["A anuidade de R$ 3.197 formaliza Membro BUILT somente depois de onboarding, Aura, pagamento e associacao comunitaria.", "Cancelamento preserva acesso ate o fim pago; reembolso e chargeback encerram a vigencia.", "Webhook e retentativa sao idempotentes.", "Falha externa nao vira sucesso silencioso.", "Segredos e PII nao chegam ao cliente ou logs."],
-      "tests": ["server/aura-audio.test.ts", "server/valor-origem-sync.test.ts"]
+      "invariants": ["A anuidade de R$ 3.197 formaliza Membro BUILT somente depois de onboarding, Aura, pagamento e associacao comunitaria.", "Plano Empresa custa R$ 3.836,40 por ano; upgrade vigente cobra R$ 639,40 e mantem a renovacao.", "Plano Empresa so ativa por webhook confirmado e repeticao nao duplica ativacao.", "Planos gratuitos legados permanecem ativos ate adesao explicita ou corte comunicado.", "Cancelamento preserva acesso ate o fim pago; reembolso e chargeback encerram a vigencia.", "Webhook e retentativa sao idempotentes.", "Falha externa nao vira sucesso silencioso.", "Segredos e PII nao chegam ao cliente ou logs."],
+      "tests": ["shared/monetization.test.ts", "server/aura-audio.test.ts", "server/valor-origem-sync.test.ts"]
     }
   ],
   "crossCutting": [

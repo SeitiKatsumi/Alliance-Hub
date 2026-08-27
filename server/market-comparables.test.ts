@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildComparableMarketAnalysis, marketDistanceKm } from "./market-comparables";
+import { buildComparableMarketAnalysis, marketDistanceKm, marketLocationCandidates } from "./market-comparables";
 
 const target = {
   tipo: "Apartamento",
@@ -98,4 +98,20 @@ test("calcula distância geográfica em quilômetros", () => {
     { latitude: -23.55052, longitude: -46.633308 },
     { latitude: -23.55052, longitude: -46.533308 },
   ) - 10.22) < 0.1);
+});
+
+test("tenta bairro e cidade quando o endereço completo não é reconhecido", () => {
+  assert.deepEqual(marketLocationCandidates({
+    endereco: "Rua sem cobertura no geocodificador",
+    bairro: "Vale dos Sonhos",
+    cidade: "Lagoa Santa",
+    estado: "MG",
+    pais: "Brasil",
+    cep: "33400-000",
+  }), [
+    "Rua sem cobertura no geocodificador, Vale dos Sonhos, Lagoa Santa, MG, Brasil, CEP 33400-000",
+    "Vale dos Sonhos, Lagoa Santa, MG, Brasil",
+    "Lagoa Santa, MG, Brasil",
+    "CEP 33400-000, Brasil",
+  ]);
 });

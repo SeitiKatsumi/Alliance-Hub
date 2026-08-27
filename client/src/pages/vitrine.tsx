@@ -30,10 +30,11 @@ import { canRegisterAuraForMember, getAuraLinkedMemberIds, isBuiltMemberForAura 
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import { PhoneInput } from "@/components/phone-input";
 import { getVitrineOpaUrl } from "@/lib/public-refs";
+import { usePublicLabels } from "@/hooks/use-public-labels";
 import {
   ComposableMap, Geographies, Geography, Marker, ZoomableGroup
 } from "react-simple-maps";
-import { getAllTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
+import { getPublicTipos, getNucleoForTipo, getTipoDisplayName, RAMOS_SEGMENTOS, getSegmentosForRamo } from "@/lib/ramos-segmentos";
 import {
   ALL_VITRINE_PARTNER_FILTERS,
   getVitrinePartnerCidadeKey,
@@ -884,6 +885,7 @@ function AnuncioHeroCard({
 export default function VitrinePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const publicLabel = usePublicLabels();
   const [location, navigate] = useLocation();
   const isParceirosPage = location === "/vitrine/parceiros";
   const [search, setSearch] = useState("");
@@ -1059,7 +1061,7 @@ export default function VitrinePage() {
 
   const registrarInteresseDemandaMutation = useMutation({
     mutationFn: async ({ id, mensagem }: { id: string; mensagem: string }) => {
-      const response = await apiRequest("POST", `/api/vitrine/demandas/${id}/interesse`, {
+      const response = await apiRequest("POST", `/api/demandas/${id}/propostas`, {
         mensagem: mensagem.trim() || null,
       });
       return response.json();
@@ -1068,21 +1070,21 @@ export default function VitrinePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas", variables.id] });
       setDemandasRefreshKey((current) => current + 1);
-      toast({ title: "Interesse registrado", description: "O responsável pela demanda poderá analisar seu perfil e sua mensagem." });
+      toast({ title: "Proposta enviada", description: "O responsável poderá analisar seu perfil e sua mensagem comercial." });
     },
-    onError: (error: any) => toast({ title: "Não foi possível registrar o interesse", description: error?.message, variant: "destructive" }),
+    onError: (error: any) => toast({ title: "Não foi possível enviar a proposta", description: error?.message, variant: "destructive" }),
   });
 
   const retirarInteresseDemandaMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/vitrine/demandas/${id}/interesse`),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/demandas/${id}/propostas/minha`),
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas", id] });
       setDemandasRefreshKey((current) => current + 1);
       setDemandaMensagem("");
-      toast({ title: "Interesse retirado" });
+      toast({ title: "Proposta retirada" });
     },
-    onError: (error: any) => toast({ title: "Não foi possível retirar o interesse", description: error?.message, variant: "destructive" }),
+    onError: (error: any) => toast({ title: "Não foi possível retirar a proposta", description: error?.message, variant: "destructive" }),
   });
 
   function abrirDemanda(demanda: DemandaVitrine) {
@@ -1478,11 +1480,11 @@ export default function VitrinePage() {
 
                 <div className="flex items-start gap-3 rounded-md border border-blue-100 bg-blue-50/60 p-3 text-xs leading-relaxed text-slate-600">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                  O endereço exato, os documentos e os dados de contato permanecem protegidos. Eles são liberados somente após a seleção do interessado.
+                  O endereço exato, os documentos e os dados de contato permanecem protegidos. Eles são liberados somente após o aceite de uma proposta.
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="mensagem-interesse-demanda">Mensagem ao responsável</Label>
+                  <Label htmlFor="mensagem-interesse-demanda">Mensagem da proposta</Label>
                   <Textarea
                     id="mensagem-interesse-demanda"
                     rows={3}
@@ -1494,9 +1496,9 @@ export default function VitrinePage() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{demandaEmExibicao.total_interesses} interesse(s) registrado(s)</span>
+                  <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{demandaEmExibicao.total_interesses} proposta(s) recebida(s)</span>
                   {demandaEmExibicao.meu_interesse && (
-                    <span className="flex items-center gap-1.5 font-medium text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Seu interesse está registrado</span>
+                    <span className="flex items-center gap-1.5 font-medium text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Sua proposta foi enviada</span>
                   )}
                 </div>
               </div>
@@ -1510,7 +1512,7 @@ export default function VitrinePage() {
                     disabled={retirarInteresseDemandaMutation.isPending}
                     onClick={() => retirarInteresseDemandaMutation.mutate(demandaEmExibicao.id)}
                   >
-                    Retirar interesse
+                    Retirar proposta
                   </Button>
                 ) : <span />}
                 <Button
@@ -1524,7 +1526,7 @@ export default function VitrinePage() {
                   data-testid="btn-registrar-interesse-demanda"
                 >
                   {registrarInteresseDemandaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {demandaEmExibicao.meu_interesse ? "Atualizar interesse" : "Tenho interesse"}
+                  {demandaEmExibicao.meu_interesse ? "Atualizar proposta" : "Enviar proposta"}
                 </Button>
               </DialogFooter>
             </>
@@ -2196,7 +2198,7 @@ export default function VitrinePage() {
               </Field>
             </div>
 
-            <Field label="Área de Contribuição">
+            <Field label={publicLabel("ContributionArea")}>
               <Select
                 value={form.tipo_alianca || undefined}
                 onValueChange={v => setForm(f => ({
@@ -2212,7 +2214,7 @@ export default function VitrinePage() {
                   <SelectValue placeholder="Selecionar tipo..." />
                 </SelectTrigger>
                 <SelectContent className="bg-[#001428] border-white/10 text-white max-h-64">
-                  {getAllTipos().map(t => (
+                  {getPublicTipos().map(t => (
                     <SelectItem key={t.nome} value={t.nome} className="text-white/80 focus:bg-brand-gold/10 focus:text-white">
                       {getTipoDisplayName(t.nome)}
                     </SelectItem>

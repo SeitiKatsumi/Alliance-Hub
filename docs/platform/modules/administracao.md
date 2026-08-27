@@ -6,7 +6,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 
 ## Telas e URLs
 
-- `/admin` e abas por query string, incluindo dashboard, membros, configuracoes, pagamentos e estruturacao de BIAs.
+- `/admin` e abas por query string, incluindo dashboard, membros, configuracoes, pagamentos, estruturacao de BIAs e `?tab=politicas`.
 - Implementacao principal: `client/src/pages/admin.tsx` e `client/src/components/bia-structuring-queue.tsx`.
 
 ## APIs
@@ -14,12 +14,14 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 - `/api/admin/usage-heatmap`, `/api/admin/monetization` e indicadores administrativos.
 - CRUD administrativo de membros/comunidades e configuracoes.
 - `/api/bia-estruturacao-solicitacoes*` para fila compartilhada com os papeis operacionais.
+- `/api/admin/monetization/policies*`, `/api/admin/bias/:id/monetization*` e `/api/admin/taxonomy/*` para politicas versionadas, termos imutaveis e nomes publicos.
 
 ## Dados e fontes de verdade
 
 - Indicadores agregam PostgreSQL, Directus e provedores; cada metrica deve informar fonte e janela.
 - `user_usage_events`, assinaturas empresariais, convites, anuncios e pagamentos alimentam monetizacao.
 - Administracao nao deve criar uma segunda copia editavel de dados sem sincronizacao declarada.
+- `monetization_policies` e a fonte versionada; `bia_billing_terms.snapshot` congela a versao aplicada e `bia_billing_charges` preserva competencias e IDs externos.
 
 ## Papeis e permissoes
 
@@ -40,6 +42,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 - Filtros nao alteram totais de modo silencioso.
 - Acao de superadmin nao pode depender apenas de texto/e-mail no frontend.
 - Logs e relatorios mascaram PII.
+- RIG exige minimo de 1%, aprovacao administrativa e inicio institucional explicito. Governanca de R$ 600/mes comeca na competencia do 25o mes, sem rateio diario, e para de gerar novas competencias quando suspensa ou encerrada.
 
 ## Efeitos e dependencias
 

@@ -25,6 +25,7 @@ import { PhoneInput, hasInternationalDialCode } from "@/components/phone-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
+import { usePublicLabels } from "@/hooks/use-public-labels";
 
 interface ConviteInfo {
   gerador_nome: string | null;
@@ -236,6 +237,7 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const { login, loginPending, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const publicLabel = usePublicLabels();
 
   // Initialize mode immediately from URL — avoids flash of wrong mode
   const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">(() => {
@@ -1242,7 +1244,7 @@ export default function LoginPage() {
                     )}
 
                     <section className={`${temPerfilProfissional ? "" : "hidden"} rounded-xl border border-slate-200 bg-white p-3.5 md:p-4`}>
-                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">{temFinalidadeImoveis ? "3" : "2"}. Áreas de Contribuição</h3>
+                      <h3 className="text-base font-extrabold leading-tight text-[#001D34] md:text-sm md:font-bold">{temFinalidadeImoveis ? "3" : "2"}. {publicLabel("ContributionArea")}</h3>
                       <p className="mt-1 text-[13px] leading-relaxed text-slate-500 md:text-xs">{somenteFinalidadeCapital ? "Para BUILT Capital, Aporte Financeiro é selecionado automaticamente." : "Selecione as áreas em que você pode contribuir."}</p>
                       <div className="mt-3 grid max-h-[18rem] gap-2 overflow-y-auto pr-1 sm:max-h-none sm:grid-cols-2 sm:overflow-visible sm:pr-0 lg:grid-cols-3">
                         {sortContributionAreas(somenteFinalidadeCapital ? [BUILT_CAPITAL_TIPO] : AREA_OPTIONS, (tipo) => tipo).map((tipo) => {

@@ -500,7 +500,7 @@ export default function VitrineDetalhePage() {
                         )}
                         {tipos.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Área de Contribuição</p>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">O que pode oferecer</p>
                             <p className="text-sm text-gray-800 leading-relaxed">{tipos.map(getTipoDisplayName).join(", ")}</p>
                           </div>
                         )}

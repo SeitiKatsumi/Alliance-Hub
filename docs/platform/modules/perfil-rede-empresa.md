@@ -15,7 +15,8 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 - `/api/membros*`, `/api/membros-built`, `/api/comunidades*`.
 - `/api/membros/:id/comunidades`, `/comunidade`, `/comunidade-mae` e `/convidador`.
-- Endpoints de Plano Empresa, funcionarios e permissoes.
+- `/api/empresa/plano/checkout`, Plano Empresa, funcionarios e permissoes; `/ativar` e somente um adaptador para o checkout pago.
+- APIs de nomes publicos e relacao N:N entre area de contribuicao e segmento.
 
 ## Dados e fontes de verdade
 
@@ -25,6 +26,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - Classificacao profissional oficial: `ramo_atuacao`, `segmento`, `area_atuacao`, `especialidade_livre` e `idiomas`; onboarding e edicao de perfil escrevem nesses mesmos campos.
 - Taxonomias compartilhadas: `client/src/lib/ramos-segmentos.ts`, `shared/profile-taxonomy.ts` e `shared/contribution-areas.ts`.
 - PostgreSQL `users`: login; `membros`: espelho/apoio operacional; `membro_comunidade_mae`: ancora preferencial.
+- PostgreSQL `company_plan_subscriptions` concede o direito financeiro; cada funcionario possui `users` e `cadastro_geral` proprios.
 - Relacoes de comunidade sao muitos-para-muitos. A lista integral de vinculos e a fonte para regras de associacao.
 - Antes da adesao completa, a comunidade registrada no convite original e uma evidencia valida de origem e alimenta a ancora `membro_comunidade_mae`; ela nao deve ser ignorada apenas porque o candidato ainda nao entrou no M2M de membros.
 
@@ -49,6 +51,9 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - O inicio da adesao resolve a comunidade pela ancora de origem e por todos os vinculos atuais; o convite original continua valido para candidatos ainda nao promovidos a membro.
 - Vinculo deve comparar IDs normalizados de usuario, membro Directus e registros relacionais.
 - Funcionario possui login proprio; auditoria registra quem executou, nao somente a empresa.
+- Plano Empresa custa R$ 3.836,40/ano e inclui titular mais dois usuarios adicionais ativos. Upgrade de anuidade individual vigente cobra R$ 639,40 sem alterar a renovacao atual.
+- Pagamento empresarial nao substitui onboarding, aceites, AURA ou associacao comunitaria individual; permissoes dos modulos sao controladas pelo titular e validadas no backend.
+- As 16 areas publicas de contribuicao excluem as quatro funcoes de lideranca, reservadas a governanca da BIA; ramos e segmentos continuam na taxonomia canonica existente.
 - Cadastro, onboarding, Meu Perfil e administracao de membros nao podem manter listas paralelas para ramo, segmento, abrangencia, idiomas ou areas de contribuicao.
 - Os cards de finalidade do Meu Perfil abrem a configuracao das intencoes canonicas; alterar uma finalidade nao altera os campos de associacao `em_membros_built` ou `em_built_capital`.
 - O resumo do Meu Perfil reutiliza o padrao visual e o score oficial da Aura exibidos no Inicio e abre `/aura/:membroId`; ele nao recalcula nem persiste score.

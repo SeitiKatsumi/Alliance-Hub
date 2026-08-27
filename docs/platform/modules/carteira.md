@@ -20,6 +20,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `/api/carteira/imoveis/:id/socios*` mantem a composicao de coproprietarios; `/api/carteira/convites/:token` resolve o convite; `/api/carteira/imoveis/:id/origem-bia*` revisa, envia e cancela a origem.
 - `/api/bias/:id/patrimonio` e `/aporte-solicitacoes*` registram valor oficial e aportes sujeitos a decisao do diretor.
 - Pulsos, alertas, diagnostico, alternativas, demandas, acessos e transferencia de proprietario.
+- `/api/demandas` e o contrato canonico de criacao e gestao; rotas da Carteira continuam como adaptadores com autorizacao do imovel.
 - Assistente de cadastro e publicacao opcional em Banco de Ativos/Vitrine.
 
 ## Dados e fontes de verdade
@@ -44,7 +45,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - Imovel: ativo, arquivado ou transferido; publicacao e compartilhamento possuem estados proprios.
 - Documento: versao ativa, substituida, expirada ou removida conforme politica.
 - Alerta: aberto, em andamento, resolvido ou ignorado com justificativa.
-- Demanda: rascunho, publicada, atendida ou encerrada.
+- Demanda: rascunho, aberta, em negociacao, contratada, em execucao, concluida, convertida ou encerrada.
 
 ## Invariantes
 
@@ -62,10 +63,13 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `valor_pago` permanece a coluna compativel e e apresentado como “Valor de aquisicao”.
 - Edicao relevante gera evento com autor, origem e horario.
 - IA propoe dados; confirmacao humana grava o snapshot oficial.
+- No lançamento de receitas e despesas, a leitura por IA aceita arquivo, imagem ou áudio e sempre apresenta prévia editável antes da gravação; no mobile, o modal permanece rolável dentro da altura visível.
 - Matriculas em PDF usam leitura visual quando o texto incorporado e insuficiente; uma analise sem nenhum campo identificado retorna erro e nao registra a fonte como processada.
 - Em Conversar com a IA, o usuario pode digitar, enviar um arquivo de audio ou gravar a fala no momento; gravacao e arquivo usam a mesma analise e permanecem revisaveis antes de salvar.
 - Negar o microfone nao bloqueia o cadastro: a interface orienta como liberar a permissao e preserva o envio de arquivo e o texto como alternativas.
 - Compartilhar um imovel nao compartilha toda a Carteira.
+- `carteira_demandas` e a fonte operacional de Demandas globais, de imovel e de BIA; `opportunity_registry` e indice publico e de rastreabilidade.
+- Os modos oficiais sao `DIRECT_HIRE`, `NETWORK_DEMAND`, `INTERNAL_BIA` e `OBA`; os dois ultimos exigem BIA e OBA somente nasce de Demanda da propria BIA.
 - A composicao proposta, inclusive convites pendentes, deve totalizar exatamente 100%; convite pendente nao concede acesso e qualquer alteracao de e-mail ou percentual invalida o aceite afetado.
 - Originar uma BIA exige todos os coproprietarios confirmados, MAP total de 100%, valor de origem positivo e nenhum outro vinculo ativo; imovel financiado usa valor bruto e mantem a divida separada.
 - O MAP inicial so e gravado uma vez depois de todos aceitarem o MOU, nao cria receita ou caixa e permanece imutavel diante de alteracoes posteriores da copropriedade.
@@ -83,5 +87,6 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `server/carteira-alertas.test.ts`
 - `server/property-journey.test.ts`
 - `server/market-comparables.test.ts`
+- `client/src/pages/carteira-mobile-launch.test.ts`
 - `shared/property-ownership.test.ts`
 - Ao alterar: testar dono/convidado/nao autorizado, evento gerado, publicacao/retirada, documentos, alertas e viewport mobile.

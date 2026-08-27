@@ -120,6 +120,7 @@ export const companyEmployeeAccounts = pgTable("company_employee_accounts", {
   owner_nome: text("owner_nome"),
   owner_email: text("owner_email"),
   employee_user_id: text("employee_user_id").notNull().unique(),
+  employee_membro_id: text("employee_membro_id"),
   cargo: text("cargo"),
   permissions: jsonb("permissions").$type<CompanyAccessMatrix>().notNull(),
   status: text("status").notNull().default("ativo"),
@@ -136,11 +137,17 @@ export const companyPlanSubscriptions = pgTable("company_plan_subscriptions", {
   owner_user_id: text("owner_user_id").notNull().unique(),
   plan_code: text("plan_code").notNull().default("empresa"),
   status: text("status").notNull().default("disponivel"),
-  billing_mode: text("billing_mode").notNull().default("gratuito"),
-  price_cents: integer("price_cents").notNull().default(0),
+  billing_mode: text("billing_mode").notNull().default("annual"),
+  price_cents: integer("price_cents").notNull().default(383640),
   currency: text("currency").notNull().default("BRL"),
   provider: text("provider"),
   provider_subscription_id: text("provider_subscription_id"),
+  payment_external_id: text("payment_external_id"),
+  checkout_type: text("checkout_type"),
+  policy_version: integer("policy_version").notNull().default(1),
+  seat_limit: integer("seat_limit").notNull().default(3),
+  renewal_price_cents: integer("renewal_price_cents").notNull().default(383640),
+  legacy_free: boolean("legacy_free").notNull().default(false),
   activated_at: timestamp("activated_at"),
   current_period_start: timestamp("current_period_start").defaultNow().notNull(),
   current_period_end: timestamp("current_period_end"),
@@ -365,6 +372,24 @@ export const carteiraDemandaDestinatarios = pgTable("carteira_demanda_destinatar
   selecionado_em: timestamp("selecionado_em"),
   encerrado_em: timestamp("encerrado_em"),
 }, (table) => [unique().on(table.demanda_id, table.membro_id)]);
+
+export const carteiraDemandaInteresses = pgTable("carteira_demanda_interesses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  demanda_id: text("demanda_id").notNull(),
+  user_id: text("user_id").notNull(),
+  membro_id: text("membro_id"),
+  membro_nome: text("membro_nome"),
+  mensagem: text("mensagem"),
+  escopo: text("escopo"),
+  valor: numeric("valor", { precision: 14, scale: 2 }),
+  moeda: text("moeda").notNull().default("BRL"),
+  prazo: text("prazo"),
+  valida_ate: timestamp("valida_ate"),
+  status: text("status").notNull().default("interesse_recebido"),
+  selecionado_em: timestamp("selecionado_em"),
+  criado_em: timestamp("criado_em").defaultNow().notNull(),
+  atualizado_em: timestamp("atualizado_em").defaultNow().notNull(),
+}, (table) => [unique().on(table.demanda_id, table.user_id)]);
 
 export const carteiraAcessosTemporarios = pgTable("carteira_acessos_temporarios", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1171,6 +1196,76 @@ export const carteiraCotacoesCambio = pgTable("carteira_cotacoes_cambio", {
   fetched_at: timestamp("fetched_at").defaultNow().notNull(),
 }, (table) => ({
   moedaDataUnique: unique("carteira_cotacoes_cambio_moeda_data_uniq").on(table.moeda, table.data_cotacao),
+}));
+
+export const monetizationPolicies = pgTable("monetization_policies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull(),
+  version: integer("version").notNull(),
+  amount_cents: integer("amount_cents"),
+  minimum_rate: numeric("minimum_rate", { precision: 8, scale: 6 }),
+  currency: text("currency").notNull().default("BRL"),
+  effective_from: timestamp("effective_from").notNull().defaultNow(),
+  status: text("status").notNull().default("active"),
+  approved_by_user_id: text("approved_by_user_id"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  codeVersionUnique: unique("monetization_policies_code_version_uniq").on(table.code, table.version),
+}));
+
+export const biaBillingTerms = pgTable("bia_billing_terms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull().unique(),
+  policy_id: text("policy_id").notNull(),
+  origin_value: numeric("origin_value", { precision: 16, scale: 2 }).notNull(),
+  rig_rate: numeric("rig_rate", { precision: 8, scale: 6 }).notNull(),
+  rig_amount_cents: integer("rig_amount_cents").notNull(),
+  governance_amount_cents: integer("governance_amount_cents").notNull().default(60000),
+  institutional_start_at: timestamp("institutional_start_at").notNull(),
+  billing_resume_at: timestamp("billing_resume_at"),
+  status: text("status").notNull().default("draft"),
+  approved_by_user_id: text("approved_by_user_id"),
+  approved_at: timestamp("approved_at"),
+  snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull().default({}),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const biaBillingCharges = pgTable("bia_billing_charges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bia_id: text("bia_id").notNull(),
+  terms_id: text("terms_id").notNull(),
+  charge_type: text("charge_type").notNull(),
+  competence: text("competence").notNull(),
+  amount_cents: integer("amount_cents").notNull(),
+  due_at: timestamp("due_at").notNull(),
+  status: text("status").notNull().default("pending"),
+  provider: text("provider"),
+  provider_external_id: text("provider_external_id"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  termChargeUnique: unique("bia_billing_charges_term_type_competence_uniq").on(table.terms_id, table.charge_type, table.competence),
+  providerExternalUnique: unique("bia_billing_charges_provider_external_uniq").on(table.provider, table.provider_external_id),
+}));
+
+export const taxonomyPublicLabels = pgTable("taxonomy_public_labels", {
+  code: text("code").primaryKey(),
+  display_name: text("display_name").notNull(),
+  description: text("description"),
+  updated_by_user_id: text("updated_by_user_id"),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const contributionAreaSegments = pgTable("contribution_area_segments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contribution_area_value: text("contribution_area_value").notNull(),
+  segment_code: text("segment_code").notNull(),
+  created_by_user_id: text("created_by_user_id"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  areaSegmentUnique: unique("contribution_area_segments_uniq").on(table.contribution_area_value, table.segment_code),
 }));
 
 export function getQuinzena(dateStr: string): { inicio: string; fim: string } {

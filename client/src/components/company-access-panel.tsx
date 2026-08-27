@@ -52,6 +52,9 @@ type CompanyPlan = {
   is_free: boolean;
   billing_required: boolean;
   can_manage_employees: boolean;
+  legacy_free?: boolean;
+  included_users?: number;
+  renewal_price_cents?: number;
   activated_at?: string | null;
 };
 
@@ -120,14 +123,9 @@ export function CompanyAccessPanel() {
   });
 
   const activatePlanMutation = useMutation({
-    mutationFn: () => employeeRequest("/api/empresa/plano/ativar", "POST"),
-    onSuccess: (plan: CompanyPlan) => {
-      queryClient.setQueryData(["/api/empresa/plano"], plan);
-      queryClient.invalidateQueries({ queryKey: ["/api/empresa/funcionarios"] });
-      toast({
-        title: "Plano Empresa ativado",
-        description: "A assinatura gratuita está ativa e os acessos de funcionários foram liberados.",
-      });
+    mutationFn: () => employeeRequest("/api/empresa/plano/checkout", "POST", { provider: "asaas", pais: "brasil" }),
+    onSuccess: (checkout: { checkout_url?: string }) => {
+      if (checkout.checkout_url) window.location.assign(checkout.checkout_url);
     },
     onError: (error: Error) => {
       toast({ title: "Não foi possível ativar", description: error.message, variant: "destructive" });
@@ -180,10 +178,10 @@ export function CompanyAccessPanel() {
 
   const activeCount = useMemo(() => employees.filter((employee) => employee.status === "ativo").length, [employees]);
   const planIsActive = companyPlan?.status === "ativo" && companyPlan.can_manage_employees === true;
-  const monthlyPrice = new Intl.NumberFormat("pt-BR", {
+  const annualPrice = new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: companyPlan?.currency || "BRL",
-  }).format(Number(companyPlan?.price_cents || 0) / 100);
+  }).format(Number(companyPlan?.renewal_price_cents || companyPlan?.price_cents || 0) / 100);
 
   function openCreate() {
     setEditing(null);
@@ -235,11 +233,11 @@ export function CompanyAccessPanel() {
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
               Crie logins individuais e escolha o que cada funcionário pode visualizar ou editar.
             </p>
-            {companyPlan?.is_free && (
+            {companyPlan?.legacy_free && (
               <p className={`mt-1 text-xs font-medium ${planIsActive ? "text-emerald-700" : "text-blue-700"}`}>
                 {planIsActive
-                  ? "Gratuito por enquanto. Nenhuma cobrança será realizada nesta fase."
-                  : "Ative gratuitamente para liberar os acessos de funcionários."}
+                  ? "Plano gratuito legado preservado. A migração será feita somente com sua adesão."
+                  : "Plano legado disponível para migração por adesão."}
               </p>
             )}
           </div>
@@ -260,10 +258,10 @@ export function CompanyAccessPanel() {
             {isLoadingPlan
               ? "Carregando plano..."
               : activatePlanMutation.isPending
-                ? "Ativando..."
+                ? "Abrindo pagamento..."
                 : planIsActive
                   ? "Adicionar funcionário"
-                  : "Ativar assinatura grátis"}
+                  : "Contratar Plano Empresa"}
           </Button>
         </div>
 
@@ -275,7 +273,7 @@ export function CompanyAccessPanel() {
             </span>
             {companyPlan && (
               <span className="font-semibold text-[#001D34]">
-                {companyPlan.is_free ? `${monthlyPrice}/mês nesta fase` : `${monthlyPrice}/mês`}
+                {`${annualPrice}/ano · titular + 2 usuários`}
               </span>
             )}
           </div>
@@ -290,7 +288,7 @@ export function CompanyAccessPanel() {
               <Power className="mx-auto h-7 w-7 text-blue-500" />
               <p className="mt-2 text-sm font-semibold text-[#001D34]">Assinatura ainda não ativada</p>
               <p className="mt-1 text-xs text-slate-500">
-                Ative o Plano Empresa gratuitamente para criar logins individuais e definir os acessos.
+                Contrate o Plano Empresa para criar até dois logins adicionais e definir os acessos.
               </p>
             </div>
           ) : employees.length === 0 ? (

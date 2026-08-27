@@ -60,6 +60,7 @@ export const INITIAL_ONBOARDING_API_ALLOWLIST = [
   "/api/files",
   "/api/convites",
   "/api/assets",
+  "/api/taxonomy",
 ] as const;
 
 export function isInitialOnboardingApiAllowed(url: unknown): boolean {

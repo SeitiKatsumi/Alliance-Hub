@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import OpportunityCloseDialog from "@/components/opportunity-close-dialog";
 import OpportunityDistributionControls from "@/components/opportunity-distribution-controls";
+import { DEMAND_RESOLUTION_LABELS, DemandResolutionSelect, type DemandResolutionMode } from "@/components/demand-resolution-select";
 
 interface BiaDemand {
   id: string;
@@ -28,6 +29,7 @@ interface BiaDemand {
   fluxo_disparo?: "imediato" | "gradual";
   responsavel_membro_id?: string | null;
   opa_id?: string | null;
+  tipo_resolucao?: "DIRECT_HIRE" | "NETWORK_DEMAND" | "INTERNAL_BIA" | "OBA";
   criado_em: string;
 }
 
@@ -47,6 +49,7 @@ interface DemandForm {
   responsavel_membro_id: string;
   expira_em: string;
   fluxo_disparo: "imediato" | "gradual";
+  tipo_resolucao: DemandResolutionMode;
   publicar: boolean;
 }
 
@@ -59,6 +62,7 @@ const emptyForm = (): DemandForm => ({
   responsavel_membro_id: "",
   expira_em: "",
   fluxo_disparo: "imediato",
+  tipo_resolucao: "NETWORK_DEMAND",
   publicar: false,
 });
 
@@ -77,6 +81,9 @@ const statusLabels: Record<string, string> = {
 };
 
 const terminalStatuses = new Set(["concluida", "convertida", "encerrada_sem_acordo", "expirada", "cancelada", "arquivada"]);
+function resolutionMode(value: unknown): DemandForm["tipo_resolucao"] {
+  return typeof value === "string" && value in DEMAND_RESOLUTION_LABELS ? value as DemandForm["tipo_resolucao"] : "NETWORK_DEMAND";
+}
 
 function memberName(member: MemberOption) {
   return member.Nome_de_usuario || member.nome_completo || member.nome || "Membro BUILT";
@@ -92,6 +99,7 @@ function toForm(demand: BiaDemand): DemandForm {
     responsavel_membro_id: demand.responsavel_membro_id || "",
     expira_em: demand.expira_em ? new Date(demand.expira_em).toISOString().slice(0, 10) : "",
     fluxo_disparo: demand.fluxo_disparo === "gradual" ? "gradual" : "imediato",
+    tipo_resolucao: resolutionMode(demand.tipo_resolucao),
     publicar: demand.visibilidade === "publicada" || demand.visibilidade === "restrita",
   };
 }
@@ -126,6 +134,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
         responsavel_membro_id: form.responsavel_membro_id || null,
         expira_em: form.expira_em ? new Date(`${form.expira_em}T23:59:59`).toISOString() : null,
         fluxo_disparo: form.fluxo_disparo,
+        tipo_resolucao: form.tipo_resolucao,
         publicar: form.publicar,
         consentimento_publicacao: form.publicar,
       };
@@ -160,7 +169,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
 
   const convertMutation = useMutation({
     mutationFn: async (demand: BiaDemand) => {
-      const response = await apiRequest("POST", `/api/rede/oportunidades/${demand.codigo || demand.id}/converter-oba`, { bia_id: biaId });
+      const response = await apiRequest("POST", `/api/demandas/${demand.id}/converter-oba`, { bia_id: biaId });
       return response.json();
     },
     onSuccess: () => {
@@ -211,6 +220,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
                       <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50">Demanda</Badge>
                       {demand.codigo && <Badge variant="outline" className="font-mono text-[10px]">{demand.codigo}</Badge>}
                       <Badge variant="outline">{statusLabels[demand.status] || demand.status}</Badge>
+                      <Badge variant="secondary">{DEMAND_RESOLUTION_LABELS[resolutionMode(demand.tipo_resolucao)]}</Badge>
                       {demand.visibilidade === "publicada" && <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Na Vitrine</Badge>}
                       {demand.visibilidade === "restrita" && <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Disparo gradual</Badge>}
                     </div>
@@ -253,6 +263,7 @@ export default function BiaDemandas({ biaId, canEdit }: { biaId: string; canEdit
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(event) => setForm({ ...form, descricao: event.target.value })} placeholder="Descreva o resultado esperado, prazo e contexto." /></div>
             <div className="space-y-2"><Label>Resumo público</Label><Textarea value={form.resumo_publico} onChange={(event) => setForm({ ...form, resumo_publico: event.target.value })} placeholder="Informações suficientes para avaliar o interesse, sem dados privados." /></div>
             <div className="grid gap-4 sm:grid-cols-2">
+              <DemandResolutionSelect hasBia value={form.tipo_resolucao} onChange={(value) => setForm({ ...form, tipo_resolucao: value })} />
               <div className="space-y-2"><Label>Urgência</Label><Select value={form.urgencia} onValueChange={(value) => setForm({ ...form, urgencia: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="baixa">Baixa</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="alta">Alta</SelectItem></SelectContent></Select></div>
               <div className="space-y-2"><Label>Validade</Label><Input type="date" value={form.expira_em} onChange={(event) => setForm({ ...form, expira_em: event.target.value })} /></div>
               <div className="space-y-2"><Label>Responsável</Label><Select value={form.responsavel_membro_id || "automatico"} onValueChange={(value) => setForm({ ...form, responsavel_membro_id: value === "automatico" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="automatico">Pessoa criadora</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{memberName(member)}</SelectItem>)}</SelectContent></Select></div>

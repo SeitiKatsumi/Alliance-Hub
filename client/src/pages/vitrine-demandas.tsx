@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnvironmentAccessDialog, environmentAccessFor } from "@/components/environment-access";
 import TraceabilitySummary from "@/components/traceability-summary";
@@ -133,9 +134,13 @@ export function VitrineDemandaDetalhePage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [interestOpen, setInterestOpen] = useState(false);
+  const [proposalOpen, setProposalOpen] = useState(false);
   const [membershipOpen, setMembershipOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [scope, setScope] = useState("");
+  const [amount, setAmount] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [validUntil, setValidUntil] = useState("");
   const access = environmentAccessFor(user, "alliances");
   const demandQuery = useQuery<PublicDemand>({ queryKey: ["/api/vitrine/demandas", id] });
   const selected = demandQuery.data?.meu_interesse?.status === "selecionado";
@@ -144,23 +149,34 @@ export function VitrineDemandaDetalhePage() {
     queryFn: async () => (await apiRequest("GET", `/api/vitrine/demandas/${id}/dados-privados`)).json(),
     enabled: selected,
   });
-  const interestMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/vitrine/demandas/${id}/interesse`, { mensagem: message || null }),
+  const proposalMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/demandas/${id}/propostas`, {
+      mensagem: message.trim() || null,
+      escopo: scope.trim() || null,
+      valor: amount || null,
+      moeda: "BRL",
+      prazo: deadline.trim() || null,
+      valida_ate: validUntil ? new Date(`${validUntil}T23:59:59`).toISOString() : null,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
-      setInterestOpen(false);
+      setProposalOpen(false);
       setMessage("");
-      toast({ title: "Interesse registrado" });
+      setScope("");
+      setAmount("");
+      setDeadline("");
+      setValidUntil("");
+      toast({ title: "Proposta enviada" });
     },
-    onError: (error: any) => toast({ title: "Não foi possível registrar interesse", description: error?.message, variant: "destructive" }),
+    onError: (error: any) => toast({ title: "Não foi possível enviar a proposta", description: error?.message, variant: "destructive" }),
   });
   const withdrawMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/vitrine/demandas/${id}/interesse`),
+    mutationFn: () => apiRequest("DELETE", `/api/demandas/${id}/propostas/minha`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/vitrine/demandas"] });
-      toast({ title: "Interesse retirado" });
+      toast({ title: "Proposta retirada" });
     },
   });
   const demand = demandQuery.data;
@@ -168,9 +184,9 @@ export function VitrineDemandaDetalhePage() {
   if (demandQuery.isLoading) return <div className="flex min-h-72 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>;
   if (!demand) return <div className="p-8 text-center text-muted-foreground">Demanda não encontrada.</div>;
 
-  function handleInterest() {
+  function handleProposal() {
     if (!access.canAccess) return setMembershipOpen(true);
-    setInterestOpen(true);
+    setProposalOpen(true);
   }
 
   return (
@@ -202,12 +218,24 @@ export function VitrineDemandaDetalhePage() {
           )}
         </main>
         <aside className="space-y-4">
-          <Card className="rounded-md"><CardContent className="p-5"><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Interesses</span><span className="flex items-center gap-1 font-semibold"><Users className="h-4 w-4" />{demand.total_interesses}</span></div><div className="mt-4">{demand.meu_interesse && demand.meu_interesse.status !== "retirado" ? <Button variant="outline" className="w-full" onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending}>Retirar interesse</Button> : <Button className="w-full bg-blue-600 text-white hover:bg-blue-700" onClick={handleInterest}><HandHeart className="mr-2 h-4 w-4" />Manifestar interesse</Button>}</div>{demand.meu_interesse?.status === "selecionado" && <p className="mt-3 text-xs text-emerald-700">Você foi selecionado. Os dados completos estão disponíveis ao lado.</p>}</CardContent></Card>
+          <Card className="rounded-md"><CardContent className="p-5"><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Propostas</span><span className="flex items-center gap-1 font-semibold"><Users className="h-4 w-4" />{demand.total_interesses}</span></div><div className="mt-4">{demand.meu_interesse && demand.meu_interesse.status !== "retirado" ? <Button variant="outline" className="w-full" onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending}>Retirar proposta</Button> : <Button className="w-full bg-blue-600 text-white hover:bg-blue-700" onClick={handleProposal}><HandHeart className="mr-2 h-4 w-4" />Enviar proposta</Button>}</div>{demand.meu_interesse?.status === "selecionado" && <p className="mt-3 text-xs text-emerald-700">Sua proposta foi aceita. Os dados completos estão disponíveis ao lado.</p>}</CardContent></Card>
           <div className="border-y py-4 text-sm text-muted-foreground"><p className="flex items-center gap-2"><Clock3 className="h-4 w-4" />Publicada em {shortDate(demand.publicada_em)}</p><p className="mt-2">Endereço, documentos e contato permanecem protegidos até a seleção.</p></div>
         </aside>
       </div>
-      <Dialog open={interestOpen} onOpenChange={setInterestOpen}>
-        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Manifestar interesse</DialogTitle><DialogDescription>Apresente brevemente como você pode contribuir para esta demanda.</DialogDescription></DialogHeader><Textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Conte sua experiência ou disponibilidade..." /><DialogFooter><Button variant="outline" onClick={() => setInterestOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => interestMutation.mutate()} disabled={interestMutation.isPending}>{interestMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar interesse</Button></DialogFooter></DialogContent>
+      <Dialog open={proposalOpen} onOpenChange={setProposalOpen}>
+        <DialogContent className="max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-w-lg">
+          <DialogHeader><DialogTitle>Enviar proposta comercial</DialogTitle><DialogDescription>Explique o que será entregue. Valor e prazo são opcionais e podem ser combinados depois.</DialogDescription></DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2"><Label>Como você pode ajudar?</Label><Textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Conte sua experiência e disponibilidade..." /></div>
+            <div className="space-y-2"><Label>Escopo proposto</Label><Textarea value={scope} onChange={(event) => setScope(event.target.value)} placeholder="Descreva entregas, limites e próximos passos." /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label>Valor estimado (R$)</Label><Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Opcional" /></div>
+              <div className="space-y-2"><Label>Prazo estimado</Label><Input value={deadline} onChange={(event) => setDeadline(event.target.value)} placeholder="Ex.: 15 dias" /></div>
+            </div>
+            <div className="space-y-2"><Label>Proposta válida até</Label><Input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setProposalOpen(false)}>Cancelar</Button><Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => proposalMutation.mutate()} disabled={proposalMutation.isPending || (!message.trim() && !scope.trim())}>{proposalMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar proposta</Button></DialogFooter>
+        </DialogContent>
       </Dialog>
       <EnvironmentAccessDialog access={access} open={membershipOpen} onOpenChange={setMembershipOpen} />
     </div>

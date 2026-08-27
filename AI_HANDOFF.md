@@ -9,6 +9,10 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat implementa em ondas o contrato Demanda -> proposta comercial -> OBA, taxonomias publicas e monetizacao. Ao tocar `server/routes.ts`, `client/src/pages/carteira.tsx` e telas de BIA/OBA, preserva as mudancas patrimoniais, `allowedNucleoTabs`, permissoes cumulativas e a reorganizacao de Alliances ja em andamento.
+- A primeira entrega centraliza regras em helpers compartilhados e mantem `carteira_demandas`, `opportunity_registry`, `opportunity_relations`, `opa_id` e rotas legadas compativeis; nao reabre acesso global a BIAs ou nucleos.
+- Este chat corrige somente o modal mobile de lançamentos da Carteira e expõe nele a leitura por IA já existente; não altera regras financeiras, permissões, BIAs ou OPAs.
+- Este chat corrige somente a validacao geografica da analise de preco por m2: tenta os campos estruturados em granularidades progressivas e respeita o limite do geocodificador publico; formulas e permissoes financeiras permanecem inalteradas.
 - Este chat corrige somente a extração assistida de imóveis: PDFs de matrícula passam por leitura visual quando necessário, análises vazias deixam de ser tratadas como sucesso e fontes repetidas são consolidadas.
 - Este chat implementa coproprietarios estruturados e MAP de origem em `shared/schema.ts`, `shared/member-portfolio.ts`, `server/routes.ts`, `client/src/pages/carteira.tsx`, `client/src/pages/carteira-assistente.tsx`, `client/src/pages/bia-detalhe.tsx` e contratos da Carteira/Alliances. A conta limitada reutiliza o MOU de `comunidade.tsx` em `/convites-alianca`; `allowedNucleoTabs`, abas, nucleos e a gestao de OPA permanecem preservados.
 - Este chat corrige somente a responsividade das abas e dos indicadores do Capital em `nucleo-capital.tsx` e `resultados.tsx`; formulas, dados, papeis e permissoes da BIA permanecem inalterados.
@@ -26,6 +30,7 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Este chat faz `PerfilOnboardingModal` rejeitar respostas HTTP de erro ao carregar o membro; indisponibilidade do backend nao volta a solicitar aceites ja registrados.
 - Este chat antecipa a solicitacao de Aura do novo onboarding para logo apos os aceites e repara convites ja aceitos; ao tocar `server/routes.ts`, preserva a conclusao progressiva das cinco etapas.
 - Este chat corrige apenas as acoes de exclusao na Carteira e na lista de BIAs: imoveis exibem a permissao efetiva do backend; admin/superadmin veem a lixeira nos cards; a exclusao da BIA remove antes os vinculos bloqueadores de `comunidade_bias`, preservando historicos locais.
+- As ondas Demanda/OBA, taxonomias publicas, Plano Empresa e RIG/governanca foram implementadas com contratos atualizados; `test:all` passa com 175 testes, build e contrato passam, e o typecheck caiu de 71 para 67 erros legados (34 permanecem em `server/routes.ts`).
 
 ## Cuidado
 - Antes de editar arquivos ja modificados, rode `git status --short` e leia o trecho atual.

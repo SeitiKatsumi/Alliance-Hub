@@ -19,7 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import {
-  getAllContributionAreas,
+  getPublicContributionAreas,
   normalizeContributionAreaValues,
   type ContributionAreaIconKey,
   type ContributionAreaTone,
@@ -65,7 +65,7 @@ export function ContributionAreaSelector({
   return (
     <div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {getAllContributionAreas().map((area) => {
+        {getPublicContributionAreas().map((area) => {
           const active = selectedSet.has(area.value);
           const AreaIcon = ICONS[area.iconKey];
           const tone = TONES[area.tone];

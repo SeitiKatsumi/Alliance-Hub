@@ -1,6 +1,7 @@
 import {
   CONTRIBUTION_AREA_GROUPS,
   getContributionAreaDisplayName,
+  getPublicContributionAreas,
 } from "@shared/contribution-areas";
 
 export interface SegmentoItem {
@@ -1133,6 +1134,10 @@ export function getNucleoForTipo(tipoNome: string): string | null {
     })) return nucleo;
   }
   return null;
+}
+
+export function getPublicTipos(): TipoAliancaItem[] {
+  return getPublicContributionAreas().map((area) => ({ nome: area.value, descricao: area.description }));
 }
 
 export function getTipoDisplayName(nome: string): string {

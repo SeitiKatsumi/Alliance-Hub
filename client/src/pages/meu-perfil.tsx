@@ -38,6 +38,7 @@ import { RAMOS_SEGMENTOS, formatRamosDisplay, formatRamosValue, formatSegmentosD
 import { PhoneInput, hasInternationalDialCode, normalizePhoneValue } from "@/components/phone-input";
 import { COMPANY_ACCESS_KEYS, COMPANY_ACCESS_LABELS, normalizeCompanyAccess } from "@shared/company-access";
 import { PROFILE_AREA_SCOPE_OPTIONS, PROFILE_LANGUAGE_OPTIONS } from "@shared/profile-taxonomy";
+import { usePublicLabels } from "@/hooks/use-public-labels";
 import {
   INITIAL_ONBOARDING_OBJECTIVE_COPY,
   INITIAL_ONBOARDING_OBJECTIVES,
@@ -748,6 +749,7 @@ function hasAporteFinanceiro(tipos?: string[] | null): boolean {
 export default function MeuPerfilPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const publicLabel = usePublicLabels();
   const isSuperAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
   const [saved, setSaved] = useState(false);
@@ -1821,7 +1823,7 @@ export default function MeuPerfilPage() {
                 </section>
 
                 <section className="profile-section p-4" data-testid="section-areas-contribuicao">
-                  <h3 className="text-sm font-bold text-[#001D34]">2. Áreas de Contribuição</h3>
+                  <h3 className="text-sm font-bold text-[#001D34]">2. {publicLabel("ContributionArea")}</h3>
                   <p className="mt-1 text-xs text-slate-500">Selecione as áreas em que você pode contribuir.</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                     {sortContributionAreas(getAllTipos(), (tipo) => tipo.nome).map((tipo) => {

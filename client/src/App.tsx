@@ -33,6 +33,7 @@ import VitrinePage from "@/pages/vitrine";
 import VitrineDetalhePage from "@/pages/vitrine-detalhe";
 import VitrineOportunidadesPage, { BuiltCapitalChamadasPage } from "@/pages/vitrine-oportunidades";
 import VitrineDemandasPage, { VitrineDemandaDetalhePage } from "@/pages/vitrine-demandas";
+import NovaDemandaPage from "@/pages/nova-demanda";
 import VitrineOpaDetalhePage, { BuiltCapitalChamadaDetalhePage } from "@/pages/vitrine-opa-detalhe";
 import AreaAliancasPage from "@/pages/area-aliancas";
 import EconomicOpportunityDetailPage from "@/pages/economic-opportunity-detail";
@@ -64,6 +65,7 @@ import { formatSegmentosValue, getAllTipos, getNucleosForTipos, getSegmentosForR
 import { ACCEPTANCE_LOCATION_NOTICE, captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { companyModuleForLocation, hasEmployeeModuleAccess } from "@/lib/company-access";
 import { dashboardNavigationUrl } from "@/lib/dashboard-navigation";
+import { usePublicLabels } from "@/hooks/use-public-labels";
 
 const MEMBER_PORTFOLIO_V2_ENABLED = import.meta.env.VITE_MEMBER_PORTFOLIO_V2_ENABLED !== "false";
 
@@ -541,6 +543,7 @@ function PerfilOnboardingModal({
   fallbackUser?: AppUser | null;
 }) {
   const { toast } = useToast();
+  const publicLabel = usePublicLabels();
   const [location, navigate] = useLocation();
   const [form, setForm] = useState<Partial<OnboardingMembro>>({});
   const [profileCompletedLocally, setProfileCompletedLocally] = useState(false);
@@ -949,7 +952,7 @@ function PerfilOnboardingModal({
             <Input value={form.especialidade_livre || ""} onChange={e => setField("especialidade_livre", e.target.value)} data-testid="input-onboarding-especialidade" />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label>Área de Contribuição</Label>
+            <Label>{publicLabel("ContributionArea")}</Label>
             {form.em_built_capital ? (
               <div className="flex flex-wrap gap-1.5">
                 <span className="rounded-full border border-brand-gold/30 bg-brand-gold/10 px-2.5 py-1 text-xs text-brand-gold">
@@ -1467,6 +1470,7 @@ function ProtectedApp() {
               <Route path="/bias">{() => <BiasPage />}</Route>
               <Route path="/opas/:id" component={OpaDetalhePage} />
               <Route path="/opas" component={LegacyOpasRedirect} />
+              <Route path="/demandas/nova" component={NovaDemandaPage} />
               <Route path="/bias-calculadora" component={LegacyBiasRedirect} />
               <Route path="/fluxo-caixa" component={LegacyBiasRedirect} />
               <Route path="/resultados" component={LegacyBiasRedirect} />

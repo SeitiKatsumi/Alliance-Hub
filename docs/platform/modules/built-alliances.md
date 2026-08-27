@@ -18,6 +18,7 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - `/api/bia-estruturacao-solicitacoes*`, aprovacoes, diretorias, socios e chamadas.
 - `/api/carteira/imoveis/:id/origem-bia*` cria uma BIA rastreada a partir de um imovel e reutiliza aprovacoes e MOU existentes; `/convites-alianca` disponibiliza o aceite para contas limitadas.
 - Demandas, distribuicao, feedback, reunioes, rastreabilidade e oportunidades economicas.
+- `/api/demandas/:id/converter-oba` converte uma Demanda de BIA em uma unica OBA; `converter-opa` permanece como adaptador legado.
 - Timer de oportunidade no backend e invalidacoes React Query no frontend.
 
 ## Dados e fontes de verdade
@@ -47,6 +48,9 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 ## Invariantes
 
 - Uma origem preserva rastreabilidade ate a BIA/resultado final.
+- Uma Demanda gera no maximo uma OBA, sempre na propria BIA; `opportunity_relations.demanda_gerou_oba` e a genealogia oficial e `opa_id` e a ponte legada.
+- OBA e o nome publico; nomes internos com OPA permanecem por compatibilidade.
+- Termos financeiros aprovados da BIA congelam Valor de Origem, RIG, inicio institucional e versoes das politicas e passam a integrar o MOU/PDF.
 - Convite pendente nao e membro aceito, mas deve permanecer visivel no papel correto.
 - IDs de relacao do Directus podem chegar como string, numero ou objeto e devem ser normalizados.
 - Nao apagar ou recriar BIA para sincronizar formulario parcial.

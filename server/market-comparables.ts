@@ -53,6 +53,28 @@ export interface MarketComparableAnalysis {
   confianca?: "baixa" | "media" | "alta";
 }
 
+export function marketLocationCandidates(value: unknown): string[] {
+  if (typeof value === "string") return value.trim() ? [value.trim()] : [];
+  if (!value || typeof value !== "object") return [];
+  const row = value as Record<string, unknown>;
+  const endereco = row.endereco || row.address;
+  const numero = row.numero || row.number;
+  const bairro = row.bairro || row.neighborhood;
+  const cidade = row.cidade || row.city;
+  const estado = row.estado || row.state;
+  const pais = row.pais || row.country;
+  const cep = row.cep || row.postal_code;
+  const localizacao = row.localizacao || row.location;
+  const candidates = [
+    [endereco, numero, bairro, cidade, estado, pais, cep ? `CEP ${cep}` : ""],
+    [bairro, cidade, estado, pais],
+    [cidade, estado, pais],
+    [cep ? `CEP ${cep}` : "", pais],
+    [localizacao],
+  ].map((parts) => parts.filter(Boolean).join(", ").trim()).filter(Boolean);
+  return Array.from(new Map(candidates.map((candidate) => [candidate.toLocaleLowerCase("pt-BR"), candidate])).values());
+}
+
 function normalizeText(value: unknown): string {
   return String(value ?? "")
     .normalize("NFD")

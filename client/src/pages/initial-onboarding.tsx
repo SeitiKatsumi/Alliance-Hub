@@ -20,6 +20,7 @@ import {
 import { buildOnboardingConfigurationSummary } from "@/lib/onboarding-summary";
 import { captureRequiredAcceptanceLocation } from "@/lib/acceptanceLocation";
 import { useToast } from "@/hooks/use-toast";
+import { usePublicLabels } from "@/hooks/use-public-labels";
 import {
   ArrowLeft, ArrowRight, BellRing, BriefcaseBusiness, Building2, ChartNoAxesCombined,
   Check, CheckCircle2, ChevronDown, Circle, Globe2, Home, Info, Landmark, Loader2,
@@ -330,6 +331,7 @@ function ProfileStep({ forms, setForms, purposes }: any) {
 }
 
 function ConfigurationStep({ forms, setForms, purposes }: any) {
+  const publicLabel = usePublicLabels();
   const config = forms.configuracao || {};
   const set = (patch: any) => setForms((current: any) => ({ ...current, configuracao: { ...(current.configuracao || {}), ...patch } }));
   return (
@@ -338,7 +340,7 @@ function ConfigurationStep({ forms, setForms, purposes }: any) {
         <h1 className="text-2xl font-bold md:text-3xl">Configuração</h1>
         <p className="mt-2 text-sm text-slate-500">Escolha interesses e privacidade. Nada será publicado automaticamente.</p>
       </div>
-      <Panel title="Áreas de Contribuição" subtitle="Selecione as áreas em que você contribui ou tem interesse.">
+      <Panel title={publicLabel("ContributionArea")} subtitle="Selecione as áreas em que você pode contribuir.">
         <ContributionAreaSelector value={config.areas} onChange={(areas) => set({ areas })} />
       </Panel>
       <Panel title="Áreas de atuação" subtitle="Use a mesma classificação do seu perfil BUILT.">

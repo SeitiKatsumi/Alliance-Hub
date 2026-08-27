@@ -14,7 +14,8 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 ## APIs
 
 - `/api/vitrine`, `/api/vitrine/:id`, `/api/vitrine/demandas*`.
-- APIs de OBA/OPA, interesses, anuncios e publicacao de ativos/Carteira.
+- APIs de OBA/OPA, propostas comerciais de Demanda, anuncios e publicacao de ativos/Carteira.
+- `/api/demandas/:id/propostas*` e o contrato canonico; rotas legadas de interesse permanecem apenas como adaptadores.
 - `/api/assets/:id` e endpoints de Land Bank exigem atencao a rotas duplicadas/legadas.
 
 ## Dados e fontes de verdade
@@ -45,7 +46,9 @@ Publica perfis, OBAs, demandas, ativos e anuncios para descoberta pela rede, man
 - A finalidade escolhida nao bloqueia a consulta da Area de Vitrine.
 - Publicacao e opt-in e reversivel.
 - Projecao publica nunca retorna objeto interno completo.
-- Interesse duplicado do mesmo usuario/recurso e idempotente.
+- Proposta comercial e unica por usuario e Demanda, pode ter escopo, valor, moeda, prazo e validade e preserva os estados recebido, em analise, aceito, rejeitado e retirado.
+- Aceitar uma proposta coloca a Demanda em negociacao, rejeita as concorrentes e nunca associa automaticamente o fornecedor a BIA.
+- OBA recebe candidatura de alianca e MEM; Demanda recebe proposta comercial e nunca MEM.
 - Busca, mapa, contador e detalhe usam o mesmo conjunto de itens publicaveis.
 - A busca de parceiros ignora caixa e acentuacao; cidade, estado, ramo, segmento, area de atuacao e todas as especialidades podem ser combinados sem substituir a taxonomia oficial do perfil.
 

@@ -16,6 +16,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 - Anuidade de Membro BUILT de R$ 3.197/ano: Asaas no Brasil e Stripe nos demais paises.
 - Plano Empresa de R$ 3.836,40/ano: checkout Asaas ou Stripe; upgrade de membro vigente cobra R$ 639,40 e preserva a data de renovacao.
 - PostgreSQL `membro_anuidades` e a fonte de vigencia; `/api/me` separa usuario cadastrado, Membro BUILT, comunidades e permissoes.
+- `ends_at` e `current_period_end` sao as datas oficiais de renovacao. `billing_suspended` interrompe novas cobrancas iniciadas pela plataforma e `frozen_at` pausa a contagem sem revogar acesso.
 - Pinbank em `server/pinbank-client.ts`: onboarding, documentos, conta, saldo, extrato e cobrancas.
 - OpenAI em rotas de audio, texto, arquivo e analise.
 - Directus para dados/arquivos; geocodificacao/mapas; SMTP para e-mail.
@@ -37,6 +38,7 @@ Centraliza provedores de pagamento, conta bancaria, IA, e-mail, mapas, Directus 
 
 - Anuidade: pending, active, expired, canceled, refunded ou disputed. Cancelamento preserva acesso ate o fim pago; reembolso/chargeback encerra vigencia.
 - Plano Empresa: disponivel, pagamento_pendente, ativo, reembolsado ou chargeback. Ativacao ocorre somente por webhook confirmado e idempotente.
+- Ao retomar um prazo congelado, a data de renovacao avanca exatamente pelo tempo pausado; suspender cobranca e congelar prazo sao controles independentes.
 - Integracao: nao configurada, configurada, degradada ou indisponivel.
 - IA: recebida, processando, proposta, confirmada ou falhou.
 

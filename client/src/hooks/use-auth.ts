@@ -24,6 +24,10 @@ export interface AppUser {
     status: string | null;
     starts_at: string | null;
     ends_at: string | null;
+    next_renewal_at?: string | null;
+    billing_suspended?: boolean;
+    frozen_at?: string | null;
+    entitlement_source?: "company_plan" | "individual_membership" | null;
     annual_fee_brl?: number;
     communities: string[];
     requirements: { onboarding: boolean; aura: boolean; annual_fee: boolean; community: boolean };

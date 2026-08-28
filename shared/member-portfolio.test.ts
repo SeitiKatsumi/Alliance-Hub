@@ -10,6 +10,10 @@ test("cancelamento preserva acesso ate o fim da vigencia", () => {
   assert.equal(isMembershipActive({ status: "refunded", starts_at: startsAt, ends_at: endsAt }, new Date("2027-01-01T00:00:00Z")), false);
 });
 
+test("congelamento preserva acesso enquanto a contagem esta pausada", () => {
+  assert.equal(isMembershipActive({ status: "active", starts_at: "2026-01-01", ends_at: "2026-02-01", frozen_at: "2026-01-15" }, new Date("2026-03-01")), true);
+});
+
 test("MAP considera aportes e transferencias aceitas sem criar valor", () => {
   const rows = calculateMap(
     [{ memberId: "a", value: 800 }, { memberId: "b", value: 200 }],

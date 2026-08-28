@@ -9,16 +9,17 @@ export function membershipEndsAt(startsAt: Date): Date {
 }
 
 export function isMembershipActive(
-  membership: { status?: unknown; starts_at?: unknown; ends_at?: unknown } | null | undefined,
+  membership: { status?: unknown; starts_at?: unknown; ends_at?: unknown; frozen_at?: unknown } | null | undefined,
   now = new Date(),
 ): boolean {
   if (!membership || !["active", "canceled"].includes(String(membership.status || ""))) return false;
   const startsAt = new Date(String(membership.starts_at || ""));
   const endsAt = new Date(String(membership.ends_at || ""));
+  const frozenAt = membership.frozen_at ? new Date(String(membership.frozen_at)) : null;
   return Number.isFinite(startsAt.getTime())
     && Number.isFinite(endsAt.getTime())
     && startsAt <= now
-    && endsAt > now;
+    && (Boolean(frozenAt && Number.isFinite(frozenAt.getTime())) || endsAt > now);
 }
 
 export type MapContribution = { memberId: string; name?: string; value: number };

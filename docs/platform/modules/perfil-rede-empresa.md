@@ -15,7 +15,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 
 - `/api/membros*`, `/api/membros-built`, `/api/comunidades*`.
 - `/api/membros/:id/comunidades`, `/comunidade`, `/comunidade-mae` e `/convidador`.
-- `/api/empresa/plano/checkout`, Plano Empresa, funcionarios e permissoes; `/ativar` e somente um adaptador para o checkout pago.
+- `/api/empresa/plano/checkout`, Plano Empresa, funcionarios e permissoes; `/ativar` e somente um adaptador para o checkout pago. `/api/me` informa a proxima renovacao e eventuais suspensoes ou congelamentos ao titular.
 - APIs de nomes publicos e relacao N:N entre area de contribuicao e segmento.
 
 ## Dados e fontes de verdade
@@ -27,6 +27,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - Taxonomias compartilhadas: `client/src/lib/ramos-segmentos.ts`, `shared/profile-taxonomy.ts` e `shared/contribution-areas.ts`.
 - PostgreSQL `users`: login; `membros`: espelho/apoio operacional; `membro_comunidade_mae`: ancora preferencial.
 - PostgreSQL `company_plan_subscriptions` concede o direito financeiro; cada funcionario possui `users` e `cadastro_geral` proprios.
+- PostgreSQL `membro_anuidades.ends_at` e `company_plan_subscriptions.current_period_end` sao as fontes da proxima renovacao exibida ao usuario.
 - Relacoes de comunidade sao muitos-para-muitos. A lista integral de vinculos e a fonte para regras de associacao.
 - Antes da adesao completa, a comunidade registrada no convite original e uma evidencia valida de origem e alimenta a ancora `membro_comunidade_mae`; ela nao deve ser ignorada apenas porque o candidato ainda nao entrou no M2M de membros.
 
@@ -52,6 +53,7 @@ Mantem identidade publica/profissional, empresas, membros da rede, comunidades e
 - Vinculo deve comparar IDs normalizados de usuario, membro Directus e registros relacionais.
 - Funcionario possui login proprio; auditoria registra quem executou, nao somente a empresa.
 - Plano Empresa custa R$ 3.836,40/ano e inclui titular mais dois usuarios adicionais ativos. Upgrade de anuidade individual vigente cobra R$ 639,40 sem alterar a renovacao atual.
+- A proxima renovacao fica visivel no Meu Perfil. Congelamento preserva acesso e, na retomada, desloca a renovacao pelo periodo pausado; suspensao de cobranca nao corta o prazo ja pago.
 - Pagamento empresarial nao substitui onboarding, aceites, AURA ou associacao comunitaria individual; permissoes dos modulos sao controladas pelo titular e validadas no backend.
 - As 16 areas publicas de contribuicao excluem as quatro funcoes de lideranca, reservadas a governanca da BIA; ramos e segmentos continuam na taxonomia canonica existente.
 - Cadastro, onboarding, Meu Perfil e administracao de membros nao podem manter listas paralelas para ramo, segmento, abrangencia, idiomas ou areas de contribuicao.

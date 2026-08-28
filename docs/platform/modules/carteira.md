@@ -19,7 +19,8 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `/api/carteira/imoveis/:id/financiamento/preview|confirmar` separa extracao, revisao e gravacao idempotente.
 - `/api/carteira/imoveis/:id/socios*` mantem a composicao de coproprietarios; `/api/carteira/convites/:token` resolve o convite; `/api/carteira/imoveis/:id/origem-bia*` revisa, envia e cancela a origem.
 - `/api/bias/:id/patrimonio` e `/aporte-solicitacoes*` registram valor oficial e aportes sujeitos a decisao do diretor.
-- Pulsos, alertas, diagnostico, alternativas, demandas, acessos e transferencia de proprietario.
+- Na aba Analise, o botao de Pulso usa `/api/carteira/imoveis/:id/pulso/preview|pulsos`; a confirmacao recalcula o diagnostico.
+- Alertas, diagnostico, alternativas, demandas, acessos e transferencia de proprietario.
 - `/api/demandas` e o contrato canonico de criacao e gestao; rotas da Carteira continuam como adaptadores com autorizacao do imovel.
 - Assistente de cadastro e publicacao opcional em Banco de Ativos/Vitrine.
 
@@ -54,7 +55,7 @@ Mantem o patrimonio privado do usuario e consolida imoveis proprios com particip
 - `Patrimonio Total Estimado` e bruto: soma o valor estimado dos imoveis proprios, proporcional a propriedade, ao valor confirmado das participacoes em BIAs pelo MAP; dividas ficam separadas.
 - `Valor de aquisicao` soma o valor pago proporcional dos imoveis aos aportes oficiais nas BIAs.
 - `Valorizacao registrada` considera somente ativos que possuam valor atual/estimado e base de aquisicao/aporte.
-- A estimativa automatica usa no minimo tres anuncios do mesmo tipo com distancia geocodificada de ate 10 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao humana.
+- A estimativa automatica da aba Analise usa no minimo tres anuncios do mesmo tipo com distancia geocodificada de ate 20 km, vale por 30 dias e nao substitui o valor oficial sem confirmacao humana.
 - O resumo nao chama servicos externos; pesquisas e cotacoes desatualizadas sao renovadas em segundo plano e resultados validos permanecem disponiveis durante falhas.
 - Consolidacoes multimoeda usam a ultima cotacao de venda PTAX persistida; sem cotacao, a moeda e identificada e excluida do total, nunca tratada silenciosamente como BRL.
 - Cada imovel registra a participacao percentual do usuario; aquisicao, valor atual, divida e concentracao usam essa fracao.

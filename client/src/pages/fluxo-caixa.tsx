@@ -3809,7 +3809,7 @@ export default function FluxoCaixaPage({
                 </div>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               {loadingFluxo ?(
                 <div className="space-y-2">
                   <Skeleton className="h-12" />
@@ -3824,8 +3824,8 @@ export default function FluxoCaixaPage({
                 </div>
               ) : (
                 <div className="w-full">
-                  <table className="w-full table-fixed text-sm" data-testid="table-lancamentos">
-                    <colgroup>
+                  <table className="block w-full text-sm md:table md:table-fixed" data-testid="table-lancamentos">
+                    <colgroup className="hidden md:table-column-group">
                       <col className="w-[5%]" />
                       <col className="w-[16%]" />
                       <col className="w-[15%]" />
@@ -3834,9 +3834,9 @@ export default function FluxoCaixaPage({
                       <col className="w-[17%]" />
                       <col className="w-[7%]" />
                     </colgroup>
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="py-3 px-2">
+                    <thead className="block md:table-header-group">
+                      <tr className="flex items-center border-b border-border pb-3 md:table-row md:pb-0">
+                        <th className="flex items-center gap-2 px-2 md:table-cell md:py-3">
                           <Checkbox
                             checked={allVisibleLancamentosSelected ?true : someVisibleLancamentosSelected ?"indeterminate" : false}
                             onCheckedChange={(checked) => toggleVisibleLancamentosSelection(checked === true)}
@@ -3844,23 +3844,24 @@ export default function FluxoCaixaPage({
                             disabled={fluxoItems.length === 0 || bulkDeleteMutation.isPending}
                             data-testid="checkbox-selecionar-lancamentos"
                           />
+                          <span className="text-sm font-medium text-muted-foreground md:hidden">Selecionar todos</span>
                         </th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Vencimento</th>
-                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Descrição</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Categoria</th>
-                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Detalhes</th>
-                        <th className="py-3 px-2"></th>
+                        <th className="hidden text-left py-3 px-2 font-medium text-muted-foreground md:table-cell">Vencimento</th>
+                        <th className="hidden text-right py-3 px-2 font-medium text-muted-foreground md:table-cell">Valor</th>
+                        <th className="hidden text-left py-3 px-2 font-medium text-muted-foreground md:table-cell">Descrição</th>
+                        <th className="hidden text-left py-3 px-2 font-medium text-muted-foreground md:table-cell">Categoria</th>
+                        <th className="hidden text-left py-3 px-2 font-medium text-muted-foreground md:table-cell">Detalhes</th>
+                        <th className="hidden py-3 px-2 md:table-cell"></th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="block space-y-3 pt-3 md:table-row-group md:space-y-0 md:p-0">
                       {fluxoItems.map((item) => {
                         const effective = isVencido(item) && item.status !== "pago" && item.status !== "cancelado" ?"vencido" : (item.status || null);
                         const statusConfig = getStatusConfig(effective as StatusPagamento | null);
                         return (
-                        <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lancamento-${item.id}`}>
+                        <tr key={item.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] rounded-lg border border-border/70 bg-background p-3 shadow-sm transition-colors hover:bg-muted/30 md:table-row md:rounded-none md:border-x-0 md:border-t-0 md:p-0 md:shadow-none" data-testid={`row-lancamento-${item.id}`}>
                           {/* Seleção */}
-                          <td className="py-2 px-2 align-top">
+                          <td className="col-start-1 row-start-1 pt-0.5 align-top md:table-cell md:py-2 md:px-2">
                             <Checkbox
                               checked={selectedLancamentoIds.includes(item.id)}
                               onCheckedChange={(checked) => toggleLancamentoSelection(item.id, checked === true)}
@@ -3870,7 +3871,7 @@ export default function FluxoCaixaPage({
                             />
                           </td>
                           {/* Vencimento */}
-                          <td className="py-2 px-2 align-top text-sm" data-testid={`text-vencimento-${item.id}`}>
+                          <td className="col-start-2 row-start-1 min-w-0 px-3 pb-3 align-top text-sm md:table-cell md:py-2 md:px-2" data-testid={`text-vencimento-${item.id}`}>
                             {(() => {
                               const { label, color, Icon } = statusConfig;
                               return (
@@ -3892,13 +3893,18 @@ export default function FluxoCaixaPage({
                             })()}
                           </td>
                           {/* Valor */}
-                          <td className={`py-2 px-2 align-top text-right font-semibold whitespace-normal break-words ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
-                            {item.tipo === "entrada" ?"+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}
+                          <td className={`col-start-2 col-end-4 row-start-2 flex min-w-0 items-center justify-between gap-3 border-t border-border/60 px-3 pt-3 align-top font-semibold md:table-cell md:border-0 md:py-2 md:px-2 md:text-right ${item.tipo === "entrada" ?"text-green-600" : "text-red-600"}`}>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:hidden">Valor</span>
+                            <span className="whitespace-nowrap tabular-nums">{item.tipo === "entrada" ?"+" : "-"}{formatBRL(parseFloat(String(item.valor)) || 0)}</span>
                           </td>
                           {/* Descrição */}
-                          <td className="py-2 px-2 align-top break-words" data-testid={`text-descricao-${item.id}`}>{item.descricao || "-"}</td>
+                          <td className="col-start-2 col-end-4 row-start-3 min-w-0 px-3 pt-3 align-top break-words md:table-cell md:py-2 md:px-2" data-testid={`text-descricao-${item.id}`}>
+                            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:hidden">Descrição</span>
+                            {item.descricao || "-"}
+                          </td>
                           {/* Categoria */}
-                          <td className="py-2 px-2 align-top">
+                          <td className="col-start-2 col-end-4 row-start-4 min-w-0 px-3 pt-3 align-top md:table-cell md:py-2 md:px-2">
+                            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:hidden">Categoria</span>
                             {item.Categoria && item.Categoria.length > 0 ?(
                               <Badge variant="outline" className={`inline-flex max-w-full items-start gap-1 whitespace-normal text-left leading-tight ${statusConfig.color}`}>
                                 <Tag className="w-3 h-3 shrink-0 mt-0.5" />
@@ -3907,7 +3913,8 @@ export default function FluxoCaixaPage({
                             ) : "-"}
                           </td>
                           {/* Detalhes */}
-                          <td className="py-2 px-2 align-top">
+                          <td className="col-start-2 col-end-4 row-start-5 min-w-0 px-3 pt-3 align-top md:table-cell md:py-2 md:px-2">
+                            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground md:hidden">Favorecido e CPP</span>
                             <div className="flex flex-col gap-1.5 text-xs">
                               <div data-testid={`text-favorecido-${item.id}`}>
                                 {item.Favorecido && item.Favorecido.length > 0 ?(
@@ -3941,7 +3948,7 @@ export default function FluxoCaixaPage({
                               </div>
                             </div>
                           </td>
-                          <td className="py-2 px-2 align-top">
+                          <td className="col-start-3 row-start-1 align-top md:table-cell md:py-2 md:px-2">
                             <div className="flex justify-end">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

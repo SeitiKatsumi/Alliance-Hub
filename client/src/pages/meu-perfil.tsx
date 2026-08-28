@@ -1547,6 +1547,18 @@ export default function MeuPerfilPage() {
         </div>
       </div>
       <div className="mt-4 space-y-3 text-xs">
+        {user?.membership?.active && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3" data-testid="membership-renewal-summary">
+            <p className="font-bold text-slate-700">Próxima renovação</p>
+            <p className="mt-1 text-sm font-semibold text-[#001D34]">
+              {user.membership.next_renewal_at
+                ? new Date(user.membership.next_renewal_at).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+                : "Sem data definida"}
+            </p>
+            {user.membership.frozen_at && <p className="mt-1 text-[11px] font-medium text-blue-700">Prazo congelado pela BUILT</p>}
+            {user.membership.billing_suspended && <p className="mt-1 text-[11px] font-medium text-amber-700">Cobrança suspensa pela BUILT</p>}
+          </div>
+        )}
         {membroId && (
           <a
             href={`/aura/${encodeURIComponent(membroId)}`}

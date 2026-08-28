@@ -1,6 +1,6 @@
 export const MARKET_AREA_TOLERANCE_M2 = 30;
 export const MARKET_MIN_COMPARABLES = 3;
-export const MARKET_RADIUS_KM = 10;
+export const MARKET_RADIUS_KM = 20;
 
 export interface MarketComparable {
   titulo: string;
@@ -184,7 +184,7 @@ function normalizeComparable(
   const moeda = normalizeCurrency(row.moeda, target.moeda);
   const distanciaKm = Number(row.distancia_km);
 
-  if (!url || !sameType(target.tipo, tipo) || !sameRegion(target, row)) return null;
+  if (!url || !sameType(target.tipo, tipo) || (!target.exigirDistancia && !sameRegion(target, row))) return null;
   if (areaM2 < areaMin || areaM2 > areaMax || precoTotal <= 0) return null;
   if (moeda !== target.moeda.toUpperCase()) return null;
   if (target.exigirDistancia && (!Number.isFinite(distanciaKm) || distanciaKm < 0)) return null;

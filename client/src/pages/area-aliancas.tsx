@@ -1820,6 +1820,7 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
       </div>
 
       <Tabs value={activeTab} onValueChange={updateAreaTab} className="space-y-5">
+        {!forcedArea && (
         <TabsList className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto bg-muted/60 p-1">
           {!MEMBER_PORTFOLIO_V2_ENABLED && <TabsTrigger
             value="oportunidades"
@@ -1837,7 +1838,7 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
             <Briefcase className="h-4 w-4 shrink-0 text-orange-500" />
             BIAs
           </TabsTrigger>}
-          {(forcedArea === "landbank" || !MEMBER_PORTFOLIO_V2_ENABLED) && <TabsTrigger
+          {!MEMBER_PORTFOLIO_V2_ENABLED && <TabsTrigger
             value="rede"
             className="min-w-max flex-1 gap-2 whitespace-nowrap text-muted-foreground data-[state=active]:text-foreground"
             data-testid="tab-area-rede"
@@ -1854,6 +1855,7 @@ export default function AreaAliancasPage({ forcedArea }: { forcedArea?: "landban
             Banco de Ativos
           </TabsTrigger>}
         </TabsList>
+        )}
 
         <TabsContent
           value="oportunidades"

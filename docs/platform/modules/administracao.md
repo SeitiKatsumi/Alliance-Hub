@@ -15,11 +15,13 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 - CRUD administrativo de membros/comunidades e configuracoes.
 - `/api/bia-estruturacao-solicitacoes*` para fila compartilhada com os papeis operacionais.
 - `/api/admin/monetization/policies*`, `/api/admin/bias/:id/monetization*` e `/api/admin/taxonomy/*` para politicas versionadas, termos imutaveis e nomes publicos.
+- `/api/admin/subscriptions*` lista e altera renovacoes de anuidade e Plano Empresa, incluindo suspensao de cobranca e congelamento/retomada do prazo.
 
 ## Dados e fontes de verdade
 
 - Indicadores agregam PostgreSQL, Directus e provedores; cada metrica deve informar fonte e janela.
 - `user_usage_events`, assinaturas empresariais, convites, anuncios e pagamentos alimentam monetizacao.
+- `membro_anuidades` e `company_plan_subscriptions` sao editados diretamente pelos controles de renovacao; nao ha copia administrativa paralela.
 - Administracao nao deve criar uma segunda copia editavel de dados sem sincronizacao declarada.
 - `monetization_policies` e a fonte versionada; `bia_billing_terms.snapshot` congela a versao aplicada e `bia_billing_charges` preserva competencias e IDs externos.
 
@@ -43,6 +45,7 @@ Permite operar membros, configuracoes, uso, estruturacao de BIAs, monetizacao e 
 - Acao de superadmin nao pode depender apenas de texto/e-mail no frontend.
 - Logs e relatorios mascaram PII.
 - RIG exige minimo de 1%, aprovacao administrativa e inicio institucional explicito. Governanca de R$ 600/mes comeca na competencia do 25o mes, sem rateio diario, e para de gerar novas competencias quando suspensa ou encerrada.
+- Toda alteracao de renovacao, suspensao ou congelamento exige admin/superadmin no backend e registra executor, assinatura, acao e resultado em `user_usage_events`.
 
 ## Efeitos e dependencias
 

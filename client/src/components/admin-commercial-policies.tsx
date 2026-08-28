@@ -11,6 +11,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 type Policy = { code: string; version: number; amount_cents?: number | null; minimum_rate?: string | number | null; status: string };
 type PublicLabel = { code: string; display_name: string; description?: string | null };
+type Subscription = { id: string; subscription_type: "company" | "member"; name: string; email?: string | null; status: string; renewal_at?: string | null; billing_suspended: boolean; frozen_at?: string | null; provider?: string | null };
 
 const POLICY_LABELS: Record<string, string> = {
   MEMBER_ANNUAL: "Anuidade do Membro Aliado",
@@ -28,6 +29,7 @@ export function AdminCommercialPolicies() {
   const { toast } = useToast();
   const policiesQuery = useQuery<Policy[]>({ queryKey: ["/api/admin/monetization/policies"] });
   const labelsQuery = useQuery<PublicLabel[]>({ queryKey: ["/api/taxonomy/public-labels"] });
+  const subscriptionsQuery = useQuery<Subscription[]>({ queryKey: ["/api/admin/subscriptions"] });
   const [policyCode, setPolicyCode] = useState("MEMBER_ANNUAL");
   const [policyValue, setPolicyValue] = useState("");
   const [labels, setLabels] = useState<Record<string, string>>({});
@@ -35,11 +37,21 @@ export function AdminCommercialPolicies() {
   const [segmentCodes, setSegmentCodes] = useState("");
   const [bia, setBia] = useState({ id: "", origin: "", rigPercent: "1", start: "" });
   const [biaData, setBiaData] = useState<any>(null);
+  const [subscriptionSearch, setSubscriptionSearch] = useState("");
+  const [renewalDates, setRenewalDates] = useState<Record<string, string>>({});
   const activePolicies = useMemo(() => (policiesQuery.data || []).filter((item) => item.status === "active"), [policiesQuery.data]);
+  const subscriptions = useMemo(() => {
+    const query = subscriptionSearch.trim().toLowerCase();
+    return (subscriptionsQuery.data || []).filter((item) => !query || `${item.name} ${item.email || ""}`.toLowerCase().includes(query));
+  }, [subscriptionSearch, subscriptionsQuery.data]);
 
   useEffect(() => {
     setLabels(Object.fromEntries((labelsQuery.data || []).map((item) => [item.code, item.display_name])));
   }, [labelsQuery.data]);
+
+  useEffect(() => {
+    setRenewalDates(Object.fromEntries((subscriptionsQuery.data || []).map((item) => [item.id, item.renewal_at ? item.renewal_at.slice(0, 10) : ""])));
+  }, [subscriptionsQuery.data]);
 
   const policyMutation = useMutation({
     mutationFn: () => request(`/api/admin/monetization/policies/${policyCode}`, "PUT", policyCode === "BIA_RIG"
@@ -82,6 +94,16 @@ export function AdminCommercialPolicies() {
     onError: (error: any) => toast({ title: "Não foi possível aprovar", description: error.message, variant: "destructive" }),
   });
 
+  const subscriptionMutation = useMutation({
+    mutationFn: ({ subscription, action }: { subscription: Subscription; action: string }) => request(
+      `/api/admin/subscriptions/${subscription.subscription_type}/${subscription.id}`,
+      "PATCH",
+      { action, ...(action === "set_renewal" ? { renewal_at: renewalDates[subscription.id] } : {}) },
+    ),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscriptions"] }); queryClient.invalidateQueries({ queryKey: ["/api/me"] }); toast({ title: "Assinatura atualizada" }); },
+    onError: (error: any) => toast({ title: "Não foi possível atualizar", description: error.message, variant: "destructive" }),
+  });
+
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-4 sm:p-6">
       <header><h1 className="text-2xl font-bold text-[#001D34]">Políticas comerciais</h1><p className="mt-1 text-sm text-slate-500">Valores versionados, nomes públicos e termos financeiros das BIAs.</p></header>
@@ -90,6 +112,31 @@ export function AdminCommercialPolicies() {
         <h2 className="font-semibold">Valores vigentes</h2>
         <div className="grid gap-3 md:grid-cols-2">{activePolicies.map((policy) => <div key={policy.code} className="rounded-md border p-3"><p className="text-sm font-medium">{POLICY_LABELS[policy.code] || policy.code}</p><p className="mt-1 text-xs text-slate-500">Versão {policy.version} · {policy.code === "BIA_RIG" ? `${Number(policy.minimum_rate) * 100}%` : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(policy.amount_cents || 0) / 100)}</p></div>)}</div>
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]"><Select value={policyCode} onValueChange={setPolicyCode}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(POLICY_LABELS).map(([code, label]) => <SelectItem key={code} value={code}>{label}</SelectItem>)}</SelectContent></Select><Input value={policyValue} onChange={(event) => setPolicyValue(event.target.value)} placeholder={policyCode === "BIA_RIG" ? "Percentual, ex.: 1" : "Valor em reais"} /><Button disabled={!policyValue || policyMutation.isPending} onClick={() => policyMutation.mutate()}><Save className="mr-2 h-4 w-4" />Criar nova versão</Button></div>
+      </section>
+
+      <section className="space-y-4 border-y py-5">
+        <div><h2 className="font-semibold">Renovações e cobranças</h2><p className="mt-1 text-xs text-slate-500">Edite a renovação, suspenda cobranças ou pause a contagem do prazo. Toda alteração fica auditada.</p></div>
+        <Input value={subscriptionSearch} onChange={(event) => setSubscriptionSearch(event.target.value)} placeholder="Buscar por nome ou e-mail" />
+        {subscriptionsQuery.isLoading ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : subscriptions.length === 0 ? <p className="text-sm text-slate-500">Nenhuma assinatura encontrada.</p> : (
+          <div className="space-y-3">
+            {subscriptions.map((subscription) => (
+              <div key={`${subscription.subscription_type}:${subscription.id}`} className="rounded-md border p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold">{subscription.name}</p><p className="truncate text-xs text-slate-500">{subscription.email || "Sem e-mail"} · {subscription.subscription_type === "company" ? "Plano Empresa" : "Membro Aliado"} · {subscription.status}</p></div>
+                  <div className="flex flex-wrap gap-1 text-[10px] font-semibold uppercase">{subscription.billing_suspended && <span className="rounded bg-amber-50 px-2 py-1 text-amber-700">Cobrança suspensa</span>}{subscription.frozen_at && <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">Prazo congelado</span>}</div>
+                </div>
+                <div className="mt-3 grid gap-2 lg:grid-cols-[170px_auto_auto]">
+                  <Input type="date" value={renewalDates[subscription.id] || ""} onChange={(event) => setRenewalDates((current) => ({ ...current, [subscription.id]: event.target.value }))} aria-label={`Renovação de ${subscription.name}`} />
+                  <Button variant="outline" disabled={!renewalDates[subscription.id] || subscriptionMutation.isPending} onClick={() => subscriptionMutation.mutate({ subscription, action: "set_renewal" })}>Salvar data</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" disabled={subscriptionMutation.isPending} onClick={() => subscriptionMutation.mutate({ subscription, action: subscription.billing_suspended ? "resume_billing" : "suspend_billing" })}>{subscription.billing_suspended ? "Retomar cobrança" : "Suspender cobrança"}</Button>
+                    <Button variant="outline" disabled={subscriptionMutation.isPending || !subscription.renewal_at} onClick={() => subscriptionMutation.mutate({ subscription, action: subscription.frozen_at ? "resume_time" : "freeze" })}>{subscription.frozen_at ? "Retomar prazo" : "Congelar prazo"}</Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-4 border-y py-5"><h2 className="font-semibold">Nomes públicos</h2>{(labelsQuery.data || []).map((item) => <div key={item.code} className="grid gap-2 sm:grid-cols-[180px_1fr_auto]"><Label className="self-center">{item.code}</Label><Input value={labels[item.code] || ""} onChange={(event) => setLabels({ ...labels, [item.code]: event.target.value })} /><Button variant="outline" onClick={() => labelMutation.mutate(item.code)}>Salvar</Button></div>)}</section>

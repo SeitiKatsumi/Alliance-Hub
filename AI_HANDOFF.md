@@ -9,6 +9,10 @@ Leia este arquivo antes de editar quando houver mais de um chat trabalhando nest
 - Em `client/src/pages/bia-detalhe.tsx`, as abas de nucleos agora sao liberadas por BIA e por cargo: admin/manager ve tudo; demais usuarios veem apenas Diretoria, Tecnico, Obra, Comercial ou Capital se o `membro_directus_id` estiver no campo correspondente daquela BIA.
 
 ## Tocando Agora
+- Este chat ajusta somente o layout mobile da lista de lancamentos em `fluxo-caixa.tsx`: as mesmas linhas passam a ser cartoes no celular e continuam tabela no desktop; dados, calculos, filtros, acoes e permissoes permanecem inalterados.
+- Este chat remove somente a navegacao geral "Rede" do `/banco-ativos`; Land Bank, Ativos Edificados e a Rede existente na Area de Aliancas permanecem preservados.
+- Este chat move o Pulso Patrimonial para dentro da aba Analise da Carteira e amplia a comparacao imobiliaria compartilhada para raio geocodificado de 20 km; valor oficial continua dependendo de confirmacao e o diagnostico continua recalculado depois do Pulso.
+- Este chat adicionou controle administrativo de renovacoes em `server/routes.ts`, `shared/schema.ts`, `shared/monetization.ts`, `admin-commercial-policies.tsx` e `meu-perfil.tsx`: data visivel ao titular, suspensao de cobranca e congelamento/retomada de prazo com auditoria. Testes (177), contrato e build passam; o typecheck permanece no baseline de 67 erros legados, sem erro novo nos arquivos alterados.
 - Este chat implementa em ondas o contrato Demanda -> proposta comercial -> OBA, taxonomias publicas e monetizacao. Ao tocar `server/routes.ts`, `client/src/pages/carteira.tsx` e telas de BIA/OBA, preserva as mudancas patrimoniais, `allowedNucleoTabs`, permissoes cumulativas e a reorganizacao de Alliances ja em andamento.
 - A primeira entrega centraliza regras em helpers compartilhados e mantem `carteira_demandas`, `opportunity_registry`, `opportunity_relations`, `opa_id` e rotas legadas compativeis; nao reabre acesso global a BIAs ou nucleos.
 - Este chat corrige somente o modal mobile de lançamentos da Carteira e expõe nele a leitura por IA já existente; não altera regras financeiras, permissões, BIAs ou OPAs.

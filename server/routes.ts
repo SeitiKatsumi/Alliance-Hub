@@ -48,6 +48,7 @@ import {
   companyCheckoutAmount,
   governanceCompetences,
   governanceStartsAt,
+  renewalAfterFreeze,
 } from "@shared/monetization";
 import { getPublicContributionAreas } from "@shared/contribution-areas";
 import { PUBLIC_LABELS } from "@shared/public-labels";
@@ -1474,6 +1475,8 @@ async function ensureCompanyPlanSubscriptionsTable() {
       activated_at timestamp,
       current_period_start timestamp DEFAULT now() NOT NULL,
       current_period_end timestamp,
+      billing_suspended boolean NOT NULL DEFAULT false,
+      frozen_at timestamp,
       free_until timestamp,
       created_at timestamp DEFAULT now() NOT NULL,
       updated_at timestamp DEFAULT now() NOT NULL
@@ -1486,6 +1489,8 @@ async function ensureCompanyPlanSubscriptionsTable() {
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS seat_limit integer NOT NULL DEFAULT 3`);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS renewal_price_cents integer NOT NULL DEFAULT 383640`);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS legacy_free boolean NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS billing_suspended boolean NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE company_plan_subscriptions ADD COLUMN IF NOT EXISTS frozen_at timestamp`);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN status SET DEFAULT 'disponivel'`);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN billing_mode SET DEFAULT 'annual'`);
   await db.execute(sql`ALTER TABLE company_plan_subscriptions ALTER COLUMN price_cents SET DEFAULT 383640`);
@@ -1978,6 +1983,7 @@ async function ensureMemberPortfolioTables() {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(), membro_id text NOT NULL, user_id text,
       comunidade_id text NOT NULL, provider text NOT NULL, valor numeric(14,2) NOT NULL,
       moeda text NOT NULL DEFAULT 'BRL', starts_at timestamp NOT NULL, ends_at timestamp NOT NULL,
+      billing_suspended boolean NOT NULL DEFAULT false, frozen_at timestamp,
       external_id text, status text NOT NULL DEFAULT 'pending', metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
       created_at timestamp DEFAULT now() NOT NULL, updated_at timestamp DEFAULT now() NOT NULL
     )
@@ -2013,6 +2019,8 @@ async function ensureMemberPortfolioTables() {
       CONSTRAINT carteira_cotacoes_cambio_moeda_data_uniq UNIQUE (moeda, data_cotacao)
     )
   `);
+  await db.execute(sql`ALTER TABLE membro_anuidades ADD COLUMN IF NOT EXISTS billing_suspended boolean NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE membro_anuidades ADD COLUMN IF NOT EXISTS frozen_at timestamp`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_carteira_cotacoes_cambio_latest ON carteira_cotacoes_cambio (moeda, data_cotacao DESC, fetched_at DESC)`);
 }
 
@@ -4208,6 +4216,105 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/subscriptions", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const query = String(req.query?.query || "").trim().toLowerCase();
+    try {
+      await Promise.all([ensureCompanyPlanSubscriptionsTable(), ensureMemberPortfolioTables()]);
+      const result: any = await db.execute(sql`
+        SELECT * FROM (
+          SELECT plan.id::text, 'company'::text AS subscription_type,
+            COALESCE(owner.nome, owner.email, plan.owner_user_id) AS name, owner.email,
+            plan.status, plan.current_period_end AS renewal_at, plan.billing_suspended,
+            plan.frozen_at, plan.provider
+          FROM company_plan_subscriptions plan
+          LEFT JOIN users owner ON owner.id::text = plan.owner_user_id
+          UNION ALL
+          SELECT membership.id::text, 'member'::text AS subscription_type,
+            COALESCE(member_user.nome, member_user.email, membership.membro_id) AS name, member_user.email,
+            membership.status, membership.ends_at AS renewal_at, membership.billing_suspended,
+            membership.frozen_at, membership.provider
+          FROM (
+            SELECT DISTINCT ON (membro_id) * FROM membro_anuidades
+            ORDER BY membro_id, ends_at DESC, created_at DESC
+          ) membership
+          LEFT JOIN LATERAL (
+            SELECT nome, email FROM users WHERE membro_directus_id = membership.membro_id ORDER BY created_at DESC LIMIT 1
+          ) member_user ON true
+        ) subscriptions
+        WHERE ${query} = '' OR lower(concat_ws(' ', name, email, subscription_type)) LIKE ${`%${query}%`}
+        ORDER BY frozen_at DESC NULLS LAST, renewal_at DESC NULLS LAST
+        LIMIT 200
+      `);
+      res.json(resultRows(result));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro ao carregar assinaturas" });
+    }
+  });
+
+  app.patch("/api/admin/subscriptions/:type/:id", async (req: any, res) => {
+    if (!isAdminRequest(req)) return res.status(403).json({ error: "Acesso administrativo necessário." });
+    const subscriptionType = String(req.params.type || "");
+    const subscriptionId = String(req.params.id || "");
+    const action = String(req.body?.action || "");
+    if (!["company", "member"].includes(subscriptionType)) return res.status(400).json({ error: "Tipo de assinatura inválido." });
+    if (!["set_renewal", "suspend_billing", "resume_billing", "freeze", "resume_time"].includes(action)) {
+      return res.status(400).json({ error: "Ação de assinatura inválida." });
+    }
+    const renewalDateText = String(req.body?.renewal_at || "");
+    const requestedRenewal = /^\d{4}-\d{2}-\d{2}$/.test(renewalDateText)
+      ? new Date(`${renewalDateText}T23:59:59.999Z`)
+      : null;
+    if (action === "set_renewal" && (!requestedRenewal || !Number.isFinite(requestedRenewal.getTime()))) {
+      return res.status(400).json({ error: "Informe uma data de renovação válida." });
+    }
+
+    try {
+      await Promise.all([ensureCompanyPlanSubscriptionsTable(), ensureMemberPortfolioTables()]);
+      const updated = await db.transaction(async (tx) => {
+        const currentResult: any = subscriptionType === "company"
+          ? await tx.execute(sql`SELECT * FROM company_plan_subscriptions WHERE id::text = ${subscriptionId} FOR UPDATE`)
+          : await tx.execute(sql`SELECT * FROM membro_anuidades WHERE id::text = ${subscriptionId} FOR UPDATE`);
+        const current = resultRows(currentResult)[0] || null;
+        if (!current) return null;
+        const renewalField = subscriptionType === "company" ? current.current_period_end : current.ends_at;
+        if (["freeze", "resume_time"].includes(action) && !renewalField) {
+          throw new Error("Esta assinatura não possui uma data de renovação para congelar.");
+        }
+        const resumedAt = new Date();
+        const resumedRenewal = action === "resume_time" && current.frozen_at
+          ? renewalAfterFreeze(new Date(renewalField), new Date(current.frozen_at), resumedAt)
+          : null;
+        const result: any = subscriptionType === "company"
+          ? await tx.execute(sql`
+              UPDATE company_plan_subscriptions SET
+                current_period_end = CASE WHEN ${action} = 'set_renewal' THEN ${requestedRenewal} WHEN ${action} = 'resume_time' AND frozen_at IS NOT NULL THEN ${resumedRenewal} ELSE current_period_end END,
+                billing_suspended = CASE WHEN ${action} = 'suspend_billing' THEN true WHEN ${action} = 'resume_billing' THEN false ELSE billing_suspended END,
+                frozen_at = CASE WHEN ${action} = 'freeze' THEN COALESCE(frozen_at, now()) WHEN ${action} = 'resume_time' THEN NULL ELSE frozen_at END,
+                updated_at = now()
+              WHERE id::text = ${subscriptionId} RETURNING *
+            `)
+          : await tx.execute(sql`
+              UPDATE membro_anuidades SET
+                ends_at = CASE WHEN ${action} = 'set_renewal' THEN ${requestedRenewal} WHEN ${action} = 'resume_time' AND frozen_at IS NOT NULL THEN ${resumedRenewal} ELSE ends_at END,
+                billing_suspended = CASE WHEN ${action} = 'suspend_billing' THEN true WHEN ${action} = 'resume_billing' THEN false ELSE billing_suspended END,
+                frozen_at = CASE WHEN ${action} = 'freeze' THEN COALESCE(frozen_at, now()) WHEN ${action} = 'resume_time' THEN NULL ELSE frozen_at END,
+                updated_at = now()
+              WHERE id::text = ${subscriptionId} RETURNING *
+            `);
+        const row = resultRows(result)[0];
+        return row ? { ...row, subscription_type: subscriptionType, renewal_at: subscriptionType === "company" ? row.current_period_end : row.ends_at } : null;
+      });
+      if (!updated) return res.status(404).json({ error: "Assinatura não encontrada." });
+      await recordUsageEvent(req, "subscription_control_changed", {
+        metadata: { subscription_id: subscriptionId, subscription_type: subscriptionType, action, renewal_at: updated.renewal_at || null },
+      });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(409).json({ error: error.message || "Erro ao alterar assinatura" });
+    }
+  });
+
   async function ensureCompanyPlanForOwner(ownerUserId: string): Promise<any> {
     await ensureCompanyPlanSubscriptionsTable();
     await db.execute(sql`
@@ -4239,14 +4346,15 @@ export async function registerRoutes(
       price_cents: priceCents,
       is_free: billingMode === "gratuito" || priceCents === 0,
       billing_required: billingMode !== "gratuito" && priceCents > 0,
-      can_manage_employees: plan?.status === "ativo",
+      can_manage_employees: isActiveCompanyPlan(plan),
       included_users: Number(plan?.seat_limit || COMPANY_INCLUDED_SEATS),
       renewal_price_cents: Number(plan?.renewal_price_cents || COMPANY_ANNUAL_PRICE_CENTS),
+      next_renewal_at: plan?.current_period_end || null,
     };
   }
 
   function isActiveCompanyPlan(plan: any) {
-    return Boolean(plan?.status === "ativo" && (!plan.current_period_end || new Date(plan.current_period_end) > new Date()));
+    return Boolean(plan?.status === "ativo" && (plan.frozen_at || !plan.current_period_end || new Date(plan.current_period_end) > new Date()));
   }
 
   async function activeIndividualMembershipForOwner(ownerUserId: string) {
@@ -4257,7 +4365,7 @@ export async function registerRoutes(
       WHERE owner.id::text = ${ownerUserId}
         AND membership.status = 'active'
         AND membership.starts_at <= now()
-        AND membership.ends_at > now()
+        AND (membership.frozen_at IS NOT NULL OR membership.ends_at > now())
       ORDER BY membership.ends_at DESC
       LIMIT 1
     `);
@@ -4295,7 +4403,7 @@ export async function registerRoutes(
       FROM company_plan_subscriptions plan
       LEFT JOIN company_employee_accounts employee ON employee.owner_user_id = plan.owner_user_id
       WHERE plan.status = 'ativo'
-        AND (plan.current_period_end IS NULL OR plan.current_period_end > now())
+        AND (plan.frozen_at IS NOT NULL OR plan.current_period_end IS NULL OR plan.current_period_end > now())
         AND (plan.owner_user_id = ${userId} OR (employee.employee_user_id = ${userId} AND employee.status = 'ativo'))
       LIMIT 1
     `).catch(() => ({ rows: [] } as any));
@@ -4467,9 +4575,10 @@ export async function registerRoutes(
     if (!ownerUserId) return;
     try {
       const plan = await ensureCompanyPlanForOwner(ownerUserId);
-      if (plan?.status === "ativo" && !plan?.legacy_free && (!plan?.current_period_end || new Date(plan.current_period_end) > new Date())) {
+      if (isActiveCompanyPlan(plan) && !plan?.legacy_free) {
         return res.status(409).json({ error: "O Plano Empresa já está ativo." });
       }
+      if (plan?.billing_suspended) return res.status(409).json({ error: "A cobrança deste plano está suspensa pela BUILT." });
       const individual = await activeIndividualMembershipForOwner(ownerUserId);
       const checkoutType = individual ? "upgrade" : "full";
       const amountCents = companyCheckoutAmount(Boolean(individual));
@@ -15764,7 +15873,7 @@ ${inputText.slice(0, 18000)}`,
     if (!(areaM2 > 0) || !(referenceValue > 0)) throw Object.assign(new Error("Informe área e valor do imóvel antes da pesquisa de mercado."), { status: 422 });
     const location = [imovel.endereco, imovel.numero, imovel.bairro, imovel.cidade, imovel.estado, imovel.pais, imovel.cep ? `CEP ${imovel.cep}` : ""]
       .filter(Boolean).join(", ");
-    if (!location) throw Object.assign(new Error("Informe o endereço do imóvel para validar o raio de 10 km."), { status: 422 });
+    if (!location) throw Object.assign(new Error(`Informe o endereço do imóvel para validar o raio de ${MARKET_RADIUS_KM} km.`), { status: 422 });
     const parsed = await analyzeM2WithWebSearch({
       origem: "carteira",
       nome: String(imovel.nome || "Imóvel"),
@@ -16299,7 +16408,7 @@ ${inputText.slice(0, 18000)}`,
           raio_km: MARKET_RADIUS_KM,
         },
         result,
-        "comparaveis-raio-10km-v1",
+        "comparaveis-raio-20km-v1",
       );
       res.json({ cached: false, analise: analysis, ...result });
     } catch (error: any) {
@@ -21166,7 +21275,8 @@ Dados do ativo:
 - Nome: ${params.nome}
 - Tipo/qualificação: ${params.tipo}
 - Localização/endereço: ${params.location}
-- Região obrigatória: ${requiredRegion}
+- Região de referência: ${requiredRegion}
+- Raio máximo: ${MARKET_RADIUS_KM} km do endereço do ativo
 - Valor total informado: ${params.valor.toFixed(2)} ${params.moeda}
 - Área: ${params.areaM2.toFixed(2)} m²
 - Faixa de área permitida: ${areaMin.toFixed(2)} a ${areaMax.toFixed(2)} m², inclusive
@@ -21175,9 +21285,9 @@ Dados do ativo:
 Instruções:
 - Use pesquisa web real e retorne somente anúncios individuais de venda com URL pública direta.
 - Não use índices genéricos, médias municipais, relatórios, páginas de busca sem imóvel específico, aluguel ou conhecimento interno.
-- Cada anúncio precisa ser do mesmo tipo do ativo, estar em ${requiredRegion} e ter área entre ${areaMin.toFixed(2)} e ${areaMax.toFixed(2)} m².
+- Cada anúncio precisa ser do mesmo tipo do ativo, estar em até ${MARKET_RADIUS_KM} km do endereço de referência e ter área entre ${areaMin.toFixed(2)} e ${areaMax.toFixed(2)} m².
 - Para cada anúncio, extraia o preço total de venda, a área, o tipo, o endereço público disponível, o bairro, a cidade, o estado, o país, a localização e a URL.
-- Procure até 12 anúncios válidos. Não amplie silenciosamente a região nem a faixa de área.
+- Procure até 12 anúncios válidos na região e em localidades próximas. Não ultrapasse o raio de ${MARKET_RADIUS_KM} km nem amplie a faixa de área.
 - Não calcule média, faixa, diferença, confiança ou classificação; o servidor fará esses cálculos.
 - Não invente anúncios, URLs, preços, áreas ou localizações. Quando um dado não estiver explícito na fonte, não inclua o anúncio.
 - Responda SOMENTE JSON minificado neste formato:
@@ -21225,6 +21335,7 @@ Instruções:
       const precoM2 = valor / areaM2;
       const location = [
         body.endereco,
+        body.numero,
         body.bairro,
         body.cidade,
         body.estado,
@@ -21245,7 +21356,7 @@ Instruções:
         moeda: String(body.moeda || "BRL"),
       });
       const verifiedComparables = await marketComparablesWithVerifiedDistance(parsed.comparaveis || parsed.imoveis, body);
-      if (!verifiedComparables) return res.status(422).json({ error: "Não foi possível validar a localização para aplicar o raio de 10 km." });
+      if (!verifiedComparables) return res.status(422).json({ error: `Não foi possível validar a localização para aplicar o raio de ${MARKET_RADIUS_KM} km.` });
       const analysis = buildComparableMarketAnalysis(verifiedComparables, {
         tipo: String(body.tipo || body.qualificacao || "Não informado"),
         bairro: String(body.bairro || ""),
@@ -22544,11 +22655,10 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
   });
 
   async function membershipSummary(membroId: string | null, userId: string, legacyMember: boolean, onboardingComplete: boolean) {
-    if (!membroId) return { condition: "registered", active: false, status: null, starts_at: null, ends_at: null, communities: [], requirements: { onboarding: onboardingComplete, aura: false, annual_fee: false, community: false } };
-    let rows = (await db.execute(sql`
+    let rows = membroId ? (await db.execute(sql`
       SELECT * FROM membro_anuidades WHERE membro_id = ${membroId} ORDER BY ends_at DESC, created_at DESC
-    `)).rows as any[];
-    if (!rows.length && legacyMember) {
+    `)).rows as any[] : [];
+    if (membroId && !rows.length && legacyMember) {
       const comunidade = await findMemberCommunityForAdesao(membroId).catch(() => null);
       if (comunidade?.id) {
         const startsAt = new Date();
@@ -22564,24 +22674,28 @@ Responda sempre em portuguÃªs brasileiro, de forma clara e objetiva.`;
     const now = new Date();
     const current = rows.find((row) => isMembershipActive(row, now)) || rows[0] || null;
     const companyPlanResult: any = await db.execute(sql`
-      SELECT plan.current_period_start AS starts_at, plan.current_period_end AS ends_at
+      SELECT plan.current_period_start AS starts_at, plan.current_period_end AS ends_at,
+        plan.billing_suspended, plan.frozen_at
       FROM company_plan_subscriptions plan
       LEFT JOIN company_employee_accounts employee ON employee.owner_user_id = plan.owner_user_id
       WHERE plan.status = 'ativo'
-        AND (plan.current_period_end IS NULL OR plan.current_period_end > now())
+        AND (plan.frozen_at IS NOT NULL OR plan.current_period_end IS NULL OR plan.current_period_end > now())
         AND (plan.owner_user_id = ${userId} OR (employee.employee_user_id = ${userId} AND employee.status = 'ativo'))
       LIMIT 1
     `).catch(() => ({ rows: [] } as any));
     const companyPlan = resultRows(companyPlanResult)[0] || null;
     const active = isMembershipActive(current, now) || Boolean(companyPlan);
-    const aura = Number((await db.execute(sql`SELECT count(*)::int AS total FROM aura_avaliacoes WHERE avaliado_membro_id = ${membroId}`)).rows?.[0]?.total || 0) > 0;
+    const aura = membroId ? Number((await db.execute(sql`SELECT count(*)::int AS total FROM aura_avaliacoes WHERE avaliado_membro_id = ${membroId}`)).rows?.[0]?.total || 0) > 0 : false;
     const communities = Array.from(new Set(rows.filter((row) => isMembershipActive(row, now)).map((row) => String(row.comunidade_id))));
     return {
       condition: active ? "member" : "registered",
       active,
-      status: current ? (String(current.status) === "active" && !active ? "expired" : current.status) : null,
-      starts_at: current?.starts_at || companyPlan?.starts_at || null,
-      ends_at: current?.ends_at || companyPlan?.ends_at || null,
+      status: companyPlan ? "active" : current ? (String(current.status) === "active" && !active ? "expired" : current.status) : null,
+      starts_at: companyPlan?.starts_at || current?.starts_at || null,
+      ends_at: companyPlan?.ends_at || current?.ends_at || null,
+      next_renewal_at: companyPlan?.ends_at || current?.ends_at || null,
+      billing_suspended: Boolean(companyPlan?.billing_suspended ?? current?.billing_suspended),
+      frozen_at: companyPlan?.frozen_at || current?.frozen_at || null,
       annual_fee_brl: BUILT_MEMBER_ANNUAL_FEE_BRL,
       communities,
       requirements: { onboarding: onboardingComplete, aura, annual_fee: active, community: communities.length > 0 },

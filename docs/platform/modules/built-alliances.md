@@ -9,6 +9,7 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - `/area-aliancas`, `/area-aliancas/oportunidades/:codigo`.
 - `/opas/:id`, `/bias`, `/bias/:id`.
 - `/land-bank/:id`, `/oportunidades*`.
+- `/banco-ativos` exibe diretamente Land Bank e Ativos Edificados, sem a navegacao geral de Rede da Area de Aliancas.
 - `/rastreabilidade/:codigo`.
 - Implementacao principal em `client/src/pages/area-aliancas.tsx`, `client/src/pages/opa-detalhe.tsx`, `client/src/pages/bias.tsx`, `client/src/pages/bia-detalhe.tsx`, `client/src/pages/land-bank-detalhe.tsx` e componentes de estruturacao/distribuicao.
 
@@ -57,6 +58,7 @@ Organiza oportunidades, OBAs/OPAs, Banco de Ativos, comunidades e o ciclo comple
 - Uma BIA originada de imovel somente ativa depois que todos os coproprietarios aceitam o MOU; Guardiao/Multiplicador e MAP inicial sao efetivados de forma idempotente.
 - Alocacao de MAP de origem participa do helper central, mas nao e receita, aporte ou entrada de caixa.
 - Abas da BIA persistem em URL para refresh e compartilhamento.
+- A rota dedicada do Banco de Ativos nao exibe a aba geral Rede; essa rede continua disponivel somente nos ambientes proprios.
 
 ## Efeitos e dependencias
 

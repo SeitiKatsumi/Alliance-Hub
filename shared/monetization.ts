@@ -10,6 +10,13 @@ export function companyCheckoutAmount(hasActiveIndividualMembership: boolean) {
   return hasActiveIndividualMembership ? COMPANY_UPGRADE_PRICE_CENTS : COMPANY_ANNUAL_PRICE_CENTS;
 }
 
+export function renewalAfterFreeze(renewalAt: Date, frozenAt: Date, resumedAt = new Date()): Date {
+  if (![renewalAt, frozenAt, resumedAt].every((date) => Number.isFinite(date.getTime())) || resumedAt < frozenAt) {
+    throw new Error("Período de congelamento inválido.");
+  }
+  return new Date(renewalAt.getTime() + resumedAt.getTime() - frozenAt.getTime());
+}
+
 export function calculateRigCents(originValue: unknown, rate: unknown): number | null {
   const value = Number(originValue);
   const percentage = Number(rate);

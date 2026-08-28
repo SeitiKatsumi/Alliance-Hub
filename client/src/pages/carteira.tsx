@@ -365,6 +365,7 @@ interface AccessResponse {
 interface MarketM2Analysis {
   amostra_suficiente: boolean;
   quantidade_comparaveis: number;
+  raio_km?: number;
   area_min: number;
   area_max: number;
   classificacao?: "abaixo" | "media" | "acima" | null;
@@ -1182,7 +1183,7 @@ export function CarteiraDashboardPanel({ compact = false }: { compact?: boolean 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Metric label="Patrimônio Total Estimado" value={money(totals?.patrimonio_total_estimado_brl ?? totals?.patrimonio_total ?? 0)} icon={Landmark} helper={`Dívidas informadas separadamente: ${money(totals?.divida || 0)}`} description={`Soma o valor estimado dos imóveis próprios, respeitando sua fração de propriedade, ao valor confirmado das participações nas BIAs pelo MAP. Dívidas e contas a pagar não são descontadas deste total.${currencyNotice}`} />
         <Metric label="Valor de aquisição" value={money(totals?.valor_aquisicao_total_brl ?? totals?.patrimonio_pago ?? 0)} icon={CircleDollarSign} description={`Soma o valor pago pelos imóveis, proporcional à sua propriedade, aos aportes oficiais realizados nas BIAs.${currencyNotice}`} />
-        <Metric label="Valor estimado dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma as estimativas dos imóveis em carteira. A pesquisa usa ao menos três anúncios comparáveis do mesmo tipo, dentro de um raio de até 10 km, e é renovada a cada 30 dias. Quando a pesquisa não está disponível, permanece o último valor válido ou o valor declarado.${currencyNotice}`} />
+        <Metric label="Valor estimado dos Imóveis Próprios" value={money(totals?.valor_estimado_imoveis_brl ?? totals?.patrimonio_atual ?? 0)} icon={Home} description={`Soma as estimativas dos imóveis em carteira. A pesquisa usa ao menos três anúncios comparáveis do mesmo tipo, dentro de um raio de até 20 km, e é renovada a cada 30 dias. Quando a pesquisa não está disponível, permanece o último valor válido ou o valor declarado.${currencyNotice}`} />
         <Metric label="Investido em alianças" value={money(totals?.investido_aliancas_brl ?? totals?.total_investido_aliancas ?? 0)} icon={Users} helper={`Valor oficial atual: ${money(totals?.valor_participacoes_aliancas_brl ?? totals?.valor_participacoes_aliancas ?? 0)}`} description={`Soma os aportes oficiais que você realizou nas BIAs. Uma BIA sem snapshot patrimonial confirmado permanece neste indicador, mas ainda não entra no Patrimônio Total Estimado.${currencyNotice}`} />
         <Metric label="Valorização registrada" value={money(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} icon={TrendingUp} tone={metricTone(totals?.valorizacao_registrada_brl ?? totals?.valorizacao ?? 0)} description={`Diferença entre o valor estimado e o valor de aquisição dos imóveis, somada à diferença entre as participações confirmadas nas BIAs e os aportes oficiais. Ativos sem as duas bases ficam fora deste cálculo.${valuationCoverageText}${currencyNotice}`} />
         <Metric label="Receitas" value={money(totals?.receitas || 0)} icon={HandCoins} tone="text-emerald-700" description={`Soma das receitas registradas para os imóveis no período selecionado (${period === "12m" ? "últimos 12 meses" : "todo o período"}).`} />
@@ -1546,11 +1547,12 @@ function DemandInterestsManager({ imovelId, demand }: { imovelId: string; demand
   );
 }
 
-const CARTEIRA_DETAIL_TABS = ["visao", "pulso", "documentos", "analise", "demandas", "acessos"] as const;
+const CARTEIRA_DETAIL_TABS = ["visao", "documentos", "analise", "demandas", "acessos"] as const;
 type CarteiraDetailTab = (typeof CARTEIRA_DETAIL_TABS)[number];
 
 function carteiraDetailTabFromSearch(search: string): CarteiraDetailTab {
   const requestedTab = new URLSearchParams(search).get("tab");
+  if (requestedTab === "pulso") return "analise";
   return CARTEIRA_DETAIL_TABS.includes(requestedTab as CarteiraDetailTab)
     ? requestedTab as CarteiraDetailTab
     : "visao";
@@ -1573,6 +1575,7 @@ function DetailPage({ id }: { id: string }) {
   const [originForm, setOriginForm] = useState({ nome_bia: "", valor_origem: "", ciente_divida: false, papeis: {} as Record<string, "guardiao" | "multiplicador"> });
   const [transferIdentifier, setTransferIdentifier] = useState("");
   const [pulseForm, setPulseForm] = useState({ ocupacao: "", receita: "", despesa: "", acontecimento: "", objetivo: "", data_referencia: new Date().toISOString().slice(0, 10) });
+  const [pulseOpen, setPulseOpen] = useState(() => new URLSearchParams(window.location.search).get("tab") === "pulso");
   const [pulsePreview, setPulsePreview] = useState<any | null>(null);
   const [importedLaunches, setImportedLaunches] = useState<any[]>([]);
   const [financingFile, setFinancingFile] = useState<File | null>(null);
@@ -1662,6 +1665,7 @@ function DetailPage({ id }: { id: string }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "pulso") setPulseOpen(true);
     const nextTab = carteiraDetailTabFromSearch(window.location.search);
 
     setActiveDetailTab((currentTab) => currentTab === nextTab ? currentTab : nextTab);
@@ -1683,8 +1687,8 @@ function DetailPage({ id }: { id: string }) {
   };
 
   const marketQuery = useQuery<MarketM2Analysis>({
-    queryKey: ["/api/ai/preco-m2", "carteira", id, imovel?.valor_atual, imovel?.area_m2, imovel?.bairro, imovel?.cidade],
-    enabled: Boolean(imovel && parseNumber(imovel.valor_atual) > 0 && parseNumber(imovel.area_m2) > 0 && (imovel.bairro || imovel.cidade)),
+    queryKey: ["/api/ai/preco-m2", "carteira", id, imovel?.valor_atual, imovel?.area_m2, imovel?.tipo, imovel?.endereco, imovel?.numero, imovel?.bairro, imovel?.cidade, imovel?.estado, imovel?.pais, imovel?.cep],
+    enabled: Boolean(activeDetailTab === "analise" && imovel && parseNumber(imovel.valor_atual) > 0 && parseNumber(imovel.area_m2) > 0 && (imovel.endereco || imovel.bairro || imovel.cidade || imovel.cep)),
     staleTime: 10 * 60 * 1000,
     queryFn: async () => (await apiRequest("POST", "/api/ai/preco-m2", {
       origem: "carteira",
@@ -1695,6 +1699,7 @@ function DetailPage({ id }: { id: string }) {
       moeda: imovel?.moeda,
       cep: imovel?.cep,
       endereco: imovel?.endereco,
+      numero: imovel?.numero,
       bairro: imovel?.bairro,
       cidade: imovel?.cidade,
       estado: imovel?.estado,
@@ -1757,7 +1762,7 @@ function DetailPage({ id }: { id: string }) {
       setImportedLaunches([]);
       setPulseForm({ ocupacao: "", receita: "", despesa: "", acontecimento: "", objetivo: "", data_referencia: new Date().toISOString().slice(0, 10) });
       invalidateAll();
-      toast({ title: "Pulso Patrimonial registrado" });
+      toast({ title: "Pulso Patrimonial registrado", description: "O diagnóstico do imóvel foi recalculado." });
     },
     onError: (error: any) => toast({ title: "Erro ao registrar o Pulso", description: error?.message, variant: "destructive" }),
   });
@@ -2096,9 +2101,8 @@ function DetailPage({ id }: { id: string }) {
       </div>
 
       <Tabs value={activeDetailTab} onValueChange={updateDetailTab} className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted/40 p-1 md:grid-cols-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/40 p-1 sm:grid-cols-5">
           <TabsTrigger value="visao"><Home className="mr-2 h-4 w-4" />Visão</TabsTrigger>
-          <TabsTrigger value="pulso"><RefreshCw className="mr-2 h-4 w-4" />Pulso</TabsTrigger>
           <TabsTrigger value="documentos"><FolderOpen className="mr-2 h-4 w-4" />Documentos</TabsTrigger>
           <TabsTrigger value="analise"><BarChart3 className="mr-2 h-4 w-4" />Análise</TabsTrigger>
           <TabsTrigger value="demandas"><Target className="mr-2 h-4 w-4" />Demandas</TabsTrigger>
@@ -2200,12 +2204,18 @@ function DetailPage({ id }: { id: string }) {
           </section>
         </TabsContent>
 
-        <TabsContent value="pulso" className="space-y-5">
-          <div className="max-w-3xl">
-            <h2 className="text-lg font-semibold">Pulso Patrimonial</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Cinco respostas curtas mantêm o imóvel atualizado sem refazer todo o cadastro.</p>
+        {activeDetailTab === "analise" && (
+        <section aria-label="Pulso Patrimonial" className="space-y-5 border-y py-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-3xl">
+              <h2 className="text-lg font-semibold">Pulso Patrimonial</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Atualize os dados para recalcular o diagnóstico e comparar o valor com imóveis em um raio de 20 km.</p>
+            </div>
+            <Button variant={pulseOpen ? "outline" : "default"} onClick={() => setPulseOpen((current) => !current)}>
+              <RefreshCw className="mr-2 h-4 w-4" />{pulseOpen ? "Fechar Pulso" : pulseDue(imovel) ? "Atualizar agora" : "Executar Pulso"}
+            </Button>
           </div>
-          {!canCollaborate ? (
+          {pulseOpen && (!canCollaborate ? (
             <div className="border-y py-10 text-center text-sm text-muted-foreground">Seu acesso é somente para leitura.</div>
           ) : (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -2235,8 +2245,8 @@ function DetailPage({ id }: { id: string }) {
                 <p className="mt-4 text-sm leading-relaxed text-muted-foreground">A IA apenas organiza o que foi informado. Nada é salvo ou substituído sem a sua confirmação.</p>
               </aside>
             </div>
-          )}
-          {pulsePreview && (
+          ))}
+          {pulseOpen && pulsePreview && (
             <section className="border-y border-blue-200 bg-blue-50/40 py-5">
               <div className="px-4">
                 <div className="flex items-center gap-2"><FileSearch className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">Prévia editável</h3></div>
@@ -2254,7 +2264,8 @@ function DetailPage({ id }: { id: string }) {
               </div>
             </section>
           )}
-        </TabsContent>
+        </section>
+        )}
 
         <TabsContent value="documentos" className="space-y-6">
           <div><h2 className="text-lg font-semibold">Documentos do imóvel</h2><p className="mt-1 text-sm text-muted-foreground">Arquivos organizados por tipo, versão, data e origem.</p></div>
@@ -2339,10 +2350,10 @@ function DetailPage({ id }: { id: string }) {
             <div className="px-4"><div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-blue-600" /><h3 className="font-semibold">IA de preço por m²</h3></div>
               {marketQuery.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Pesquisando imóveis comparáveis...</p> : marketQuery.data?.amostra_suficiente ? (
                 <>
-                  <p className="mt-3 text-sm text-blue-800">Baseado em {marketQuery.data.quantidade_comparaveis} imóveis comparáveis entre {marketQuery.data.area_min} e {marketQuery.data.area_max} m².</p>
+                  <p className="mt-3 text-sm text-blue-800">Baseado em {marketQuery.data.quantidade_comparaveis} imóveis comparáveis em até {marketQuery.data.raio_km || 20} km, entre {marketQuery.data.area_min} e {marketQuery.data.area_max} m².</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="border-y py-3"><p className="text-xs text-muted-foreground">Informado</p><p className="font-bold">{money(marketQuery.data.preco_m2_informado, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Referência média</p><p className="font-bold">{money(marketQuery.data.referencia_m2_media, imovel.moeda)}/m²</p></div><div className="border-y py-3"><p className="text-xs text-muted-foreground">Faixa</p><p className="font-bold">{money(marketQuery.data.referencia_m2_min, imovel.moeda)} – {money(marketQuery.data.referencia_m2_max, imovel.moeda)}</p></div></div>
                   {!!marketQuery.data.fontes?.length && <div className="mt-3 flex flex-wrap gap-2">{marketQuery.data.fontes.slice(0, 5).map((source, index) => <a key={`${source.url}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="text-xs text-blue-700 underline">Comparável {index + 1}</a>)}</div>}
-                  {canManage && Number(marketQuery.data.referencia_m2_media || 0) > 0 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-white p-3"><div><p className="text-xs text-muted-foreground">Valor sugerido para confirmação</p><p className="font-bold">{money(Number(marketQuery.data.referencia_m2_media) * parseNumber(imovel.area_m2), imovel.moeda)}</p></div><Button disabled={confirmMarketMutation.isPending} onClick={() => confirmMarketMutation.mutate()}>{confirmMarketMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar valor sugerido</Button></div>}
+                  {canManage && Number(marketQuery.data.referencia_m2_media || 0) > 0 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-200 bg-white p-3"><div><p className="text-xs text-muted-foreground">Valor sugerido para confirmação</p><p className="font-bold">{money(Number(marketQuery.data.referencia_m2_media) * parseNumber(imovel.area_m2), imovel.moeda)}</p></div><Button disabled={confirmMarketMutation.isPending} onClick={() => confirmMarketMutation.mutate()}>{confirmMarketMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Aceitar atualização</Button></div>}
                 </>
               ) : <p className="mt-3 text-sm text-muted-foreground">{marketQuery.data?.resumo || "Ainda não há comparáveis suficientes para exibir uma média."}</p>}
             </div>

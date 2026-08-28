@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildComparableMarketAnalysis, marketDistanceKm, marketLocationCandidates } from "./market-comparables";
+import { buildComparableMarketAnalysis, marketDistanceKm, marketLocationCandidates, MARKET_RADIUS_KM } from "./market-comparables";
 
 const target = {
   tipo: "Apartamento",
@@ -82,13 +82,14 @@ test("classifica acima e abaixo somente depois de ultrapassar 10%", () => {
   assert.equal(buildComparableMarketAnalysis(rows, { ...target, precoM2: 4_499 }).classificacao, "abaixo");
 });
 
-test("aplica raio inclusivo de 10 km quando a distância foi verificada", () => {
+test("aplica o raio padrão inclusivo de 20 km quando a distância foi verificada", () => {
   const result = buildComparableMarketAnalysis([
     comparable(1, 100, 500_000, { distancia_km: 0 }),
-    comparable(2, 120, 600_000, { distancia_km: 10 }),
-    comparable(3, 130, 650_000, { distancia_km: 10.01 }),
+    comparable(2, 120, 600_000, { bairro: "Município vizinho", cidade: "Valinhos", localizacao: "Valinhos", distancia_km: 20 }),
+    comparable(3, 130, 650_000, { distancia_km: 20.01 }),
     comparable(4, 140, 700_000),
-  ], { ...target, exigirDistancia: true, raioMaxKm: 10 });
+  ], { ...target, exigirDistancia: true });
+  assert.equal(MARKET_RADIUS_KM, 20);
   assert.equal(result.quantidade_comparaveis, 2);
   assert.equal(result.amostra_suficiente, false);
 });
